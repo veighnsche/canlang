@@ -3550,3 +3550,48 @@ it('runs original Event nullable resource release paths at their actual source s
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('executes only the original prepare branch with its own reached COUNT and helper DATA', {timeout:240000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-prepare-branch-count-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/rent-prepare-branch-count.can'),original=await readFile(join(root,'draft/apps/CanRent/CanRent.can'),'utf8'),text=await readFile(source,'utf8');
+  const start=original.indexOf('  export scenario prepare('),end=original.indexOf('\n  # Admit a fulfilled',start);
+  assert.ok(text.includes(original.slice(start,end).trimEnd()),'complete original prepare body remains authored');
+  for(const helper of ['benefit_request','charge_request','resource_evidence','report_booking'])assert.ok(text.includes(original.split('\n').find(line=>line.startsWith('  derive '+helper+'('))!),'original '+helper+' remains authored');
+  const{stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout)as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['billing','membership','pending','inactive-data-denied','billing-data-denied','identity-race','location-race','count-insert-race']){
+   const{now,identities,identity,user,team,membership}=await member('rent-prepare-'+mode,['rent_reservations.reception','rent_reservations.billing','rent_reservations.reservation_manager']);
+   const scope={app:'ConstructorCount',owner:team.team_id,ownerPackage:'rent_reservations'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'rent-state',fileStoreId:'rent-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+   const{store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+   await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+   const resource={model:asModel('rent_reservations.Resource'),id:asId('resource')},row=(model:string,id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({kind:'insert'as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
+   const money={minor:'300',currency:'EUR'},zero={minor:'0',currency:'EUR'},from=new Date(now+3600000).toISOString(),until=new Date(now+7200000).toISOString(),value={active:true,capacity:'7',pooled:false,timezone:'UTC'};
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    row('rent_catalog.Location','site',{active:true,name:'Original location',name_visible:!mode.endsWith('data-denied')}),
+    row('employee.Employee','worker',{user:{id:user.user_id},active:true,operator_wide:false,home:{id:'site'},locations:[]}),row('customer.Customer','customer',{active:true}),
+    row('rent_reservations.Resource','resource',{location:{id:'site'},...value,readable:true,name:'Original resource',price_unit:'hour'}),
+    row('rent_reservations.ResourcePolicy','existing',{effective:new Date(now).toISOString(),sequence:'1',baseline:false,value},resource),
+    row('rent_reservations.Booking','booking',{from,until,intervals:[{from,until}],quantity:'1',status:'held',checked_in:null,checked_out:null,arrival_buffer:'0',departure_buffer:'0',source:'original',reserved_until:until,overdue:false,cancellation_reason:null,customer:{id:'customer'},account:{id:user.user_id},benefit_intervals:[{from,until}],benefit_unit:'hour',benefit_duration:'3600000',benefit_rate:null,rate:money,billing_delivery:null,allowance_delivery:null,allowance:mode==='pending'?'pending':'not_required',payment:'pending',total:money,subtotal:money,discount:zero,tax:zero,monetary_due:zero,expires:new Date(now+60000).toISOString(),terms:'Original terms'},resource)
+   ]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.load=async(model,id)=>{if(mode==='identity-race'&&model==='work.dispatch'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return load(model,id);};
+   store.commit=async batch=>{if(!raced&&['location-race','count-insert-race'].includes(mode)&&batch.writes.some(write=>write.kind==='insert'&&write.model==='rent_reservations.BookingEvidence')){
+    raced=true;if(mode==='location-race'){const old=await load(asModel('rent_catalog.Location'),asId('site'));assert.ok(old);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('rent_catalog.Location'),id:old.id,expectedVersion:old.version,row:{...old,version:asVersion(old.version+1),data:{...old.data,name_visible:false}}}]}));}
+    else await commit(makeBatch(await store.readRevision(),{writes:[row('rent_reservations.ResourcePolicy','concurrent',{effective:new Date(now).toISOString(),sequence:'2',baseline:false,value},resource)]}));
+   }return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'rent_reservations.prepare',operation_id:operationId(now),inputs:{booking:{id:'booking',version:'1'},use_allowance:['membership','inactive-data-denied'].includes(mode)}};
+   const result=await invoker.invokeMutation(request,identity),success=!['billing-data-denied','identity-race','location-race'].includes(mode);assert.equal('result'in result&&result.result.status==='committed',success,mode+': '+JSON.stringify(result));
+   if(mode.endsWith('-race'))assert.ok(raced,mode);
+   const policies=await store.query({model:asModel('rent_reservations.ResourcePolicy'),authority:'owner'}),evidence=await store.query({model:asModel('rent_reservations.BookingEvidence'),authority:'owner'}),pending=await store.outboxPending(),booking=await load(asModel('rent_reservations.Booking'),asId('booking'));assert.ok(booking);
+   assert.equal(evidence.length,success?1:0,mode);assert.equal(policies.length,success?(mode==='count-insert-race'?3:2):1,mode);assert.equal(pending.length,success?1:0,mode);assert.equal(booking.data.status,success?'pending':'held',mode);
+   if(success){const allowance=['membership','pending','inactive-data-denied'].includes(mode);assert.equal(pending[0]!.target,allowance?'member_terms.MembershipV1.reserve':'invoice.BillingV1.charge',mode);assert.equal(booking.data[allowance?'allowance_delivery':'billing_delivery'],pending[0]!.intentId);assert.equal(evidence[0]!.data.sequence,mode==='count-insert-race'?'3':'2');assert.equal(evidence[0]!.data.key,'booking');assert.equal((evidence[0]!.data.value as{status:string}).status,'pending');
+    const payload=(pending[0]!.arguments as{arguments:{value:Record<string,unknown>}}).arguments.value;assert.equal(payload.source,'original');assert.equal(payload.location,'site');if(!allowance)assert.equal((payload.items as{location:string}[])[0]!.location,'Original location');
+    const saved=await store.readReceipt({app:scope.app,owner:scope.owner,principal:user.user_id,operation:request.operation,operationId:request.operation_id}as Parameters<typeof store.readReceipt>[0]);assert.ok(saved);assert.ok(saved.outcome.status==='committed');
+    const association=saved.outcome.scenario;assert.ok(association);assert.equal(association.queries?.length,1,'inactive branch COUNT must not be executed or saved');
+    const reached=association.plan.returns.find(returned=>returned.id===association.returnId);assert.ok(reached);assert.equal(reached.influences.length,4);assert.ok(reached.influences.every(influence=>influence.queryId===association.queries![0]!.queryId));
+    const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed',mode);assert.deepEqual(await store.outboxPending(),pending);assert.deepEqual(await store.query({model:asModel('rent_reservations.BookingEvidence'),authority:'owner'}),evidence);
+   }
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});

@@ -1,0 +1,136 @@
+app ConstructorCount uses=[rent_reservations]
+package rent_catalog
+ Given
+  export Location {active:bool=true,name:text="Location",name_visible:bool=true}
+  policy Location read=public fields=active,name_visible
+  policy Location read=members and row.name_visible fields=name
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,active:bool=true,operator_wide:bool=false,home:Location,locations:Location[]= []}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members
+ When
+ Then
+package customer
+ Given
+  export Customer {active:bool=true}
+  policy Customer read=members
+ When
+ Then
+package member_terms
+ use std {OperationOutcome}
+ Given
+  Benefit {unit:enum(hour,day)=hour}
+  BenefitRequest {state:enum(staged,reserved,consumed,released)=reserved}
+  export contract BenefitInterval { from:datetime, until:datetime }
+  export contract Entitlement { source:text, customer:text, account:user, location:text, product:text, intervals:BenefitInterval[]!, quantity:int, unit:Benefit.unit, duration:duration, rate:money, previous_source:text?, restore_consumed:bool=false }
+  export contract AllowanceOutcome { source:text, revision:int, state:OperationOutcome.state, phase:BenefitRequest.state, reference:text?, detail:text?, units:decimal, covered_units:decimal, overage:money, unit:Benefit.unit, duration:duration, rate:money }
+  export capability MembershipV1 version=1
+   reserve(value:Entitlement) -> AllowanceOutcome
+ When
+ Then
+package invoice
+ use std {OperationOutcome}
+ Given
+  message notice_invoice_issued = "Invoice issued"@{nl="Factuur uitgegeven"}
+  message page_finance_invoice_Invoice_id_title = "Invoice"@{nl="Factuur"}
+  message label_Charge_source = "Source reference"@{nl="Bronreferentie"}
+  message label_Charge_customer = "Customer"@{nl="Klant"}
+  message label_Charge_consent = "Recurrence consent"@{nl="Toestemming voor herhaling"}
+  message label_Settlement_received = "Received at"@{nl="Ontvangen op"}
+  message label_Settlement_state = "State"@{nl="Status"}
+  message label_Settlement_state_paid = "Paid"@{nl="Betaald"}
+  message label_Settlement_state_void = "Void"@{nl="Ongeldig"}
+  message label_Settlement_state_unknown = "Unknown"@{nl="Onbekend"}
+  message label_DocumentLine_tax = "Tax"@{nl="Belasting"}
+  message label_DocumentLine_discount = "Discount"@{nl="Korting"}
+  message label_InvoiceDocument_issuer = "Issuer"@{nl="Uitgever"}
+  message label_InvoiceDocument_recipient = "Recipient"@{nl="Ontvanger"}
+  message label_InvoiceDocument_tax_reference = "Tax reference"@{nl="Belastingreferentie"}
+  message label_InvoiceDocument_number = "Invoice number"@{nl="Factuurnummer"}
+  message label_InvoiceDocument_issued_at = "Issued at"@{nl="Uitgegeven op"}
+  message label_InvoiceDocument_credits = "Credits"@{nl="Credits"}
+  message label_PdfResult_document = "Generate document"@{nl="Document genereren"}
+  message label_Attempt = "Payment attempt"@{nl="Betaalpoging"}
+  message label_Attempt_delivery = "Delivery reference"@{nl="Verzendingsreferentie"}
+  message label_Credit_author = "Author"@{nl="Auteur"}
+  export contract DocumentLine { title:text, quantity:decimal, price:money, tax:money label=label_DocumentLine_tax, discount:money label=label_DocumentLine_discount, unit:text?, from:datetime?, until:datetime?, location:text?, reference:text? } label="Document line"@{nl="Documentregel"}
+  export contract Charge { source:text label=label_Charge_source, customer:text label=label_Charge_customer, location:text, description:text, amount:money, due:date, issuer:text?, terms:text?, items:DocumentLine[]?, consent:text? label=label_Charge_consent } label="Charge"@{nl="Kostenpost"}
+  export capability BillingV1 version=1
+   charge(value:Charge) -> OperationOutcome
+ When
+ Then
+package rent_reservations
+ use rent_catalog {Location}
+ use employee {can_work}
+ use customer {Customer}
+ use member_terms {MembershipV1 as Membership,Entitlement,BenefitInterval,AllowanceOutcome} from=deployment.membership
+ use invoice {BillingV1 as Billing,DocumentLine,Charge} from=deployment.billing
+ Given
+  message label_hold_use_allowance = "Use membership allowance"@{nl="Lidmaatschapstegoed gebruiken"}
+  role reservation_manager
+  role reception
+  role billing
+  contract BookingInterval {from:datetime,until:datetime}
+  Booking in Resource {from:datetime,until:datetime,intervals:BookingInterval[],quantity:int=1,status:enum(held,pending,confirmed,occupied,completed,cancelled,expired,review,no_show)=occupied,checked_in:datetime?,checked_out:datetime?,arrival_buffer:duration=0m,departure_buffer:duration=0m,source:text,reserved_until:datetime,overdue:bool=false,cancellation_reason:text?,customer:Customer,account:user,benefit_intervals:BenefitInterval[],benefit_unit:Resource.price_unit,benefit_duration:duration,benefit_rate:money?,rate:money,billing_delivery:text?,allowance_delivery:text?,allowance:enum(not_required,pending,reserved,consumed,released,unknown,failed)=not_required,payment:enum(pending,paid,free,on_account)=pending,total:money,subtotal:money,discount:money,tax:money,monetary_due:money,expires:datetime,terms:text?}
+  contract ReportBooking {from:datetime,until:datetime,intervals:BookingInterval[],quantity:int,status:Booking.status,checked_in:datetime?,checked_out:datetime?,arrival_buffer:duration,departure_buffer:duration}
+  BookingEvidence in Resource {sequence:int,key:text,value:ReportBooking?}
+  policy Booking read=reception or billing
+  policy BookingEvidence read=reception or billing
+  unique BookingEvidence fields=sequence,key
+  lock BookingEvidence fields=sequence,key,value
+  invariant BookingEvidence: any(row.parent.ResourcePolicy as capture,capture.sequence==row.sequence)
+  event ReservationChanged {booking:Booking,revision:int}
+  Resource {location:Location,active:bool=true,capacity:int,pooled:bool=false,timezone:timezone,readable:bool=true,name:text="Resource",price_unit:enum(hour,day)=hour}
+  Downtime in Resource {source:text unique,from:datetime,until:datetime?,reason:text,active:bool=true,verified_by:user?,verification:text?}
+  contract ResourceEvidence {active:bool,capacity:int,pooled:bool,timezone:timezone}
+  ResourcePolicy in Resource {effective:datetime server=now,sequence:int,baseline:bool=false,value:ResourceEvidence}
+  unique ResourcePolicy fields=sequence
+  lock ResourcePolicy fields=effective,sequence,baseline,value
+  policy Resource read=public where=row.readable
+  policy Downtime read=reservation_manager and can_work(actor,row.parent.location)
+  policy ResourcePolicy read=reservation_manager and can_work(actor,row.parent.location)
+  derive resource_evidence(resource:Resource):ResourceEvidence = ResourceEvidence {active=resource.active,capacity=resource.capacity,pooled=resource.pooled,timezone=resource.timezone}
+  derive membership_unit(unit:Resource.price_unit):Entitlement.unit = first([Entitlement.unit.hour] as selected where unit==Resource.price_unit.hour) ?? Entitlement.unit.day
+  derive benefit_request(booking:Booking):Entitlement = Entitlement {source=booking.source,customer=booking.customer.id,account=booking.account,location=booking.parent.location.id,product="workspace",intervals=booking.benefit_intervals,quantity=booking.quantity,unit=membership_unit(booking.benefit_unit),duration=booking.benefit_duration,rate=booking.benefit_rate ?? booking.rate,previous_source=null,restore_consumed=false}
+  derive charge_request(booking:Booking,base:money,discount:money,tax:money):Charge = Charge {source=booking.source,customer=booking.customer.id,location=booking.parent.location.id,description=booking.parent.name,amount=base-discount+tax,due=local_date(booking.from,booking.parent.timezone),terms=booking.terms,items=[DocumentLine {title=booking.parent.name,quantity=1,price=base,tax,discount,unit="reservation",from=booking.from,until=booking.until,location=booking.parent.location.name,reference=booking.source}]}
+  derive report_booking(booking:Booking):ReportBooking = ReportBooking {from=booking.from,until=booking.until,intervals=booking.intervals,quantity=booking.quantity,status=booking.status,checked_in=booking.checked_in,checked_out=booking.checked_out,arrival_buffer=booking.arrival_buffer,departure_buffer=booking.departure_buffer}
+ When
+  scenario block(resource:Resource,from:datetime,until:datetime?,reason:text) by=reservation_manager
+   require can_work(actor,resource.location) and trim(reason)!="" and (until==null or from<until)
+   do
+    create Downtime {parent=resource,source=operation.id,from,until,reason} as downtime
+    create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1
+  scenario restore(downtime:Downtime,evidence:text) by=reservation_manager label="Restore availability"@{nl="Beschikbaarheid herstellen"}
+   require can_work(actor,downtime.parent.location) and downtime.active and trim(evidence)!=""
+   do
+    set downtime {active=false,verified_by=actor,verification=evidence}
+    create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1
+  export scenario no_show(booking:Booking,reason:text) by=reception label="Record no-show"@{nl="Niet verschijnen vastleggen"}
+   require can_work(actor,booking.parent.location) and booking.status==confirmed and booking.checked_in==null and booking.until<=now and trim(reason)!=""
+   do
+    set booking {status=Booking.status.no_show,cancellation_reason=reason}
+    create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
+    emit ReservationChanged {booking,revision=booking.version+1}
+  scenario observed on=ReservationChanged
+   require event.revision==event.booking.version
+   do set event.booking {overdue=false}
+
+  export scenario prepare(booking:Booking,use_allowance:bool=false label=label_hold_use_allowance) by=authenticated or reception label="Request booking fulfillment"@{nl="Reserveringsuitvoering aanvragen"}
+   require (booking.account==actor or (reception and can_work(actor,booking.parent.location))) and booking.status==held and booking.billing_delivery==null and now<booking.expires and booking.total.minor>0
+   do
+    if use_allowance or booking.allowance==pending
+     send Membership.reserve {value=benefit_request(booking)} as allocation
+     set booking {status=pending,allowance=pending,allowance_delivery=allocation.id}
+     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+     create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
+    else
+     send Billing.charge {value=charge_request(booking,booking.subtotal,booking.discount,booking.tax)} as charge
+     set booking {status=pending,payment=pending,billing_delivery=charge.id,monetary_due=booking.total}
+     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_2
+     create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_2.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_2
+ Then

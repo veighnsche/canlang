@@ -2928,3 +2928,53 @@ fn original_event_release_keeps_declared_nullable_identity_edges() {
   changed.types.symbol_types.insert(field,ty);let(_,diagnostics)=prepared_artifact(&changed,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"foreign={foreign}: {diagnostics:?}");
  }
 }
+
+#[test]
+fn original_prepare_branch_counts_keep_independent_current_domains() {
+ let source=include_str!("fixtures/rent-prepare-branch-count.can");
+ let (db,program,ir,catalog)=fixture_source("rent-prepare-branch-count.can",source);
+ let owner=item(&ir,"rent_reservations.prepare");
+ assert!(matches!(ir.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)));
+ let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);
+ assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let operation=artifact["operations"].as_array().unwrap().iter().find(|value|value["name"]=="rent_reservations.prepare").unwrap();
+ assert!(operation["result"]["disclosure"].is_object(),"original full owner needs its real native receipt");
+}
+
+#[test]
+fn original_prepare_branch_count_metadata_cannot_drop_reached_observations() {
+ let source=include_str!("fixtures/rent-prepare-branch-count.can");
+ let(db,program,ir,catalog)=fixture_source("rent-prepare-branch-count.can",source);
+ let owner=item(&ir,"rent_reservations.prepare");
+ let module="$can$m$72656e745f7265736572766174696f6e73.mjs";
+ assert!(serialize_complete_query_receipt(&program,&ir,owner,&db,Some(&catalog),module).is_some());
+ let ScenarioDisclosure::Complete(proof)=&ir.scenario_disclosures[&owner.id] else{panic!("complete")};
+ assert!(proof.returns.iter().all(|returned|returned.influences.len()==4));
+ let reached=proof.returns.iter().map(|returned|returned.influences[0].query_id.clone()).collect::<std::collections::HashSet<_>>();
+ assert_eq!(reached.len(),2,"both authored arms retain their distinct reached COUNT");
+ for mode in ["drop-reached-count","wrong-branch-query","decision-node","decision-calls","return-id","return-source","helper-field-type","branch-order","branch-condition"] {
+  let mut changed=ir.clone();
+  if mode=="helper-field-type" {
+   let field=item(&changed,"rent_catalog.Location.name").id;
+   let IrItemKind::Field{ty,..}=&mut changed.items[field.0 as usize].kind else{panic!("field")};
+   *ty=IrType::Known(ResolvedType::Scalar(Scalar::Int));
+  } else if mode.starts_with("branch-"){
+   let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("owner")};
+   let IrStmt::If{cond,then_branch,..}=&mut effects[0] else{panic!("branch")};
+   if mode=="branch-order"{then_branch.swap(1,2);}else{cond.expr=IrExpr::Bool(false);}
+  } else {
+   let ScenarioDisclosure::Complete(proof)=changed.scenario_disclosures.get_mut(&owner.id).unwrap() else{panic!("complete")};
+   match mode {
+    "drop-reached-count"=>proof.returns[0].influences.clear(),
+    "wrong-branch-query"=>{let other=proof.returns.iter().find(|returned|returned.influences[0].query_id!=proof.returns[0].influences[0].query_id).unwrap().influences.clone();proof.returns[0].influences=other;},
+    "decision-node"=>proof.returns[0].decisions[0].node.start+=1,
+    "decision-calls"=>{let node=proof.returns[0].decisions[0].node;proof.returns[0].decisions[0].calls.push(node);}
+    "return-id"=>proof.returns[0].id.push_str("-changed"),
+    "return-source"=>proof.returns[0].source.sha256.push('0'),
+    _=>unreachable!(),
+   }
+  }
+  if mode=="helper-field-type"{let emitted=js::emit_program_with_native_source_receipts(&changed,true,&db);assert!(emitted.diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {:?}",emitted.diagnostics);}
+  else{assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),module).is_none(),"{mode} borrowed original branch COUNT authority");}
+ }
+}

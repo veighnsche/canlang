@@ -2225,6 +2225,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             };
             let Some(pairs) = checked_profile_scalar_pairs(ir, item, expression, db)
                 .or_else(|| checked_reference_receiver_pairs(ir, item, expression, db))
+                .or_else(|| checked_helper_reference_scalar_pairs(source_context?, item, expression))
             else {
                 continue;
             };
@@ -2483,7 +2484,6 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             native_return.decisions.push((key, decision.choice.clone()));
         }
         for dependency in &returned.dependencies {
-
             let result_identity = match returned.model_result {
                 Some(
                     DisclosureModelResult::Parameter { model, node, .. }
@@ -5780,10 +5780,10 @@ pub(super) fn constructor_count_queries<'a>(facts:&'a crate::analysis::scenario_
             sites.next()?;if sites.next().is_some(){return None;}
         }
     }
-    if counts.len()!=1{return None;}
+    if counts.is_empty()||counts.len()>2{return None;}
     Some(counts)
 }
-fn constructor_count_influences(facts:&crate::analysis::scenario_disclosure::CheckedScenarioSource)
+pub(super) fn constructor_count_influences(facts:&crate::analysis::scenario_disclosure::CheckedScenarioSource)
     ->Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
     Some(constructor_count_queries(facts)?.into_iter().flat_map(|query|query.influences.clone()).collect())
 }
@@ -5827,33 +5827,25 @@ pub(super) fn checked_scenario_query_influences(
 /// Merge already checked individual selectors, retaining original query and
 /// Return identity/order. Each individual plan contributes only its own four
 /// influences; no complete recipe or ordinary observations are reconstructed.
-fn merged_return_extendable(
-    returned: &ReceiptReturn,
-    counted: &ReceiptReturn,
-    query_len: usize,
-) -> bool {
-    let Some(returned_source) = serde_json::to_value(&returned.source).ok() else {
-        return false;
-    };
-    let Some(counted_source) = serde_json::to_value(&counted.source).ok() else {
-        return false;
-    };
-    returned.id == counted.id
-        && returned_source == counted_source
-        && returned.influences.len() == 4 * query_len
-        && counted.influences.len() == 4
-        && returned.dependencies.is_empty()
-        && counted.dependencies.is_empty()
-        && returned.intrinsics.is_empty()
-        && counted.intrinsics.is_empty()
-        && returned.projection.is_none()
-        && counted.projection.is_none()
-        && !returned.influences.iter().any(|influence| {
-            counted
-                .influences
-                .iter()
-                .any(|other| other.id == influence.id)
+fn merged_return_extendable(returned:&ReceiptReturn,counted:&ReceiptReturn,
+    queries:&[ReceiptQuery],added:&ReceiptQuery)->bool {
+    fn subsets(influences:&[ReceiptInfluence],queries:&[ReceiptQuery])->bool {
+        let mut ids=HashSet::new();
+        if influences.iter().any(|influence|!ids.insert(&influence.id)
+            ||!queries.iter().any(|query|influence.query_id.as_deref()==Some(query.id.as_str()))){return false;}
+        queries.iter().all(|query|{
+            let selected:Vec<_>=influences.iter().filter(|value|value.query_id.as_deref()==Some(query.id.as_str())).collect();
+            let kinds:HashSet<_>=selected.iter().map(|value|value.kind.as_str()).collect();
+            selected.is_empty()||selected.len()==4&&kinds==HashSet::from(["query-existence","query-cardinality","query-membership","query-order"])
         })
+    }
+    returned.id==counted.id
+        &&serde_json::to_value(&returned.source).ok()==serde_json::to_value(&counted.source).ok()
+        &&returned.dependencies.is_empty()&&counted.dependencies.is_empty()
+        &&returned.intrinsics.is_empty()&&counted.intrinsics.is_empty()
+        &&returned.projection.is_none()&&counted.projection.is_none()
+        &&subsets(&returned.influences,queries)&&subsets(&counted.influences,std::slice::from_ref(added))
+        &&!returned.influences.iter().any(|value|counted.influences.iter().any(|other|other.id==value.id))
 }
 
 pub(super) fn merge_native_query_plans(
@@ -5874,7 +5866,7 @@ pub(super) fn merge_native_query_plans(
         return None;
     }
     for (returned, counted) in first.returns.iter_mut().zip(count.returns) {
-        if !merged_return_extendable(returned, &counted, first.queries.len()) {
+        if !merged_return_extendable(returned, &counted, &first.queries, &count.queries[0]) {
             return None;
         }
         returned.influences.extend(counted.influences);
@@ -5944,6 +5936,13 @@ fn first_query_expected_plan(
     db: &SourceDb,
     source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
+    if queries.len()==2&&queries.iter().all(|query|query.count.is_some()) {
+        let originals=constructor_count_queries(checked.source_facts.as_deref()?)?;
+        if !originals.iter().copied().eq(queries.iter()){return None;}
+        let first=checked_native_count_query_plan(ir,owner,&queries[0],db,entry_module,source_context)?;
+        let second=checked_native_count_query_plan(ir,owner,&queries[1],db,entry_module,source_context)?;
+        return merge_native_query_plans(first,second);
+    }
     match queries {
         [query] if query.count.is_some() => {
             checked_native_count_query_plan(ir, owner, query, db, entry_module, source_context)
@@ -8349,21 +8348,17 @@ fn checked_native_ancestor_count_query_plan(
 
 /// A bounded contained COUNT+1 Create uses the same prepared-query skeleton as
 /// first. No runtime handle or parent authority is issued by this source join.
-fn native_count_create_input(
-    effects: &[IrStmt],
-    statement: crate::analysis::NodeKey,
-) -> Option<(&TypedExpr, Span)> {
-    let mut creates = effects.iter().filter_map(|actual| match actual {
-        IrStmt::Create { input, span, .. } if *span == node_span(statement) => {
-            Some((input, *span))
-        }
-        _ => None,
-    });
-    let found = creates.next()?;
-    if creates.next().is_some() {
-        return None;
+fn native_count_create_input(effects:&[IrStmt],statement:crate::analysis::NodeKey)->Option<(&TypedExpr,Span)> {
+    fn visit<'a>(body:&'a [IrStmt],statement:Span,depth:usize,out:&mut Vec<(&'a TypedExpr,Span)>)->Option<()> {
+        if depth>=64{return None;}
+        for actual in body{match actual{
+            IrStmt::Create{input,span,..}if *span==statement=>out.push((input,*span)),
+            IrStmt::If{then_branch,else_branch,..}=>{visit(then_branch,statement,depth+1,out)?;visit(else_branch,statement,depth+1,out)?;},
+            _=>{},
+        }}Some(())
     }
-    Some(found)
+    let mut found=Vec::new();visit(effects,node_span(statement),0,&mut found)?;
+    (found.len()==1).then(||found[0])
 }
 
 fn native_count_original(
@@ -8457,9 +8452,16 @@ fn native_count_result_matches(
         || checked.returns.iter().any(|returned| {
             returned.node != query.return_node
                 || returned.source != query.source
-                || returned.influences != expected_influences
-                || if void_constructor {returned.model_result.is_some()} else {returned.model_result.is_none()}
+                || if void_constructor {
+                    // Each genuine branch retains exactly its original reached
+                    // query blocks; inactive COUNTs acquire no observation.
+                    returned.model_result.is_some()
+                        || !expected_influences.iter().filter(|value|returned.influences.contains(value)).eq(returned.influences.iter())
+                        || {let selected:Vec<_>=returned.influences.iter().filter(|value|value.query_id.as_deref()==Some(query.id.as_str())).collect();
+                            !selected.is_empty()&&!selected.into_iter().eq(query.influences.iter())}
+                }else{returned.model_result.is_none()||returned.influences!=expected_influences}
         })
+        || !checked.returns.iter().any(|returned|query.influences.iter().all(|value|returned.influences.contains(value)))
     {
         return None;
     }
@@ -8546,7 +8548,7 @@ fn native_count_plan(
                 Some(ReceiptReturn {
                     id: returned.id.clone(),
                     source: transport_source(&returned.source, entry)?,
-                    influences: influences.clone(),
+                    influences: if returned.influences.iter().any(|value|value.query_id.as_deref()==Some(query.id.as_str())) {influences.clone()} else {Vec::new()},
                     dependencies: Vec::new(),
                     intrinsics: Vec::new(),
                     projection: None,
@@ -8676,20 +8678,31 @@ fn constructor_count_source(
     let count=query.count.as_ref()?;
     if !count.parent_edges.is_empty() || count.contained_parent.is_none() || !query.dependencies.is_empty() {return None;}
     let original=native_count_original(facts,count.statement)?;
+    let ScenarioDisclosure::Complete(actual)=ir.scenario_disclosures.get(&owner.id)? else{return None;};
+    let ScenarioDisclosure::Complete(fresh)=context.fresh().scenario_disclosures.get(&owner.id)? else{return None;};
+    if !super::scenario_feasibility::same_disclosure(actual,fresh){return None;}
     source_owned_void_create(context,owner,original)?;
     let IrItemKind::Scenario{effects,..}=&owner.kind else{return None;};
-    let position=effects.iter().position(|statement|matches!(statement,IrStmt::Create{span,..} if *span==node_span(count.statement)))?;
-    let mut stage=0;
-    for statement in &effects[..position] {
-        match statement {
-            // The exact whole-owner seal retains CANCEL order/key, and its
-            // Work stage does not advance this business CREATE stage.
-            IrStmt::Let{..}|IrStmt::Require{..}|IrStmt::Cancel{..}=>{},
-            IrStmt::Set{when:None,..}|IrStmt::Create{when:None,..}=>stage+=1,
-            _=>return None,
+    fn at_stage<'a>(body:&'a [IrStmt],target:crate::analysis::NodeKey,mut stage:usize,depth:usize)->Option<(&'a TypedExpr,Span,usize)> {
+        if depth>=64{return None;}
+        for statement in body{
+            if let IrStmt::Create{input,span,when:None,..}=statement && *span==node_span(target){return Some((input,*span,stage));}
+            match statement{
+                IrStmt::Let{..}|IrStmt::Require{..}|IrStmt::Cancel{..}|IrStmt::Send{when:None,..}=>{},
+                IrStmt::Set{when:None,..}|IrStmt::Create{when:None,..}=>stage+=1,
+                IrStmt::If{then_branch,else_branch,..}=>{
+                    if native_count_create_input(then_branch,target).is_some(){return at_stage(then_branch,target,stage,depth+1);}
+                    if native_count_create_input(else_branch,target).is_some(){return at_stage(else_branch,target,stage,depth+1);}
+                    return None;
+                },
+                _=>return None,
+            }
+            if stage>=200{return None;}
+
         }
+        None
     }
-    let IrStmt::Create{input,span,when:None,..}=&effects[position] else{return None;};
+    let (input,span,stage)=at_stage(effects,count.statement,0,0)?;
     let IrExpr::Object(entries)=&input.expr else{return None;};
     let parent=&entries.iter().find(|(field,_)|field=="parent")?.1;
     let receiver=count.contained_parent?.0;
@@ -13458,6 +13471,52 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
     result
 }
 
+/// A stored scalar reached through an original pure helper's required reference.
+/// The fresh whole-owner disclosure seals the actual/formal path and both DATA
+/// obligations; matching wire values cannot substitute either source field.
+fn checked_helper_reference_scalar_pairs<'a>(
+    context: &'a super::scenario_decisions::FreshSourceContext<'_>,
+    owner: &IrItem,
+    leaf: &TypedExpr,
+) -> Option<Vec<(
+    &'a crate::analysis::scenario_disclosure::DisclosureDependency,
+    &'a crate::analysis::scenario_disclosure::DisclosureDependency,
+)>> {
+    let ir=context.ir();
+    context.same_scenario(ir,owner)?;
+    let ScenarioDisclosure::Complete(proof)=ir.scenario_disclosures.get(&owner.id)? else{return None;};
+    let ScenarioDisclosure::Complete(fresh)=context.fresh().scenario_disclosures.get(&owner.id)? else{return None;};
+    if !super::scenario_feasibility::same_disclosure(proof,fresh){return None;}
+    let facts=proof.source_facts.as_deref()?;
+    let IrExpr::Member{base,field}=&leaf.expr else{return None;};
+    if !(matches!(leaf.ty,ResolvedType::Scalar(_)) && native_result_type(&leaf.ty)
+        || leaf.ty==ResolvedType::Scalar(Scalar::Timezone)){return None;}
+    let ResolvedType::Record{symbol:target,stored:true}=base.ty else{return None;};
+    let schemas=facts.stored_contracts.as_deref()?;
+    let schema=schemas.iter().find(|schema|schema.model&&schema.id==target)?;
+    let original=schema.fields.iter().find(|item|item.name==*field&&item.ty==leaf.ty)?;
+    match_stored_contract_schema(ir,schema,context.db())?;
+    match_stored_contract_field(ir,original,context.db())?;
+    let mut pairs=Vec::new();
+    for returned in &proof.returns {
+        for read in returned.dependencies.iter().filter(|read|
+            node_span(read.node)==leaf.span && read.ty==leaf.ty && read.model==target
+            && read.field==original.id && read.field_name==*field && read.role==DependencyRole::Data
+            && read.calls.len()==1 && read.query_id.is_none()) {
+            let mut sources=returned.dependencies.iter().filter(|source|
+                node_span(source.node)==base.span && source.ty==base.ty
+                && source.role==read.role && source.source==read.source
+                && source.calls==read.calls && source.query_id.is_none());
+            let source=sources.next()?;
+            if sources.next().is_some() || source.id==read.id{return None;}
+            let reference=checked_helper_identity_reference(context,owner,source,base,facts)?;
+            if reference.ty!=base.ty{return None;}
+            if !pairs.contains(&(source,read)){pairs.push((source,read));}
+        }
+    }
+    (!pairs.is_empty()).then_some(pairs)
+}
+
 /// Two original required reference fields in one authored Member chain. The
 /// receiving target row stays issued by State; this only pairs the checked
 /// source marker with the subsequent target getter at its original position.
@@ -16171,8 +16230,15 @@ fn source_owned_void_create(context: &super::scenario_decisions::FreshSourceCont
     let facts = super::scenario_calls::checked_source(ir,owner,context.db())?;
     let creates = facts.creates.as_deref()?;
     if creates.is_empty() || creates.len()>200 || !creates.iter().any(|value|std::ptr::eq(value,original)) {return None;}
-    let top:Vec<_>=effects.iter().filter_map(|statement|match statement{
-        IrStmt::Create{span,binding:Some(binding),when:None,..}=>Some((*span,binding)),_=>None}).collect();
+    fn create_sites<'a>(body:&'a [IrStmt],depth:usize,sites:&mut Vec<(Span,&'a String)>)->Option<()> {
+        if depth>=64{return None;}
+        for statement in body{match statement{
+            IrStmt::Create{span,binding:Some(binding),when:None,..}=>sites.push((*span,binding)),
+            IrStmt::If{then_branch,else_branch,..}=>{create_sites(then_branch,depth+1,sites)?;create_sites(else_branch,depth+1,sites)?;},
+            _=>{},
+        }}Some(())
+    }
+    let mut top=Vec::new();create_sites(effects,0,&mut top)?;
     if source_owned_sibling_loop(context,owner).is_some() {
         let IrStmt::For{body,..}=effects.last()? else{return None;};
         let [IrStmt::Create{span,binding:Some(binding),when:None,..}]=body.as_slice() else{return None;};
@@ -16188,7 +16254,7 @@ fn source_owned_void_create(context: &super::scenario_decisions::FreshSourceCont
             IrStmt::Let{..}|IrStmt::Require{..}|IrStmt::Set{when:None,..}
                 |IrStmt::Send{binding:Some(_),..}|IrStmt::Emit{..}|IrStmt::Cancel{..}=>true,
             IrStmt::If{then_branch,else_branch,..}=>closed(then_branch,depth+1)&&closed(else_branch,depth+1),
-            IrStmt::Create{binding:Some(_),when:None,..}=>depth==0,
+            IrStmt::Create{binding:Some(_),when:None,..}=>true,
             _=>false,
         })
     }

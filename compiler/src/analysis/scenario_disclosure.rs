@@ -11274,14 +11274,16 @@ impl<'a> Closure<'a> {
         }
         let mut queries = Vec::new();
         let mut visited = 0usize;
-        for statement in scenario.guards.iter().chain(&scenario.effects) {
+        let statements=self.count_query_statements(scenario)?;
+        let statement_nodes:HashSet<_>=statements.iter().map(|statement|statement.node).collect();
+        for statement in statements {
             let mut pending = vec![*self.nodes.get(&statement.node)?];
             while let Some(node) = pending.pop() {
                 visited += 1;
                 if visited > 16384 {
                     return None;
                 }
-                if node.kind == SyntaxKind::Examples {
+                if node.kind == SyntaxKind::Examples || NodeKey::of(node)!=statement.node && statement_nodes.contains(&NodeKey::of(node)) {
                     continue;
                 }
                 pending.extend(node.children.iter().rev());
@@ -11317,6 +11319,22 @@ impl<'a> Closure<'a> {
         }
         queries.sort_by_key(|query| (query.count.as_ref().unwrap().call.start, query.node.end));
         Some(queries)
+    }
+
+    /// Each original IF arm owns its own query occurrence. A parent's
+    /// syntax walk must not relabel a child CREATE count as the outer IF.
+    fn count_query_statements<'b>(&self,scenario:&'b super::effects::ScenarioData)->Option<Vec<&'b Effect>> {
+        let mut pending:Vec<_>=scenario.guards.iter().chain(&scenario.effects).rev().map(|effect|(effect,0)).collect();
+        let mut statements=Vec::new();
+        while let Some((effect,depth))=pending.pop(){
+            if depth>=64||statements.len()>=16384{return None;}
+            statements.push(effect);
+            if effect.verb==EffectVerb::If&&effect.match_arms.is_empty(){
+                pending.extend(effect.else_effects.iter().rev().map(|child|(child,depth+1)));
+                pending.extend(effect.then_effects.iter().rev().map(|child|(child,depth+1)));
+            }
+        }
+        Some(statements)
     }
 
     /// A `count` call's single supplied argument. Outer `None` keeps the
@@ -17808,9 +17826,15 @@ impl<'a> Closure<'a> {
         &self,
         key: NodeKey,
         module: ModuleId,
+        calls: &[NodeKey],
         base_key: NodeKey,
         value: &ValuePath,
     ) -> Result<(), DisclosureDecline> {
+        let helper_scalar=self.helper_reference_scalar(key,module,calls).is_some_and(|(source,reference,target,_)|
+            matches!(value.model_result,Some(DisclosureModelResult::Reference{model,node,source_model,field})
+                if model==target&&node==base_key&&source_model==source&&field==reference)
+                &&value.reads.iter().any(|read|read.node==base_key&&read.model==source&&read.field==reference
+                    &&read.calls==calls&&read.query_id.is_none()));
         let reminder_contact_email = self.count_member(key)
             .is_some_and(|(base, name)| base == base_key && name == "email")
             && self.count_member(base_key).is_some_and(|(event_row, name)|
@@ -17826,7 +17850,7 @@ impl<'a> Closure<'a> {
         if matches!(
             value.model_result,
             Some(DisclosureModelResult::Reference { .. })
-        ) && !reminder_contact_email && !matches!(value.model_result,
+        ) && !reminder_contact_email && !helper_scalar && !matches!(value.model_result,
             Some(DisclosureModelResult::Reference {model, node, ..})
                 if Some(node) == self.query_group(base_key)
                     && self.checked_required_model_reference(key, module)
@@ -18368,16 +18392,38 @@ impl<'a> Closure<'a> {
             .then_some((*parameter,model,depth))
     }
 
-    /// Consume a required stored helper reference only at its authored `.id`.
-    fn helper_reference_identity(&self,key:NodeKey,module:ModuleId,calls:&[NodeKey])
+    /// The source reference remains the original required helper formal's
+    /// stored Model field; consumers below admit identity or one stored leaf.
+    fn helper_reference_source(&self,key:NodeKey,module:ModuleId,calls:&[NodeKey])
         ->Option<(SymbolId,SymbolId,SymbolId)> {
         let (base,_)=self.count_member(key)?;
         let (_,source,_)=self.original_helper_model_path(base,module,calls)?;
-        if !self.nodes.keys().any(|consumer|self.count_member(*consumer)==Some((key,"id"))
-            && self.types.node_types.get(consumer)==Some(&ResolvedType::Scalar(Scalar::Text))){return None;}
         let association=self.required_reference_field(key,self.nodes.get(&key)?,&source)?;
         let field=self.effects.models.get(&source)?.fields.iter().find(|field|field.field==association.1)?;
         (field.default.is_none()&&field.server.is_none()).then_some(association)
+    }
+
+    fn helper_reference_scalar(&self,key:NodeKey,module:ModuleId,calls:&[NodeKey])
+        ->Option<(SymbolId,SymbolId,SymbolId,SymbolId)> {
+        let (base,name)=self.count_member(key)?;
+        let (source,reference,target)=self.helper_reference_source(base,module,calls)?;
+        let field=self.resolve.symbols.get(target.0 as usize)?.fields_of().iter()
+            .filter_map(|id|self.resolve.symbols.get(id.0 as usize))
+            .find(|field|field.name==name&&matches!(field.kind,SymbolKind::Field{owner,..}if owner==target))?;
+        let ty=self.types.symbol_types.get(&field.id)?;
+        (self.types.node_types.get(&key)==Some(ty)
+            &&(primitive_type(ty)||*ty==ResolvedType::Scalar(Scalar::Timezone)
+                ||matches!(ty,ResolvedType::Enum{cases,..}if !cases.is_empty())))
+            .then_some((source,reference,target,field.id))
+    }
+
+    fn helper_reference_identity(&self,key:NodeKey,module:ModuleId,calls:&[NodeKey])
+        ->Option<(SymbolId,SymbolId,SymbolId)> {
+        let association=self.helper_reference_source(key,module,calls)?;
+        self.nodes.keys().any(|consumer|self.count_member(*consumer).is_some_and(|(base,name)|base==key
+            &&(name=="id"&&self.types.node_types.get(consumer)==Some(&ResolvedType::Scalar(Scalar::Text))
+                ||self.helper_reference_scalar(*consumer,module,calls).is_some())))
+            .then_some(association)
     }
 
     fn expr_member_required_reference(
@@ -18545,14 +18591,21 @@ impl<'a> Closure<'a> {
     fn expr_member_parent_scalar_type(
         &self,
         key: NodeKey,
+        module: ModuleId,
+        base_key: NodeKey,
+        model: SymbolId,
         calls: &[NodeKey],
         parent_origin: Option<SymbolId>,
         field_id: SymbolId,
         field_ty: &ResolvedType,
         value: &mut ValuePath,
     ) -> Result<Option<String>, DisclosureDecline> {
+        let original_helper_parent=parent_origin.is_some_and(|parameter|
+            matches!(value.reference_origin,Some(ReferenceOrigin::Parent{parameter:actual,model:parent,depth})
+                if actual==parameter&&parent==model
+                    &&self.original_helper_model_path(base_key,module,calls)==Some((parameter,model,depth))));
         if !(parent_origin.is_some()
-            && calls.is_empty()
+            && (calls.is_empty()||original_helper_parent)
             && self.loop_node.is_none()
             && ((primitive_type(field_ty) || *field_ty == ResolvedType::Scalar(Scalar::Timezone))
                 || matches!(field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())))
@@ -19001,6 +19054,9 @@ impl<'a> Closure<'a> {
             type_id
         } else if let Some(type_id) = self.expr_member_parent_scalar_type(
             key,
+            module,
+            base_key,
+            model,
             calls,
             parent_origin,
             field.id,
@@ -19120,7 +19176,7 @@ impl<'a> Closure<'a> {
             value.record=None;value.model_result=None;value.reference=None;value.reference_origin=None;
             return Ok(());
         }
-        self.expr_member_model_guard(key, module, base_key, value)?;
+        self.expr_member_model_guard(key, module, calls, base_key, value)?;
         let notice_snapshot_title = field_name == "title"
             && *ty == ResolvedType::Scalar(Scalar::Text)
             && matches!(value.contract_value, Some(ContractValue::Singular(contract))
@@ -21256,7 +21312,7 @@ impl<'a> Closure<'a> {
         selected: &super::types::SelectedCall,
     ) -> Result<Option<Vec<ValuePath>>, DisclosureDecline> {
         if calls.is_empty()
-            && self.statement_depth == 1
+            && self.statement_depth <= 64
             && self.loop_node.is_none()
             && matches!(&selected.target, SelectedCallTarget::Builtin {id,..} if id == "count")
         {
@@ -21267,8 +21323,8 @@ impl<'a> Closure<'a> {
                 self.checked_count_query_sources(scenario)?.into_iter().find(|query| {
                     let Some(count) = query.count.as_ref() else { return false; };
                     count.call == key
-                        && scenario.guards.iter().chain(&scenario.effects)
-                            .any(|statement| statement.node == count.statement)
+                        && self.count_query_statements(scenario).is_some_and(|statements|statements.iter()
+                            .any(|statement| statement.node == count.statement))
                         && query.inputs.iter().all(|(receiver, parameter)| {
                             if let Some((source,_,root))=self.created_parent_source(*receiver,module) {
                                 if root!=*parameter||!env.get(&Local::Create(source.node)).is_some_and(|value|

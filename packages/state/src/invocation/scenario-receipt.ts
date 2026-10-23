@@ -4339,27 +4339,31 @@ interface ConstructorCountCapture {readonly profile:ConstructorCount;readonly qu
 const constructorCountCaptures=new WeakMap<ReceiptOwnerSession,Map<string,ConstructorCountCapture>>();
 function bindConstructorCounts(def:GeneratedOperationDef,bound:BoundPlan,raw:unknown):readonly ConstructorCount[] {
   if(raw===undefined)return Object.freeze([]);
-  const profiles=list(dataCopy(raw)),ids=new Set<string>(),stages=new Set<number>();
+  const profiles=list(dataCopy(raw)),ids=new Set<string>(),stages=new Map<number,string[]>();
   if(bound.type!=='void'||bound.resultModel!==undefined||profiles.length===0||profiles.length>MAX_ITEMS)return invalid('constructor COUNT requires its exact void owner.');
   for(const raw of profiles){
     object(raw,['owner','source','queryId','stage','create','model','field',...(typeof raw==='object'&&raw!==null&&Object.hasOwn(raw,'createdParent')?['createdParent']:[])]);
     const value=raw as ConstructorCount;origin(value.source);firstQueryNode(value.create);
     text(value.queryId);text(value.model);text(value.field);
     const query=bound.plan.queries?.find(query=>query.id===value.queryId);
+    // The bound original return census distinguishes exclusive IF arms.
+    // Two COUNT consumers at one stage may never be reached by one return.
     if(value.owner!==def.name||stableStringify(value.source)!==stableStringify(bound.plan.source)||
-        !Number.isSafeInteger(value.stage)||value.stage<0||value.stage>=MAX_ITEMS||ids.has(value.queryId)||stages.has(value.stage)||
+        !Number.isSafeInteger(value.stage)||value.stage<0||value.stage>=MAX_ITEMS||ids.has(value.queryId)||
+        (stages.get(value.stage)??[]).some(previous=>bound.plan.returns.some(returned=>returnQueryIds(returned).includes(previous)&&returnQueryIds(returned).includes(value.queryId)))||
         query===undefined||query.dependencies.length!==0||query.order.length!==0||query.limit!==null||query.archived!=='exclude'||
         query.parent?.origin.kind!=='admitted-reference'||queryParentInputModel(def,query.parent.origin.parameter,query.parent.model,bound.artifactModels)===undefined||
         bound.artifactModels.get(query.model)?.parent!==query.parent.model||
         bound.artifactModels.get(value.model)?.parent!==query.parent.model||bound.models.get(value.model)?.fields.get(value.field)!=='int'||
-        !bound.plan.returns.every(returned=>returned.projection===undefined&&returnQueryIds(returned).includes(query.id)))return invalid('constructor COUNT differs from its exact contained query, stage or INT CREATE field.');
+        !bound.plan.returns.every(returned=>returned.projection===undefined)||
+        !bound.plan.returns.some(returned=>returnQueryIds(returned).includes(query.id)))return invalid('constructor COUNT differs from its exact contained query, stage or INT CREATE field.');
     if(value.createdParent!==undefined){
       const parent=value.createdParent;object(parent,['stage','model','create','parameter']);firstQueryNode(parent.create);text(parent.parameter);text(parent.model);
       if(!Number.isSafeInteger(parent.stage)||parent.stage<0||parent.stage>=value.stage||
           query.parent.origin.parameter!==parent.parameter||!requiredVersionedReferenceInput(def,parent.parameter,query.parent.model)||
           bound.artifactModels.get(parent.model)?.parent!==query.parent.model)return invalid('created COUNT parent differs from its original required CREATE parent.');
     }
-    ids.add(value.queryId);stages.add(value.stage);
+    ids.add(value.queryId);stages.set(value.stage,[...stages.get(value.stage)??[],value.queryId]);
   }
   return deepFreeze(profiles as ConstructorCount[]);
 }

@@ -1331,6 +1331,19 @@ fn match_complete_returned(
             queries, expected_influences, &returned.influences)
             || super::scenario_receipts::checked_assign_count_first_target_return_order(
                 queries, expected_influences, &returned.influences));
+    let constructor_return=super::scenario_receipts::constructor_count_queries(original.source_facts()?).is_some();
+    if constructor_return {
+        if returned.influences.iter().any(|value|!expected_influences.contains(value))
+            ||returned.influences.len()!=emitted.influences.len()
+            ||returned.influences.iter().zip(&emitted.influences).any(|(actual,emitted)|
+                actual.id!=emitted.id||actual.query_id!=emitted.query_id||match actual.kind {
+                    InfluenceKind::QueryExistence=>emitted.kind!="query-existence",
+                    InfluenceKind::QueryCardinality=>emitted.kind!="query-cardinality",
+                    InfluenceKind::QueryMembership=>emitted.kind!="query-membership",
+                    InfluenceKind::QueryOrder=>emitted.kind!="query-order",
+                    _=>true,
+                }){return None;}
+    }
     if !standalone_first
         && !void_tail
         && super::scenario_receipts::checked_created_model_result(ir, owner).is_none()
@@ -1338,7 +1351,7 @@ fn match_complete_returned(
         || returned.source != original.source_facts()?.source
         || !standalone_first && !void_tail && returned.model_result.is_none()
             && super::scenario_receipts::checked_purchase_helper_query_influences(original.source_facts()?).is_none()
-        || !mixed && !standalone_first && !target_pair && returned.influences != expected_influences
+        || !mixed && !standalone_first && !target_pair && !constructor_return && returned.influences != expected_influences
         || standalone_first
             && returned
                 .influences
@@ -1701,13 +1714,19 @@ fn combine_query_plans(
     entry_module: &str,
     source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
-    super::scenario_receipts::checked_native_query_influences(queries)?;
+    if super::scenario_receipts::checked_native_query_influences(queries).is_none() {
+        let facts=ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
+        let counts=super::scenario_receipts::constructor_count_queries(facts)?;
+        if !counts.iter().copied().eq(queries.iter()){return None;}
+        source_context?.same_scenario(ir,owner)?;
+        super::scenario_receipts::constructor_count_influences(facts)?;
+    }
     let mut plans = queries
         .iter()
         .map(|query| plan_single_query(program, ir, owner, query, db, entry_module, source_context));
     let mut combined = plans.next()??;
     for next in plans {
-        combined = super::scenario_receipts::merge_native_query_plans(combined, next?)?;
+        combined=super::scenario_receipts::merge_native_query_plans(combined,next?)?;
     }
     Some(combined)
 }
@@ -2190,9 +2209,10 @@ fn checked_query_plan_full(
         return Some(plan);
     }
     if let Some(counts)=super::scenario_receipts::constructor_count_queries(source) {
-        let [count]=counts.as_slice() else{return None;};
         prepared.decisions(owner)?;
-        return checked_count_query_plan(program,ir,owner,count,db,entry_module,source_context);
+        if let [count]=counts.as_slice(){return checked_count_query_plan(program,ir,owner,count,db,entry_module,source_context);}
+        let counts:Vec<_>=counts.into_iter().cloned().collect();
+        return combine_query_plans(program,ir,owner,&counts,db,entry_module,source_context);
     }
     if queries
         .iter()
