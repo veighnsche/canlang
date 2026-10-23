@@ -12,7 +12,9 @@ Current product source is `8d48f969`; [baseline](../baseline.md) separates struc
 | Identity/session/OAuth/removal and selected State recipients | authority_review | root | [Authority](identity-authority.md) |
 | Saved Given contracts/closure/candidate lifecycle | migration_review | root; bounded unchanged FrozenGeneration challenge reused | [Saved generation](saved-generation.md) |
 | LSP/IDE/editor/format/lint/completions | setup_review | root on framing and retained owner boundary | [Authoring](authoring.md) |
-| Native/TS Values, owned input, ABI/assets/Intl | authority_review | root on selected route/error order and host/native boundary | [Values](values.md) — exact unfinished source duties retained |
+| Native/TS Values, owned input, ABI/assets/Intl | authority_review | root on selected route/error order and host/native boundary | [Values](values.md) — source duties reviewed, open compatibility defects and unperformed runtime qualification |
+| Native dev owner/preview/transport/foreground/fixed host | migration_review | root on final cancellation, scratch custody and owner boundary | [Native development](native-development.md) |
+| Deploy/upgrade/preparation/release/install delivery | setup_review | root on staged bytes, source/installed scope and retained owners | [Delivery](delivery-upgrade.md) |
 | Repository contracts/evidence/draft/complete allocation | root | Three current primaries and their explicit cross-boundary findings | [Repository](repository-current.md) |
 
 The accumulated changed-source allocation and selected consequential boundary challenge are refreshed. Exact path retention is complete; whole-product substantive duty/workflow review remains partial, including previously unreviewed retained branches and assertion subjects. Each review names concrete remaining packets; a complete target tree does not close them. No product test/build or installed journey was executed by this audit.

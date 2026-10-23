@@ -14,3 +14,5 @@
 | Recorded docs/fixtures/output | Tracked historical data and actual test/consumer references persist. | Retain exactly; no evidence-supported whole-directory retirement. Media/locks/catalogs are not forced splits. |
 
 No additional source language or process is selected. Every unqualified port/retirement has a named local gate and does not block independent grammar, test-discovery or closed-helper work.
+
+The completed [Values source review](reviews/values.md) retains Rust exact/owned mechanisms and TS arbitrary-host/Intl ownership, with V-ORDER-C1/V-LOOKUP-C1/V-BOUNDS-C1 open. A resolved scalar codec is not evidence that its enclosing field constraints were validated; source coverage/compatibility defects do not justify broad native adoption or wholesale retirement. [Native development](reviews/native-development.md) and [delivery](reviews/delivery-upgrade.md) retain their current actual owners; the corrections stay at selection, scratch custody and consumed publication bytes.
