@@ -1,0 +1,65 @@
+app CanStock uses=[stock]
+package rent_catalog
+ Given
+  export Location {name:text,active:bool=true}
+  policy Location read=members
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,home:Location,locations:Location[],operator_wide:bool=false,active:bool=true,skills:text[],role:text,visible:bool=true,user_visible:bool=true}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members and row.visible fields=home,locations,operator_wide,active,skills,role,visible,user_visible
+  policy Employee read=members and row.visible and row.user_visible fields=user
+ When
+ Then
+package stock
+ use rent_catalog {Location}
+ use employee {can_work}
+ use stock {StockIngressV1 as Receipts} from=deployment.stock_receipts
+ use std {OperationOutcome}
+ Given
+  ## Explicit saved trait expansion keeps its native integer default/minimum.
+  message label_StockReceipt_source = "Source reference"@{nl="Bronreferentie"}
+  message label_StockReceipt_order = "Purchase order reference"@{nl="Inkoopreferentie"}
+  message label_StockReceipt_sku = "SKU"@{nl="Artikelcode"}
+  message label_StockReceipt_unit = "Unit"@{nl="Eenheid"}
+  message label_StockReceipt_reversal = "Reversal reference"@{nl="Terugboekingsreferentie"}
+  message label_Item_reorder = "Reorder threshold"@{nl="Besteldrempel"}
+  export contract StockReceipt { source:text label=label_StockReceipt_source, order:text label=label_StockReceipt_order, sku:text label=label_StockReceipt_sku, unit:text label=label_StockReceipt_unit, location:text, quantity:int, revision:int, reversal:text? label=label_StockReceipt_reversal } label="Stock receipt"@{nl="Voorraadontvangst"}
+  export capability StockV1 version=1
+   post(value:StockReceipt) -> OperationOutcome
+   event changed { value:OperationOutcome }
+  ## StockV1.post maps only authenticated purchase-origin Receipts.post to committed PostOutcome.
+  ## The installed binding fixes team/location/source namespaces and the immutable request digest; rejection maps to a failed receipt.
+  ## PostOutcome completes only its originating post delivery after commit, including replay. No delegated user role or remote model query is inferred.
+  export capability StockIngressV1 version=1
+   event post { value:StockReceipt }
+  export event PostOutcome { value:OperationOutcome }
+  export event ProjectionOutcome { value:OperationOutcome }
+  event ApplyProjection { projection:Projection }
+  ## StockV1.changed maps committed ProjectionOutcome with verified source/revision; it does not complete unrelated deliveries.
+  role stock_staff label="Stock staff"@{nl="Voorraadmedewerker"}
+  Item { sku:text unique label=label_StockReceipt_sku, name:text, unit:text label=label_StockReceipt_unit, reorder:int=0 min=0 label=label_Item_reorder, active:bool=true } label="Stock item"@{nl="Voorraadartikel"}
+  Movement in Item { visible:bool=true,order_readable:bool=true, location:Location, quantity:int, reason:text, source:text unique label=label_StockReceipt_source, transfer:text? label="Transfer reference"@{nl="Overboekingsreferentie"}, reversal:Movement? label=label_StockReceipt_reversal, order:text? label=label_StockReceipt_order, actor:user?, revision:int?, unit:text? } label="Stock movement"@{nl="Voorraadmutatie"}
+  Projection { source:text unique, value:StockReceipt, location:Location, state:enum(pending,confirmed,failed)=pending, movement:Movement?, detail:text? } label="Purchase stock projection"@{nl="Inkoopvoorraadboeking"}
+  policy Projection read=stock_staff and can_work(actor,row.location)
+  invariant Projection: row.source==row.value.source and row.location.id==row.value.location and row.value.revision>0 and (row.value.reversal==null and row.value.quantity>0 or row.value.reversal!=null and row.value.quantity<0) and (row.state!=confirmed or row.movement!=null)
+  lock Projection fields=source,value,location
+  lock Projection fields=state,movement,detail when=row.state==confirmed
+  derive available(item:Item,location:Location):int = sum(item.Movement as movement where movement.location==location select movement.quantity)
+  derive Item.low:bool = row.total<=row.reorder label="Total reorder needed"@{nl="Totale aanvulling nodig"}
+  derive Item.total:int = sum(row.Movement as movement select movement.quantity) label="Total stock"@{nl="Totale voorraad"}
+  policy Item read=stock_staff
+  policy Movement read=stock_staff and can_work(actor,row.location) and row.visible fields=parent,visible,order_readable,location,quantity,reason,source,transfer,reversal,actor,revision,unit
+  policy Movement read=stock_staff and can_work(actor,row.location) and row.visible and row.order_readable fields=order
+  invariant Movement: not any(Movement as other,other!=row and other.source==row.source)
+  invariant Movement: row.quantity!=0 and trim(row.reason)!="" and available(row.parent,row.location)>=0
+  lock Movement fields=location,quantity,reason,source,transfer,reversal,order,actor,revision,unit
+  lock Item fields=unit,sku when=count(row.Movement)>0
+ When
+  scenario reverse(movement:Movement,reason:text) by=stock_staff label="Reverse stock movement"@{nl="Voorraadmutatie terugboeken"}
+   require movement.order==null and can_work(actor,movement.location) and trim(reason)!="" and not any(movement.parent.Movement as item,item.reversal==movement) and available(movement.parent,movement.location)-movement.quantity>=0
+   do create Movement {parent=movement.parent,location=movement.location,quantity=-movement.quantity,reason,source=operation.id,reversal=movement,order=movement.order,actor} as reversal
+ Then

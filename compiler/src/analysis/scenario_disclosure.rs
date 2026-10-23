@@ -19034,11 +19034,13 @@ impl<'a> Closure<'a> {
             .get(&field.id)
             .ok_or_else(|| self.fail(key, "missing stored field type"))?;
         // Flow checking can narrow a nullable field after a successful
-        // `require field != null`. Keep the declared nullable field in the
-        // source dependency below; only its checked non-null occurrence may
-        // use the narrower expression type.
+        // `require field != null` or prove its null occurrence after `== null`.
+        // Keep the declared nullable field in the DATA dependency; the
+        // narrower expression type belongs only to its checked occurrence.
         let narrowed_nullable =
-            matches!(field_ty, ResolvedType::Nullable(inner) if inner.as_ref() == ty);
+            matches!(field_ty, ResolvedType::Nullable(inner) if inner.as_ref() == ty)
+            || matches!(field_ty,ResolvedType::Nullable(_))&&*ty==ResolvedType::Null
+                &&self.types.node_types.get(&key)==Some(&ResolvedType::Null);
         if (field_ty != ty && !narrowed_nullable) || field.module != owner.module {
             return Err(self.fail(key, "stored field schema identity mismatch"));
         }
@@ -25223,6 +25225,9 @@ impl<'a> Closure<'a> {
                     return Ok(vec![ValuePath::default()]);
                 }
                 let local = match self.resolve.node_binding.get(&key) {
+                    Some(Binding::Context(ContextVar::Actor(_)))
+                        if self.types.node_types.get(&key)==Some(&ResolvedType::Scalar(Scalar::User)) =>
+                    { return Ok(vec![ValuePath::default()]); }
                     Some(Binding::Symbol(id)) => Local::Symbol(*id),
                     Some(Binding::Let { node }) => Local::Let(*node),
                     Some(Binding::CreateAs { node }) => Local::Create(*node),

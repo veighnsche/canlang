@@ -3223,3 +3223,20 @@ fn original_affiliate_refresh_seals_parent_stored_model_array_all() {
   let emitted=js::emit_program_with_native_source_receipts(&changed,true,&db);assert!(emitted.diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {:?}",emitted.diagnostics);
  }
 }
+
+#[test]
+fn original_stock_reverse_keeps_null_narrowed_field_and_parent_data_loans() {
+ let source=include_str!("fixtures/stock-reverse-original.can");
+ let(db,program,_,catalog)=fixture_source("stock-reverse-original.can",source);
+ let(artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let js=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str()).collect::<String>();
+ assert!(js.contains("observeScenarioReceiptDependency"));
+ let owner=artifact["operations"].as_array().unwrap().iter().find(|owner|owner["name"]=="stock.reverse").unwrap();
+ assert!(owner["result"]["disclosure"]["returns"].as_array().unwrap().iter().any(|returned|
+     returned["dependencies"].as_array().unwrap().iter().any(|dependency|dependency["field"]=="order"&&dependency["type"]=="text?"&&dependency["role"]=="data")));
+ for(name,ty)in [("stock.Movement.order",ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::Int)))),("stock.Movement.location",ResolvedType::Scalar(Scalar::Text))]{
+  let(db,mut checked,_,catalog)=fixture_source("stock-reverse-mutant.can",source);
+  let field=checked.symbols.iter().find(|symbol|symbol.canonical==name).unwrap().id;checked.types.symbol_types.insert(field,ty);
+  let(_,diagnostics)=prepared_artifact(&checked,&db,&catalog);assert!(diagnostics.iter().any(|d|d.code=="E6008"),"{name}: {diagnostics:?}");
+ }
+}

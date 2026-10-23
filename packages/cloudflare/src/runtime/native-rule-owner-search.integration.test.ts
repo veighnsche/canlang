@@ -4003,3 +4003,29 @@ it('refreshes the complete original Affiliate settlement through its parent loca
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('reverses the original Stock movement through granted parent reference and null-narrowed DATA', {timeout:180000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-stock-reverse-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/stock-reverse-original.can'),original=await readFile(join(root,'draft/apps/CanStock/CanStock.can'),'utf8'),text=await readFile(source,'utf8');
+  assert.ok(text.includes(original.slice(original.indexOf('  scenario reverse('),original.indexOf('  # Persist authenticated purchase'))));
+  const{stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout)as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['allowed','withheld-null','non-null','insufficient','duplicate','stale','grant-race','identity-race']){
+   const{now,identities,identity,team,user,membership}=await member('stock-reverse-'+mode,['stock.stock_staff']);
+   const scope={app:'CanStock',owner:team.team_id,ownerPackage:'stock'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'reverse-state',fileStoreId:'reverse-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+   const{store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+   const row=(model:string,id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({kind:'insert'as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}}),parent={model:asModel('stock.Item'),id:asId('item')};
+   const movement={visible:true,order_readable:mode!=='withheld-null',location:{id:'location'},quantity:'3',reason:'Original movement',source:'original',transfer:null,reversal:null,order:mode==='non-null'?'purchase-order':null,actor:null,revision:null,unit:null};
+   await store.commit(makeBatch(await store.readRevision(),{writes:[row('rent_catalog.Location','location',{name:'Original location',active:true}),row('employee.Employee','worker',{user:{id:user.user_id},home:{id:'location'},locations:[],operator_wide:false,active:true,skills:[],role:'Stock',visible:true,user_visible:true}),row('stock.Item','item',{sku:'coffee',name:'Coffee',unit:'box',reorder:'0',active:true}),row('stock.Movement','original',movement,parent),row('stock.Movement','other',{...movement,order_readable:true,order:null,source:'other',quantity:mode==='insufficient'?'-2':'5'},parent),...(mode==='duplicate'?[row('stock.Movement','existing',{...movement,source:'existing',quantity:'-3',reversal:{id:'original'}},parent)]:[])]}));
+   const query=store.query.bind(store),load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.query=async spec=>{const rows=await query(spec);if(mode==='identity-race'&&!raced&&spec.model==='employee.Employee'){raced=true;await identities.removeMembership(membership.membership_id);}return rows;};
+   store.commit=async batch=>{if(mode==='grant-race'&&!raced&&batch.writes.some(write=>write.model==='stock.Movement'&&write.kind==='insert')){raced=true;const old=await load(asModel('stock.Movement'),asId('original'));assert.ok(old);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('stock.Movement'),id:old.id,expectedVersion:old.version,row:{...old,version:asVersion(old.version+1),data:{...old.data,order_readable:false}}}]}));}return commit(batch);};
+   const before=await query({model:asModel('stock.Movement'),authority:'owner'}),invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'stock.reverse',operation_id:operationId(now),inputs:{movement:{id:'original',version:mode==='stale'?'2':'1'},reason:'Correct original movement'}};
+   const result=await invoker.invokeMutation(request,identity);assert.equal('result'in result,mode==='allowed',mode+': '+JSON.stringify(result));if(mode.endsWith('-race'))assert.ok(raced,mode);if(mode==='withheld-null'&&'error'in result)assert.equal(result.error.code,'forbidden','a null CONTROL fact grants no source-field DATA');
+   const after=await query({model:asModel('stock.Movement'),authority:'owner'});assert.equal(after.length,before.length+(mode==='allowed'?1:0),mode);assert.equal((await store.outboxPending()).length,0);
+   if(mode==='allowed'){const reversed=after.find(row=>!before.some(old=>old.id===row.id));assert.ok(reversed);assert.deepEqual(reversed.parent,parent);assert.equal(reversed.data.quantity,'-3');assert.deepEqual(reversed.data.location,{id:'location'});assert.deepEqual(reversed.data.reversal,{id:'original'});assert.equal(reversed.data.order,null);assert.deepEqual(reversed.data.actor,{id:user.user_id});const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.deepEqual(await query({model:asModel('stock.Movement'),authority:'owner'}),after);}
+   else if(mode!=='grant-race')assert.deepEqual(after,before,mode+': denied DATA or guard leaves complete ledger untouched');
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});
