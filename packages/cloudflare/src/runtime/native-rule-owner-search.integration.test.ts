@@ -1998,3 +1998,52 @@ it('runs original appointment ready and cleanup from genuine retained progress W
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+
+it('constructs declared nested Contract SEND arguments through real Values and Work staging',
+  {timeout:180000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-declared-contract-send-'));
+    try {
+      const source=join(root,'compiler/tests/fixtures/declared-contract-send.can');
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],
+        {cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact;
+      const asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,
+        stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      const descriptor=artifact.operations?.find(operation=>operation.name==='worker.notify');assert.ok(descriptor);
+      assert.equal(descriptor.result?.disclosure,undefined,'construction grants no result or row disclosure');
+      for(const mode of ['allowed','allowed-stored','forbidden-stored','false-guard','invalid-title','membership-during-send'] as const) {
+        const {now,identities,identity,membership}=await member(`contract-${mode}`);
+        const store=createMemoryStorage(),rootModel=model('worker','Root');
+        const owner={...makeRow({id:asId('root'),data:{checked:false,last:null,public:'Readable title',secret:'Hidden stored DATA'}}),parent:null};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:rootModel,row:owner},
+          {kind:'insert',model:model('worker','Child'),row:{...makeRow({id:asId('child'),data:{active:mode!=='false-guard'}}),parent:{model:rootModel,id:owner.id}}}]}));
+        let revoked=false;
+        if(mode==='membership-during-send') {
+          const load=store.load.bind(store);
+          store.load=async (model,id)=>{
+            if(!revoked&&model==='work.dispatch'){
+              revoked=true;await identities.removeMembership(membership.membership_id);
+            }
+            return load(model,id);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const request={operation:mode==='allowed-stored'?'worker.stored':mode==='forbidden-stored'?'worker.forbidden':'worker.notify',operation_id:operationId(now),inputs:{root:{id:owner.id,version:String(owner.version)},
+          ...(mode.endsWith('-stored')?{}:{title:mode==='invalid-title'?'no':'Original title'})}};
+        const result=await invoker.invokeMutation(request,identity),success=mode==='allowed'||mode==='allowed-stored';
+        assert.equal('result' in result&&result.result.status==='committed',success,`${mode}: ${JSON.stringify(result)}`);
+        const row=await store.load(rootModel,owner.id);assert.ok(row);assert.equal(row.data.checked,success,mode);
+        const pending=await store.outboxPending();assert.equal(pending.length,success?1:0,mode);
+        if(success){
+          assert.deepEqual(pending[0]!.arguments,{binding:'worker.Port',from:'deployment.port',arguments:{packet:{
+            detail:{title:mode==='allowed-stored'?'Readable title':'Original title',enabled:true,note:'Original',tags:['authored'],mode:'normal'},
+            details:[{title:'Second',enabled:true,note:'Original',tags:['authored'],mode:'normal'}],sequence:'7'}}});
+          const receipts=await store.query({model:asModel('work.dispatch'),authority:'owner'});assert.equal(receipts.length,1);
+          assert.equal(row.data.last,receipts[0]!.id);
+          const replay=await invoker.invokeMutation(request,identity);assert.ok('error' in replay);
+          assert.deepEqual(await store.outboxPending(),pending,'no second SEND from replay');
+        } else assert.equal(row.data.last,null);
+        if(mode==='membership-during-send')assert.ok(revoked,'actual SEND Identity fence reached');
+      }
+    } finally {await rm(directory,{recursive:true,force:true});}
+  });

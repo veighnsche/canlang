@@ -1,0 +1,40 @@
+app ContractSend uses=[worker]
+package api
+ Given
+  export contract Detail {title:text min=3,enabled:bool=true,note:text?="Original",tags:text[]=["authored"],mode:enum(normal,urgent)=normal}
+  export contract Packet {detail:Detail,details:Detail[],sequence:int=7}
+  export capability PortV1 version=1
+   deliver(packet:Packet) -> text
+ When
+ Then
+package worker
+ use api {Detail,Packet,PortV1 as Port} from=deployment.port
+ Given
+  Root {checked:bool=false,last:text?,public:text="Readable title",secret:text="Hidden stored DATA"}
+  Child in Root {active:bool=true}
+  derive allowed(root:Root):bool=any(root.Child as child,child.active)
+  policy Root read=members fields=public
+  policy Child read=owner
+ When
+  scenario notify(root:Root,title:text) -> date by=members
+   require allowed(root)
+   do
+    set root {checked=true}
+    send Port.deliver {packet=Packet {detail=Detail {title},details=[Detail {title="Second"}]}} as delivery
+    set root {last=delivery.id}
+    return add_days(local_date(now,"UTC"),1)
+  scenario stored(root:Root) -> date by=members
+   require allowed(root)
+   do
+    set root {checked=true}
+    send Port.deliver {packet=Packet {detail=Detail {title=root.public},details=[Detail {title="Second"}]}} as delivery
+    set root {last=delivery.id}
+    return add_days(local_date(now,"UTC"),1)
+  scenario forbidden(root:Root) -> date by=members
+   require allowed(root)
+   do
+    set root {checked=true}
+    send Port.deliver {packet=Packet {detail=Detail {title=root.secret},details=[Detail {title="Second"}]}} as delivery
+    set root {last=delivery.id}
+    return add_days(local_date(now,"UTC"),1)
+ Then

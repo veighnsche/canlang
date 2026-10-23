@@ -1508,11 +1508,135 @@ impl SemanticJoin<'_> {
             _ => None,
         }
     }
+    /// A constructed nominal value also consumes its defining schema and
+    /// creation defaults. Equal object entries alone cannot seal a substituted
+    /// Contract, field declaration or default elsewhere in mutable IR.
+    fn constructor_schema(
+        &mut self,
+        ty: &ResolvedType,
+        depth: usize,
+        active: &mut HashSet<crate::analysis::resolve::SymbolId>,
+    ) -> Option<()> {
+        self.budget(depth)?;
+        match ty {
+            ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => {
+                self.constructor_schema(inner, depth + 1, active)
+            }
+            ResolvedType::Record {
+                symbol,
+                stored: false,
+            } => {
+                let expected = self.expected.items.get(symbol.0 as usize)?;
+                let IrItemKind::Contract { fields, .. } = &expected.kind else {
+                    return Some(());
+                };
+                let actual = self.actual.items.get(symbol.0 as usize)?;
+                let IrItemKind::Contract {
+                    fields: current, ..
+                } = &actual.kind
+                else {
+                    return None;
+                };
+                let (a_module, b_module) = (
+                    self.actual.modules.get(actual.module.0 as usize)?,
+                    self.expected.modules.get(expected.module.0 as usize)?,
+                );
+                if a_module.id != actual.module
+                    || a_module.id != b_module.id
+                    || a_module.name != b_module.name
+                    || a_module.kind != b_module.kind
+                    || a_module.file != b_module.file
+                    || a_module.span != b_module.span
+                    || expected.span.file != b_module.file
+                {
+                    return None;
+                }
+                if actual.id != *symbol
+                    || expected.id != *symbol
+                    || actual.module != expected.module
+                    || actual.name != expected.name
+                    || actual.canonical != expected.canonical
+                    || actual.span != expected.span
+                    || fields != current
+                    || fields.len() > 200
+                    || !active.insert(*symbol)
+                {
+                    return None;
+                }
+                for id in fields {
+                    self.budget(depth + 1)?;
+                    let (a, b) = (
+                        self.actual.items.get(id.0 as usize)?,
+                        self.expected.items.get(id.0 as usize)?,
+                    );
+                    let (
+                        IrItemKind::Field {
+                            owner: ao,
+                            ty: IrType::Known(at),
+                            required_array: ar,
+                            default: ad,
+                            server: None,
+                            modifiers: am,
+                            ..
+                        },
+                        IrItemKind::Field {
+                            owner: bo,
+                            ty: IrType::Known(bt),
+                            required_array: br,
+                            default: bd,
+                            server: None,
+                            modifiers: bm,
+                            ..
+                        },
+                    ) = (&a.kind, &b.kind)
+                    else {
+                        return None;
+                    };
+                    if a.id != *id
+                        || b.id != *id
+                        || a.module != b.module
+                        || a.module != actual.module
+                        || a.name != b.name
+                        || a.canonical != b.canonical
+                        || a.span != b.span
+                        || *ao != *symbol
+                        || ao != bo
+                        || at != bt
+                        || ar != br
+                        || am.trim != bm.trim
+                        || am.unique != bm.unique
+                        || am.machine != bm.machine
+                        || self.actual.value_constraints.get(id)
+                            != self.expected.value_constraints.get(id)
+                    {
+                        return None;
+                    }
+                    self.optional(&am.min, &bm.min, depth + 1)?;
+                    self.optional(&am.max, &bm.max, depth + 1)?;
+                    match (ad, bd) {
+                        (None, None) => {}
+                        (Some(IrDefault::Literal(a)), Some(IrDefault::Literal(b))) => {
+                            self.expression(a, b, depth + 1)?
+                        }
+                        _ => return None,
+                    }
+                    self.constructor_schema(bt, depth + 1, active)?;
+                }
+                active.remove(symbol);
+                Some(())
+            }
+            _ => Some(()),
+        }
+    }
+
     fn expression(&mut self, a: &TypedExpr, b: &TypedExpr, depth: usize) -> Option<()> {
         let call_span = a.span;
         self.budget(depth)?;
         if a.ty != b.ty || a.span != b.span {
             return None;
+        }
+        if matches!((&a.expr, &b.expr), (IrExpr::Object(_), IrExpr::Object(_))) {
+            self.constructor_schema(&b.ty, depth + 1, &mut HashSet::new())?;
         }
         if Self::leaf_corresponds(&a.expr, &b.expr) {
             return Some(());

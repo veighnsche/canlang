@@ -2023,3 +2023,60 @@ fn qualified_enum_case_is_a_literal_without_a_stored_prefix_dependency() {
     entries.iter_mut().find(|(name,_)|name=="state").unwrap().1.expr=IrExpr::Text("ready".into());
     assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),"$can$m$5175616c696669656443617365.mjs").is_none(),"a different SET case cannot retain the original source proof");
 }
+
+#[test]
+fn declared_contract_send_seals_constructor_nested_schema_and_authored_defaults() {
+    use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+    let source=include_str!("fixtures/declared-contract-send.can");
+    let (db,program,ir,catalog)=fixture_source("declared-contract-send.can",source);
+    let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+    assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let owner=item(&ir,"worker.notify");
+    assert!(serialize_decision_sources(&program,&ir,owner,&db,Some(&catalog)).is_some());
+    for mode in ["constructor-type","constructor-field","field-type","field-order","schema-kind",
+        "default-bool","default-nullable","default-array","required-array","module-source","field-bound"] {
+        let mut changed=ir.clone();
+        match mode {
+            "module-source"=>{let module=item(&changed,"api.Detail").module;changed.modules[module.0 as usize].name="foreign".into();},
+            "constructor-type"|"constructor-field"=>{
+                let alternate=item(&changed,"api.Detail").id;
+                let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("scenario");};
+                let IrStmt::Send{args,..}=&mut effects[1] else{panic!("send");};
+                let IrExpr::Object(arguments)=&mut args.expr else{panic!("args");};
+                let packet=&mut arguments[0].1;
+                if mode=="constructor-type"{packet.ty=ResolvedType::Record{symbol:alternate,stored:false};}
+                else{let IrExpr::Object(fields)=&mut packet.expr else{panic!("packet");};fields[0].0="details".into();}
+            },
+            "field-order"|"schema-kind"=>{
+                let id=item(&changed,"api.Detail").id;
+                let IrItemKind::Contract{fields,..}=&mut changed.items[id.0 as usize].kind else{panic!("contract");};
+                if mode=="field-order"{fields.swap(0,1);}
+                else{changed.items[id.0 as usize].kind=IrItemKind::Event{fields:fields.clone()};}
+            },
+            _=>{
+                let name=match mode{"field-type"|"field-bound"=>"title","default-bool"=>"enabled","default-nullable"=>"note",_=>"tags"};
+                let id=item(&changed,&format!("api.Detail.{name}")).id;
+                let IrItemKind::Field{ty,default,required_array,modifiers,..}=&mut changed.items[id.0 as usize].kind else{panic!("field");};
+                match mode {
+                    "field-type"=>*ty=IrType::Known(ResolvedType::Scalar(Scalar::Int)),
+                    "required-array"=>*required_array=true,
+                    "field-bound"=>modifiers.min.as_mut().unwrap().expr=IrExpr::Int(1),
+                    _=>{let Some(ir::IrDefault::Literal(value))=default else{panic!("literal default");};
+                        value.expr=match mode{"default-bool"=>IrExpr::Bool(false),"default-nullable"=>IrExpr::Text("Substituted".into()),_=>IrExpr::Array(Vec::new())};},
+                }
+            },
+        }
+        assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode}");
+    }
+    for (name,changed) in [
+        ("query-data",source.replace("detail=Detail {title}","detail=Detail {title=format(\"{count}\",{count=count(root.Child)})}")),
+        ("derived-data",source.replace("  derive allowed(root:Root)","  derive Root.count:int=count(row.Child)\n  derive allowed(root:Root)")
+            .replace("detail=Detail {title}","detail=Detail {title=format(\"{count}\",{count=root.count})}")),
+        ("computed-default",source.replace("note:text?=\"Original\"","note:text?=trim(\" Original \")")),
+    ] {
+        assert_ne!(source,changed,"{name}");
+        let (db,program,_,catalog)=fixture_source(&format!("{name}.can"),&changed);
+        let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+        assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
+    }
+}

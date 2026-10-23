@@ -1628,6 +1628,7 @@ fn plain_value(ir:&IrProgram,ty:&ResolvedType,depth:usize)->bool{
     match ty{
         ResolvedType::Null=>true,
         ResolvedType::Scalar(scalar)=>!matches!(scalar,Scalar::File|Scalar::Secret|Scalar::Member|Scalar::Json|Scalar::Bytes),
+        ResolvedType::Enum {cases,..} if !cases.is_empty()=>true,
         ResolvedType::Nullable(inner)=>plain_value(ir,inner,depth+1),
         ResolvedType::Array{element,ordered:true,..}=>plain_value(ir,element,depth+1),
         ResolvedType::Object(fields)=>fields.len()<=200&&fields.iter().all(|(_,ty)|plain_value(ir,ty,depth+1)),
@@ -1648,7 +1649,8 @@ fn send_value(ir:&IrProgram,value:&TypedExpr,values:&BTreeSet<String>,depth:usiz
     // Effect argument objects retain their owning checked operation schema;
     // their aggregate IR carrier can be Unknown while every slot is typed.
     if let IrExpr::Object(fields)=&value.expr{
-        return matches!(value.ty,ResolvedType::Unknown|ResolvedType::Object(_))
+        return (matches!(value.ty,ResolvedType::Unknown|ResolvedType::Object(_))
+            || plain_value(ir,&value.ty,0))
             && fields.len()<=200&&fields.iter().all(|(_,value)|child(value));
     }
     if !plain_value(ir,&value.ty,0){return false;}

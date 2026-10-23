@@ -17172,8 +17172,140 @@ impl<'a> Closure<'a> {
         Ok(vec![self.input_value(key, module, calls, value)?])
     }
 
-    /// A closed std-schema construct: validated imports, fields and
-    /// object against the defining schema.
+    fn declared_constructor_default(
+        &self,
+        key: NodeKey,
+        ty: &ResolvedType,
+        depth: usize,
+        visits: &mut usize,
+    ) -> Option<()> {
+        *visits += 1;
+        if depth > 32 || *visits > 4096 {
+            return None;
+        }
+        let key = self.query_group(key)?;
+        let actual = self.types.node_types.get(&key)?;
+        if actual == &ResolvedType::Null && matches!(ty, ResolvedType::Nullable(_)) {
+            return Some(());
+        }
+        let leaf = match ty {
+            ResolvedType::Nullable(inner) => inner.as_ref(),
+            ty => ty,
+        };
+        let array_literal = matches!((actual, leaf),
+            (ResolvedType::Array {element: a, ordered: ao, nonempty: an},
+             ResolvedType::Array {element: b, ordered: bo, nonempty: bn})
+                if a == b && ao == bo && (!bn || *an));
+        if actual != ty && actual != leaf && !array_literal {
+            return None;
+        }
+        let node = self.nodes.get(&key)?;
+        match node.kind {
+            SyntaxKind::Literal if primitive_type(leaf) => Some(()),
+            SyntaxKind::NameRef
+                if self.types.resolved_cases.contains(&key)
+                    && matches!(leaf, ResolvedType::Enum {cases,..} if !cases.is_empty()) =>
+            {
+                Some(())
+            }
+            SyntaxKind::Array => {
+                let ResolvedType::Array { element, .. } = leaf else {
+                    return None;
+                };
+                for child in node.children.iter().filter(|child| expression(child.kind)) {
+                    self.declared_constructor_default(
+                        NodeKey::of(child),
+                        element,
+                        depth + 1,
+                        visits,
+                    )?;
+                }
+                Some(())
+            }
+            _ => None,
+        }
+    }
+
+    /// Declared value constructors keep their defining nominal schema. This
+    /// census authorizes no member value: `object` still proves each authored
+    /// field through the ordinary DATA expression path below.
+    fn declared_constructor_schema(
+        &self,
+        ty: &ResolvedType,
+        depth: usize,
+        active: &mut HashSet<SymbolId>,
+        fields: &mut usize,
+    ) -> Option<()> {
+        if depth > 32 {
+            return None;
+        }
+        match ty {
+            ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => {
+                self.declared_constructor_schema(inner, depth + 1, active, fields)
+            }
+            ResolvedType::Record {
+                symbol,
+                stored: false,
+            } if self.is_contract_symbol(*symbol) => {
+                if !active.insert(*symbol) {
+                    return None;
+                }
+                let declaration = self.resolve.symbols.get(symbol.0 as usize)?;
+                let SymbolKind::Contract { fields: order } = &declaration.kind else {
+                    return None;
+                };
+                let record = self.effects.records.get(symbol)?;
+                if record.record != *symbol
+                    || record.module != declaration.module
+                    || order.len() > 200
+                    || record
+                        .fields
+                        .iter()
+                        .map(|field| field.field)
+                        .collect::<Vec<_>>()
+                        != *order
+                {
+                    return None;
+                }
+                for field in &record.fields {
+                    *fields += 1;
+                    if *fields > 4096 || field.server.is_some() {
+                        return None;
+                    }
+                    let member = self.resolve.symbols.get(field.field.0 as usize)?;
+                    let field_ty = self.types.symbol_types.get(&field.field)?;
+                    if member.module != declaration.module
+                        || !matches!(member.kind, SymbolKind::Field {owner, ..} if owner == *symbol)
+                        || self
+                            .stored_contract_field_checked_data(
+                                *symbol,
+                                &field.field,
+                                declaration.module,
+                                &member.name,
+                                field_ty,
+                                false,
+                            )
+                            .is_none()
+                    {
+                        return None;
+                    }
+                    if let Some(default) = field.default {
+                        self.declared_constructor_default(default, field_ty, 0, &mut 0)?;
+                    }
+                    self.declared_constructor_schema(field_ty, depth + 1, active, fields)?;
+                }
+                active.remove(symbol);
+                Some(())
+            }
+            ResolvedType::Unknown => None,
+            // A schema reference carries no instance authority. Actual Model,
+            // File, delivery and other opaque values retain their DATA gates.
+            _ => Some(()),
+        }
+    }
+
+    /// Source-owned Contracts and closed std schemas keep their defining
+    /// nominal identity; every object field retains its ordinary DATA proof.
     #[allow(clippy::too_many_arguments)]
     fn expr_construct(
         &mut self,
@@ -17188,6 +17320,15 @@ impl<'a> Closure<'a> {
         let head = children
             .first()
             .ok_or_else(|| self.fail(key, "missing schema construct head"))?;
+        if let Some(TypeRef::Symbol(symbol)) = self.resolve.node_typeref.get(&NodeKey::of(head)) {
+            if ty != &(ResolvedType::Record { symbol: *symbol, stored: false })
+                || !self.is_contract_symbol(*symbol)
+                || self.declared_constructor_schema(ty, 0, &mut HashSet::new(), &mut 0).is_none()
+            { return Err(self.fail(key, "declared constructor needs its complete original Contract schema")); }
+            let object = node.children.iter().find(|node| node.kind == SyntaxKind::Object)
+                .ok_or_else(|| self.fail(key, "missing declared Contract object"))?;
+            return self.object((key, object), ty, module, env, calls, None);
+        }
         if !matches!(
             self.resolve.node_typeref.get(&NodeKey::of(head)),
             Some(TypeRef::External)
@@ -19056,6 +19197,12 @@ impl<'a> Closure<'a> {
         if children.is_empty() {
             return Ok(vec![ValuePath::default()]);
         }
+        let declared_constructs = matches!(element.as_ref(), ResolvedType::Record { symbol, stored: false }
+            if self.is_contract_symbol(*symbol))
+            && self.declared_constructor_schema(element, 0, &mut HashSet::new(), &mut 0).is_some()
+            && children.iter().all(|child| self.query_group(NodeKey::of(child)).is_some_and(|key|
+                self.nodes.get(&key).is_some_and(|node| node.kind == SyntaxKind::Construct)
+                    && self.types.node_types.get(&key) == Some(element.as_ref())));
         let composite = matches!(element.as_ref(), ResolvedType::Object(_))
             || checked_standard_nominal_name(element) == Some("TextMessage");
         let empty_files =
@@ -19069,7 +19216,7 @@ impl<'a> Closure<'a> {
             ResolvedType::Nullable(inner) => inner.as_ref(), ty => ty,
         };
         let closed_enum = matches!(enum_base, ResolvedType::Enum { cases, .. } if !cases.is_empty());
-        if !primitive_type(element) && !composite && !empty_files && !closed_enum {
+        if !primitive_type(element) && !composite && !empty_files && !closed_enum && !declared_constructs {
             return Err(self.fail(key, "unsupported array expression type"));
         }
         let mut paths = vec![ValuePath::default()];
@@ -19079,7 +19226,7 @@ impl<'a> Closure<'a> {
                 .node_types
                 .get(&NodeKey::of(child))
                 .ok_or_else(|| self.fail(key, "missing checked array element type"))?;
-            if !primitive_type(element_ty)
+            if !declared_constructs && !primitive_type(element_ty)
                 && !matches!(element_ty, ResolvedType::Object(_))
                 && checked_standard_nominal_name(element_ty) != Some("TextMessage")
                 && !(!nullable_enum && matches!(element_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
@@ -24734,11 +24881,7 @@ impl<'a> Closure<'a> {
                                     declaration.name == *name && matches!(declaration.kind,SymbolKind::Field{owner,..} if owner == *symbol))))
                             .filter(|field| field.server.is_none() && !field.required_array)
                             .and_then(|field| field.default)
-                            .filter(|default| self.nodes.get(default).is_some_and(|node| node.kind == SyntaxKind::Literal)
-                                && self.types.node_types.get(default) == Some(field_ty)
-                                && primitive_type(field_ty))
-                            .and_then(|default| self.literal_value(default).ok())
-                            .is_some_and(|values| values.len() == 1 && values[0] == ValuePath::default())
+                            .is_some_and(|default| self.declared_constructor_default(default, field_ty, 0, &mut 0).is_some())
                     } else { false };
                     if !matches!(
                         field_ty,
