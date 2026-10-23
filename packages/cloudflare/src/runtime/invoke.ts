@@ -3719,14 +3719,15 @@ interface NativeScenarioExecution {
 }
 const nativeScenarioExecutions = new WeakMap<AdmittedCall, NativeScenarioExecution>();
 // A guard-only frame has no saved result or native body/call privileges.
-interface SourceCancelSource {
+interface SourceWorkSource {
   readonly source:import('@canlang/contracts').ScenarioResultDisclosurePlan['source'];readonly owner:string;
   readonly node:{readonly start:number;readonly end:number};readonly parameter:string;readonly model:string;readonly ownerPackage:string;
   readonly key?:{readonly template:string};
 }
+type SourceCancelSource=SourceWorkSource;
 const nativeSourceCancels=new WeakMap<GeneratedOperationDef,readonly SourceCancelSource[]>();
-interface SourceScheduleSource extends SourceCancelSource{
-  readonly event:string;readonly at:'now'|{readonly offset:string};readonly key?:{readonly template:string};
+interface SourceScheduleSource extends SourceWorkSource{
+  readonly event:string;readonly at:'now'|{readonly offset:string};
   readonly created?:import('@canlang/state/invocation').ScenarioSourceCreatedRoot;
 }
 function sourceScheduleOffset(value:unknown):bigint{
@@ -5770,68 +5771,48 @@ async function assertCheckedFirstQuery<Query extends { readonly id: unknown; rea
   return query;
 }
 
-async function bindNativeSourceCancels(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors):Promise<void>{
+/** Both Work effects use the same verified owner/root/occurrence census.
+ * SCHEDULE alone adds an event, Values time and optional genuine CREATE root. */
+async function bindNativeSourceWork(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors):Promise<void>{
   for(const value of loaded.registry.values()){
     const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def);
     if(def===undefined||source===undefined)continue;
     const callable=artifact.callables.find(entry=>entry.kind==='operation'&&entry.id===def.name&&entry.module===source.module);
-    if(callable?.inputStyle!=='parameters')throw new AssemblyCorrespondenceError('Source CANCEL lacks its original parameter-style operation.');
-    const module=await importVerifiedAssemblyModule(asm,callable.module,artifact),getter=privateSourceMember(module,'canScenarioCancelSources');
-    if(typeof getter!=='function')continue;
-    const census=localPolicyObject(getter()),entry=Object.getOwnPropertyDescriptor(census,def.name);
-    if(entry===undefined)continue;
-    const sites=captureDispatchPreclaimData(nativeCallArray(entry.value,200)) as unknown as readonly SourceCancelSource[];
-    const seen=new Set<string>();
-    for(const value of sites){
-      const site=localPolicyObject(value,['source','owner','node','parameter','model','ownerPackage',...(Object.hasOwn(value as object,'key')?['key']:[])]);
-      const node=localPolicyObject(site.node,['start','end']),key=`${node.start}:${node.end}`;
-      const parameter=def.descriptor.inputs.find(input=>input.name===site.parameter);
-      sourceScheduleKey(site.key,'identity');
-      if(seen.has(key)||site.owner!==def.name||stableStringify(site.source)!==stableStringify(source)||
-          site.ownerPackage!==def.name.slice(0,def.name.lastIndexOf('.'))||!Number.isSafeInteger(node.start)||!Number.isSafeInteger(node.end)||
-          Number(node.start)<0||Number(node.end)<=Number(node.start)||parameter?.kind!=='ref'||parameter.model!==site.model||
-          parameter.nullable===true||Object.hasOwn(def.inputArrays,parameter.name)||!loaded.models.some(model=>model.name===site.model)){
-        throw new AssemblyCorrespondenceError('Source CANCEL differs from its exact original scope, root and occurrence.');
+    if(callable?.inputStyle!=='parameters')throw new AssemblyCorrespondenceError('Source CANCEL/SCHEDULE lacks its original parameter-style operation.');
+    const module=await importVerifiedAssemblyModule(asm,callable.module,artifact);
+    for(const kind of ['CANCEL','SCHEDULE'] as const){
+      const schedule=kind==='SCHEDULE',getter=privateSourceMember(module,schedule?'canScenarioScheduleSources':'canScenarioCancelSources');
+      if(typeof getter!=='function')continue;
+      const entry=Object.getOwnPropertyDescriptor(localPolicyObject(getter()),def.name);if(entry===undefined)continue;
+      const sites=captureDispatchPreclaimData(nativeCallArray(entry.value,200)) as unknown as readonly SourceWorkSource[];
+      const seen=new Set<string>();
+      for(const value of sites){
+        const site=localPolicyObject(value,['source','owner','node','parameter','model','ownerPackage',...(schedule?['event','at']:[]),
+          ...(Object.hasOwn(value as object,'key')?['key']:[]),...(schedule&&Object.hasOwn(value as object,'created')?['created']:[])]);
+        const node=localPolicyObject(site.node,['start','end']),key=`${node.start}:${node.end}`;
+        const parameter=def.descriptor.inputs.find(input=>input.name===site.parameter);
+        sourceScheduleKey(site.key,'identity');
+        const created=schedule&&site.created!==undefined?localPolicyObject(site.created,['id','node','stage','binding','model','parentParameter','parentModel']):undefined;
+        if(schedule)sourceScheduleOffset(site.at);
+        if(seen.has(key)||site.owner!==def.name||stableStringify(site.source)!==stableStringify(source)||
+            site.ownerPackage!==def.name.slice(0,def.name.lastIndexOf('.'))||!Number.isSafeInteger(node.start)||!Number.isSafeInteger(node.end)||
+            Number(node.start)<0||Number(node.end)<=Number(node.start)||!loaded.models.some(model=>model.name===site.model)||
+            (created===undefined?(parameter?.kind!=='ref'||parameter.model!==site.model||parameter.nullable===true||Object.hasOwn(def.inputArrays,parameter.name)):
+              (created.binding!==site.parameter||created.model!==site.model||Number(localPolicyObject(created.node,['start','end']).end)>Number(node.start)))||
+            schedule&&(typeof site.event!=='string'||!site.event.startsWith(site.ownerPackage+'.'))){
+          throw new AssemblyCorrespondenceError(`Source ${kind} differs from its exact original scope, root and occurrence.`);
+        }
+        seen.add(key);
       }
-      seen.add(key);
+      if(schedule){
+        const schedules=sites as readonly SourceScheduleSource[],creates=schedules.flatMap(site=>site.created===undefined?[]:[site.created]);
+        if(creates.length!==0){const bind=loaded.producers.invoke.bindScenarioSourceCreatedRoots;
+          if(bind===undefined)throw new AssemblyCorrespondenceError('Source SCHEDULE lacks its genuine State created-root producer.');
+          bind(def,{source,owner:def.name,creates});
+        }
+        nativeSourceSchedules.set(def,schedules);
+      }else nativeSourceCancels.set(def,sites);
     }
-    nativeSourceCancels.set(def,sites);
-  }
-}
-
-async function bindNativeSourceSchedules(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors):Promise<void>{
-  for(const value of loaded.registry.values()){
-    const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def);
-    if(def===undefined||source===undefined)continue;
-    const callable=artifact.callables.find(entry=>entry.kind==='operation'&&entry.id===def.name&&entry.module===source.module);
-    if(callable?.inputStyle!=='parameters')throw new AssemblyCorrespondenceError('Source SCHEDULE lacks its original parameter-style operation.');
-    const module=await importVerifiedAssemblyModule(asm,callable.module,artifact),getter=privateSourceMember(module,'canScenarioScheduleSources');
-    if(typeof getter!=='function')continue;
-    const census=localPolicyObject(getter()),entry=Object.getOwnPropertyDescriptor(census,def.name);
-    if(entry===undefined)continue;
-    const sites=captureDispatchPreclaimData(nativeCallArray(entry.value,200)) as unknown as readonly SourceScheduleSource[];
-    const seen=new Set<string>();
-    for(const value of sites){
-      const site=localPolicyObject(value,['source','owner','node','parameter','model','ownerPackage','event','at',...(Object.hasOwn(value as object,'key')?['key']:[]),...(Object.hasOwn(value as object,'created')?['created']:[])]);
-      const node=localPolicyObject(site.node,['start','end']),key=`${node.start}:${node.end}`;
-      const parameter=def.descriptor.inputs.find(input=>input.name===site.parameter);
-      sourceScheduleOffset(site.at);sourceScheduleKey(site.key,'identity');
-      const created=site.created===undefined?undefined:localPolicyObject(site.created,['id','node','stage','binding','model','parentParameter','parentModel']);
-      if(seen.has(key)||site.owner!==def.name||stableStringify(site.source)!==stableStringify(source)||
-          site.ownerPackage!==def.name.slice(0,def.name.lastIndexOf('.'))||typeof site.event!=='string'||!site.event.startsWith(site.ownerPackage+'.')||!Number.isSafeInteger(node.start)||!Number.isSafeInteger(node.end)||
-          Number(node.start)<0||Number(node.end)<=Number(node.start)||!loaded.models.some(model=>model.name===site.model)||
-          (created===undefined?(parameter?.kind!=='ref'||parameter.model!==site.model||parameter.nullable===true||Object.hasOwn(def.inputArrays,parameter.name)):
-            (created.binding!==site.parameter||created.model!==site.model||Number(localPolicyObject(created.node,['start','end']).end)>Number(node.start)))){
-        throw new AssemblyCorrespondenceError('Source SCHEDULE differs from its exact original scope, root and occurrence.');
-      }
-      seen.add(key);
-    }
-    const creates=sites.flatMap(site=>site.created===undefined?[]:[site.created]);
-    if(creates.length!==0){const bind=loaded.producers.invoke.bindScenarioSourceCreatedRoots;
-      if(bind===undefined)throw new AssemblyCorrespondenceError('Source SCHEDULE lacks its genuine State created-root producer.');
-      bind(def,{source,owner:def.name,creates});
-    }
-    nativeSourceSchedules.set(def,sites);
   }
 }
 
@@ -6870,8 +6851,7 @@ async function loadCanonicalDescriptorsInternal(
     bindNativeOwnerMembership(def, { source: ownerSites[0]!.source, app: await originalAppForOperation(asm, artifact, def), sites: ownerSites });
   }
   // Selected-row execution dependencies bind against the checked first-query mark.
-  await bindNativeSourceCancels(asm,artifact,canonical);
-  await bindNativeSourceSchedules(asm,artifact,canonical);
+  await bindNativeSourceWork(asm,artifact,canonical);
   await bindNativeSourceBodyLoops(asm,artifact,canonical,invocationSourceReads!==undefined);
   await bindNativeSourceData(asm,artifact,canonical,invocationSourceReads);
   await bindNativeScenarioQueries(asm, artifact, canonical, invocationSourceReads);
@@ -12946,63 +12926,56 @@ async function runScenarioExecution(
       });
     }
   }
-  if(sourceRequireAware&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined){
-    const sources=nativeSourceCancels.get(scenarioDef),actual=call as AdmittedCall;
-    if(sources!==undefined){
-      const parameters=localPolicyObject(argument),consumed=new Set<string>();
+  if(sourceRequireAware&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined
+      &&(nativeSourceCancels.has(scenarioDef)||nativeSourceSchedules.has(scenarioDef))){
+    const actual=call as AdmittedCall,parameters=localPolicyObject(argument);
+    // These shared checks issue no Work effect. Each effect retains its own
+    // once-use ledger and active lease through its actual Work staging call.
+    const occurrence=<Source extends SourceWorkSource>(kind:'CANCEL'|'SCHEDULE',sources:readonly Source[],consumed:Set<string>,claimed:unknown,root:unknown,active:boolean)=>{
+      const assertExecution=loaded.producers.invoke.assertScenarioReceiptCallExecution;
+      if(assertExecution===undefined||nativeScenarioExecutions.get(actual)?.session!==ownerSession||active)return refuseRecordBinding(`Source ${kind} lacks its actual live quiescent owner.`);
+      assertExecution(actual,receiptStore);
+      const source=sources.find(source=>stableStringify(source)===stableStringify(captureDispatchPreclaimData(claimed)));
+      if(source===undefined||!isUnknownRecord(root))return refuseRecordBinding(`Source ${kind} changed its genuine original root graph.`);
+      const key=`${source.node.start}:${source.node.end}`;
+      if(consumed.has(key))return refuseRecordBinding(`Source ${kind} repeats its original occurrence.`);
+      return {source,key,binding:recordBindings.get(root),assertExecution};
+    };
+    const admittedRoot=async(kind:'CANCEL'|'SCHEDULE',source:SourceWorkSource,root:unknown,assertExecution:NonNullable<typeof loaded.producers.invoke.assertScenarioReceiptCallExecution>)=>{
+      const refs=actual.recordRefs.filter(ref=>ref.param===source.parameter),ref=refs[0],binding=isUnknownRecord(root)?recordBindings.get(root):undefined;
+      if(root!==parameters[source.parameter]||refs.length!==1||ref===undefined||ref.model!==source.model||ref.expectedVersion===null||
+          ref.expectedVersion!==ref.row.version||binding?.model!==source.model||binding.id!==ref.id||binding.version!==ref.row.version)return refuseRecordBinding(`Source ${kind} lost its exact versioned originally admitted model root.`);
+      const current=await readOwnerRow(ref.model as ModelName,ref.id as RecordId);assertExecution(actual,receiptStore);
+      if(current===null||current.archivedAt!==null||current.created!==ref.row.created||current.createdBy!==ref.row.createdBy||
+          current.version<ref.row.version||stableStringify(current.parent??null)!==stableStringify(ref.row.parent??null))return refuseRecordBinding(`Source ${kind} root lifetime changed.`);
+      return {current,ref};
+    };
+    const cancels=nativeSourceCancels.get(scenarioDef);
+    if(cancels!==undefined){
+      const consumed=new Set<string>();
       bindNativeScenarioSourceCancel(ctx,async(claimed,root)=>{
         try{
-          const assertExecution=loaded.producers.invoke.assertScenarioReceiptCallExecution;
-          if(assertExecution===undefined||nativeScenarioExecutions.get(actual)?.session!==ownerSession||activeSourceCancellation!==null)return refuseRecordBinding('Source CANCEL lacks its actual live quiescent owner.');
-          assertExecution(actual,receiptStore);
-          const source=sources.find(source=>stableStringify(source)===stableStringify(captureDispatchPreclaimData(claimed)));
-          if(source===undefined||root!==parameters[source.parameter]||!isUnknownRecord(root))return refuseRecordBinding('Source CANCEL changed its genuine original parameter graph.');
-          const binding=recordBindings.get(root),refs=actual.recordRefs.filter(ref=>ref.param===source.parameter),ref=refs[0],key=`${source.node.start}:${source.node.end}`;
-          if(consumed.has(key)||refs.length!==1||ref===undefined||ref.model!==source.model||ref.expectedVersion===null||
-              ref.expectedVersion!==ref.row.version||binding?.model!==source.model||binding.id!==ref.id||binding.version!==ref.row.version){
-            return refuseRecordBinding('Source CANCEL lost its exact versioned originally admitted model root.');
-          }
-          const current=await readOwnerRow(ref.model as ModelName,ref.id as RecordId);
-          assertExecution(actual,receiptStore);
-          if(current===null||current.archivedAt!==null||current.created!==ref.row.created||current.createdBy!==ref.row.createdBy||
-              current.version<ref.row.version||stableStringify(current.parent??null)!==stableStringify(ref.row.parent??null))return refuseRecordBinding('Source CANCEL root lifetime changed.');
-          const cancellationKey=sourceScheduleKey(source.key,ref.id);
+          const {source,key,assertExecution}=occurrence('CANCEL',cancels,consumed,claimed,root,activeSourceCancellation!==null);
+          const {ref}=await admittedRoot('CANCEL',source,root,assertExecution),cancellationKey=sourceScheduleKey(source.key,ref.id);
           consumed.add(key);activeSourceCancellation=Object.freeze({key:cancellationKey,ownerPackage:source.ownerPackage});
           try{await ctx.cancelDeferred!(cancellationKey,source.ownerPackage);assertExecution(actual,receiptStore);}
           finally{activeSourceCancellation=null;}
         }catch(error){recordEngineFailure(error);throw error;}
       });
     }
-  }
-  if(sourceRequireAware&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined){
-    const sources=nativeSourceSchedules.get(scenarioDef),actual=call as AdmittedCall;
-    if(sources!==undefined){
-      const parameters=localPolicyObject(argument),consumed=new Set<string>();
+    const schedules=nativeSourceSchedules.get(scenarioDef);
+    if(schedules!==undefined){
+      const consumed=new Set<string>();
       bindNativeScenarioSourceSchedule(ctx,async(claimed,root,at,payload,originalKey)=>{
         try{
-          const assertExecution=loaded.producers.invoke.assertScenarioReceiptCallExecution;
-          if(assertExecution===undefined||nativeScenarioExecutions.get(actual)?.session!==ownerSession||activeSourceSchedule!==null)return refuseRecordBinding('Source SCHEDULE lacks its actual live quiescent owner.');
-          assertExecution(actual,receiptStore);
-          const source=sources.find(source=>stableStringify(source)===stableStringify(captureDispatchPreclaimData(claimed)));
-          if(source===undefined||!isUnknownRecord(root))return refuseRecordBinding('Source SCHEDULE changed its genuine original root graph.');
-          const binding=recordBindings.get(root),key=`${source.node.start}:${source.node.end}`;
-          if(consumed.has(key))return refuseRecordBinding('Source SCHEDULE repeats its original occurrence.');
-          let current:StoredRow|null;
+          const {source,key,binding,assertExecution}=occurrence('SCHEDULE',schedules,consumed,claimed,root,activeSourceSchedule!==null);
+          let current:StoredRow;
           if(source.created!==undefined){
             const read=loaded.producers.invoke.readScenarioSourceCreatedRoot;
             if(read===undefined||binding?.model!==source.model)return refuseRecordBinding('Source SCHEDULE lacks its actual created-row authority.');
             current=await read(actual,receiptStore,{id:source.created.id});assertExecution(actual,receiptStore);
             if(binding.id!==current.id||binding.version<1||binding.version>current.version)return refuseRecordBinding('Source SCHEDULE changed its original actual created record.');
-          }else{
-            const refs=actual.recordRefs.filter(ref=>ref.param===source.parameter),ref=refs[0];
-            if(root!==parameters[source.parameter]||refs.length!==1||ref===undefined||ref.model!==source.model||ref.expectedVersion===null||
-                ref.expectedVersion!==ref.row.version||binding?.model!==source.model||binding.id!==ref.id||binding.version!==ref.row.version){
-              return refuseRecordBinding('Source SCHEDULE lost its exact versioned originally admitted model root.');
-            }
-            current=await readOwnerRow(ref.model as ModelName,ref.id as RecordId);assertExecution(actual,receiptStore);
-            if(current===null||current.archivedAt!==null||current.created!==ref.row.created||current.createdBy!==ref.row.createdBy||
-                current.version<ref.row.version||stableStringify(current.parent??null)!==stableStringify(ref.row.parent??null))return refuseRecordBinding('Source SCHEDULE root lifetime changed.');
-          }
+          }else current=(await admittedRoot('SCHEDULE',source,root,assertExecution)).current;
           const scheduleKey=sourceScheduleKey(source.key,current.id);
           if((originalKey!==undefined||source.created!==undefined||source.key!==undefined)&&originalKey!==scheduleKey)return refuseRecordBinding('Source SCHEDULE changed its original identity key expression.');
           const time=decodeValue('datetime',encodeValue('datetime',at as CanValue)) as import('@canlang/contracts').DatetimeValue;
