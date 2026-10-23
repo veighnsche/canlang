@@ -9,7 +9,7 @@ pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decis
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
     let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
     if !effects.iter().any(|statement|matches!(statement,IrStmt::Let{value:TypedExpr{expr:IrExpr::Member{..},..},..})){return Some(HashMap::new());}
-    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
+    context.same_scenario(ir, owner)?;
     let mut roots:BTreeMap<String,SymbolId>=params.iter().filter_map(|id|{let param=ir.items.get(id.0 as usize)?;
         let IrItemKind::Param{ty:IrType::Known(ResolvedType::Record{symbol,stored:true}),..}=&param.kind else{return None;};
         matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..}).then(||(param.name.clone(),*symbol))}).collect();
