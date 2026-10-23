@@ -6,7 +6,7 @@ use std::collections::HashMap;
 pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,source:&serde_json::Value)->Option<Vec<serde_json::Value>>{
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
     if !effects.iter().any(|statement|matches!(statement,IrStmt::Create{binding:Some(_),when:None,..})){return Some(Vec::new());}
-    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
+    context.same_scenario(ir, owner)?;
     let mut parents:HashMap<String,SymbolId>=params.iter().filter_map(|id|{let param=ir.items.get(id.0 as usize)?;
         let IrItemKind::Param{ty:IrType::Known(ResolvedType::Record{symbol,stored:true}),..}=&param.kind else{return None;};
         matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..}).then(||(param.name.clone(),*symbol))}).collect();

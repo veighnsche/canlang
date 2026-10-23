@@ -2251,7 +2251,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     if has_emitting_loop && checked_source_emissions(ir,item,checked,entry_module).is_none(){return None;}
     if checked_source_emissions(ir,item,checked,entry_module).is_some() {
         let context=source_context?;
-        super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),item)?;
+        context.same_scenario(ir, item)?;
     }
     let mut recipe = NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: checked_source_emissions(ir,item,checked,entry_module),
@@ -13936,7 +13936,7 @@ fn checked_helper_parent_reference<'a>(
 )->Option<(&'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
     &'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema)> {
     let [_]=read.calls.as_slice() else{return None;};
-    super::scenario_decisions::same_scenario_semantics(context.original(),context.ir(),context.fresh(),owner)?;
+    context.same_scenario(context.ir(), owner)?;
     if read.query_id.is_some() || read.role!=DependencyRole::Data || read.field!=read.model || read.field_name!="parent"
         || value.span!=node_span(read.node) || value.ty!=read.ty
         || !matches!(&value.expr,IrExpr::Member{base,field} if field=="parent" &&
@@ -13963,7 +13963,7 @@ fn checked_helper_identity_reference<'a>(
 ) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
     let [_]=read.calls.as_slice() else{return None;};
     let ir=context.ir();
-    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
+    context.same_scenario(ir, owner)?;
     if read.query_id.is_some() || read.role!=DependencyRole::Data || value.span!=node_span(read.node)
         || value.ty!=read.ty || !matches!(&value.expr,IrExpr::Member{base,field}
             if (matches!(base.expr,IrExpr::Name(_)) || matches!(&base.expr,IrExpr::Member{field,..} if field=="parent")) && field==&read.field_name
@@ -15873,7 +15873,7 @@ fn checked_first_target_branch_create(
     original:&crate::analysis::scenario_disclosure::CheckedScenarioCreate,
 )->Option<()> {
     let ir=context.ir();
-    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
+    context.same_scenario(ir, owner)?;
     let [query]=checked.source_facts.as_deref()?.queries.as_deref()? else {return None;};
     if !query.first.as_ref()?.target_consumed {return None;}
     let IrItemKind::Scenario {effects,result:None,read:false,trusted:false,event_source:None,hook:None,cohort:None,..}=&owner.kind else {return None;};
@@ -15896,7 +15896,7 @@ fn conditional_parameter_create_link(
     original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
 ) -> Option<()> {
     let ir = context.ir();
-    super::scenario_decisions::same_scenario_semantics(context.original(), ir, context.fresh(), owner)?;
+    context.same_scenario(ir, owner)?;
     let IrItemKind::Scenario { params, guards, effects, result: None, trusted: false,
         read: false, hook: None, event_source: None, cohort: None, .. } = &owner.kind
         else { return None; };
@@ -15961,7 +15961,7 @@ fn conditional_parameter_create_link(
 /// ordinary schema/rule/lock staging remains mandatory for each CREATE.
 fn source_owned_copy_loop(context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem)->Option<serde_json::Value>{
     let ir=context.ir();
-    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
+    context.same_scenario(ir, owner)?;
     let IrItemKind::Scenario{result:None,trusted:false,read:false,hook:None,event_source:None,cohort:None,effects,..}=&owner.kind else{return None;};
     let [IrStmt::Call{target:super::ir::IrEffectCallTarget::Operation{operation,..},binding:Some(result),result:Some(result_type),span:call,..},IrStmt::Set{..},
         IrStmt::For{item,domain,limit:Some(limit),body,span,..}]=effects.as_slice()else{return None;};
@@ -15998,7 +15998,7 @@ fn source_owned_copy_loop(context:&super::scenario_decisions::FreshSourceContext
 fn source_owned_updated_model_create(context: &super::scenario_decisions::FreshSourceContext<'_>,
     owner: &IrItem, original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate) -> Option<()> {
     let ir = context.ir();
-    super::scenario_decisions::same_scenario_semantics(context.original(), ir, context.fresh(), owner)?;
+    context.same_scenario(ir, owner)?;
     let IrItemKind::Scenario { result: Some(ResolvedType::Record {symbol: model,stored:true}),
         trusted:false,read:false,hook:None,event_source:None,cohort:None,effects,.. } = &owner.kind else { return None; };
     let [IrStmt::For {..}, IrStmt::Let {..}, IrStmt::Set {..},
@@ -16019,7 +16019,7 @@ fn source_owned_updated_model_create(context: &super::scenario_decisions::FreshS
 fn source_owned_after_call_create(context: &super::scenario_decisions::FreshSourceContext<'_>,
     owner: &IrItem, original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate) -> Option<()> {
     let ir = context.ir();
-    super::scenario_decisions::same_scenario_semantics(context.original(), ir, context.fresh(), owner)?;
+    context.same_scenario(ir, owner)?;
     let IrItemKind::Scenario { result: None, trusted: false, read: false, hook: None,
         event_source: None, cohort: None, effects, .. } = &owner.kind else { return None; };
     let [IrStmt::If { then_branch, else_branch, .. },
@@ -16042,7 +16042,7 @@ fn source_owned_after_call_create(context: &super::scenario_decisions::FreshSour
 /// field authority; each loop, effect and schema keeps its independent join.
 fn source_owned_void_member_loops(context: &super::scenario_decisions::FreshSourceContext<'_>, owner: &IrItem) -> Option<()> {
     let ir=context.ir();
-    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
+    context.same_scenario(ir, owner)?;
     let IrItemKind::Scenario{result:None,trusted:false,read:false,hook:None,event_source:None,cohort:None,effects,..}=&owner.kind else{return None;};
     let mut loops=0;
     for effect in effects {
@@ -16127,7 +16127,7 @@ pub(super) fn constructor_inputs(
 fn source_owned_void_create(context: &super::scenario_decisions::FreshSourceContext<'_>,
     owner: &IrItem, original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate) -> Option<()> {
     let ir = context.ir();
-    super::scenario_decisions::same_scenario_semantics(context.original(), ir, context.fresh(), owner)?;
+    context.same_scenario(ir, owner)?;
     let IrItemKind::Scenario {result:None,trusted:false,read:false,hook:None,event_source:None,
         cohort:None,effects,..} = &owner.kind else {return None;};
     let facts = super::scenario_calls::checked_source(ir,owner,context.db())?;
@@ -16155,7 +16155,7 @@ fn source_owned_void_create(context: &super::scenario_decisions::FreshSourceCont
 fn source_owned_created_return_tail(context: &super::scenario_decisions::FreshSourceContext<'_>,
     owner: &IrItem, original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate) -> Option<()> {
     let ir = context.ir();
-    super::scenario_decisions::same_scenario_semantics(context.original(), ir, context.fresh(), owner)?;
+    context.same_scenario(ir, owner)?;
     let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
     let [created] = facts.creates.as_deref()? else { return None; };
     if !std::ptr::eq(created, original) || checked_created_model_result(ir, owner) != Some(original.model) { return None; }

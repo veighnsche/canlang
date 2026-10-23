@@ -73,7 +73,7 @@ pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decis
     requires:&HashMap<Span,serde_json::Value>,module:&str)->Option<serde_json::Value>{
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
     let source=&requires.values().find(|source|source["owner"]==owner.canonical)?["source"];
-    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
+    context.same_scenario(ir, owner)?;
     let roots:HashMap<_,_>=params.iter().filter_map(|id|{let param=ir.items.get(id.0 as usize)?;
         let IrItemKind::Param{ty:IrType::Known(ResolvedType::Record{symbol,stored:true}),..}=&param.kind else{return None;};Some((param.name.clone(),*symbol))}).collect();
     let values:BTreeSet<_>=params.iter().filter_map(|id|{let param=ir.items.get(id.0 as usize)?;

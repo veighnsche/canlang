@@ -269,7 +269,7 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
     requires:&HashMap<Span,serde_json::Value>,module:&str,loops:Option<&serde_json::Value>)->Option<HashMap<Span,serde_json::Value>>{
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
     let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
-    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
+    context.same_scenario(ir, owner)?;
     let creates=super::source_created_rows::collect(ir,owner,context,&source)?;
     let mut env=Environment::default();let mut models=BTreeMap::new();
     for id in params{
@@ -332,7 +332,7 @@ pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super:
     fn has_emit(body:&[IrStmt])->bool{body.iter().any(|statement|match statement{IrStmt::Emit{..}=>true,
         IrStmt::If{then_branch,else_branch,..}=>has_emit(then_branch)||has_emit(else_branch),IrStmt::Match{arms,..}=>arms.iter().any(|arm|has_emit(&arm.body)),_=>false})}
     if !has_emit(effects){return Some(HashMap::new());}
-    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
+    context.same_scenario(ir, owner)?;
     let mut env=Environment::default();let mut models=BTreeMap::new();
     for id in params{
         let param=ir.items.get(id.0 as usize)?;let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};

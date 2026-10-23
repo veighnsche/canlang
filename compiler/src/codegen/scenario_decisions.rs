@@ -6,7 +6,7 @@ use crate::analysis::scenario_disclosure::{
     CheckedDecisionSite, CheckedDecisionStage as Stage,
 };
 use crate::analysis::types::SelectedCallTarget;
-use crate::analysis::{CheckedProgram, NodeKey, ResolvedType, Scalar};
+use crate::analysis::{CheckedProgram, NodeKey, ResolvedType, Scalar, SymbolId};
 use crate::source::{SourceDb, Span};
 use crate::syntax::{self, SyntaxKind, SyntaxNode};
 use std::collections::{HashMap, HashSet};
@@ -994,7 +994,7 @@ pub(super) fn owner_handler_queries(context: &FreshSourceContext<'_>, owner: &Ir
         })
     }
     if !mutation(effects) { return None; }
-    same_scenario_semantics(context.original(), context.ir(), context.fresh(), owner)
+    context.same_scenario(context.ir(), owner)
 }
 
 /// Join the executable scenario to a fresh lowering of its original checker.
@@ -2564,6 +2564,7 @@ pub(super) struct FreshSourceContext<'a> {
     ir_diagnostics: Vec<crate::diagnostic::Diagnostic>,
     trees: Vec<(crate::source::SourceId, SyntaxNode)>,
     resolved: crate::analysis::resolve::ResolveTables,
+    scenario_semantics: std::sync::Mutex<HashMap<SymbolId, bool>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -2670,6 +2671,7 @@ impl<'a> FreshSourceContext<'a> {
             ir_diagnostics,
             trees,
             resolved,
+            scenario_semantics: std::sync::Mutex::new(HashMap::new()),
         })
     }
 
@@ -2704,6 +2706,21 @@ impl<'a> FreshSourceContext<'a> {
     }
     pub(super) fn trees(&self) -> &[(crate::source::SourceId, SyntaxNode)] {
         &self.trees
+    }
+    /// The IR and source cohort are immutable for this context. Reuse a
+    /// complete owner comparison only for its exact borrowed item; detached
+    /// items and other IRs retain the uncached structural comparison.
+    pub(super) fn same_scenario(&self, ir: &IrProgram, owner: &IrItem) -> Option<()> {
+        if !std::ptr::eq(ir, self.ir)
+            || !ir.items.get(owner.id.0 as usize).is_some_and(|item| std::ptr::eq(item, owner)) {
+            return same_scenario_semantics(&self.original, ir, &self.fresh, owner);
+        }
+        if let Some(result) = self.scenario_semantics.lock().ok()?.get(&owner.id).copied() {
+            return result.then_some(());
+        }
+        let result = same_scenario_semantics(&self.original, ir, &self.fresh, owner).is_some();
+        self.scenario_semantics.lock().ok()?.insert(owner.id, result);
+        result.then_some(())
     }
     pub(super) fn same_event_schema(&self,event:&str)->Option<()>{
         SemanticJoin{program:self.program,actual:self.ir,expected:&self.fresh,nodes:0,stack:HashSet::new()}.event_schema(event,0)
@@ -3731,7 +3748,7 @@ fn serialize_require_params(
             && default_copy_source.is_none() && checked.constraints.is_none();
         let source_value_default = plain_source_value(ir,ty,0) && checked.constraints.is_none()
             && checked.default.is_some() && *default_node == checked.default
-            && same_scenario_semantics(original,ir,sources.fresh(),owner).is_some()
+            && sources.same_scenario(ir, owner).is_some()
             && match default {
                 Some(IrDefault::Literal(value)) => matches!(&value.expr,
                     IrExpr::Int(_) | IrExpr::Decimal(_) | IrExpr::Text(_) | IrExpr::Bool(_) | IrExpr::Null
@@ -3875,7 +3892,7 @@ pub(super) fn serialize_scenario_requires(
             if site.stage==crate::analysis::scenario_disclosure::CheckedDecisionStage::BodyCondition && !staged_owner_sealed {
                 // A staged branch must retain its original prefix and both
                 // arms, not only the condition that borrows owner control.
-                same_scenario_semantics(original,ir,sources.fresh(),owner)?;
+                sources.same_scenario(ir, owner)?;
                 staged_owner_sealed=true;
             }
             let cond = join_require_statements(

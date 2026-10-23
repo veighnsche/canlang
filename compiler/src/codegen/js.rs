@@ -1647,7 +1647,7 @@ fn source_only_cancels(ir:&IrProgram,owner:&IrItem,context:&super::scenario_deci
     requires:&HashMap<Span,serde_json::Value>,module:&str)->Option<HashMap<Span,serde_json::Value>>{
     let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
-    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
+    context.same_scenario(ir, owner)?;
     let mut roots:BTreeMap<String,SymbolId>=params.iter().filter_map(|id|{let param=ir.items.get(id.0 as usize)?;
         let IrItemKind::Param{ty:IrType::Known(ResolvedType::Record{symbol,stored:true}),..}=&param.kind else{return None;};
         matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..}).then(||(param.name.clone(),*symbol))}).collect();
@@ -1680,7 +1680,7 @@ fn source_only_schedules(ir:&IrProgram,owner:&IrItem,context:&super::scenario_de
         IrStmt::Schedule{..}=>true,IrStmt::If{then_branch,else_branch,..}=>contains_schedule(then_branch)||contains_schedule(else_branch),
         IrStmt::Match{arms,..}=>arms.iter().any(|arm|contains_schedule(&arm.body)),_=>false})}
     if !contains_schedule(effects){return Some(HashMap::new());}
-    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
+    context.same_scenario(ir, owner)?;
     let mut roots:BTreeMap<String,ResolvedType>=params.iter().filter_map(|id|{let param=ir.items.get(id.0 as usize)?;
         let IrItemKind::Param{ty:IrType::Known(ty@ResolvedType::Record{symbol,stored:true}),..}=&param.kind else{return None;};
         matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..}).then(||(param.name.clone(),ty.clone()))}).collect();
