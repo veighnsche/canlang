@@ -13219,8 +13219,12 @@ fn null_equality(
                         format!("await nativeScenarioEventDecision(c,{},async(c,{{eventTerm,eventRevision,eventAccountRevision}})=>{{const {account}=eventTerm;const {event}={{{root_field}:eventTerm,revision:eventRevision,account_revision:eventAccountRevision}};return {expression};}})",
                             descriptor_json(&decision))
                     }
-                } else {
+                } else if self.receipt_capture.is_none() {
                     self.lower_source_condition(cond).unwrap_or_else(||self.lower_expr(cond))
+                } else {
+                    // A complete receipt retains its existing checked query
+                    // consumers and branch ledger; source control is a fallback.
+                    self.lower_expr(cond)
                 };
                 if in_hook {
                     self.hook_decision_depth -= 1;
