@@ -11845,7 +11845,14 @@ fn null_equality(
                     self.native_receipts.values().filter(|_| !self.retained_owner_body && !self.generic_boolean_body).flat_map(|receipt| [
                         receipt.plan.invoice_collect_decision.as_ref(),
                         receipt.plan.invoice_issue_decision.as_ref(),
-                    ].into_iter().flatten())).find_map(|decision| {
+                    ].into_iter().flatten())).filter(|decision| {
+                    // Shared helpers can occur in several owner's financial
+                    // profiles. A source Require has its exact owner here;
+                    // another owner's site must not win HashMap iteration.
+                    self.source_require_identity.as_ref()
+                        .and_then(|identity| identity["owner"].as_str())
+                        .is_none_or(|owner| decision["owner"] == owner)
+                }).find_map(|decision| {
                     decision["querySites"].as_array()?.iter().find(|site| {
                         let exact_node=query.source.as_ref().is_some_and(|source| {
                             let node=source.node;

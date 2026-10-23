@@ -8219,6 +8219,19 @@ export async function executeScenarioReceiptInvoiceCollectDecision(call: Admitte
           return invalid('Invoice collection crossed its original serial owner stage.');
         }
       };
+      // The original headers may run through the independent Require
+      // observer or directly inside this complete owner decision. A write
+      // lease with no queries cannot represent that ordinary source path.
+      const capturedHeader = (index: 0 | 1): boolean => {
+        const node = profile.sites.header[index].node;
+        return owner.callGuards.some(guard => guard.name ===
+          `source-require:${call.def.name}:${node.start}:${node.end}`);
+      };
+      const expectedAuthority = ['authorityRole',
+        ...(!billing && customer.data['kind'] === 'individual' ? ['authorityOwn'] : []),
+        ...(!billing && !owns && finance ? ['authorityWork'] : [])];
+      const authorityQueries: string[] = [];
+      let pendingQuery = false;
       const query = async (siteId: string, model: ModelName,
         parent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
         healthy();
@@ -8231,7 +8244,20 @@ export async function executeScenarioReceiptInvoiceCollectDecision(call: Admitte
         }
         if (site.stage === 'authorityRole' || site.stage === 'authorityOwn' ||
             site.stage === 'authorityWork' || site.stage === 'pendingAttempt') {
-          claimOwnerDecisionQuery(owner, lease, siteId, model, parent);
+          if (owner.stage !== 0) return invalid('Invoice header query crossed its original initial stage.');
+          if (site.stage === 'pendingAttempt') {
+            if (pendingQuery || capturedHeader(1) ||
+                (!capturedHeader(0) && authorityQueries.length !== expectedAuthority.length)) {
+              return invalid('Invoice pending header query lost its original source order.');
+            }
+            pendingQuery = true;
+          } else {
+            if (capturedHeader(0) || pendingQuery ||
+                expectedAuthority[authorityQueries.length] !== site.stage) {
+              return invalid('Invoice authority query lost its original short-circuit source order.');
+            }
+            authorityQueries.push(site.stage);
+          }
           const selected = await readDomain(model, parent);
           healthy(); return selected;
         }
@@ -8303,8 +8329,14 @@ export async function executeScenarioReceiptInvoiceCollectDecision(call: Admitte
         healthy();
         if (answer !== undefined) return invalid('Invoice collection original body must return void.');
       } finally { owner.activeOwnerDecision = null; }
-      if (lease.queryIndex !== 0 || lease.staged !== 4 || owner.stage !== 4 ||
-          roleUses !== 0 || !cancelled || emitted === null) {
+      const observedAuthority = capturedHeader(0);
+      if (observedAuthority ? authorityQueries.length !== 0 || roleUses !== 0 :
+          stableStringify(authorityQueries) !== stableStringify(expectedAuthority) ||
+            roleUses !== 0) {
+        return invalid('Invoice collection omitted or mixed its original authority header execution.');
+      }
+      if (capturedHeader(1) === pendingQuery || lease.queryIndex !== 0 ||
+          lease.staged !== 4 || owner.stage !== 4 || !cancelled || emitted === null) {
         return invalid('Invoice collection omitted an original query, write, role or settlement EMIT.');
       }
       const attemptId = lease.stagedIds[1];
