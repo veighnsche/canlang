@@ -7884,6 +7884,9 @@ impl<'a> Closure<'a> {
                                 && matches!(contract.kind, SymbolKind::Contract { .. })))))
             && self.reference_operand_type_id(ty).is_none()
             && !result_type(ty)
+            // Timezone has its own stored DATA codec, even though a bare
+            // timezone is outside the ordinary scalar result profile.
+            && *ty != ResolvedType::Scalar(Scalar::Timezone)
             && !file_array
             && !inline_selections
                 .iter()
@@ -17978,7 +17981,7 @@ impl<'a> Closure<'a> {
         if !(parent_origin.is_some()
             && calls.is_empty()
             && self.loop_node.is_none()
-            && (primitive_type(field_ty)
+            && ((primitive_type(field_ty) || *field_ty == ResolvedType::Scalar(Scalar::Timezone))
                 || matches!(field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())))
         {
             return Ok(None);
@@ -18206,7 +18209,7 @@ impl<'a> Closure<'a> {
                     || depth == 2
                         && ((calls.is_empty()
                             && self.loop_node.is_none()
-                            && (primitive_type(field_ty)
+                            && ((primitive_type(field_ty) || *field_ty == ResolvedType::Scalar(Scalar::Timezone))
                                 || matches!(field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())))
                             || self
                                 .checked_helper_reference_argument(key, module)
@@ -18220,7 +18223,7 @@ impl<'a> Closure<'a> {
             _ => None,
         };
         if parent_origin.is_some()
-            && (!(primitive_type(field_ty)
+            && (!((primitive_type(field_ty) || *field_ty == ResolvedType::Scalar(Scalar::Timezone))
                 || matches!(field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())
                 || self.reference_operand_type_id(field_ty).is_some())
                 || !self

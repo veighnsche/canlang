@@ -1352,3 +1352,52 @@ it('retains exact nullable enum membership through real owner execution and fina
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+it('authorizes a stored timezone through the original parent path and rechecks saved disclosure',
+  {timeout:120000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-parent-timezone-'));
+    try{
+      const {artifact,asm}=await installed('native-parent-timezone.can',directory);
+      const plan=artifact.operations?.find(operation=>operation.name==='ParentTimezone.day')?.result?.disclosure;
+      assert.ok(plan,'the date must retain its actual parent DATA dependencies');
+      assert.ok(plan.returns.some(returned=>returned.dependencies.some(dependency=>dependency.field==='timezone'&&dependency.type==='timezone')));
+      for(const mode of ['utc','new-york','hidden','changed-at-commit','hidden-at-commit']){
+        const {now,identities,identity}=await member(`parent-zone-${mode}`);
+        const store=createMemoryStorage(),resourceModel=model('ParentTimezone','Resource'),bookingModel=model('ParentTimezone','Booking');
+        const zone=mode==='new-york'?'America/New_York':'UTC';
+        const resource={...makeRow({id:asId('resource'),data:{timezone:zone,visible:mode!=='hidden'}}),parent:null};
+        const booking={...makeRow({id:asId('booking'),data:{active:true,checked:false}}),parent:{model:resourceModel,id:resource.id}};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:resourceModel,row:resource},{kind:'insert',model:bookingModel,row:booking}]}));
+        const updateResource=async(data:Record<string,unknown>)=>{
+          const current=await store.load(resourceModel,resource.id);assert.ok(current);
+          await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:resourceModel,id:current.id,
+            expectedVersion:asVersion(current.version),row:{...current,version:asVersion(current.version+1),data:{...current.data,...data}}}]}));
+        };
+        if(mode.endsWith('at-commit')){
+          const commit=store.commit.bind(store);let injecting=false;
+          store.commit=async batch=>{
+            if(!injecting){
+              injecting=true;
+              try{await updateResource(mode==='hidden-at-commit'?{visible:false}:{timezone:'Pacific/Kiritimati'});}
+              finally{injecting=false;}
+            }
+            return commit(batch);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const request={operation:'ParentTimezone.day',operation_id:operationId(now),inputs:{booking:{id:booking.id,version:String(booking.version)}}};
+        const outcome=await invoker.invokeMutation(request,identity),allowed=mode==='utc'||mode==='new-york';
+        assert.equal('result'in outcome,allowed,`${mode}: ${JSON.stringify(outcome)}`);
+        assert.equal((await store.load(bookingModel,booking.id))?.data.checked,allowed,'denied or stale parent reads roll back the preceding SET');
+        if(allowed){
+          assert.ok('result'in outcome);
+          const expected=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now));
+          assert.equal(outcome.result.result,expected);
+          const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));
+          assert.equal(replay.result.status,'replayed');assert.equal(replay.result.result,expected);
+          await updateResource({visible:false});
+          const hidden=await invoker.invokeMutation(request,identity);
+          assert.ok('error'in hidden || hidden.result.result===null,'saved date cannot disclose a now-hidden parent timezone');
+        }
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });
