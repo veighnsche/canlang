@@ -10,6 +10,9 @@ Current product source is `8d48f969`; [baseline](../baseline.md) separates struc
 | State migration engine/File/Work/native admission | migration_review | setup_review and root | [Migration](state-migration.md) |
 | First-owner setup/D1/native custody/packing | setup_review | authority_review | [Setup](runtime-setup.md) |
 | Identity/session/OAuth/removal and selected State recipients | authority_review | root | [Authority](identity-authority.md) |
+| Saved Given contracts/closure/candidate lifecycle | migration_review | root; bounded unchanged FrozenGeneration challenge reused | [Saved generation](saved-generation.md) |
+| LSP/IDE/editor/format/lint/completions | setup_review | root on framing and retained owner boundary | [Authoring](authoring.md) |
+| Native/TS Values, owned input, ABI/assets/Intl | authority_review | root on selected route/error order and host/native boundary | [Values](values.md) — exact unfinished source duties retained |
 | Repository contracts/evidence/draft/complete allocation | root | Three current primaries and their explicit cross-boundary findings | [Repository](repository-current.md) |
 
 The accumulated changed-source allocation and selected consequential boundary challenge are refreshed. Exact path retention is complete; whole-product substantive duty/workflow review remains partial, including previously unreviewed retained branches and assertion subjects. Each review names concrete remaining packets; a complete target tree does not close them. No product test/build or installed journey was executed by this audit.

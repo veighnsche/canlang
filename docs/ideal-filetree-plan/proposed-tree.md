@@ -1,6 +1,6 @@
 # Complete selected target tree
 
-Reconciled to source `8d48f969`: 3,809 pinned parent paths plus three substantive audit review documents, with the `draft` gitlink expanded to its 951 independently owned inputs (4,762 file leaves). The added review documents do not change the product pin. Every current leaf is retained at its exact path. Previously selected private extractions and the dev policy integration are implemented; their actual defining files now appear as current leaves. The obsolete Cloudflare executor is excluded and its retirement remains recorded in [port assessment](port-assessment.md). No further package, process or broad monolith split is selected. Remaining semantic corrections and unreviewed workflows have explicit tasks/gates rather than speculative target filenames. Ignored caches, credentials and worktrees remain outside scope.
+Reconciled to source `8d48f969`: 3,809 pinned parent paths plus six substantive audit review documents, with the `draft` gitlink expanded to its 951 independently owned inputs (4,765 file leaves). The added review documents do not change the product pin. Every current leaf is retained at its exact path. Previously selected private extractions and the dev policy integration are implemented; their actual defining files now appear as current leaves. The obsolete Cloudflare executor is excluded and its retirement remains recorded in [port assessment](port-assessment.md). No further package, process or broad monolith split is selected. Remaining semantic corrections and unreviewed workflows have explicit tasks/gates rather than speculative target filenames. Ignored caches, credentials and worktrees remain outside scope.
 
 ```text
 canlang/
@@ -948,6 +948,7 @@ canlang/
 │   │   │   ├── target-tree.md
 │   │   │   └── workflows.md
 │   │   ├── reviews/
+│   │   │   ├── authoring.md
 │   │   │   ├── compiler.md
 │   │   │   ├── identity-authority.md
 │   │   │   ├── index.md
@@ -959,7 +960,9 @@ canlang/
 │   │   │   ├── runtime-current.md
 │   │   │   ├── runtime-setup.md
 │   │   │   ├── runtime.md
-│   │   │   └── state-migration.md
+│   │   │   ├── saved-generation.md
+│   │   │   ├── state-migration.md
+│   │   │   └── values.md
 │   │   ├── rust-package-audit/
 │   │   │   ├── README.md
 │   │   │   ├── adapters-ui.md
