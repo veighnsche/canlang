@@ -1510,7 +1510,7 @@ impl SemanticJoin<'_> {
     }
     /// A constructed nominal value also consumes its defining schema and
     /// creation defaults. Equal object entries alone cannot seal a substituted
-    /// Contract, field declaration or default elsewhere in mutable IR.
+    /// Contract/Event, field declaration or default elsewhere in mutable IR.
     fn constructor_schema(
         &mut self,
         ty: &ResolvedType,
@@ -1527,15 +1527,15 @@ impl SemanticJoin<'_> {
                 stored: false,
             } => {
                 let expected = self.expected.items.get(symbol.0 as usize)?;
-                let IrItemKind::Contract { fields, .. } = &expected.kind else {
-                    return Some(());
+                let fields=match &expected.kind{
+                    IrItemKind::Contract{fields,..}|IrItemKind::Event{fields}=>fields,
+                    _=>return Some(()),
                 };
                 let actual = self.actual.items.get(symbol.0 as usize)?;
-                let IrItemKind::Contract {
-                    fields: current, ..
-                } = &actual.kind
-                else {
-                    return None;
+                let current=match (&expected.kind,&actual.kind){
+                    (IrItemKind::Contract{..},IrItemKind::Contract{fields,..})
+                    |(IrItemKind::Event{..},IrItemKind::Event{fields})=>fields,
+                    _=>return None,
                 };
                 let (a_module, b_module) = (
                     self.actual.modules.get(actual.module.0 as usize)?,
@@ -1557,6 +1557,7 @@ impl SemanticJoin<'_> {
                     || actual.name != expected.name
                     || actual.canonical != expected.canonical
                     || actual.span != expected.span
+                    || actual.exported != expected.exported
                     || fields != current
                     || fields.len() > 200
                     || !active.insert(*symbol)
@@ -1599,6 +1600,7 @@ impl SemanticJoin<'_> {
                         || a.name != b.name
                         || a.canonical != b.canonical
                         || a.span != b.span
+                        || a.exported != b.exported
                         || *ao != *symbol
                         || ao != bo
                         || at != bt
@@ -2180,10 +2182,19 @@ impl SemanticJoin<'_> {
             _ => Some(false),
         }
     }
+    /// Event payloads have an untyped object carrier. Seal the defining
+    /// declaration explicitly before either effect consumes its schema.
+    fn event_schema(&mut self,event:&str,depth:usize)->Option<()>{
+        let mut declarations=self.expected.items.iter().filter(|item|item.canonical==event&&matches!(item.kind,IrItemKind::Event{..}));
+        let declaration=declarations.next()?;
+        if declarations.next().is_some()||self.actual.items.iter().filter(|item|item.canonical==event).count()!=1{return None;}
+        self.constructor_schema(&ResolvedType::Record{symbol:declaration.id,stored:false},depth,&mut HashSet::new())
+    }
     fn join_event_effect(&mut self, a: &IrStmt, b: &IrStmt, d: usize) -> Option<bool> {
         match (a, b) {
             (IrStmt::Emit { event: x, payload: a, span: s },
              IrStmt::Emit { event: y, payload: b, span: t }) if x == y && s == t => {
+                self.event_schema(y,d+1)?;
                 self.expression(a, b, d + 1)?;
                 Some(true)
             }
@@ -2198,6 +2209,7 @@ impl SemanticJoin<'_> {
                 IrStmt::Schedule { owner_package: x, key: a, at: c, event: u, payload: e, span: s },
                 IrStmt::Schedule { owner_package: y, key: b, at: other_at, event: v, payload: f, span: t },
             ) if x == y && u == v && s == t => {
+                self.event_schema(v,d+1)?;
                 self.expression(a, b, d + 1)?;
                 self.expression(c, other_at, d + 1)?;
                 self.expression(e, f, d + 1)?;
@@ -2660,6 +2672,9 @@ impl<'a> FreshSourceContext<'a> {
     }
     pub(super) fn trees(&self) -> &[(crate::source::SourceId, SyntaxNode)] {
         &self.trees
+    }
+    pub(super) fn same_event_schema(&self,event:&str)->Option<()>{
+        SemanticJoin{program:self.program,actual:self.ir,expected:&self.fresh,nodes:0,stack:HashSet::new()}.event_schema(event,0)
     }
     pub(super) fn same_expression(&self, actual: &TypedExpr, expected: &TypedExpr) -> Option<()> {
         SemanticJoin { program: self.program, actual: self.ir, expected: &self.fresh,

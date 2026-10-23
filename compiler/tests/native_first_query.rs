@@ -2127,3 +2127,47 @@ fn required_parent_helper_retains_original_edges_and_field_dependencies() {
     args[0].expr=IrExpr::Name("child".into());
     assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),"$can$m$506172656e7448656c706572.mjs").is_none());
 }
+
+#[test]
+fn original_event_effects_seal_defining_schema_without_mutating_source_or_payload() {
+    use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+    for (path,source,owner_name,event_name) in [
+        ("source-event-emit.can",include_str!("../../packages/cloudflare/test/fixtures/native-source-require-emit.can"),"SourceGuardEmit.notify","SourceGuardEmit.Checked"),
+        ("source-event-schedule.can",include_str!("../../packages/cloudflare/test/fixtures/native-source-require-schedule.can"),"SourceGuardSchedule.notify","SourceGuardSchedule.Checked"),
+    ] {
+        let source=source.replace("event Checked {root:Root,message:text}","event Checked {root:Root,message:text=\"Original default\"}");
+        let(db,program,ir,catalog)=fixture_source(path,&source);
+        let owner=item(&ir,owner_name);
+        assert!(serialize_decision_sources(&program,&ir,owner,&db,Some(&catalog)).is_some(),"original {path}");
+        for mode in ["field-order","field-type","field-owner","field-name","field-module","field-default","field-bound","required-array","event-kind","event-name","event-module","event-export","module-name","field-census","event-duplicate","event-canonical","field-canonical"] {
+            let mut changed=ir.clone();let event=item(&changed,event_name).id;
+            let IrItemKind::Event{fields}=&changed.items[event.0 as usize].kind else{panic!("event");};
+            let field=fields[1];let other=fields[0];
+            match mode {
+                "field-order"=>{let IrItemKind::Event{fields}=&mut changed.items[event.0 as usize].kind else{unreachable!()};fields.swap(0,1);},
+                "field-census"=>{let IrItemKind::Event{fields}=&mut changed.items[event.0 as usize].kind else{unreachable!()};fields.push(other);},
+                "event-kind"=>changed.items[event.0 as usize].kind=IrItemKind::Contract{fields:fields.clone(),label:None},
+                "event-name"=>changed.items[event.0 as usize].name="Substituted".into(),
+                "event-canonical"=>changed.items[event.0 as usize].canonical="foreign.Checked".into(),
+                "event-duplicate"=>{let duplicate=changed.items[event.0 as usize].clone();changed.items.push(duplicate);},
+                "event-module"=>changed.items[event.0 as usize].module.0+=1,
+                "event-export"=>changed.items[event.0 as usize].exported=!changed.items[event.0 as usize].exported,
+                "module-name"=>{let module=changed.items[event.0 as usize].module;changed.modules[module.0 as usize].name="foreign".into();},
+                "field-name"=>changed.items[field.0 as usize].name="substituted".into(),
+                "field-canonical"=>changed.items[field.0 as usize].canonical="foreign.Checked.message".into(),
+                "field-module"=>changed.items[field.0 as usize].module.0+=1,
+                _=>{let span=changed.items[field.0 as usize].span;
+                    let IrItemKind::Field{owner,ty,default,required_array,modifiers,..}=&mut changed.items[field.0 as usize].kind else{panic!("field");};
+                    match mode {
+                        "field-type"=>*ty=IrType::Known(ResolvedType::Scalar(Scalar::Int)),
+                        "field-owner"=>*owner=other,
+                        "required-array"=>*required_array=!*required_array,
+                        "field-bound"=>modifiers.min=Some(ir::TypedExpr{expr:IrExpr::Int(1),ty:ResolvedType::Scalar(Scalar::Int),span}),
+                        _=>*default=Some(ir::IrDefault::Literal(ir::TypedExpr{expr:IrExpr::Text("Substituted default".into()),ty:ResolvedType::Scalar(Scalar::Text),span})),
+                    }
+                },
+            }
+            assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{path}: event-only {mode} mutation retained original effect authority");
+        }
+    }
+}
