@@ -1,6 +1,8 @@
 /** Actual captured native source, generated invoker and D1; ordinary void results. */
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,7 +15,7 @@ import { hashInputs } from '@canlang/state/invocation/replay';
 import { readScenarioReceiptAssociation } from '@canlang/state/invocation';
 import {
   FIXED_NOW, asId, asModel, asOperation, asOperationId, createMemoryIdentityStore,
-  makeIdentity, seedMember, uuidv7,
+  makeIdentity, seedMember, uuidv7, makeRow, makeBatch, asVersion,
 } from '@canlang/state/testing/invocation/fixtures';
 import { distribution } from '@canlang/values/distribution';
 import { assembleModules, importVerifiedAssemblyModule } from './modules.js';
@@ -77,7 +79,7 @@ test('captured native reference arrays preserve D1 stages, genuine void replay a
     });
     try {
       capture = await captureSingleFileSource(prepareLocalPreviewCapture({ checkoutRoot: root,
-        appPath: fixturePath, compilerPath: join(root, 'compiler/target/debug/can'),
+        appPath: fixturePath, compilerPath: process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can'),
         catalogPath: fileURLToPath(distribution.catalog), helpIndexPath: join(root, 'docs/specification/CONSTRUCT-HELP.md') }));
       assert.equal(await captureIsCurrent(capture), true);
       const compiled = await compileCapturedSingleFile(capture);
@@ -306,5 +308,158 @@ test('captured native reference arrays preserve D1 stages, genuine void replay a
     } finally {
       try { await worker?.dispose(); }
       finally { await rm(dir, { recursive: true, force: true }); }
+    }
+  });
+
+// The real authored decision exercises both input reference arrays and stored
+// reference arrays through the shared source observer and ordinary SET path.
+for (const renamed of [false, true]) test(`${renamed ? 'renamed' : 'original'} account approval preserves complete location decisions, D1 atomicity and replay`,
+  { timeout: 180000 }, async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'can-native-account-arrays-'));
+    let worker: Miniflare | undefined;
+    try {
+      const original = await readFile(join(root, 'draft/apps/CanCustomer/CanCustomer.can'), 'utf8');
+      const employeeProbe = await readFile(join(root, 'packages/cloudflare/test/fixtures/refer-reject-source-owner-probe.can'), 'utf8');
+      const invoice = await readFile(join(root, 'draft/apps/CanInvoice/CanInvoice.can'), 'utf8');
+      const lines = original.split('\n');
+      const declaration = (prefix: string) => {
+        const line = lines.find(line => line.startsWith(prefix));
+        assert.ok(line, prefix); return line;
+      };
+      const start = original.indexOf('  export scenario approve_account(');
+      const end = original.indexOf('   examples seed=', start);
+      assert.ok(start >= 0 && end > start);
+      const finance = invoice.split('\n').find(line => line.startsWith('  export role finance '));
+      assert.ok(finance);
+      const fixture = join(dir, 'account.can');
+      let decision = original.slice(start, end).trimEnd();
+      if(renamed)decision=decision.replace(/\bprofile\b/g,'account')
+        .replace('locations:Location[]','reviewed:Location[]').replace('all(locations as','all(reviewed as')
+        .replace('count(locations)','count(reviewed)').replace('approved_locations=locations','approved_locations=reviewed');
+      let fixtureSource = [
+        'app CanCustomer uses=[customer]',
+        employeeProbe.slice(employeeProbe.indexOf('package rent_catalog'), employeeProbe.indexOf('package invoice')),
+        'package invoice', ' Given', finance, ' When', ' Then',
+        'package customer', ' use rent_catalog {Location}', ' use employee {can_work}', ' use invoice {finance}', ' Given',
+        declaration('  export Customer {'), declaration('  export Contact in Customer {'),
+        declaration('  export BillingProfile in Customer {'), declaration('  derive customer_staff('),
+        declaration('  policy Customer read=finance '), declaration('  policy BillingProfile read=finance '),
+        declaration('  invariant BillingProfile:'), ...lines.filter(line => line.startsWith('  message ')),
+        ' When', decision, ' Then', '',
+      ].join('\n');
+      if(renamed)fixtureSource=fixtureSource.replace(/\bcustomer\b/g,'directory').replace(/\bBillingProfile\b/g,'AccountProfile')
+        .replace(/\bcustomer_staff\b/g,'directory_staff').replace(/\bapprove_account\b/g,'review_account').replace(/\bCanCustomer\b/g,'CanDirectory');
+      await writeFile(fixture,fixtureSource);
+      const { stdout } = await promisify(execFile)(process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can'),
+        ['compile', '--format=json', '--native-scenario-receipts', '--catalog',
+          process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json'), fixture],
+        { cwd: root, timeout: 120000, maxBuffer: 32 * 1024 * 1024 });
+      const artifact = JSON.parse(stdout) as CompileArtifact;
+      const asm = await assembleModules({ artifact, sourcePath: fixture }, { workDir: join(dir, 'modules'),
+        stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'), uiUrl: import.meta.resolve('@canlang/ui') });
+      worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
+        script: 'export default { fetch() { return new Response("ok"); } }',
+        d1Databases: { DB: 'native-account-arrays' }, d1Persist: join(dir, 'd1') });
+      const database = await worker.getD1Database('DB') as unknown as D1Database;
+      await ensureSchema(database);
+      const backing = createD1Storage(database);
+      let sequence = 20000;
+      for (const mode of ['approve', 'revoke', 'empty-approve', 'foreign-location', 'unworkable-location',
+        'unworkable-stored-revoke', 'missing-role', 'inactive-worker', 'inactive-customer', 'empty-reason',
+        'missing-location-version', 'missing-location', 'stale-profile', 'stale-location',
+        'customer-locations-at-commit', 'membership-revoked-during-owner-query'] as const) {
+        const memberships = createMemoryIdentityStore();
+        const member = await seedMember(memberships, { isOwner: false,
+          roles: mode === 'missing-role' ? [] : ['invoice.finance'] });
+        const identity = makeIdentity({ membership: member.membership, email: member.user.email });
+        const model = (name: string) => asModel(renamed ? name.replace(/^customer\./,'directory.').replace(/\.BillingProfile$/,'.AccountProfile') : name);
+        const row = (data: Record<string, unknown>) => ({ ...makeRow({
+          id: asId(uuidv7(FIXED_NOW, ++sequence)), data }), parent: null });
+        const site = row({ name: 'Reviewed', address: 'A', timezone: 'UTC', currency: 'EUR', hours: 'Open', arrival: 'Door', active: true });
+        const other = row({ ...site.data, name: 'Other' });
+        const customer = row({ name: 'Customer', kind: 'company',
+          locations: mode==='unworkable-location'?[{ id: site.id },{ id: other.id }]:[{ id: site.id }], active: mode !== 'inactive-customer' });
+        const contact = { ...row({ name: 'Contact', email: 'contact@example.test', account: null,
+          verified: false, phone: null, external_id: null }), parent: { model: model('customer.Customer'), id: customer.id } };
+        const profile = { ...row({ contact: { id: contact.id }, address: 'Billing', tax_reference: null,
+          on_account: true, approved_locations: [{ id: mode === 'unworkable-stored-revoke' ? other.id : site.id }],
+          approval_reason: 'Prior review', approved_by: { id: member.user.user_id },
+          approved_at: '2026-01-01T00:00:00.000Z' }), parent: { model: model('customer.Customer'), id: customer.id } };
+        const employee = row({ user: { id: member.user.user_id }, name: 'Finance employee', home: { id: site.id },
+          locations: mode === 'foreign-location' ? [{ id: other.id }] : [], operator_wide: false,
+          active: mode !== 'inactive-worker', start: '2026-01-01', end: null, manager: null,
+          role: 'finance', skills: [], private_notes: 'NEVER-DISCLOSE-ACCOUNT-PRIVATE-NOTES', document: null });
+        await backing.commit(makeBatch(await backing.readRevision(), { writes: [
+          { kind: 'insert', model: model('rent_catalog.Location'), row: site },
+          { kind: 'insert', model: model('rent_catalog.Location'), row: other },
+          { kind: 'insert', model: model('employee.Employee'), row: employee },
+          { kind: 'insert', model: model('customer.Customer'), row: customer },
+          { kind: 'insert', model: model('customer.Contact'), row: contact },
+          { kind: 'insert', model: model('customer.BillingProfile'), row: profile },
+        ] }));
+        let injected = false;
+        const store = { ...backing,
+          query: async (query: Parameters<typeof backing.query>[0]) => {
+            const rows = await backing.query(query);
+            if (mode === 'membership-revoked-during-owner-query' && !injected && query.model === model('employee.Employee')) {
+              injected = true;
+              await memberships.removeMembership(member.membership.membership_id);
+            }
+            return rows;
+          },
+          commit: async (batch: Parameters<typeof backing.commit>[0]) => {
+          if (mode.endsWith('-at-commit') && !injected && batch.writes.length > 0) {
+            injected = true;
+            await backing.commit(makeBatch(await backing.readRevision(), { writes: [{ kind: 'update',
+              model: model('customer.Customer'), id: customer.id, expectedVersion: customer.version,
+              row: { ...customer, version: asVersion(2), data: { ...customer.data, locations: [{ id: other.id }] } } }] }));
+          }
+          return backing.commit(batch);
+        } };
+        const invoker = buildInvoker(artifact, asm, store, { memberships, now: () => FIXED_NOW });
+        const ref = (id: string) => ({ id, version: '1' });
+        const approve = mode !== 'revoke' && mode !== 'unworkable-stored-revoke';
+        const locations = mode === 'revoke' || mode === 'empty-approve' || mode === 'unworkable-stored-revoke' ? [] :
+          mode === 'missing-location-version' ? [{ id: site.id }] :
+          mode === 'missing-location' ? [ref(uuidv7(FIXED_NOW, ++sequence))] :
+          mode === 'stale-location' ? [{ id: site.id, version: '2' }] :
+          mode === 'foreign-location' || mode === 'unworkable-location' ? [ref(other.id)] : [ref(site.id), ref(site.id)];
+        const request: MutationEnvelope = { operation: renamed ? 'directory.review_account' : 'customer.approve_account',
+          operation_id: asOperationId(uuidv7(FIXED_NOW, ++sequence)), inputs: {
+            [renamed ? 'account' : 'profile']: { id: profile.id, version: mode === 'stale-profile' ? '2' : '1' },
+            approve, [renamed ? 'reviewed' : 'locations']: locations, reason: mode === 'empty-reason' ? '' : 'Finance reviewed',
+          } };
+        const before = await snapshot(database);
+        const outcome = await invoker.invokeMutation(request, identity);
+        assert.equal(JSON.stringify(outcome).includes('NEVER-DISCLOSE-ACCOUNT-PRIVATE-NOTES'), false, mode);
+        const current = await backing.load(model('customer.BillingProfile'), profile.id); assert.ok(current);
+        if (mode === 'approve' || mode === 'revoke') {
+          committed(outcome);
+          assert.equal(current.data.on_account, approve, mode);
+          assert.deepEqual(current.data.approved_locations, approve ? [{ id: site.id }, { id: site.id }] : [], mode);
+          assert.equal(current.data.approval_reason, 'Finance reviewed', mode);
+          assert.deepEqual(current.data.approved_by, { id: member.user.user_id }, mode);
+          assert.equal(current.data.approved_at, new Date(FIXED_NOW).toISOString(), mode);
+          const after = await snapshot(database);
+          committed(await invoker.invokeMutation(request, identity), 'replayed');
+          assert.deepEqual(await snapshot(database), after, `${mode}: replay produces no writes or effects`);
+          const changed = await invoker.invokeMutation({ ...request, inputs: { ...request.inputs, reason: 'Changed' } }, identity);
+          assert.ok('error' in changed, `${mode}: changed-input replay refuses`);
+          assert.deepEqual(await snapshot(database), after);
+        } else {
+          assert.ok('error' in outcome, `${mode}: ${JSON.stringify(outcome)}`);
+          const codes=mode==='missing-location-version'?['validation']:mode==='missing-location'?['not_found']:
+            mode==='stale-profile'||mode==='stale-location'?['conflict']:mode==='customer-locations-at-commit'?['rule_failed']:
+            mode==='membership-revoked-during-owner-query'?['rule_failed','forbidden']:
+            mode==='missing-role'?['forbidden']:['rule_failed'];
+          assert.ok(codes.includes(outcome.error.code), `${mode}: ${JSON.stringify(outcome)}`);
+          assert.deepEqual(current, profile, `${mode}: profile remains atomic`);
+          assert.deepEqual(await backing.historyFor(model('customer.BillingProfile'), profile.id), [], mode);
+          if (!mode.endsWith('-at-commit')) unchangedExcept(before,await snapshot(database),['receipts','fence','fence_log']);
+        }
+        if (mode.endsWith('-at-commit') || mode === 'membership-revoked-during-owner-query') assert.equal(injected, true, `${mode}: race hook reached`);
+      }
+    } finally {
+      try { await worker?.dispose(); } finally { await rm(dir, { recursive: true, force: true }); }
     }
   });

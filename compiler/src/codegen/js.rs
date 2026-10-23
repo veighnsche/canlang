@@ -11400,8 +11400,10 @@ fn null_equality(
             .collect::<Vec<_>>()
             .join(",");
         let previous_boolean = std::mem::replace(&mut self.boolean_body, true);
-        let previous_generic = std::mem::replace(&mut self.generic_boolean_body,
-            !matches!(identity["owner"].as_str(), Some("invoice.collect" | "invoice.issue")));
+        let source_guard_bridge = self.receipt_capture.as_ref()
+            .and_then(|receipt| receipt.plan.owner_body(identity["owner"].as_str()?))
+            .is_some_and(|body| body.source_guard_bridge);
+        let previous_generic = std::mem::replace(&mut self.generic_boolean_body, !source_guard_bridge);
         let previous_source_guard =
             std::mem::replace(&mut self.source_guard_body, true);
         let previous_receipt = self.receipt_capture.take();
@@ -20356,6 +20358,10 @@ impl<'a> Emitter<'a> {
         let previous_owner = self.owner_handler_body;
         let previous_query = self.query_capture.take();
         self.owner_handler_body = true;
+        // Complete owners keep their original guard consumers. Only owners
+        // with an explicit source bridge may borrow a generic observer frame.
+        let source_requires = (!body.source_guard_bridge)
+            .then(|| std::mem::take(&mut self.source_requires));
         self.enter_scope();
         let mut names = body.parameters.iter()
             .map(|name| format!("{}:{}", object_key(name), self.bind(name)))
@@ -20404,6 +20410,7 @@ impl<'a> Emitter<'a> {
         }
         out.push(item.span, Some(item.canonical.clone()), "return undefined;});");
         self.exit_scope();
+        if let Some(source_requires) = source_requires { self.source_requires = source_requires; }
         self.owner_handler_body = previous_owner;
         self.query_capture = previous_query;
     }

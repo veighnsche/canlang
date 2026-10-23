@@ -10868,6 +10868,18 @@ async function runScenarioExecution(
           data[reference.field] = encodeCanonicalField(StateError, reference.model, value);
         }
         for (const field of opts.artifact.models?.find(model => model.name === write.model)?.fields ?? []) {
+          // The pipeline's loaded.refs census deliberately contains singular
+          // paths only. Array values still cross the same native-to-wire
+          // boundary using their checked owning field declaration.
+          if(field.field.kind==='ref'&&field.array!==undefined&&data!==undefined&&
+              Object.hasOwn(data,field.name)&&data[field.name]!==undefined&&data[field.name]!==null){
+            const type=field.valueType??`${field.field.model}[]${field.array.required?'!':''}${field.nullable===true?'?':''}`;
+            const values=nativeCallArray(data[field.name],Number.MAX_SAFE_INTEGER).map(value=>{
+              const identity=nativeRecordReference(value);
+              return identity===undefined?value:makeRecordRef(identity.model,identity.id);
+            });
+            data[field.name]=encodeCanonicalField(StateError,type,values,loaded.valueSchema);
+          }
           if (field.field.kind !== 'delivery' || data === undefined || !Object.hasOwn(data, field.name)) continue;
           data[field.name] = encodeCanonicalField(StateError,
             `delivery(${field.field.capability}.${field.field.operation})${field.nullable === true ? '?' : ''}`,
@@ -13026,11 +13038,11 @@ async function runScenarioExecution(
         });
         const suppliedValues = localPolicyObject(supplied, parameters.filter(parameter => !parameter.unread).map(parameter => parameter.name));
         const modelParameters = parameters.flatMap(parameter => {
-          const type=parseTypeId(parameter.typeId), name=parameter.typeId.replace(/\?$/,'');
-          return !type.array && loaded.models.some(model=>model.name===name)
-            ? [{...parameter,model:name,nullable:type.nullable}] : [];
+          const type=parseTypeId(parameter.typeId), name=type.base.kind==='nominal'?type.base.path:undefined;
+          return name!==undefined && loaded.models.some(model=>model.name===name)
+            ? [{...parameter,model:name,nullable:type.nullable,array:type.array}] : [];
         });
-        const anchor=modelParameters.find(parameter=>!parameter.nullable);
+        const anchor=modelParameters.find(parameter=>!parameter.nullable&&!parameter.array);
         // The first required model parameter anchors the observed row; further
         // model parameters flow as admitted rows (the observer tracks reads
         // per model). Unread File slots remain in the declaration census.
@@ -13081,12 +13093,15 @@ async function runScenarioExecution(
               `${model.name}.${name}` === (parsed.base.kind === 'nominal' ? parsed.base.path : '') &&
               `${declaration.valueType}${parsed.nullable ? '?' : ''}` === field.valueType));
           const admittedValue = nativeScenarioPlainValueInput(loaded, field);
+          const admittedModelArray = parsed.array && !parsed.nullable && field.kind==='ref' &&
+            Object.hasOwn(scenarioDef.inputArrays,field.name) &&
+            modelParameters.some(model=>model.name===parameter.name && model.model===field.model && model.array);
           const declaredType = admittedTextArray || ownedEnum ? parameter.typeId : type;
           const nullableModel=parsed.nullable && !parsed.array && field.kind==='ref'
             && modelParameters.some(model=>model.name===parameter.name && model.model===field.model);
-          if (field.name !== parameter.name || declaredType !== parameter.typeId || parsed.array && !admittedTextArray && !admittedValue ||
+          if (field.name !== parameter.name || declaredType !== parameter.typeId || parsed.array && !admittedTextArray && !admittedValue && !admittedModelArray ||
               (parsed.nullable && !unusedNullFile && !nullableModel && !ownedEnum && !admittedValue) ||
-              parsed.base.kind === 'nominal' && !ownedEnum && !admittedValue && !loaded.models.some(model => model.name === parameter.typeId.replace(/\?$/,'')) ||
+              parsed.base.kind === 'nominal' && !ownedEnum && !admittedValue && !admittedModelArray && !loaded.models.some(model => model.name === parameter.typeId.replace(/\?$/,'')) ||
               (!Object.hasOwn(admittedParameters, parameter.name) && !observedNativeDefaults.has(parameter.name)) ||
               localPolicyMember(suppliedValues, parameter.name) !== admittedParameter(parameter.name)) {
             throw new AssemblyCorrespondenceError('Scenario Require parameter differs from its genuine admitted native slot.');
@@ -13122,6 +13137,25 @@ async function runScenarioExecution(
                     if(loopMarker!==undefined&&modelParameter.name===loopMarker.item){
                       if(loopItem===undefined||loopItem===null)return refuseRecordBinding('Loop IF lost its actual selected row.');
                       args[modelParameter.name]=await project!(loopMarker.model,loopItem.row.id,loopItem.row.version);continue;
+                    }
+                    if(modelParameter.array){
+                      // Preserve the genuine indexed admission, including empty
+                      // arrays and duplicate rows. A viewer-filtered collection
+                      // cannot stand in for the original universal predicate.
+                      const prefix=`${modelParameter.name}/`;
+                      const refs=actualCall.recordRefs.filter(entry=>entry.param.startsWith(prefix));
+                      const values=nativeCallArray(admittedParameter(modelParameter.name),200);
+                      if(values.length!==refs.length)throw new AssemblyCorrespondenceError('Source array projection lacks its complete admitted slots.');
+                      const projected:Record<string,unknown>[]=[];
+                      for(const [index,value] of values.entries()){
+                        const ref=refs[index];
+                        const binding=isUnknownRecord(value)?recordBindings.get(value):undefined;
+                        if(ref===undefined||ref.param!==`${prefix}${index}`||ref.model!==modelParameter.model||
+                            binding?.model!==ref.model||binding.id!==ref.id||binding.version!==ref.row.version)
+                          throw new AssemblyCorrespondenceError('Source array projection differs from its genuine admitted slot.');
+                        projected.push(await project!(ref.model,ref.id,ref.row.version));
+                      }
+                      args[modelParameter.name]=Object.freeze(projected);continue;
                     }
                     const ref = actualCall.recordRefs.find(entry => entry.param === modelParameter.name);
                     if (modelParameter.nullable && admittedParameters[modelParameter.name] === null) {

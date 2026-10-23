@@ -1,6 +1,6 @@
 # Remaining implementation tasks
 
-Updated after the seven implementation commits ending at `eb8a8544` on 23 October 2026. This is the execution checklist for the audit-derived backlog: **21 open named packets**. The initial analysis repair is complete; the current native-host compile has **56 E6008 emission diagnostics**, attributed below. Nine packets have implemented results below; File admission retains the stated support limits. Packet counts are not estimates of effort or diagnostic counts.
+Updated after the RT-C1 receipt workflow implementation on 23 October 2026. This is the execution checklist for the audit-derived backlog: **20 open named packets**. The initial analysis repair is complete; the current native-host compile has **51 E6008 emission diagnostics**, attributed below. Ten packets have implemented results below; File admission retains the stated support limits. Packet counts are not estimates of effort or diagnostic counts.
 
 The [reviews](reviews/index.md) retain the original source reasoning at audit baseline `8d48f969`. Current completion status is recorded here. The [broader product roadmap](../implementation/REMAINING-WORK.md) also contains older feature proposals and app-specific requirements; this checklist does not declare all of those satisfied or all external app semantics reviewed.
 
@@ -8,7 +8,7 @@ The [reviews](reviews/index.md) retain the original source reasoning at audit ba
 
 - [x] **Measure the current full native corpus.** On 23 October 2026 the retained [24-operand command](../implementation/REMAINING-WORK.md#next-original24-composition-capture--outcome14--t41) ran against the current `compiler/target/debug/can` and owning `packages/values/dist/catalog.json`. All 24 operands exist; compiler source inputs are older than the executable. It returned exit **10** in **6.862 seconds**, `complete:true`, `omitted:0`, with **26 sources** and **five E3001 analysis errors**. No timeout or source omission occurred. This initial run stopped before `codegen::emit`; it did not measure downstream emission diagnostics. The subsequent completed native-host result is recorded below.
 
-- [x] **Repair CanLeave's example binding/enum ambiguity and repeat the full compile.** Renamed only the Request fixture and its references to `pending_request` in draft commit `65ea7e5`, recorded by parent commit `c317d6bd`. Enum cases, policies, requirements, locks and business operations are unchanged. The focused original-source analysis is clean; the existing diagnostic-table integration passes with only CanLeave changing from 79 to 74 isolated diagnostics. The full native-host compile now reaches emission with zero analysis diagnostics; its remaining 56 errors are below. No checker rule was relaxed.
+- [x] **Repair CanLeave's example binding/enum ambiguity and repeat the full compile.** Renamed only the Request fixture and its references to `pending_request` in draft commit `65ea7e5`, recorded by parent commit `c317d6bd`. Enum cases, policies, requirements, locks and business operations are unchanged. The focused original-source analysis is clean; the existing diagnostic-table integration passes with only CanLeave changing from 79 to 74 isolated diagnostics. The full native-host compile now reaches emission with zero analysis diagnostics; its remaining emission errors are below. No checker rule was relaxed.
   - Owner: `draft/apps/CanLeave/CanLeave.can`; compiler test snapshot updated for the five demonstrated removals. This completes the shared source ambiguity repair, not native lowering support for the entire corpus.
 
 <details>
@@ -28,13 +28,17 @@ Source completeness covers the 24 explicit operands and two saved generated cont
 
 </details>
 
-**Next task: RT-C1**, starting with the original `CanCustomer.approve_account` profile (diagnostic at line 95), including its helper and array requirements. It is one concrete occurrence of the largest refusal group, `query closure is not supported` (27 occurrences). Trace the exact declined query and complete source/domain/permission contract before generalizing the owning shared mechanism; do not assume one change will fix all 27 occurrences. RT-C1 remains the existing open packet in section 3, not an additional task or an app-specific exception. No lowering fix was started during the fixture-repair turn. Generation replay/lifecycle tasks follow unless another measured dependency changes that order.
+**Next task: GEN-REQUEST-C1**, durable generation request replay. RT-C1's selected original `CanCustomer.approve_account` workflow is complete, including the renamed consumer and both approval branches. Its shared source-domain mechanism reduces the full corpus to 51 diagnostics. The remaining native emission support stays open below; other source workflows are not implied complete.
+
+- [ ] **Finish the remaining native emission support.** Work through the attributed refusals below using complete original-source workflows and real permission/recovery consumers. RT-C1 covers one selected workflow; it does not complete this corpus requirement. A changed refusal reason is not a fixed scenario. Keep all 24 operands, both saved contributions and the owning host catalog in the measurement.
 
 ### Current complete native-host result — 23 October 2026
 
-Current optimized compiler, all 24 original operands and both saved contributions: **26 sources**, `complete:true`, `omitted:0`, exit **10**, **56 E6008 emission diagnostics**, **zero analysis diagnostics**, in **164.277 seconds**. Native compilation is not clean and publishes no artifact.
+Current optimized compiler, all 24 original operands and both saved contributions: **26 sources**, `complete:true`, `omitted:0`, exit **10**, **51 E6008 emission diagnostics**, **zero analysis diagnostics**, in **185.055 seconds**. Native compilation is not clean and publishes no artifact.
 
-The original recipe's Values-only catalog produced 57 diagnostics in 157.813 seconds: the same 56 E6008 entries plus one E6007 because that catalog intentionally declares `active_member` external. The native-host catalog changes exactly that entry's availability and is backed by the actual `native-membership` function reexported by the Worker stdlib; function identity and the exact catalog-entry difference were checked. The two source arrays and all 56 E6008 entries match exactly between these runs. This is an explicit host-catalog distinction, not a lowering repair or suppressed permission check. The earlier debug run timed out at its unchanged 600-second limit; the current optimized compiler was rebuilt from source before the successful complete runs. Use the owning native-host catalog for subsequent native-host comparisons.
+Before RT-C1, the original recipe's Values-only catalog produced 57 diagnostics in 157.813 seconds: the same 56 E6008 entries plus one E6007 because that catalog intentionally declares `active_member` external. The native-host catalog changes exactly that entry's availability and is backed by the actual `native-membership` function reexported by the Worker stdlib; function identity and the exact catalog-entry difference were checked. The two source arrays and all 56 E6008 entries match exactly between these runs. This is an explicit host-catalog distinction, not a lowering repair or suppressed permission check. The earlier debug run timed out at its unchanged 600-second limit; the current optimized compiler was rebuilt from source before the successful complete runs. Use the owning native-host catalog for subsequent native-host comparisons.
+
+RT-C1 reduces the native-host total from 56 to 51. The original `approve_account` refusal and four CanMember refusals disappear. Customer invitation, one further CanMember workflow and CanReport now reach later refusals; those workflows remain incomplete. This is emission progress, with the same source inventory and zero analysis errors in both runs.
 
 The counts below group diagnostic refusal reasons, not independently proven root causes; some may be cascades of a declined complete profile. Original-source closure planning belongs to `compiler/src/analysis/scenario_disclosure.rs`; native query/call/SEND emission recipients belong to `compiler/src/codegen/js.rs`. RT-C1 coordinates those compiler mechanisms with State receipt execution and host binding.
 
@@ -42,18 +46,18 @@ The counts below group diagnostic refusal reasons, not independently proven root
 
 | Remaining refusal reason | Count |
 | --- | ---: |
-| query closure is not supported | 27 |
+| query closure is not supported | 21 |
 | original native FIRST query correspondence unavailable | 4 |
 | missing owning canonical Contract declaration | 4 |
+| unsupported builtin closure | 3 |
 | create then set/current-field return profile required | 2 |
 | parent needs required original scenario parameter | 2 |
 | unsupported bounded loop body | 2 |
 | child needs complete acyclic source closure | 2 |
 | canonical cross-operation call effect has no lowering | 2 |
 | unsupported stored field type | 2 |
-| unsupported builtin closure | 2 |
+| unaccounted symbol value | 1 |
 | helper query original required Model edge | 1 |
-| collection builtin closure | 1 |
 | unsupported scalar operator | 1 |
 | stored Model reference result cannot be copied | 1 |
 | native SEND guard/frozen lexical transport unavailable | 1 |
@@ -65,17 +69,12 @@ The counts below group diagnostic refusal reasons, not independently proven root
 
 | Source position | Code | Complete message |
 | --- | --- | --- |
-| [CanCustomer:95:19](../../draft/apps/CanCustomer/CanCustomer.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
-| [CanCustomer:122:19](../../draft/apps/CanCustomer/CanCustomer.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanCustomer:122:19](../../draft/apps/CanCustomer/CanCustomer.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: unaccounted symbol value |
 | [CanCustomer:171:19](../../draft/apps/CanCustomer/CanCustomer.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
 | [CanPropose:89:19](../../draft/apps/CanPropose/CanPropose.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: helper query original required Model edge |
 | [CanInvoice:180:12](../../draft/apps/CanInvoice/CanInvoice.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
 | [CanInvoice:241:12](../../draft/apps/CanInvoice/CanInvoice.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
-| [CanMember:309:12](../../draft/apps/CanMember/CanMember.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
-| [CanMember:491:12](../../draft/apps/CanMember/CanMember.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
-| [CanMember:497:12](../../draft/apps/CanMember/CanMember.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
-| [CanMember:504:12](../../draft/apps/CanMember/CanMember.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
-| [CanMember:530:12](../../draft/apps/CanMember/CanMember.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanMember:309:12](../../draft/apps/CanMember/CanMember.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: unsupported builtin closure |
 | [CanRefer:69:12](../../draft/apps/CanRefer/CanRefer.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: create then set/current-field return profile required |
 | [CanRefer:72:18](../../draft/apps/CanRefer/CanRefer.can) | E6008 | cannot lower first query: original native query correspondence is unavailable |
 | [CanRefer:245:104](../../draft/apps/CanRefer/CanRefer.can) | E6008 | cannot lower first query: original native query correspondence is unavailable |
@@ -99,7 +98,7 @@ The counts below group diagnostic refusal reasons, not independently proven root
 | [CanRent:1750:6](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower call effect: canonical cross-operation invocation of rent_reservations.arrive has no §13 lowering |
 | [CanRent:1756:12](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: child needs complete acyclic source closure |
 | [CanRent:1758:6](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower call effect: canonical cross-operation invocation of rent_reservations.cancel_booking has no §13 lowering |
-| [CanReport:42:12](../../draft/apps/CanReport/CanReport.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: collection builtin closure |
+| [CanReport:42:12](../../draft/apps/CanReport/CanReport.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
 | [CanExpense:211:12](../../draft/apps/CanExpense/CanExpense.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: unsupported stored field type |
 | [CanExpense:251:12](../../draft/apps/CanExpense/CanExpense.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
 | [CanExpense:268:12](../../draft/apps/CanExpense/CanExpense.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
@@ -162,8 +161,9 @@ These tasks are independently actionable. Coordinate V-LOOKUP-C1 with any other 
 
 The copy-limit defect is fixed. These tasks address the remaining shared workflows; file moves alone do not complete either task.
 
-- [ ] **RT-C1 — Consolidate the next complete receipt/profile workflow.** Select one source-backed profile and trace its original-stage/current authority, complete domain, effects, File handling and failure behavior across compiler, State and host. Replace duplicated workflow logic with the shared mechanism. Verify genuine renamed sources, forged inputs, stale state, races and replay. Preserve private issuance, source/ancestor/Identity checks, effect order and final revalidation; no global cap increase or app exception.
-  - Dependency: RT-MAX-I is now resolved; select the actual next profile before implementation. Owners: one compiler collector writer, one State receipt writer and one host integration writer. [Source review](reviews/receipt-profiles.md).
+- [x] **RT-C1 — Consolidate the next complete receipt/profile workflow.** Completed the original `CanCustomer.approve_account` workflow with its exact helper/model/policy/invariant declarations and a genuinely renamed app/package/model/helper/formal consumer. One shared domain mechanism handles original Model[] parameters, stored reference fields and helper substitutions for source decisions. It replaces the old field-only ALL workflow and the `member_terms.remove` locations exception. The host projects each exact admitted indexed reference in order and stores native reference arrays as identity links. Complete owner receipts retain their original guards; the existing invoice source bridges are explicit layout capabilities.
+  - Existing State source observations retain original-stage owner control, complete reached domains, current Identity checks and revision revalidation. No State permission check changed. The selected profile has no File input; existing File support limits remain. Late Identity removal after final revalidation remains the separately documented auth fence gap below.
+  - Verification: all three existing D1-suite tests pass (captured array workflow plus 16 original and 16 renamed account cases), covering approve/revoke, empty/duplicate arrays, foreign/unworkable stored and submitted locations, missing role, inactive worker/customer, reason, malformed/missing/stale references, live Identity removal during observation, a customer-location commit race, unchanged denied profile/history/effects and replay without writes. The four existing member-removal, referral-rejection, invoice-collection and invoice-issuance integrations pass. Owning producer build, unit-test bans and whitespace checks pass; compiler/domain/receiver code reviewed. The complete 26-source compile is recorded above. [Source review](reviews/receipt-profiles.md).
 - [ ] **P-CODEC — Finish persisted decoding consolidation after deciding compatibility.** Explicitly settle which historical/current rows are accepted, the projection and fault order. Then replace duplicated Cloudflare dispatch decoding with the shared Work-owned mechanism where compatible. Work's stricter reader is not an interchangeable replacement merely because the code looks similar. Verify real accepted/refused persisted rows.
   - Dependency: accepted-domain/error-order decision before substitution. Owners: Work `src/kernel/tables.ts` and Cloudflare `src/runtime/invoke.ts`. [Source review](reviews/host-invocation-delivery.md).
 
@@ -178,7 +178,8 @@ These are support gaps and design-dependent joins. Resolve each task's stated de
 - [ ] **BROWSER-C3 — Connect explicitly armed refresh operations.** Join checked refresh-operation metadata to a user-armed canonical POST with retained validated arguments, current CSRF/context and one outstanding request. Preserve disposal and operation permissions. GET polling must remain read-only.
   - Owners: compiler page descriptors, contracts/UI shell and browser lifecycle through one coordinated change. [Source review](reviews/browser-presentation.md).
 - [ ] **AUTH-DELIVERY-C — Mount existing auth and team primitives in generated transport.** Connect OAuth metadata/consent and canonical team/invitation routes using owning app/team/source-role policy. Addressed invitation acceptance and removal staging must use existing Identity/State authority. Verify real generated registries/routes and consent/invitation/removal journeys.
-  - Owners: Worker main/assembly/bundle, Interfaces and compiler registry handoffs. No parallel app-auth model or second identity service. [Source review](reviews/identity-authority.md).
+  - Owners: Worker main/assembly/bundle, Interfaces and compiler registry handoffs. No parallel app-auth model or second identity service.
+  - **Existing durable revocation gap:** resolve the Identity/State fence contract before claiming that membership removal racing the physical commit is atomic. State checks live Identity before `StoragePort.commit`; ordinary Identity removal does not advance the State D1 revision. Removing membership inside a storage commit wrapper after those checks currently allows the write. Preserve and verify current precommit checks; a second unfenced read does not close this window. The owning admission and Identity D1 sources already document the limitation. Include this late-boundary reproduction in the auth work; do not claim cross-database atomicity from source-guard tests. [Source review](reviews/identity-authority.md).
 - [ ] **PRODUCER-JOINS — Complete selected missing provider/adapter journeys.** Choose a concrete required consumer before adding installed Images inspection/validation, Mailbox/inbound-attachment replay, held CLI adapter/resume or default fanout cancellation. Close permission, custody and unknown/recovery behavior at the actual receiving adapter. Do not infer provider success from compilation or blindly resend work.
   - Owners: Services/Files/Cloudflare/generation adapters with their canonical contracts. [Source review](reviews/providers-work-files.md).
 
@@ -210,12 +211,13 @@ Run these against the relevant implementation/contract, using real retained stat
 | CHECK-C2 | Expected example values receive compatibility checks; checker/example suites pass 38 + 30 tests. |
 | EMIT-C1 | All seven emitted decimal helpers pin the owning family; three decimal integrations pass. |
 | LANG-VALUE-EXPECTATIONS | Stale compile-refusal assertions corrected while genuine unsupported cases remain; ten inventory integrations pass. |
+| RT-C1 | Shared original reference-array decisions and writes; original/renamed account workflow, owner precedence and seven targeted integrations pass. Native-host diagnostics: 56 → 51. |
 | RT-MAX-I | Authenticated source-copy loops reuse the ordered bounded guard bank; all 21 proposal cases pass, including maximum/overflow, permission races and replay. Ordinary limits remain unchanged. |
 | FILE-INTENT-C1 — native portion | Shared current-context admission and Values draft validation cover grants/retries, nested/union inputs, required records, versions, CSRF and membership. Three durable Files cases pass. Support limits remain listed above. |
 | BROWSER-C1 | Current denial removes private content and blocks late restoration; obsolete denials cannot clear a new page. |
 | BROWSER-C2 | Shared stale feedback retains authorized drafts, consumes its marker before a fresh morph and preserves retry behavior. Both native browser journeys pass. |
 
-Seven commits: `0dbb0adb`, `2ed796d7`, `1e8ddad8`, `6a8412c6`, `7c62f0cf`, `66fe1a24`, `eb8a8544`. They also fix the manual draft-session initial-check handshake. Builds, unit-test bans and whitespace checks pass at that implementation boundary; this documentation reorganization does not rerun runtime checks.
+Seven commits: `0dbb0adb`, `2ed796d7`, `1e8ddad8`, `6a8412c6`, `7c62f0cf`, `66fe1a24`, `eb8a8544`. They also fix the manual draft-session initial-check handshake. Builds, unit-test bans and whitespace checks passed at that implementation boundary. RT-C1 verification is recorded in its completed checklist entry above.
 
 ## Reference material
 
@@ -228,7 +230,7 @@ This is responsibility coverage, not a second execution order. Use the checklist
 | Slice | Primary completion packet / recipient |
 | --- | --- |
 | L01 | Completed checker source trace; CHECK-C1/C2; completed bounded Given source trace; GEN-C1 |
-| L02 | LANG-PROOF-C; completed L-REVIEW-PROOF source boundary; completed profile source trace; completed general emission source trace; EMIT-C1; LANG-VALUE-EXPECTATIONS; RT-C1 gated |
+| L02 | LANG-PROOF-C; completed L-REVIEW-PROOF source boundary; completed profile source trace; completed general emission source trace; EMIT-C1; LANG-VALUE-EXPECTATIONS; RT-C1 selected workflow completed |
 | L03 | Completed bounded Given/authoring source trace; GEN-C1; AUTHOR-C1; completed generation/tool source trace recipient |
 | L04 | Completed native development source trace; DEV-C1/C2 |
 | L05 | Completed native/TS Values source trace; V-ORDER-C1; V-LOOKUP-C1; V-BOUNDS-C1 |
@@ -236,7 +238,7 @@ This is responsibility coverage, not a second execution order. Use the checklist
 | RT.STATE.ADMIT | completed authority/final-disclosure source trace; completed receipt source trace |
 | RT.STATE.QUERY | completed authority/final-disclosure source trace; completed receipt source trace |
 | RT.STATE.MUTATE | completed authority/final-disclosure source trace; completed receipt source trace |
-| RT.STATE.RECEIPT | completed receipt source trace; RT-C1 gated |
+| RT.STATE.RECEIPT | completed receipt source trace; RT-C1 selected workflow completed |
 | RT.STATE.MIGRATE | Completed RT-MIGRATION-REVIEW source trace; MIG-CONTRACT; MIG-C1 |
 | RT.WORK.OCCURRENCE | Completed bounded provider/Work recovery trace; completed migration source trace; MIG-CONTRACT; completed host fanout source trace |
 | RT.WORK.DISPATCH | Completed bounded provider/Work recovery trace; completed host invocation source trace; P-CODEC gated |

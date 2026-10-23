@@ -13856,65 +13856,6 @@ impl<'a> Closure<'a> {
             .then_some(())
     }
 
-    /// `remove` also searches the original Seat's Term.locations reference
-    /// array. The array is a checked stored field of the one-hop parent, not
-    /// a ChildOf collection; keep this admission tied to that owner and field.
-    fn source_require_remove_term_locations_any(
-        &self,
-        scenario: &super::effects::ScenarioData,
-        query: &super::types::CheckedQuery,
-        location: SymbolId,
-    ) -> Option<()> {
-        let scenario_symbol = self.resolve.symbols.get(scenario.scenario.0 as usize)?;
-        let scenario_module = self.resolve.modules.get(scenario.module.0 as usize)?;
-        let location_symbol = self.resolve.symbols.get(location.0 as usize)?;
-        let location_module = self.resolve.modules.get(location_symbol.module.0 as usize)?;
-        if scenario_symbol.name != "remove" || scenario_symbol.module != scenario.module
-            || scenario_module.name != "member_terms"
-            || location_symbol.name != "Location" || location_module.name != "rent_catalog"
-            || !matches!(location_symbol.kind, SymbolKind::Model { .. })
-        {
-            return None;
-        }
-        let seat = scenario.params.iter().find(|param| {
-            self.resolve.symbols.get(param.param.0 as usize).is_some_and(|symbol|
-                symbol.name == "seat" && symbol.module == scenario.module
-                    && matches!(symbol.kind, SymbolKind::Param { owner, .. } if owner == scenario.scenario))
-        })?;
-        if seat.default.is_some() { return None; }
-        let ResolvedType::Record { symbol: seat_model, stored: true } =
-            self.types.symbol_types.get(&seat.param)? else { return None; };
-        let seat_symbol = self.resolve.symbols.get(seat_model.0 as usize)?;
-        let ModelOwner::ChildOf(term) = self.effects.models.get(seat_model)?.owner else { return None; };
-        let term_symbol = self.resolve.symbols.get(term.0 as usize)?;
-        if seat_symbol.name != "Seat" || seat_symbol.module != scenario.module
-            || term_symbol.name != "Term" || term_symbol.module != scenario.module
-        {
-            return None;
-        }
-        let (receiver, name) = self.count_member(query.domain)?;
-        if name != "locations"
-            || self.checked_call_parent_path(receiver, seat.param, 0) != Some((term, 1))
-        {
-            return None;
-        }
-        let field = self.effects.models.get(&term)?.fields.iter().find(|field| {
-            self.resolve.symbols.get(field.field.0 as usize).is_some_and(|symbol|
-                symbol.name == "locations"
-                    && matches!(symbol.kind, SymbolKind::Field { owner, .. } if owner == term))
-        })?;
-        let expected = ResolvedType::Array {
-            element: Box::new(ResolvedType::Record { symbol: location, stored: true }),
-            ordered: true,
-            nonempty: false,
-        };
-        (field.required_array && field.default.is_none() && field.server.is_none()
-            && self.types.symbol_types.get(&field.field) == Some(&expected)
-            && query.domain_type == expected
-            && self.types.node_types.get(&query.domain) == Some(&expected))
-            .then_some(())
-    }
-
     /// Literal scalar/owned-enum alternatives are data, never transported row,
     /// File, delivery, Contract or copied lexical authority.
     fn source_require_literal_array(&self, key: NodeKey) -> Option<()> {
@@ -14306,6 +14247,9 @@ impl<'a> Closure<'a> {
             ResolvedType::Nullable(inner) if matches!(inner.as_ref(), ResolvedType::Record { stored: true, .. }) =>
                 self.source_require_input(inner),
             ResolvedType::Scalar(_) => true,
+            ResolvedType::Array { element, ordered: true, nonempty: false }
+                if matches!(element.as_ref(), ResolvedType::Record { stored: true, .. }) =>
+                    self.source_require_input(element),
             // Values admits these non-File primitive arrays before the
             // original observer runs; they carry no model/query authority.
             ResolvedType::Array { element, ordered: true, nonempty: false }
@@ -15498,7 +15442,7 @@ impl<'a> Closure<'a> {
             if self
                 .source_require_contained_any(scenario, query, fact.model)
                 .is_none()
-                && self.source_require_remove_term_locations_any(scenario, query, fact.model).is_none()
+                && !self.source_require_reference_query(scenario, call, query)
                 && self
                     .source_require_unique_any(scenario, call, query, alias, *predicate, fact.model)
                     .is_none()
@@ -15529,7 +15473,8 @@ impl<'a> Closure<'a> {
                 return Some(false);
             }
         } else if domain_node.kind == SyntaxKind::Member {
-            if !self.source_require_any_member(query, &array, call).unwrap_or(false)
+            if !self.source_require_reference_query(scenario, call, query)
+                && !self.source_require_any_member(query, &array, call).unwrap_or(false)
                 && self.source_require_helper_contained_any(scenario, call, query, fact.model).is_none()
                 && !self.source_require_contained_collection(scenario, call, "any")
             {
@@ -15546,76 +15491,66 @@ impl<'a> Closure<'a> {
         Some(true)
     }
 
-    /// An `all` in a pre-write Require may iterate only the original stored
-    /// model input's own reference array. Its nested helper searches are
-    /// observed at the same owner stage, once for each actual array member.
-    /// A copied array or a query with filtering/projection would lose that
-    /// source correspondence and remains outside this observer profile.
-    fn source_require_all_input_array(
-        &self,
-        scenario: &super::effects::ScenarioData,
-        call: &CheckedDecisionCall,
-    ) -> Option<()> {
-        let fact = self.types.checked_collection_calls.get(&call.node)?;
-        let [Some(domain_slot), Some(predicate_slot)] = call.slots.as_slice() else {
-            return None;
-        };
-        let (domain, domain_ty) = call.arguments.get(*domain_slot)?;
-        let (predicate, predicate_ty) = call.arguments.get(*predicate_slot)?;
-        let query = self.types.checked_queries.get(domain)?;
-        let [alias] = query.clauses.as_slice() else {
-            return None;
-        };
-        let ResolvedType::Array { element, ordered: true, nonempty: false } = domain_ty else {
-            return None;
-        };
-        let ResolvedType::Record { symbol: item_model, stored: true } = element.as_ref() else {
-            return None;
-        };
-        let (receiver, name) = self.count_member(query.domain)?;
-        let ResolvedType::Record { symbol: owner_model, stored: true } =
-            self.types.node_types.get(&receiver)? else {
-            return None;
-        };
-        // The stored array belongs to the exact original admitted parameter
-        // or its bounded authored containment lineage, never an equal-typed
-        // arbitrary model expression or a helper's unbound formal.
-        let parameter=scenario.params.iter().find(|parameter|
-            matches!(self.types.symbol_types.get(&parameter.param),Some(ResolvedType::Record{stored:true,..}))
-                &&self.checked_call_parent_path(receiver,parameter.param,0)
-                    .is_some_and(|(model,_)|model==*owner_model))?.param;
-        let field = self.effects.models.get(owner_model)?.fields.iter().find(|field| {
-            self.resolve.symbols.get(field.field.0 as usize)
-                .is_some_and(|decl| decl.name == name)
-        })?;
-        if !call.chain.is_empty()
-            || fact.node != call.node
-            || fact.builtin != "all"
-            || fact.overload != 0
-            || fact.query != *domain
-            || fact.alias != alias.node
-            || !matches!(&alias.kind, CheckedQueryClauseKind::As { name } if !name.is_empty())
-            || !alias.expressions.is_empty()
-            || fact.model != *item_model
-            || fact.predicate.as_ref().is_none_or(|value| value.node != *predicate
-                || value.ty != ResolvedType::Scalar(Scalar::Bool))
-            || call.arguments.len() != 2
-            || self.types.node_types.get(&call.node)
-                != Some(&ResolvedType::Scalar(Scalar::Bool))
-            || *predicate_ty != ResolvedType::Scalar(Scalar::Bool)
-            || query.node != *domain
-            || query.domain_type != *domain_ty
-            || query.result != *domain_ty
-            || query.projection.is_some()
-            || self.types.node_types.get(&query.domain) != Some(domain_ty)
-            || !self.checked_call_parent_path(receiver,parameter,0).is_some_and(|(model,_)|model==*owner_model)
-            || self.types.symbol_types.get(&field.field) != Some(domain_ty)
-            || field.default.is_some()
-            || field.server.is_some()
-        {
-            return None;
+    /// A source decision may traverse an exact admitted reference array or a
+    /// declared stored reference field reached from that input. Helper formals
+    /// and aliases must resolve through their original call frames. The owner
+    /// observer retains the complete array, order and reached rows; this fact
+    /// grants no ordinary data read and admits no copied or computed domain.
+    fn source_require_reference_domain(
+        &self, scenario: &super::effects::ScenarioData, call: &CheckedDecisionCall,
+        domain: NodeKey, frames: usize, depth: usize,
+    ) -> bool {
+        if depth >= 32 { return false; }
+        let Some(domain) = self.query_group(domain) else { return false; };
+        let Some(ty @ ResolvedType::Array { element, ordered: true, nonempty: false }) =
+            self.types.node_types.get(&domain) else { return false; };
+        let ResolvedType::Record { symbol: model, stored: true } = element.as_ref()
+            else { return false; };
+        if !self.effects.models.contains_key(model) { return false; }
+        if let Some(Binding::Symbol(formal)) = self.query_binding(domain) {
+            if scenario.params.iter().any(|parameter| parameter.param == *formal && parameter.default.is_none())
+                && self.types.symbol_types.get(formal) == Some(ty) { return true; }
+            return self.source_require_helper_argument(call, *formal, frames)
+                .is_some_and(|(argument, index)| self.types.node_types.get(&argument) == Some(ty)
+                    && self.source_require_reference_domain(scenario, call, argument, index, depth + 1));
         }
-        Some(())
+        let Some((receiver, name)) = self.count_member(domain) else { return false; };
+        let Some(owner) = self.source_require_query_receiver(scenario, call, receiver, frames, depth + 1)
+            else { return false; };
+        self.effects.models.get(&owner).is_some_and(|owner| owner.fields.iter().any(|field|
+            self.resolve.symbols.get(field.field.0 as usize).is_some_and(|declaration|
+                declaration.name == name && matches!(declaration.kind, SymbolKind::Field { owner: actual, .. } if actual == owner.model))
+                && self.types.symbol_types.get(&field.field) == Some(ty)))
+    }
+
+    fn source_require_reference_query(
+        &self, scenario: &super::effects::ScenarioData, call: &CheckedDecisionCall,
+        query: &super::types::CheckedQuery,
+    ) -> bool {
+        matches!(query.clauses.as_slice(), [alias] if matches!(&alias.kind,
+            CheckedQueryClauseKind::As { name } if !name.is_empty()) && alias.expressions.is_empty())
+            && query.projection.is_none() && query.result == query.domain_type
+            && self.types.node_types.get(&query.domain) == Some(&query.domain_type)
+            && self.source_require_reference_domain(scenario, call, query.domain, call.chain.len(), 0)
+    }
+
+    /// Substitute only the selected argument of the original helper frame.
+    /// The frame index shrinks on recursion, so a formal cannot prove itself.
+    fn source_require_helper_argument(
+        &self, call: &CheckedDecisionCall, formal: SymbolId, frames: usize,
+    ) -> Option<(NodeKey, usize)> {
+        let index = (0..frames).rev().find(|index| self.effects.derives.get(&call.chain[*index].derive)
+            .is_some_and(|derive| derive.params.iter().any(|parameter| parameter.param == formal)))?;
+        let frame = &call.chain[index];
+        let derive = self.effects.derives.get(&frame.derive)?;
+        let slot = derive.params.iter().position(|parameter| parameter.param == formal)?;
+        let selected = self.types.selected_calls.get(&frame.node)?;
+        if !matches!(selected.target, SelectedCallTarget::DeriveFn(id) if id == frame.derive)
+            || selected.slots.len() != derive.params.len() || derive.params[slot].default.is_some()
+        { return None; }
+        let argument = *selected.arguments.get(*selected.slots.get(slot)?.as_ref()?)?;
+        (self.types.node_types.get(&argument) == self.types.symbol_types.get(&formal))
+            .then_some((argument, index))
     }
 
     /// Resolve the actual owner of a contained read through original helper
@@ -15637,17 +15572,7 @@ impl<'a> Closure<'a> {
                 if scenario.params.iter().any(|parameter| parameter.param == *formal)
                     && self.types.symbol_types.get(formal) == self.types.node_types.get(&key)
                 { return Some(*expected); }
-                let index = (0..frames).rev().find(|index| self.effects.derives.get(&call.chain[*index].derive)
-                    .is_some_and(|derive| derive.params.iter().any(|parameter| parameter.param == *formal)))?;
-                let frame = &call.chain[index];
-                let derive = self.effects.derives.get(&frame.derive)?;
-                let slot = derive.params.iter().position(|parameter| parameter.param == *formal)?;
-                let selected = self.types.selected_calls.get(&frame.node)?;
-                if !matches!(selected.target, SelectedCallTarget::DeriveFn(id) if id == frame.derive)
-                    || selected.slots.len() != derive.params.len() || derive.params[slot].default.is_some()
-                { return None; }
-                let argument = *selected.arguments.get(*selected.slots.get(slot)?.as_ref()?)?;
-                if self.types.node_types.get(&argument) != self.types.symbol_types.get(formal) { return None; }
+                let (argument, index) = self.source_require_helper_argument(call, *formal, frames)?;
                 let actual = self.source_require_query_receiver(scenario, call, argument, index, depth + 1)?;
                 (actual == *expected).then_some(actual)
             }
@@ -15656,7 +15581,8 @@ impl<'a> Closure<'a> {
                     .any(|clause| clause.node == *alias && matches!(clause.kind, CheckedQueryClauseKind::As {..})))?;
                 let ResolvedType::Array {element, ..} = &query.domain_type else { return None; };
                 if element.as_ref() != &(ResolvedType::Record {symbol:*expected,stored:true})
-                    || !self.source_require_contained_query_at(scenario, call, query, frames, depth + 1)
+                    || !(self.source_require_contained_query_at(scenario, call, query, frames, depth + 1)
+                        || self.source_require_reference_domain(scenario, call, query.domain, frames, depth + 1))
                 { return None; }
                 Some(*expected)
             }
@@ -15818,7 +15744,21 @@ impl<'a> Closure<'a> {
                 self.source_require_any_call(scenario, body, call, id, overload, helper_query, supported)
             }
             CheckedDecisionCallTarget::Builtin { id, overload: 0 } if id == "all" => {
-                if self.source_require_all_input_array(scenario, call).is_none()
+                let reference_array = (|| {
+                    let fact = self.types.checked_collection_calls.get(&call.node)?;
+                    let [(domain, domain_ty), (predicate, predicate_ty)] = call.arguments.as_slice() else { return None; };
+                    let query = self.types.checked_queries.get(domain)?;
+                    let [alias] = query.clauses.as_slice() else { return None; };
+                    let array = ResolvedType::Array {
+                        element: Box::new(ResolvedType::Record { symbol: fact.model, stored: true }),
+                        ordered: true, nonempty: false,
+                    };
+                    (call.slots.as_slice() == [Some(0), Some(1)]
+                        && self.source_require_any_attrs(fact, call, id, &0, domain, predicate,
+                            query, alias, &array, domain_ty, predicate_ty)
+                        && self.source_require_reference_query(scenario, call, query)).then_some(())
+                })().is_some();
+                if !reference_array
                     && !self.source_require_contained_collection(scenario, call, "all") {
                     *supported = false;
                     return Some(false);
@@ -15866,7 +15806,9 @@ impl<'a> Closure<'a> {
             }
             CheckedDecisionCallTarget::Builtin { id, .. } if id == "count" && !body => {
                 if self.source_require_has_native_count(scenario,call){*supported=false;return Some(false);}
-                if self.source_require_contained_collection(scenario,call,"count")
+                if (self.source_require_contained_collection(scenario,call,"count")
+                    || call.slots.as_slice() == [Some(0)] && call.arguments.len() == 1
+                        && self.source_require_reference_domain(scenario, call, call.arguments[0].0, call.chain.len(), 0))
                     && self.types.node_types.get(&call.node)==Some(&ResolvedType::Scalar(Scalar::Int))
                 { *helper_query=true; return Some(true); }
                 if call.slots.as_slice() != [Some(0)] || call.arguments.len() != 1

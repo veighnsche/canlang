@@ -91,6 +91,9 @@ pub(super) struct OwnerDecisionBody {
     pub effects: usize,
     pub admission: OwnerDecisionAdmission,
     pub first_defaults: bool,
+    /// These owners explicitly route original guards through the shared observer.
+    /// Other complete owner bodies retain their private guard consumers.
+    pub source_guard_bridge: bool,
     pub missing_body: &'static str,
 }
 
@@ -133,7 +136,9 @@ impl ReceiptDisclosurePlan {
             _ => return None,
         };
         Some(OwnerDecisionBody { decision: decision.clone(), runtime, context, parameters,
-            guards, effects, admission, first_defaults, missing_body })
+            guards, effects, admission, first_defaults,
+            source_guard_bridge: self.invoice_collect_decision.is_some() || self.invoice_issue_decision.is_some(),
+            missing_body })
     }
 }
 
