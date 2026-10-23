@@ -683,6 +683,7 @@ pub struct CheckedDecisionSite {
 pub enum CheckedDecisionCallTarget {
     Builtin { id: String, overload: usize },
     DeriveFn(SymbolId),
+    Role(SymbolId),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -16133,6 +16134,14 @@ impl<'a> Closure<'a> {
             { return Some(true); }
         }
         match &call.target {
+            CheckedDecisionCallTarget::Role(id)=>{
+                let user=|ty:&ResolvedType|ty==&ResolvedType::Scalar(Scalar::User)
+                    ||matches!(ty,ResolvedType::Nullable(inner)if inner.as_ref()==&ResolvedType::Scalar(Scalar::User));
+                let valid=self.resolve.symbols.get(id.0 as usize).is_some_and(|role|matches!(role.kind,SymbolKind::Role))
+                    &&call.slots.as_slice()==[Some(0)]&&call.arguments.len()==1&&call.defaults.is_empty()
+                    &&user(&call.arguments[0].1)&&self.types.node_types.get(&call.node)==Some(&ResolvedType::Scalar(Scalar::Bool));
+                if !valid{*supported=false;}Some(valid)
+            },
             CheckedDecisionCallTarget::DeriveFn(id) => {
                 self.source_require_derive_call(id, supported)
             }
@@ -16823,6 +16832,9 @@ impl<'a> Closure<'a> {
         selected: &super::types::SelectedCall,
     ) -> Option<(CheckedDecisionCallTarget, Vec<(SymbolId, NodeKey)>)> {
         match &selected.target {
+            SelectedCallTarget::Role(id) if selected.arguments.len()==1&&selected.slots.as_slice()==[Some(0)]
+                &&self.resolve.symbols.get(id.0 as usize).is_some_and(|role|matches!(role.kind,SymbolKind::Role))=>
+                Some((CheckedDecisionCallTarget::Role(*id),Vec::new())),
             SelectedCallTarget::Builtin { id, overload } => {
                 if selected.slots.iter().any(Option::is_none) {
                     return None;

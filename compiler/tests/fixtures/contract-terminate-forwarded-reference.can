@@ -1,0 +1,35 @@
+app ContractForwarding uses=[agreements]
+package rent_catalog
+ Given
+  export Location {active:bool=true}
+  policy Location read=public
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,active:bool=true,operator_wide:bool=false,home:Location,locations:Location[]= []}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members
+ When
+ Then
+package agreements
+ use rent_catalog {Location}
+ use employee {can_work}
+ Given
+  role legal
+  role property_manager
+  role sales
+  role finance
+  Agreement {location:Location,active:bool=true,category:enum(customer,landlord,supplier)}
+  Term in Agreement {executed:bool=false,terminated:bool=false,reason:text?}
+  derive allowed(person:user,agreement:Agreement):bool = can_work(person,agreement.location) and (legal(person) or (sales(person) and agreement.category==customer) or (property_manager(person) and agreement.category==landlord) or (finance(person) and agreement.category==supplier))
+  policy Agreement read=legal or (sales and row.category==customer) or (property_manager and row.category==landlord) or (finance and row.category==supplier) where=allowed(actor,row)
+  policy Term read=legal or (sales and row.parent.category==customer) or (property_manager and row.parent.category==landlord) or (finance and row.parent.category==supplier) where=allowed(actor,row.parent)
+ When
+  scenario terminate(term:Term,reason:text) by=legal label="Terminate term"@{nl="Termijn beëindigen"}
+   require allowed(actor,term.parent) and term.executed and not term.terminated and trim(reason)!=""
+   do
+    set term {terminated=true,reason}
+    cancel term.id
+ Then

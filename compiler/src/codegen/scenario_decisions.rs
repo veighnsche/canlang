@@ -938,6 +938,19 @@ impl Consumer<'_> {
             return None;
         }
         match &e.expr {
+            IrExpr::HasRole{role,person:Some(person)}=>{
+                self.expression(person,chain,stack,calls,matched,depth+1)?;
+                let index=self.find_consumed_call(e,chain,calls,matched)?;
+                let call=&calls[index];self.count+=1;
+                let CheckedDecisionCallTarget::Role(id)=call.target else{return None;};
+                let selected=self.program.types.selected_calls.get(&call.node)?;
+                if self.count>200||!self.origin(&call.source,call.node,call.module)
+                    ||!matches!(selected.target,SelectedCallTarget::Role(actual)if actual==id)
+                    ||!matches!(self.program.symbols.get(id.0 as usize),Some(symbol)if symbol.canonical==*role&&matches!(symbol.kind,crate::analysis::resolve::SymbolKind::Role))
+                    ||!matches!(self.ir.items.get(id.0 as usize),Some(item)if item.canonical==*role&&matches!(item.kind,IrItemKind::Role{..}))
+                    ||!call.defaults.is_empty(){return None;}
+                self.check_consumed_shape(e,std::slice::from_ref(person.as_ref()),call,selected)?;
+            },
             IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
                 self.visit_call_args(args, e, chain, stack, calls, matched, depth)?;
                 let index = self.find_consumed_call(e, chain, calls, matched)?;
@@ -2472,6 +2485,7 @@ pub enum SerialDecisionPosition {
 pub enum SerialDecisionTarget {
     Builtin { id: String, overload: usize },
     Derive { name: String },
+    Role { name: String },
 }
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SerialDecisionArgument {
@@ -3985,6 +3999,10 @@ fn serialize_call_target(
     call: &crate::analysis::scenario_disclosure::CheckedDecisionCall,
 ) -> Option<SerialDecisionTarget> {
     Some(match &call.target {
+        crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Role(id)=>{
+            if !matches!(ir.items.get(id.0 as usize)?.kind,IrItemKind::Role{..}){return None;}
+            SerialDecisionTarget::Role{name:serialize_canonical(program,ir,*id)?}
+        },
         crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Builtin {
             id,
             overload,

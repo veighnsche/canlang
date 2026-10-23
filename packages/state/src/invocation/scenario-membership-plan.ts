@@ -27,7 +27,7 @@ export interface ScenarioReceiptMembershipSite {
     readonly source: ScenarioReceiptSourceOrigin;
     readonly node: ScenarioReceiptMembershipNode;
     readonly target: { readonly kind: 'builtin'; readonly id: string; readonly overload: number } |
-      { readonly kind: 'derive'; readonly name: string };
+      { readonly kind: 'derive' | 'role'; readonly name: string };
     readonly arguments: readonly { readonly node: ScenarioReceiptMembershipNode; readonly type?: string;
       readonly valueShape?: ScenarioReceiptMembershipValueShape }[];
     readonly slots: readonly (number | null)[];
@@ -157,7 +157,7 @@ function checkMembershipCallTarget(call: Record<string, unknown>): { kind: unkno
   const kind = typeof call.target === 'object' && call.target !== null ? (call.target as Record<string, unknown>).kind : undefined;
   const target = object(call.target, kind === 'builtin' ? ['kind', 'id', 'overload'] : ['kind', 'name']);
   if (kind === 'builtin') { text(target.id); index(target.overload); }
-  else if (kind === 'derive') text(target.name); else fail('checked builtin or canonical derive required.');
+  else if (kind === 'derive' || kind === 'role') text(target.name); else fail('checked builtin, canonical derive or role required.');
   return { kind, target };
 }
 
@@ -254,6 +254,9 @@ function checkOneMembershipCall(value: unknown, local: Set<string>): void {
   checkMembershipCallDefaults(call, slots);
   checkMembershipCallChain(call, kind, target, local);
   checkActiveMemberCall(kind, target, slots, args);
+  if(kind==='role'&&(slots.length!==1||args.length!==1||slots[0]!==0||!['user','user?'].includes(String((args[0] as Record<string,unknown>).type)))){
+    fail('subject role requires its one original user slot.');
+  }
 }
 
 export function checkScenarioReceiptMembershipSites(value: unknown): readonly ScenarioReceiptMembershipSite[] {

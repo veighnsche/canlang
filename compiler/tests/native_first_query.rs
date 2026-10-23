@@ -3131,3 +3131,28 @@ fn original_shift_accept_seals_ancestor_writes_reference_and_sibling_domain() {
  changed.types.node_types.insert(target,ResolvedType::Record{symbol:roster,stored:true});
  let(_,diagnostics)=prepared_artifact(&changed,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{diagnostics:?}");
 }
+
+#[test]
+fn original_subject_roles_remain_in_the_complete_source_guard_census() {
+ use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+ let source=include_str!("fixtures/contract-terminate-forwarded-reference.can");
+ let (db,program,ir,catalog)=fixture_source("contract-original-role-guard.can",source);
+ let owner=item(&ir,"agreements.terminate");
+ let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let code=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str()).collect::<Vec<_>>().join("\n");
+ assert!(code.contains("nativeScenarioRequire(c,"));assert!(code.contains("\\\"kind\\\":\\\"role\\\""));
+ assert!(serialize_decision_sources(&program,&ir,owner,&db,Some(&catalog)).is_some());
+ fn substitute(value:&mut canlang_compiler::codegen::ir::TypedExpr,subject:bool)->bool {
+  match &mut value.expr {
+   IrExpr::HasRole{role,person:Some(person)}=>{if subject{person.expr=IrExpr::Name("foreign_subject".into());}else{*role="agreements.finance".into();}true},
+   IrExpr::Binary{left,right,..}=>substitute(left,subject)||substitute(right,subject),
+   IrExpr::Unary{operand,..}=>substitute(operand,subject),_=>false,
+  }
+ }
+ for mode in ["role","subject","declaration"] {
+  let mut changed=ir.clone();
+  if mode=="declaration"{let id=item(&changed,"agreements.legal").id;changed.items[id.0 as usize].canonical="agreements.foreign".into();}
+  else {let id=item(&changed,"agreements.allowed").id;let IrItemKind::DeriveFn{expr:Some(body),..}=&mut changed.items[id.0 as usize].kind else{panic!("helper");};assert!(substitute(body,mode=="subject"));}
+  assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode}");
+ }
+}

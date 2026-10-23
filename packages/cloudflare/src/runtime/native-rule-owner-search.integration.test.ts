@@ -3845,3 +3845,36 @@ it('submits the complete original Expense with a live independent reviewer role 
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('terminates the original agreement with coherent subject roles and its exact Work cancellation', {timeout:180000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-contract-role-guard-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/contract-terminate-forwarded-reference.can'),text=await readFile(source,'utf8'),original=await readFile(join(root,'draft/apps/CanContract/CanContract.can'),'utf8');
+  const start=original.indexOf('  scenario terminate('),end=original.indexOf('  # Complete an obligation',start);assert.ok(text.includes(original.slice(start,end)));
+  const{stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout)as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of(process.env['CAN_CONTRACT_TERMINATE_CASE']??'valid,unexecuted,terminated,employee-inactive,wrong-role,stale,role-race,parent-race').split(',')){
+   const{now,identities,identity,user:actor,membership}=await member('contract-terminate-'+mode,mode==='wrong-role'?['agreements.finance']:['agreements.legal']);
+   const store=createMemoryStorage(),agreement={model:asModel('agreements.Agreement'),id:asId('agreement')},termModel=asModel('agreements.Term');
+   const insert=(model:string,id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({kind:'insert'as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    insert('rent_catalog.Location','location',{active:true}),insert('rent_catalog.Location','away',{active:true}),
+    insert('employee.Employee','operator',{user:{id:actor.user_id},active:mode!=='employee-inactive',operator_wide:false,home:{id:'location'},locations:[]}),
+    insert('agreements.Agreement','agreement',{location:{id:'location'},active:true,category:'landlord'}),insert('agreements.Agreement','foreign',{location:{id:'away'},active:true,category:'landlord'}),
+    insert('agreements.Term','term',{executed:mode!=='unexecuted',terminated:mode==='terminated',reason:null},agreement)
+   ]}));
+   const scope={app:'ContractForwarding',owner:membership.team_id,ownerPackage:'agreements'},foreign={...scope,owner:'foreign-owner'},stage={actor:'original-scheduler',now,operation:'agreements.seed',load:store.load.bind(store),query:store.query.bind(store)};
+   const stages=await Promise.all([scope,foreign].map((scope,index)=>workSchedulePutCommand.stage({key:'term',scope,at:now+10000,event:'agreements.Due',payload:{term:{id:'term'}},occurrenceId:'original-'+index},stage)));
+   await store.commit(makeBatch(await store.readRevision(),{writes:stages.flatMap(stage=>stage.writes??[]),schedules:stages.flatMap(stage=>stage.schedules??[])}));
+   const query=store.query.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.query=async input=>{const rows=await query(input);if(mode==='role-race'&&!raced&&input.model===asModel('employee.Employee')){raced=true;await identities.setMembershipRoles(membership.membership_id,[]);}return rows;};
+   store.commit=async batch=>{if(mode==='parent-race'&&!raced&&batch.writes.some(write=>write.model===termModel)){raced=true;const term=(await store.load(termModel,asId('term')))!;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:termModel,id:term.id,expectedVersion:term.version,row:{...term,parent:{model:agreement.model,id:asId('foreign')},version:asVersion(term.version+1)}}]}));}return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'agreements.terminate',operation_id:operationId(now),inputs:{term:{id:'term',version:mode==='stale'?'2':'1'},reason:'Original termination'}};
+   const result=await invoker.invokeMutation(request,identity),success=mode==='valid';assert.equal('result'in result,success,mode+': '+JSON.stringify(result));
+   const term=(await store.load(termModel,asId('term')))!;assert.equal(term.data.terminated,success||mode==='terminated',mode);assert.equal(term.data.reason,success?'Original termination':null,mode);
+   const schedules=await query({model:asModel('work.schedule'),authority:'owner'});assert.equal(schedules.length,2);assert.equal(schedules.find(row=>row.data.scopeOwner===scope.owner)!.data.state,success?'cancelled':'pending',mode);assert.equal(schedules.find(row=>row.data.scopeOwner===foreign.owner)!.data.state,'pending');
+   if(success){const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed',JSON.stringify(replay));assert.deepEqual(await query({model:asModel('work.schedule'),authority:'owner'}),schedules);await identities.setMembershipRoles(membership.membership_id,[]);const revokedReplay=await invoker.invokeMutation(request,identity);assert.ok('result'in revokedReplay&&revokedReplay.result.status==='replayed');assert.deepEqual(revokedReplay.result.result,null);assert.deepEqual(revokedReplay.result.records,[]);assert.deepEqual(await query({model:asModel('work.schedule'),authority:'owner'}),schedules);const denied=await invoker.invokeMutation({...request,operation_id:operationId(now+1)},identity);assert.ok('error'in denied&&denied.error.code==='forbidden',JSON.stringify(denied));}
+   if(mode.endsWith('-race'))assert.ok(raced,mode);
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});
