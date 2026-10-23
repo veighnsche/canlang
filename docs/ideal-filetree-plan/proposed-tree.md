@@ -1,6 +1,6 @@
 # Complete selected target tree
 
-This is an exact leaf allocation, not an implementation result. Every baseline parent leaf except the evidenced obsolete executors.ts is retained; the `draft` gitlink is expanded only to show its 951 separately owned tracked inputs. The obsolete Cloudflare executors.ts producer is the sole whole-file retirement, resolved during implementation. New planning documents are additional to the committed inventory. Fourteen private extraction leaves, the dev-server build guard and lifecycle integration, and the public-boundary integration suite are allocated by [tasks](tasks.md). Current implementation results are recorded there; filenames alone do not qualify behavior. Ignored caches, private dependencies, credentials and worktrees are outside scope.
+Reconciled to source `8d48f969`: 3,809 current parent paths, with the `draft` gitlink expanded to its 951 independently owned inputs (4,759 file leaves). Every current leaf is retained at its exact path. Previously selected private extractions and the dev policy integration are implemented; their actual defining files now appear as current leaves. The obsolete Cloudflare executor is excluded and its retirement remains recorded in [port assessment](port-assessment.md). No further package, process or broad monolith split is selected. Remaining semantic corrections and unreviewed workflows have explicit tasks/gates rather than speculative target filenames. Ignored caches, credentials and worktrees remain outside scope.
 
 ```text
 canlang/
@@ -11,6 +11,8 @@ canlang/
 ├── compiler/
 │   ├── src/
 │   │   ├── analysis/
+│   │   │   ├── types/
+│   │   │   │   └── given.rs
 │   │   │   ├── catalog.rs
 │   │   │   ├── check.rs
 │   │   │   ├── cohort.rs
@@ -34,6 +36,8 @@ canlang/
 │   │   │   ├── generation.rs
 │   │   │   └── reference.rs
 │   │   ├── codegen/
+│   │   │   ├── js/
+│   │   │   │   └── descriptors.rs
 │   │   │   ├── artifact.rs
 │   │   │   ├── authority_query_sites.rs
 │   │   │   ├── bdd.rs
@@ -4735,6 +4739,11 @@ canlang/
 │   ├── Generation.can
 │   ├── TeamTasks.can
 │   └── Todo.can
+├── host/
+│   ├── src/
+│   │   └── main.rs
+│   ├── Cargo.lock
+│   └── Cargo.toml
 ├── output/
 │   ├── draft-frontends/
 │   │   ├── corpus/
@@ -4802,6 +4811,7 @@ canlang/
 │   │   │   └── rust-toolchain.toml
 │   │   ├── scripts/
 │   │   │   ├── build-preparation.mjs
+│   │   │   ├── build-soda-host.mjs
 │   │   │   ├── emit-native-catalog.mjs
 │   │   │   ├── package-preparation.mjs
 │   │   │   └── verify-preparation.mjs
@@ -4813,10 +4823,13 @@ canlang/
 │   │   │   │   ├── gen.ts
 │   │   │   │   ├── native-handoff.ts
 │   │   │   │   ├── platform.ts
+│   │   │   │   ├── soda-build.ts
+│   │   │   │   ├── soda-runtime.ts
 │   │   │   │   ├── soda.ts
 │   │   │   │   └── source-workflow.ts
 │   │   │   ├── deploy/
 │   │   │   │   ├── activate.ts
+│   │   │   │   ├── bundle-validation.ts
 │   │   │   │   ├── bundle.ts
 │   │   │   │   ├── compat.ts
 │   │   │   │   ├── installed.ts
@@ -4829,10 +4842,13 @@ canlang/
 │   │   │   │   ├── producer-files.ts
 │   │   │   │   ├── render.ts
 │   │   │   │   ├── review.ts
+│   │   │   │   ├── soda-contract.ts
 │   │   │   │   ├── soda-lifetime.ts
 │   │   │   │   ├── soda-run.ts
+│   │   │   │   ├── soda-setup.ts
 │   │   │   │   ├── soda-workerd.ts
-│   │   │   │   └── soda.ts
+│   │   │   │   ├── soda.ts
+│   │   │   │   └── workerd-config.ts
 │   │   │   ├── generation/
 │   │   │   │   ├── acceptance-cleanup.ts
 │   │   │   │   ├── acceptance.ts
@@ -4857,7 +4873,8 @@ canlang/
 │   │   │   │   └── publication.ts
 │   │   │   ├── release/
 │   │   │   │   ├── manifest.ts
-│   │   │   │   └── stamp.ts
+│   │   │   │   ├── stamp.ts
+│   │   │   │   └── version.ts
 │   │   │   ├── runtime/
 │   │   │   │   ├── artifact.ts
 │   │   │   │   ├── assembly-verification.ts
@@ -4945,7 +4962,9 @@ canlang/
 │   │   │   │   ├── root-authority-http.ts
 │   │   │   │   ├── root-authority.ts
 │   │   │   │   ├── scenario-receipt-frame.ts
+│   │   │   │   ├── soda-admin.ts
 │   │   │   │   ├── soda-application.ts
+│   │   │   │   ├── soda-d1.ts
 │   │   │   │   ├── sourcemap.ts
 │   │   │   │   ├── stdlib.ts
 │   │   │   │   ├── t34c-work-installed.integration.test.ts
@@ -5394,6 +5413,7 @@ canlang/
 │   │   │   │   ├── scenario-query-any.ts
 │   │   │   │   ├── scenario-query-plan.ts
 │   │   │   │   ├── scenario-query-selection.ts
+│   │   │   │   ├── scenario-receipt-decoding.ts
 │   │   │   │   ├── scenario-receipt.ts
 │   │   │   │   ├── scenario-stored-reference.ts
 │   │   │   │   └── scenario-stored-value.ts
@@ -5861,6 +5881,7 @@ canlang/
 │   │   │   ├── bun.lock
 │   │   │   └── package.json
 │   │   ├── licenses/
+│   │   │   ├── Miniflare-D1-LICENSE
 │   │   │   ├── sharp-libvips-LICENSE
 │   │   │   └── workerd-LICENSE
 │   │   ├── browser-tools.mjs
@@ -5886,6 +5907,7 @@ canlang/
 │   ├── install.sh
 │   ├── pack-install.mjs
 │   ├── pack-release.mjs
+│   ├── pack-soda-runtime.mjs
 │   ├── pack-tools.mjs
 │   ├── publish-install-release.mjs
 │   ├── run-tasks.mjs
@@ -5897,8 +5919,10 @@ canlang/
 │   ├── verify-installed-worker.mjs
 │   ├── verify-native-runtime.mjs
 │   ├── verify-preview-persistence.mjs
+│   ├── verify-soda-direct.mjs
 │   ├── verify-soda-host.mjs
 │   ├── verify-soda-recovery.mjs
+│   ├── verify-soda-runtime-closure.mjs
 │   └── verify-soda-runtime.mjs
 ├── tests/
 │   ├── e2e/
@@ -6049,5 +6073,3 @@ canlang/
 ├── turbo.json
 └── vitest.config.ts
 ```
-
-Allocation: 4,725 unique file leaves = 3,739 retained parent file leaves + 951 child leaves + 19 new planning leaves + 16 proposed source/test/build leaves. Existing modified planning paths remain part of the parent count. The parent gitlink itself retains its identity and is represented as the expanded directory above. The one omitted original is the evidenced executor retirement recorded in tasks.md; no other source retirement is inferred.

@@ -1,6 +1,6 @@
 # Source inventory
 
-Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent draft: **951 paths** at `c6572fe`. Parent paths occur exactly once below. Multi-duty files retain all other duties and their original shell; detailed primary/challenger records define the narrower mixed-unit cutovers. A path row does not certify every body or test assertion. New audit documents are accounted separately in the target tree, not falsely counted in the committed baseline.
+Current structural baseline: **3,809 parent paths** at `8d48f969`; initialized independent draft: **951 paths** at `c6572fe`. Every current parent path occurs exactly once below, including the committed living-plan documents. Compared with `1c3f1b38`, 69 paths were added and the obsolete Cloudflare executor leaf was retired. This is path accountability, not exhaustive semantic review; [baseline](../baseline.md) separates current structure, delta review and reused historical evidence.
 
 | Source path | Kind | Lifecycle | Primary responsibility | Map | Selected disposition |
 | --- | --- | --- | --- | --- | --- |
@@ -38,7 +38,13 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `compiler/src/analysis/resolve.rs` | source/script | active source or consumed input | L01 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `compiler/src/analysis/scenario_disclosure.rs` | source/script | active source or consumed input | L01 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `compiler/src/analysis/types.rs` | source/script | active source or consumed input | L01 | [language review](../reviews/language-current.md) | Retain exact path/identity |
+| `compiler/src/analysis/types/given.rs` | source/script | active source or consumed build/test input | L01 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
 | `compiler/src/cli.rs` | source/script | active source or consumed input | L03 | [language review](../reviews/language-current.md) | Keep exact path; mixed selectors may move to named successors |
+| `compiler/src/cli/args.rs` | source/script | active source or consumed build/test input | L03 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `compiler/src/cli/compile.rs` | source/script | active source or consumed build/test input | L03 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `compiler/src/cli/entry.rs` | source/script | active source or consumed build/test input | L03 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `compiler/src/cli/generation.rs` | source/script | active source or consumed build/test input | L03 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `compiler/src/cli/reference.rs` | source/script | active source or consumed build/test input | L03 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
 | `compiler/src/codegen/artifact.rs` | source/script | active source or consumed input | L02 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `compiler/src/codegen/authority_query_sites.rs` | source/script | active source or consumed input | L02 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `compiler/src/codegen/bdd.rs` | source/script | active source or consumed input | L02 | [language review](../reviews/language-current.md) | Retain exact path/identity |
@@ -50,6 +56,7 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `compiler/src/codegen/invoice_issue_decisions.rs` | source/script | active source or consumed input | L02 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `compiler/src/codegen/ir.rs` | source/script | active source or consumed input | L02 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `compiler/src/codegen/js.rs` | source/script | active source or consumed input | L02 | [language review](../reviews/language-current.md) | Retain exact path/identity |
+| `compiler/src/codegen/js/descriptors.rs` | source/script | active source or consumed build/test input | L02 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
 | `compiler/src/codegen/leave_decisions.rs` | source/script | active source or consumed input | L02 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `compiler/src/codegen/mailbox_events.rs` | source/script | active source or consumed input | L02 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `compiler/src/codegen/member_retry_decisions.rs` | source/script | active source or consumed input | L02 | [language review](../reviews/language-current.md) | Retain exact path/identity |
@@ -74,6 +81,8 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `compiler/src/codegen/scenario_queries.rs` | source/script | active source or consumed input | L02 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `compiler/src/codegen/scenario_receipts.rs` | source/script | active source or consumed input | L02 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `compiler/src/codegen/send_guards.rs` | source/script | active source or consumed input | L02 | [language review](../reviews/language-current.md) | Retain exact path/identity |
+| `compiler/src/codegen/source_context.rs` | source/script | active source or consumed build/test input | L02 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `compiler/src/codegen/source_correspondence.rs` | source/script | active source or consumed build/test input | L02 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
 | `compiler/src/codegen/source_created_rows.rs` | source/script | active source or consumed input | L02 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `compiler/src/codegen/source_let_data.rs` | source/script | active source or consumed input | L02 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `compiler/src/codegen/source_loops.rs` | source/script | active source or consumed input | L02 | [language review](../reviews/language-current.md) | Retain exact path/identity |
@@ -514,6 +523,7 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `dev-server/Cargo.lock` | manifest/config/data | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `dev-server/Cargo.toml` | manifest/config/data | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `dev-server/README.md` | documentation/notice | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
+| `dev-server/build.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
 | `dev-server/host/browser.mjs` | source/script | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `dev-server/host/entry.mjs` | source/script | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `dev-server/host/protocol.mjs` | source/script | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
@@ -538,6 +548,8 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `dev-server/src/main.rs` | source/script | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `dev-server/src/model.rs` | source/script | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `dev-server/src/owner.rs` | source/script | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Keep exact path; mixed selectors may move to named successors |
+| `dev-server/src/owner/check_worker.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `dev-server/src/owner/service_worker.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
 | `dev-server/src/policy.rs` | source/script | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `dev-server/src/presentation.rs` | source/script | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `dev-server/src/preview.rs` | source/script | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
@@ -557,7 +569,22 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `dev-server/src/test_support.rs` | source/script | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `dev-server/src/ui.rs` | source/script | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `dev-server/src/watch.rs` | source/script | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
+| `dev-server/tests/boundaries.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
 | `dev-server/tests/gateway.rs` | test/fixture | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
+| `dev-server/tests/integration/capture.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `dev-server/tests/integration/claim.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `dev-server/tests/integration/cli.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `dev-server/tests/integration/compiler.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `dev-server/tests/integration/construct.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `dev-server/tests/integration/control.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `dev-server/tests/integration/files.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `dev-server/tests/integration/fixtures.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `dev-server/tests/integration/inventory.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `dev-server/tests/integration/refusals.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `dev-server/tests/integration/runtime.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `dev-server/tests/integration/terminal.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `dev-server/tests/integration/watch.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
+| `dev-server/tests/session_lifecycle.rs` | source/script | active source or consumed build/test input | L04 | [language review](../reviews/language-current.md) | Retain exact current path; defining duties in linked review |
 | `dev-server/tests/state.rs` | test/fixture | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `dev-server/third-party-notices/.gitattributes` | source/script | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
 | `dev-server/third-party-notices/THIRD-PARTY-NOTICES.txt` | documentation/notice | active source or consumed input | L04 | [language review](../reviews/language-current.md) | Retain exact path/identity |
@@ -811,6 +838,13 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `docs/e2e.md` | documentation | retained developer/product guidance | DOC.DELIVERY | [root review](../reviews/repository-current.md) | Retain exact path/identity |
 | `docs/handbook-coverage-audit.md` | documentation | retained developer/product guidance | DOC.DELIVERY | [root review](../reviews/repository-current.md) | Retain exact path/identity |
 | `docs/ideal-filetree-plan.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
+| `docs/ideal-filetree-plan/baseline.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
+| `docs/ideal-filetree-plan/catalogue/draft-inputs.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
+| `docs/ideal-filetree-plan/catalogue/evidence-consumers.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
+| `docs/ideal-filetree-plan/catalogue/inventory.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
+| `docs/ideal-filetree-plan/decisions.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
+| `docs/ideal-filetree-plan/decomposition/index.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
+| `docs/ideal-filetree-plan/decomposition/size-flags.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
 | `docs/ideal-filetree-plan/desired-tree.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
 | `docs/ideal-filetree-plan/findings.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
 | `docs/ideal-filetree-plan/finished-product/FP.IDENTITY-CONTRACT.contract.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
@@ -831,10 +865,21 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `docs/ideal-filetree-plan/finished-product/reviews/work.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
 | `docs/ideal-filetree-plan/finished-product/target-tree.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
 | `docs/ideal-filetree-plan/finished-product/workflows.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
+| `docs/ideal-filetree-plan/implementation-lanes.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
+| `docs/ideal-filetree-plan/integration.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
+| `docs/ideal-filetree-plan/maintenance.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
 | `docs/ideal-filetree-plan/ownership.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
+| `docs/ideal-filetree-plan/package-ownership.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
+| `docs/ideal-filetree-plan/port-assessment.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
+| `docs/ideal-filetree-plan/proposed-tree.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
 | `docs/ideal-filetree-plan/reviews/compiler.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
+| `docs/ideal-filetree-plan/reviews/index.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
+| `docs/ideal-filetree-plan/reviews/language-current.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
+| `docs/ideal-filetree-plan/reviews/platform-current.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
 | `docs/ideal-filetree-plan/reviews/platform.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
+| `docs/ideal-filetree-plan/reviews/repository-current.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
 | `docs/ideal-filetree-plan/reviews/repository.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
+| `docs/ideal-filetree-plan/reviews/runtime-current.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
 | `docs/ideal-filetree-plan/reviews/runtime.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
 | `docs/ideal-filetree-plan/rust-package-audit/README.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
 | `docs/ideal-filetree-plan/rust-package-audit/adapters-ui.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
@@ -842,6 +887,7 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `docs/ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
 | `docs/ideal-filetree-plan/rust-package-audit/state-work.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
 | `docs/ideal-filetree-plan/rust-package-audit/values-interfaces.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
+| `docs/ideal-filetree-plan/slices/index.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
 | `docs/ideal-filetree-plan/tasks.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
 | `docs/implementation/CONTRACTS.md` | contract | active normative input | DOC.CONTRACTS | [root review](../reviews/repository-current.md) | Retain exact path/identity |
 | `docs/implementation/D3B-OBSERVER-SEAM-CONTRACT.md` | documentation/fixture | retained with literal external consumer | DOC.EVIDENCE | [root review](../reviews/repository-current.md) | Retain exact path/identity |
@@ -2646,6 +2692,9 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `examples/expenseflow-demo/demo.mjs` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `examples/expenseflow-demo/expenses.policy.json` | manifest/config/data | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `examples/expenseflow-demo/prove.mjs` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
+| `host/Cargo.lock` | manifest/config/data | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
+| `host/Cargo.toml` | manifest/config/data | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
+| `host/src/main.rs` | source/script | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
 | `output/draft-frontends/corpus/audit.json` | generated/data | retained historical output | DOC.DELIVERY | [root review](../reviews/repository-current.md) | Retain exact path/identity |
 | `output/draft-frontends/corpus/index.html` | generated/data | retained historical output | DOC.DELIVERY | [root review](../reviews/repository-current.md) | Retain exact path/identity |
 | `output/draft-frontends/help-office-functional.json` | generated/data | retained historical output | DOC.DELIVERY | [root review](../reviews/repository-current.md) | Retain exact path/identity |
@@ -2701,6 +2750,7 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `packages/cloudflare/preparation/tests/release.rs` | test/fixture | active source or retained fixture/asset | P-ARTIFACT | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/preparation/tests/vectors.rs` | test/fixture | active source or retained fixture/asset | P-ARTIFACT | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/scripts/build-preparation.mjs` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
+| `packages/cloudflare/scripts/build-soda-host.mjs` | source/script | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
 | `packages/cloudflare/scripts/emit-native-catalog.mjs` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/scripts/package-preparation.mjs` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/scripts/verify-preparation.mjs` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
@@ -2710,9 +2760,12 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `packages/cloudflare/src/cli/gen.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/cli/native-handoff.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/cli/platform.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
+| `packages/cloudflare/src/cli/soda-build.ts` | source/script | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
+| `packages/cloudflare/src/cli/soda-runtime.ts` | source/script | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
 | `packages/cloudflare/src/cli/soda.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/cli/source-workflow.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/deploy/activate.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
+| `packages/cloudflare/src/deploy/bundle-validation.ts` | source/script | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
 | `packages/cloudflare/src/deploy/bundle.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/deploy/compat.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/deploy/installed.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
@@ -2725,10 +2778,13 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `packages/cloudflare/src/deploy/producer-files.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/deploy/render.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/deploy/review.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
+| `packages/cloudflare/src/deploy/soda-contract.ts` | source/script | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
 | `packages/cloudflare/src/deploy/soda-lifetime.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/deploy/soda-run.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
+| `packages/cloudflare/src/deploy/soda-setup.ts` | source/script | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
 | `packages/cloudflare/src/deploy/soda-workerd.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/deploy/soda.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
+| `packages/cloudflare/src/deploy/workerd-config.ts` | source/script | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
 | `packages/cloudflare/src/distribution.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/generation/acceptance-cleanup.ts` | source/script | active source or retained fixture/asset | P-AUTHORING-HOST | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/generation/acceptance.ts` | source/script | active source or retained fixture/asset | P-AUTHORING-HOST | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
@@ -2753,6 +2809,7 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `packages/cloudflare/src/preparation/publication.ts` | source/script | active source or retained fixture/asset | P-ARTIFACT | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/release/manifest.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/release/stamp.ts` | source/script | active source or retained fixture/asset | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
+| `packages/cloudflare/src/release/version.ts` | source/script | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
 | `packages/cloudflare/src/runtime/artifact.ts` | source/script | active source or retained fixture/asset | P-ARTIFACT | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/runtime/assembly-verification.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/runtime/auth-rate-limiter.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
@@ -2772,7 +2829,6 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `packages/cloudflare/src/runtime/example-bindings.test-support.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/runtime/example-bindings.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/runtime/example-fixture-imports.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
-| `packages/cloudflare/src/runtime/executors.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retired during implementation: no current caller, supported export or pinned payload; historical fixtures retained |
 | `packages/cloudflare/src/runtime/export-downloads.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/runtime/file-inventory.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/runtime/file-retirement.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
@@ -2782,6 +2838,7 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `packages/cloudflare/src/runtime/given-unique-keys.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/runtime/grant-route.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/runtime/input-choices.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
+| `packages/cloudflare/src/runtime/invocation-errors.ts` | source/script | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
 | `packages/cloudflare/src/runtime/invoke.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Keep exact path; mixed selectors may move to named successors |
 | `packages/cloudflare/src/runtime/mcp-permissions.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/runtime/mcp-registry.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
@@ -2839,7 +2896,9 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `packages/cloudflare/src/runtime/root-authority-http.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/runtime/root-authority.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/runtime/scenario-receipt-frame.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
+| `packages/cloudflare/src/runtime/soda-admin.ts` | source/script | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
 | `packages/cloudflare/src/runtime/soda-application.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
+| `packages/cloudflare/src/runtime/soda-d1.ts` | source/script | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
 | `packages/cloudflare/src/runtime/sourcemap.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/runtime/stdlib.ts` | source/script | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/cloudflare/src/runtime/t34c-work-installed.integration.test.ts` | test/fixture | active source or retained fixture/asset | P-SERVING | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
@@ -3222,6 +3281,7 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `packages/state/src/internal/unique-value.ts` | source/script | active source or retained fixture/asset | RT.STATE.MUTATE | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
 | `packages/state/src/invocation/admission.ts` | source/script | active source or retained fixture/asset | RT.STATE.ADMIT | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
 | `packages/state/src/invocation/context.ts` | source/script | active source or retained fixture/asset | RT.STATE.ADMIT | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
+| `packages/state/src/invocation/crud-receipt.ts` | source/script | active source or consumed build/test input | RT.STATE.RECEIPT | [runtime review](../reviews/runtime-current.md) | Retain exact current path; defining duties in linked review |
 | `packages/state/src/invocation/dispatch-membership.ts` | source/script | active source or retained fixture/asset | RT.STATE.ADMIT | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
 | `packages/state/src/invocation/index.ts` | source/script | active source or retained fixture/asset | RT.STATE.ADMIT | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
 | `packages/state/src/invocation/invoke.ts` | source/script | active source or retained fixture/asset | RT.STATE.ADMIT | [runtime review](../reviews/runtime-current.md) | Keep exact path; mixed selectors may move to named successors |
@@ -3231,9 +3291,11 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `packages/state/src/invocation/scenario-file-assignment.ts` | source/script | active source or retained fixture/asset | RT.STATE.ADMIT | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
 | `packages/state/src/invocation/scenario-membership-plan.ts` | source/script | active source or retained fixture/asset | RT.STATE.ADMIT | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
 | `packages/state/src/invocation/scenario-narrowed-field.ts` | source/script | active source or retained fixture/asset | RT.STATE.ADMIT | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
+| `packages/state/src/invocation/scenario-plan.ts` | source/script | active source or consumed build/test input | RT.STATE.RECEIPT | [runtime review](../reviews/runtime-current.md) | Retain exact current path; defining duties in linked review |
 | `packages/state/src/invocation/scenario-query-any.ts` | source/script | active source or retained fixture/asset | RT.STATE.ADMIT | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
 | `packages/state/src/invocation/scenario-query-plan.ts` | source/script | active source or retained fixture/asset | RT.STATE.ADMIT | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
 | `packages/state/src/invocation/scenario-query-selection.ts` | source/script | active source or retained fixture/asset | RT.STATE.ADMIT | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
+| `packages/state/src/invocation/scenario-receipt-decoding.ts` | source/script | active source or consumed build/test input | RT.STATE.RECEIPT | [runtime review](../reviews/runtime-current.md) | Retain exact current path; defining duties in linked review |
 | `packages/state/src/invocation/scenario-receipt.ts` | source/script | active source or retained fixture/asset | RT.STATE.RECEIPT | [runtime review](../reviews/runtime-current.md) | Keep exact path; mixed selectors may move to named successors |
 | `packages/state/src/invocation/scenario-stored-reference.ts` | source/script | active source or retained fixture/asset | RT.STATE.ADMIT | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
 | `packages/state/src/invocation/scenario-stored-value.ts` | source/script | active source or retained fixture/asset | RT.STATE.ADMIT | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
@@ -3267,6 +3329,7 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `packages/state/src/query/engine.ts` | source/script | active source or retained fixture/asset | RT.STATE.QUERY | [runtime review](../reviews/runtime-current.md) | Keep exact path; mixed selectors may move to named successors |
 | `packages/state/src/query/history.ts` | source/script | active source or retained fixture/asset | RT.STATE.QUERY | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
 | `packages/state/src/query/index.ts` | source/script | active source or retained fixture/asset | RT.STATE.QUERY | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
+| `packages/state/src/query/order.ts` | source/script | active source or consumed build/test input | RT.STATE.QUERY | [runtime review](../reviews/runtime-current.md) | Retain exact current path; defining duties in linked review |
 | `packages/state/src/query/source-policy.ts` | source/script | active source or retained fixture/asset | RT.STATE.QUERY | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
 | `packages/state/src/receipt/authored-delivery.ts` | source/script | active source or retained fixture/asset | RT.STATE.RECEIPT | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
 | `packages/state/src/receipt/callback-diagnostics.ts` | source/script | active source or retained fixture/asset | RT.STATE.RECEIPT | [runtime review](../reviews/runtime-current.md) | Retain exact path/identity |
@@ -3366,6 +3429,7 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `packages/ui/src/internal/business-errors.ts` | source/script | active source or retained fixture/asset | P-PRESENTATION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/ui/src/internal/collection-selection.ts` | source/script | active source or retained fixture/asset | P-PRESENTATION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/ui/src/internal/draft-values.ts` | source/script | active source or retained fixture/asset | P-PRESENTATION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
+| `packages/ui/src/internal/field-binding.ts` | source/script | active source or consumed build/test input | P-PRESENTATION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
 | `packages/ui/src/internal/file-link.ts` | source/script | active source or retained fixture/asset | P-PRESENTATION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/ui/src/internal/menu-dialog.ts` | source/script | active source or retained fixture/asset | P-PRESENTATION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `packages/ui/src/internal/native-text.ts` | source/script | active source or retained fixture/asset | P-PRESENTATION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
@@ -3611,6 +3675,7 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `scripts/distribution/browser/package.json` | manifest/config/data | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `scripts/distribution/bun-LICENSE.md` | documentation/notice | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `scripts/distribution/bun.lock` | manifest/config/data | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
+| `scripts/distribution/licenses/Miniflare-D1-LICENSE` | documentation/notice | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
 | `scripts/distribution/licenses/sharp-libvips-LICENSE` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `scripts/distribution/licenses/workerd-LICENSE` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `scripts/distribution/module-resolution.mjs` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
@@ -3623,6 +3688,7 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `scripts/install.sh` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `scripts/pack-install.mjs` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `scripts/pack-release.mjs` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
+| `scripts/pack-soda-runtime.mjs` | source/script | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
 | `scripts/pack-tools.mjs` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `scripts/publish-install-release.mjs` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `scripts/run-tasks.mjs` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
@@ -3634,8 +3700,10 @@ Committed parent baseline: **3741 paths** at `1c3f1b38`; initialized independent
 | `scripts/verify-installed-worker.mjs` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `scripts/verify-native-runtime.mjs` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `scripts/verify-preview-persistence.mjs` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
+| `scripts/verify-soda-direct.mjs` | source/script | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
 | `scripts/verify-soda-host.mjs` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `scripts/verify-soda-recovery.mjs` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
+| `scripts/verify-soda-runtime-closure.mjs` | source/script | active source or consumed build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact current path; defining duties in linked review |
 | `scripts/verify-soda-runtime.mjs` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `tasks.can` | source/script | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
 | `tests/e2e/apps/challenge-pilot-patched.spec.ts` | test/fixture | active repository/build/test input | P-DISTRIBUTION | [platform review](../reviews/platform-current.md) | Retain exact path/identity |
