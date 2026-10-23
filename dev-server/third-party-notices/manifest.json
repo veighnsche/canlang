@@ -2,7 +2,7 @@
   "schema": 1,
   "scope": "Locked native development-server normal/build dependencies for the existing two release targets.",
   "inputs": {
-    "dev-server/Cargo.toml": "a861d550a833271924db5532bd2173ae7e9a7872659f38b30a456a755789881b",
+    "dev-server/Cargo.toml": "4353910ff15b4a6a8695cd132ae7bc5c78b0c0a9620675bcd20110e64c6a696c",
     "dev-server/Cargo.lock": "5a890cf86dafec9122a2d01f1774f1ed16692d4634f234b4f34a5fa7d8df6623"
   },
   "noticeSha256": "e0d57e205fa4436f895494a61d2bd41dfbce8f219d6e3953035b950accfd796c",

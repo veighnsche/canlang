@@ -2,7 +2,7 @@
   "schema": 1,
   "scope": "Existing compiler binary release targets; retain supplied license alternatives without a new licensing choice or lower-MSRV claim.",
   "inputs": {
-    "compiler/Cargo.toml": "cc26392e2d863766ccac6b72a08dc89ff76f5d73ab726f80dda9119d141b567c",
+    "compiler/Cargo.toml": "5b7192f906a12eef05f32ae9bcd9e3702e3d4b5fd9c6ef38bba1e26d40c454bf",
     "compiler/Cargo.lock": "3bedc60673b7b37b120c5b6c068c756210c4e94a736015e1ef0a47e8a15919c0"
   },
   "targets": {
