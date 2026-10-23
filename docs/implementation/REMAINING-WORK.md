@@ -526,9 +526,19 @@ that temporary file does not become an external blocker. `CAN_COMPILER` must nam
 the selected current compiler executable, not the obsolete temporary binary from
 the historical argv.
 
+For the current native Cloudflare host, select its owning native catalog below.
+The Values-only catalog intentionally keeps `active_member` external; a comparison
+using that catalog has one additional availability error even though the native
+host supplies the function. Keep the original operands and native flag unchanged.
+Use a current optimized compiler for this full check: on 23 October the debug run
+hit the existing 600-second limit, while the rebuilt optimized compiler completed
+in 164.277 seconds with the native-host catalog. Do not raise the limit or infer
+native success from an earlier-phase analysis-only result. See the
+[current diagnostic list](../ideal-filetree-plan/tasks.md#start-here).
+
 ```sh
 "$CAN_COMPILER" compile --format=json --native-scenario-receipts \
-  --catalog=packages/values/dist/catalog.json \
+  --catalog=packages/cloudflare/dist/native-catalog.json \
   draft/apps/CanCRM/CanCRM.can draft/apps/CanCustomer/CanCustomer.can \
   draft/apps/CanBook/CanBook.can draft/apps/CanPropose/CanPropose.can \
   draft/apps/CanAffiliate/CanAffiliate.can draft/apps/CanInvoice/CanInvoice.can \

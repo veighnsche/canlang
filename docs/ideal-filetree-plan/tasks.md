@@ -1,20 +1,20 @@
 # Remaining implementation tasks
 
-Updated after the seven implementation commits ending at `eb8a8544` on 23 October 2026. This is the execution checklist for the audit-derived backlog: **21 open named packets**, plus the diagnostic repair identified by the completed measurement below. Nine packets have implemented results below; File admission retains the stated support limits. Packet counts are not estimates of effort or diagnostic counts.
+Updated after the seven implementation commits ending at `eb8a8544` on 23 October 2026. This is the execution checklist for the audit-derived backlog: **21 open named packets**. The initial analysis repair is complete; the current native-host compile has **56 E6008 emission diagnostics**, attributed below. Nine packets have implemented results below; File admission retains the stated support limits. Packet counts are not estimates of effort or diagnostic counts.
 
 The [reviews](reviews/index.md) retain the original source reasoning at audit baseline `8d48f969`. Current completion status is recorded here. The [broader product roadmap](../implementation/REMAINING-WORK.md) also contains older feature proposals and app-specific requirements; this checklist does not declare all of those satisfied or all external app semantics reviewed.
 
 ## Start here
 
-- [x] **Measure the current full native corpus.** On 23 October 2026 the retained [24-operand command](../implementation/REMAINING-WORK.md#next-original24-composition-capture--outcome14--t41) ran against the current `compiler/target/debug/can` and owning `packages/values/dist/catalog.json`. All 24 operands exist; compiler source inputs are older than the executable. It returned exit **10** in **6.862 seconds**, `complete:true`, `omitted:0`, with **26 sources** and **five E3001 analysis errors**. No timeout or source omission occurred. The CLI stops on these analysis errors before `codegen::emit`; the current downstream native-emission diagnostic count is therefore **unmeasured**, not five or zero. The historical 56 native diagnostics have not been demonstrated resolved.
+- [x] **Measure the current full native corpus.** On 23 October 2026 the retained [24-operand command](../implementation/REMAINING-WORK.md#next-original24-composition-capture--outcome14--t41) ran against the current `compiler/target/debug/can` and owning `packages/values/dist/catalog.json`. All 24 operands exist; compiler source inputs are older than the executable. It returned exit **10** in **6.862 seconds**, `complete:true`, `omitted:0`, with **26 sources** and **five E3001 analysis errors**. No timeout or source omission occurred. This initial run stopped before `codegen::emit`; it did not measure downstream emission diagnostics. The subsequent completed native-host result is recorded below.
 
-- [ ] **Next: repair CanLeave's example binding/enum ambiguity, then repeat the full native compile.** Five expected `pending` enum values resolve to the declared `pending` Request fixture. Resolve the owning source/example spelling while preserving intended outcomes, lexical-binding precedence, expected-value compatibility checks and permission behavior. Do not relax the checker to accept a Request as an enum. Verify the affected original examples and repeat the unchanged full composition to expose any downstream emission diagnostics. Attribute those before choosing the next shared repair toward zero.
-  - Owner: `draft/apps/CanLeave/CanLeave.can`; compiler resolution/expected-value validation defines the contract. This is one shared cause with five occurrences, not five independent repairs. No source fix was started during the measurement turn.
+- [x] **Repair CanLeave's example binding/enum ambiguity and repeat the full compile.** Renamed only the Request fixture and its references to `pending_request` in draft commit `65ea7e5`, recorded by parent commit `c317d6bd`. Enum cases, policies, requirements, locks and business operations are unchanged. The focused original-source analysis is clean; the existing diagnostic-table integration passes with only CanLeave changing from 79 to 74 isolated diagnostics. The full native-host compile now reaches emission with zero analysis diagnostics; its remaining 56 errors are below. No checker rule was relaxed.
+  - Owner: `draft/apps/CanLeave/CanLeave.can`; compiler test snapshot updated for the five demonstrated removals. This completes the shared source ambiguity repair, not native lowering support for the entire corpus.
 
 <details>
-<summary>Complete current diagnostic list and phase attribution</summary>
+<summary>Resolved initial analysis diagnostics and phase attribution</summary>
 
-All five diagnostics occur in [CanLeave](../../draft/apps/CanLeave/CanLeave.can). The authored `fixture pending=Request` shares its spelling with the `pending` enum case. The resolver's lexical binding precedes enum cases; expected-value checking reports the resulting Request/enum mismatch.
+All five initial diagnostics occurred in [CanLeave](../../draft/apps/CanLeave/CanLeave.can). The authored `fixture pending=Request` shares its spelling with the `pending` enum case. The resolver's lexical binding precedes enum cases; expected-value checking reports the resulting Request/enum mismatch.
 
 | Source position | Code | Complete diagnostic message | Owning cause |
 | --- | --- | --- | --- |
@@ -28,7 +28,101 @@ Source completeness covers the 24 explicit operands and two saved generated cont
 
 </details>
 
-After the diagnostic repair and attribution above, start with generation retry correctness and the development lifecycle fixes below unless the full compile demonstrates another shared root deserving earlier priority. Independent ready work can proceed without waiting for unrelated design questions.
+**Next task: RT-C1**, starting with the original `CanCustomer.approve_account` profile (diagnostic at line 95), including its helper and array requirements. It is one concrete occurrence of the largest refusal group, `query closure is not supported` (27 occurrences). Trace the exact declined query and complete source/domain/permission contract before generalizing the owning shared mechanism; do not assume one change will fix all 27 occurrences. RT-C1 remains the existing open packet in section 3, not an additional task or an app-specific exception. No lowering fix was started during the fixture-repair turn. Generation replay/lifecycle tasks follow unless another measured dependency changes that order.
+
+### Current complete native-host result — 23 October 2026
+
+Current optimized compiler, all 24 original operands and both saved contributions: **26 sources**, `complete:true`, `omitted:0`, exit **10**, **56 E6008 emission diagnostics**, **zero analysis diagnostics**, in **164.277 seconds**. Native compilation is not clean and publishes no artifact.
+
+The original recipe's Values-only catalog produced 57 diagnostics in 157.813 seconds: the same 56 E6008 entries plus one E6007 because that catalog intentionally declares `active_member` external. The native-host catalog changes exactly that entry's availability and is backed by the actual `native-membership` function reexported by the Worker stdlib; function identity and the exact catalog-entry difference were checked. The two source arrays and all 56 E6008 entries match exactly between these runs. This is an explicit host-catalog distinction, not a lowering repair or suppressed permission check. The earlier debug run timed out at its unchanged 600-second limit; the current optimized compiler was rebuilt from source before the successful complete runs. Use the owning native-host catalog for subsequent native-host comparisons.
+
+The counts below group diagnostic refusal reasons, not independently proven root causes; some may be cascades of a declined complete profile. Original-source closure planning belongs to `compiler/src/analysis/scenario_disclosure.rs`; native query/call/SEND emission recipients belong to `compiler/src/codegen/js.rs`. RT-C1 coordinates those compiler mechanisms with State receipt execution and host binding.
+
+
+
+| Remaining refusal reason | Count |
+| --- | ---: |
+| query closure is not supported | 27 |
+| original native FIRST query correspondence unavailable | 4 |
+| missing owning canonical Contract declaration | 4 |
+| create then set/current-field return profile required | 2 |
+| parent needs required original scenario parameter | 2 |
+| unsupported bounded loop body | 2 |
+| child needs complete acyclic source closure | 2 |
+| canonical cross-operation call effect has no lowering | 2 |
+| unsupported stored field type | 2 |
+| unsupported builtin closure | 2 |
+| helper query original required Model edge | 1 |
+| collection builtin closure | 1 |
+| unsupported scalar operator | 1 |
+| stored Model reference result cannot be copied | 1 |
+| native SEND guard/frozen lexical transport unavailable | 1 |
+| stored field schema identity mismatch | 1 |
+| source guard unavailable without a detailed closure reason | 1 |
+
+<details>
+<summary>Complete remaining native-host diagnostic list</summary>
+
+| Source position | Code | Complete message |
+| --- | --- | --- |
+| [CanCustomer:95:19](../../draft/apps/CanCustomer/CanCustomer.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanCustomer:122:19](../../draft/apps/CanCustomer/CanCustomer.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanCustomer:171:19](../../draft/apps/CanCustomer/CanCustomer.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanPropose:89:19](../../draft/apps/CanPropose/CanPropose.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: helper query original required Model edge |
+| [CanInvoice:180:12](../../draft/apps/CanInvoice/CanInvoice.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanInvoice:241:12](../../draft/apps/CanInvoice/CanInvoice.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanMember:309:12](../../draft/apps/CanMember/CanMember.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanMember:491:12](../../draft/apps/CanMember/CanMember.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanMember:497:12](../../draft/apps/CanMember/CanMember.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanMember:504:12](../../draft/apps/CanMember/CanMember.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanMember:530:12](../../draft/apps/CanMember/CanMember.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanRefer:69:12](../../draft/apps/CanRefer/CanRefer.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: create then set/current-field return profile required |
+| [CanRefer:72:18](../../draft/apps/CanRefer/CanRefer.can) | E6008 | cannot lower first query: original native query correspondence is unavailable |
+| [CanRefer:245:104](../../draft/apps/CanRefer/CanRefer.can) | E6008 | cannot lower first query: original native query correspondence is unavailable |
+| [CanRefer:248:19](../../draft/apps/CanRefer/CanRefer.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: create then set/current-field return profile required |
+| [CanRent:301:19](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanRent:428:12](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: parent needs required original scenario parameter |
+| [CanRent:453:12](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: parent needs required original scenario parameter |
+| [CanRent:479:19](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: missing owning canonical Contract declaration |
+| [CanRent:499:19](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: missing owning canonical Contract declaration |
+| [CanRent:519:19](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: missing owning canonical Contract declaration |
+| [CanRent:531:19](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: missing owning canonical Contract declaration |
+| [CanRent:742:19](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanRent:769:19](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: unsupported bounded loop body |
+| [CanRent:1013:12](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: unsupported bounded loop body |
+| [CanRent:1023:19](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanRent:1030:19](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanRent:1041:19](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanRent:1098:19](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanRent:1172:12](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanRent:1748:12](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: child needs complete acyclic source closure |
+| [CanRent:1750:6](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower call effect: canonical cross-operation invocation of rent_reservations.arrive has no §13 lowering |
+| [CanRent:1756:12](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: child needs complete acyclic source closure |
+| [CanRent:1758:6](../../draft/apps/CanRent/CanRent.can) | E6008 | cannot lower call effect: canonical cross-operation invocation of rent_reservations.cancel_booking has no §13 lowering |
+| [CanReport:42:12](../../draft/apps/CanReport/CanReport.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: collection builtin closure |
+| [CanExpense:211:12](../../draft/apps/CanExpense/CanExpense.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: unsupported stored field type |
+| [CanExpense:251:12](../../draft/apps/CanExpense/CanExpense.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanExpense:268:12](../../draft/apps/CanExpense/CanExpense.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanExpense:289:12](../../draft/apps/CanExpense/CanExpense.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanExpense:344:12](../../draft/apps/CanExpense/CanExpense.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanPurchase:125:12](../../draft/apps/CanPurchase/CanPurchase.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanSuccess:64:12](../../draft/apps/CanSuccess/CanSuccess.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: unsupported builtin closure |
+| [CanSuccess:118:12](../../draft/apps/CanSuccess/CanSuccess.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: unsupported builtin closure |
+| [CanDesk:64:19](../../draft/apps/CanDesk/CanDesk.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: unsupported scalar operator |
+| [CanDesk:78:12](../../draft/apps/CanDesk/CanDesk.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanDesk:90:12](../../draft/apps/CanDesk/CanDesk.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanDesk:112:12](../../draft/apps/CanDesk/CanDesk.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanDesk:141:12](../../draft/apps/CanDesk/CanDesk.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanShift:76:101](../../draft/apps/CanShift/CanShift.can) | E6008 | cannot lower first query: original native query correspondence is unavailable |
+| [CanShift:77:98](../../draft/apps/CanShift/CanShift.can) | E6008 | cannot lower first query: original native query correspondence is unavailable |
+| [CanShift:119:12](../../draft/apps/CanShift/CanShift.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: query closure is not supported |
+| [CanShift:188:12](../../draft/apps/CanShift/CanShift.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: stored Model reference result cannot be copied |
+| [CanShift:250:274](../../draft/apps/CanShift/CanShift.can) | E6008 | cannot lower send dispatch guard: original native SEND guard and frozen lexical transport are unavailable |
+| [CanContract:58:12](../../draft/apps/CanContract/CanContract.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: unsupported stored field type |
+| [CanStock:79:12](../../draft/apps/CanStock/CanStock.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard: stored field schema identity mismatch |
+| [CanField:42:19](../../draft/apps/CanField/CanField.can) | E6008 | cannot lower scenario source requirement: original checked owner receipt is unavailable for its source guard |
+
+</details>
 
 ## 1. Fix request replay and development lifecycle
 
