@@ -11449,12 +11449,14 @@ impl<'a> Closure<'a> {
             return None;
         }
         let (receiver, name) = self.count_member(node)?;
-        let parameter = self.query_parameter(scenario, receiver).or_else(|| {
+        let created=scenario.result.is_none().then(||self.created_parent_source(receiver,scenario.module)).flatten();
+        let parameter = self.query_parameter(scenario, receiver).or_else(||created.as_ref().map(|(_,_,parameter)|*parameter)).or_else(|| {
             scenario.result.is_none().then(||scenario.params.iter().find(|parameter|
                 self.checked_call_parent_path(receiver,parameter.param,0).is_some_and(|(_,hops)|hops==1))
                 .map(|parameter|parameter.param)).flatten()
         })?;
-        let (parent, hops) = self.checked_call_parent_path(receiver, parameter, 0)?;
+        let (parent, hops) = self.checked_call_parent_path(receiver, parameter, 0)
+            .or_else(||created.as_ref().map(|(_,parent,_)|(*parent,0)))?;
         let SymbolKind::Model {
             owner: ModelOwner::ChildOf(actual_parent),
             ..
@@ -18032,6 +18034,22 @@ impl<'a> Closure<'a> {
         Ok(())
     }
 
+    /// A created row's immutable parent keeps its own CreateAs identity. The
+    /// association below seals the authored parent input; it does not admit
+    /// the new row or its parent as another scenario parameter.
+    fn created_parent_source(&self,key:NodeKey,module:ModuleId)
+        ->Option<(CheckedScenarioCreate,SymbolId,SymbolId)> {
+        let (base,name)=self.count_member(key)?;
+        if name!="parent"{return None;}
+        let source=self.created_binding_source(base,module)?;
+        let ModelOwner::ChildOf(parent)=source.definition.declaration.owner else{return None;};
+        let input=source.inputs.iter().find(|input|input.name=="parent"&&input.field.is_none())?;
+        let Some(Binding::Symbol(parameter))=self.query_binding(input.value_node) else{return None;};
+        if self.checked_call_parent_path(input.value_node,*parameter,0)!=Some((parent,0))
+            ||self.types.node_types.get(&key)!=Some(&ResolvedType::Record{symbol:parent,stored:true}) {return None;}
+        Some((source,parent,*parameter))
+    }
+
     fn expr_member_parent_implicit(
         &self,
         key: NodeKey,
@@ -18042,7 +18060,10 @@ impl<'a> Closure<'a> {
         model: SymbolId,
         value: &mut ValuePath,
     ) -> Result<(), DisclosureDecline> {
-        let (parameter, depth, event_row) = match value.reference_origin {
+        let created=self.created_parent_source(key,module).filter(|(source,_,_)|
+            calls.is_empty()&&self.loop_node.is_none()&&source.model==model
+                &&matches!(value.model_result,Some(DisclosureModelResult::Create{model:actual,node}) if actual==model&&node==source.node));
+        let (parameter, depth, event_row) = if let Some((_,_,parameter))=&created {(*parameter,0,false)}else{match value.reference_origin {
             Some(ReferenceOrigin::Parameter(parameter)) => (parameter, 0, false),
             Some(ReferenceOrigin::EventRow { field, node }) if node == base_key
                 && self.hook_delivery_field(base_key, module)
@@ -18067,7 +18088,7 @@ impl<'a> Closure<'a> {
                     self.fail(key, "parent needs required original scenario parameter")
                 );
             }
-        };
+        }};
         let owner = self
             .resolve
             .symbols
@@ -18089,7 +18110,7 @@ impl<'a> Closure<'a> {
             || (event_row
                 && self.hook_delivery_field(base_key, module)
                     .is_none_or(|(_, field)| field != parameter))
-            || (!event_row
+            || (!event_row && created.is_none()
                 && self.checked_call_parent_path(key, parameter, 0)
                     != Some((*parent, depth + 1))
                 && self.checked_delivery_parent_path(key, module, parameter, 2)
@@ -18127,11 +18148,12 @@ impl<'a> Closure<'a> {
         value.observed.push((key, calls.to_vec()));
         value.record = Some(*parent);
         value.reference = None;
-        value.reference_origin = Some(ReferenceOrigin::Parent {
+        value.reference_origin = if created.is_some(){None}else{Some(ReferenceOrigin::Parent {
             parameter,
             model: *parent,
             depth: depth + 1,
-        });
+        })};
+        if created.is_some(){value.model_result=None;}
         Ok(())
     }
 
@@ -21100,7 +21122,11 @@ impl<'a> Closure<'a> {
                     count.call == key
                         && scenario.guards.iter().chain(&scenario.effects)
                             .any(|statement| statement.node == count.statement)
-                        && query.inputs.iter().all(|(_, parameter)| {
+                        && query.inputs.iter().all(|(receiver, parameter)| {
+                            if let Some((source,_,root))=self.created_parent_source(*receiver,module) {
+                                if root!=*parameter||!env.get(&Local::Create(source.node)).is_some_and(|value|
+                                    value.record==Some(source.model)&&matches!(value.model_result,Some(DisclosureModelResult::Create{model,node}) if model==source.model&&node==source.node)){return false;}
+                            }
                             let Some(ResolvedType::Record { symbol, stored: true }) =
                                 self.types.symbol_types.get(parameter)
                             else { return false; };

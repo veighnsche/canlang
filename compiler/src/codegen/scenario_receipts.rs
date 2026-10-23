@@ -7571,7 +7571,19 @@ fn checked_count_query_parent<'a>(
         .filter(|schema| schema.model && schema.id == domain_parent);
     let parent = parents.next()?;
     let source_receiver = checked_effect_node(ir, owner, receiver, db)?;
-    let receiver_root=if domain_parent==*parent_id && source_receiver.kind==SyntaxKind::NameRef {
+    let created_receiver=if source_receiver.kind==SyntaxKind::Member {
+        let IrItemKind::Scenario{effects,..}=&owner.kind else{return None;};
+        let (input,input_span)=native_count_create_input(effects,count.statement)?;
+        let IrExpr::Object(entries)=&input.expr else{return None;};
+        let original=native_count_original(facts,count.statement)?;
+        let actual_parent=original.inputs.iter().find(|input|input.name=="parent")?;
+        let value=&entries.iter().find(|(name,_)|name=="parent")?.1;
+        if input_span!=node_span(original.node)||value.span!=node_span(actual_parent.value_node){return None;}
+        checked_created_parent(ir,owner,value,db).filter(|(_,parameter,_)|parameter.id==parameter_id)
+    }else{None};
+    let created_root=created_receiver.map(|(created,_,_)|created.inputs.iter().find(|input|input.name=="parent").map(|input|input.value_node)).flatten();
+    let created_root_node=created_root.and_then(|node|checked_effect_node(ir,owner,node,db));
+    let receiver_root=if let Some(root)=&created_root_node {root}else if domain_parent==*parent_id && source_receiver.kind==SyntaxKind::NameRef {
         &source_receiver
     }else{
         let root_schema=facts.stored_contracts.as_deref()?.iter().find(|schema|schema.model && schema.id==*parent_id)?;
@@ -7894,6 +7906,9 @@ pub(super) fn checked_count_query_ir<'a>(
     let parent = scan.parent.as_deref()?;
     let parameter = checked_count_query_parent(ir, owner, query, db)?;
     let parent_type=ResolvedType::Record{symbol:checked_first_query_schema(ir,owner,query,db)?.parent?,stored:true};
+    let parent_name=if checked_created_parent(ir,owner,parent,db).is_some(){
+        let IrExpr::Member{base,..}=&parent.expr else{return None;};let IrExpr::Name(name)=&base.expr else{return None;};name
+    }else{&parameter.name};
     let array = ResolvedType::Array {
         element: Box::new(ResolvedType::Record {
             symbol: query.model,
@@ -7921,7 +7936,7 @@ pub(super) fn checked_count_query_ir<'a>(
             parent,
             receiver,
             &parent_type,
-            &parameter.name,
+            parent_name,
         )
     {
         return None;
@@ -8657,8 +8672,14 @@ fn constructor_count_source(
     let field_item=ir.items.get(source.field?.0 as usize)?;
     if !matches!(&field_item.kind,IrItemKind::Field{ty:IrType::Known(ResolvedType::Scalar(Scalar::Int)),..}) {return None;}
     checked_count_query_parent(ir,owner,query,context.db())?;
-    Some(serde_json::json!({"owner":owner.canonical,"source":transport,"queryId":query.id,
-        "stage":stage,"create":{"start":span.start,"end":span.end},"model":original.definition.canonical,"field":field}))
+    let mut metadata=serde_json::json!({"owner":owner.canonical,"source":transport,"queryId":query.id,
+        "stage":stage,"create":{"start":span.start,"end":span.end},"model":original.definition.canonical,"field":field});
+    if let Some((created,parameter,created_stage))=checked_created_parent(ir,owner,parent,context.db()){
+        if created_stage>=stage{return None;}
+        metadata["createdParent"]=serde_json::json!({"stage":created_stage,"model":created.definition.canonical,
+            "create":{"start":created.node.start,"end":created.node.end},"parameter":parameter.name});
+    }
+    Some(metadata)
 }
 
 pub(super) fn constructor_counts(context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem,
@@ -12303,6 +12324,38 @@ fn checked_candidate_parent_association<'a>(
     Some((child, parent, query.id.as_str()))
 }
 
+/// Exact CreateAs.parent association to that CREATE's original required
+/// parent input. The borrowed row remains a created row, never a parameter.
+fn checked_created_parent<'a>(ir:&'a IrProgram,owner:&IrItem,value:&TypedExpr,db:&SourceDb)
+    ->Option<(&'a crate::analysis::scenario_disclosure::CheckedScenarioCreate,&'a IrItem,usize)> {
+    let IrExpr::Member{base,field}=&value.expr else{return None;};
+    let IrExpr::Name(binding)=&base.expr else{return None;};
+    if field!="parent"{return None;}
+    let facts=super::scenario_calls::checked_source(ir,owner,db)?;
+    let mut sources=facts.creates.as_deref()?.iter().filter(|source|source.binding==*binding&&source.source==facts.source);
+    let created=sources.next()?;if sources.next().is_some(){return None;}
+    checked_created_row_operand(ir,owner,base,created.model,db,false,true)?;
+    let IrItemKind::Scenario{effects,params,..}=&owner.kind else{return None;};
+    let (position,statement)=effects.iter().enumerate().find(|(_,statement)|matches!(statement,IrStmt::Create{span,..} if *span==node_span(created.node)))?;
+    let IrStmt::Create{input,when:None,..}=statement else{return None;};
+    let IrExpr::Object(entries)=&input.expr else{return None;};
+    let parent=&entries.iter().find(|(name,_)|name=="parent")?.1;
+    let IrExpr::Name(name)=&parent.expr else{return None;};
+    let original=created.inputs.iter().find(|input|input.name=="parent"&&input.field.is_none()&&node_span(input.value_node)==parent.span)?;
+    let models=super::js::Emitter::source_models(ir,db)?;
+    let schema=checked_parameter_row_id(ir,owner,parent,&models,db)?;
+    let child=facts.stored_contracts.as_deref()?.iter().find(|schema|schema.model&&schema.id==created.model)?;
+    match_stored_contract_schema(ir,child,db)?;
+    if child.parent!=Some(schema.id){return None;}
+    if value.ty!=parent.ty||original.ty!=parent.ty||created.definition.declaration.owner!=crate::analysis::resolve::ModelOwner::ChildOf(schema.id){return None;}
+    super::scenario_create_sources::checked_create_expression(ir,created,parent,original.value_node,db)?;
+    let parameter=params.iter().filter_map(|id|ir.items.get(id.0 as usize)).find(|parameter|parameter.name==*name)?;
+    let stage=effects[..position].iter().try_fold(0,|stage,statement|match statement{
+        IrStmt::Let{..}|IrStmt::Require{..}=>Some(stage),
+        IrStmt::Create{when:None,..}|IrStmt::Set{when:None,..}=>Some(stage+1),_=>None})?;
+    Some((created,parameter,stage))
+}
+
 pub(super) fn checked_parent_reference<'a>(
     ir: &'a IrProgram,
     owner: &IrItem,
@@ -12491,7 +12544,9 @@ fn checked_parent_reference_at<'a>(
         return None;
     }
     let selected_first = checked_first_query_row(ir, owner, base, db);
+    let created=checked_created_parent(ir,owner,value,db);
     let symbol = match &base.expr {
+        IrExpr::Name(_) if created.is_some()=>created?.0.model,
         IrExpr::Name(_) if selected_first.is_some() => selected_first?.id,
         IrExpr::Name(name) => {
             let mut parameters = params

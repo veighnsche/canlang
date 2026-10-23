@@ -9480,6 +9480,19 @@ impl<'a> Emitter<'a> {
                 && query.limit.is_none() && query.archived.is_none()
                 && query.select.is_none() && query.select_param.is_none();
         }
+        let created_parent=self.query_capture.as_ref().is_some_and(|capture|{
+            let Some(owner)=self.ir.items.iter().find(|item|item.canonical==capture.owner) else{return false;};
+            let Some(counts)=self.constructor_counts.get(&owner.id).and_then(|value|value.as_array()) else{return false;};
+            let Some(marker)=counts.iter().find(|value|value["queryId"]==source.id&&value["createdParent"].is_object()) else{return false;};
+            let IrExpr::Member{base,field}=&parent.expr else{return false;};
+            let IrExpr::Name(binding)=&base.expr else{return false;};
+            field=="parent"&&marker["createdParent"]["parameter"]==parameter.name
+                &&self.ir.scenario_disclosures.get(&owner.id).and_then(|value|value.source_facts())
+                    .and_then(|facts|facts.creates.as_ref()).is_some_and(|creates|creates.iter().any(|created|
+                        created.binding==*binding&&base.ty==ResolvedType::Record{symbol:created.model,stored:true}
+                            &&marker["createdParent"]["model"]==created.definition.canonical
+                            &&marker["createdParent"]["create"]==serde_json::json!({"start":created.node.start,"end":created.node.end})))
+        });
         count.call.file == at.file
             && count.call.start == at.start
             && count.call.end == at.end
@@ -9494,7 +9507,7 @@ impl<'a> Emitter<'a> {
             && parent.span.file == parent_node.file
             && parent.span.start == parent_node.start
             && parent.span.end == parent_node.end
-            && (matches!(&parent.expr, IrExpr::Name(name) if name == &parameter.name)
+            && (created_parent || matches!(&parent.expr, IrExpr::Name(name) if name == &parameter.name)
                 && matches!(&parameter.kind,IrItemKind::Param{ty:IrType::Known(ty),default:None,..} if ty==&parent.ty && matches!(ty,ResolvedType::Record{stored:true,..}))
                 || self.query_capture.as_ref().is_some_and(|capture|
                     self.ir.items.iter().find(|item|item.canonical==capture.owner)

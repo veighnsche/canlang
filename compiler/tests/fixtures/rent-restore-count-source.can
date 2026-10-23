@@ -29,6 +29,11 @@ package rent_reservations
   policy ResourcePolicy read=reservation_manager and can_work(actor,row.parent.location)
   derive resource_evidence(resource:Resource):ResourceEvidence = ResourceEvidence {active=resource.active,capacity=resource.capacity,pooled=resource.pooled,timezone=resource.timezone}
  When
+  scenario block(resource:Resource,from:datetime,until:datetime?,reason:text) by=reservation_manager
+   require can_work(actor,resource.location) and trim(reason)!="" and (until==null or from<until)
+   do
+    create Downtime {parent=resource,source=operation.id,from,until,reason} as downtime
+    create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1
   scenario restore(downtime:Downtime,evidence:text) by=reservation_manager label="Restore availability"@{nl="Beschikbaarheid herstellen"}
    require can_work(actor,downtime.parent.location) and downtime.active and trim(evidence)!=""
    do
@@ -41,6 +46,11 @@ package count_visibility
   Root {label:text}
   Snapshot in Root {sequence:int,hidden:bool=false}
   Revision in Root {total:int}
+  Child in Root {allowed:bool}
+  Audit in Root {label:text}
+  policy Audit read=members
+  derive label(root:Root):text=root.label
+  policy Child read=members and row.allowed
   policy Root read=members
   policy Snapshot read=members and not row.hidden
  When
@@ -48,6 +58,16 @@ package count_visibility
    require true
    do
     create Snapshot {parent=root,sequence=count(root.Snapshot)+1} as snapshot
+  scenario plain_parent(root:Root,allowed:bool) by=members
+   require true
+   do
+    create Child {parent=root,allowed} as child
+    create Audit {parent=child.parent,label=label(child.parent)} as audit
+  scenario created_parent(root:Root,allowed:bool) by=members
+   require true
+   do
+    create Child {parent=root,allowed} as child
+    create Snapshot {parent=child.parent,sequence=count(child.parent.Snapshot)+1} as snapshot
   scenario snapshot_after_writes(root:Root) by=members
    require true
    do

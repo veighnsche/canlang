@@ -2271,3 +2271,53 @@ fn void_constructor_count_retains_required_parent_and_original_scalar_consumer()
   assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),module).is_none(),"{mode}");
  }
 }
+
+#[test]
+fn created_parent_keeps_its_exact_original_create_and_required_parent_association() {
+ let source=include_str!("fixtures/rent-restore-count-source.can");
+ let (db,program,ir,catalog)=fixture_source("created-parent.can",source);
+ let owner=item(&ir,"rent_reservations.block");
+ let authored=std::fs::read_to_string(root().join("draft/apps/CanRent/CanRent.can")).unwrap();
+ let start=authored.find("    create Downtime {parent=resource,source=operation.id,from,until,reason} as downtime").unwrap();
+ let end=start+authored[start..].find("    create DowntimeEvidence").unwrap();
+ assert!(source.contains(&authored[start..end]),"the fixture preserves both original CREATE statements");
+ assert!(matches!(&ir.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)),"{:?}",ir.scenario_disclosures[&owner.id]);
+ let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let module="$can$m$436f6e7374727563746f72436f756e74.mjs";
+ assert!(serialize_complete_query_receipt(&program,&ir,owner,&db,Some(&catalog),module).is_some());
+ for mode in ["parent-input","created-binding","borrowed-parent","count-parent","child-owner"] {
+  let mut changed=ir.clone();
+  if mode=="child-owner"{
+   let child=item(&changed,"rent_reservations.Downtime").id;
+   let IrItemKind::Model{owner,..}=&mut changed.items[child.0 as usize].kind else{panic!("child");};*owner=ir::IrOwner::Team;
+  }else{
+   let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("scenario");};
+   if mode=="parent-input"||mode=="created-binding"{
+    let IrStmt::Create{input,binding,..}=&mut effects[0] else{panic!("source create");};
+    if mode=="created-binding"{*binding=Some("copied".into());}else{
+     let IrExpr::Object(fields)=&mut input.expr else{panic!("fields");};fields.iter_mut().find(|(name,_)|name=="parent").unwrap().1.expr=IrExpr::Name("other".into());
+    }
+   }else{
+    let IrStmt::Create{input,..}=&mut effects[1] else{panic!("consumer create");};
+    let IrExpr::Object(fields)=&mut input.expr else{panic!("fields");};
+    if mode=="borrowed-parent"{
+     let IrExpr::Member{base,..}=&mut fields.iter_mut().find(|(name,_)|name=="parent").unwrap().1.expr else{panic!("parent");};base.expr=IrExpr::Name("copied".into());
+    }else{
+     let IrExpr::Binary{left,..}=&mut fields.iter_mut().find(|(name,_)|name=="sequence").unwrap().1.expr else{panic!("count plus one");};
+     let args=match &mut left.expr{IrExpr::Call{args,..}|IrExpr::BoundCall{args,..}=>args,_=>panic!("count")};
+     let IrExpr::Query(query)=&mut args[0].expr else{panic!("domain");};
+     let IrExpr::Member{base,..}=&mut query.parent.as_mut().unwrap().expr else{panic!("domain parent");};base.expr=IrExpr::Name("resource".into());
+    }
+   }
+  }
+  assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),module).is_none(),"{mode}");
+ }
+ for (name,changed) in [
+  ("copied-created",source.replace("    create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1\n  scenario restore", "    let copied=downtime\n    create ResourcePolicy {parent=copied.parent,sequence=count(copied.parent.ResourcePolicy)+1,value=resource_evidence(copied.parent)} as policy_snapshot_1\n  scenario restore")),
+  ("copied-input",source.replace("    create Downtime {parent=resource,source=operation.id", "    let copied=resource\n    create Downtime {parent=copied,source=operation.id")),
+ ] {
+  assert_ne!(source,changed,"{name}");
+  let (db,program,_,catalog)=fixture_source(&format!("{name}.can"),&changed);
+  let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
+ }
+}
