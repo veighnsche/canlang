@@ -12952,6 +12952,13 @@ async function runScenarioExecution(
           const record=await execute(actual,receiptStore,{source});assertExecution(actual,receiptStore);
           const wire=Object.getOwnPropertyDescriptor(record.data,source.field.name);
           if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('Scalar LET DATA lacks its actually granted source field.');
+          const model=source.parents?.at(-1)??source.model;
+          if(loaded.models.some(model=>model.name===source.field.type)){
+            if(source.valueType!==source.field.type)return refuseRecordBinding('Source field reference DATA changed its declared target.');
+            const value=nativeRecordField(loaded,model,source.field.name,wire.value);
+            if(!isRecordRef(value)||value.model!==source.field.type)return refuseRecordBinding('Source field reference DATA lacks its canonical reference identity.');
+            return value;
+          }
           const value=decodeCanonicalValue(loaded.valueSchema,source.field.type,wire.value);
           return decodeCanonicalValue(loaded.valueSchema,source.valueType,encodeValue(source.valueType,value as CanValue,undefined,loaded.valueSchema));
         }catch(error){recordEngineFailure(error);throw error;}

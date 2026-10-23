@@ -2841,7 +2841,7 @@ fn original_shift_request_retains_created_and_parent_source_ownership() {
  let(artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
  let operation=artifact["operations"].as_array().unwrap().iter().find(|operation|operation["name"]=="shift.request_swap").unwrap();
  assert!(operation["result"]["disclosure"].is_null(),"source-only owner must not acquire a native receipt claim");
- for(name,ty)in [("shift.DutyNotice.swap",ResolvedType::Scalar(Scalar::Text)),("shift.Commitment.revision",ResolvedType::Scalar(Scalar::Text)),("shift.Swap.revision",ResolvedType::Scalar(Scalar::Text))]{
+ for(name,ty)in [("shift.Commitment.employee",ResolvedType::Scalar(Scalar::Text)),("shift.DutyNotice.swap",ResolvedType::Scalar(Scalar::Text)),("shift.Commitment.revision",ResolvedType::Scalar(Scalar::Text)),("shift.Swap.revision",ResolvedType::Scalar(Scalar::Text))]{
   let(db,mut changed,_,catalog)=fixture_source("shift-source-schema-substitution.can",source);
   let field=changed.symbols.iter().find(|symbol|symbol.canonical==name).unwrap().id;changed.types.symbol_types.insert(field,ty);
   let(_,diagnostics)=prepared_artifact(&changed,&db,&catalog);

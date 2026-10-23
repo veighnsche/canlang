@@ -10027,13 +10027,13 @@ async function observeModelQuerySourceAuthority<AllowAbsent extends boolean = fa
     await authority.revalidate(); healthy();
   } };
 }
-/** A source-owned scalar read observes ordinary DATA at its original LET
- * or constructor field evaluation point. It grants no reference, query,
- * framework write, or saved result. */
+/** A source-owned field read observes ordinary DATA at its original LET
+ * or constructor field evaluation point. A copied reference grants no target
+ * DATA, query, framework write, or saved result. */
 export interface ScenarioSourceLetDataSource {
   readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
   readonly node:{readonly start:number;readonly end:number};readonly stage:number;readonly binding:string;
-  readonly parameter:string;readonly model:ModelName;
+  readonly parameter:string;readonly model:ModelName;readonly parents?:readonly ModelName[];
   readonly field:{readonly name:string;readonly type:CanTypeId};readonly valueType:CanTypeId;
 }
 interface SourceLetDataProducer extends ScenarioReceiptReferenceProducer {readonly sites:readonly ScenarioSourceLetDataSource[];}
@@ -10049,15 +10049,20 @@ export function bindScenarioSourceLetDataProducer(def:GeneratedOperationDef,prod
   }),bound.canonicalModels);
   const readPolicies=captureSourceReadPolicies(producer.readPolicies);
   const sites=list(dataCopy(producer.sites)).map(value=>{
-    const site=object(value,['source','owner','node','stage','binding','parameter','model','field','valueType']);origin(site['source']);
+    const site=object(value,Object.hasOwn(value as object,'parents')?['source','owner','node','stage','binding','parameter','model','parents','field','valueType']:['source','owner','node','stage','binding','parameter','model','field','valueType']);origin(site['source']);
     const node=object(site['node'],['start','end']),parameter=text(site['parameter']),model=text(site['model']) as ModelName;
     const field=object(site['field'],['name','type']),name=text(field['name']),type=text(field['type']),valueType=text(site['valueType']);text(site['binding']);
-    const input=bound.inputs.find(input=>input.name===parameter),declaration=bound.artifactModels.get(model)?.fields.find(field=>field.name===name);
+    const parents=site['parents']===undefined?[]:list(site['parents']).map(value=>text(value)as ModelName);
+    if(parents.length>16||site['parents']!==undefined&&parents.length===0)return invalid('Source field DATA requires its finite declared parent path.');
+    let fieldModel=model;for(const parent of parents){if(bound.artifactModels.get(fieldModel)?.parent!==parent||storedReferenceField(bound,fieldModel,'parent',parent).target!==parent)return invalid('Source field DATA parent path differs from containment.');fieldModel=parent;}
+    const input=bound.inputs.find(input=>input.name===parameter),declaration=bound.artifactModels.get(fieldModel)?.fields.find(field=>field.name===name);
+    const reference=declaration?.field.kind==='ref'&&declaration.field.model===type&&declaration.nullable!==true&&declaration.array===undefined
+      &&storedReferenceField(bound,fieldModel,name,type).target===type;
     if(site['owner']!==def.name||stableStringify(site['source'])!==stableStringify(bound.plan.source)
         ||!Number.isSafeInteger(site['stage'])||Number(site['stage'])<0||Number(site['stage'])>=MAX_ITEMS
         ||!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start'])
         ||input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,parameter)
-        ||declaration===undefined||declaration.default?.kind==='derived'||!sourceSendFieldType(bound,model,name,type)
+        ||declaration===undefined||declaration.default?.kind==='derived'||!sourceSendFieldType(bound,fieldModel,name,type)&&!reference
         ||valueType!==type&&`${valueType}?`!==type)return invalid('Scalar LET DATA lost its exact original stage, required root or stored scalar field.');
     const ancestors=new Set<ModelName>();let ancestor:ModelName|undefined=model;
     while(ancestor!==undefined){const original=bound.artifactModels.get(ancestor),read=readPolicies.get(ancestor);
@@ -10081,9 +10086,17 @@ export async function executeScenarioSourceLetData(call:AdmittedCall,store:Stora
     return await ownerOperation(owner,async()=>{
       const refs=call.recordRefs.filter(ref=>ref.param===site.parameter),ref=refs[0];
       if(refs.length!==1||ref?.model!==site.model||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('Scalar LET DATA lost its original admitted root.');
-      const row=await owner.session!.views.final.get(site.model,ref.id);ownerHealthy(owner);
+      let row=await owner.session!.views.final.get(site.model,ref.id);ownerHealthy(owner);
       if(row===null||!sameModelLifetime(ref.row,row)||owner.stage!==site.stage)return invalid('Scalar LET DATA root lifetime or original stage changed.');
-      const authority=await observeModelQuerySourceAuthority(call,store,owner,state,site.model,row,[site.field.name],0,undefined,undefined,producer);
+      let model=site.model;
+      for(const parent of site.parents??[]){
+        const authority=await observeModelQuerySourceAuthority(call,store,owner,state,model,row,['parent'],0,undefined,undefined,producer);
+        if(authority.record.parent?.model!==parent||row.parent?.model!==parent)return invalid('Source field DATA lost its actual granted parent.');
+        const next=await owner.session!.views.final.get(parent,row.parent.id);ownerHealthy(owner);
+        if(next===null||next.archivedAt!==null||owner.stage!==site.stage)return invalid('Source field DATA parent lifetime changed.');
+        model=parent;row=next;
+      }
+      const authority=await observeModelQuerySourceAuthority(call,store,owner,state,model,row,[site.field.name],0,undefined,undefined,producer);
       if(await store.readRevision()!==call.revision)throw new StateError('conflict','Scalar LET DATA moved beyond its original checkpoint.');
       return authority.record;
     },call);

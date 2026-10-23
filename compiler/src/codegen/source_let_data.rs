@@ -37,24 +37,42 @@ pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decis
         }}false
     }
     fn scalar_loan(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,roots:&BTreeMap<String,SymbolId>,source:&serde_json::Value,module:&str,value:&TypedExpr,span:Span,stage:usize,name:&str)->Option<serde_json::Value>{
+        fn receiver(ir:&IrProgram,value:&TypedExpr,roots:&BTreeMap<String,SymbolId>,depth:usize)->Option<(String,SymbolId,Vec<SymbolId>)>{
+            if depth>=16{return None;}
+            match &value.expr{
+                IrExpr::Name(name)=>{let model=*roots.get(name)?;(value.ty==ResolvedType::Record{symbol:model,stored:true}).then(||(name.clone(),model,Vec::new()))},
+                IrExpr::Member{base,field}if field=="parent"=>{
+                    let(parameter,root,mut parents)=receiver(ir,base,roots,depth+1)?;
+                    let owner=parents.last().copied().unwrap_or(root);
+                    let IrItemKind::Model{owner:IrOwner::ChildOf(parent),..}=&ir.items.get(owner.0 as usize)?.kind else{return None;};
+                    if value.ty!=(ResolvedType::Record{symbol:*parent,stored:true}){return None;}
+                    parents.push(*parent);Some((parameter,root,parents))
+                },_=>None,
+            }
+        }
+        let IrExpr::Member{base,..}=&value.expr else{return None;};
+        let(parameter,root,parents)=receiver(ir,base,roots,0)?;
+        let model=&parents.last().copied().unwrap_or(root);
+        let transport=|ty:&ResolvedType|super::source_send_data::data_type(ir,ty).or_else(||match ty{
+            ResolvedType::Record{symbol,stored:true}if matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..})=>Some(ir.items[symbol.0 as usize].canonical.clone()),_=>None});
         if let IrExpr::Member{base,field}=&value.expr
-                &&let IrExpr::Name(parameter)=&base.expr
-                &&let Some(model)=roots.get(parameter)
                 &&base.ty==(ResolvedType::Record{symbol:*model,stored:true})
                 &&let IrItemKind::Model{fields,..}=&ir.items[model.0 as usize].kind
                 &&let Some(declaration)=fields.iter().filter_map(|id|ir.items.get(id.0 as usize)).find(|item|item.name==*field)
                 &&let IrItemKind::Field{owner:field_owner,ty:IrType::Known(ty),..}=&declaration.kind
                 &&field_owner==model
                 &&(ty==&value.ty||matches!(ty,ResolvedType::Nullable(inner)if inner.as_ref()==&value.ty))
-                &&let Some(field_type)=super::source_send_data::data_type(ir,ty)
-                &&let Some(value_type)=super::source_send_data::data_type(ir,&value.ty)
+                &&let Some(field_type)=transport(ty)
+                &&let Some(value_type)=transport(&value.ty)
                 &&let Some(original)=context.fresh().items.get(declaration.id.0 as usize)
                 &&declaration.id==original.id&&declaration.canonical==original.canonical&&declaration.name==original.name
                 &&declaration.module==original.module&&declaration.span==original.span
                 &&matches!(&original.kind,IrItemKind::Field{owner,ty:IrType::Known(original_ty),..}if owner==model&&original_ty==ty){
-            return Some(serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},
+            let mut site=serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},
                 "owner":owner.canonical,"node":{"start":span.start,"end":span.end},"stage":stage,"binding":name,
-                "parameter":parameter,"model":ir.items[model.0 as usize].canonical,"field":{"name":field,"type":field_type},"valueType":value_type}));
+                "parameter":parameter,"model":ir.items[root.0 as usize].canonical,"field":{"name":field,"type":field_type},"valueType":value_type});
+            if !parents.is_empty(){site["parents"]=serde_json::json!(parents.iter().map(|id|ir.items[id.0 as usize].canonical.clone()).collect::<Vec<_>>());}
+            return Some(site);
         }None
     }
     let mut stage=0;let mut loans=HashMap::new();
@@ -71,12 +89,12 @@ pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decis
     }}
     // Constructor field DATA is observed exactly where the original field
     // expression executes. Unknown branch/loop write counts never guess a
-    // stage, and Model/File/derived fields cannot enter the scalar loan.
+    // stage, and File/derived fields cannot enter the field loan.
     fn constructors(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,body:&[IrStmt],roots:&mut BTreeMap<String,SymbolId>,source:&serde_json::Value,module:&str,mut stage:usize,loans:&mut HashMap<Span,serde_json::Value>)->Option<usize>{
         for statement in body{match statement{
             IrStmt::Create{input,binding,..}=>{
                 if let IrExpr::Object(fields)=&input.expr{for(name,value)in fields{
-                    if matches!(value.ty.nullable_inner().unwrap_or(&value.ty),ResolvedType::Scalar(_)|ResolvedType::Enum{..})
+                    if matches!(value.ty.nullable_inner().unwrap_or(&value.ty),ResolvedType::Scalar(_)|ResolvedType::Enum{..}|ResolvedType::Record{stored:true,..})
                         &&let Some(loan)=scalar_loan(ir,owner,context,roots,source,module,value,value.span,stage,name){loans.insert(value.span,loan);}
                 }}
                 if let Some(name)=binding{roots.remove(name);}stage=stage.checked_add(1)?;

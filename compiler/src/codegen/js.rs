@@ -1855,15 +1855,31 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
             _ => false,
         }
     }
-    fn constructor_data(value:&TypedExpr,loans:&HashMap<Span,serde_json::Value>,values:&BTreeSet<String>,depth:usize)->bool{
+    fn constructor_reference(ir:&IrProgram,value:&TypedExpr,records:&BTreeMap<String,ResolvedType>,depth:usize)->bool{
+        if depth>=16{return false;}
+        let ResolvedType::Record{symbol:target,stored:true}=&value.ty else{return false;};
+        match &value.expr{
+            IrExpr::Name(name)=>records.get(name)==Some(&value.ty),
+            IrExpr::Member{base,field}=>{
+                let ResolvedType::Record{symbol:owner,stored:true}=&base.ty else{return false;};
+                constructor_reference(ir,base,records,depth+1)&&if field=="parent"{
+                    matches!(ir.items.get(owner.0 as usize).map(|item|&item.kind),Some(IrItemKind::Model{owner:IrOwner::ChildOf(parent),..})if parent==target)
+                }else{false}
+            },_=>false,
+        }
+    }
+    fn constructor_data(ir:&IrProgram,value:&TypedExpr,loans:&HashMap<Span,serde_json::Value>,values:&BTreeSet<String>,records:&BTreeMap<String,ResolvedType>,depth:usize)->bool{
         if depth>64{return false;}
-        let child=|value:&TypedExpr|constructor_data(value,loans,values,depth+1);
+        if send_value(ir,value,values,0){return true;}
+        let child=|value:&TypedExpr|constructor_data(ir,value,loans,values,records,depth+1);
         match &value.expr{
             IrExpr::Name(name)=>values.contains(name)
-                ||matches!(value.ty.nullable_inner().unwrap_or(&value.ty),ResolvedType::Record{stored:true,..}|ResolvedType::StdDelivery{..})
+                ||matches!(value.ty.nullable_inner().unwrap_or(&value.ty),ResolvedType::Record{stored:true,..}|ResolvedType::StdDelivery{..}|ResolvedType::Delivery{..})
                 ||matches!(&value.ty,ResolvedType::Enum{cases,..}if cases.contains(name))
                 ||name=="c"&&value.ty==ResolvedType::Unknown,
-            IrExpr::Member{base,..}if matches!(base.ty.nullable_inner().unwrap_or(&base.ty),ResolvedType::Record{stored:true,..})=>loans.contains_key(&value.span),
+            IrExpr::Member{base,field}if matches!(base.ty.nullable_inner().unwrap_or(&base.ty),ResolvedType::Record{stored:true,..})=>loans.contains_key(&value.span)
+                ||matches!(field.as_str(),"id"|"version")&&constructor_reference(ir,base,records,0)
+                    &&value.ty==ResolvedType::Scalar(if field=="id"{Scalar::Text}else{Scalar::Int}),
             IrExpr::Member{base,..}=>child(base),
             IrExpr::Object(fields)=>fields.iter().all(|(_,value)|child(value)),
             IrExpr::Array(values)|IrExpr::Call{args:values,..}|IrExpr::BoundCall{args:values,..}=>values.iter().all(child),
@@ -1887,7 +1903,7 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
                 expression(ir,value,0)
             },
             IrStmt::Return { value, .. } => value.as_ref().is_none_or(|value| expression(ir, value, 0)),
-            IrStmt::Create { input, when: None, .. } => expression(ir, input, 0)&&constructor_data(input,let_data,values,0),
+            IrStmt::Create { input, when: None, .. } => expression(ir, input, 0)&&constructor_data(ir,input,let_data,values,records,0),
             IrStmt::Send { args, when: None, span,.. } => send_value(ir,args,values,0)||data_sends.contains_key(span),
             IrStmt::Emit { event,payload,span } => data_emits.contains_key(span)||source_event_payload(ir,owner,event,payload,values,records,context),
             IrStmt::Cancel {span,..}=>cancels.contains_key(span),
@@ -13447,7 +13463,10 @@ fn null_equality(
                         format!("await nativeScenarioEventDecision(c,{},async(c,{{eventTerm,eventRevision,eventAccountRevision}})=>{{const {account}=eventTerm;const {event}={{{root_field}:eventTerm,revision:eventRevision,account_revision:eventAccountRevision}};return {expression};}})",
                             descriptor_json(&decision))
                     }
-                } else if self.receipt_capture.is_none() {
+                } else if self.receipt_capture.is_none() || self.source_requires.get(&cond.span)
+                    .is_some_and(|source|source["decision"]=="if") {
+                    // A generic void receipt does not replace an independently
+                    // checked staged source decision with a raw Model read.
                     self.lower_source_condition(cond).unwrap_or_else(||self.lower_expr(cond))
                 } else {
                     // A complete receipt retains its existing checked query

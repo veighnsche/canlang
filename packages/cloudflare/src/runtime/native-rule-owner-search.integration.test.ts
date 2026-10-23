@@ -2327,6 +2327,7 @@ it('projects the original Invoice document child arrays through ordinary field D
       const artifact=JSON.parse(stdout) as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,
         stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
       for(const mode of ['allowed','hidden-row','other-parent','withheld-field','worker-inactive','role-during-send','child-at-commit','grant-at-commit','parent-at-commit','overflow','receipt-allowed','receipt-unsettled','receipt-pending','receipt-pending-at-commit','refund-allowed','refund-over','external-refund-allowed','external-refund-over','refund-at-commit','payment-allowed','payment-duplicate','payment-foreign-duplicate','payment-at-commit','credit-positive','credit-false','credit-hidden','credit-at-commit','credit-role-loss'] as const){
+        if(process.env['CAN_INVOICE_DOCUMENT_CASE']&&!process.env['CAN_INVOICE_DOCUMENT_CASE'].split(',').includes(mode))continue;
         const creditReview=mode.startsWith('credit-');
         const paymentAllowance=mode.startsWith('payment-');
         const allowance=paymentAllowance||mode.startsWith('refund-')||mode.startsWith('external-refund-');
@@ -3348,7 +3349,13 @@ it('emits the original Shift request with its genuine created Swap and parent DA
   const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
   const artifact=JSON.parse(stdout) as CompileArtifact;assert.equal(artifact.operations?.find(operation=>operation.name==='shift.request_swap')?.result?.disclosure,undefined,'genuine source-only frame');
   const asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
-  for(const mode of ['allowed','member-only','denied-user','denied-parent-field','false-prefix','inactive-substitute','stale','parent-race','parent-grant-race','user-grant-race','identity-race']){
+  const deniedSource=join(directory,'denied-original.can');
+  await writeFile(deniedSource,text.replaceAll('fields=parent,employee,location','fields=parent,location').replace('    emit DutyNotice {duty,recipient=substitute.user,revision=duty.parent.revision,kind=swap_request,swap}\n',''));
+  const deniedCompile=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,deniedSource],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const deniedArtifact=JSON.parse(deniedCompile.stdout)as CompileArtifact,deniedAsm=await assembleModules({artifact:deniedArtifact,sourcePath:deniedSource},{workDir:join(directory,'denied-original'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  const originalArtifact=artifact,originalAsm=asm;
+  for(const mode of ['allowed','denied-original-reference','member-only','denied-user','denied-parent-field','false-prefix','inactive-substitute','stale','parent-race','parent-grant-race','user-grant-race','identity-race']){
+   const artifact=mode==='denied-original-reference'?deniedArtifact:originalArtifact,asm=mode==='denied-original-reference'?deniedAsm:originalAsm;
    const {now,identities,identity,team,user,membership}=await member('shift-created-'+mode,mode==='member-only'?[]:['shift.scheduler']);
    const substitute=await identities.createUser({email:'substitute-'+mode+'@shift.test',password_hash:'unused',email_verified:true});
    await identities.createMembership({team_id:team.team_id,user_id:substitute.user_id,is_owner:false,roles:[]});
@@ -3374,7 +3381,7 @@ it('emits the original Shift request with its genuine created Swap and parent DA
    }return commit(batch);};
    const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'shift.request_swap',operation_id:operationId(now),inputs:{duty:{id:'duty',version:mode==='stale'?'2':'1'},substitute:{id:'substitute',version:'1'}}};
    const result=await invoker.invokeMutation(request,identity),success=['allowed','parent-race'].includes(mode);assert.equal('result'in result,success,mode+': '+JSON.stringify(result));
-   if(mode==='member-only'&&'error'in result)assert.equal(result.error.code,'not_found','private Roster ancestor remains denied by original policies');
+   if(mode==='member-only'&&'error'in result)assert.equal(result.error.code,'forbidden','the constructor DATA loan refuses the private Roster ancestor before later EMIT');
    if(mode.endsWith('-race'))assert.ok(raced,mode);
    const swaps=await store.query({model:model('shift','Swap'),authority:'owner'}),events=await store.query({model:asModel('work.occurrence'),authority:'owner'});assert.equal(swaps.length,success?1:0,mode);assert.equal(events.length,success?1:0,mode);
    if(success){assert.deepEqual(swaps[0]!.parent,{model:model('shift','Duty'),id:duty.id});assert.deepEqual(swaps[0]!.data,{substitute:{id:'substitute'},original:{id:'employee'},revision:mode==='parent-race'?'2':'1',state:'open'});
