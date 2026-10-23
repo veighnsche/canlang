@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 import { it } from 'node:test';
 import type { ActivationVerdict, ArtifactModelField, ClosedInputs, CompileArtifact, ModelName, RecordId, ReceiptIdentity } from '@canlang/contracts';
 import type { D1Database } from '@cloudflare/workers-types';
-import { createD1IdentityStore, deriveCsrfToken } from '@canlang/identity';
+import { createD1IdentityStore, deriveCsrfToken, sha256HexText } from '@canlang/identity';
 import { hashInputs } from '@canlang/state/invocation/replay';
 import { readScenarioReceiptAssociation } from '@canlang/state/invocation';
 import { assembleModules } from './modules.js';
@@ -211,11 +211,26 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       import { createD1Storage } from '../vendor/state/storage/d1.js';
       import { createD1OwnerRouter } from '../vendor/state/storage/owner-router.js';
       import { createD1IdentityStore, resolveIdentity, parseSessionCookie } from '../vendor/identity/index.js';
+      let commitGate=null;
       export default { async fetch(request, env, ctx) {
         const path = new URL(request.url).pathname;
         if (!path.startsWith('/__native_saved/')) return original.fetch(request,env,ctx);
         if (request.method !== 'POST' || request.headers.get('x-native-scenario-test') !== ${JSON.stringify(nonce)})
           return new Response(null,{status:403});
+        if(path==='/__native_saved/commit-gate') {
+          const {command}=await request.json();
+          if(command==='arm') {
+            if(commitGate!==null)return new Response(null,{status:409});
+            commitGate={held:false,released:false};
+          } else if(command==='entered') {
+            if(commitGate===null)return new Response(null,{status:409});
+            return Response.json({ok:true,held:commitGate.held});
+          } else if(command==='release') {
+            if(commitGate===null)return new Response(null,{status:409});
+            commitGate.released=true;commitGate=null;
+          } else return new Response(null,{status:400});
+          return Response.json({ok:true});
+        }
         const identities=createD1IdentityStore(env.DB);
         const token=parseSessionCookie(request.headers.get('cookie')??undefined);
         const identity=await resolveIdentity(identities,token===null?{}:{session_token:token});
@@ -225,17 +240,30 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
           return scope.app==='NativeSavedScenario'&&route?{app:scope.app,owner:scope.owner,db:env[route.binding]}:null;
         }});
         const boundary=await createTeamOwnerStorageBoundary({artifact,asm:modules,app:'NativeSavedScenario',identities,router});
+        const lateRoute=path.startsWith('/__native_saved/late/');
         let commits=0,files=0;
         const ownerStorage={...boundary,forIdentity:async caller=>{
           const selected=await boundary.forIdentity(caller);
-          return {...selected,commit:async()=>{commits++;throw new Error('retained commit tripwire');}};
+          return {...selected,commit:async batch=>{
+            if(!lateRoute){commits++;throw new Error('retained commit tripwire');}
+            // All actual admission/precommit checks have already completed.
+            // Hold only a successful business-effect batch, never a rejection.
+            const gate=commitGate;
+            if(gate!==null&&!gate.held&&batch.writes.length>0&&batch.receipt!==null) {
+              gate.held=true;
+              // The waiting work belongs to this still-live request. Other
+              // requests exchange only state, never context-owned promises.
+              while(!gate.released)await new Promise(resolve=>setTimeout(resolve,10));
+            }
+            commits++;return selected.commit(batch);
+          }};
         }};
         const filesPort=new Proxy({},{get(){files++;throw new Error('retained file tripwire');}});
         const csvRoute=path.startsWith('/__native_saved/csv/');
-        if(path.startsWith('/__native_saved/http/') || csvRoute) {
+        if(path.startsWith('/__native_saved/http/') || csvRoute || lateRoute) {
           // Public HTTP expires at 24 hours; the genuine seven-day session stays live.
           // Use the installed operation factory, baked catalog and activation verdict.
-          const now=()=>Date.now()+25*60*60000;
+          const now=()=>Date.now()+(lateRoute?0:25*60*60000);
           const revision=JSON.stringify({artifact_version:artifact.artifact_version,language_version:artifact.language_version,
             sources:artifact.sources.map(({path,sha256})=>({path,sha256})).sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:a.sha256<b.sha256?-1:a.sha256>b.sha256?1:0)});
           const formBindings=await createSourceFormBindings(env.CAN_FORM_BINDING_KEY,revision);
@@ -246,7 +274,7 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
                 {inputChoicesVersion:INPUT_CHOICES_VERSION})}},verdict);
           const target=new URL(request.url);
           target.pathname=csvRoute?'/api/csv/'+path.slice('/__native_saved/csv/'.length):
-            '/api/operations/'+path.slice('/__native_saved/http/'.length);
+            '/api/operations/'+path.slice(lateRoute?'/__native_saved/late/'.length:'/__native_saved/http/'.length);
           const response=await installed.fetch(new Request(target,request));
           const headers=new Headers(response.headers);
           headers.set('x-native-retained-commits',String(commits));headers.set('x-native-retained-files',String(files));
@@ -352,10 +380,13 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       return result;
     }
     async function resources(): Promise<ResourceSnapshot> {
-      const result: ResourceSnapshot = { Identity: await tables(identityDb) };
-      for (const [owner, db] of dbs) result[`owner:${owner}`] = await tables(db);
       assert.equal(dbs.size, 2, 'both real owner databases observed');
-      return result;
+      // These physical stores are independent and the caller has already
+      // awaited its operation. Preserve every census/digest without serial
+      // SDK round trips across databases.
+      const stores: Array<[string, D1Database]> = [['Identity', identityDb],
+        ...[...dbs].map(([owner, db]): [string, D1Database] => [`owner:${owner}`, db])];
+      return Object.fromEntries(await Promise.all(stores.map(async ([name, db]) => [name, await tables(db)])));
     }
     async function mutation(actor: Actor | null, name: string, inputs: ClosedInputs, id=operationId()) {
       const response = await request(actor, `/api/operations/${name}`, { operation_id: id, inputs });
@@ -932,6 +963,69 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       assert.deepEqual(await receipt(value.envelope.operation_id),value.physical);
     }
     assert.deepEqual(await resources(),beforeWithheld);
+    // Separate Identity transactions cannot revoke an already-admitted State
+    // commit atomically. Hold the actual business commit after authorization.
+    console.info('native D1: entering late revocation cases');
+    const revocations = createD1IdentityStore(identityDb);
+    const controlGate = async (command: string) => {
+      const response = await request(null, '/__native_saved/commit-gate', { command });
+      assert.equal(response.status, 200);
+      const status = object(await response.json());
+      assert.equal(status.ok, true);
+      return status.held === true;
+    };
+    for (const [kind, actor] of [['membership', ben], ['session', cal]] as const) {
+      assert.ok(actor.owner);
+      const ownerDb = dbs.get(actor.owner)!;
+      const lateId = operationId();
+      const inputs = { quantity: '29', label: `late ${kind}`, optional: null, values: null, flags: [], names: [] };
+      const beforeOutbox = (await tables(ownerDb)).outbox;
+      await controlGate('arm');
+      const pending = request(actor, `/__native_saved/late/${model}.create`, { operation_id: lateId, inputs });
+      try {
+        const premature = pending.then(async response => {
+            throw new Error(`Expected held business commit; got response status ${response.status} before the gate.`);
+          });
+        const deadline = Date.now() + 30000;
+        while (!await Promise.race([controlGate('entered'), premature])) {
+          assert.ok(Date.now() < deadline, 'business commit must reach its held boundary');
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        assert.equal(await ownerDb.prepare('SELECT id FROM records WHERE model=? AND id=?').bind(model, lateId).first(), null,
+          'held commit has not written its business row');
+        assert.equal(await ownerDb.prepare('SELECT operation_id FROM receipts WHERE operation_id=?').bind(lateId).first(), null,
+          'held commit has not written its receipt');
+        if (kind === 'membership') {
+          const membership = await revocations.findMembership(actor.owner, actor.principal); assert.ok(membership);
+          await revocations.removeMembership(membership.membership_id);
+          assert.equal((await revocations.findMembership(actor.owner, actor.principal))?.status, 'removed');
+        } else {
+          const token = decodeURIComponent(actor.cookie.slice('can_session='.length));
+          const session = await revocations.findSessionByTokenHash(await sha256HexText(token)); assert.ok(session);
+          await revocations.revokeSession(session.session_id);
+          assert.ok((await revocations.findSessionByTokenHash(await sha256HexText(token)))?.revoked_at);
+        }
+      } finally { await controlGate('release'); }
+      // Current response projection may withhold content. Persisted effects,
+      // not response content, establish the admitted-work revocation boundary.
+      const response = await pending;
+      await response.arrayBuffer();
+      const persisted = await ownerDb.prepare('SELECT data FROM records WHERE model=? AND id=?')
+        .bind(model, lateId).first<{ data: string }>();
+      assert.ok(persisted, `${kind}: already-admitted mutation may finish`);
+      assert.equal(object(JSON.parse(persisted.data)).label, `late ${kind}`);
+      const physical = await ownerDb.prepare('SELECT * FROM receipts WHERE operation_id=?').bind(lateId).first<ReceiptRow>();
+      assert.ok(physical); assert.equal(physical.principal, actor.principal); assert.equal(physical.owner, actor.owner);
+      assert.equal(object(JSON.parse(physical.outcome)).status, 'committed');
+      assert.equal((await ownerDb.prepare('SELECT operation_id FROM history WHERE operation_id=?')
+        .bind(lateId).all()).results.length, 1, 'one canonical history event');
+      const after = await tables(ownerDb);
+      assert.deepEqual(after.outbox, beforeOutbox, 'CRUD creates no external work');
+      const denied = await mutation(actor, `${model}.create`, inputs, operationId());
+      assert.ok(denied.response.status >= 400, `${kind}: a fresh admission must refuse`);
+      assert.deepEqual(await tables(ownerDb), after, 'fresh revoked request changes no owner table');
+    }
+    console.info('native D1: late revocation cases complete');
     const identityStore=createD1IdentityStore(identityDb);
     const membership=await identityStore.findMembership(ava.owner,ava.principal); assert.ok(membership);
     await identityStore.removeMembership(membership.membership_id);
