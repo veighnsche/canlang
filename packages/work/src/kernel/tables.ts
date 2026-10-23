@@ -554,8 +554,12 @@ function checkSourceGuardOrigin(row: StoredRow, data: Record<string, unknown>,
   if (origin.kind !== 'send-guard') throw new KernelTableError('work.dispatch requires its original send-guard origin.');
   closedOriginRecord(origin, ['kind', 'intent', 'declaration', 'inputsDeclarationId'], 'send-guard origin');
   closedOriginRecord(origin.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex', 'dispatchGuard'], 'send-guard intent');
-  closedOriginRecord(origin.declaration, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs'], 'send-guard declaration');
+  closedOriginRecord(origin.declaration, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs',
+    ...(Object.hasOwn(origin.declaration, 'evaluation') ? ['evaluation'] : [])], 'send-guard declaration');
   const declaration = origin.declaration, intent = origin.intent;
+  if (Object.hasOwn(declaration, 'evaluation') && declaration.evaluation !== 'source') {
+    throw new KernelTableError('send-guard evaluation phase differs from its original declaration.');
+  }
   closedOriginRecord(declaration.source, ['path', 'sha256', 'module'], 'send-guard source');
   closedOriginRecord(declaration.node, ['start', 'end'], 'send-guard node');
   if (!guardIntentAgrees(row, data, intent, declaration, sourceGuard) ||

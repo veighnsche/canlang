@@ -327,7 +327,8 @@ function resolveSourceGuard(ctx: OpaqueResolveContext): void {
   same(intent.target, data.source, 'guard original target');
   same(intent.occurrenceIndex, data.occurrenceIndex, 'guard original ordinal');
   const guard = closed(data.sourceGuard, ['rule', 'source', 'owner', 'node', 'inputs']);
-  const original = closed(declared.declaration, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs']);
+  const original = closed(declared.declaration, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs'], ['evaluation']);
+  if (Object.hasOwn(original, 'evaluation') && original.evaluation !== 'source') return refuse('unknown original SEND evaluation phase.');
   same(intent.dispatchGuard, original.rule, 'retained intent guard');
   same(guard.rule, original.rule, 'physical source guard');
   same(guard.source, original.source, 'guard source'); same(guard.owner, original.owner, 'guard owner');

@@ -3859,6 +3859,9 @@ interface NativeSourceSendGuard {
 }
 const nativeSourceSendOwners = new WeakMap<GeneratedOperationDef, { readonly ownerPackage: string }>();
 const nativeSourceSendGuards = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, NativeSourceSendGuard>>();
+// Installed only with the checked State/framework producer. Persisted guard
+// data selects this policy; it cannot request a different evaluation phase.
+const nativeStagedSendRules = new WeakMap<GeneratedOperationDef, ReadonlySet<string>>();
 function nativeRetainedFinancialGuard(def:GeneratedOperationDef,selected:NativeSourceSendGuard):boolean {
   return def.descriptor.result?.disclosure?.retainedGuardedHandler?.owner===def.name &&
     ['std.PaymentsV1.collect','std.PaymentsV1.refund','std.PaymentsV1.cancel','std.PaymentsV1.reconcile'].includes(selected.guard.target);
@@ -5470,9 +5473,12 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
     const guards: ScenarioReceiptSendGuard[] = [];
     for (const entry of entries) {
       const eventGuard = isUnknownRecord(entry) && Object.hasOwn(entry, 'eventSource');
+      const sourceEvaluation = isUnknownRecord(entry) && Object.hasOwn(entry, 'evaluation');
       const emitted = localPolicyObject(entry, ['rule', 'owner', 'source', 'node', 'statement', 'target', 'binding', 'sourceBinding', 'inputs', 'inputDeclaration',
+        ...(sourceEvaluation ? ['evaluation'] : []),
         ...(eventGuard ? ['eventSource'] : [])]);
-      if (Object.keys(emitted).length !== (eventGuard ? 11 : 10) || emitted.owner !== def.name ||
+      if (Object.keys(emitted).length !== 10 + Number(eventGuard) + Number(sourceEvaluation) ||
+          sourceEvaluation && emitted.evaluation !== 'source' || emitted.owner !== def.name ||
           !isUnknownRecord(emitted.source) || emitted.source.path !== plan.source.path ||
           emitted.source.sha256 !== plan.source.sha256 || emitted.source.module !== ownerPackage ||
           typeof emitted.rule !== 'string' || selected.has(emitted.rule) ||
@@ -5658,6 +5664,7 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
         end: (emitted.node as { end: number }).end,
       } : emitted.node;
       const guard: ScenarioReceiptSendGuard = captureDispatchPreclaimData({ rule: emitted.rule,
+        ...(sourceEvaluation ? { evaluation: 'source' as const } : {}),
         owner: def.name, source: plan.source, node: guardNode as ScenarioReceiptSendGuard['node'],
         target: emitted.target, binding: emitted.binding, inputs,
         ...(eventSource === undefined ? {} : { eventSource }) });
@@ -5666,6 +5673,15 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
       selected.set(guard.rule, Object.freeze({ guard, logicalGuard, inputDeclaration, ownerPackage, definition,
         evaluate: evaluate as NativeSourceSendGuard['evaluate'] }));
     }
+    const retained = plan.retainedGuardedHandler;
+    const stagedRules = (retained as typeof retained & { readonly stagedRules?: readonly string[] })?.stagedRules ?? [];
+    if (guards.some(guard => (guard.evaluation === 'source') !== stagedRules.includes(guard.rule)) || stagedRules.some(rule => {
+      const guard = selected.get(rule)?.guard;
+      return guard === undefined || retained?.owner !== def.name || !retained.rules.includes(rule) ||
+        guard.evaluation !== 'source' || guard.eventSource?.event !== retained.event ||
+        (loaded.membershipSources.get(def.name) ?? []).some(site => site.stage === 'send-dispatch' &&
+          stableStringify(site.node) === stableStringify(guard.node));
+    })) throw new AssemblyCorrespondenceError('Staged SEND decisions require their original event Rule without dispatch membership reads.');
     bind(def, Object.freeze({ source: Object.freeze({ ...plan.source }), app, bindings: Object.freeze(bindings),
       sendGuards: Object.freeze(guards),
       evaluateGuard: (frame: ScenarioReceiptSendGuardFrame) => live(frame.call).evaluateSendGuard(frame),
@@ -5679,6 +5695,7 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
     bindNativeSourceSendMembership(def, { source: logical, app, guards: [...selected.values()].map(value => value.logicalGuard),
       sites: (loaded.membershipSources.get(def.name) ?? []).filter(site => site.stage === 'send-dispatch') });
     nativeSourceSendGuards.set(def, selected);
+    if (stagedRules.length !== 0) nativeStagedSendRules.set(def, new Set(stagedRules));
   }
 }
 
@@ -23089,6 +23106,29 @@ export async function bindNativeEmailDispatchGuards(input: {
         }
       };
       const reject = (): never => refuse(new Error('Native guarded SEND historical guard context is read only; live model/query effects require their owning join.'));
+      const revalidateClaim = async (): Promise<boolean> => {
+        if (open || poisoned) return false;
+        await actual.opaque.revalidateSource({ model: tables.WORK_DISPATCH_MODEL as ModelName, row: actual.row,
+          field: 'sourceGuard', binding: actual.row.data['filePayloadOrigin'] as FrameworkFilePayloadOrigin }, actual.input.revision, input.files);
+        const current = await actual.currentIdentity();
+        await verifyCheckedAssembly(asm, artifact);
+        return current.actor === null && stableStringify(current.team) === stableStringify(actual.identity.team);
+      };
+      if (nativeStagedSendRules.get(def)?.has(selected.guard.rule)) {
+        // Preclaim already proved the original physical sourceGuard, true
+        // Work verdict, frozen intent and checked declaration. This Rule was
+        // decided in its source transaction; later business data cannot turn
+        // that decision into a second predicate evaluation. Current authority
+        // and historical File/source correspondence still fence the claim.
+        try {
+          if (actual.identity.actor !== null || actual.identity.team?.team_id !== scope.owner) return reject();
+          healthy();
+          admissions.set(execution, actual.identity);
+          work.registerDispatchGuardRevalidation(execution, revalidateClaim);
+          return true;
+        } catch (error) { return refuse(error); }
+        finally { open = false; }
+      }
       let maintainFrame: Awaited<ReturnType<typeof prepareMaintainDispatchDecision>> | undefined;
       let successRenewal: Awaited<ReturnType<typeof prepareSuccessNoticeDispatchDecision>> | undefined;
       const physical = new Proxy(Object.create(null) as StoragePort, {
@@ -23293,11 +23333,7 @@ export async function bindNativeEmailDispatchGuards(input: {
       // This target/source check introduces physical awaits. Register it first
       // so State's actual subject-membership revalidation follows those awaits.
       work.registerDispatchGuardRevalidation(execution, async () => {
-        if (open || poisoned) return false;
-        await actual.opaque.revalidateSource({ model: tables.WORK_DISPATCH_MODEL as ModelName, row: actual.row,
-          field: 'sourceGuard', binding: actual.row.data['filePayloadOrigin'] as FrameworkFilePayloadOrigin }, actual.input.revision, input.files);
-        const current = await actual.currentIdentity();
-        await verifyCheckedAssembly(asm, artifact);
+        if (!await revalidateClaim()) return false;
         await referenceNavigation?.revalidate();await retainedViews?.revalidate();
         for(const root of retainedRoots.values()) {
           const current=await store.cohortLoad({model:root.model as ModelName,id:root.frozen.id,expectedRevision:actual.input.revision});
@@ -23310,7 +23346,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         if (invoiceCollect !== undefined && !await invoiceCollect.revalidate()) return false;
         if (invoiceIssue !== undefined && !await invoiceIssue.revalidate()) return false;
         if (observeVenue !== undefined && !await observeVenue.revalidate()) return false;
-        return current.actor === null && stableStringify(current.team) === stableStringify(identity.team);
+        return true;
       });
       let frame: NativeMembershipFrame | undefined;
       let closeEventRole: (() => void) | undefined;
