@@ -95,6 +95,7 @@ function startup({ folders, document, owner, documents = [], folderForUri, trust
     const requireMock = (id) => {
       if (id === 'vscode') return vscode;
       if (id === 'child_process') return childProcess;
+      if (id === 'buffer') return require('node:buffer');
       if (id === './client') return client;
       throw new Error(`Unexpected dependency: ${id}`);
     };
@@ -149,7 +150,7 @@ assert.equal(restricted.children.length, 1, 'trust granted starts the server');
 assert(restricted.status.text.includes('sync'), 'status shows initialization');
 const trustedChild = restricted.children[0];
 const trustBody = JSON.stringify({jsonrpc:'2.0', id:trustedChild.messages[0].id, result:{capabilities:{}}});
-trustedChild.stdout.emit('data', `Content-Length: ${Buffer.byteLength(trustBody)}\r\n\r\n${trustBody}`);
+trustedChild.stdout.emit('data', Buffer.from(`Content-Length: ${Buffer.byteLength(trustBody)}\r\n\r\n${trustBody}`).toString('latin1'));
 await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
 assert(restricted.status.text.includes('check'), 'status reports ready');
 assert(restricted.logs.some(line => line.includes('Language server ready')));
@@ -171,7 +172,7 @@ const live = startup({ folders: [first], owner: first });
 const child = live.children[0];
 const publish = (message) => {
   const body = JSON.stringify(message);
-  child.stdout.emit('data', `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`);
+  child.stdout.emit('data', Buffer.from(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`).toString('latin1'));
 };
 const initialize = child.messages.find((message) => message.method === 'initialize');
 publish({ jsonrpc: '2.0', id: initialize.id, result: { capabilities: {} } });
@@ -242,7 +243,7 @@ console.log('PASS versionless local closed diagnostics, watch/open/close clears 
 
 const readyChild = state.children[0];
 const readyBody = JSON.stringify({ jsonrpc: '2.0', id: readyChild.messages[0].id, result: { capabilities: {} } });
-readyChild.stdout.emit('data', `Content-Length: ${Buffer.byteLength(readyBody)}\r\n\r\n${readyBody}`);
+readyChild.stdout.emit('data', Buffer.from(`Content-Length: ${Buffer.byteLength(readyBody)}\r\n\r\n${readyBody}`).toString('latin1'));
 await Promise.resolve();
 await Promise.resolve();
 await Promise.resolve();
@@ -266,7 +267,7 @@ for (const [index, folder] of [first, second].entries()) {
   assert.equal(initialize.params.rootUri, folder.uri.toString());
   assert.deepEqual(initialize.params.workspaceFolders.map((item) => item.uri), [first.uri.toString(), second.uri.toString()]);
   const body = JSON.stringify({ jsonrpc: '2.0', id: initialize.id, result: { capabilities: {} } });
-  child.stdout.emit('data', `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`);
+  child.stdout.emit('data', Buffer.from(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`).toString('latin1'));
 }
 await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
 for (const [index, doc] of [oneDoc, twoDoc].entries()) {

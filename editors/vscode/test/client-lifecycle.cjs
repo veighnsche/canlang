@@ -60,7 +60,7 @@ function fixture(spawnOverride, realTimers = false) {
       const request = child.messages.findLast((message) => message.method === method);
       assert(request, `request ${method} exists`);
       const body = JSON.stringify({ jsonrpc: '2.0', id: request.id, ...(error ? { error } : { result }) });
-      child.stdout.emit('data', `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`);
+      child.stdout.emit('data', Buffer.from(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`).toString('latin1'));
     };
     state.children.push(child); return child;
   } };

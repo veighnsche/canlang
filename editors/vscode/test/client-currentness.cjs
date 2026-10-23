@@ -134,10 +134,10 @@ function host(documents = [], projectRoot) {
         buffer = buffer.subarray(end + 4 + length);
         child.frames.push(message);
         if (child.gate(message)) child.held.push({ message, frame });
-        else child.stdout.emit('data', frame.toString('utf8'));
+        else child.stdout.emit('data', frame.toString('latin1'));
       }
     });
-    child.release = (held) => child.stdout.emit('data', held.frame.toString('utf8'));
+    child.release = (held) => child.stdout.emit('data', held.frame.toString('latin1'));
     real.stderr.on('data', (raw) => child.stderr.emit('data', raw.toString()));
     real.on('error', (error) => child.emit('error', error));
     real.on('exit', (code) => { child.exit = code; child.emit('exit', code); });
@@ -152,6 +152,7 @@ function host(documents = [], projectRoot) {
       exports, setTimeout, clearTimeout, require(id) {
         if (id === 'vscode') return vscode;
         if (id === 'child_process') return childApi;
+        if (id === 'buffer') return require('node:buffer');
         if (id === './client') return client;
         throw Error(`Unexpected dependency ${id}`);
       },

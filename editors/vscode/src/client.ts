@@ -16,7 +16,7 @@
  * (see `extension.ts`).
  *
  * AMBIENT DECLARATIONS: the `declare global` block below declares the
- * minimal `vscode`/`child_process`/timer surface used here so
+ * minimal `vscode`/Node buffer/process/timer surface used here so
  * `tsc --strict` passes with zero npm dependencies (the lane-01 gate pins
  * empty typeRoots, so `@types/vscode`/`@types/node` cannot be used). Each
  * declaration mirrors the real VS Code API subset this client calls; if a
@@ -392,6 +392,10 @@ declare global {
 
   function require(id: 'vscode'): typeof vscode;
   function require(id: 'child_process'): typeof child_process;
+  function require(id: 'buffer'): {
+    Buffer: { from(text: string, encoding: 'latin1'): Uint8Array & { toString(encoding: 'utf8'): string } };
+    isUtf8(bytes: Uint8Array): boolean;
+  };
   // Node globals (lib es2022 has no DOM/node types).
   function setTimeout(callback: () => void, ms: number): unknown;
   function clearTimeout(handle: unknown): void;
@@ -399,6 +403,7 @@ declare global {
 
 const vscodeApi = require('vscode');
 const childProcessApi = require('child_process');
+const nodeBuffer = require('buffer');
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
@@ -550,44 +555,32 @@ function toVsDiagnostic(
   };
 }
 
-/**
- * Take the leading `length` UTF-8 bytes of `text` (a JS string is UTF-16
- * units, so byte counting must walk scalars, not `slice` by length).
- * Returns null when the prefix is incomplete or the boundary would split
- * a scalar (caller waits for more data).
- */
-function takeUtf8Prefix(text: string, length: number): string | null {
-  let bytes = 0;
-  let i = 0;
-  while (i < text.length) {
-    if (bytes === length) {
-      return text.slice(0, i);
+// Local support budgets, including the header terminator. Match the native
+// reader's finite limits; neither limit is a protocol-wide LSP requirement.
+const MAX_HEADER_BYTES = 64 * 1024;
+const MAX_MESSAGE_BYTES = 64 * 1024 * 1024;
+
+/** Exact header names and unsigned decimal values; repeated lengths must agree. */
+function contentLength(header: string): number {
+  let length: number | null = null;
+  for (const line of header.split('\r\n')) {
+    const colon = line.indexOf(':');
+    if (colon < 1 || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(line.slice(0, colon)) ||
+        /[^\t\x20-\x7e]/.test(line.slice(colon + 1))) {
+      throw new Error('malformed LSP header');
     }
-    const code = text.charCodeAt(i);
-    let charBytes: number;
-    let units = 1;
-    if (code < 0x80) {
-      charBytes = 1;
-    } else if (code < 0x800) {
-      charBytes = 2;
-    } else if (code >= 0xd800 && code <= 0xdbff && i + 1 < text.length) {
-      const next = text.charCodeAt(i + 1);
-      if (next >= 0xdc00 && next <= 0xdfff) {
-        charBytes = 4;
-        units = 2;
-      } else {
-        charBytes = 3;
-      }
-    } else {
-      charBytes = 3;
+    if (line.slice(0, colon).toLowerCase() !== 'content-length') { continue; }
+    const digits = line.slice(colon + 1).replace(/^[ \t]+|[ \t]+$/g, '');
+    if (!/^[0-9]+$/.test(digits)) { throw new Error('invalid LSP Content-Length'); }
+    const next = Number(digits);
+    if (!Number.isSafeInteger(next) || next > MAX_MESSAGE_BYTES) {
+      throw new Error('LSP body exceeds size cap');
     }
-    if (bytes + charBytes > length) {
-      return null;
-    }
-    bytes += charBytes;
-    i += units;
+    if (length !== null && length !== next) { throw new Error('conflicting LSP Content-Length'); }
+    length = next;
   }
-  return bytes === length ? text : null;
+  if (length === null) { throw new Error('missing LSP Content-Length'); }
+  return length;
 }
 
 /** Thin wrapper around a `can lsp` stdio child process. */
@@ -597,6 +590,7 @@ export class CanLanguageClient {
 
   private child: child_process.ChildProcess | null = null;
   private buffer = '';
+  private bodyLength: number | null = null;
   private nextId = 1;
   private readonly pending = new Map<number, (result: Json) => void>();
   private diagnostics: vscode.DiagnosticCollection | null = null;
@@ -667,9 +661,18 @@ export class CanLanguageClient {
       });
     }
     if (child.stdout) {
-      // utf8 string mode: Node reassembles multibyte chars split across chunks.
-      child.stdout.setEncoding('utf8');
-      child.stdout.on('data', (chunk: string) => this.onData(chunk));
+      // One Latin-1 code unit per wire byte. Decode UTF-8 only after slicing
+      // a complete body, so split scalars cannot move the next frame boundary.
+      child.stdout.setEncoding('latin1');
+      child.stdout.on('data', (chunk: string) => {
+        try {
+          this.onData(chunk);
+        } catch (error) {
+          this.channel.appendLine(`can lsp framing failed: ${String(error)}`);
+          this.finish(null);
+          child.kill('SIGKILL');
+        }
+      });
     }
     if (child.stderr) {
       child.stderr.setEncoding('utf8');
@@ -923,6 +926,9 @@ export class CanLanguageClient {
     const wasReady = this.ready;
     this.finished = true;
     this.ready = false;
+    this.buffer = '';
+    this.bodyLength = null;
+    this.capabilities = null;
     this.child = null;
     this.documents.clear();
     this.failAllPending();
@@ -1083,50 +1089,35 @@ export class CanLanguageClient {
   }
 
   private onData(chunk: string): void {
+    if (this.finished) { return; }
     this.buffer += chunk;
-    for (;;) {
-      const headerEnd = this.buffer.indexOf('\r\n\r\n');
-      if (headerEnd < 0) {
-        return;
-      }
-      const header = this.buffer.slice(0, headerEnd);
-      const match = /Content-Length:\s*(\d+)/i.exec(header);
-      if (!match) {
-        // Unframed garbage: drop through the header and keep serving.
-        this.buffer = this.buffer.slice(headerEnd + 4);
-        continue;
-      }
-      const length = Number(match[1]);
-      if (!Number.isSafeInteger(length) || length > 64 * 1024 * 1024) {
-        this.channel.appendLine(`dropping oversized LSP frame (${match[1]} bytes)`);
-        // Skip exactly the bad frame so pipelined valid messages after it
-        // survive; when its body has not fully arrived the boundary is
-        // unknowable, so the buffered prefix is dropped instead.
-        const frame = this.buffer.slice(headerEnd + 4);
-        const oversized = takeUtf8Prefix(frame, length);
-        if (oversized === null) {
-          this.buffer = '';
+    while (!this.finished) {
+      if (this.bodyLength === null) {
+        const end = this.buffer.indexOf('\r\n\r\n');
+        if (end < 0) {
+          if (this.buffer.length >= MAX_HEADER_BYTES) { throw new Error('LSP headers exceed size cap'); }
           return;
         }
-        this.buffer = frame.slice(oversized.length);
-        continue;
+        if (end + 4 > MAX_HEADER_BYTES) { throw new Error('LSP headers exceed size cap'); }
+        this.bodyLength = contentLength(this.buffer.slice(0, end));
+        this.buffer = this.buffer.slice(end + 4);
       }
-      const frame = this.buffer.slice(headerEnd + 4);
-      const body = takeUtf8Prefix(frame, length);
-      if (body === null) {
-        return;
-      }
-      this.buffer = frame.slice(body.length);
-      if (this.trace) {
-        this.channel.appendLine(`<-- ${body}`);
-      }
-      let message: RpcMessage;
+      if (this.buffer.length < this.bodyLength) { return; }
+      const bytes = nodeBuffer.Buffer.from(this.buffer.slice(0, this.bodyLength), 'latin1');
+      this.buffer = this.buffer.slice(this.bodyLength);
+      this.bodyLength = null;
+      // A complete malformed body has a known boundary and may be dropped.
+      // Framing failures above cannot safely resynchronize and retire the child.
+      if (!nodeBuffer.isUtf8(bytes)) { continue; }
+      const body = bytes.toString('utf8');
+      if (this.trace) { this.channel.appendLine(`<-- ${body}`); }
+      let message: Json;
       try {
-        message = JSON.parse(body) as RpcMessage;
+        message = JSON.parse(body) as Json;
       } catch {
         continue;
       }
-      this.onMessage(message);
+      if (isRecord(message)) { this.onMessage(message as RpcMessage); }
     }
   }
 
