@@ -100,11 +100,11 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
         assert.ok(probe.includes(declaration.split(' label=')[0]!),
           `original ${name} balance dependency is retained`);
       }
-      const variant=process.env['CAN_OVERDUE_VARIANT']??'source',renamed=variant==='renamed',live=variant==='live';
+      const variant=process.env['CAN_OVERDUE_VARIANT']??'source',renamed=variant==='renamed',live=variant==='live',sourceFalse=variant==='source-false';
       const ownerPackage=renamed?'billing_reminders':'invoice',handler=renamed?'billing_reminders.nudge':'invoice.overdue';
       const model=(name:string)=>asModel(name.replace(/^invoice\./,ownerPackage+'.').replace(/\.Invoice$/,renamed?'.Receivable':'.Invoice'));
       let compileSource=source;
-      if(renamed||live){compileSource=join(directory,variant+'.can');await writeFile(compileSource,renamed?probe.replace('uses=[invoice]','uses=[billing_reminders]').replace('package invoice','package billing_reminders').replace(/\bInvoice\b/g,'Receivable').replace('scenario overdue on=','scenario nudge on='):probe.replace(' when_at=source',''));}
+      if(renamed||live||sourceFalse){compileSource=join(directory,variant+'.can');await writeFile(compileSource,renamed?probe.replace('uses=[invoice]','uses=[billing_reminders]').replace('package invoice','package billing_reminders').replace(/\bInvoice\b/g,'Receivable').replace('scenario overdue on=','scenario nudge on='):sourceFalse?probe.replace('when=event.invoice.state==issued and event.invoice.balance.minor>0','when=event.invoice.state==issued and event.invoice.balance.minor>1000000'):probe.replace(' when_at=source',''));}
       const { stdout } = await promisify(execFile)(compiler,
         ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, compileSource],
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
@@ -114,6 +114,26 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
         uiUrl: import.meta.resolve('@canlang/ui') });
       assert.ok((artifact.modules[0]?.js ?? '').includes('sendWhen:'), 'original balance Rule is emitted');
 
+      if(process.env['CAN_OVERDUE_METADATA_TAMPER']==='1'){
+        for(const tamper of ['missing-staged-rule','extra-staged-rule']as const){
+          const changed=structuredClone(artifact);let found=false;
+          for(const module of changed.modules){
+            if(!module.js?.includes('stagedRules'))continue;found=true;
+            const index=module.js.indexOf('stagedRules'),end=module.js.indexOf(']',index)+1;
+            assert.ok(end>index);
+            // Keep the checked source cohort and executable statements; alter only the retained claim.
+            (module as {js:string}).js=tamper==='missing-staged-rule'?module.js.replace(/,(?:\\)*\"stagedRules(?:\\)*\":\[[^\]]*\]/g,''):module.js.replace(/stagedRules[^\]]*\]/g,value=>value.replace('invoice.overdue.sendWhen','foreign.overdue.sendWhen'));
+          }
+          assert.ok(found);
+          const forged=await assembleModules({artifact:changed,sourcePath:compileSource},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+          const identities=createMemoryIdentityStore({clock:createFrozenClock(now)}),team=await identities.createTeam({timezone:'UTC'});
+          const scope={app:'CanInvoice',owner:team.team_id,ownerPackage};
+          const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'tamper',fileStoreId:'tamper-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+          const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+          await assert.rejects(bindNativeEmailDispatchGuards({asm:forged,artifact:changed,store,identities,scope,revalidateAuthority:async()=>true}),(error:unknown)=>error instanceof Error,tamper+' must refuse before an execution/provider exists');
+        }
+        return;
+      }
       for (const mode of [
         'current-hidden', 'revision-is-not-in-authored-guard', 'initial-credit',
         'initial-succeeded-attempt', 'initial-external-payment', 'failed-attempt',
@@ -252,13 +272,13 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
           assert.equal(intents.length, 0, 'stale positive balance cannot queue Mail');
           continue;
         }
-        const expected = [
+        const expected = sourceFalse?0:[
           'current-hidden', 'revision-is-not-in-authored-guard', 'failed-attempt',
           'recipient-after-schedule','many-credits',
         ].includes(mode) ? 1 : 0;
         assert.equal(intents.length, expected, `${mode}: ${JSON.stringify(result)}`);
         assert.equal(result.status, mode === 'missing-work-due' ? 'refused'
-          : expected ? 'completed' : 'failed', `${mode}: due status`);
+          : expected||sourceFalse ? 'completed' : 'failed', `${mode}: due status`);
         if (expected) {
           const request = intents[0]?.arguments['arguments'] as Record<string, unknown>;
           assert.equal(request['to'], mode === 'recipient-after-schedule'
@@ -280,7 +300,7 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
             const joined = withDispatchJoinPort(store, await createWorkerDispatchJoinPort(store));
             let providerCalls = 0;
             const frozen = structuredClone(intent.arguments);
-            const dispatch = await driveDispatchIntentWithPreclaim({
+            const runDispatch = () => driveDispatchIntentWithPreclaim({
               store: joined, intent, actor: 'dispatch:invoice.overdue',
               operation: 'test.invoice.overdue.dispatch', nowMs: () => now + 1000,
               nextClaimId: () => 'claim-overdue', maxClaimAgeMs: 60000,
@@ -295,6 +315,25 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
               return producers.createSystemRegistry(commands.map(command =>
                 command.name === claim.name ? guarded : command));
             });
+            if(process.env['CAN_OVERDUE_PERSISTED_TAMPER']==='1'){
+              const load=store.load.bind(store);
+              for(const tamper of ['mode','header']as const){
+                let altered=false;
+                store.load=async(name,id)=>{
+                  const row=await load(name,id);
+                  if(row===null||name!=='work.dispatch')return row;
+                  const changed=structuredClone(row);
+                  if(tamper==='mode')(changed.data['filePayloadOrigin']as {origin:{declaration:Record<string,unknown>}}).origin.declaration['evaluation']='current';
+                  else (changed.data['sourceGuard']as {owner:string}).owner='foreign.handler';
+                  altered=true;return changed;
+                };
+                try{await assert.rejects(runDispatch,(error:unknown)=>error instanceof Error,'persisted '+tamper+' substitution must refuse');}
+                finally{store.load=load;}
+                assert.ok(altered,'actual persisted Work row was inspected');
+                assert.equal(providerCalls,0,'corrupt persisted '+tamper+' never reaches provider');
+              }
+            }
+            const dispatch=await runDispatch();
             assert.equal(dispatch.status, live?'not-claimed':'recorded', JSON.stringify(dispatch));
             assert.equal(providerCalls, live?0:1,
               'a later payment cannot rewrite the original source-stage true verdict');
