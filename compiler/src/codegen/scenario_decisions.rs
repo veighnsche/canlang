@@ -3679,7 +3679,8 @@ fn join_require_statements<'o>(
         ([CheckedDecisionPosition::Body(index),CheckedDecisionPosition::Loop(child)], CheckedDecisionStage::BodyCondition) => {
             semantic.statements(effects.get(..*index)?,expected_effects.get(..*index)?,0)?;
             let (IrStmt::For{body:a,span:at,..},IrStmt::For{body:b,span:bt,..})=(effects.get(*index)?,expected_effects.get(*index)?)else{return None;};
-            if at!=bt||*child!=0||a.len()!=1||b.len()!=1{return None;}
+            if at!=bt||!source_loop_condition(a,*child)||!source_loop_condition(b,*child){return None;}
+            semantic.statements(a.get(..*child)?,b.get(..*child)?,0)?;
             (a.get(*child)?,b.get(*child)?)
         }
         _ => return None,
@@ -3802,6 +3803,17 @@ fn serialize_require_params(
     Some(parameters)
 }
 
+// The complete owner is fresh-IR sealed before any staged observer is issued.
+// Keep the existing single conditional SET, or one terminal conditional Work
+// site after an exact loop-local mutation/cancellation prefix.
+fn source_loop_condition(body:&[IrStmt],child:usize)->bool{
+ let Some(IrStmt::If{then_branch,else_branch,..})=body.get(child)else{return false;};
+ if !else_branch.is_empty(){return false;}
+ child==0&&body.len()==1&&matches!(then_branch.as_slice(),[IrStmt::Set{..}])
+ ||child+1==body.len()&&body[..child].iter().all(|stmt|matches!(stmt,IrStmt::Set{..}|IrStmt::Cancel{..}))
+   &&matches!(then_branch.as_slice(),[IrStmt::Schedule{..}])
+}
+
 fn serialize_require_observer(
     sources: &FreshSourceContext<'_>,
     original: &CheckedProgram,
@@ -3844,7 +3856,7 @@ fn serialize_require_observer(
     if let [crate::analysis::scenario_disclosure::CheckedDecisionPosition::Body(index),crate::analysis::scenario_disclosure::CheckedDecisionPosition::Loop(child)]=site.position.as_slice(){
         let IrItemKind::Scenario{effects,..}=&owner.kind else{return None;};
         let IrStmt::For{item,domain,body,span,..}=effects.get(*index)?else{return None;};
-        if *child!=0||body.len()!=1{return None;}
+        if !source_loop_condition(body,*child){return None;}
         let ResolvedType::Array{element,..}=&domain.ty else{return None;};
         let ResolvedType::Record{symbol,stored:true}=element.as_ref() else{return None;};
         let mut ancestor=*symbol;let mut visited=HashSet::new();

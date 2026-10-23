@@ -1,0 +1,107 @@
+app CanSuccess uses=[success]
+package customer
+ Given
+  export Customer { name:text }
+  policy Customer read=members
+ When
+ Then
+
+package rent_catalog
+ Given
+  export Location { name:text, timezone:timezone, visible:bool=true, timezone_visible:bool=true }
+  policy Location read=members and row.visible fields=name,visible,timezone_visible
+  policy Location read=members and row.visible and row.timezone_visible fields=timezone
+ When
+ Then
+
+package employee
+ use rent_catalog {Location}
+ Given
+  export role worker
+  export Employee { user:user unique, home:Location, locations:Location[], operator_wide:bool=false, active:bool=true }
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members
+ When
+ Then
+
+package agreements
+ use customer {Customer}
+ use rent_catalog {Location}
+ Given
+  Agreement {customer:Customer,location:Location}
+  export Term in Agreement {active:bool=true}
+  policy Agreement read=members
+  policy Term read=members
+ When
+ Then
+package member_terms
+ use customer {Customer}
+ Given
+  export Membership in Customer {active:bool=true}
+  policy Membership read=members
+ When
+ Then
+package success
+ use customer {Customer}
+ use agreements {Term as AgreementTerm}
+ use member_terms {Membership}
+ use rent_catalog {Location}
+ use employee {can_work}
+ use std {DeliveryResult}
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  message label_account_manager = "Account manager"@{nl="Klantbeheerder"}
+  message label_Milestone_completed_by = "Completed by"@{nl="Afgerond door"}
+  message label_Milestone_completed_at = "Completed at"@{nl="Afgerond op"}
+  message label_FollowUp = "Follow-up"@{nl="Opvolgtaak"}
+  role account_manager label=label_account_manager
+  Account in Customer { location:Location, manager:user label=label_account_manager, email:email, renewal:date? label="Renewal date"@{nl="Verlengingsdatum"}, risk:enum(low,medium,high)=low label={text="Assessed renewal risk"@{nl="Beoordeeld verlengingsrisico"},values={low="Low"@{nl="Laag"},medium="Medium"@{nl="Gemiddeld"},high="High"@{nl="Hoog"}}}, reviewed_at:datetime? label="Last review"@{nl="Laatste beoordeling"}, reviewed_by:user? label="Reviewed by"@{nl="Beoordeeld door"}, risk_reason:text? label="Risk assessment reason"@{nl="Reden voor risicobeoordeling"}, notes:text?, agreement:AgreementTerm? label="Agreement reference"@{nl="Overeenkomstreferentie"}, membership:Membership? label="Membership reference"@{nl="Lidmaatschapsreferentie"}, active:bool=true } label="Customer account"@{nl="Klantdossier"}
+  Milestone in Account { title:text trim min=1, due:date, done:bool=false, completed_by:user? label=label_Milestone_completed_by, completed_at:datetime? label=label_Milestone_completed_at } label="Account milestone"@{nl="Klantmijlpaal"}
+  export FollowUp in Account { due_visible:bool=true, title:text, due:datetime, assignee:user label="Assignee"@{nl="Toegewezen aan"}, email:email, done:bool=false, completed_by:user? label=label_Milestone_completed_by, completed_at:datetime? label=label_Milestone_completed_at } label=label_FollowUp
+  Notice in Account { followup:FollowUp?, revision:int, account_revision:int, recipient:email, subject:text, body:text, delivery:delivery(Mail.send)? } label="Reminder outcome"@{nl="Herinneringsresultaat"}
+  ## Notice state observes the Mail receipt; the existing Delivered caption renders succeeded.
+  derive Notice.state:DeliveryResult.status? = row.delivery?.status label={text="Delivery state"@{nl="Bezorgstatus"},values={pending="Pending"@{nl="In afwachting"},succeeded="Delivered"@{nl="Bezorgd"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}}
+  policy Notice read=account_manager and can_work(actor,row.parent.location) fields=parent,followup,revision,account_revision,recipient,subject,body,delivery.id,delivery.status,state,created_by,created,updated_by,updated,archived_at
+  lock Notice fields=followup,revision,account_revision,recipient,subject,body,delivery
+  lock Milestone fields=title,due,done,completed_by,completed_at when=row.done
+  lock FollowUp fields=title,due,assignee,email,done,completed_by,completed_at when=row.done
+  event RenewalDue { account:Account, revision:int }
+  event FollowUpDue { followup:FollowUp, revision:int, account_revision:int }
+  derive Account.progress:decimal = count(row.Milestone as item where item.done)*100/max([1,count(row.Milestone)]) label="Milestone completion percentage"@{nl="Percentage afgeronde mijlpalen"}
+  policy Account read=account_manager and can_work(actor,row.location)
+  policy Milestone read=account_manager and can_work(actor,row.parent.location)
+  policy FollowUp read=account_manager and can_work(actor,row.parent.location) fields=parent,title,assignee,email,done,completed_by,completed_at,due_visible
+  policy FollowUp read=account_manager and can_work(actor,row.parent.location) and row.due_visible fields=due
+  invariant Account: row.risk==low or (row.risk_reason!=null and trim(row.risk_reason)!="")
+  invariant Account: (row.agreement==null or (row.agreement.parent.customer==row.parent and row.agreement.parent.location==row.location)) and (row.membership==null or row.membership.parent==row.parent)
+  derive Account.completed:int = count(row.Milestone as item where item.done) label="Completed milestones"@{nl="Afgeronde mijlpalen"}
+  derive Account.total:int = count(row.Milestone) label="Total milestones"@{nl="Totaal mijlpalen"}
+ When
+  scenario review(account:Account) by=account_manager label="Record account review"@{nl="Dossierbeoordeling vastleggen"}
+   require can_work(actor,account.location) and account.active
+   do
+    set account {reviewed_at=now,reviewed_by=actor}
+    cancel account.id
+    if account.renewal!=null
+     let due=local_instant(account.renewal,"00:00",account.location.timezone,fold=earlier)
+     if due>now
+      schedule account.id at=due event=RenewalDue {account,revision=account.version+1}
+    for followup in account.FollowUp as item where not item.done limit=100
+     cancel followup.id
+     if followup.due>now
+      schedule followup.id at=followup.due event=FollowUpDue {followup,revision=followup.version,account_revision=account.version+1}
+  scenario reassign(account:Account,manager:user label=label_account_manager,email:email) by=account_manager label="Reassign account"@{nl="Klantdossier opnieuw toewijzen"}
+   require can_work(actor,account.location) and account_manager(manager) and can_work(manager,account.location)
+   do
+    set account {manager,email}
+    cancel account.id
+    if account.active and account.renewal!=null
+     let due=local_instant(account.renewal,"00:00",account.location.timezone,fold=earlier)
+     if due>now
+      schedule account.id at=due event=RenewalDue {account,revision=account.version+1}
+    for followup in account.FollowUp as item where not item.done limit=100
+     set followup {assignee=manager,email}
+     cancel followup.id
+     if account.active and followup.due>now
+      schedule followup.id at=followup.due event=FollowUpDue {followup,revision=followup.version+1,account_revision=account.version+1}
+ Then

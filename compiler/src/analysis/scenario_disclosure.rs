@@ -16320,7 +16320,7 @@ impl<'a> Closure<'a> {
         }
         if body {
             match self.query_binding(key) {
-                Some(Binding::ForItem{node}) if self.source_require_loop_condition(scenario,site).is_some_and(|(outer,_)|outer.node==*node)=>{},
+                Some(Binding::ForItem{node}) if self.source_require_loop_condition(scenario,site).is_some_and(|(outer,_)|outer.node==*node)=>{*helper_query=true;},
                 Some(Binding::Let { .. } | Binding::CreateAs { .. } | Binding::SendAs { .. }
                     | Binding::ForItem { .. } | Binding::CallAs { .. } | Binding::CohortChild { .. }
                     | Binding::External { .. } | Binding::Error) => { *supported = false; return Some(false); }
@@ -16485,11 +16485,19 @@ impl<'a> Closure<'a> {
         let [CheckedDecisionPosition::Body(index),CheckedDecisionPosition::Loop(child)]=site.position.as_slice() else{return None;};
         let outer=scenario.effects.get(*index)?;
         let condition=outer.then_effects.get(*child)?;
-        if outer.verb!=EffectVerb::For||*child!=0||outer.then_effects.len()!=1||outer.cond.is_some()
+        let single_set=*child==0&&outer.then_effects.len()==1
+            &&matches!(condition.then_effects.as_slice(),[effect]if effect.verb==EffectVerb::Set);
+        // Work-only IFs retain their own exact observer after an original
+        // SET/CANCEL prefix. Separate loop and Work producers must seal every
+        // executable site; this condition issues no selected-row DATA grant.
+        let work=*child+1==outer.then_effects.len()
+            &&outer.then_effects[..*child].iter().all(|effect|matches!(effect.verb,EffectVerb::Set|EffectVerb::Cancel))
+            &&matches!(condition.then_effects.as_slice(),[effect]if effect.verb==EffectVerb::Schedule);
+        if outer.verb!=EffectVerb::For||outer.cond.is_some()
             ||!outer.else_effects.is_empty()||!outer.match_arms.is_empty()
             ||condition.verb!=EffectVerb::If||condition.cond!=Some(site.node)||condition.node!=site.statement
             ||!condition.else_effects.is_empty()||!condition.match_arms.is_empty()
-            ||!matches!(condition.then_effects.as_slice(),[effect]if effect.verb==EffectVerb::Set)
+            ||!(single_set||work)
         {return None;}
         Some((outer,condition))
     }
@@ -16515,7 +16523,8 @@ impl<'a> Closure<'a> {
                 if effect.verb!=EffectVerb::If||effect.cond!=Some(site.node)
                     ||effect.node!=site.statement||!effect.match_arms.is_empty()
                     ||self.types.node_types.get(&site.node)!=Some(&ResolvedType::Scalar(Scalar::Bool))
-                    ||scenario.params.iter().filter(|parameter|matches!(self.types.symbol_types.get(&parameter.param),
+                    ||self.source_require_loop_condition(scenario,&site).is_none()
+                        &&scenario.params.iter().filter(|parameter|matches!(self.types.symbol_types.get(&parameter.param),
                         Some(ResolvedType::Record{stored:true,..}))).count()!=1
                     ||scenario.params.iter().any(|parameter|matches!(self.types.symbol_types.get(&parameter.param),
                         Some(ResolvedType::Nullable(inner)|ResolvedType::Array{element:inner,..})
@@ -21169,6 +21178,13 @@ impl<'a> Closure<'a> {
     fn settled_scalar_call(&self, id: &str, arguments: &[NodeKey], slots: &[Option<usize>]) -> bool {
         (matches!(id, "date" | "datetime" | "money" | "abs" | "round" | "min" | "max" | "trim" | "starts_with")
             || id == "format" && self.literal_format_arguments(arguments, slots).is_some()
+            || id == "local_instant" && self.catalog.and_then(|catalog| catalog.effects(id)) == Some(Effects::Pure)
+                && slots == [Some(0), Some(1), Some(2), Some(3)] && arguments.len() == 4
+                && self.types.node_types.get(&arguments[0]) == Some(&ResolvedType::Scalar(Scalar::Date))
+                && self.types.node_types.get(&arguments[1]) == Some(&ResolvedType::Scalar(Scalar::Text))
+                && self.types.node_types.get(&arguments[2]) == Some(&ResolvedType::Scalar(Scalar::Timezone))
+                && matches!(self.types.node_types.get(&arguments[3]),Some(ResolvedType::Enum{owner:None,cases})
+                    if cases.as_slice()==["earlier","later"])
             || id == "local_date" && self.catalog.and_then(|catalog| catalog.effects(id)) == Some(Effects::Pure)
                 && slots == [Some(0), Some(1)] && arguments.len() == 2
                 && self.types.node_types.get(&arguments[0]) == Some(&ResolvedType::Scalar(Scalar::Datetime))
@@ -27928,6 +27944,56 @@ impl<'a> Closure<'a> {
                 Ok(vec![empty,populated])
             }
 
+            /// Source-only finite Work loops retain their original contained
+            /// selection and exact sites. Independent fresh-IR loop/Work profiles
+            /// must still consume them; this flow issues no selected DATA grant.
+            fn bounded_work_loop(&mut self,effect:&Effect,module:ModuleId,flow:Flow,calls:&[NodeKey])->Result<Vec<Flow>,DisclosureDecline>{
+                let declined=self.fail(effect.node,"checked finite contained Work loop required");let fail=||declined.clone();
+                let owner=self.effects.scenarios.values().find(|owner|owner.module==module&&owner.effects.last().is_some_and(|last|last.node==effect.node)).ok_or_else(fail)?;
+                if !calls.is_empty()||self.loop_node.is_some()||owner.read||owner.on.is_some()||owner.result.is_some()||owner.cohort.is_some()
+                    ||effect.cond.is_some()||!effect.else_effects.is_empty()||!effect.match_arms.is_empty(){return Err(fail());}
+                let domain=effect.domain.ok_or_else(fail)?;let query=self.types.checked_queries.get(&domain).ok_or_else(fail)?;
+                self.bounded_loop_filter(query).ok_or_else(||self.fail(effect.node,"finite Work loop original bounded filter unavailable"))?;
+                let(parameter,model)=self.original_loop_member_root(query.domain,effect.node,module)?;
+                let limit=effect.limit.ok_or_else(fail)?;
+                let maximum=self.db.get(limit.file).and_then(|file|file.text.get(limit.start as usize..limit.end as usize))
+                    .and_then(|text|text.trim().parse::<u16>().ok()).filter(|value|(1..=200).contains(value)).ok_or_else(fail)?;
+                if self.nodes.get(&limit).is_none_or(|node|node.kind!=SyntaxKind::Literal)||self.types.node_types.get(&limit)!=Some(&ResolvedType::Scalar(Scalar::Int)){return Err(fail());}
+                let mut env=flow.env.clone();env.insert(Local::For(effect.node),ValuePath{record:Some(model),..ValuePath::default()});
+                let sites=self.checked_source_requires(owner).ok_or_else(||self.fail(effect.node,"finite Work loop source guard census unavailable"))?;
+                self.loop_node=Some(effect.node);let mut joined=ValuePath::default();let mut work=0;
+                for(index,child)in effect.then_effects.iter().enumerate(){
+                    let work_effect=match child.verb{
+                        EffectVerb::Set=>{let receiver=self.nodes.get(&child.node).and_then(|node|node.children.iter().find(|node|node.kind==SyntaxKind::Path)).map(NodeKey::of).ok_or_else(fail)?;
+                            if !matches!(self.query_binding(receiver),Some(Binding::ForItem{node})if *node==effect.node){return Err(fail());}
+                            let values=self.set(child,module,&env,calls)?;let [value]=values.as_slice()else{return Err(fail());};
+                            if !value.reads.is_empty()||!value.decisions.is_empty()||value.intrinsics.iter().any(|value|!matches!(value.kind,DisclosureIntrinsicKind::AdmittedInput{..})){return Err(fail());}
+                            joined.join(value);continue;},
+                        EffectVerb::Cancel=>child,
+                        EffectVerb::If=>{
+                            if !sites.iter().any(|site|self.source_require_loop_condition(owner,site).is_some_and(|(outer,condition)|outer.node==effect.node&&condition.node==child.node))
+                                ||index+1!=effect.then_effects.len(){return Err(self.fail(child.node,"finite Work loop original conditional guard unavailable"));}
+                            let [scheduled]=child.then_effects.as_slice()else{return Err(fail());};scheduled
+                        },_=>return Err(fail()),
+                    };
+                    if !matches!(work_effect.verb,EffectVerb::Cancel|EffectVerb::Schedule)||work_effect.when.is_some()
+                        ||!work_effect.then_effects.is_empty()||!work_effect.else_effects.is_empty()||!work_effect.match_arms.is_empty(){return Err(fail());}
+                    let key=work_effect.key.or(work_effect.value).ok_or_else(fail)?;
+                    let(base,name)=self.count_member(key).ok_or_else(fail)?;
+                    if name!="id"||self.types.node_types.get(&key)!=Some(&ResolvedType::Scalar(Scalar::Text))
+                        ||!matches!(self.query_binding(base),Some(Binding::ForItem{node})if *node==effect.node){return Err(fail());}
+                    let node=self.nodes.get(&work_effect.node).ok_or_else(fail)?;let(event,_)=self.external_event_target(work_effect,module,node)?;
+                    self.proof(work_effect,module,if work_effect.verb==EffectVerb::Cancel{DisclosureEffectKind::Cancel{}}else{DisclosureEffectKind::Schedule{event:event.ok_or_else(fail)?}})?;
+                    work+=1;
+                }
+                if work==0||work>4||usize::from(maximum)*work>200{return Err(fail());}
+                self.proof(effect,module,DisclosureEffectKind::ForMember{domain,limit,maximum,item:effect.item.clone().ok_or_else(fail)?,parameter,model,body:effect.then_effects.iter().map(|child|child.node).collect()})?;
+                let mut empty=flow.clone();empty.writes.join(&empty.controls);empty.evaluated.push(DisclosureDecision{node:effect.node,calls:Vec::new(),choice:DisclosureChoice::Else});
+                let mut populated=flow;populated.writes.join(&populated.controls);populated.writes.join(&populated.effect_guards);populated.writes.join(&joined);
+                populated.executed_effect=true;populated.evaluated.push(DisclosureDecision{node:effect.node,calls:Vec::new(),choice:DisclosureChoice::Then});self.effect_visits+=1;
+                Ok(vec![empty,populated])
+            }
+
             /// One bounded, straight-line loop over the actual admitted reference
             /// array. This is source closure, not an array/query authority claim.
             fn bounded_input_loop(
@@ -28606,6 +28672,8 @@ impl<'a> Closure<'a> {
                 if called.verb==EffectVerb::Call&&linked.verb==EffectVerb::Set&&looped.node==effect.node)){
                 self.bounded_copy_loop(effect,module,flow,calls)
             }else{self.bounded_sibling_create_loop(effect,module,flow,calls)}
+        } else if effect.then_effects.iter().any(|child|child.verb==EffectVerb::Cancel) {
+            self.bounded_work_loop(effect,module,flow,calls)
         } else {self.bounded_input_loop(effect, module, flow, calls)};
         self.loop_node = previous;
         next.extend(paths?);

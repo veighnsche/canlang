@@ -2051,6 +2051,9 @@ export interface ScenarioSourceBodyLoop {
   readonly domain:{readonly start:number;readonly end:number};readonly maximum:number;
   readonly parameter:string;readonly parentModel:ModelName;readonly model:ModelName;
   readonly item:string;readonly filtered:boolean;readonly writes:number;readonly sends:number;
+  readonly work?:number;
+  readonly timeFields?:readonly string[];
+  readonly workCondition?:ScenarioSourceBodyLoop['condition'];
   readonly parentDepth?:number;
   readonly control?:{readonly model:ModelName;readonly fields:readonly {readonly name:string;readonly type:string}[]};
   readonly ancestors?:readonly {readonly model:ModelName;readonly fields:readonly {readonly name:string;readonly type:string}[]}[];
@@ -2075,7 +2078,7 @@ export function bindScenarioSourceLoopProducer(def:GeneratedOperationDef,value:S
   const loops=list(raw['loops']),ids=new Set<string>();let maximum=0,sends=0;
   if(loops.length===0||loops.length>MAX_ITEMS)return invalid('Source loop needs a finite complete original census.');
   for(const value of loops){
-    const loop=object(value,['id','node','domain','maximum','parameter','parentModel','model','item','filtered','writes','sends',...(Object.hasOwn(value as object,'parentDepth')?['parentDepth']:[]),...(Object.hasOwn(value as object,'ancestors')?['ancestors','control']:[]),...(Object.hasOwn(value as object,'condition')?['condition']:[])]);
+    const loop=object(value,['id','node','domain','maximum','parameter','parentModel','model','item','filtered','writes','sends',...(Object.hasOwn(value as object,'work')?['work']:[]),...(Object.hasOwn(value as object,'timeFields')?['timeFields']:[]),...(Object.hasOwn(value as object,'workCondition')?['workCondition']:[]),...(Object.hasOwn(value as object,'parentDepth')?['parentDepth']:[]),...(Object.hasOwn(value as object,'ancestors')?['ancestors','control']:[]),...(Object.hasOwn(value as object,'condition')?['condition']:[])]);
     const id=text(loop['id']),parameter=text(loop['parameter']),parent=text(loop['parentModel']) as ModelName,model=text(loop['model']) as ModelName;
     const input=bound.inputs.find(input=>input.name===parameter);
     const node=object(loop['node'],['start','end']),domain=object(loop['domain'],['start','end']);
@@ -2091,7 +2094,8 @@ export function bindScenarioSourceLoopProducer(def:GeneratedOperationDef,value:S
         ||Number(node['start'])<0||Number(node['end'])<=Number(node['start'])||Number(domain['start'])<Number(node['start'])
         ||Number(domain['end'])>Number(node['end'])||Number(domain['end'])<=Number(domain['start'])
         ||!Number.isSafeInteger(loop['maximum'])||Number(loop['maximum'])<1||Number(loop['maximum'])>1000
-        ||!Number.isSafeInteger(loop['writes'])||Number(loop['writes'])<1||Number(loop['writes'])>4
+        ||Object.hasOwn(loop,'work')&&(!Number.isSafeInteger(loop['work'])||Number(loop['work'])<1||Number(loop['work'])>4)
+        ||!Number.isSafeInteger(loop['writes'])||Number(loop['writes'])<0||Number(loop['writes'])>4||loop['writes']===0&&!Object.hasOwn(loop,'work')
         ||!Number.isSafeInteger(loop['sends'])||Number(loop['sends'])<0||Number(loop['sends'])>2||Number(loop['sends'])>0&&!frameworkProducers.has(def))return invalid('Source loop lost its exact contained input and bounded body.');
     if(Object.hasOwn(loop,'ancestors')){
       const ancestors=list(loop['ancestors']);if(ancestors.length<2||ancestors.length>4)return invalid('Descendant loop needs its exact finite parent path.');
@@ -2111,11 +2115,51 @@ export function bindScenarioSourceLoopProducer(def:GeneratedOperationDef,value:S
       for(const raw of [condition['node'],condition['statement']]){const at=object(raw,['start','end']);if(!Number.isSafeInteger(at['start'])||!Number.isSafeInteger(at['end'])||Number(at['start'])<Number(node['start'])||Number(at['end'])>Number(node['end'])||Number(at['start'])>=Number(at['end']))return invalid('Loop condition lost its exact original statement.');}
       if(loop['writes']!==1||loop['sends']!==0)return invalid('Conditional source loop needs its one original SET.');
     }
+    if(Object.hasOwn(loop,'timeFields')){const fields=list(loop['timeFields']).map(text);
+      if(loop['work']===undefined||fields.length===0||fields.length>4||new Set(fields).size!==fields.length||fields.some(field=>!sourceSendFieldType(bound,model,field,'datetime')||bound.artifactModels.get(model)?.fields.find(item=>item.name===field)?.default?.kind==='derived'))return invalid('Loop timing DATA lost its exact stored datetime fields.');}
+    if(Object.hasOwn(loop,'workCondition')){const condition=object(loop['workCondition'],['node','statement']);
+      if(loop['work']===undefined||loop['condition']!==undefined)return invalid('Loop Work condition differs from its stage protocol.');
+      for(const value of [condition['node'],condition['statement']]){const at=object(value,['start','end']);if(!Number.isSafeInteger(at['start'])||!Number.isSafeInteger(at['end'])||Number(at['start'])<Number(node['start'])||Number(at['end'])>Number(node['end'])||Number(at['start'])>=Number(at['end']))return invalid('Loop Work condition lost its original occurrence.');}}
     ids.add(id);maximum+=Number(loop['maximum']);sends+=Number(loop['maximum'])*Number(loop['sends']);
   }
   if(maximum>1000||sends>MAX_ITEMS)return invalid('Source loop original aggregate exceeds its finite item/Work census.');
   sourceBodyLoopProducers.set(def,deepFreeze(raw) as unknown as ScenarioSourceBodyLoopPlan);
 }
+const sourceLoopDataProducers=new WeakMap<GeneratedOperationDef,ScenarioReceiptReferenceProducer>();
+/** Selected CONTROL identity remains distinct from each reached timing DATA read. */
+export function bindScenarioSourceLoopDataProducer(def:GeneratedOperationDef,producer:ScenarioReceiptReferenceProducer):void{
+  const bound=boundPlans.get(def),plan=sourceBodyLoopProducers.get(def);
+  if(bound===undefined||plan===undefined||invokedPlans.has(def)||sourceLoopDataProducers.has(def))return invalid('Loop DATA needs its uninvoked original selection producer.');
+  object(producer,['source','app','policy','readPolicies']);origin(producer.source);text(producer.app);
+  if(stableStringify(producer.source)!==stableStringify(plan.source)||!(producer.policy instanceof Map)||!(producer.readPolicies instanceof Map))return invalid('Loop DATA changed its source policy producer.');
+  const policy=buildPolicyTable([...Map.prototype.entries.call(producer.policy)].map(([model,value])=>{const copied=dataCopy(value);if(copied.model!==model)return invalid('Loop DATA policy differs from its declared model.');return copied;}),bound.canonicalModels);
+  const readPolicies=captureSourceReadPolicies(producer.readPolicies);
+  for(const loop of plan.loops.filter(loop=>loop.timeFields!==undefined)){
+    const seen=new Set<ModelName>();let model:ModelName|undefined=loop.model;
+    while(model!==undefined){const declaration=bound.artifactModels.get(model),read=readPolicies.get(model);
+      if(seen.has(model)||declaration===undefined||read===undefined||read.parent!==declaration.parent||!('grants'in read))return invalid('Loop DATA lacks its complete original current policies.');
+      seen.add(model);model=declaration.parent as ModelName|undefined;
+    }
+  }
+  sourceLoopDataProducers.set(def,Object.freeze({source:plan.source,app:producer.app,policy,readPolicies}));
+}
+export async function readScenarioSourceLoopData(call:AdmittedCall,store:StoragePort,input:{readonly id:string;readonly row:StoredRow;readonly fields:readonly string[]}):Promise<ProjectedRecord>{
+  const state=capture(call,store),owner=ownerSessions.get(call);
+  try{
+    object(input,['id','row','fields']);const active=owner===undefined?undefined:sourceBodyLoopItems.get(owner),producer=sourceLoopDataProducers.get(call.def as GeneratedOperationDef);
+    const fields=list(input.fields).map(text);
+    if(owner===undefined||owner.session===null||owner.busy||state.pending!==0||owner.executingCall!==call||active===undefined||active.execution.loop.id!==input.id||active.row!==input.row
+      ||producer===undefined||producer.app!==call.context.app||fields.length===0||new Set(fields).size!==fields.length||fields.some(field=>!active.execution.loop.timeFields?.includes(field)))return invalid('Loop DATA lacks its genuine entered row and exact declared timing fields.');
+    return await ownerOperation(owner,async()=>{
+      const row=await owner.session!.views.final.get(active.execution.loop.model,active.row.id);ownerHealthy(owner);
+      if(row===null||row.archivedAt!==null||!sameModelLifetime(active.row,row)||stableStringify(row.parent??null)!==stableStringify(active.row.parent??null))return invalid('Loop DATA selected lifetime or parent changed.');
+      const observed=await observeModelQuerySourceAuthority(call,store,owner,state,active.execution.loop.model,row,fields,0,undefined,undefined,producer);
+      if(await store.readRevision()!==call.revision)throw new StateError('conflict','Loop DATA moved beyond its original checkpoint.');
+      return observed.record;
+    },call);
+  }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
+}
+
 function sourceBodyLoopLimits(def:GeneratedOperationDef):{readonly maxRows:number;readonly maxWork:number;readonly maxWrites:number}|undefined{
   const plan=sourceBodyLoopProducers.get(def);if(plan===undefined)return undefined;
   const maxWrites=MAX_ITEMS+plan.loops.reduce((total,loop)=>total+loop.maximum*loop.writes,0);
@@ -2130,8 +2174,10 @@ export async function executeScenarioSourceLoop(call:AdmittedCall,store:StorageP
   const state=capture(call,store),owner=ownerSessions.get(call);
   try{
     object(input,['id','predicate',...(Object.hasOwn(input,'parent')?['parent']:[])]);const loop=sourceBodyLoopProducers.get(call.def as GeneratedOperationDef)?.loops.find(loop=>loop.id===input.id);
-    if(owner===undefined||owner.session===null||loop===undefined||owner.busy||state.pending!==0||owner.executingCall!==call
-        ||sourceBodyLoopItems.has(owner)||loop.filtered!==(typeof input.predicate==='function'))return invalid('Source loop lacks its actual quiescent original selection.');
+    if(owner===undefined||owner.session===null||owner.executingCall!==call)return invalid('Source loop lacks its actual owner transaction.');
+    if(loop===undefined)return invalid('Source loop lacks its installed original selection.');
+    if(owner.busy||state.pending!==0||sourceBodyLoopItems.has(owner))return invalid('Source loop selection crossed an active owner stage.');
+    if(loop.filtered!==(typeof input.predicate==='function'))return invalid('Source loop lost its original filter.');
     let executions=sourceBodyLoopExecutions.get(owner);if(executions===undefined){executions=new Map();sourceBodyLoopExecutions.set(owner,executions);}
     if(executions.has(loop.id))return invalid('Source loop repeats its original selection.');
     return await ownerOperation(owner,async()=>{
@@ -2187,6 +2233,7 @@ export async function executeScenarioSourceLoopItem(call:AdmittedCall,store:Stor
     const stage=owner.stage,ordinal=owner.framework?.ordinal??0,item={execution,row:entry.row} as {execution:SourceBodyLoopExecution;row:StoredRow;answer?:boolean};sourceBodyLoopItems.set(owner,item);
     try{
       await input.execute();ownerHealthy(owner);capture(call,store);
+      if(execution.loop.workCondition!==undefined&&item.answer===undefined)return invalid('Loop omitted its original Work condition.');
       const writes=execution.loop.condition===undefined?execution.loop.writes:item.answer===undefined?invalid('Loop omitted its original per-item condition.'):item.answer?1:0;
       if(owner.busy||state.pending!==0||owner.executingCall!==call||owner.stage!==stage+writes
           ||(owner.framework?.ordinal??0)!==ordinal+execution.loop.sends)return invalid('Source loop item did not execute its exact original write/Work stages.');
@@ -6744,8 +6791,8 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
         ||stableStringify(original.loop.node)!==stableStringify(loopItem.execution.loop.node)||original.loop.item!==loopItem.execution.loop.item
         ||original.loop.model!==loopItem.execution.loop.model||input.parameter!==loopItem.execution.loop.parameter
         ||original.parameters.at(-1)?.name!==original.loop.item||original.parameters.at(-1)?.typeId!==original.loop.model
-        ||stableStringify(original.node)!==stableStringify(loopItem.execution.loop.condition?.node)
-        ||stableStringify(original.statement)!==stableStringify(loopItem.execution.loop.condition?.statement)))return invalid('Loop IF needs its exact genuine selected item and original condition.');
+        ||stableStringify(original.node)!==stableStringify((loopItem.execution.loop.condition??loopItem.execution.loop.workCondition)?.node)
+        ||stableStringify(original.statement)!==stableStringify((loopItem.execution.loop.condition??loopItem.execution.loop.workCondition)?.statement)))return invalid('Loop IF needs its exact genuine selected item and original condition.');
     const reference = call.recordRefs.find(ref => ref.param === input.parameter);
     const declared = original.parameters.find(parameter => parameter.name === input.parameter);
     if (reference === undefined || declared?.typeId !== reference.model ||
@@ -10035,6 +10082,8 @@ export interface ScenarioSourceLetDataSource {
   readonly node:{readonly start:number;readonly end:number};readonly stage:number;readonly binding:string;
   readonly parameter:string;readonly model:ModelName;readonly parents?:readonly ModelName[];
   readonly field:{readonly name:string;readonly type:CanTypeId};readonly valueType:CanTypeId;
+  readonly clock?:{readonly kind:'local_instant';readonly time:string;readonly fold:'earlier'|'later';
+    readonly zone:{readonly path:SourceEffectPath;readonly field:{readonly name:string;readonly type:'timezone'}}};
 }
 interface SourceLetDataProducer extends ScenarioReceiptReferenceProducer {readonly sites:readonly ScenarioSourceLetDataSource[];}
 const sourceLetDataProducers=new WeakMap<GeneratedOperationDef,SourceLetDataProducer>();
@@ -10049,13 +10098,24 @@ export function bindScenarioSourceLetDataProducer(def:GeneratedOperationDef,prod
   }),bound.canonicalModels);
   const readPolicies=captureSourceReadPolicies(producer.readPolicies);
   const sites=list(dataCopy(producer.sites)).map(value=>{
-    const site=object(value,Object.hasOwn(value as object,'parents')?['source','owner','node','stage','binding','parameter','model','parents','field','valueType']:['source','owner','node','stage','binding','parameter','model','field','valueType']);origin(site['source']);
+    const site=object(value,['source','owner','node','stage','binding','parameter','model','field','valueType',...(Object.hasOwn(value as object,'parents')?['parents']:[]),...(Object.hasOwn(value as object,'clock')?['clock']:[])]);origin(site['source']);
     const node=object(site['node'],['start','end']),parameter=text(site['parameter']),model=text(site['model']) as ModelName;
     const field=object(site['field'],['name','type']),name=text(field['name']),type=text(field['type']),valueType=text(site['valueType']);text(site['binding']);
     const parents=site['parents']===undefined?[]:list(site['parents']).map(value=>text(value)as ModelName);
     if(parents.length>16||site['parents']!==undefined&&parents.length===0)return invalid('Source field DATA requires its finite declared parent path.');
     let fieldModel=model;for(const parent of parents){if(bound.artifactModels.get(fieldModel)?.parent!==parent||storedReferenceField(bound,fieldModel,'parent',parent).target!==parent)return invalid('Source field DATA parent path differs from containment.');fieldModel=parent;}
     const input=bound.inputs.find(input=>input.name===parameter),declaration=bound.artifactModels.get(fieldModel)?.fields.find(field=>field.name===name);
+    const policyModels=[model];
+    if(site['clock']!==undefined){
+      const clock=object(site['clock'],['kind','time','fold','zone']),zone=object(clock['zone'],['path','field']),leaf=object(zone['field'],['name','type']);
+      const path=list(zone['path']),target=path.length===0?model:checkSourceEffectPath(bound,model,path);
+      const original=bound.artifactModels.get(target)?.fields.find(field=>field.name===leaf['name']);
+      if(clock['kind']!=='local_instant'||typeof clock['time']!=='string'||!/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(clock['time'])
+          ||clock['fold']!=='earlier'&&clock['fold']!=='later'||parents.length!==0||!['date','date?'].includes(type)||valueType!=='datetime'
+          ||leaf['type']!=='timezone'||original?.default?.kind==='derived'||!sourceSendFieldType(bound,target,text(leaf['name']),'timezone'))return invalid('Clock DATA differs from its exact source Date, required zone and temporal signature.');
+      policyModels.push(...path.map(edge=>text(object(edge,['field','model',...(Object.hasOwn(edge as object,'nullable')?['nullable']:[])])['model'])as ModelName));
+    }
+
     const reference=declaration?.field.kind==='ref'&&declaration.field.model===type&&declaration.nullable!==true&&declaration.array===undefined
       &&storedReferenceField(bound,fieldModel,name,type).target===type;
     if(site['owner']!==def.name||stableStringify(site['source'])!==stableStringify(bound.plan.source)
@@ -10063,18 +10123,18 @@ export function bindScenarioSourceLetDataProducer(def:GeneratedOperationDef,prod
         ||!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start'])
         ||input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,parameter)
         ||declaration===undefined||declaration.default?.kind==='derived'||!sourceSendFieldType(bound,fieldModel,name,type)&&!reference
-        ||valueType!==type&&`${valueType}?`!==type)return invalid('Scalar LET DATA lost its exact original stage, required root or stored scalar field.');
-    const ancestors=new Set<ModelName>();let ancestor:ModelName|undefined=model;
+        ||site['clock']===undefined&&valueType!==type&&`${valueType}?`!==type)return invalid('Scalar LET DATA lost its exact original stage, required root or stored scalar field.');
+    for(const model of policyModels){const ancestors=new Set<ModelName>();let ancestor:ModelName|undefined=model;
     while(ancestor!==undefined){const original=bound.artifactModels.get(ancestor),read=readPolicies.get(ancestor);
       if(ancestors.has(ancestor)||original===undefined||read===undefined||read.parent!==original.parent||!('grants'in read))return invalid('Scalar LET DATA lacks its complete original source policies.');
       ancestors.add(ancestor);ancestor=original.parent as ModelName|undefined;
-    }
+    }}
     return deepFreeze(site) as unknown as ScenarioSourceLetDataSource;
   });
   if(sites.length>MAX_ITEMS||new Set(sites.map(site=>`${site.node.start}:${site.node.end}`)).size!==sites.length)return invalid('Scalar LET DATA has an invalid original occurrence census.');
   sourceLetDataProducers.set(def,Object.freeze({source:bound.plan.source,app:producer.app,policy,readPolicies,sites:Object.freeze(sites)}));
 }
-export async function executeScenarioSourceLetData(call:AdmittedCall,store:StoragePort,input:{readonly source:ScenarioSourceLetDataSource}):Promise<ProjectedRecord>{
+export async function executeScenarioSourceLetData(call:AdmittedCall,store:StoragePort,input:{readonly source:ScenarioSourceLetDataSource}):Promise<ProjectedRecord|Readonly<{clock:DatetimeValue}>>{
   const state=capture(call,store),owner=ownerSessions.get(call);
   try{
     const claimed=object(input,['source']),source=dataCopy(claimed['source']),producer=sourceLetDataProducers.get(call.def as GeneratedOperationDef);
@@ -10097,6 +10157,15 @@ export async function executeScenarioSourceLetData(call:AdmittedCall,store:Stora
         model=parent;row=next;
       }
       const authority=await observeModelQuerySourceAuthority(call,store,owner,state,model,row,[site.field.name],0,undefined,undefined,producer);
+      if(site.clock!==undefined){
+        const date=decodeValue('date',authority.record.data[site.field.name])as DateValue;
+        const target=await observeSourceEffectPath(call,store,owner,state,site.model,row,site.clock.zone.path,producer,`clock ${site.node.start}`);
+        const zone=await observeModelQuerySourceAuthority(call,store,owner,state,target.model,target.row,[site.clock.zone.field.name],0,undefined,undefined,producer);
+        const timezone=decodeValue('timezone',zone.record.data[site.clock.zone.field.name])as string;
+        const clock=local_instant(date,site.clock.time,timezone,site.clock.fold);
+        if(await store.readRevision()!==call.revision)throw new StateError('conflict','Clock DATA moved beyond its original checkpoint.');
+        return Object.freeze({clock});
+      }
       if(await store.readRevision()!==call.revision)throw new StateError('conflict','Scalar LET DATA moved beyond its original checkpoint.');
       return authority.record;
     },call);

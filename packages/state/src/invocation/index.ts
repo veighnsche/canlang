@@ -86,7 +86,7 @@ export { bindScenarioDispatchMembershipProducer,
 
 export { projectReadScenarioQueryResult } from './scenario-receipt.js';
 
-export { bindScenarioSourceCreatedRoots, readScenarioSourceCreatedRoot, bindScenarioSourceLoopProducer, executeScenarioSourceLoop, executeScenarioSourceLoopItem, bindScenarioSourceSendDataProducer, executeScenarioSourceSendData, executeScenarioSourceSendQuery, type ScenarioSourceCreatedRoot, type ScenarioSourceBodyLoop, type ScenarioSourceBodyLoopPlan, type ScenarioSourceSendDataSource } from "./scenario-receipt.js";
+export { bindScenarioSourceCreatedRoots, readScenarioSourceCreatedRoot, bindScenarioSourceLoopProducer, bindScenarioSourceLoopDataProducer, readScenarioSourceLoopData, executeScenarioSourceLoop, executeScenarioSourceLoopItem, bindScenarioSourceSendDataProducer, executeScenarioSourceSendData, executeScenarioSourceSendQuery, type ScenarioSourceCreatedRoot, type ScenarioSourceBodyLoop, type ScenarioSourceBodyLoopPlan, type ScenarioSourceSendDataSource } from "./scenario-receipt.js";
 
 export { bindScenarioSourceEmitDataProducer, executeScenarioSourceEmitData, executeScenarioSourceEmitQuery, consumeScenarioSourceEmitData, type ScenarioSourceEmitDataSource } from './scenario-receipt.js';
 

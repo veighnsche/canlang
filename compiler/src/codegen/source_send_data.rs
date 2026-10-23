@@ -116,6 +116,15 @@ fn required_identity_path(ir:&IrProgram,value:&TypedExpr,env:&Environment,depth:
     }
     path.push((field.clone(),*target,narrowed));Some((root,path))
 }
+/// Reuse the exact required/narrowed stored reference lineage for source
+/// scalar timing consumers. The caller must seal its complete original owner.
+pub(super) fn required_source_path(ir:&IrProgram,value:&TypedExpr,roots:&BTreeMap<String,SymbolId>)
+    ->Option<(String,SymbolId,Vec<(String,SymbolId,bool)>)>{
+    let env=Environment{values:BTreeSet::new(),roots:roots.iter().map(|(name,model)|
+        (name.clone(),Root{parameter:name.clone(),model:*model,query:None})).collect()};
+    let(root,path)=required_identity_path(ir,value,&env,0)?;Some((root.parameter,root.model,path))
+}
+
 impl Reads {
     fn read(&mut self,ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,
         value:&TypedExpr,env:&Environment,depth:usize)->Option<()> {

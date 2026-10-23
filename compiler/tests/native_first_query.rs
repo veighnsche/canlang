@@ -3223,3 +3223,23 @@ fn original_affiliate_refresh_seals_parent_stored_model_array_all() {
   let emitted=js::emit_program_with_native_source_receipts(&changed,true,&db);assert!(emitted.diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {:?}",emitted.diagnostics);
  }
 }
+
+
+#[test]
+fn original_success_clock_keeps_narrowed_date_zone_schema_and_native_time_origin() {
+ let source=include_str!("fixtures/success-review-original.can");
+ let(db,program,_,catalog)=fixture_source("success-review-original.can",source);
+ let(artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let js=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str()).collect::<String>();
+ assert!(js.contains("nativeScenarioSourceLetData")&&js.contains("nativeScenarioSourceSchedule")&&js.contains("local_instant"));
+ for(name,ty)in [("rent_catalog.Location.timezone",ResolvedType::Scalar(Scalar::Text)),("success.Account.renewal",ResolvedType::Scalar(Scalar::Datetime))]{
+  let(db,mut changed,_,catalog)=fixture_source("success-clock-field-substitution.can",source);
+  let field=changed.symbols.iter().find(|symbol|symbol.canonical==name).unwrap().id;changed.types.symbol_types.insert(field,ty);
+  let(_,diagnostics)=prepared_artifact(&changed,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
+ }
+ let(db,mut changed,_,catalog)=fixture_source("success-clock-fold-substitution.can",source);
+ let folds=changed.types.node_types.iter().filter_map(|(key,ty)|
+   matches!(ty,ResolvedType::Enum{owner:None,cases}if cases.as_slice()==["earlier","later"]).then_some(*key)).collect::<Vec<_>>();assert!(!folds.is_empty());
+ for key in folds{changed.types.node_types.insert(key,ResolvedType::Enum{owner:None,cases:vec!["earlier".into(),"other".into()]});}
+ let(_,diagnostics)=prepared_artifact(&changed,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{diagnostics:?}");
+}

@@ -1644,7 +1644,7 @@ fn source_event_payload(ir:&IrProgram,owner:&IrItem,event:&str,payload:&TypedExp
     }
 
 fn source_only_cancels(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,
-    requires:&HashMap<Span,serde_json::Value>,module:&str)->Option<HashMap<Span,serde_json::Value>>{
+    requires:&HashMap<Span,serde_json::Value>,module:&str,loops:Option<&serde_json::Value>)->Option<HashMap<Span,serde_json::Value>>{
     let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
     context.same_scenario(ir, owner)?;
@@ -1671,7 +1671,7 @@ fn source_only_cancels(ir:&IrProgram,owner:&IrItem,context:&super::scenario_deci
         Some((identity(id,roots)?,Some(format!("{prefix}{{id}}{suffix}"))))
     }
     fn walk(ir:&IrProgram,owner:&IrItem,body:&[IrStmt],roots:&mut BTreeMap<String,SymbolId>,source:&serde_json::Value,module:&str,
-        output:&mut HashMap<Span,serde_json::Value>){
+        output:&mut HashMap<Span,serde_json::Value>,loops:Option<&serde_json::Value>,active:Option<&serde_json::Value>){
         for statement in body{match statement{
             IrStmt::Let{name,..}=>{roots.remove(name);},
             IrStmt::Cancel{owner_package,key,span}=>{
@@ -1680,19 +1680,27 @@ fn source_only_cancels(ir:&IrProgram,owner:&IrItem,context:&super::scenario_deci
                 let mut metadata=serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},
                     "owner":owner.canonical,"node":{"start":span.start,"end":span.end},"parameter":parameter,"model":ir.items[symbol.0 as usize].canonical,
                     "ownerPackage":owner_package});
+                if let Some(loop_)=active{metadata["loop"]=serde_json::json!({"id":loop_["id"],"item":loop_["item"],"model":loop_["model"]});}
                 if let Some(template)=template{metadata["key"]=serde_json::json!({"template":template});}
                 output.insert(*span,metadata);
             },
-            IrStmt::If{then_branch,else_branch,..}=>{walk(ir,owner,then_branch,&mut roots.clone(),source,module,output);walk(ir,owner,else_branch,&mut roots.clone(),source,module,output);},
-            IrStmt::Match{arms,..}=>for arm in arms{walk(ir,owner,&arm.body,&mut roots.clone(),source,module,output);},
+            IrStmt::If{then_branch,else_branch,..}=>{walk(ir,owner,then_branch,&mut roots.clone(),source,module,output,loops,active);walk(ir,owner,else_branch,&mut roots.clone(),source,module,output,loops,active);},
+            IrStmt::Match{arms,..}=>for arm in arms{walk(ir,owner,&arm.body,&mut roots.clone(),source,module,output,loops,active);},
+            IrStmt::For{span,item,body,..}=>{
+                let Some(loop_)=loops.and_then(|plan|plan["loops"].as_array()?.iter().find(|entry|
+                    entry["node"]["start"]==span.start&&entry["node"]["end"]==span.end&&entry["item"]==*item))else{continue;};
+                let Some(model)=ir.items.iter().find(|model|model.canonical==loop_["model"].as_str().unwrap_or(""))else{continue;};
+                let mut roots=roots.clone();roots.insert(item.clone(),model.id);
+                walk(ir,owner,body,&mut roots,source,module,output,loops,Some(loop_));
+            },
             _=>{},
         }}
     }
-    let mut output=HashMap::new();walk(ir,owner,effects,&mut roots,&source,module,&mut output);Some(output)
+    let mut output=HashMap::new();walk(ir,owner,effects,&mut roots,&source,module,&mut output,loops,None);Some(output)
 }
 
 fn source_only_schedules(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,
-    requires:&HashMap<Span,serde_json::Value>,module:&str)->Option<HashMap<Span,serde_json::Value>>{
+    requires:&HashMap<Span,serde_json::Value>,module:&str,loans:&HashMap<Span,serde_json::Value>,loops:Option<&serde_json::Value>)->Option<HashMap<Span,serde_json::Value>>{
     let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
     fn contains_schedule(body:&[IrStmt])->bool{body.iter().any(|statement|match statement{
@@ -1726,7 +1734,12 @@ fn source_only_schedules(ir:&IrProgram,owner:&IrItem,context:&super::scenario_de
         value.ty==ResolvedType::Scalar(Scalar::Datetime)&&matches!(&value.expr,IrExpr::Member{base,field}
             if field=="now"&&base.ty==ResolvedType::Unknown&&base.span==value.span&&matches!(&base.expr,IrExpr::Name(name)if name=="c"))
     }
-    fn source_time(value:&TypedExpr)->Option<serde_json::Value>{
+    fn source_time(ir:&IrProgram,value:&TypedExpr,roots:&BTreeMap<String,ResolvedType>,clocks:&BTreeMap<String,serde_json::Value>,parameter:&str)->Option<serde_json::Value>{
+        if let IrExpr::Name(name)=&value.expr && value.ty==ResolvedType::Scalar(Scalar::Datetime) && let Some(clock)=clocks.get(name){return Some(serde_json::json!({"clock":clock["node"]}));}
+        if let IrExpr::Member{base,field}=&value.expr && let IrExpr::Name(name)=&base.expr
+            &&name==parameter&&let Some(ty@ResolvedType::Record{symbol,stored:true})=roots.get(name) && ty==&base.ty &&value.ty==ResolvedType::Scalar(Scalar::Datetime)
+            &&let IrItemKind::Model{fields,..}=&ir.items[symbol.0 as usize].kind
+            &&fields.iter().filter_map(|id|ir.items.get(id.0 as usize)).any(|item|item.name==*field&&matches!(&item.kind,IrItemKind::Field{owner,ty:IrType::Known(ty),..}if owner==symbol&&ty==&value.ty)){return Some(serde_json::json!({"field":{"name":field,"type":"datetime"}}));}
         if original_now(value){return Some(serde_json::json!("now"));}
         let IrExpr::Binary{op:IrBinOp::Add,left,right}=&value.expr else{return None;};
         let IrExpr::DurationMs(offset)=&right.expr else{return None;};
@@ -1734,11 +1747,29 @@ fn source_only_schedules(ir:&IrProgram,owner:&IrItem,context:&super::scenario_de
             ||i64::try_from(*offset).is_err(){return None;}
         Some(serde_json::json!({"offset":offset.to_string()}))
     }
+    fn checked_payload(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,event:&str,value:&TypedExpr,values:&BTreeSet<String>,roots:&BTreeMap<String,ResolvedType>)->bool{
+        if source_event_payload(ir,owner,event,value,values,roots,Some(context)){return true;}
+        fn metadata(ir:&IrProgram,value:&TypedExpr,values:&BTreeSet<String>,roots:&BTreeMap<String,ResolvedType>,depth:usize)->bool{
+            if depth>16{return false;}if send_value(ir,value,values,0){return true;}
+            match &value.expr{
+                IrExpr::Name(name)=>roots.get(name)==Some(&value.ty),
+                IrExpr::Member{base,field}=>matches!(&base.expr,IrExpr::Name(name)if roots.get(name)==Some(&base.ty))
+                    &&((field=="version"&&value.ty==ResolvedType::Scalar(Scalar::Int))||(field=="id"&&value.ty==ResolvedType::Scalar(Scalar::Text))),
+                IrExpr::Binary{left,right,..}=>metadata(ir,left,values,roots,depth+1)&&metadata(ir,right,values,roots,depth+1),
+                _=>false,
+            }
+        }
+        if context.same_event_schema(event).is_none(){return false;}
+        let Some(IrItem{kind:IrItemKind::Event{fields},..})=ir.items.iter().find(|item|item.canonical==event&&item.module==owner.module)else{return false;};
+        let IrExpr::Object(entries)=&value.expr else{return false;};
+        fields.len()==entries.len()&&entries.iter().all(|(name,value)|fields.iter().filter_map(|id|ir.items.get(id.0 as usize)).any(|field|
+            field.name==*name&&matches!(&field.kind,IrItemKind::Field{ty:IrType::Known(ty),..}if ty==&value.ty))&&metadata(ir,value,values,roots,0))
+    }
     let mut values:BTreeSet<String>=params.iter().filter_map(|id|{let item=ir.items.get(id.0 as usize)?;
         matches!(&item.kind,IrItemKind::Param{ty:IrType::Known(ty),..}if plain_value(ir,ty,0)).then(||item.name.clone())}).collect();
-    fn walk(ir:&IrProgram,owner:&IrItem,body:&[IrStmt],roots:&mut BTreeMap<String,ResolvedType>,values:&mut BTreeSet<String>,source:&serde_json::Value,module:&str,context:&super::scenario_decisions::FreshSourceContext<'_>,creates:&[serde_json::Value],active:&mut BTreeMap<String,serde_json::Value>,output:&mut HashMap<Span,serde_json::Value>){
+    fn walk(ir:&IrProgram,owner:&IrItem,body:&[IrStmt],roots:&mut BTreeMap<String,ResolvedType>,values:&mut BTreeSet<String>,source:&serde_json::Value,module:&str,context:&super::scenario_decisions::FreshSourceContext<'_>,creates:&[serde_json::Value],active:&mut BTreeMap<String,serde_json::Value>,output:&mut HashMap<Span,serde_json::Value>,loans:&HashMap<Span,serde_json::Value>,loops:Option<&serde_json::Value>,clocks:&mut BTreeMap<String,serde_json::Value>,loop_context:Option<&serde_json::Value>){
         for statement in body{match statement{
-            IrStmt::Let{name,value,..}=>{let pure=send_value(ir,value,values,0);roots.remove(name);active.remove(name);values.remove(name);if pure{values.insert(name.clone());}},
+            IrStmt::Let{name,value,span}=>{let clock=loans.get(span).filter(|loan|loan.get("clock").is_some());let pure=send_value(ir,value,values,0)||clock.is_some();roots.remove(name);active.remove(name);clocks.remove(name);if let Some(clock)=clock{clocks.insert(name.clone(),clock.clone());}values.remove(name);if pure{values.insert(name.clone());}},
             IrStmt::Create{model,binding:Some(binding),span,..}=>{
                 roots.remove(binding);active.remove(binding);values.remove(binding);
                 if let Some(created)=creates.iter().find(|created|created["binding"]==*binding&&created["model"]==*model
@@ -1750,21 +1781,29 @@ fn source_only_schedules(ir:&IrProgram,owner:&IrItem,context:&super::scenario_de
             IrStmt::Schedule{owner_package,key,at,event,payload,span}=>{
                 let Some((parameter,template))=key_root(key,roots)else{continue;};
                 let Some(ResolvedType::Record{symbol,stored:true})=roots.get(parameter)else{continue;};
-                let Some(time)=source_time(at)else{continue;};
+                let Some(time)=source_time(ir,at,roots,clocks,parameter)else{continue;};
+                if time.get("field").is_some()&&loop_context.is_none(){continue;}
                 if owner.canonical.rsplit_once('.').map(|(package,_)|package)!=Some(owner_package)
-                    ||!source_event_payload(ir,owner,event,payload,values,roots,Some(context)){continue;}
+                    ||!checked_payload(ir,owner,context,event,payload,values,roots){continue;}
                 let mut site=serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},
                     "owner":owner.canonical,"node":{"start":span.start,"end":span.end},"parameter":parameter,"model":ir.items[symbol.0 as usize].canonical,
                     "ownerPackage":owner_package,"event":event,"at":time});
                 if let Some(template)=template{site["key"]=serde_json::json!({"template":template});}
                 if let Some(created)=active.get(parameter){site["created"]=created.clone();}
+                if let Some(loop_)=loop_context{site["loop"]=serde_json::json!({"id":loop_["id"],"item":loop_["item"],"model":loop_["model"]});}
                 output.insert(*span,site);
             },
-            IrStmt::If{then_branch,else_branch,..}=>{walk(ir,owner,then_branch,&mut roots.clone(),&mut values.clone(),source,module,context,creates,&mut active.clone(),output);walk(ir,owner,else_branch,&mut roots.clone(),&mut values.clone(),source,module,context,creates,&mut active.clone(),output);},
-            IrStmt::Match{arms,..}=>for arm in arms{walk(ir,owner,&arm.body,&mut roots.clone(),&mut values.clone(),source,module,context,creates,&mut active.clone(),output);},_=>{}
+            IrStmt::If{then_branch,else_branch,..}=>{walk(ir,owner,then_branch,&mut roots.clone(),&mut values.clone(),source,module,context,creates,&mut active.clone(),output,loans,loops,&mut clocks.clone(),loop_context);walk(ir,owner,else_branch,&mut roots.clone(),&mut values.clone(),source,module,context,creates,&mut active.clone(),output,loans,loops,&mut clocks.clone(),loop_context);},
+            IrStmt::Match{arms,..}=>for arm in arms{walk(ir,owner,&arm.body,&mut roots.clone(),&mut values.clone(),source,module,context,creates,&mut active.clone(),output,loans,loops,&mut clocks.clone(),loop_context);},
+            IrStmt::For{item,body,span,..}=>{
+                let Some(loop_)=loops.and_then(|plan|plan["loops"].as_array()).and_then(|loops|loops.iter().find(|loop_|loop_["node"]["start"]==span.start&&loop_["node"]["end"]==span.end&&loop_["item"]==*item))else{continue;};
+                let Some(model)=ir.items.iter().find(|model|loop_["model"]==model.canonical)else{continue;};
+                let mut roots=roots.clone();roots.insert(item.clone(),ResolvedType::Record{symbol:model.id,stored:true});
+                walk(ir,owner,body,&mut roots,&mut values.clone(),source,module,context,creates,&mut active.clone(),output,loans,loops,&mut clocks.clone(),Some(loop_));
+            },_=>{}
         }}
     }
-    let mut output=HashMap::new();walk(ir,owner,effects,&mut roots,&mut values,&source,module,context,&creates,&mut BTreeMap::new(),&mut output);Some(output)
+    let mut output=HashMap::new();walk(ir,owner,effects,&mut roots,&mut values,&source,module,context,&creates,&mut BTreeMap::new(),&mut output,loans,loops,&mut BTreeMap::new(),None);Some(output)
 }
 
 // Independently inspect original public guards when optional observer
@@ -1892,9 +1931,14 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
         values:&mut BTreeSet<String>,records:&mut BTreeMap<String,ResolvedType>,consumed:&HashSet<Span>,data_sends:&HashMap<Span,serde_json::Value>,let_data:&HashMap<Span,serde_json::Value>,cancels:&HashMap<Span,serde_json::Value>,schedules:&HashMap<Span,serde_json::Value>,data_emits:&HashMap<Span,serde_json::Value>,loops:&HashMap<String,serde_json::Value>,context:Option<&super::scenario_decisions::FreshSourceContext<'_>>) -> bool {
         if depth > 64 { return false; }
         body.iter().all(|statement| match statement {
-            IrStmt::For{span,body,..}=>loops.get(&owner.canonical).and_then(|source|source["loops"].as_array()).is_some_and(|entries|
-                entries.iter().any(|entry|entry["node"]["start"]==span.start&&entry["node"]["end"]==span.end))
-                &&statements(ir,owner,body,depth+1,&mut values.clone(),&mut records.clone(),consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context),
+            IrStmt::For{span,item,body,..}=>loops.get(&owner.canonical).and_then(|source|source["loops"].as_array()).and_then(|entries|
+                entries.iter().find(|entry|entry["node"]["start"]==span.start&&entry["node"]["end"]==span.end))
+                .is_some_and(|entry|{
+                    let Some(model)=ir.items.iter().find(|model|Some(model.canonical.as_str())==entry["model"].as_str())else{return false;};
+                    let mut records=records.clone();records.insert(item.clone(),ResolvedType::Record{symbol:model.id,stored:true});
+                    let mut values=values.clone();values.remove(item);
+                    statements(ir,owner,body,depth+1,&mut values,&mut records,consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context)
+                }),
             IrStmt::Let { name,value,span } => {
                 let pure=send_value(ir,value,values,0)||let_data.contains_key(span);
                 values.remove(name);
@@ -3256,14 +3300,15 @@ fn emit_program_with_sources(
             }
             if let Some(loops)=super::source_loops::collect(ir,owner,context,&emitter.source_requires,&module_path(&entry_name)){emitter.source_body_loops.insert(owner.canonical.clone(),loops);}
             if let Some(loans)=super::source_let_data::collect(ir,owner,context,&emitter.source_requires,&module_path(&entry_name)){emitter.source_let_data.extend(loans);}
+            if let Some(clocks)=super::source_timing_data::collect(ir,owner,context,&emitter.source_requires,&module_path(&entry_name)){emitter.source_let_data.extend(clocks);}
             if let Some(sends)=source_only_data_sends(ir,owner,context,&emitter.source_requires,&emitter.source_let_data,&module_path(&entry_name),emitter.source_body_loops.get(&owner.canonical)) {
                 emitter.source_data_sends.extend(sends);
             }
             if let Some(emits)=source_only_data_emits(ir,owner,context,&emitter.source_requires,&module_path(&entry_name)){emitter.source_data_emits.extend(emits);}
-            if let Some(cancels)=source_only_cancels(ir,owner,context,&emitter.source_requires,&module_path(&entry_name)) {
+            if let Some(cancels)=source_only_cancels(ir,owner,context,&emitter.source_requires,&module_path(&entry_name),emitter.source_body_loops.get(&owner.canonical)) {
                 emitter.source_cancels.extend(cancels);
             }
-            if let Some(schedules)=source_only_schedules(ir,owner,context,&emitter.source_requires,&module_path(&entry_name)){emitter.source_schedules.extend(schedules);}
+            if let Some(schedules)=source_only_schedules(ir,owner,context,&emitter.source_requires,&module_path(&entry_name),&emitter.source_let_data,emitter.source_body_loops.get(&owner.canonical)){emitter.source_schedules.extend(schedules);}
         }
     }
     if !emitter.source_body_loops.is_empty(){

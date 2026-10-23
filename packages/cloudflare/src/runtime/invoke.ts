@@ -1485,6 +1485,8 @@ interface StateInvokeProducer {
   readonly readScenarioSourceCreatedRoot?: typeof import('@canlang/state/invocation').readScenarioSourceCreatedRoot;
   readonly consumeScenarioSourceEmitData?: typeof import('@canlang/state/invocation').consumeScenarioSourceEmitData;
   readonly bindScenarioSourceLoopProducer?:typeof import('@canlang/state/invocation').bindScenarioSourceLoopProducer;
+  readonly bindScenarioSourceLoopDataProducer?:typeof import('@canlang/state/invocation').bindScenarioSourceLoopDataProducer;
+  readonly readScenarioSourceLoopData?:typeof import('@canlang/state/invocation').readScenarioSourceLoopData;
   readonly executeScenarioSourceLoop?:typeof import('@canlang/state/invocation').executeScenarioSourceLoop;
   readonly executeScenarioSourceLoopItem?:typeof import('@canlang/state/invocation').executeScenarioSourceLoopItem;
   readonly bindScenarioSourceSendDataProducer?: typeof import('@canlang/state/invocation').bindScenarioSourceSendDataProducer;
@@ -1807,6 +1809,8 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     ...(typeof scenarioMod['readScenarioSourceCreatedRoot']!=='function'?{}:{readScenarioSourceCreatedRoot:scenarioMod['readScenarioSourceCreatedRoot'] as NonNullable<StateInvokeProducer['readScenarioSourceCreatedRoot']>}),
     ...(typeof scenarioMod['consumeScenarioSourceEmitData']!=='function'?{}:{consumeScenarioSourceEmitData:scenarioMod['consumeScenarioSourceEmitData'] as NonNullable<StateInvokeProducer['consumeScenarioSourceEmitData']>}),
     ...(typeof scenarioMod['bindScenarioSourceLoopProducer']!=='function'?{}:{bindScenarioSourceLoopProducer:scenarioMod['bindScenarioSourceLoopProducer'] as NonNullable<StateInvokeProducer['bindScenarioSourceLoopProducer']>}),
+    ...(typeof scenarioMod['bindScenarioSourceLoopDataProducer']!=='function'?{}:{bindScenarioSourceLoopDataProducer:scenarioMod['bindScenarioSourceLoopDataProducer'] as NonNullable<StateInvokeProducer['bindScenarioSourceLoopDataProducer']>}),
+    ...(typeof scenarioMod['readScenarioSourceLoopData']!=='function'?{}:{readScenarioSourceLoopData:scenarioMod['readScenarioSourceLoopData'] as NonNullable<StateInvokeProducer['readScenarioSourceLoopData']>}),
     ...(typeof scenarioMod['executeScenarioSourceLoop']!=='function'?{}:{executeScenarioSourceLoop:scenarioMod['executeScenarioSourceLoop'] as NonNullable<StateInvokeProducer['executeScenarioSourceLoop']>}),
     ...(typeof scenarioMod['executeScenarioSourceLoopItem']!=='function'?{}:{executeScenarioSourceLoopItem:scenarioMod['executeScenarioSourceLoopItem'] as NonNullable<StateInvokeProducer['executeScenarioSourceLoopItem']>}),
     ...(typeof scenarioMod['bindScenarioSourceSendDataProducer']!=='function'?{}:{bindScenarioSourceSendDataProducer:scenarioMod['bindScenarioSourceSendDataProducer'] as NonNullable<StateInvokeProducer['bindScenarioSourceSendDataProducer']>}),
@@ -3723,11 +3727,13 @@ interface SourceCancelSource {
   readonly source:import('@canlang/contracts').ScenarioResultDisclosurePlan['source'];readonly owner:string;
   readonly node:{readonly start:number;readonly end:number};readonly parameter:string;readonly model:string;readonly ownerPackage:string;
   readonly key?:{readonly template:string};
+  readonly loop?:{readonly id:string;readonly item:string;readonly model:string};
 }
 const nativeSourceCancels=new WeakMap<GeneratedOperationDef,readonly SourceCancelSource[]>();
 interface SourceScheduleSource extends SourceCancelSource{
-  readonly event:string;readonly at:'now'|{readonly offset:string};readonly key?:{readonly template:string};
+  readonly event:string;readonly at:'now'|{readonly offset:string}|{readonly clock:{readonly start:number;readonly end:number}}|{readonly field:{readonly name:string;readonly type:'datetime'}};readonly key?:{readonly template:string};
   readonly created?:import('@canlang/state/invocation').ScenarioSourceCreatedRoot;
+  readonly loop?:{readonly id:string;readonly item:string;readonly model:string};
 }
 function sourceScheduleOffset(value:unknown):bigint{
   if(value==='now')return 0n;
@@ -5783,14 +5789,18 @@ async function bindNativeSourceCancels(asm:AssembledModules,artifact:CompileArti
     const sites=captureDispatchPreclaimData(nativeCallArray(entry.value,200)) as unknown as readonly SourceCancelSource[];
     const seen=new Set<string>();
     for(const value of sites){
-      const site=localPolicyObject(value,['source','owner','node','parameter','model','ownerPackage',...(Object.hasOwn(value as object,'key')?['key']:[])]);
+      const site=localPolicyObject(value,['source','owner','node','parameter','model','ownerPackage',...(Object.hasOwn(value as object,'key')?['key']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[])]);
       const node=localPolicyObject(site.node,['start','end']),key=`${node.start}:${node.end}`;
       const parameter=def.descriptor.inputs.find(input=>input.name===site.parameter);
+      const marker=site.loop===undefined?undefined:localPolicyObject(site.loop,['id','item','model']);
+      const loop=marker===undefined?undefined:nativeSourceBodyLoops.get(def)?.plan.loops.find(loop=>loop.id===marker.id&&loop.item===marker.item&&loop.model===marker.model);
+      if(marker!==undefined&&(loop===undefined||site.parameter!==loop.item||site.model!==loop.model
+          ||Number(node.start)<loop.node.start||Number(node.end)>loop.node.end))throw new AssemblyCorrespondenceError('Source CANCEL lost its original contained loop occurrence.');
       sourceScheduleKey(site.key,'identity');
       if(seen.has(key)||site.owner!==def.name||stableStringify(site.source)!==stableStringify(source)||
           site.ownerPackage!==def.name.slice(0,def.name.lastIndexOf('.'))||!Number.isSafeInteger(node.start)||!Number.isSafeInteger(node.end)||
-          Number(node.start)<0||Number(node.end)<=Number(node.start)||parameter?.kind!=='ref'||parameter.model!==site.model||
-          parameter.nullable===true||Object.hasOwn(def.inputArrays,parameter.name)||!loaded.models.some(model=>model.name===site.model)){
+          Number(node.start)<0||Number(node.end)<=Number(node.start)||marker===undefined&&(parameter?.kind!=='ref'||parameter.model!==site.model||
+          parameter.nullable===true||Object.hasOwn(def.inputArrays,parameter.name))||!loaded.models.some(model=>model.name===site.model)){
         throw new AssemblyCorrespondenceError('Source CANCEL differs from its exact original scope, root and occurrence.');
       }
       seen.add(key);
@@ -5812,15 +5822,28 @@ async function bindNativeSourceSchedules(asm:AssembledModules,artifact:CompileAr
     const sites=captureDispatchPreclaimData(nativeCallArray(entry.value,200)) as unknown as readonly SourceScheduleSource[];
     const seen=new Set<string>();
     for(const value of sites){
-      const site=localPolicyObject(value,['source','owner','node','parameter','model','ownerPackage','event','at',...(Object.hasOwn(value as object,'key')?['key']:[]),...(Object.hasOwn(value as object,'created')?['created']:[])]);
+      const site=localPolicyObject(value,['source','owner','node','parameter','model','ownerPackage','event','at',...(Object.hasOwn(value as object,'key')?['key']:[]),...(Object.hasOwn(value as object,'created')?['created']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[])]);
       const node=localPolicyObject(site.node,['start','end']),key=`${node.start}:${node.end}`;
       const parameter=def.descriptor.inputs.find(input=>input.name===site.parameter);
-      sourceScheduleOffset(site.at);sourceScheduleKey(site.key,'identity');
+      const at=typeof site.at==='object'&&site.at!==null?localPolicyObject(site.at):undefined;
+      if(at!==undefined&&Object.hasOwn(at,'clock')){
+        const clock=localPolicyObject(localPolicyObject(at,['clock']).clock,['start','end']);
+        const clocks=nativeSourceLetData.get(def)?.filter(site=>site.clock!==undefined&&stableStringify(site.node)===stableStringify(clock))??[];
+        if(clocks.length!==1||Number(clock.end)>Number(node.start))throw new AssemblyCorrespondenceError('Source SCHEDULE lacks its exact preceding captured clock.');
+      }else if(at!==undefined&&Object.hasOwn(at,'field')){
+        const leaf=localPolicyObject(localPolicyObject(at,['field']).field,['name','type']);
+        const field=artifact.models?.find(model=>model.name===site.model)?.fields.find(field=>field.name===leaf.name);
+        if(leaf.type!=='datetime'||field?.field.kind!=='datetime'||field.default?.kind==='derived'||field.required!==true||field.array!==undefined)throw new AssemblyCorrespondenceError('Source SCHEDULE lacks its exact stored datetime field.');
+      }else sourceScheduleOffset(site.at);
+      sourceScheduleKey(site.key,'identity');
+      const loop=site.loop===undefined?undefined:localPolicyObject(site.loop,['id','item','model']);
+      const loops=loop===undefined?[]:nativeSourceBodyLoops.get(def)?.plan.loops.filter(candidate=>candidate.id===loop.id&&candidate.item===loop.item&&candidate.model===loop.model&&candidate.node.start<=Number(node.start)&&candidate.node.end>=Number(node.end))??[];
+      if(loop!==undefined&&(loops.length!==1||site.parameter!==loop.item||site.model!==loop.model||site.created!==undefined))throw new AssemblyCorrespondenceError('Source SCHEDULE lost its exact original loop item.');
       const created=site.created===undefined?undefined:localPolicyObject(site.created,['id','node','stage','binding','model','parentParameter','parentModel']);
       if(seen.has(key)||site.owner!==def.name||stableStringify(site.source)!==stableStringify(source)||
           site.ownerPackage!==def.name.slice(0,def.name.lastIndexOf('.'))||typeof site.event!=='string'||!site.event.startsWith(site.ownerPackage+'.')||!Number.isSafeInteger(node.start)||!Number.isSafeInteger(node.end)||
           Number(node.start)<0||Number(node.end)<=Number(node.start)||!loaded.models.some(model=>model.name===site.model)||
-          (created===undefined?(parameter?.kind!=='ref'||parameter.model!==site.model||parameter.nullable===true||Object.hasOwn(def.inputArrays,parameter.name)):
+          (loop!==undefined?false:created===undefined?(parameter?.kind!=='ref'||parameter.model!==site.model||parameter.nullable===true||Object.hasOwn(def.inputArrays,parameter.name)):
             (created.binding!==site.parameter||created.model!==site.model||Number(localPolicyObject(created.node,['start','end']).end)>Number(node.start)))){
         throw new AssemblyCorrespondenceError('Source SCHEDULE differs from its exact original scope, root and occurrence.');
       }
@@ -5835,7 +5858,8 @@ async function bindNativeSourceSchedules(asm:AssembledModules,artifact:CompileAr
   }
 }
 
-async function bindNativeSourceBodyLoops(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors,bindState:boolean):Promise<void>{
+async function bindNativeSourceBodyLoops(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors,context?:InvocationSourceReadContext):Promise<void>{
+  const sourceReads=context===undefined?undefined:createSourceReadPolicyAdapter({loaded,opts:context.opts,now:context.now,...(context.preferences===undefined?{}:{preferences:context.preferences})});
   for(const value of loaded.registry.values()){
     const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def)??def.descriptor.result?.disclosure?.source;
     if(def===undefined||source===undefined)continue;
@@ -5847,7 +5871,16 @@ async function bindNativeSourceBodyLoops(asm:AssembledModules,artifact:CompileAr
     const plan=captureDispatchPreclaimData(raw.value) as unknown as SourceBodyLoopPlan;
     const original=privateSourceMember(module,'canScenarioSourceLoopSource'),bind=loaded.producers.invoke.bindScenarioSourceLoopProducer;
     if(plan.owner!==def.name||stableStringify(plan.source)!==stableStringify(source)||typeof original!=='function'||bind===undefined)throw new AssemblyCorrespondenceError('Source loop differs from its actual original owner/census.');
-    if(bindState)bind(def,plan);nativeSourceBodyLoops.set(def,{plan,original:original as (body:Function)=>unknown});
+    if(context!==undefined){bind(def,plan);
+      if(plan.loops.some(loop=>loop.timeFields!==undefined)){
+        const data=loaded.producers.invoke.bindScenarioSourceLoopDataProducer;
+        if(data===undefined)throw new AssemblyCorrespondenceError('Source loop lacks its genuine timing DATA producer.');
+        const readPolicies=new Map<ModelName,import('@canlang/state/query').ViewerSourceReadPolicy>();
+        for(const loop of plan.loops)for(const[model,policy]of sourceReads!.policies(loop.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
+        const app=privateSourceMember(privateSourceMember(module,'appDefinition'),'id');if(typeof app!=='string'||app==='')throw new AssemblyCorrespondenceError('Source loop lacks its actual owning app.');
+        data(def,{source:plan.source,app,policy:loaded.policy as Parameters<typeof data>[1]['policy'],readPolicies});
+      }
+    }nativeSourceBodyLoops.set(def,{plan,original:original as (body:Function)=>unknown});
   }
 }
 
@@ -5905,7 +5938,7 @@ async function bindNativeSourceLetData(asm:AssembledModules,artifact:CompileArti
     const bind=loaded.producers.invoke.bindScenarioSourceLetDataProducer;
     if(bind===undefined)throw new AssemblyCorrespondenceError('Scalar LET DATA lacks its original State producer.');
     const readPolicies=new Map<ModelName,import('@canlang/state/query').ViewerSourceReadPolicy>();
-    for(const site of sites)for(const [model,policy]of sourceReads!.policies(site.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
+    for(const site of sites)for(const model of [site.model,...site.clock?.zone.path.map(edge=>edge.model)??[]])for(const [name,policy]of sourceReads!.policies(model))if(!readPolicies.has(name))readPolicies.set(name,policy);
     const app=privateSourceMember(privateSourceMember(module,'appDefinition'),'id');
     if(typeof app!=='string'||app==='')throw new AssemblyCorrespondenceError('Scalar LET DATA lacks its original owning app.');
     bind(def,{source,app,policy:loaded.policy as Parameters<typeof bind>[1]['policy'],readPolicies,sites});
@@ -6887,11 +6920,11 @@ async function loadCanonicalDescriptorsInternal(
     bindNativeOwnerMembership(def, { source: ownerSites[0]!.source, app: await originalAppForOperation(asm, artifact, def), sites: ownerSites });
   }
   // Selected-row execution dependencies bind against the checked first-query mark.
+  await bindNativeSourceBodyLoops(asm,artifact,canonical,invocationSourceReads);
   await bindNativeSourceCancels(asm,artifact,canonical);
-  await bindNativeSourceSchedules(asm,artifact,canonical);
-  await bindNativeSourceBodyLoops(asm,artifact,canonical,invocationSourceReads!==undefined);
-  await bindNativeSourceSendData(asm,artifact,canonical,invocationSourceReads);
   await bindNativeSourceLetData(asm,artifact,canonical,invocationSourceReads);
+  await bindNativeSourceSchedules(asm,artifact,canonical);
+  await bindNativeSourceSendData(asm,artifact,canonical,invocationSourceReads);
   await bindNativeSourceEmitData(asm,artifact,canonical,invocationSourceReads);
   await bindNativeScenarioQueries(asm, artifact, canonical, invocationSourceReads);
   await bindNativeScenarioReferences(asm, artifact, canonical, invocationSourceReads);
@@ -7848,11 +7881,12 @@ function createSourceReadPolicyAdapter(input: {
       // non-anchor slot through this same evaluation: readSource checkpoints
       // the live revision, re-evaluates current row+field grants, registers
       // issued views in this observer, and refuses revoked access closed.
-      const projectAdmittedRow = async (model: string, id: string, expectedVersion: unknown): Promise<Record<string, unknown>> => {
+      const projectAdmittedRow = async (model: string, id: string, expectedVersion: unknown, selected?:StoredRow): Promise<Record<string, unknown>> => {
         const values = await readSource(model, id);
         if (values.length !== 1) throw new StateError('validation', 'Source projection requires its single admitted row.');
         const entry = values[0]!;
-        if (entry.record.id !== id || entry.record.version !== expectedVersion) {
+        if (entry.record.id !== id || (selected===undefined?entry.record.version !== expectedVersion:
+          selected.id!==id||entry.record.version<selected.version||entry.record.created!==selected.created||entry.record.createdBy!==selected.createdBy||stableStringify(entry.record.parent??null)!==stableStringify(selected.parent??null))) {
           throw new StateError('conflict', 'Source projection differs from its admitted row.');
         }
         return entry.view;
@@ -8020,7 +8054,7 @@ function createSourceReadPolicyAdapter(input: {
       try {
         verdict = await (predicate as (
           context: HandlerContext, row: Record<string, unknown>,
-          project: (model: string, id: string, expectedVersion: unknown) => Promise<Record<string, unknown>>,
+          project: (model: string, id: string, expectedVersion: unknown,selected?:StoredRow) => Promise<Record<string, unknown>>,
         ) => unknown)(ctx, nativeRow, projectAdmittedRow);
         membershipFrame.assertCompleted();
       }
@@ -12728,7 +12762,7 @@ async function runScenarioExecution(
     : callable?.inputStyle === "parameters"
     ? scenarioParameters(call, loaded, recordView, hasExecutionFrame ? undefined : resolvedDefaults, scenarioReceiptFrame)
     : { operation_id: call.context.operationId, inputs: call.inputs };
-  let activeSourceLoopItem:{readonly id:string;readonly item:unknown;readonly row:StoredRow}|null=null;
+  let activeSourceLoopItem:{readonly id:string;readonly item:unknown;readonly row:StoredRow;work:number;answer?:boolean}|null=null;
   if(privateSourceBodyLoop!==undefined){
     if(!hasExecutionFrame||receiptStore===undefined||ownerSession===undefined||scenarioDef===undefined||callable?.inputStyle!=='parameters'||due!==undefined||cohort!==undefined)return refuseRecordBinding('Source loop lacks its actual installed source-only owner frame.');
     const actual=call as AdmittedCall,parameters=localPolicyObject(argument),selected=new Map<unknown,{readonly id:string;readonly row:StoredRow}>();
@@ -12768,7 +12802,11 @@ async function runScenarioExecution(
         if(loop===undefined||entry?.id!==id||execute===undefined||activeSourceLoopItem!==null)return refuseRecordBinding('Source loop item differs from its genuine original selection.');
         original(body,loop,true);
         await execute(actual,receiptStore,{id,row:entry.row,execute:async()=>{
-          activeSourceLoopItem={id,item,row:entry.row};try{await body();}finally{activeSourceLoopItem=null;}
+          const active={id,item,row:entry.row,work:0}as NonNullable<typeof activeSourceLoopItem>;activeSourceLoopItem=active;
+          try{await body();
+            const expected=loop.workCondition===undefined?(loop.work??0):active.answer===undefined?refuseRecordBinding('Loop omitted its exact Work branch decision.'):(loop.work??0)-1+(active.answer?1:0);
+            if(active.work!==expected)return refuseRecordBinding('Loop omitted or repeated an original CANCEL/SCHEDULE site.');
+          }finally{activeSourceLoopItem=null;}
         }});
       }catch(error){recordEngineFailure(error);throw error;}
     });
@@ -12936,6 +12974,7 @@ async function runScenarioExecution(
       } catch (error) {recordEngineFailure(error);throw error;}
     });
   }
+  const sourceClockValues=new Map<string,import('@canlang/contracts').DatetimeValue>();
   if(sourceRequireAware&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined){
     const sites=nativeSourceLetData.get(scenarioDef),actual=call as AdmittedCall;
     if(sites!==undefined){
@@ -12949,7 +12988,13 @@ async function runScenarioExecution(
           if(source===undefined||root!==parameters[source.parameter]||!isUnknownRecord(root))return refuseRecordBinding('Scalar LET DATA changed its genuine original parameter graph.');
           const binding=recordBindings.get(root),refs=actual.recordRefs.filter(ref=>ref.param===source.parameter),ref=refs[0];
           if(refs.length!==1||ref?.model!==source.model||ref.expectedVersion===null||binding?.model!==ref.model||binding.id!==ref.id||binding.version!==ref.row.version)return refuseRecordBinding('Scalar LET DATA lost its genuinely bound original root.');
-          const record=await execute(actual,receiptStore,{source});assertExecution(actual,receiptStore);
+          const evaluated=await execute(actual,receiptStore,{source});assertExecution(actual,receiptStore);
+          if(source.clock!==undefined){
+            const result=localPolicyObject(evaluated,['clock']),value=decodeValue('datetime',encodeValue('datetime',result.clock as CanValue))as import('@canlang/contracts').DatetimeValue;
+            sourceClockValues.set(`${source.node.start}:${source.node.end}`,value);return value;
+          }
+          if(!('data'in evaluated))return refuseRecordBinding('Scalar LET DATA returned a foreign computed value.');
+          const record=evaluated;
           const wire=Object.getOwnPropertyDescriptor(record.data,source.field.name);
           if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('Scalar LET DATA lacks its actually granted source field.');
           const model=source.parents?.at(-1)??source.model;
@@ -12975,19 +13020,23 @@ async function runScenarioExecution(
           if(assertExecution===undefined||nativeScenarioExecutions.get(actual)?.session!==ownerSession||activeSourceCancellation!==null)return refuseRecordBinding('Source CANCEL lacks its actual live quiescent owner.');
           assertExecution(actual,receiptStore);
           const source=sources.find(source=>stableStringify(source)===stableStringify(captureDispatchPreclaimData(claimed)));
-          if(source===undefined||root!==parameters[source.parameter]||!isUnknownRecord(root))return refuseRecordBinding('Source CANCEL changed its genuine original parameter graph.');
-          const binding=recordBindings.get(root),refs=actual.recordRefs.filter(ref=>ref.param===source.parameter),ref=refs[0],key=`${source.node.start}:${source.node.end}`;
-          if(consumed.has(key)||refs.length!==1||ref===undefined||ref.model!==source.model||ref.expectedVersion===null||
-              ref.expectedVersion!==ref.row.version||binding?.model!==source.model||binding.id!==ref.id||binding.version!==ref.row.version){
+          if(source===undefined||!isUnknownRecord(root))return refuseRecordBinding('Source CANCEL changed its genuine original parameter graph.');
+          const binding=recordBindings.get(root),item=source.loop===undefined?undefined:activeSourceLoopItem;
+          const refs=actual.recordRefs.filter(ref=>ref.param===source.parameter),ref=refs[0];
+          const original=source.loop===undefined?ref?.row:item?.row;
+          const key=`${source.node.start}:${source.node.end}:${source.loop===undefined?'root':original?.id}`;
+          if(consumed.has(key)||original===undefined||binding?.model!==source.model||binding.id!==original.id||binding.version!==original.version
+              ||(source.loop===undefined?root!==parameters[source.parameter]||refs.length!==1||ref===undefined||ref.model!==source.model||ref.expectedVersion===null||ref.expectedVersion!==original.version
+                :item===null||item===undefined||item.id!==source.loop.id||item.item!==root)){
             return refuseRecordBinding('Source CANCEL lost its exact versioned originally admitted model root.');
           }
-          const current=await readOwnerRow(ref.model as ModelName,ref.id as RecordId);
+          const current=await readOwnerRow(source.model as ModelName,original.id as RecordId);
           assertExecution(actual,receiptStore);
-          if(current===null||current.archivedAt!==null||current.created!==ref.row.created||current.createdBy!==ref.row.createdBy||
-              current.version<ref.row.version||stableStringify(current.parent??null)!==stableStringify(ref.row.parent??null))return refuseRecordBinding('Source CANCEL root lifetime changed.');
-          const cancellationKey=sourceScheduleKey(source.key,ref.id);
+          if(current===null||current.archivedAt!==null||current.created!==original.created||current.createdBy!==original.createdBy||
+              current.version<original.version||stableStringify(current.parent??null)!==stableStringify(original.parent??null))return refuseRecordBinding('Source CANCEL root lifetime changed.');
+          const cancellationKey=sourceScheduleKey(source.key,original.id);
           consumed.add(key);activeSourceCancellation=Object.freeze({key:cancellationKey,ownerPackage:source.ownerPackage});
-          try{await ctx.cancelDeferred!(cancellationKey,source.ownerPackage);assertExecution(actual,receiptStore);}
+          try{await ctx.cancelDeferred!(cancellationKey,source.ownerPackage);assertExecution(actual,receiptStore);if(source.loop!==undefined&&activeSourceLoopItem!==null)activeSourceLoopItem.work++;}
           finally{activeSourceCancellation=null;}
         }catch(error){recordEngineFailure(error);throw error;}
       });
@@ -13004,10 +13053,15 @@ async function runScenarioExecution(
           assertExecution(actual,receiptStore);
           const source=sources.find(source=>stableStringify(source)===stableStringify(captureDispatchPreclaimData(claimed)));
           if(source===undefined||!isUnknownRecord(root))return refuseRecordBinding('Source SCHEDULE changed its genuine original root graph.');
-          const binding=recordBindings.get(root),key=`${source.node.start}:${source.node.end}`;
+          const binding=recordBindings.get(root),key=`${source.node.start}:${source.node.end}${source.loop===undefined?'':':'+binding?.id}`;
           if(consumed.has(key))return refuseRecordBinding('Source SCHEDULE repeats its original occurrence.');
           let current:StoredRow|null;
-          if(source.created!==undefined){
+          if(source.loop!==undefined){
+            const active=activeSourceLoopItem;
+            if(active===null||active.id!==source.loop.id||root!==active.item||binding?.model!==source.model||binding.id!==active.row.id)return refuseRecordBinding('Source SCHEDULE lost its genuine once-entered loop item.');
+            current=await readOwnerRow(source.model as ModelName,binding.id as RecordId);assertExecution(actual,receiptStore);
+            if(current===null||current.archivedAt!==null||current.created!==active.row.created||current.createdBy!==active.row.createdBy||current.version<active.row.version||stableStringify(current.parent??null)!==stableStringify(active.row.parent??null))return refuseRecordBinding('Source SCHEDULE loop item lifetime changed.');
+          }else if(source.created!==undefined){
             const read=loaded.producers.invoke.readScenarioSourceCreatedRoot;
             if(read===undefined||binding?.model!==source.model)return refuseRecordBinding('Source SCHEDULE lacks its actual created-row authority.');
             current=await read(actual,receiptStore,{id:source.created.id});assertExecution(actual,receiptStore);
@@ -13025,9 +13079,18 @@ async function runScenarioExecution(
           const scheduleKey=sourceScheduleKey(source.key,current.id);
           if((originalKey!==undefined||source.created!==undefined||source.key!==undefined)&&originalKey!==scheduleKey)return refuseRecordBinding('Source SCHEDULE changed its original identity key expression.');
           const time=decodeValue('datetime',encodeValue('datetime',at as CanValue)) as import('@canlang/contracts').DatetimeValue;
-          if(time.ms!==BigInt(admittedNow)+sourceScheduleOffset(source.at))return refuseRecordBinding('Source SCHEDULE changed its original invocation time.');
+          if(typeof source.at==='object'&&'clock'in source.at){
+            const expected=sourceClockValues.get(`${source.at.clock.start}:${source.at.clock.end}`);
+            if(expected===undefined||expected.ms!==time.ms)return refuseRecordBinding('Source SCHEDULE changed its authentic captured local clock.');
+          }else if(typeof source.at==='object'&&'field'in source.at){
+            const read=loaded.producers.invoke.readScenarioSourceLoopData,active=activeSourceLoopItem;
+            if(read===undefined||source.loop===undefined||active===null||active.id!==source.loop.id)return refuseRecordBinding('Source SCHEDULE field time lacks its actual selected-row DATA producer.');
+            const granted=await read(actual,receiptStore,{id:active.id,row:active.row,fields:[source.at.field.name]});assertExecution(actual,receiptStore);
+            const expected=decodeValue('datetime',granted.data[source.at.field.name])as import('@canlang/contracts').DatetimeValue;
+            if(expected.ms!==time.ms)return refuseRecordBinding('Source SCHEDULE changed its actually granted stored datetime.');
+          }else if(time.ms!==BigInt(admittedNow)+sourceScheduleOffset(source.at))return refuseRecordBinding('Source SCHEDULE changed its original invocation time.');
           consumed.add(key);activeSourceSchedule=Object.freeze({key:scheduleKey,event:source.event,ownerPackage:source.ownerPackage});
-          try{await ctx.scheduleDeferred!(scheduleKey,time,source.event,payload,source.ownerPackage);assertExecution(actual,receiptStore);}
+          try{await ctx.scheduleDeferred!(scheduleKey,time,source.event,payload,source.ownerPackage);assertExecution(actual,receiptStore);if(source.loop!==undefined&&activeSourceLoopItem!==null)activeSourceLoopItem.work++;}
           finally{activeSourceSchedule=null;}
         }catch(error){recordEngineFailure(error);throw error;}
       });
@@ -13377,13 +13440,13 @@ async function runScenarioExecution(
         const execute = loaded.producers.invoke.executeScenarioReceiptRequire;
         if (execute === undefined) return refuseRecordBinding('Source Require needs its installed owner observation producer.');
         let adapter: ReturnType<typeof createSourceReadPolicyAdapter>;
-        return await execute(actualCall, receiptStore, { original, checked: matches[0]!, parameter,
+        const answer=await execute(actualCall, receiptStore, { original, checked: matches[0]!, parameter,
           capture: reads => {
             const predicate: import('@canlang/state/receipt').InstalledSourceQueryPredicate = async (_record, observation) => {
               if (observation === undefined) throw new AssemblyCorrespondenceError('Scenario Require lacks its genuine owner-stage observation.');
               return adapter.evaluate(anchor.model, [{ owner: original.owner,
                 predicate: async (context: HandlerContext, row: Record<string, unknown>,
-                  project?: (model: string, id: string, expectedVersion: unknown) => Promise<Record<string, unknown>>) => {
+                  project?: (model: string, id: string, expectedVersion: unknown,selected?:StoredRow) => Promise<Record<string, unknown>>) => {
                   const args: Record<string, unknown> = { ...Object.fromEntries(parameters.filter(input => !input.unread)
                     .map(input => [input.name, admittedParameter(input.name)])), [parameter]: row };
                   // Every further admitted model slot is re-projected through
@@ -13396,7 +13459,7 @@ async function runScenarioExecution(
                     if (modelParameter.name === parameter) continue;
                     if(loopMarker!==undefined&&modelParameter.name===loopMarker.item){
                       if(loopItem===undefined||loopItem===null)return refuseRecordBinding('Loop IF lost its actual selected row.');
-                      args[modelParameter.name]=await project!(loopMarker.model,loopItem.row.id,loopItem.row.version);continue;
+                      args[modelParameter.name]=await project!(loopMarker.model,loopItem.row.id,loopItem.row.version,loopItem.row);continue;
                     }
                     const ref = actualCall.recordRefs.find(entry => entry.param === modelParameter.name);
                     if (modelParameter.nullable && admittedParameters[modelParameter.name] === null) {
@@ -13445,6 +13508,8 @@ async function runScenarioExecution(
             return predicate;
           },
         });
+        if(loopItem!==undefined&&loopItem!==null){if(typeof answer!=='boolean')return refuseRecordBinding('Loop Work observer omitted its original Bool.');loopItem.answer=answer;}
+        return answer;
       } catch (error) { recordEngineFailure(error); throw error; }
     });
   }
