@@ -6,6 +6,12 @@ Source: [baseline](baseline.md), `8d48f969`. Completed moves/corrections are abs
 
 L-REVIEW-PROOF's cohort, fresh-context/cache, consumed diagnostic/structural seal, public SEND/read boundary, terminal admission, model declaration/unique-origin and emit-to-CLI publication pass is source-reviewed at `8d48f969`. Actual definition/caller/error/test-subject evidence and independent host/root challenge are in the [language review](reviews/language-current.md#bounded-proof-source-review-at-the-current-product-source). This closes that boundary inspection with open LANG-PROOF-UNIQUE, not all specialized codec/profile bodies or runtime qualification. The remaining event, lexical/narrowing and first-row profile codecs belong explicitly to L-REVIEW-PROFILES; analogous edited predicate anchors remain a follow-up subject in the correction.
 
+RT-SETUP-REVIEW + P-R04 source coverage, claim/acknowledgement/publication/retry/disposal tracing, independent challenge and retained allocation are complete in the [setup review](reviews/runtime-setup.md). SETUP-C1 repairs concrete stale integration callers; SETUP-V1 names missing real failure assertions. No tests were executed and installed qualification remains open.
+
+RT-MIGRATION-REVIEW's eight-module engine and selected File/Work/native refusal source trace is complete in the [migration review](reviews/state-migration.md), independently challenged by setup/root. Its documented cross-chunk claim limitation and missing installed orchestration/lock/immutable-plan producer contracts remain MIG-C1/MIG-CONTRACT, not a passing installed migration.
+
+RT-AUTHORITY-REVIEW's named authentication/session/removal leaves and selected Interface/State recipients are source-reviewed with root challenge in the [authority review](reviews/identity-authority.md). Password/invitation, generated removal routing, installed consent/non-team enforcement, browser context clearing and complete final disclosure remain RT-AUTHORITY-FOLLOWUP. No full-product authority verdict is implied.
+
 ## Ready review packets
 
 All rows are ready for source inspection and independent challenge. Their physical document writers are the named primary review owners; production files are read-only until a concrete separately authorized correction. One packet can span slices without creating another package or lifecycle.
@@ -19,10 +25,8 @@ All rows are ready for source inspection and independent challenge. Their physic
 | L-REVIEW-AUTHORING / language | LSP/IDE/format/lint, editor client and completion scripts | Framing/version/Unicode/safe-edit/disposal review; installed editor qualification stays separate |
 | L-REVIEW-DEV / language | Native owner/preview/runtime/control/claim/capture/files/watch/foreground, fixed host bridges and real boundary/lifecycle tests | Finish stale-result/failure retention/PTY/private-file/cleanup subjects. Distinguish anchored runtime groups from compiler child/pipe completion; no universal descendant containment claim |
 | L-REVIEW-NATIVE + RT-VALUES-REVIEW / language + runtime | Values Rust semantics/bindings/assets and public TS codecs/validation/native selection, exact lists in primary reviews | Complete ordered input/error/ABI/resource and host-domain comparison. Generated rebuild equality is not all-host native equivalence |
-| RT-MIGRATION-REVIEW / runtime | State migration mapper/stage/retain/activate/recover/transition/validate, File-reference/drop barriers and retained Work | Failure/retry/activation/abort map with exact persisted fields and predecessor custody before a migration correctness/port verdict |
-| RT-SETUP-REVIEW + P-R04 / runtime + platform | Identity bootstrap/D1, private Soda setup/admin/run/D1, native guard and runtime packing/closure driver | Complete uncertain acknowledgement, durable claim versus completion-file failure and expiry/retry boundaries. Source custody/private ingress and Identity atomicity remain separate |
 | RT-PROVIDER-REVIEW / runtime | Services HTTP/mail/models/judgments/media/controlled admission, Work dispatch/recovery and Files upload/finalize | Per-provider request/stream/cancel/reconcile/terminal contracts; keep real transport and custody differences |
-| RT-AUTHORITY-REVIEW / runtime | Identity OAuth/grants/revocation/pre-session/token/CSRF/cookie/membership/removal, State admission/query/mutation and actual auth integrations | Complete current authority, expiry/consumption and cross-store termination/error review; prior membership/replay checks are bounded evidence |
+| RT-AUTHORITY-FOLLOWUP / runtime + platform | Password policy/hash/parser and invitation creation/acceptance/role ceiling; generated team-removal producer routing; installed consent/app-only enforcement; browser private-state clearing; all final disclosure recipients | Complete the exact remaining source duties in [authority review](reviews/identity-authority.md). Retain the completed consumption/recovery/removal trace; do not re-open stale allegations or claim a cross-store transaction |
 | P-R01 / platform | Host invocation/resource dispatch, source/preclaim issuers, ordinary/private-due FIRST and original binders; exact [platform list](reviews/platform-current.md#remaining-review-packets-and-physical-writers) | Close private issuer/consumer and cycle boundaries without getters or capability DTOs. Nonempty due-FIRST execution is not established by prior selected fixtures |
 | P-R02 / platform | Fanout staging/claim/drive/scheduler/navigation/cancel joins and actual Work producers | Cancellation/supersession/terminal/recovery custody trace. No scheduler launch or invented replay engine |
 | P-R03 / platform | UI browser bootstrap/bindings/collections/navigation and Interface fragment/preferences | Mount/draft/poll/rebind/dispose/denied-action and current input identity traces; real browser qualification follows only where warranted |
@@ -37,6 +41,10 @@ All rows are ready for source inspection and independent challenge. Their physic
 | Packet | M / C / V and exact gate | Future physical writers / recipients |
 | --- | --- | --- |
 | LANG-PROOF-C | C: independently authenticate conditional-unique field and predicate association against original checked source rather than a rebuild of the same editable tables. Reject coordinated checked-table/IR edits while preserving genuine source, ordinals, public APIs and shipping diagnostic aggregation. The unexecuted vector is a source-supported collector defect; no runtime bypass is assumed. V: existing model_unique_conditions/model_rule_origins and genuine driver/consumer cases must cover edited checked tables plus rebuilt IR, not raw-IR edits alone | Sole `compiler/src/codegen/model_unique_conditions.rs` writer; private `source_context.rs`/`source_correspondence.rs` or `mod.rs` handoffs only if the chosen shared original-check mechanism requires them. Native policy/assembly authority remains independent. Review specification ready; no implementation dispatch by this audit |
+| SETUP-C1 | C: replace four stale `getD1Database` integration calls with the current private administrator/production handoff. Preserve real unsafe-lock cases; do not restore an SDK database handle to production. Source/API drift is independently established; no executed test failure is claimed | Sole Cloudflare `test/soda-writer.integration.test.ts` writer; real native provisioning and Identity admin recipients; no new unit tests |
+| SETUP-V1 | V: lost setup acknowledgement, rollback including setup claim, persisted foreign operation/token/context, initial receipt publication failure and matching unexpired recovery, later expiry refusal, custom-D1 post-commit ambiguity. Existing post-success receipt deletion is narrower | Existing Identity bootstrap integration and runtime closure/direct drivers only; one operator/writer; no qualification run by this audit |
+| MIG-CONTRACT | C specification gate: bind immutable predecessor/target/body/release and migration ID; define complete protected-value/lock/scope/lifetime producer; real stop/writer/cleanup/dispatch custody and retained-release inventory through partial activation. Actual native target currently refuses migrations | State contract/snapshot/File/Work/compiler/deployer owners must resolve exact producer contract before installed-support instructions. Bare retained IDs/pending presence are not authenticated compatibility |
+| MIG-C1 | C: resolve documented deterministic cross-chunk unique-claim exchanges with bounded persisted collision-safe progress. Complete final-set uniqueness and existing atomic row/history/claim/cursor behavior must remain. Source-derived interim API limitation, not an executed installed journey | Sole State migration activate writer coordinated with memory/D1/DO adapters; gated on MIG-CONTRACT before installed cutover. Real compiled mapper/reopen/failure cases only when implementation separately authorized |
 | RT-C1 | C: select one complete original profile only after L-REVIEW-PROFILES/RT-RECEIPT-REVIEW supplies its source/current authority/domain/effect/File/failure contract. No new family is selected by a file move. V: genuine renamed/source/forged/stale/race/replay recipients | One compiler collector writer, one State receipt writer and one host invoke writer with exact handoffs; shared protocol/index/fixture changes coordinated. No executable production assignment yet |
 | P-CODEC | C: decide accepted historical/current row domain, projection and ordered faults before replacing CF dispatch projection with Work's stricter reader. Textual duplication does not prove equivalence. V: real accepted and refused persisted rows | `packages/work/src/kernel/tables.ts` defining codec and sole `packages/cloudflare/src/runtime/invoke.ts` adapter writer; Work/host contract handoff precedes mutation |
 | Qualification after review | V only where a concrete changed binding, contract question or missing required journey justifies it. Progress bounded owner/error cases → imports/types/fixtures/source guards → integrated graph → matching installed/native/provider journey | Single operator per compiler/catalog/cache/dist/native/browser fixture. Reuse matching prior evidence. No blanket rebuild or test campaign |
@@ -52,26 +60,26 @@ There is no pending M-only extraction or whole-package port at this source. The 
 | L03 | L-REVIEW-GIVEN; L-REVIEW-AUTHORING; P-R05 recipient |
 | L04 | L-REVIEW-DEV |
 | L05 | L-REVIEW-NATIVE; RT-VALUES-REVIEW recipient |
-| RT.CONTRACTS | RT-RECEIPT-REVIEW; RT-AUTHORITY-REVIEW; producer/consumer protocol recipients |
-| RT.STATE.ADMIT | RT-AUTHORITY-REVIEW; RT-RECEIPT-REVIEW |
-| RT.STATE.QUERY | RT-AUTHORITY-REVIEW; RT-RECEIPT-REVIEW |
-| RT.STATE.MUTATE | RT-AUTHORITY-REVIEW; RT-RECEIPT-REVIEW |
+| RT.CONTRACTS | RT-RECEIPT-REVIEW; RT-AUTHORITY-FOLLOWUP; producer/consumer protocol recipients |
+| RT.STATE.ADMIT | RT-AUTHORITY-FOLLOWUP; RT-RECEIPT-REVIEW |
+| RT.STATE.QUERY | RT-AUTHORITY-FOLLOWUP; RT-RECEIPT-REVIEW |
+| RT.STATE.MUTATE | RT-AUTHORITY-FOLLOWUP; RT-RECEIPT-REVIEW |
 | RT.STATE.RECEIPT | RT-RECEIPT-REVIEW; RT-C1 gated |
-| RT.STATE.MIGRATE | RT-MIGRATION-REVIEW |
-| RT.WORK.OCCURRENCE | RT-PROVIDER-REVIEW; RT-MIGRATION-REVIEW; P-R02 |
+| RT.STATE.MIGRATE | Completed RT-MIGRATION-REVIEW source trace; MIG-CONTRACT; MIG-C1 |
+| RT.WORK.OCCURRENCE | RT-PROVIDER-REVIEW; completed migration source trace; MIG-CONTRACT; P-R02 |
 | RT.WORK.DISPATCH | RT-PROVIDER-REVIEW; P-R01; P-CODEC gated |
-| RT.WORK.RECOVER | RT-PROVIDER-REVIEW; RT-MIGRATION-REVIEW; P-R02 |
-| RT.IDENTITY | RT-AUTHORITY-REVIEW; RT-SETUP-REVIEW; P-R04 recipient |
+| RT.WORK.RECOVER | RT-PROVIDER-REVIEW; completed migration source trace; MIG-CONTRACT; P-R02 |
+| RT.IDENTITY | Completed bounded authority/setup source review; RT-AUTHORITY-FOLLOWUP; SETUP-C1; SETUP-V1 |
 | RT.FILES.INTAKE | RT-PROVIDER-REVIEW; RT-RECEIPT-REVIEW |
-| RT.FILES.RETAIN | RT-MIGRATION-REVIEW; RT-RECEIPT-REVIEW |
+| RT.FILES.RETAIN | Completed migration/File source trace; MIG-CONTRACT; RT-RECEIPT-REVIEW |
 | RT.SERVICES | RT-PROVIDER-REVIEW |
 | RT.VALUES | RT-VALUES-REVIEW; L-REVIEW-NATIVE recipient |
 | P-ARTIFACT | P-R06; P-R05; L-REVIEW-EMIT recipient |
-| P-SERVING | P-R01; RT-AUTHORITY-REVIEW recipient |
+| P-SERVING | P-R01; RT-AUTHORITY-FOLLOWUP recipient |
 | P-PRESENTATION | P-R03 |
 | P-DELIVERY | P-R01; P-R02; P-CODEC gated |
 | P-AUTHORING-HOST | P-R05; L-REVIEW-GIVEN recipient |
-| P-DISTRIBUTION | P-R04; P-R06; REPO-REVIEW-DELIVERY |
+| P-DISTRIBUTION | Completed P-R04 source review; SETUP-C1/V1; P-R06; REPO-REVIEW-DELIVERY |
 | REPO.GOVERNANCE | REPO-REVIEW-CONTRACTS; L-REVIEW-DEV policy recipient |
 | DOC.CONTRACTS | REPO-REVIEW-CONTRACTS; L-REVIEW-DEV policy recipient |
 | DOC.EVIDENCE | REPO-REVIEW-EVIDENCE |

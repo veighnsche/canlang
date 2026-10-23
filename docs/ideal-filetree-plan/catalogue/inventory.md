@@ -1,6 +1,6 @@
 # Source inventory
 
-Current structural baseline: **3,809 parent paths** at `8d48f969`; initialized independent draft: **951 paths** at `c6572fe`. Every current parent path occurs exactly once below, including the committed living-plan documents. Compared with `1c3f1b38`, 69 paths were added and the obsolete Cloudflare executor leaf was retired. This is path accountability, not exhaustive semantic review; [baseline](../baseline.md) separates current structure, delta review and reused historical evidence.
+Current structural baseline: **3,809 parent paths** at `8d48f969`; initialized independent draft: **951 paths** at `c6572fe`. Every pinned parent path occurs exactly once below, including the then-committed living-plan documents. Three substantive review documents authored during this audit are additionally allocated below (3,812 parent leaves in this planning checkpoint); these additions do not advance the product source pin. Compared with `1c3f1b38`, 69 paths were added and the obsolete Cloudflare executor leaf was retired. This is path accountability, not exhaustive semantic review; [baseline](../baseline.md) separates current structure, delta review and reused historical evidence.
 
 | Source path | Kind | Lifecycle | Primary responsibility | Map | Selected disposition |
 | --- | --- | --- | --- | --- | --- |
@@ -873,6 +873,7 @@ Current structural baseline: **3,809 parent paths** at `8d48f969`; initialized i
 | `docs/ideal-filetree-plan/port-assessment.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
 | `docs/ideal-filetree-plan/proposed-tree.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
 | `docs/ideal-filetree-plan/reviews/compiler.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
+| `docs/ideal-filetree-plan/reviews/identity-authority.md` | documentation/notice | active planning record, added during this audit | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path; substantive review owner linked from current review index |
 | `docs/ideal-filetree-plan/reviews/index.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
 | `docs/ideal-filetree-plan/reviews/language-current.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
 | `docs/ideal-filetree-plan/reviews/platform-current.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
@@ -880,7 +881,9 @@ Current structural baseline: **3,809 parent paths** at `8d48f969`; initialized i
 | `docs/ideal-filetree-plan/reviews/repository-current.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
 | `docs/ideal-filetree-plan/reviews/repository.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
 | `docs/ideal-filetree-plan/reviews/runtime-current.md` | documentation/notice | active planning record | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact current path; defining duties in linked review |
+| `docs/ideal-filetree-plan/reviews/runtime-setup.md` | documentation/notice | active planning record, added during this audit | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path; substantive review owner linked from current review index |
 | `docs/ideal-filetree-plan/reviews/runtime.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
+| `docs/ideal-filetree-plan/reviews/state-migration.md` | documentation/notice | active planning record, added during this audit | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path; substantive review owner linked from current review index |
 | `docs/ideal-filetree-plan/rust-package-audit/README.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
 | `docs/ideal-filetree-plan/rust-package-audit/adapters-ui.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
 | `docs/ideal-filetree-plan/rust-package-audit/cloudflare.md` | planning | living or bounded historical review | DOC.PLAN | [root review](../reviews/repository-current.md) | Retain exact path/identity |
