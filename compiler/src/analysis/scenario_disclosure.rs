@@ -15838,6 +15838,7 @@ impl<'a> Closure<'a> {
                 && self
                     .source_require_unique_any(scenario, call, query, alias, *predicate, fact.model)
                     .is_none()
+                && !self.source_require_contained_collection(scenario, call, "any")
             {
                 *supported = false;
                 return Some(false);
@@ -24755,6 +24756,7 @@ impl<'a> Closure<'a> {
                 }
                 let (parameter, root) = self
                     .original_call_model_parameter(base, statement, module)
+                    .or_else(||self.original_call_parent_parameter(base,statement,module))
                     .ok_or_else(fail)?;
                 let expected_domain = self
                     .types
@@ -25776,8 +25778,8 @@ impl<'a> Closure<'a> {
                 )
             }
 
-            /// SET references consume only an original required input or the immediately
-            /// preceding checked constructor. Copied rows keep their existing refusal.
+            /// SET references consume an original required input/reference or the
+            /// immediately preceding checked constructor. Copies remain refused.
             fn set_reference_value(
                 &self,
                 effect: &Effect,
@@ -25792,6 +25794,14 @@ impl<'a> Closure<'a> {
                     && (matches!(value.reference_origin,
                         Some(ReferenceOrigin::Parameter(parameter))
                         if self.original_call_model_parameter(key, effect.node, module) == Some((parameter, model)))
+                        || matches!(value.model_result,
+                            Some(DisclosureModelResult::Reference {model: actual, node, source_model, field})
+                            if actual == model && node == key
+                                && self.checked_required_model_reference(key,module) == Some((source_model,field,model))
+                                && key.file == effect.node.file && effect.node.start <= key.start && key.end <= effect.node.end
+                                && value.reads.iter().any(|read|read.node==key&&read.model==source_model&&read.field==field
+                                    && read.ty==ResolvedType::Record {symbol:model,stored:true}
+                                    &&read.calls.is_empty()&&read.query_id.is_none()))
                         || matches!(value.model_result,
                             Some(DisclosureModelResult::Create { model: actual, node })
                             if actual == model && (self.preceding_call_create(effect, module, key, model, node)
@@ -25924,10 +25934,9 @@ impl<'a> Closure<'a> {
                     && value.reference_origin.is_none_or(|origin|origin==ReferenceOrigin::NullableParameter(*parameter))
             }
 
-            /// A mutation path has no Member AST. Admit only the original required
-            /// model input's one declared parent hop and record that exact read.
-            /// Copies, nullable inputs, shadowed parents and other dotted paths
-            /// retain their refusal.
+            /// Mutation paths have no nested Member AST. Retain every edge of
+            /// the original required input's one- or two-hop containment path.
+            /// Copies, nullable roots and stored-field navigation stay separate.
             fn set_parent_receiver(
                 &self,
                 effect: &Effect,
@@ -25942,8 +25951,9 @@ impl<'a> Closure<'a> {
                 }
                 let names = receiver.children.iter()
                     .filter(|child| child.kind == SyntaxKind::Name).collect::<Vec<_>>();
-                let [root, parent] = names.as_slice() else { return None; };
-                if self.word(parent)? != "parent" { return None; }
+                let (root, parents) = names.split_first()?;
+                if parents.is_empty() || parents.len() > 2
+                    || parents.iter().any(|parent| self.word(parent) != Some("parent")) { return None; }
                 let Binding::Symbol(parameter) = self.query_binding(NodeKey::of(root))? else {
                     return None;
                 };
@@ -25953,37 +25963,47 @@ impl<'a> Closure<'a> {
                 let input = scenario.params.iter().find(|input| input.param == *parameter)?;
                 let ResolvedType::Record { symbol: child, stored: true } =
                     self.types.symbol_types.get(parameter)? else { return None; };
-                let child_decl = self.resolve.symbols.get(child.0 as usize)?;
-                let SymbolKind::Model { owner: ModelOwner::ChildOf(actual), fields, .. } =
-                    &child_decl.kind else { return None; };
                 let value = env.get(&Local::Symbol(*parameter))?;
                 if scenario.module != module || input.default.is_some()
                     || declaration.name != self.word(root)?
                     || scenario.node.file != effect.node.file
                     || scenario.node.start > effect.node.start || scenario.node.end < effect.node.end
-                    || *actual != model || value.record != Some(*child)
+                    || value.record != Some(*child)
                     || value.reference_origin != Some(ReferenceOrigin::Parameter(*parameter))
-                    || fields.iter().any(|id| self.resolve.symbols.get(id.0 as usize)
-                        .is_none_or(|field| field.name == "parent"))
-                    || self.effects.models.get(child)?.owner != ModelOwner::ChildOf(model)
                 { return None; }
                 let key = NodeKey::of(receiver);
-                let ty = ResolvedType::Record { symbol: model, stored: true };
-                if self.types.node_types.get(&key) != Some(&ty) { return None; }
+                if self.types.node_types.get(&key) != Some(&ResolvedType::Record { symbol: model, stored: true }) { return None; }
                 let mut result = value.clone();
-                result.reads.push(DisclosureDependency {
-                    query_id: None,
-                    id: self.opaque("read-data", key, &self.call_stamp(calls).ok()?).ok()?,
-                    source: self.source(module, key).ok()?, node: key, calls: Vec::new(),
-                    role: DependencyRole::Data, model: *child, field: *child,
-                    model_name: child_decl.canonical.clone(), field_name: "parent".into(),
-                    type_id: self.reference_operand_type_id(&ty)?, ty,
-                });
-                result.observed.push((key, Vec::new()));
+                let mut child = *child;
+                for (index, parent) in parents.iter().enumerate() {
+                    let child_decl = self.resolve.symbols.get(child.0 as usize)?;
+                    let SymbolKind::Model { owner: ModelOwner::ChildOf(actual), fields, .. } =
+                        &child_decl.kind else { return None; };
+                    if fields.iter().any(|id| self.resolve.symbols.get(id.0 as usize)
+                        .is_none_or(|field| field.name == "parent"))
+                        || self.effects.models.get(&child)?.owner != ModelOwner::ChildOf(*actual)
+                    { return None; }
+                    // Path syntax has no nested Member nodes. The evaluated IR
+                    // still has each original prefix, so retain each edge read.
+                    let edge = NodeKey { file: key.file, start: key.start, end: parent.span.end,
+                        kind: if index + 1 == parents.len() { key.kind } else { SyntaxKind::Member as u8 } };
+                    let ty = ResolvedType::Record { symbol: *actual, stored: true };
+                    result.reads.push(DisclosureDependency {
+                        query_id: None,
+                        id: self.opaque("read-data", edge, &self.call_stamp(calls).ok()?).ok()?,
+                        source: self.source(module, edge).ok()?, node: edge, calls: Vec::new(),
+                        role: DependencyRole::Data, model: child, field: child,
+                        model_name: child_decl.canonical.clone(), field_name: "parent".into(),
+                        type_id: self.reference_operand_type_id(&ty)?, ty,
+                    });
+                    result.observed.push((edge, Vec::new()));
+                    child = *actual;
+                }
+                if child != model { return None; }
                 result.record = Some(model);
                 result.reference = None;
                 result.reference_origin = Some(ReferenceOrigin::Parent {
-                    parameter: *parameter, model, depth: 1,
+                    parameter: *parameter, model, depth: parents.len() as u8,
                 });
                 Some(result)
             }
@@ -27749,7 +27769,10 @@ impl<'a> Closure<'a> {
                     let node = self.nodes.get(&key)?;
                     if expression(node.kind) && !matches!(node.kind,SyntaxKind::Literal|SyntaxKind::NameRef
                         |SyntaxKind::Group|SyntaxKind::Member|SyntaxKind::Unary|SyntaxKind::Binary|SyntaxKind::Array) { return None; }
-                    if node.kind == SyntaxKind::NameRef && !item(key) && !self.types.resolved_cases.contains(&key) { return None; }
+                    if node.kind == SyntaxKind::NameRef && !item(key) && !self.types.resolved_cases.contains(&key)
+                        && !(query_alias && self.types.node_types.get(&key)==Some(&ResolvedType::Record{symbol:model,stored:true})
+                            && matches!(self.query_binding(key),Some(Binding::Symbol(parameter))
+                                if self.original_reference_parameter(key,*parameter))) { return None; }
                     if node.kind == SyntaxKind::Member {
                         let (base,name) = self.count_member(key)?;
                         if !item(base) { return None; }
@@ -27889,7 +27912,7 @@ impl<'a> Closure<'a> {
                     && scenario.result.is_none() && scenario.cohort.is_none()
                     && scenario.effects.iter().any(|candidate|candidate.node == effect.node)
                     && scenario.effects.iter().all(|candidate|matches!(candidate.verb,
-                        EffectVerb::Set | EffectVerb::Cancel | EffectVerb::For)
+                        EffectVerb::Set | EffectVerb::Cancel | EffectVerb::For | EffectVerb::Emit)
                         // The independently sealed native owner may end with
                         // one original conditional declared-event notification.
                         || scenario.effects.last().is_some_and(|last|last.node==candidate.node)

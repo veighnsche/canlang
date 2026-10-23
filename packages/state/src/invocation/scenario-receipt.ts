@@ -2051,6 +2051,7 @@ export interface ScenarioSourceBodyLoop {
   readonly domain:{readonly start:number;readonly end:number};readonly maximum:number;
   readonly parameter:string;readonly parentModel:ModelName;readonly model:ModelName;
   readonly item:string;readonly filtered:boolean;readonly writes:number;readonly sends:number;
+  readonly parentDepth?:number;
   readonly control?:{readonly model:ModelName;readonly fields:readonly {readonly name:string;readonly type:string}[]};
   readonly ancestors?:readonly {readonly model:ModelName;readonly fields:readonly {readonly name:string;readonly type:string}[]}[];
   readonly condition?:{readonly node:{readonly start:number;readonly end:number};readonly statement:{readonly start:number;readonly end:number}};
@@ -2074,11 +2075,16 @@ export function bindScenarioSourceLoopProducer(def:GeneratedOperationDef,value:S
   const loops=list(raw['loops']),ids=new Set<string>();let maximum=0,sends=0;
   if(loops.length===0||loops.length>MAX_ITEMS)return invalid('Source loop needs a finite complete original census.');
   for(const value of loops){
-    const loop=object(value,['id','node','domain','maximum','parameter','parentModel','model','item','filtered','writes','sends',...(Object.hasOwn(value as object,'ancestors')?['ancestors','control']:[]),...(Object.hasOwn(value as object,'condition')?['condition']:[])]);
+    const loop=object(value,['id','node','domain','maximum','parameter','parentModel','model','item','filtered','writes','sends',...(Object.hasOwn(value as object,'parentDepth')?['parentDepth']:[]),...(Object.hasOwn(value as object,'ancestors')?['ancestors','control']:[]),...(Object.hasOwn(value as object,'condition')?['condition']:[])]);
     const id=text(loop['id']),parameter=text(loop['parameter']),parent=text(loop['parentModel']) as ModelName,model=text(loop['model']) as ModelName;
     const input=bound.inputs.find(input=>input.name===parameter);
     const node=object(loop['node'],['start','end']),domain=object(loop['domain'],['start','end']);
-    if(!/^[a-f0-9]{64}$/.test(id)||ids.has(id)||input?.kind!=='ref'||input.model!==parent||input.nullable===true
+    let inputModel:string|undefined=input?.kind==='ref'?input.model:undefined;
+    if(Object.hasOwn(loop,'parentDepth')){
+      const depth=loop['parentDepth'];if(!Number.isSafeInteger(depth)||Number(depth)<1||Number(depth)>2||Object.hasOwn(loop,'ancestors'))return invalid('Source loop parent path is not bounded original containment.');
+      for(let index=0;index<Number(depth);index++)inputModel=inputModel===undefined?undefined:bound.artifactModels.get(inputModel as ModelName)?.parent;
+    }
+    if(!/^[a-f0-9]{64}$/.test(id)||ids.has(id)||input?.kind!=='ref'||inputModel!==parent||input.nullable===true
         ||Object.hasOwn(def.inputArrays,parameter)||!Object.hasOwn(loop,'ancestors')&&bound.artifactModels.get(model)?.parent!==parent
         ||text(loop['item'])===parameter||typeof loop['filtered']!=='boolean'
         ||[node['start'],node['end'],domain['start'],domain['end']].some(value=>!Number.isSafeInteger(value))
@@ -2120,20 +2126,30 @@ function sourceBodyLoopLimits(def:GeneratedOperationDef):{readonly maxRows:numbe
   return Object.freeze({maxRows,maxWrites,maxWork:maxRows*(MAX_ITEMS*2+maxWrites*2)});
 }
 export async function executeScenarioSourceLoop(call:AdmittedCall,store:StoragePort,input:{readonly id:string;
-  readonly predicate:null|((row:StoredRow,ancestors?:readonly StoredRow[])=>Promise<boolean>)}):Promise<readonly StoredRow[]>{
+  readonly parent?:{readonly model:ModelName;readonly id:RecordId};readonly predicate:null|((row:StoredRow,ancestors?:readonly StoredRow[])=>Promise<boolean>)}):Promise<readonly StoredRow[]>{
   const state=capture(call,store),owner=ownerSessions.get(call);
   try{
-    object(input,['id','predicate']);const loop=sourceBodyLoopProducers.get(call.def as GeneratedOperationDef)?.loops.find(loop=>loop.id===input.id);
+    object(input,['id','predicate',...(Object.hasOwn(input,'parent')?['parent']:[])]);const loop=sourceBodyLoopProducers.get(call.def as GeneratedOperationDef)?.loops.find(loop=>loop.id===input.id);
     if(owner===undefined||owner.session===null||loop===undefined||owner.busy||state.pending!==0||owner.executingCall!==call
         ||sourceBodyLoopItems.has(owner)||loop.filtered!==(typeof input.predicate==='function'))return invalid('Source loop lacks its actual quiescent original selection.');
     let executions=sourceBodyLoopExecutions.get(owner);if(executions===undefined){executions=new Map();sourceBodyLoopExecutions.set(owner,executions);}
     if(executions.has(loop.id))return invalid('Source loop repeats its original selection.');
     return await ownerOperation(owner,async()=>{
       const refs=call.recordRefs.filter(ref=>ref.param===loop.parameter),ref=refs[0];
-      if(refs.length!==1||ref?.model!==loop.parentModel||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('Source loop lost its original versioned parent input.');
-      const parent=await owner.session!.views.final.get(ref.model,ref.id);ownerHealthy(owner);
+      if(refs.length!==1||ref===undefined||loop.parentDepth===undefined&&ref.model!==loop.parentModel||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('Source loop lost its original versioned parent input.');
+      let parent=await owner.session!.views.final.get(ref.model,ref.id);ownerHealthy(owner);
       if(parent===null||!sameModelLifetime(ref.row,parent)||parent.archivedAt!==null)return invalid('Source loop parent lifetime changed.');
-      const rows=await owner.session!.views.final.query({model:loop.model,...(loop.ancestors===undefined?{parent:{model:ref.model,id:ref.id}}:{}),authority:'owner',archived:'exclude',
+      let parentModel=ref.model;
+      for(let index=0;index<(loop.parentDepth??0);index++){
+        const edge=parent.parent;
+        if(edge==null||edge.model!==state.bound.artifactModels.get(parentModel)?.parent)return invalid('Source loop lost its original containment association.');
+        parentModel=edge.model;parent=await owner.session!.views.final.get(edge.model,edge.id);ownerHealthy(owner);
+        if(parent===null||parent.archivedAt!==null)return invalid('Source loop parent path is unavailable.');
+      }
+      if(parentModel!==loop.parentModel||loop.parentDepth!==undefined&&(input.parent?.model!==parentModel||input.parent.id!==parent.id)
+          ||loop.parentDepth===undefined&&input.parent!==undefined)return invalid('Source loop differs from its evaluated original parent.');
+      const parentId=parent.id;
+      const rows=await owner.session!.views.final.query({model:loop.model,...(loop.ancestors===undefined?{parent:{model:parentModel,id:parentId}}:{}),authority:'owner',archived:'exclude',
         order:[{field:'id',direction:'asc'}],limit:loop.sends>0?MAX_ITEMS:owner.maxRows});ownerHealthy(owner);
       const selected=new Map<RecordId,{row:StoredRow;completed:boolean}>();
       for(const row of rows){
@@ -2147,7 +2163,7 @@ export async function executeScenarioSourceLoop(call:AdmittedCall,store:StorageP
           }
           if(previous.id!==ref.id)continue;
           if(!sameModelLifetime(previous,parent))return invalid('Descendant loop correlation lost its admitted parent lifetime.');
-        }else if(row.parent?.model!==ref.model||row.parent.id!==ref.id)return invalid('Source loop crossed its original contained live domain.');
+        }else if(row.parent?.model!==parentModel||row.parent.id!==parentId)return invalid('Source loop crossed its original contained live domain.');
         if(row.archivedAt!==null)return invalid('Source loop included an archived source row.');
         ownerRows.set(row,{session:owner,stage:owner.stage,model:loop.model});
         const matches=input.predicate===null?true:await input.predicate(row,ancestors);ownerHealthy(owner);

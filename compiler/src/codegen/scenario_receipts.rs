@@ -14810,14 +14810,23 @@ fn checked_set_parent_receiver(
     }, db)?;
     let text = &db.get(value.span.file)?.text;
     let names = path.children.iter().filter(|part| part.kind == SyntaxKind::Name).collect::<Vec<_>>();
-    let [root, parent] = names.as_slice() else { return None; };
-    let IrExpr::Member { base, field } = &value.expr else { return None; };
+    let (root, parents) = names.split_first()?;
+    if parents.is_empty() || parents.len() > 2 { return None; }
+    let mut base = value;
+    for parent in parents.iter().rev() {
+        let IrExpr::Member { base: inner, field } = &base.expr else { return None; };
+        if parent.token()?.text(text) != "parent" || field != "parent"
+            || base.span != Span::new(path.span.file, path.span.start, parent.span.end)
+        { return None; }
+        checked_parent_reference(ir, owner, base, db)?;
+        base = inner;
+    }
     let IrExpr::Name(name) = &base.expr else { return None; };
-    if root.token()?.text(text) != name || parent.token()?.text(text) != "parent"
-        || field != "parent" || base.span != Span::new(path.span.file, path.span.start, root.span.end)
+    if root.token()?.text(text) != name
+        || base.span != Span::new(path.span.file, path.span.start, root.span.end)
     { return None; }
     let source = super::scenario_calls::checked_source(ir, owner, db)?;
-    let (child, parent) = checked_parent_reference(ir, owner, value, db)?;
+    let ResolvedType::Record { symbol: child, stored: true } = base.ty else { return None; };
     let IrItemKind::Scenario { params, .. } = &owner.kind else { return None; };
     let mut parameters = params.iter().filter_map(|id| ir.items.get(id.0 as usize))
         .filter(|parameter| parameter.name == *name);
@@ -14828,8 +14837,7 @@ fn checked_set_parent_receiver(
     if parameters.next().is_some() || *parameter_owner != owner.id
         || original.parameter != parameter.id || original.default.is_some()
         || original.ty != *ty || base.ty != *ty
-        || *ty != (ResolvedType::Record { symbol: child.id, stored: true })
-        || child.owner != Some(crate::analysis::resolve::ModelOwner::ChildOf(parent.id))
+        || *ty != (ResolvedType::Record { symbol: child, stored: true })
     { return None; }
     Some(())
 }

@@ -12738,9 +12738,11 @@ async function runScenarioExecution(
     bindNativeScenarioSourceLoop(ctx,async(id,parent,predicate)=>{
       try{
         const loop=privateSourceBodyLoop.plan.loops.find(loop=>loop.id===id),execute=loaded.producers.invoke.executeScenarioSourceLoop;
-        if(loop===undefined||execute===undefined||parent!==parameters[loop.parameter]||loop.filtered!==(typeof predicate==='function'))return refuseRecordBinding('Source loop differs from its original parent/filter.');
+        if(loop===undefined||execute===undefined||loop.parentDepth===undefined&&parent!==parameters[loop.parameter]||loop.filtered!==(typeof predicate==='function'))return refuseRecordBinding('Source loop differs from its original parent/filter.');
+        const binding=loop.parentDepth===undefined?undefined:recordBindings.get(parent as Record<string,unknown>)??ownerNavigation.resolveRecord(parent as Record<string,unknown>)??viewerNavigation.resolveRecord(parent as Record<string,unknown>);
+        if(loop.parentDepth!==undefined&&(binding===undefined||binding.model!==loop.parentModel))return refuseRecordBinding('Source loop lost its genuine evaluated parent reference.');
         if(predicate!==null)original(predicate,loop,false);
-        const rows=await execute(actual,receiptStore,{id,predicate:predicate===null?null:async(row,ancestors)=>{
+        const rows=await execute(actual,receiptStore,{id,...(binding===undefined?{}:{parent:{model:binding.model as ModelName,id:binding.id as RecordId}}),predicate:predicate===null?null:async(row,ancestors)=>{
           if(loop.ancestors!==undefined){
             if(ancestors?.length!==loop.ancestors.length||loop.control===undefined)return refuseRecordBinding('Descendant control projection lacks its exact original parent path.');
             const project=(descriptor:NonNullable<typeof loop.control>,row:StoredRow,parent?:object)=>{

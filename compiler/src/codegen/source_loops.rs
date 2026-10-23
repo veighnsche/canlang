@@ -190,9 +190,16 @@ fn collect_from_source(ir:&IrProgram,owner:&IrItem,context:&super::scenario_deci
                 let IrExpr::Int(maximum)=limit.expr else{return None;};if !(1..=1000).contains(&maximum)||out.len()>=200{return None;}
                 let IrExpr::Query(query)=&domain.expr else{return None;};let IrQueryDomain::Model(model)=&query.domain else{return None;};
                 let model=ir.items.iter().find(|candidate|candidate.canonical==*model)?;
+                let mut parent_depth=0;
                 let (parameter,parent_model,ancestors)=if let Some(parent)=query.parent.as_deref(){
-                    let IrExpr::Name(parameter)=&parent.expr else{return None;};let parent_model=*roots.get(parameter)?;
-                    if parent.ty!=(ResolvedType::Record{symbol:parent_model,stored:true})||!matches!(model.kind,IrItemKind::Model{owner:IrOwner::ChildOf(parent),..}if parent==parent_model){return None;}
+                    let parent_model=record_model(ir,parent,roots,0)?;
+                    let mut base=parent;
+                    while let IrExpr::Member{base:inner,field}=&base.expr{
+                        if field!="parent"||parent_depth>=2{return None;}
+                        parent_depth+=1;base=inner;
+                    }
+                    let IrExpr::Name(parameter)=&base.expr else{return None;};
+                    if !matches!(model.kind,IrItemKind::Model{owner:IrOwner::ChildOf(parent),..}if parent==parent_model){return None;}
                     (parameter.as_str(),parent_model,Vec::new())
                 }else{descendant_parameter(ir,query.where_pred.as_deref()?,&query.where_param,model.id,roots)?};
                 if item==parameter{return None;}
@@ -209,6 +216,7 @@ fn collect_from_source(ir:&IrProgram,owner:&IrItem,context:&super::scenario_deci
                 let mut descriptor=serde_json::json!({"id":id,"node":{"start":span.start,"end":span.end},"domain":{"start":domain.span.start,"end":domain.span.end},
                     "maximum":maximum,"parameter":parameter,"parentModel":ir.items[parent_model.0 as usize].canonical,"model":model.canonical,
                     "item":item,"filtered":query.where_pred.is_some(),"writes":writes,"sends":sends});
+                if parent_depth>0{descriptor["parentDepth"]=serde_json::json!(parent_depth);}
                 if !ancestors.is_empty(){descriptor["ancestors"]=serde_json::Value::Array(ancestors.iter().map(|id|control_fields(ir,*id)).collect::<Option<Vec<_>>>()?);descriptor["control"]=control_fields(ir,model.id)?;}
                 if let [IrStmt::If{cond,span:condition,then_branch,else_branch}]=body.as_slice(){
                     if !else_branch.is_empty()||!matches!(then_branch.as_slice(),[IrStmt::Set{..}])||writes!=1||sends!=0{return None;}

@@ -13495,7 +13495,10 @@ fn null_equality(
                 let body_loop=source_loop.as_ref().filter(|(_,entry)|entry.get("item").is_some()).cloned();
                 let copy_loop=source_loop.as_ref().filter(|(_,loop_)|loop_.get("copy").is_some()).cloned();
                 let domain_text = if let Some((source,loop_)) = source_loop {
-                    let parent = self.reference(loop_["parameter"].as_str().expect("checked loop parameter"));
+                    let parent = if loop_.get("parentDepth").is_some() {
+                        let IrExpr::Query(query)=&domain.expr else{unreachable!("checked contained loop");};
+                        self.lower_expr(query.parent.as_ref().expect("checked parent path"))
+                    } else { self.reference(loop_["parameter"].as_str().expect("checked loop parameter")) };
                     let predicate = if loop_["filtered"].as_bool()==Some(true) {
                         let IrExpr::Query(query) = &domain.expr else { unreachable!("checked original loop query"); };
                         let original = query.where_pred.as_ref().expect("checked original filter");

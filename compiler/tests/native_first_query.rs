@@ -3109,3 +3109,25 @@ fn source_observer_budget_belongs_to_each_original_owner() {
  let (_,diagnostics)=prepared_artifact(&changed,&changed_db,&changed_catalog);
  assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{diagnostics:?}");
 }
+
+
+#[test]
+fn original_shift_accept_seals_ancestor_writes_reference_and_sibling_domain() {
+ let source=include_str!("fixtures/shift-accept-original.can");
+ let(db,program,_,catalog)=fixture_source("shift-accept-original.can",source);
+ let(artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let js=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str()).collect::<String>();
+ assert!(js.contains("parentDepth")&&js.contains("nativeScenarioSourceLoop")&&js.contains("nativeReadReference"));
+ for(name,ty)in [("shift.Swap.substitute",ResolvedType::Scalar(Scalar::Text)),("shift.Commitment.employee",ResolvedType::Scalar(Scalar::Text))]{
+  let(db,mut changed,_,catalog)=fixture_source("shift-accept-schema-substitution.can",source);
+  let field=changed.symbols.iter().find(|symbol|symbol.canonical==name).unwrap().id;
+  changed.types.symbol_types.insert(field,ty);let(_,diagnostics)=prepared_artifact(&changed,&db,&catalog);
+  assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
+ }
+ let(db,mut changed,_,catalog)=fixture_source("shift-accept-parent-substitution.can",source);
+ let roster=changed.symbols.iter().find(|symbol|symbol.canonical=="shift.Roster").unwrap().id;
+ let target=*changed.types.node_types.keys().find(|key|key.kind==canlang_compiler::syntax::SyntaxKind::Path as u8
+    &&db.get(key.file).and_then(|file|file.text.get(key.start as usize..key.end as usize)).is_some_and(|text|text.trim()=="swap.parent.parent")).unwrap();
+ changed.types.node_types.insert(target,ResolvedType::Record{symbol:roster,stored:true});
+ let(_,diagnostics)=prepared_artifact(&changed,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{diagnostics:?}");
+}
