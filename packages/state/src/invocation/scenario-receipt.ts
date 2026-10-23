@@ -2198,7 +2198,8 @@ function savedSourceBodyLoopLimits(receipt:unknown,current?:CurrentScenarioRecei
   const def=current.registry.get(text(identity['operation']) as Receipt['identity']['operation']);
   if(def===undefined||!isGeneratedOperationDef(def))return undefined;
   const limits=sourceBodyLoopLimits(def),bound=boundPlans.get(def);
-  if(limits===undefined)return undefined;
+  // Nongrant source-only frames never issue a native saved association.
+  if(limits===undefined||bound?.sourceRequireOnly===true)return undefined;
   if(identity['app']!==current.app||identity['owner']!==(current.identity.team?.team_id??'app')
       ||identity['principal']!==(current.identity.actor?.user_id??'public')||referenceProducers.get(def)?.app!==current.app){
     throw new StateError('forbidden','Saved loop scope differs from its actual current bound source.');
