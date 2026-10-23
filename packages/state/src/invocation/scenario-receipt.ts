@@ -3448,6 +3448,7 @@ export interface ScenarioReceiptDeliveryOriginFrame {
 }
 export interface ScenarioReceiptSendGuard {
   readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source']; readonly owner: string;
+  readonly evaluation?: 'source';
   readonly node: { readonly start: number; readonly end: number };
   readonly binding: string; readonly target: string;
   readonly inputs: readonly { readonly name: string; readonly type: CanTypeId }[];
@@ -3536,7 +3537,9 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
   const modelInputs = new Map<string, ReadonlyMap<string, ModelLexicalSnapshotProfile>>();
   for (const value of list(metadata.sendGuards ?? [])) {
     const guard = object(value, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs',
+      ...(Object.hasOwn(value as object, 'evaluation') ? ['evaluation'] : []),
       ...(Object.hasOwn(value as object, 'eventSource') ? ['eventSource'] : [])]);
+    if (Object.hasOwn(guard, 'evaluation') && guard['evaluation'] !== 'source') return invalid('SEND evaluation phase differs from its checked source.');
     const rule = text(guard['rule']); origin(guard['source']);
     const issueSite = bound.invoiceIssueDecision?.sendRule.node;
     const node = object(guard['node'], ['start', 'end']);

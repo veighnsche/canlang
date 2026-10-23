@@ -1043,6 +1043,9 @@ export type FrameworkOpaqueDeliveryProfile = FrameworkOpaqueDeliveryContext
  * occurrence. Captured input values remain in the existing dispatch field. */
 export interface FrameworkOpaqueSendGuardDeclaration {
   readonly rule: string;
+  /** Omitted guards use current dispatch state; explicit source guards retain
+   * the decision made by their original owning transaction. */
+  readonly evaluation?: 'source';
   readonly source: ScenarioReceiptSourceOrigin;
   readonly owner: string;
   readonly node: { readonly start: number; readonly end: number };
