@@ -1790,7 +1790,7 @@ fn source_require_has_a_frame_without_fabricating_result_disclosure() {
     // executable. The original derived value still needs its own consumer.
     let unsupported=include_str!("fixtures/native-require-missing-owner-frame.can")
         .replace("-> date by=members", "-> int by=members")
-        .replace("return local_date(now,\"UTC\")", "return root.remaining");
+        .replace("return add_days(local_date(now,\"UTC\"),1)", "return root.remaining");
     let mut db=SourceDb::new();
     let file=db.add("unsupported-body.can".into(),unsupported);
     let(program,diagnostics)=check_program(&db,&[file],catalog.as_ref());

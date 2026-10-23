@@ -1153,7 +1153,7 @@ it('runs source-only guard frames without inventing result disclosure',
           `${mode}: ${JSON.stringify(outcome)}`);
         assert.equal((await store.load(rootModel, rootRow.id))?.data.checked, mode === 'allowed');
         if (mode === 'allowed') {
-          assert.equal('result' in outcome && outcome.result.result, new Date(now).toISOString().slice(0, 10));
+          assert.equal('result' in outcome && outcome.result.result, new Date(now + 86400000).toISOString().slice(0, 10));
           const replay = await invoker.invokeMutation(request, identity);
           // Guard execution supplies no saved DATA authority. The ordinary
           // replay path must keep refusing a value without its association.

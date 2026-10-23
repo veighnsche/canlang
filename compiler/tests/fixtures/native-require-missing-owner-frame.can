@@ -12,5 +12,5 @@ When
   require allowed(root)
   do
    set root {checked=true}
-   return local_date(now,"UTC")
+   return add_days(local_date(now,"UTC"),1)
 Then
