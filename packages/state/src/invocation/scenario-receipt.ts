@@ -2300,14 +2300,39 @@ function savedSourceCopyDataBudget(receipt:unknown,current?:CurrentScenarioRecei
   return sourceCopyDataBudget(limits);
 }
 
-/** A read-only bound for this actual admitted source owner, never a request
- * budget or an authority issuer. begin/finalize rederive it independently. */
-export function readScenarioReceiptSourceLoopBounds(call:AdmittedCall,store:StoragePort):{
-  readonly maxRows:number;readonly maxWork:number;readonly maxWrites:number;
+/** Resource bounds come from independently installed State plans/producers,
+ * never an operation name or a requested allowance. Exact producers compose
+ * only when their row/work requirements agree. */
+function scenarioReceiptOwnerBudget(def:GeneratedOperationDef,bound:BoundPlan):{
+  readonly bounds:ScenarioReceiptMutationInput['bounds'];readonly exact:boolean;
 }{
-  capture(call,store);
-  return sourceBodyLoopLimits(call.def as GeneratedOperationDef)??sourceCopyDefinitionLimits(call.def as GeneratedOperationDef)
-    ??Object.freeze({maxRows:MAX_ITEMS,maxWork:10_000,maxWrites:MAX_ITEMS});
+  const extended=bound.leaveRequestDecision!==undefined||bound.leaveDecideDecision!==undefined||
+    bound.referRejectDecision!==undefined||bound.memberRetryDecision!==undefined||bound.invoiceOverdueDecision!==undefined||
+    bound.rentMovementRefundDecision!==undefined||bound.invoiceCollectDecision!==undefined||
+    bound.invoiceIssueDecision!==undefined||bound.rentNoticeDecision!==undefined;
+  const loops=bound.plan.sourceEmissions===undefined?undefined:checkSourceEmissions(bound.plan.sourceEmissions,bound.plan.source);
+  const emissions=loops===undefined?undefined:Object.freeze({
+    maxRows:loops.loops.reduce((sum,loop)=>sum+loop.maximum,0)+1,maxWork:200_000,maxSourceNodes:200_000,
+    maxSourceRows:loops.loops.reduce((sum,loop)=>sum+loop.maximum*(loop.handler===null?1:2),0),
+  });
+  const composed=sourceBodyLoopLimits(def)??sourceCopyDefinitionLimits(def);
+  const protectedBounds=extended?{maxRows:4_001,maxWork:200_000}:undefined;
+  const exact=[emissions,composed,protectedBounds].filter(value=>value!==undefined);
+  const selected=exact[0];
+  if(selected!==undefined&&exact.some(value=>value.maxRows!==selected.maxRows||value.maxWork!==selected.maxWork)){
+    return invalid('owner row bound exceeds its exact saved disclosure budget.');
+  }
+  // The extended 4,001st row remains a nontruncation sentinel. A source loop
+  // keeps its separately checked finite source-node and physical-row census.
+  return {bounds:Object.freeze(selected===undefined?{maxRows:MAX_ITEMS,maxWork:10_000}:
+    {maxRows:selected.maxRows,maxWork:selected.maxWork,...(emissions===undefined?{}:
+      {maxSourceNodes:emissions.maxSourceNodes,maxSourceRows:emissions.maxSourceRows})}),exact:selected!==undefined};
+}
+
+/** Read only this actual admitted owner's State budget. This issues no scan,
+ * DATA permission or execution authority; begin rederives the same allowance. */
+export function readScenarioReceiptOwnerBounds(call:AdmittedCall,store:StoragePort):ScenarioReceiptMutationInput['bounds']{
+  return scenarioReceiptOwnerBudget(call.def as GeneratedOperationDef,capture(call,store).bound).bounds;
 }
 
 const activeCalls = new WeakMap<AdmittedCall, { readonly owner: ReceiptOwnerSession }>();
@@ -5858,27 +5883,11 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
     if (typeof input.bounds !== 'object' || input.bounds === null || Array.isArray(input.bounds)) return invalid('owner session requires finite bounds.');
     const bounds = object(dataCopy(input.bounds), ['maxWork', 'maxRows',
       ...(Object.hasOwn(input.bounds,'maxSourceNodes')?['maxSourceNodes','maxSourceRows']:[])]);
-    // The extra row is a sentinel: admitted bounded owner domains contain at
-    // most 4,000 rows, so a full query can prove it did not truncate.
-    const extendedOwner = state.bound.leaveRequestDecision !== undefined ||
-      state.bound.leaveDecideDecision !== undefined || state.bound.referRejectDecision !== undefined ||
-      state.bound.memberRetryDecision !== undefined || state.bound.invoiceOverdueDecision !== undefined ||
-      state.bound.rentMovementRefundDecision !== undefined ||
-      state.bound.invoiceCollectDecision !== undefined ||
-      state.bound.invoiceIssueDecision !== undefined ||
-      state.bound.rentNoticeDecision !== undefined;
-    const sourceLoops=state.bound.plan.sourceEmissions===undefined?undefined:
-      checkSourceEmissions(state.bound.plan.sourceEmissions,state.bound.plan.source);
-    const loopRows=sourceLoops?.loops.reduce((sum,loop)=>sum+loop.maximum,0);
-    const sourceRows=sourceLoops?.loops.reduce((sum,loop)=>sum+loop.maximum*(loop.handler===null?1:2),0);
-    const sourceCopy=sourceBodyLoopLimits(call.def as GeneratedOperationDef)??sourceCopyDefinitionLimits(call.def as GeneratedOperationDef);
-    const maxRows = loopRows===undefined ? extendedOwner ? 4_001 : sourceCopy?.maxRows??MAX_ITEMS : loopRows+1;
-    if (!Number.isSafeInteger(bounds['maxRows']) || (bounds['maxRows'] as number) < 1 ||
-        (bounds['maxRows'] as number) > maxRows ||
-        extendedOwner && (bounds['maxWork'] !== 200_000 || bounds['maxRows'] !== 4_001) ||
-        loopRows!==undefined && (bounds['maxWork']!==200_000 || bounds['maxRows']!==loopRows+1 || bounds['maxSourceNodes']!==200_000 || bounds['maxSourceRows']!==sourceRows) ||
-        loopRows===undefined && Object.hasOwn(bounds,'maxSourceNodes') ||
-        sourceCopy !== undefined && (bounds['maxWork'] !== sourceCopy.maxWork || bounds['maxRows'] !== sourceCopy.maxRows)) {
+    const budget=scenarioReceiptOwnerBudget(call.def as GeneratedOperationDef,state.bound),expected=budget.bounds;
+    if(!Number.isSafeInteger(bounds['maxRows'])||Number(bounds['maxRows'])<1||Number(bounds['maxRows'])>expected.maxRows||
+        budget.exact&&(bounds['maxRows']!==expected.maxRows||bounds['maxWork']!==expected.maxWork)||
+        (expected.maxSourceNodes===undefined?Object.hasOwn(bounds,'maxSourceNodes'):
+          bounds['maxSourceNodes']!==expected.maxSourceNodes||bounds['maxSourceRows']!==expected.maxSourceRows)){
       return invalid('owner row bound exceeds its exact saved disclosure budget.');
     }
     const producer = frameworkProducers.get(call.def as GeneratedOperationDef);
