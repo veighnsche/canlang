@@ -15168,33 +15168,105 @@ impl<'a> Closure<'a> {
         if let Some(filter)=filter {
             let [predicate]=filter.expressions.as_slice() else{return None;};
             if self.types.node_types.get(predicate)!=Some(&ResolvedType::Scalar(Scalar::Bool)){return None;}
-            let mut pending=vec![*predicate];
-            let mut steps=0;
-            while let Some(key)=pending.pop() {
-                steps+=1;if steps>1024{return None;}
-                let node=self.nodes.get(&key)?;
-                self.source_require_expression_shape(key)?;
-                if matches!(node.kind,SyntaxKind::Call|SyntaxKind::Query){return None;}
-                if node.kind==SyntaxKind::Member {
-                    let field=self.query_member(key,alias.node,*child)?;
-                    let ty=self.types.symbol_types.get(&field)?;
-                    if !matches!(self.resolve.symbols.get(field.0 as usize)?.kind,SymbolKind::Field{owner,..} if owner==*child)
-                        || !(primitive_type(ty)||matches!(ty,ResolvedType::Enum{cases,..} if !cases.is_empty()))
-                        || self.types.node_types.get(&key)!=Some(ty)
-                    {return None;}
-                }
-                if node.kind==SyntaxKind::NameRef {
-                    match self.query_binding(key) {
-                        Some(Binding::QueryAlias{node}) if *node==alias.node=>{},
-                        Some(Binding::Context(ContextVar::Now))=>{},
-                        _ if self.types.resolved_cases.contains(&key)=>{},
-                        _=>return None,
-                    }
-                }
-                pending.extend(node.children.iter().map(NodeKey::of));
-            }
+            self.source_require_child_predicate(*predicate, alias.node, *child, budget)?;
         }
         Some(())
+    }
+
+    /// A closed child predicate is shared by Money SUM and Boolean ANY.
+    /// Stored scalar fields stay on the exact checked alias; no navigation,
+    /// derived child reads, helper calls or foreign rows enter this domain.
+    fn source_require_child_predicate(&self, predicate:NodeKey, alias:NodeKey,
+        child:SymbolId,budget:&mut usize)->Option<()> {
+        if self.types.node_types.get(&predicate)!=Some(&ResolvedType::Scalar(Scalar::Bool)){return None;}
+        let mut pending=vec![predicate];
+        while let Some(key)=pending.pop() {
+            if *budget==0{return None;}*budget-=1;
+            let node=self.nodes.get(&key)?;
+            self.source_require_expression_shape(key)?;
+            if matches!(node.kind,SyntaxKind::Call|SyntaxKind::Query){return None;}
+            if node.kind==SyntaxKind::Member {
+                let field=self.query_member(key,alias,child)?;
+                let ty=self.types.symbol_types.get(&field)?;
+                if !matches!(self.resolve.symbols.get(field.0 as usize)?.kind,SymbolKind::Field{owner,..} if owner==child)
+                    || !(primitive_type(ty)||matches!(ty,ResolvedType::Enum{cases,..} if !cases.is_empty()))
+                    || self.types.node_types.get(&key)!=Some(ty){return None;}
+            }
+            if node.kind==SyntaxKind::NameRef {
+                match self.query_binding(key) {
+                    Some(Binding::QueryAlias{node}) if *node==alias=>{},
+                    Some(Binding::Context(ContextVar::Now))=>{},
+                    _ if self.types.resolved_cases.contains(&key)=>{},
+                    _=>return None,
+                }
+            }
+            pending.extend(node.children.iter().map(NodeKey::of));
+        }
+        Some(())
+    }
+
+    /// Only an initial source Require may combine row scalar algebra,
+    /// independently sealed Money aggregates and closed contained ANY.
+    /// This does not change the general derived read or query DATA grammar.
+    fn source_require_derived_control(&self,field:SymbolId,model:SymbolId,
+        visited:&mut Vec<(SymbolId,SymbolId)>,budget:&mut usize)->Option<()> {
+        if visited.len()>=32||visited.contains(&(field,model)){return None;}
+        self.derived_member_body(field,model)?;
+        let ty=self.types.symbol_types.get(&field)?;
+        if !(primitive_type(ty)||matches!(ty,ResolvedType::Enum{cases,..} if !cases.is_empty())){return None;}
+        if self.source_require_aggregate_field(field,model).is_some(){return Some(());}
+        visited.push((field,model));
+        let body=self.effects.derives.get(&field)?.expr?;
+        let result=self.source_require_control_value(body,model,visited,budget,0);
+        visited.pop();result
+    }
+
+    fn source_require_control_value(&self,key:NodeKey,model:SymbolId,
+        visited:&mut Vec<(SymbolId,SymbolId)>,budget:&mut usize,depth:usize)->Option<()> {
+        if *budget==0||depth>64{return None;}*budget-=1;
+        let key=self.query_group(key)?;let node=self.nodes.get(&key)?;
+        if self.types.resolved_cases.contains(&key)||node.kind==SyntaxKind::Literal{return Some(());}
+        if node.kind==SyntaxKind::Member {
+            let (base,name)=self.count_member(key)?;
+            if matches!(self.query_binding(base),Some(Binding::Context(ContextVar::RowModel(owner)))if *owner==model) {
+                let SymbolKind::Model{fields,..}=&self.resolve.symbols.get(model.0 as usize)?.kind else{return None;};
+                let field=fields.iter().find_map(|id|self.resolve.symbols.get(id.0 as usize).filter(|field|field.name==name))?;
+                let ty=self.types.symbol_types.get(&field.id)?;
+                if self.types.node_types.get(&key)!=Some(ty)
+                    || !(primitive_type(ty)||matches!(ty,ResolvedType::Enum{cases,..}if !cases.is_empty())){return None;}
+                return match field.kind {
+                    SymbolKind::Field{owner,..}if owner==model=>Some(()),
+                    SymbolKind::DeriveField{model:owner,..}if owner==model=>self.source_require_derived_control(field.id,model,visited,budget),
+                    _=>None,
+                };
+            }
+            self.source_require_control_value(base,model,visited,budget,depth+1)?;
+            self.admitted_data_member_step(base,name)?;return Some(());
+        }
+        if matches!(node.kind,SyntaxKind::Binary|SyntaxKind::Unary|SyntaxKind::Group) {
+            for child in node.children.iter().filter(|child|expression(child.kind)) {
+                self.source_require_control_value(NodeKey::of(child),model,visited,budget,depth+1)?;
+            }
+            return Some(());
+        }
+        let call=self.types.selected_calls.get(&key)?;
+        let SelectedCallTarget::Builtin{id,overload}=&call.target else{return None;};
+        if id!="any"||call.arguments.len()!=2||call.slots.as_slice()!=[Some(0),Some(1)]{return None;}
+        let fact=self.types.checked_collection_calls.get(&key)?;
+        let domain=self.query_group(call.arguments[0])?;let predicate=call.arguments[1];
+        let query=self.types.checked_queries.get(&domain)?;let [alias]=query.clauses.as_slice()else{return None;};
+        let array=ResolvedType::Array{element:Box::new(ResolvedType::Record{symbol:fact.model,stored:true}),ordered:true,nonempty:false};
+        let (row,name)=self.count_member(query.domain)?;
+        let child=self.resolve.symbols.get(fact.model.0 as usize)?;
+        if fact.node!=key||fact.builtin!=*id||fact.overload!=*overload||fact.query!=domain||fact.alias!=alias.node
+            || fact.predicate.as_ref().is_none_or(|p|p.node!=predicate||p.ty!=ResolvedType::Scalar(Scalar::Bool))
+            ||query.domain_type!=array||query.result!=array||query.projection.is_some()
+            ||self.types.node_types.get(&query.domain)!=Some(&array)||self.types.node_types.get(&key)!=Some(&ResolvedType::Scalar(Scalar::Bool))
+            ||!matches!(alias.kind,CheckedQueryClauseKind::As{..})||!alias.expressions.is_empty()
+            ||!matches!(self.query_binding(row),Some(Binding::Context(ContextVar::RowModel(owner)))if *owner==model)
+            ||child.name!=name||!matches!(child.kind,SymbolKind::Model{owner:ModelOwner::ChildOf(owner),..}if owner==model)
+            ||self.effects.models.get(&fact.model)?.owner!=ModelOwner::ChildOf(model){return None;}
+        self.source_require_child_predicate(predicate,alias.node,fact.model,budget)
     }
 
     fn source_require_aggregate_field(
@@ -16151,7 +16223,7 @@ impl<'a> Closure<'a> {
             && let Some(field) = self.resolve.symbols.iter().find(|field| field.name == name
                 && matches!(field.kind, SymbolKind::DeriveField { model: owner, .. } if owner == *model))
         {
-            if self.source_require_aggregate_field(field.id, *model).is_none()
+            if self.source_require_derived_control(field.id, *model, &mut Vec::new(), &mut 4096).is_none()
                 && self.admitted_derived_read(field.id, *model, &mut Vec::new()).is_none()
             {
                 *supported = false; return Some(false);

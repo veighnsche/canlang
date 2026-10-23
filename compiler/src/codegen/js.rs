@@ -1760,7 +1760,7 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
             _ => false,
         })
     }
-    let IrItemKind::Scenario{params,effects,hook:None,..}=&owner.kind else{return false;};
+    let IrItemKind::Scenario{params,guards,effects,hook:None,..}=&owner.kind else{return false;};
     let mut values=params.iter().filter_map(|id|{
         let param=ir.items.get(id.0 as usize)?;
         let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};
@@ -1775,7 +1775,8 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
             if ir.items.get(symbol.0 as usize).is_some_and(|item|matches!(item.kind,IrItemKind::Model{..})))
             .then(||(param.name.clone(),ty.clone()))
     }).collect();
-    statements(ir,owner,effects,0,&mut values,&mut records,&consumed,data_sends,cancels,schedules,context)
+    statements(ir,owner,guards,0,&mut values,&mut records,&consumed,data_sends,cancels,schedules,context)
+        && statements(ir,owner,effects,0,&mut values,&mut records,&consumed,data_sends,cancels,schedules,context)
 }
 
 pub(super) fn emit_program_with_feasible_query_sources(

@@ -2182,6 +2182,17 @@ fn original_invoice_document_keeps_contained_projection_and_helper_formal_corres
     let owner=item(&ir,"invoice.document");
     assert!(serialize_decision_sources(&program,&ir,owner,&db,Some(&catalog)).is_some());
     assert!(artifact["modules"].as_array().unwrap().iter().any(|module|module["js"].as_str().unwrap().contains("nativeScenarioSourceSendQuery")));
+    let receipt=item(&ir,"invoice.generate_receipt");
+    assert!(serialize_decision_sources(&program,&ir,receipt,&db,Some(&catalog)).is_some());
+    let guarded=artifact["modules"].as_array().unwrap().iter().map(|module|
+        module["js"].as_str().unwrap().matches("check(await nativeScenarioRequire(c,").count()).sum::<usize>();
+    assert_eq!(guarded,3,"both original receipt headers need the actual source observer, alongside document");
+    for name in ["settled","balance","received","collection_pending","refund_pending"] {
+        let mut changed=ir.clone();let field=item(&changed,&format!("invoice.Invoice.{name}")).id;
+        let IrItemKind::DeriveField{expr:Some(body),..}=&mut changed.items[field.0 as usize].kind else{panic!("derive");};
+        body.expr=IrExpr::Bool(true);
+        assert!(serialize_decision_sources(&program,&changed,&changed.items[receipt.id.0 as usize],&db,Some(&catalog)).is_none(),"{name}");
+    }
     for mode in ["projection","order","parent","helper-formal","nominal-kind"] {
         let mut changed=ir.clone();
         if mode=="nominal-kind"{
@@ -2211,10 +2222,12 @@ fn original_invoice_document_keeps_contained_projection_and_helper_formal_corres
     let (db,program,_,catalog)=fixture_source("renamed-model-formal.can",&source.replace(helper,&renamed));
     let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
     for(name,changed)in[
+        ("global-derived-any",source.replace("any(row.Attempt as attempt,attempt.kind==collection", "any(Attempt as attempt,attempt.kind==collection")),
+        ("foreign-derived-predicate",source.replace("attempt.kind==collection and attempt.status in", "attempt.parent.state==issued and attempt.status in")),
         ("global-domain",source.replace("invoice.Line as line order", "Line as line order")),
         ("unjoined-filter",source.replace("invoice.Line as line order", "invoice.Line as line where line.quantity>0 order")),
         ("foreign-reference",source.replace("title=line.description", "title=line.parent.issuer")),
-        ("copied-receiver",source.replace("    send Documents.invoice", "    let copy=invoice\n    send Documents.invoice").replace("snapshot=issued_snapshot(invoice,", "snapshot=issued_snapshot(copy,")),
+        ("copied-receiver",source.replace("    send Documents.", "    let copy=invoice\n    send Documents.").replace("snapshot=issued_snapshot(invoice,", "snapshot=issued_snapshot(copy,")),
     ]{
         assert_ne!(source,changed,"{name}");
         let(db,program,_,catalog)=fixture_source(&format!("{name}.can"),&changed);

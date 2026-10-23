@@ -65,6 +65,7 @@ package invoice
   export contract PdfResult { source:text label=label_Charge_source, document:file label=label_PdfResult_document, revision:int } label="PDF result"@{nl="PDF-resultaat"}
   export capability DocumentsV1 version=1
    invoice(source:text,snapshot:InvoiceDocument,revision:int) -> PdfResult
+   receipt(source:text,snapshot:InvoiceDocument,revision:int) -> PdfResult
   role finance
   export Invoice in Customer {location:Location,source:text,currency:currency,state:enum(draft,issued,void_pending,void)=draft,total:money,issuer:text,recipient:text,address:text,tax_reference:text?,terms:text?,due:date,number:text?,issued_at:datetime?,hidden:bool=false}
   Line in Invoice {description:text,position:int=0,quantity:decimal=1,unit:text?,service_from:datetime?,service_until:datetime?,service_location:text?,service_reference:text?,price:money,tax:money,discount:money,tax_readable:bool=true,hidden:bool=false}
@@ -75,6 +76,14 @@ package invoice
   Document in Invoice {revision:int,kind:enum(invoice,receipt)=invoice,file:file}
   DocumentRequest in Invoice {revision:int,kind:Document.kind=invoice,status:enum(pending,succeeded,failed,unknown)=pending,error:text?,delivery:text unique}
   derive issued_snapshot(invoice:Invoice,number:text,issued_at:datetime):InvoiceDocument = InvoiceDocument {issuer=invoice.issuer,recipient=invoice.recipient,address=invoice.address,tax_reference=invoice.tax_reference,number,issued_at,due=invoice.due,currency=invoice.currency,lines=invoice.Line as line order=line.position select DocumentLine {title=line.description,quantity=line.quantity,price=line.price,tax=line.tax,discount=line.discount,unit=line.unit,from=line.service_from,until=line.service_until,location=line.service_location,reference=line.service_reference},credits=invoice.Credit as credit select DocumentCredit {amount=credit.amount,reason=credit.reason},payments=(invoice.Attempt as payment select DocumentPayment {reference=payment.reference,amount=payment.amount,kind=payment.kind,state=format("{status}",{status=payment.status}),received=payment.received})+(invoice.ExternalPayment as payment select DocumentPayment {reference=payment.reference,amount=payment.amount,kind=collection,state="succeeded",received=payment.received})+(invoice.ExternalRefund as evidence select DocumentPayment {reference=evidence.reference,amount=evidence.amount,kind=refund,state="succeeded",received=evidence.received}),terms=invoice.terms,total=invoice.total}
+  derive Invoice.collection_pending:bool = any(row.Attempt as attempt,attempt.kind==collection and attempt.status in [pending,unknown])
+  derive Invoice.refund_pending:bool = any(row.Attempt as attempt,attempt.kind==refund and attempt.status in [pending,unknown])
+  derive Invoice.settled:bool = row.state==issued and row.balance.minor==0 and not row.collection_pending and not row.refund_pending and row.refund_due.minor==0 label="Settled"@{nl="Afgewikkeld"}
+  derive Invoice.credits:money = sum(row.Credit as credit select credit.amount,row.currency) label=label_InvoiceDocument_credits
+  derive Invoice.received:money = sum(row.Attempt as attempt where attempt.kind==collection and attempt.status==succeeded select attempt.amount,row.currency)+sum(row.ExternalPayment as payment select payment.amount,row.currency) label="Received payments"@{nl="Ontvangen betalingen"}
+  derive Invoice.refunded:money = sum(row.Attempt as attempt where attempt.kind==refund and attempt.status==succeeded select attempt.amount,row.currency)+sum(row.ExternalRefund as refund select refund.amount,row.currency) label="Refunded amount"@{nl="Terugbetaald bedrag"}
+  derive Invoice.balance:money = max([money(0,row.currency),row.total-row.credits-row.received]) label="Outstanding balance"@{nl="Openstaand saldo"}
+  derive Invoice.refund_due:money = max([money(0,row.currency),row.received-row.refunded-(row.total-row.credits)]) label="Refund due"@{nl="Terug te betalen"}
   policy Invoice read=members where=not row.hidden
   policy Line read=members where=not row.hidden fields=description,position,quantity,unit,service_from,service_until,service_location,service_reference,price,discount
   policy Line read=members where=not row.hidden and row.tax_readable fields=tax
@@ -88,4 +97,10 @@ package invoice
    do
     send Documents.invoice {source=invoice.id,revision=invoice.version,snapshot=issued_snapshot(invoice,invoice.number,invoice.issued_at)} as delivery
     create DocumentRequest {parent=invoice,revision=invoice.version,delivery=delivery.id} as request
+  scenario generate_receipt(invoice:Invoice) by=finance or authenticated label="Generate receipt"@{nl="Betalingsbewijs genereren"}
+   require invoice.settled and invoice.number!=null and invoice.issued_at!=null and invoice.received.minor>0
+   require owns(actor,invoice.parent) or has_role(actor,invoice.parent,billing) or (finance and can_work(actor,invoice.location))
+   do
+    send Documents.receipt {source=invoice.id,revision=invoice.version,snapshot=issued_snapshot(invoice,invoice.number,invoice.issued_at)} as delivery
+    create DocumentRequest {parent=invoice,revision=invoice.version,kind=receipt,delivery=delivery.id} as request
  Then

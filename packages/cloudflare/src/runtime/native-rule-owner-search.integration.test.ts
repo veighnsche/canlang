@@ -2313,11 +2313,13 @@ it('projects the original Invoice document child arrays through ordinary field D
       const start=original.indexOf('  scenario document('),end=original.indexOf('   examples ',start);
       assert.ok(text.includes(original.slice(start,end)),'complete original document owner is retained');
       assert.ok(text.includes(original.split('\n').find(line=>line.startsWith('  derive issued_snapshot('))!),'complete original snapshot helper is retained');
+      const receiptStart=original.indexOf('  scenario generate_receipt('),receiptEnd=original.indexOf('   examples ',receiptStart);
+      assert.ok(text.includes(original.slice(receiptStart,receiptEnd)),'complete original receipt owner is retained');
       const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],
         {cwd:root,timeout:60000,maxBuffer:32*1024*1024});
       const artifact=JSON.parse(stdout) as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,
         stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
-      for(const mode of ['allowed','hidden-row','other-parent','withheld-field','worker-inactive','role-during-send','child-at-commit','grant-at-commit','parent-at-commit','overflow'] as const){
+      for(const mode of ['allowed','hidden-row','other-parent','withheld-field','worker-inactive','role-during-send','child-at-commit','grant-at-commit','parent-at-commit','overflow','receipt-allowed','receipt-unsettled','receipt-pending','receipt-pending-at-commit'] as const){
         const {now,identities,identity,team,user}=await member(`invoice-document-${mode}`,['invoice.finance']);
         const scope={app:'CanInvoice',owner:team.team_id,ownerPackage:'invoice'};
         const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'document-state',fileStoreId:'document-files',
@@ -2326,7 +2328,7 @@ it('projects the original Invoice document child arrays through ordinary field D
         await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
         const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent});
         const location=row('location',{active:true}),customer=row('customer',{kind:'company',hidden:false});
-        const invoice=row('invoice',{location:{id:location.id},source:'original-invoice',currency:'EUR',state:'issued',total:{minor:'2000',currency:'EUR'},
+        const invoice=row('invoice',{location:{id:location.id},source:'original-invoice',currency:'EUR',state:'issued',total:{minor:mode==='receipt-allowed'||mode.startsWith('receipt-pending')?'900':'2000',currency:'EUR'},
           issuer:'Original issuer',recipient:'Original recipient',address:'1 Road',tax_reference:null,terms:'Net 14',due:'2026-12-01',number:'INV-1',issued_at:new Date(now).toISOString(),hidden:false},
           {model:model('customer','Customer'),id:customer.id});
         const child={model:model('invoice','Invoice'),id:invoice.id};
@@ -2338,7 +2340,7 @@ it('projects the original Invoice document child arrays through ordinary field D
           {kind:'insert',model:model('employee','Employee'),row:row('worker',{user:{id:user.user_id},home:{id:location.id},locations:[],operator_wide:false,active:mode!=='worker-inactive',hidden:true})},
           {kind:'insert',model:model('invoice','Invoice'),row:invoice},{kind:'insert',model:model('invoice','Line'),row:first},{kind:'insert',model:model('invoice','Line'),row:second},
           {kind:'insert',model:model('invoice','Credit'),row:row('credit',{amount:{minor:'100',currency:'EUR'},reason:'Original credit',hidden:false},child)},
-          {kind:'insert',model:model('invoice','Attempt'),row:row('attempt',{reference:'payment-1',amount:{minor:'500',currency:'EUR'},kind:'collection',status:'succeeded',received:new Date(now).toISOString(),hidden:false},child)},
+          {kind:'insert',model:model('invoice','Attempt'),row:row('attempt',{reference:'payment-1',amount:{minor:'500',currency:'EUR'},kind:'collection',status:mode==='receipt-pending'?'pending':'succeeded',received:new Date(now).toISOString(),hidden:false},child)},
           {kind:'insert',model:model('invoice','ExternalPayment'),row:row('external',{reference:'bank-1',amount:{minor:'400',currency:'EUR'},received:new Date(now).toISOString(),hidden:false},child)},
           {kind:'insert',model:model('invoice','ExternalRefund'),row:row('refund',{reference:'refund-1',amount:{minor:'100',currency:'EUR'},received:new Date(now).toISOString(),hidden:false},child)},
         ]}));
@@ -2355,11 +2357,12 @@ it('projects the original Invoice document child arrays through ordinary field D
             return load(model,id);
           };
         }
-        if(mode==='child-at-commit'||mode==='grant-at-commit'||mode==='parent-at-commit'){
+        if(mode==='child-at-commit'||mode==='grant-at-commit'||mode==='parent-at-commit'||mode==='receipt-pending-at-commit'){
           const commit=store.commit.bind(store);store.commit=async batch=>{
             if(!raced&&batch.writes.some(write=>write.model==='work.dispatch')){
               raced=true;
-              if(mode==='parent-at-commit')await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('invoice','Invoice'),id:invoice.id,
+              if(mode==='receipt-pending-at-commit')await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('invoice','Attempt'),row:row('pending-race',{reference:'pending-race',amount:{minor:'1',currency:'EUR'},kind:'collection',status:'pending',received:null,hidden:true},child)}]}));
+              else if(mode==='parent-at-commit')await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('invoice','Invoice'),id:invoice.id,
                 expectedVersion:invoice.version,row:{...invoice,version:asVersion(invoice.version+1),data:{...invoice.data,hidden:true}}}]}));
               else await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('invoice','Line'),id:first.id,expectedVersion:first.version,
                 row:{...first,version:asVersion(first.version+1),data:{...first.data,...(mode==='grant-at-commit'?{tax_readable:false}:{description:'Concurrent source'})}}}]}));
@@ -2368,12 +2371,12 @@ it('projects the original Invoice document child arrays through ordinary field D
           };
         }
         const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
-        const request={operation:'invoice.document',operation_id:operationId(now),inputs:{invoice:{id:invoice.id,version:String(invoice.version)}}};
-        const result=await invoker.invokeMutation(request,identity),success=['allowed','hidden-row','other-parent','child-at-commit'].includes(mode);
+        const request={operation:mode.startsWith('receipt-')?'invoice.generate_receipt':'invoice.document',operation_id:operationId(now),inputs:{invoice:{id:invoice.id,version:String(invoice.version)}}};
+        const result=await invoker.invokeMutation(request,identity),success=['allowed','hidden-row','other-parent','child-at-commit','receipt-allowed'].includes(mode);
         assert.equal('result'in result&&result.result.status==='committed',success,`${mode}: ${JSON.stringify(result)}`);
         const pending=await store.outboxPending();assert.equal(pending.length,success?1:0,mode);
         assert.equal((await store.query({model:model('invoice','DocumentRequest'),authority:'owner'})).length,success?1:0,mode);
-        if(['child-at-commit','grant-at-commit','parent-at-commit','role-during-send'].includes(mode))assert.ok(raced,'actual final race reached');
+        if(['child-at-commit','grant-at-commit','parent-at-commit','role-during-send','receipt-pending-at-commit'].includes(mode))assert.ok(raced,'actual final race reached');
         if(!success)continue;
         const snapshot=(pending[0]!.arguments as {arguments:{snapshot:{lines:{title:string}[];credits:{reason:string}[];payments:{reference:string}[]}}}).arguments.snapshot;
         assert.deepEqual(snapshot.lines.map(line=>line.title),mode==='hidden-row'?['Second']:mode==='child-at-commit'?['Second','Concurrent source']:['Second','First']);
