@@ -15931,13 +15931,17 @@ impl<'a> Closure<'a> {
             return None;
         };
         let (receiver, name) = self.count_member(query.domain)?;
-        let Some(Binding::Symbol(parameter)) = self.query_binding(receiver) else {
-            return None;
-        };
         let ResolvedType::Record { symbol: owner_model, stored: true } =
-            self.types.symbol_types.get(parameter)? else {
+            self.types.node_types.get(&receiver)? else {
             return None;
         };
+        // The stored array belongs to the exact original admitted parameter
+        // or its bounded authored containment lineage, never an equal-typed
+        // arbitrary model expression or a helper's unbound formal.
+        let parameter=scenario.params.iter().find(|parameter|
+            matches!(self.types.symbol_types.get(&parameter.param),Some(ResolvedType::Record{stored:true,..}))
+                &&self.checked_call_parent_path(receiver,parameter.param,0)
+                    .is_some_and(|(model,_)|model==*owner_model))?.param;
         let field = self.effects.models.get(owner_model)?.fields.iter().find(|field| {
             self.resolve.symbols.get(field.field.0 as usize)
                 .is_some_and(|decl| decl.name == name)
@@ -15962,8 +15966,7 @@ impl<'a> Closure<'a> {
             || query.result != *domain_ty
             || query.projection.is_some()
             || self.types.node_types.get(&query.domain) != Some(domain_ty)
-            || self.checked_call_parent_path(receiver, *parameter, 0) != Some((*owner_model, 0))
-            || !scenario.params.iter().any(|input| input.param == *parameter)
+            || !self.checked_call_parent_path(receiver,parameter,0).is_some_and(|(model,_)|model==*owner_model)
             || self.types.symbol_types.get(&field.field) != Some(domain_ty)
             || field.default.is_some()
             || field.server.is_some()

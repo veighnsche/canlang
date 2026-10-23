@@ -3200,3 +3200,26 @@ fn original_stock_integer_sum_retains_containment_and_checked_contextual_shortha
  let(_,diagnostics)=check_program(&db,&[file],Some(&catalog));
  assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E2012"),"contextual shadow: {diagnostics:?}");
 }
+
+#[test]
+fn original_affiliate_refresh_seals_parent_stored_model_array_all() {
+ let source=include_str!("fixtures/affiliate-refresh-original.can");
+ let(db,program,ir,catalog)=fixture_source("affiliate-refresh-original.can",source);let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let owner=item(&ir,"affiliate.refresh_settlement");
+ fn all_args(value:&mut canlang_compiler::codegen::ir::TypedExpr)->Option<&mut Vec<canlang_compiler::codegen::ir::TypedExpr>>{
+  match &mut value.expr{
+   IrExpr::Call{target:canlang_compiler::codegen::ir::IrCallTarget::Builtin{id,..},args}
+   |IrExpr::BoundCall{target:canlang_compiler::codegen::ir::IrCallTarget::Builtin{id,..},args,..}if id=="all"=>Some(args),
+   IrExpr::Binary{left,right,..}=>all_args(left).or_else(||all_args(right)),
+   _=>None,
+  }
+ }
+ for mode in ["stored-field","parent-edge","predicate","array-model"]{
+  let mut changed=ir.clone();
+  if mode=="array-model"{let partner=item(&changed,"affiliate.Partner").id;let field=item(&changed,"affiliate.Partner.locations").id;let IrItemKind::Field{ty:IrType::Known(ResolvedType::Array{element,..}),..}=&mut changed.items[field.0 as usize].kind else{panic!("field")};*element=Box::new(ResolvedType::Record{symbol:partner,stored:true});}
+  else{let IrItemKind::Scenario{guards,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("owner")};let IrStmt::Require{cond,..}=&mut guards[0]else{panic!("guard")};let args=all_args(cond).expect("authored ALL");
+   if mode=="predicate"{args[1].expr=IrExpr::Bool(true);}else{let IrExpr::Query(query)=&mut args[0].expr else{panic!("array domain")};let canlang_compiler::codegen::ir::IrQueryDomain::Value{base,..}=&mut query.domain else{panic!("stored array")};let IrExpr::Member{base,field}=&mut base.expr else{panic!("field read")};if mode=="stored-field"{*field="other_locations".into();}else{let IrExpr::Member{field,..}=&mut base.expr else{panic!("parent edge")};*field="other_partner".into();}}
+  }
+  let emitted=js::emit_program_with_native_source_receipts(&changed,true,&db);assert!(emitted.diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {:?}",emitted.diagnostics);
+ }
+}

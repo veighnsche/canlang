@@ -1,0 +1,41 @@
+app CanAffiliate uses=[affiliate]
+package rent_catalog
+ Given
+  export Location {active:bool=true}
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,home:Location,locations:Location[],operator_wide:bool=false,active:bool=true,hidden:bool=false}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members and not row.hidden
+ When
+ Then
+package affiliate
+ use rent_catalog {Location}
+ use employee {can_work}
+ use affiliate {CommissionV1 as Commissions} from=deployment.commissions
+ Given
+  export contract CommissionResult {source:text,revision:int min=1,amount:money,account:text,allocation:enum(pending,unknown,allocated,failed,reversed),bank:enum(not_started,pending,in_transit,succeeded,failed,returned),transfer:text?,payout:text?}
+  export capability CommissionV1 version=1
+   settle(source:text,account:text,amount:money) -> CommissionResult
+   reconcile(source:text) -> CommissionResult
+  role finance
+  Partner {window:duration=30d,name:text,account:user,email:email,locations:Location[],products:text[]!,rate:decimal min=0 max=1,agreement:text,milestone:enum(paid,completed,cancellation_passed),provider_account:text?,onboarded:bool=false,active:bool=true}
+  Settlement in Partner {last:CommissionResult?,account:text,result_revision:int=0,reconcile_delivery:text?,review:bool=false,source:text unique,amount:money,allocation:CommissionResult.allocation=pending,bank:CommissionResult.bank=not_started,transfer:text?,payout:text?,delivery:text}
+  role partner_manager
+  policy Partner read=public fields=name,active
+  policy Partner read=partner_manager or finance where=all(row.locations as location,can_work(actor,location))
+  policy Partner read=authenticated where=actor.email_verified and row.account==actor fields=name,account,locations,products,rate,agreement,milestone,onboarded,active
+  policy Settlement read=finance where=all(row.parent.locations as location,can_work(actor,location))
+  policy Settlement read=authenticated where=actor.email_verified and row.parent.account==actor
+  invariant Partner: row.window>0m and count(row.locations)>0 and count(row.products)>0 and trim(row.agreement)!=""
+  lock Settlement fields=source,account,amount,delivery
+ When
+  scenario refresh_settlement(settlement:Settlement) by=authenticated or finance label="Refresh settlement"@{nl="Verrekening verversen"}
+   require (actor.email_verified and settlement.parent.account==actor) or (finance and all(settlement.parent.locations as location,can_work(actor,location)))
+   do
+    send Commissions.reconcile {source=settlement.source} as delivery
+    set settlement {reconcile_delivery=delivery.id}
+ Then
