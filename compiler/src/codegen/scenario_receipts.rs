@@ -11149,36 +11149,46 @@ fn nested_parameter_row<'a>(
     None
 }
 
-fn parameter_row_mismatch(
-    duplicate: bool,
-    parameter_owner: &crate::analysis::SymbolId,
-    owner: &IrItem,
-    index: usize,
-    position: usize,
-    parameter: &IrItem,
-    fact: &crate::analysis::scenario_disclosure::CheckedScenarioParameter,
-    module_name: &str,
-    text: &str,
-    base_ty: &ResolvedType,
-    model_return: bool,
-    ir: &IrProgram,
-    value: &TypedExpr,
-    symbol: crate::analysis::SymbolId,
-    db: &SourceDb,
-) -> bool {
-    duplicate
-        || *parameter_owner != owner.id
-        || index != position
-        || parameter.id != fact.parameter
-        || parameter.module != owner.module
-        || parameter.canonical != format!("{}.{}", owner.canonical, parameter.name)
-        || owner.canonical != format!("{}.{}", module_name, owner.name)
-        || text.get(owner.span.start as usize..owner.span.end as usize)
-            != Some(owner.name.as_str())
-        || *base_ty != fact.ty
-        || fact.default.is_some()
-        || fact.constraints.is_some()
-        || !model_return && !reference_read_matches(ir, owner, value, symbol, symbol, "text")
+/// The original required Model input shared by row identity/results, File
+/// arrays and paired scalar reads. This joins the unique named executable
+/// slot to its checked declaration; receiver bytes and read authority remain
+/// with each consumer rather than becoming properties of this lookup.
+struct RequiredModelParameter<'a> {
+    parameter: &'a IrItem,
+    fact: &'a crate::analysis::scenario_disclosure::CheckedScenarioParameter,
+    model: crate::analysis::SymbolId,
+}
+
+impl<'a> RequiredModelParameter<'a> {
+    fn checked(
+        ir: &'a IrProgram,
+        owner: &IrItem,
+        params: &[crate::analysis::SymbolId],
+        source: &'a crate::analysis::scenario_disclosure::CheckedScenarioSource,
+        name: &str,
+    ) -> Option<Self> {
+        let mut parameters = params.iter().enumerate()
+            .filter_map(|(position, id)| Some((position, ir.items.get(id.0 as usize)?)))
+            .filter(|(_, parameter)| parameter.name == name);
+        let (position, parameter) = parameters.next()?;
+        let IrItemKind::Param {
+            owner: declared_owner, index,
+            ty: IrType::Known(ty @ ResolvedType::Record { symbol: model, stored: true }),
+            array_bounds: None, default: None, default_node: None, default_copy_source: None,
+            ..
+        } = &parameter.kind else { return None; };
+        let fact = source.parameters.get(position)?;
+        if parameters.next().is_some()
+            || *declared_owner != owner.id || *index != position
+            || parameter.id != fact.parameter
+            || parameter.module != owner.module
+            || parameter.canonical != format!("{}.{}", owner.canonical, name)
+            || fact.ty != *ty || fact.default.is_some() || fact.constraints.is_some()
+        {
+            return None;
+        }
+        Some(Self { parameter, fact, model: *model })
+    }
 }
 
 fn parameter_row_receiver(
@@ -11345,50 +11355,15 @@ fn checked_parameter_row_id<'a>(
     let IrExpr::Name(name) = &base.expr else {
         return None;
     };
-    let mut parameters = params
-        .iter()
-        .enumerate()
-        .filter_map(|(position, id)| Some((position, ir.items.get(id.0 as usize)?)))
-        .filter(|(_, parameter)| parameter.name == *name);
-    let (position, parameter) = parameters.next()?;
-    let IrItemKind::Param {
-        owner: parameter_owner,
-        index,
-        ty:
-            IrType::Known(ResolvedType::Record {
-                symbol,
-                stored: true,
-            }),
-        array_bounds: None,
-        default: None,
-        default_node: None,
-        default_copy_source: None,
-        ..
-    } = &parameter.kind
-    else {
-        return None;
-    };
-    let fact = source.parameters.get(position)?;
+    let RequiredModelParameter { parameter, fact, model: symbol } =
+        RequiredModelParameter::checked(ir, owner, params, source, name)?;
     let module = ir.modules.get(owner.module.0 as usize)?;
     let text = &db.get(source.node.file)?.text;
-    let duplicate = parameters.next().is_some();
-    if parameter_row_mismatch(
-        duplicate,
-        parameter_owner,
-        owner,
-        *index,
-        position,
-        parameter,
-        fact,
-        &module.name,
-        text,
-        &base.ty,
-        model_return,
-        ir,
-        value,
-        *symbol,
-        db,
-    ) {
+    if owner.canonical != format!("{}.{}", module.name, owner.name)
+        || text.get(owner.span.start as usize..owner.span.end as usize) != Some(owner.name.as_str())
+        || base.ty != fact.ty
+        || !model_return && !reference_read_matches(ir, owner, value, symbol, symbol, "text")
+    {
         return None;
     }
     parameter_row_receiver(ir, owner, value, model_return, base.span, text, db)?;
@@ -11402,7 +11377,7 @@ fn checked_parameter_row_id<'a>(
         .children
         .iter()
         .find(|part| part.kind == SyntaxKind::Path)?;
-    parameter_row_schema(ir, source, owner, *symbol, type_path, text, models, db)
+    parameter_row_schema(ir, source, owner, symbol, type_path, text, models, db)
 }
 
 /// The selected source operand follows at most two genuine containment edges
@@ -12166,84 +12141,6 @@ fn file_array_receiver(
     Some((name, field, *symbol, base))
 }
 
-fn file_array_parameter<'i>(
-    ir: &'i IrProgram,
-    owner: &IrItem,
-    name: &str,
-) -> Option<(
-    &'i IrItem,
-    usize,
-    &'i crate::analysis::SymbolId,
-    &'i usize,
-    &'i ResolvedType,
-)> {
-    let IrItemKind::Scenario {
-        params,
-        read: false,
-        ..
-    } = &owner.kind
-    else {
-        return None;
-    };
-    let mut parameters = params
-        .iter()
-        .enumerate()
-        .filter_map(|(index, id)| Some((index, ir.items.get(id.0 as usize)?)))
-        .filter(|(_, parameter)| parameter.name == name);
-    let (position, parameter) = parameters.next()?;
-    if parameters.next().is_some() {
-        return None;
-    }
-    let IrItemKind::Param {
-        owner: parent,
-        index,
-        ty: IrType::Known(ty),
-        array_bounds: None,
-        default: None,
-        default_node: None,
-        default_copy_source: None,
-        ..
-    } = &parameter.kind
-    else {
-        return None;
-    };
-    Some((parameter, position, parent, index, ty))
-}
-
-fn file_array_declared_matches<'d>(
-    ir: &IrProgram,
-    owner: &IrItem,
-    source: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
-    parameter: &IrItem,
-    position: usize,
-    parent: &crate::analysis::SymbolId,
-    index: &usize,
-    ty: &ResolvedType,
-    name: &str,
-    base: &TypedExpr,
-    db: &'d SourceDb,
-) -> Option<&'d String> {
-    let fact = source.parameters.get(position)?;
-    let module = ir.modules.get(owner.module.0 as usize)?;
-    let text = &db.get(source.node.file)?.text;
-    if *parent != owner.id
-        || *index != position
-        || parameter.id != fact.parameter
-        || parameter.module != owner.module
-        || parameter.canonical != format!("{}.{}", owner.canonical, name)
-        || owner.canonical != format!("{}.{}", module.name, owner.name)
-        || ty != &base.ty
-        || fact.ty != base.ty
-        || fact.default.is_some()
-        || fact.constraints.is_some()
-        || text.get(base.span.start as usize..base.span.end as usize)? != name
-        || text.get(parameter.span.start as usize..parameter.span.end as usize)? != name
-    {
-        return None;
-    }
-    Some(text)
-}
-
 fn file_array_authored_matches(
     ir: &IrProgram,
     owner: &IrItem,
@@ -12368,10 +12265,18 @@ pub(super) fn stored_file_array_operand<'a>(
 ) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
     let source = super::scenario_calls::checked_source(ir, owner, db)?;
     let (name, field, symbol, base) = file_array_receiver(value)?;
-    let (parameter, position, parent, index, ty) = file_array_parameter(ir, owner, name)?;
-    let text = file_array_declared_matches(
-        ir, owner, source, parameter, position, parent, index, ty, name, base, db,
-    )?;
+    let IrItemKind::Scenario { params, read: false, .. } = &owner.kind else { return None; };
+    let RequiredModelParameter { parameter, fact, .. } =
+        RequiredModelParameter::checked(ir, owner, params, source, name)?;
+    let module = ir.modules.get(owner.module.0 as usize)?;
+    let text = &db.get(source.node.file)?.text;
+    if owner.canonical != format!("{}.{}", module.name, owner.name)
+        || fact.ty != base.ty
+        || text.get(base.span.start as usize..base.span.end as usize)? != name
+        || text.get(parameter.span.start as usize..parameter.span.end as usize)? != name
+    {
+        return None;
+    }
     file_array_authored_matches(ir, owner, source, value, base, field, text, db)?;
     file_array_schema_field(ir, owner, source, symbol, field, value, db)
 }
@@ -12615,43 +12520,17 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
         return None;
     }
     match_stored_contract_field(ir, reference_field, db)?;
-    let mut parameters = params.iter().enumerate().filter_map(|(position, id)| {
-        let parameter = ir.items.get(id.0 as usize)?;
-        (parameter.name == *binding).then_some((position, parameter))
-    });
-    let (position, parameter) = parameters.next()?;
-    let original_parameter = source.parameters.get(position)?;
-    let IrItemKind::Param {
-        owner: parameter_owner,
-        index,
-        ty: IrType::Known(ty),
-        default: None,
-        default_node: None,
-        default_copy_source: None,
-        array_bounds: None,
-        ..
-    } = &parameter.kind
-    else {
-        return None;
-    };
+    let RequiredModelParameter { parameter, fact: original_parameter, .. } =
+        RequiredModelParameter::checked(ir, owner, params, source, binding)?;
     let authored_parameter = checked_effect_node(ir, owner, original_parameter.node, db)?;
     let parameter_name = authored_parameter
         .children
         .iter()
         .find(|node| node.kind == SyntaxKind::Name)?;
     let text = &db.get(source.node.file)?.text;
-    if parameters.next().is_some()
-        || *parameter_owner != owner.id
-        || *index != position
-        || parameter.id != original_parameter.parameter
-        || parameter.module != owner.module
-        || parameter.canonical != format!("{}.{}", owner.canonical, binding)
-        || parameter.span != parameter_name.span
+    if parameter.span != parameter_name.span
         || parameter_name.token()?.text(text) != binding
-        || ty != &receiver.ty
         || original_parameter.ty != receiver.ty
-        || original_parameter.default.is_some()
-        || original_parameter.constraints.is_some()
         || text
             .get(
                 original_parameter.type_node.start as usize

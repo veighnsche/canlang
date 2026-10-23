@@ -50,7 +50,7 @@ async function acquire(){
 }
 function compete(){try{execFileSync('flock',['-n',join(state,'lock'),'true'],{stdio:'ignore'});return true;}catch{return false;}}
 async function start(){const file=await acquire();try{const runtime=await startSodaWorker(options,file.fd);
- return {...runtime,stop:async()=>{await runtime.dispose();await file.close();}};}catch(error){await file.close();throw error;}}
+ return {...runtime,stop:async()=>{try{await runtime.dispose();}finally{await file.close();}}};}catch(error){await file.close();throw error;}}
 const request=async(runtime,path)=>{const result=await runtime.dispatchUrl(`https://gate.test${path}`);assert.equal(result.status,200,await result.clone().text());return result.json();};
 
 if(process.argv.includes('--child')){
@@ -89,6 +89,13 @@ if(process.argv.includes('--child')){
   {stdio:['ignore','ignore','pipe','pipe','pipe']});
  const [code]=await once(mismatch,'close');assert.equal(code,1,'a dead/mismatched expected parent refuses before exec');
  runtime=await start();try{assert.deepEqual((await request(runtime,'/')).results,[{value:'acknowledged'}]);}finally{await runtime.stop();}
+ runtime=await start();
+ const nativeChildren=(await readFile(`/proc/${process.pid}/task/${process.pid}/children`,'utf8')).trim().split(/\s+/).map(Number);
+ assert.equal(nativeChildren.length,1);
+ process.kill(nativeChildren[0],'SIGSTOP');
+ const stopping=runtime.stop();
+ await new Promise(resolve=>setTimeout(resolve,100));assert.equal(compete(),false,'a delayed writer must keep its inherited lock until it actually exits');
+ await assert.rejects(stopping,/forced termination|termination failed/);assert.equal(compete(),true);
  console.log(JSON.stringify({ok:true,nativeD1:true,atomicFailedBatch:true,blobNullReturningJSON:true,oneWinnerChanges:true,
-  separateDatabases:true,coherentBatch:true,acknowledgedRecovery:true,autonomousAlarmRecovery:true,inheritedFlock:true,parentKill:true,parentRaceRefusal:true,state}));
+  separateDatabases:true,coherentBatch:true,acknowledgedRecovery:true,autonomousAlarmRecovery:true,inheritedFlock:true,parentKill:true,parentRaceRefusal:true,forcedTerminationFails:true,delayedWriterExclusion:true,state}));
 }

@@ -22579,9 +22579,11 @@ impl<'a> Closure<'a> {
                 Ok(())
             }
 
-            /// One `set`, `send`, or call statement effect: alternatives join the writes.
-            /// (This was the statement-effect match arm.)
-            fn walk_effect_set_send_call(
+            /// Execute one checked write-effect lifecycle: evaluate its original
+            /// operands, filter compatible paths, retain ordered write provenance,
+            /// bind actual SEND/CALL results and enforce the original path limits.
+            /// Each verb's evaluator still owns source/schema/permission proof.
+            fn walk_write_effect(
                 &mut self,
                 effect: &Effect,
                 module: ModuleId,
@@ -22589,132 +22591,73 @@ impl<'a> Closure<'a> {
                 calls: &[NodeKey],
                 next: &mut Vec<Flow>,
             ) -> Result<(), DisclosureDecline> {
-                let (alternatives, delivery) = if effect.verb == EffectVerb::Set {
-                    (self.set(effect, module, &flow.env, calls)?, None)
-                } else if effect.verb == EffectVerb::Send {
-                    self.send(effect, module, &flow.env, calls)?
-                } else {
-                    (self.static_call(effect, module, &flow.env, calls)?, None)
+                let (alternatives, delivery) = match effect.verb {
+                    EffectVerb::Set => (self.set(effect, module, &flow.env, calls)?, None),
+                    EffectVerb::Send => self.send(effect, module, &flow.env, calls)?,
+                    EffectVerb::Call => (self.static_call(effect, module, &flow.env, calls)?, None),
+                    EffectVerb::Transition => {
+                        // Transition spends its visit before checking the machine,
+                        // including a refused transition; other writes spend it
+                        // after their operand/source evaluator succeeds.
+                        self.effect_visits += 1;
+                        (self.transition(effect, module, &flow.env, calls)?, None)
+                    }
+                    EffectVerb::Emit | EffectVerb::Schedule | EffectVerb::Cancel => {
+                        (self.external_effect(effect, module, &flow.env, calls)?, None)
+                    }
+                    _ => return Err(self.fail(effect.node, "mutation or external effect closure")),
                 };
-                self.effect_visits += 1;
+                if effect.verb != EffectVerb::Transition {
+                    self.effect_visits += 1;
+                }
                 for evaluated in alternatives {
-                    let Some(mut path) = self.statement_write_path(
-                        effect.node, &flow, &evaluated, "effect write dependency bound",
-                    )? else {
+                    if !compatible(&flow.evaluated, &evaluated.decisions) {
                         continue;
-                    };
-                    self.bind_statement_effect_results(effect, &mut path, &evaluated, &delivery)?;
+                    }
+                    let mut path = flow.clone();
+                    path.executed_effect = true;
+                    path.writes.join(&flow.effect_guards);
+                    path.writes.join(&flow.controls);
+                    path.writes.join(&evaluated);
+                    if path.writes.reads.len() + path.writes.intrinsics.len() > 200 {
+                        let reason = if effect.verb == EffectVerb::Transition {
+                            "transition write dependency bound"
+                        } else {
+                            "effect write dependency bound"
+                        };
+                        return Err(self.fail(effect.node, reason));
+                    }
+                    path.observe_value(&evaluated);
+                    if let Some(delivery) = &delivery {
+                        path.env.insert(
+                            Local::Send(effect.node),
+                            ValuePath {
+                                delivery: Some(delivery.clone()),
+                                ..ValuePath::default()
+                            },
+                        );
+                        if path.env.len() > 256 {
+                            return Err(self.fail(effect.node, "binding closure bound"));
+                        }
+                    }
+                    if effect.verb == EffectVerb::Call
+                        && effect.binding.is_some()
+                        && (evaluated.query_child.is_some()
+                            || evaluated.model_result.is_some())
+                    {
+                        path.env.insert(Local::Call(effect.node), evaluated.clone());
+                        if path.env.len() > 256 {
+                            return Err(self.fail(effect.node, "binding closure bound"));
+                        }
+                    }
                     next.push(path);
                     if next.len() > 1024 {
-                        return Err(self.fail(effect.node, "effect evaluation path bound"));
-                    }
-                }
-                Ok(())
-            }
-
-            /// Join one already-checked statement write without changing the
-            /// family's qualification, execution timing or refusal diagnostic.
-            fn statement_write_path(
-                &self,
-                node: NodeKey,
-                flow: &Flow,
-                write: &ValuePath,
-                dependency_bound: &'static str,
-            ) -> Result<Option<Flow>, DisclosureDecline> {
-                if !compatible(&flow.evaluated, &write.decisions) {
-                    return Ok(None);
-                }
-                let mut path = flow.clone();
-                path.executed_effect = true;
-                path.writes.join(&flow.effect_guards);
-                path.writes.join(&flow.controls);
-                path.writes.join(write);
-                if path.writes.reads.len() + path.writes.intrinsics.len() > 200 {
-                    return Err(self.fail(node, dependency_bound));
-                }
-                path.observe_value(write);
-                Ok(Some(path))
-            }
-
-            /// Retain a send receipt or bound call result after its writes join.
-            fn bind_statement_effect_results(
-                &self,
-                effect: &Effect,
-                path: &mut Flow,
-                evaluated: &ValuePath,
-                delivery: &Option<ResolvedType>,
-            ) -> Result<(), DisclosureDecline> {
-                if let Some(delivery) = delivery {
-                    path.env.insert(
-                        Local::Send(effect.node),
-                        ValuePath {
-                            delivery: Some(delivery.clone()),
-                            ..ValuePath::default()
-                        },
-                    );
-                    if path.env.len() > 256 {
-                        return Err(self.fail(effect.node, "binding closure bound"));
-                    }
-                }
-                if effect.verb == EffectVerb::Call
-                    && effect.binding.is_some()
-                    && (evaluated.query_child.is_some()
-                        || evaluated.model_result.is_some())
-                {
-                    path.env.insert(Local::Call(effect.node), evaluated.clone());
-                    if path.env.len() > 256 {
-                        return Err(self.fail(effect.node, "binding closure bound"));
-                    }
-                }
-                Ok(())
-            }
-
-            /// One `transition` statement effect: machine writes join the path.
-            /// (This was the statement-effect match arm.)
-            fn walk_effect_transition(
-                &mut self,
-                effect: &Effect,
-                module: ModuleId,
-                flow: Flow,
-                calls: &[NodeKey],
-                next: &mut Vec<Flow>,
-            ) -> Result<(), DisclosureDecline> {
-                self.effect_visits += 1;
-                for write in self.transition(effect, module, &flow.env, calls)? {
-                    let Some(path) = self.statement_write_path(
-                        effect.node, &flow, &write, "transition write dependency bound",
-                    )? else {
-                        continue;
-                    };
-                    next.push(path);
-                    if next.len() > 1024 {
-                        return Err(self.fail(effect.node, "transition path bound"));
-                    }
-                }
-                Ok(())
-            }
-
-            /// One external statement effect: emit, schedule, or cancel alternatives.
-            /// (This was the statement-effect match arm.)
-            fn walk_effect_external(
-                &mut self,
-                effect: &Effect,
-                module: ModuleId,
-                flow: Flow,
-                calls: &[NodeKey],
-                next: &mut Vec<Flow>,
-            ) -> Result<(), DisclosureDecline> {
-                let alternatives = self.external_effect(effect, module, &flow.env, calls)?;
-                self.effect_visits += 1;
-                for evaluated in alternatives {
-                    let Some(path) = self.statement_write_path(
-                        effect.node, &flow, &evaluated, "effect write dependency bound",
-                    )? else {
-                        continue;
-                    };
-                    next.push(path);
-                    if next.len() > 1024 {
-                        return Err(self.fail(effect.node, "effect evaluation path bound"));
+                        let reason = if effect.verb == EffectVerb::Transition {
+                            "transition path bound"
+                        } else {
+                            "effect evaluation path bound"
+                        };
+                        return Err(self.fail(effect.node, reason));
                     }
                 }
                 Ok(())
@@ -27909,8 +27852,9 @@ impl<'a> Closure<'a> {
             EffectVerb::Delete  => self.walk_effect_delete(effect, module, flow, calls, effects, &*returns, &mut *next)?,
             EffectVerb::Let  => self.walk_effect_let(effect, module, flow, calls, &mut *next)?,
             EffectVerb::Require => self.walk_effect_require(effect, module, flow, calls, &mut *next)?,
-            EffectVerb::Set | EffectVerb::Send | EffectVerb::Call  => self.walk_effect_set_send_call(effect, module, flow, calls, &mut *next)?,
-            EffectVerb::Transition  => self.walk_effect_transition(effect, module, flow, calls, &mut *next)?,
+            EffectVerb::Set | EffectVerb::Send | EffectVerb::Call | EffectVerb::Transition => {
+                self.walk_write_effect(effect, module, flow, calls, &mut *next)?;
+            }
             _ => return Err(self.fail(effect.node, "mutation or external effect closure")),
         }
         Ok(())
@@ -27935,7 +27879,7 @@ impl<'a> Closure<'a> {
                 self.walk_branch_effect(effect, module, flow, calls, &mut *next, &mut *returns)?;
             }
             EffectVerb::For => { self.walk_loop_flow(effect, module, flow, calls, &mut *next)?; }
-            EffectVerb::Emit | EffectVerb::Schedule | EffectVerb::Cancel  => self.walk_external_flow(effect, module, flow, calls, &mut *next)?,
+            EffectVerb::Emit | EffectVerb::Schedule | EffectVerb::Cancel  => self.walk_write_effect(effect, module, flow, calls, &mut *next)?,
             _ => return Err(self.fail(effect.node, "mutation or external effect closure")),
         }
         Ok(())
@@ -27956,19 +27900,6 @@ impl<'a> Closure<'a> {
             self.walk_return_value(effect, module, flow, calls, value, &mut *returns)?;
         }
         Ok(())
-    }
-
-    /// One external flow: emit, schedule and cancel walks.
-    /// (This was the external-arm block.)
-    fn walk_external_flow(
-        &mut self,
-        effect: &Effect,
-        module: ModuleId,
-        flow: Flow,
-        calls: &[NodeKey],
-        next: &mut Vec<Flow>,
-    ) -> Result<(), DisclosureDecline> {
-        self.walk_effect_external(effect, module, flow, calls, &mut *next)
     }
 
     /// One loop flow: extend the path with the bounded input-loop outcomes.

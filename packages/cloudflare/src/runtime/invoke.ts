@@ -5562,30 +5562,47 @@ function authenticateNativeScenarioAnyPredicate(def: GeneratedOperationDef, c: H
   return true;
 }
 
-/** A first query must keep its original checked Let, call and owning source correspondence. */
-async function assertCheckedFirstQuery<Query extends { readonly id: unknown; readonly source: unknown }>(
-  metadata: Record<string, unknown>, source: Record<string, unknown>,
-  queryNode: Record<string, unknown>, node: Record<string, unknown>, statement: Record<string, unknown>,
-  guardConsumed: boolean | undefined, presenceConsumed: boolean | undefined,
-  targetConsumed: boolean | undefined,
-  interval: (value: Record<string, unknown>) => boolean,
-  query: Query | undefined, planSource: unknown, artifact: CompileArtifact, defName: string,
-  failure: string,
-): Promise<Query> {
-  if (Object.keys(metadata).length !== 5 + (guardConsumed === undefined ? 0 : 1) + (presenceConsumed === undefined ? 0 : 1) +
-      (targetConsumed === undefined ? 0 : 1) ||
-      guardConsumed === false || presenceConsumed === false || targetConsumed === false ||
-      Object.keys(source).length !== 3 || query === undefined ||
-      stableStringify(captureDispatchPreclaimData(source)) !== stableStringify(query.source) ||
-      stableStringify(query.source) !== stableStringify(planSource) ||
-      !artifact.sources.some(original => original.path === source.path && original.sha256 === source.sha256) ||
-      !interval(queryNode) || !interval(node) || !interval(statement) || (queryNode.start as number) < (node.start as number) || (queryNode.end as number) > (node.end as number) ||
-      await sha256HexText(`scenario-disclosure/v1:query:${source.path}:${source.sha256}:${defName.slice(0, defName.lastIndexOf('.'))}:${queryNode.start}:${queryNode.end}:`) !== query.id ||
-      (node.start as number) < (statement.start as number) ||
-      (node.end as number) > (statement.end as number)) {
-    throw new AssemblyCorrespondenceError(failure);
-  }
-  return query;
+/** Decode the complete checked FIRST census for ordinary scenarios and
+ * private due handlers. Own-record checks, true-only decision marks, source
+ * identity and the captured result stay in one loader workflow. */
+function checkedFirstQueryCensus(raw: unknown,
+  plan: Pick<import('@canlang/contracts').ScenarioResultDisclosurePlan, 'source' | 'queries'>,
+  artifact: CompileArtifact, defName: string, failure: string): Promise<NativeQueryFirstMetadata[]> {
+  return Promise.all(nativeCallArray(raw, plan.queries!.length).map(async value => {
+    const metadata = localPolicyObject(value, ['queryId', 'source', 'query', 'node', 'statement', 'guardConsumed', 'presenceConsumed', 'targetConsumed']);
+    const source = localPolicyObject(metadata.source, ['path', 'sha256', 'module']);
+    const queryNode = localPolicyObject(metadata.query, ['start', 'end']);
+    const node = localPolicyObject(metadata.node, ['start', 'end']);
+    const statement = localPolicyObject(metadata.statement, ['start', 'end']);
+    const interval = (value: Record<string, unknown>) => Object.keys(value).length === 2 &&
+      Number.isSafeInteger(value.start) && Number.isSafeInteger(value.end) && (value.start as number) >= 0 && (value.end as number) > (value.start as number);
+    // DESIGN442: the checked guard/presence-consumed decision marks ride
+    // only as exact `true`; any other spelling keeps the refusal.
+    const guardConsumed = Object.hasOwn(metadata, 'guardConsumed') ? metadata.guardConsumed === true : undefined;
+    const presenceConsumed = Object.hasOwn(metadata, 'presenceConsumed') ? metadata.presenceConsumed === true : undefined;
+    const targetConsumed = Object.hasOwn(metadata, 'targetConsumed') ? metadata.targetConsumed === true : undefined;
+    const query = plan.queries!.find(query => query.id === metadata.queryId);
+    if (Object.keys(metadata).length !== 5 + (guardConsumed === undefined ? 0 : 1) + (presenceConsumed === undefined ? 0 : 1) +
+        (targetConsumed === undefined ? 0 : 1) ||
+        guardConsumed === false || presenceConsumed === false || targetConsumed === false ||
+        Object.keys(source).length !== 3 || query === undefined ||
+        stableStringify(captureDispatchPreclaimData(source)) !== stableStringify(query.source) ||
+        stableStringify(query.source) !== stableStringify(plan.source) ||
+        !artifact.sources.some(original => original.path === source.path && original.sha256 === source.sha256) ||
+        !interval(queryNode) || !interval(node) || !interval(statement) || (queryNode.start as number) < (node.start as number) || (queryNode.end as number) > (node.end as number) ||
+        await sha256HexText(`scenario-disclosure/v1:query:${source.path}:${source.sha256}:${defName.slice(0, defName.lastIndexOf('.'))}:${queryNode.start}:${queryNode.end}:`) !== query.id ||
+        (node.start as number) < (statement.start as number) ||
+        (node.end as number) > (statement.end as number)) {
+      throw new AssemblyCorrespondenceError(failure);
+    }
+    return captureDispatchPreclaimData({ queryId: query.id, source: query.source,
+      query: { start: queryNode.start as number, end: queryNode.end as number },
+      node: { start: node.start as number, end: node.end as number },
+      statement: { start: statement.start as number, end: statement.end as number },
+      ...(guardConsumed === true ? { guardConsumed: true as const } : {}),
+      ...(presenceConsumed === true ? { presenceConsumed: true as const } : {}),
+      ...(targetConsumed === true ? { targetConsumed: true as const } : {}) }) as NativeQueryFirstMetadata;
+  }));
 }
 
 /** Both Work effects use the same verified owner/root/occurrence census.
@@ -5752,30 +5769,8 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
     const rawCounts=isUnknownRecord(operation)?readMetadataMember(operation,'constructorCounts',where)?.value:undefined;
     const constructorCounts=rawCounts===undefined?undefined:captureDispatchPreclaimData(nativeCallArray(rawCounts,200)) as NonNullable<Parameters<NonNullable<typeof bind>>[1]['constructorCounts']>;
     const rawFirst = isUnknownRecord(operation) ? readMetadataMember(operation, 'queryFirst', where)?.value : undefined;
-    const first = rawFirst === undefined ? [] : await Promise.all(nativeCallArray(rawFirst, plan.queries.length).map(async value => {
-      const metadata = localPolicyObject(value, ['queryId', 'source', 'query', 'node', 'statement', 'guardConsumed', 'presenceConsumed', 'targetConsumed']);
-      const source = localPolicyObject(metadata.source, ['path', 'sha256', 'module']);
-      const queryNode = localPolicyObject(metadata.query, ['start', 'end']);
-      const node = localPolicyObject(metadata.node, ['start', 'end']);
-      const statement = localPolicyObject(metadata.statement, ['start', 'end']);
-      const interval = (value: Record<string, unknown>) => Object.keys(value).length === 2 &&
-        Number.isSafeInteger(value.start) && Number.isSafeInteger(value.end) && (value.start as number) >= 0 && (value.end as number) > (value.start as number);
-      // DESIGN442: the checked guard/presence-consumed decision marks ride
-      // only as exact `true`; any other spelling keeps the refusal.
-      const guardConsumed = Object.hasOwn(metadata, 'guardConsumed') ? metadata.guardConsumed === true : undefined;
-      const presenceConsumed = Object.hasOwn(metadata, 'presenceConsumed') ? metadata.presenceConsumed === true : undefined;
-      const targetConsumed = Object.hasOwn(metadata, 'targetConsumed') ? metadata.targetConsumed === true : undefined;
-      const query = await assertCheckedFirstQuery(metadata, source, queryNode, node, statement,
-        guardConsumed, presenceConsumed, targetConsumed, interval, plan.queries!.find(query => query.id === metadata.queryId),
-        plan.source, artifact, def.name, 'First query lacks its original checked Let, call and owning source.');
-      return captureDispatchPreclaimData({ queryId: query.id, source: query.source,
-        query: { start: queryNode.start as number, end: queryNode.end as number },
-        node: { start: node.start as number, end: node.end as number },
-        statement: { start: statement.start as number, end: statement.end as number },
-        ...(guardConsumed === true ? { guardConsumed: true as const } : {}),
-        ...(presenceConsumed === true ? { presenceConsumed: true as const } : {}),
-        ...(targetConsumed === true ? { targetConsumed: true as const } : {}) }) as NativeQueryFirstMetadata;
-    }));
+    const first = rawFirst === undefined ? [] : await checkedFirstQueryCensus(rawFirst, plan, artifact, def.name,
+      'First query lacks its original checked Let, call and owning source.');
     const rawAny = isUnknownRecord(operation) ? readMetadataMember(operation, 'queryAny', where)?.value : undefined;
     const any = rawAny === undefined ? [] : nativeCallArray(rawAny, plan.queries.length).map(value => {
       if (isUnknownRecord(value) && readMetadataMember(value, 'kind', where)?.value === 'predicate') {
@@ -17191,30 +17186,8 @@ async function bindPrivateDueHandlerProducers(
     return;
   }
   const rawFirst = member(operation, 'queryFirst');
-  const first = rawFirst === undefined ? [] : await Promise.all(nativeCallArray(rawFirst, plan.queries!.length).map(async value => {
-    const metadata = localPolicyObject(value, ['queryId', 'source', 'query', 'node', 'statement', 'guardConsumed', 'presenceConsumed', 'targetConsumed']);
-    const source = localPolicyObject(metadata.source, ['path', 'sha256', 'module']);
-    const queryNode = localPolicyObject(metadata.query, ['start', 'end']);
-    const node = localPolicyObject(metadata.node, ['start', 'end']);
-    const statement = localPolicyObject(metadata.statement, ['start', 'end']);
-    const interval = (value: Record<string, unknown>) => Object.keys(value).length === 2 &&
-      Number.isSafeInteger(value.start) && Number.isSafeInteger(value.end) && (value.start as number) >= 0 && (value.end as number) > (value.start as number);
-    // DESIGN442: the checked guard/presence-consumed decision marks ride
-    // only as exact `true`; any other spelling keeps the refusal.
-    const guardConsumed = Object.hasOwn(metadata, 'guardConsumed') ? metadata.guardConsumed === true : undefined;
-    const presenceConsumed = Object.hasOwn(metadata, 'presenceConsumed') ? metadata.presenceConsumed === true : undefined;
-    const targetConsumed = Object.hasOwn(metadata, 'targetConsumed') ? metadata.targetConsumed === true : undefined;
-    const query = await assertCheckedFirstQuery(metadata, source, queryNode, node, statement,
-      guardConsumed, presenceConsumed, targetConsumed, interval, plan.queries!.find(query => query.id === metadata.queryId),
-      plan.source, artifact, privateDef.name, 'Due handler first query lacks its original checked Let, call and owning source.');
-    return captureDispatchPreclaimData({ queryId: query.id, source: query.source,
-      query: { start: queryNode.start as number, end: queryNode.end as number },
-      node: { start: node.start as number, end: node.end as number },
-      statement: { start: statement.start as number, end: statement.end as number },
-      ...(guardConsumed === true ? { guardConsumed: true as const } : {}),
-      ...(presenceConsumed === true ? { presenceConsumed: true as const } : {}),
-      ...(targetConsumed === true ? { targetConsumed: true as const } : {}) });
-  }));
+  const first = rawFirst === undefined ? [] : await checkedFirstQueryCensus(rawFirst, plan, artifact, privateDef.name,
+    'Due handler first query lacks its original checked Let, call and owning source.');
   const rawAny = member(operation, 'queryAny');
   const rawSelections = member(operation, 'querySelections');
   if (rawAny !== undefined || rawSelections !== undefined) {

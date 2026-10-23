@@ -57,10 +57,10 @@ export function assembleSodaRuntime({destination,node=process.execPath,nodeLicen
     packages.set(pkg.name,{name:pkg.name,version:pkg.version,license:pkg.license??'UNSPECIFIED'});
   }
   const files=[];
-  const inventory=directory=>{for(const item of readdirSync(directory,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name))){const path=join(directory,item.name);if(item.isDirectory())inventory(path);else{assert.ok(item.isFile());const bytes=readFileSync(path);files.push({path:relative(destination,path),sha256:sha256(bytes),bytes:bytes.length,mode:statSync(path).mode&0o777});}}};
+  const inventory=directory=>{chmodSync(directory,0o755);for(const item of readdirSync(directory,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name))){const path=join(directory,item.name);if(item.isDirectory())inventory(path);else{assert.ok(item.isFile());chmodSync(path,statSync(path).mode&0o111?0o755:0o644);const bytes=readFileSync(path);files.push({path:relative(destination,path),sha256:sha256(bytes),bytes:bytes.length,mode:statSync(path).mode&0o777});}}};
   inventory(destination);
   const manifest={schema:'canlang.soda.runtime.v1',platform:'linux-x86_64',workerd:json(join(workerdRoot,'package.json')).version,
     command:'bin/can-soda',files,packages:[...packages.values(),{name:'workerd',license:'Apache-2.0'},{name:'Miniflare D1 adaptation',license:'MIT'}]};
-  writeFileSync(join(destination,'runtime.json'),JSON.stringify(manifest,null,2)+'\n');
+  writeFileSync(join(destination,'runtime.json'),JSON.stringify(manifest,null,2)+'\n',{mode:0o644});
   return manifest;
 }

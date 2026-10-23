@@ -11,6 +11,16 @@ Build Soda tools from a clean, committed checkout with `bun run release:tools`
 after building and validating the owning packages and compiler. The packager
 refuses uncommitted source so `sourceRevision` identifies the delivered code.
 
+Production runs workerd directly, with an owned SQLite Durable Object D1
+backend and the application actor for Files and scheduled work. Node owns the
+HTTP gateway and command. Bootstrap/member administration runs inside a
+private, prebuilt Identity Worker. Miniflare remains in development tooling.
+
+The offline tools archive has a separate `runtime/` subtree. Production images
+copy that subtree: Node, workerd, the native exec guard, runtime command,
+prebuilt Worker modules and notices. Compiler, Bun, Miniflare, Wrangler and
+testkit are absent. `build` remains a Project tools command.
+
 This guide describes the implemented local target. Local runtime and image
 checks do not qualify an appliance release or production ingress. The phrase
 “all Cloudflare services” is still an open coverage decision.
@@ -22,8 +32,9 @@ account that owns the application and its private data.
 
 The Linux x86_64 tool archive contains `can`, `can-platform`, `can-dev` and
 `can-soda`, their catalogs and runtime dependencies. It requires no Canlang
-checkout or startup dependency installation. Each tool archive records its exact compiler, Node 24 and Bun 1.4.2 versions
-in `tools.json`. Miniflare 4.20260730.0 and workerd 1.20260730.1 remain pinned;
+checkout or startup dependency installation. Each tool archive records its exact
+compiler, Node and Bun inputs in `tools.json`. Production directly pins workerd
+1.20260730.1; development retains its separately inventoried Miniflare closure;
 the default compatibility date is `2026-07-15`.
 
 ```sh
@@ -178,6 +189,45 @@ not elevated to owner. Removed memberships, unverified accounts and mismatched
 credentials refuse. Neither bootstrap nor member administration is a public
 HTTP endpoint.
 
+## Protected browser setup
+
+Soda can provision an empty application without choosing its owner account.
+The operator starts a setup-only container with a private token file and a
+private completion destination:
+
+```sh
+can-soda setup --bundle /opt/application/bundle.json --data /home/app-state \
+  --host 0.0.0.0 --port 8080 \
+  --setup-token-file /home/app-setup/token.json \
+  --setup-receipt-file /home/app-state/setup-receipt.json
+```
+
+The token file is account-owned, mode `0600`, and has exactly
+`{"operation":"OPERATION_ID","token":"OPAQUE_RANDOM_TOKEN","expires_at":UNIX_SECONDS}`.
+Tokens need at least 32 characters. Receipt directories are private,
+account-owned directories under `/home`. The configured canonical application
+origin must use HTTPS. Readiness emits only `ok`, `command` and `origin`.
+
+Open `/setup#operation=OPERATION_ID&token=OPAQUE_RANDOM_TOKEN` on that origin.
+The form removes the fragment from browser history and submits the account
+directly to the application. Ordinary application, authentication and MCP
+routes remain unavailable during setup. The claim route is `POST /setup/claim`,
+with the exact application `Origin` and JSON
+`{operation,token,email,password,timezone?}`. Forgejo accounts are not substituted.
+
+The first user, owner team, membership and consumed setup operation/token digest
+commit in one Identity D1 batch. Matching credentials and the same admission
+return the original completion; conflicting credentials, another admission and
+expired tokens refuse. A lost receipt can be regenerated from that durable
+claim by retrying before token expiry. The atomically written mode-`0600`
+receipt contains only `schema: "canlang.soda.setup.v1"`, `operation`, `app`,
+`artifactDigest`, `bundleDigest`, `storageFingerprint`, `ownerTeam` and
+`completedAt` (Unix seconds). Passwords and raw tokens are excluded.
+
+After checking the exact receipt, Soda stops setup and registers the normal
+owner-bound application. Completed setup does not expose normal application
+traffic until that host operation finishes.
+
 ## Serve behind HTTPS
 
 ```sh
@@ -210,10 +260,15 @@ mail, password reset delivery and external identity federation are not configure
 
 ## Storage and supported scope
 
-Each data root has one kernel `flock` writer covering serve and administration. Keep its mode private and its effective runtime user able to read/write it. Storage includes Identity/State D1 files, target-owned actor SQLite (including
+Each data root has one kernel `flock` writer covering serve and administration.
+Node retains the checked open-file description and passes the same description
+to workerd through the Linux Rust exec guard. The guard arms parent-death
+SIGKILL and checks the expected parent before exec. A new writer cannot acquire
+the lock while the previous workerd is alive, including delayed shutdown.
+Keep its mode private and its effective runtime user able to read/write it. Storage includes Identity/State D1 files, target-owned actor SQLite (including
 File bytes), a retained form-binding key and storage identity. `storage.json`
-pins the app, exact artifact digest and resource assignments. A changed artifact
-or mapping refuses that data instead of silently opening another database. Stop the application before copying or restoring it; do not delete metadata or
+pins the app, storage fingerprint and resource assignments. A changed storage
+layout or mapping refuses that data instead of silently opening another database. Stop the application before copying or restoring it; do not delete metadata or
 select a new database to bypass a refusal. Migrating a release over retained
 data requires a separately qualified upgrade procedure.
 

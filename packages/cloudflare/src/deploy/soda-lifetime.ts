@@ -1,9 +1,7 @@
 /**
- * Own process signals around the pinned Miniflare runner. Miniflare's internal
- * exit-hook calls process.exit(143) on SIGTERM before asynchronous disposal can
- * finish. Keep that runner in a child and request awaited shutdown over private
- * IPC. This is lifecycle plumbing; application state and bindings stay owned by
- * the normal Canlang runner.
+ * Own process signals around the Node gateway and direct workerd child. Keep
+ * the gateway in a child and request awaited shutdown over private IPC. The
+ * exec guard separately handles unexpected gateway death and retains its lock.
  */
 import { spawn } from 'node:child_process';
 

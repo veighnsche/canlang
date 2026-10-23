@@ -8,6 +8,7 @@ import { getSodaStorageFingerprint, preflightSodaDeployment, SODA_PROVIDER_INVEN
 import type { SodaBundle } from '../deploy/soda-contract.js';
 import { bundleMixedSha256, inventorizeAssets, assertLinksResolve, assertWorkerdLoadable } from '../deploy/bundle-validation.js';
 import { provisionSodaStorage, startSodaRuntime } from '../deploy/soda-run.js';
+import {startSodaSetup} from '../deploy/soda-setup.js';
 import { installWorkerdShutdown, superviseWorkerd } from '../deploy/soda-lifetime.js';
 
 type Options = Map<string, string>;
@@ -46,14 +47,15 @@ async function run(argv: string[]): Promise<number> {
     console.log(JSON.stringify({ commands: {
       bootstrap: '--bundle FILE --data EXISTING_DIRECTORY --credentials PRIVATE_JSON_FILE',
       member: '--bundle FILE --data EXISTING_DIRECTORY --owner TEAM_ID --credentials PRIVATE_JSON_FILE',
+      setup: '--bundle FILE --data EXISTING_DIRECTORY --setup-token-file PRIVATE_JSON_FILE --setup-receipt-file FILE [--host ADDRESS] [--port NUMBER]',
       serve: '--bundle FILE --data EXISTING_DIRECTORY --owner TEAM_ID [--host ADDRESS] [--port NUMBER]',
       inventory: 'reports supported providers and explicit rejections',
     } })); return 0;
   }
   if (command === 'inventory') { console.log(JSON.stringify(SODA_PROVIDER_INVENTORY)); return 0; }
   const { options, child } = parseSodaOptions(command, argv);
-  if (command === 'serve' && !child) return superviseWorkerd(fileURLToPath(import.meta.url), [...argv, '--child']);
-  let runtime: Awaited<ReturnType<typeof startSodaRuntime>> | undefined;
+  if (['serve','setup'].includes(command) && !child) return superviseWorkerd(fileURLToPath(import.meta.url), [...argv, '--child']);
+  let runtime: {origin:string;dispose:()=>Promise<void>} | undefined;
   let started: Promise<void> | undefined;
   if (child) installWorkerdShutdown(async () => { await started; await runtime?.dispose(); });
   if (command === 'bootstrap' || command === 'member') {
@@ -64,8 +66,11 @@ async function run(argv: string[]): Promise<number> {
     const input = await loadBundle(required(options, '--bundle'));
     const port = Number(options.get('--port') ?? '8080');
     if (!Number.isSafeInteger(port) || port < 0 || port > 65535) throw new Error('Invalid Soda port');
-    runtime = await startSodaRuntime(input, { dataDir: required(options, '--data'), ownerTeam: required(options, '--owner'),
-      host: options.get('--host') ?? '127.0.0.1', port });
+    runtime = command==='setup'
+      ? await startSodaSetup(input,{dataDir:required(options,'--data'),tokenFile:required(options,'--setup-token-file'),
+          receiptFile:required(options,'--setup-receipt-file'),host:options.get('--host')??'127.0.0.1',port})
+      : await startSodaRuntime(input, { dataDir: required(options, '--data'), ownerTeam: required(options, '--owner'),
+          host: options.get('--host') ?? '127.0.0.1', port });
     console.log(JSON.stringify({ ok: true, command, origin: runtime.origin }));
   })();
   await started; return 0;
@@ -76,11 +81,12 @@ function parseSodaOptions(command: string, argv: string[]): { options: Options; 
   let child = false;
   const allowed = command === 'bootstrap' ? ['--bundle', '--data', '--credentials']
       : command === 'member' ? ['--bundle', '--data', '--owner', '--credentials']
-      : command === 'serve' ? ['--bundle', '--data', '--owner', '--host', '--port'] : [];
+      : command === 'serve' ? ['--bundle', '--data', '--owner', '--host', '--port']
+        : command === 'setup' ? ['--bundle','--data','--host','--port','--setup-token-file','--setup-receipt-file'] : [];
   if (allowed.length === 0) throw new Error('Unknown can-soda command');
   for (let i = 1; i < argv.length; i += 2) {
     const flag = argv[i]!;
-    if (flag === '--child' && command === 'serve') { child = true; i -= 1; continue; }
+    if (flag === '--child' && ['serve','setup'].includes(command)) { child = true; i -= 1; continue; }
     const value = argv[i + 1];
     if (!allowed.includes(flag) || options.has(flag) || value === undefined || value.startsWith('--')) throw new Error('Unknown, duplicate or missing can-soda option');
     options.set(flag, value);
@@ -103,7 +109,7 @@ async function runSodaMembership(command: string, options: Options): Promise<voi
 
 void run(process.argv.slice(2)).then(code => { process.exitCode = code; }).catch(error => {
   // Credential and provider errors must not echo secret file contents or SQL binds.
-  const detail = ['bootstrap', 'member'].includes(process.argv[2] ?? '') ? 'identity administration failed; check private credentials and Identity storage'
+  const detail = ['bootstrap', 'member','setup'].includes(process.argv[2] ?? '') ? 'identity administration failed; check private credentials and Identity storage'
     : error instanceof Error ? error.message.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 1000) : 'runtime operation failed';
   console.error(`can-soda: ${detail}`);
   process.exitCode = 1;

@@ -35,13 +35,15 @@ export async function startSodaWorker(options: DirectWorkerOptions, lockFD: numb
   let stopped = false;
   let closed: Promise<void> = Promise.resolve();
   let closing: Promise<void> | undefined;
+  let terminationFailure:Error|undefined;
   let fail!: (error: Error) => void;
   const failed = new Promise<Error>(resolve=>{fail=resolve;});
   const dispose = (): Promise<void> => closing ??= (async()=>{
     stopped=true;
     if (child?.exitCode===null && child.signalCode===null) child.kill('SIGTERM');
-    const deadline=setTimeout(()=>child?.kill('SIGKILL'),10_000);
+    const deadline=setTimeout(()=>{terminationFailure=new Error('Soda workerd required forced termination');child?.kill('SIGKILL');},10_000);
     try { await closed; } finally { clearTimeout(deadline); await rm(stage,{recursive:true,force:true}); }
+    if(terminationFailure!==undefined)throw terminationFailure;
   })();
   try {
     const secret=randomBytes(32).toString('base64url');
@@ -53,6 +55,7 @@ export async function startSodaWorker(options: DirectWorkerOptions, lockFD: numb
       {stdio:['ignore','inherit','inherit','pipe',lockFD]});
     const owned=child;
     closed=new Promise<void>(resolve=>{owned.once('error',()=>resolve());owned.once('close',(code,signal)=>{
+      if(code!==0||signal!==null)terminationFailure??=new Error(`Soda workerd termination failed (${signal??code})`);
       if (!stopped) fail(new Error(`Soda workerd exited unexpectedly (${signal??code})`));
       resolve();
     });});
