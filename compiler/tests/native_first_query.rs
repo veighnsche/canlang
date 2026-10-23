@@ -2872,3 +2872,11 @@ fn original_shift_nested_first_requires_every_helper_consumer_private() {
   assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"&&diagnostic.message.contains("first query")),"{mode}: {diagnostics:?}");
  }
 }
+
+#[test]
+fn original_event_cancel_clears_only_declared_optional_reference_with_null() {
+ let source=include_str!("fixtures/event-cancel-original-source.can");
+ let (db,program,_,catalog)=fixture_source("event-cancel-original-source.can",source);
+ let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+ assert!(diagnostics.is_empty(),"{diagnostics:?}");
+}

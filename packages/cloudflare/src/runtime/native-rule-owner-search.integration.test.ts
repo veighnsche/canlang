@@ -3422,3 +3422,38 @@ it('uses the original Shift nested nullable FIRST guards before actual assignmen
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('clears the original optional Event candidate before scheduling both cancellation workflows atomically', {timeout:180000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-event-null-reference-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/event-cancel-original-source.can'),original=await readFile(join(root,'draft/apps/CanEvent/CanEvent.can'),'utf8'),text=await readFile(source,'utf8');
+  const start=original.indexOf('  scenario cancel_event('),end=original.indexOf('   examples seed=[test_worker,free_ticket] event=workshop reason="Event cancelled"',start);assert.ok(text.includes(original.slice(start,end)));
+  const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout)as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['allowed','already-cancelled','denied-revision','identity-race','root-race','stale','missing-inventory']){
+   const {now,identities,identity,team,user,membership}=await member('event-null-'+mode,['events.organizer']);
+   const scope={app:'EventCancel',owner:team.team_id,ownerPackage:'events'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'event-state',fileStoreId:'event-files',receiver:{app:scope.app,owner:scope.owner,team:scope.owner}};
+   const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+   if(mode!=='missing-inventory')await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(scope.owner));}});
+   const eventModel=asModel('events.Event'),eventId=asId('event');
+   const row=(model:string,id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({kind:'insert'as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    row('rent_catalog.Location','site',{name:'Site',currency:'EUR'}),row('employee.Employee','worker',{user:{id:user.user_id},active:true,operator_wide:false,home:{id:'site'},locations:[]}),
+    row('events.Program','program',{name:'Program'}),row('events.Event','event',{location:{id:'site'},revision:'1',cancelled:mode==='already-cancelled',cancellation_reason:null,pending_change:{id:'candidate'},revision_readable:mode!=='denied-revision'},{model:asModel('events.Program'),id:asId('program')}),
+    row('events.Change','candidate',{state:'holding'},{model:eventModel,id:eventId})
+   ]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.load=async(model,id)=>{if(mode==='identity-race'&&!raced&&model==='work.schedule'){raced=true;await identities.removeMembership(membership.membership_id);}return load(model,id);};
+   store.commit=async batch=>{if(mode==='root-race'&&!raced&&batch.writes.some(write=>write.model==='work.schedule')){raced=true;const current=await load(eventModel,eventId);assert.ok(current);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:eventModel,id:eventId,expectedVersion:current.version,row:{...current,version:asVersion(current.version+1),archivedAt:now}}]}));}return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'events.cancel_event',operation_id:operationId(now),inputs:{event:{id:'event',version:mode==='stale'?'2':'1'},reason:'Event cancelled'}};
+   const outcome=await invoker.invokeMutation(request,identity),success=mode==='allowed'||mode==='missing-inventory';assert.equal('result'in outcome&&outcome.result.status==='committed',success,mode+': '+JSON.stringify(outcome));
+   const saved=await load(eventModel,eventId),schedules=await store.query({model:asModel('work.schedule'),authority:'owner'});assert.ok(saved);assert.equal(schedules.length,success?2:0,mode);
+   assert.equal(saved.data.pending_change===null,success,mode);assert.equal(saved.data.revision,success?'2':'1',mode);assert.equal(saved.data.cancelled,success||mode==='already-cancelled',mode);
+   if(mode.endsWith('-race'))assert.equal(raced,true,mode);
+   if(success){for(const schedule of schedules){const payload=schedule.data.payload as {event:unknown;revision:unknown;reason:unknown};assert.deepEqual(payload.event,{id:'event',version:String(saved.version)});assert.equal(payload.revision,'2');assert.equal(payload.reason,'Event cancelled');}
+    assert.deepEqual(new Set(schedules.map(schedule=>schedule.data.key)),new Set(['event:venues','event:attendees']));
+    const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.deepEqual(await store.query({model:asModel('work.schedule'),authority:'owner'}),schedules);
+   }
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});

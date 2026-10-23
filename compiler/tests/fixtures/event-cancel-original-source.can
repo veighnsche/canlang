@@ -1,0 +1,38 @@
+app EventCancel uses=[events]
+package rent_catalog
+ Given
+  export Location {name:text,currency:currency}
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  Employee {user:user,active:bool=true,operator_wide:bool=false,home:Location,locations:Location[]}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members
+ When
+ Then
+package events
+ use rent_catalog {Location}
+ use employee {can_work}
+ Given
+  role organizer
+  Program {name:text}
+  Event in Program {location:Location,revision:int=1,cancelled:bool=false,cancellation_reason:text?,pending_change:Change?,revision_readable:bool=true}
+  Change in Event {state:enum(holding,confirming,adopted,releasing,released,failed,review)=holding}
+  Registration in Event {active:bool=true}
+  Notice in Registration {kind:enum(confirmation,change,cancellation)}
+  event AttendeeUpdate { event:Event, revision:int, kind:Notice.kind, reason:text }
+  event VenueCleanup { event:Event, revision:int, reason:text }
+  policy Program read=organizer
+  policy Event read=organizer where=can_work(actor,row.location) fields=location,cancelled,cancellation_reason,pending_change,revision_readable
+  policy Event read=organizer where=can_work(actor,row.location) and row.revision_readable fields=revision
+  policy Change read=organizer where=can_work(actor,row.parent.location)
+ When
+  scenario cancel_event(event:Event,reason:text) by=organizer label="Cancel event"@{nl="Evenement annuleren"}
+   require can_work(actor,event.location) and not event.cancelled and trim(reason)!=""
+   do
+    set event {cancelled=true,cancellation_reason=reason,revision=event.revision+1,pending_change=null}
+    schedule format("{event}:venues",{event=event.id}) at=now event=VenueCleanup {event,revision=event.revision,reason}
+    schedule format("{event}:attendees",{event=event.id}) at=now event=AttendeeUpdate {event,revision=event.revision,kind=cancellation,reason}
+ Then

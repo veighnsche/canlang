@@ -25761,6 +25761,18 @@ impl<'a> Closure<'a> {
             fn set_value_matches(&self, effect: &Effect, module: ModuleId, key: NodeKey,
                 declared: &ResolvedType, calls: &[NodeKey], value: &ValuePath) -> bool {
                 let base = if let ResolvedType::Nullable(inner) = declared { inner.as_ref() } else { declared };
+                // Clearing an optional stored reference issues no row identity.
+                // The exact original null literal retains the target's nullable
+                // schema; ordinary SET permissions and final staging still apply.
+                if matches!(declared, ResolvedType::Nullable(inner)
+                    if matches!(inner.as_ref(), ResolvedType::Record { symbol, stored: true }
+                        if self.effects.models.contains_key(symbol)))
+                    && calls.is_empty() && self.loop_node.is_none()
+                    && key.file == effect.node.file && effect.node.start <= key.start && key.end <= effect.node.end
+                    && self.nodes.get(&key).is_some_and(|node| node.kind == SyntaxKind::Literal && self.word(node) == Some("null"))
+                    && self.types.node_types.get(&key) == Some(&ResolvedType::Null)
+                    && value == &ValuePath::default()
+                { return true; }
                 if matches!(declared,ResolvedType::Nullable(inner)
                     if matches!(inner.as_ref(),ResolvedType::Record {stored:true,..}))
                     && calls.is_empty() && self.loop_node.is_none()
