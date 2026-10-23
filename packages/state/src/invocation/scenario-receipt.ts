@@ -9792,7 +9792,7 @@ export async function executeScenarioSourceSendData(call:AdmittedCall,store:Stor
     const producer=sourceSendDataProducers.get(call.def as GeneratedOperationDef);
     const matches=producer?.sites.filter(source=>stableStringify(source)===stableStringify(claimed))??[];
     if(owner===undefined||owner.session===null||owner.framework===null||!state.bound.sourceRequireOnly||matches.length!==1||producer===undefined
-        ||owner.busy||owner.capture.pending!==0||owner.executingCall!==call||sourceSendDataExecutions.has(owner))return invalid('SEND DATA lacks its actual quiescent source owner.');
+        ||owner.busy||owner.capture.pending!==0||owner.executingCall!==call||sourceSendDataExecutions.has(owner)||sourceEmitDataExecutions.has(owner))return invalid('SEND DATA lacks its actual quiescent source owner.');
     const source=matches[0]!,stage=owner.stage,ordinal=owner.framework.ordinal,key=`${source.node.start}:${source.node.end}`;
     const consumed=consumedSourceSendData.get(call)??new Set<string>();consumedSourceSendData.set(call,consumed);
     if(consumed.has(key))return invalid('SEND DATA repeats its original source occurrence.');consumed.add(key);
@@ -9846,6 +9846,127 @@ export async function executeScenarioSourceSendQuery(call:AdmittedCall,store:Sto
       const model=state.bound.canonicalModels.find(model=>model.name===query.model);if(model===undefined)return invalid('SEND DATA query has no defining model.');
       return orderSourceReadRecords(Object.freeze(selected),model,query.order.length===0?[{field:'id',direction:'asc'}]:query.order);
     },call);
+  }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
+}
+
+/** EMIT uses its own source lifecycle; no SEND frame or bound provider route qualifies. */
+export type ScenarioSourceEmitDataSource=Omit<ScenarioSourceSendDataSource,'operation'|'binding'|'queries'>&{readonly event:string;readonly references?:readonly{readonly field:string;readonly parameter:string;readonly model:ModelName}[]};
+interface SourceEmitDataProducer extends ScenarioReceiptReferenceProducer{readonly sites:readonly ScenarioSourceEmitDataSource[];readonly events:readonly string[];}
+const sourceEmitDataProducers=new WeakMap<GeneratedOperationDef,SourceEmitDataProducer>();
+const sourceEmitDataExecutions=new WeakMap<ReceiptOwnerSession,{readonly call:AdmittedCall;readonly source:ScenarioSourceEmitDataSource;readonly stage:number;readonly ordinal:number|null;emitted:boolean;occurrence:string|null}>();
+const consumedSourceEmitData=new WeakMap<AdmittedCall,Set<string>>();
+export function bindScenarioSourceEmitDataProducer(def:GeneratedOperationDef,producer:SourceEmitDataProducer):void{
+  const bound=boundPlans.get(def);
+  if(!bound?.sourceRequireOnly||invokedPlans.has(def)||sourceEmitDataProducers.has(def)){
+    return invalid('EMIT DATA needs its original uninvoked source-only declared event owner.');
+  }
+  object(producer,['source','app','policy','readPolicies','events','sites']);origin(producer.source);text(producer.app);
+  if(stableStringify(producer.source)!==stableStringify(bound.plan.source)||!(producer.policy instanceof Map)
+      ||!(producer.readPolicies instanceof Map))return invalid('EMIT DATA differs from its original owner/source/policies.');
+  const policy=buildPolicyTable([...Map.prototype.entries.call(producer.policy)].map(([model,value])=>{
+    const copied=dataCopy(value);if(copied.model!==model)return invalid('EMIT DATA policy differs from its owning model.');return copied;
+  }),bound.canonicalModels);
+  const readPolicies=captureSourceReadPolicies(producer.readPolicies);
+  const events=list(dataCopy(producer.events)).map(text);if(events.length>200||new Set(events).size!==events.length)return invalid('EMIT DATA declared event census is invalid.');
+  const sites=list(dataCopy(producer.sites)).map(value=>{
+    const site=object(value,['source','owner','node','event','parameters',...(Object.hasOwn(value as object,'references')?['references']:[])]);origin(site['source']);
+    if(site['owner']!==def.name||stableStringify(site['source'])!==stableStringify(bound.plan.source))return invalid('EMIT DATA source owner mismatch.');
+    const node=object(site['node'],['start','end']);
+    if(!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start']))return invalid('EMIT DATA occurrence is invalid.');
+    const event=text(site['event']);if(!events.includes(event)||event.slice(0,event.lastIndexOf('.'))!==def.name.slice(0,def.name.lastIndexOf('.')))return invalid('EMIT DATA lacks its original owning declared event.');
+    const parameters=list(site['parameters']);if(parameters.length===0)return invalid('EMIT DATA needs its actual source root census.');
+    const names=new Set<string>();
+    for(const value of parameters){
+      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
+      const input=bound.inputs.find(input=>input.name===name),declaration=bound.models.get(model);
+      if(names.has(name)||input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,name)||declaration===undefined){
+        return invalid('EMIT DATA needs an exact required singular original model parameter.');
+      }
+      names.add(name);const fields=list(parameter['fields']);
+      if(Object.hasOwn(parameter,'identity')){
+        const identity=list(parameter['identity']);
+        if(identity.length===0||identity.length>2||new Set(identity).size!==identity.length||identity.some(value=>value!=='id'&&value!=='version'))return invalid('EMIT DATA has invalid admitted identity leaves.');
+      }
+      if(fields.length===0&&!Object.hasOwn(parameter,'identity'))return invalid('EMIT DATA needs its exact field census.');
+      const selected=new Set<string>();
+      for(const value of fields){const field=object(value,['name','type']),name=text(field['name']),type=text(field['type']);
+        if(selected.has(name)||!sourceSendFieldType(bound,model,name,type)||['file','secret','member','json','bytes'].includes(type.replace(/\?$/,''))){
+          return invalid('EMIT DATA field differs from its owning plain scalar declaration.');
+        }selected.add(name);
+      }
+      const seen=new Set<ModelName>();let ancestor:ModelName|undefined=model;
+      while(ancestor!==undefined){const original=bound.artifactModels.get(ancestor),read=readPolicies.get(ancestor);
+        if(seen.has(ancestor)||original===undefined||read===undefined||read.parent!==original.parent||!('grants'in read))return invalid('EMIT DATA needs complete original field and ancestor policies.');
+        seen.add(ancestor);ancestor=original.parent as ModelName|undefined;
+      }
+    }
+    if(Object.hasOwn(site,'references')){
+      const references=list(site['references']),fields=new Set<string>();if(references.length===0||references.length>200)return invalid('EMIT DATA reference census is invalid.');
+      for(const value of references){
+        const reference=object(value,['field','parameter','model']),field=text(reference['field']),parameter=text(reference['parameter']),model=text(reference['model']);
+        const input=bound.inputs.find(input=>input.name===parameter);
+        if(fields.has(field)||input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,parameter)||!bound.models.has(model as ModelName))return invalid('EMIT DATA reference lost its exact original singular model parameter.');
+        fields.add(field);
+      }
+    }
+    return deepFreeze(site) as unknown as ScenarioSourceEmitDataSource;
+  });
+  if(new Set(sites.map(site=>`${site.node.start}:${site.node.end}`)).size!==sites.length)return invalid('EMIT DATA occurrence census repeats.');
+  sourceEmitDataProducers.set(def,Object.freeze({source:bound.plan.source,app:producer.app,policy,readPolicies,events:Object.freeze(events),sites:Object.freeze(sites)}));
+}
+export async function executeScenarioSourceEmitData(call:AdmittedCall,store:StoragePort,input:{
+  readonly source:ScenarioSourceEmitDataSource;
+  readonly execute:(rows:Readonly<Record<string,ProjectedRecord>>)=>Promise<unknown>;
+}):Promise<unknown>{
+  const state=capture(call,store),owner=ownerSessions.get(call);
+  try{
+    const supplied=object(input,['source','execute']);
+    if(typeof supplied['execute']!=='function')return invalid('EMIT DATA requires its original executable source callback.');
+    const claimed=dataCopy(supplied['source']);
+    const producer=sourceEmitDataProducers.get(call.def as GeneratedOperationDef);
+    const matches=producer?.sites.filter(source=>stableStringify(source)===stableStringify(claimed))??[];
+    if(owner===undefined||owner.session===null||!state.bound.sourceRequireOnly||matches.length!==1||producer===undefined||producer.app!==call.context.app
+        ||owner.busy||owner.capture.pending!==0||owner.executingCall!==call||sourceEmitDataExecutions.has(owner)||sourceSendDataExecutions.has(owner))return invalid('EMIT DATA lacks its actual quiescent source owner.');
+    const source=matches[0]!,stage=owner.stage,ordinal=owner.framework?.ordinal??null,key=`${source.node.start}:${source.node.end}`;
+    const consumed=consumedSourceEmitData.get(call)??new Set<string>();consumedSourceEmitData.set(call,consumed);
+    if(consumed.has(key))return invalid('EMIT DATA repeats its original source occurrence.');consumed.add(key);
+    const rows:Record<string,ProjectedRecord>=Object.create(null);
+    await ownerOperation(owner,async()=>{
+      for(const parameter of new Set((source.references??[]).map(reference=>reference.parameter))){
+        const declaration=source.references!.find(reference=>reference.parameter===parameter)!,refs=call.recordRefs.filter(ref=>ref.param===parameter),ref=refs[0];
+        if(refs.length!==1||ref?.model!==declaration.model||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('EMIT reference lost its genuine admitted root.');
+        const row=await owner.session!.views.final.get(ref.model,ref.id);ownerHealthy(owner);
+        if(row===null||row.archivedAt!==null||!sameModelLifetime(ref.row,row)||owner.stage!==stage)return invalid('EMIT reference root lifetime changed.');
+      }
+      for(const parameter of source.parameters){
+        const refs=call.recordRefs.filter(ref=>ref.param===parameter.name),ref=refs[0];
+        if(refs.length!==1||ref?.model!==parameter.model||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('EMIT DATA lost its genuine versioned admitted root.');
+        const row=await owner.session!.views.final.get(parameter.model,ref.id);ownerHealthy(owner);
+        if(row===null||!sameModelLifetime(ref.row,row)||owner.stage!==stage)return invalid('EMIT DATA source root lifetime changed.');
+        const authority=await observeModelQuerySourceAuthority(call,store,owner,state,parameter.model,row,parameter.fields.map(field=>field.name),0,undefined,undefined,producer);
+        rows[parameter.name]=authority.record;
+      }
+    },call);
+    const active={call,source,stage,ordinal,emitted:false,occurrence:null as string|null};sourceEmitDataExecutions.set(owner,active);
+    try{
+      const result=await input.execute(Object.freeze(rows));ownerHealthy(owner);capture(call,store);
+      if(sourceEmitDataExecutions.get(owner)!==active||owner.executingCall!==call||owner.busy||owner.stage!==stage||owner.capture.pending!==0
+          ||!active.emitted||active.occurrence===null||(owner.framework?.ordinal??null)!==ordinal)return invalid('EMIT DATA did not consume its exact one original declared event occurrence.');
+      if(await store.readRevision()!==call.revision)throw new StateError('conflict','EMIT DATA moved beyond its original source checkpoint.');
+      return result;
+    }finally{sourceEmitDataExecutions.delete(owner);}
+  }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
+}
+
+/** Called only after the original event's genuine payload and Work routes are checked. */
+export function consumeScenarioSourceEmitData(call:AdmittedCall,store:StoragePort,input:{readonly source:ScenarioSourceEmitDataSource;readonly event:string;readonly occurrence:string}):void{
+  const state=capture(call,store),owner=ownerSessions.get(call);
+  try{
+    const claimed=object(input,['source','event','occurrence']),active=owner===undefined?undefined:sourceEmitDataExecutions.get(owner);
+    if(owner===undefined||active?.call!==call||active.emitted||owner.executingCall!==call||owner.busy||owner.capture.pending!==0
+        ||owner.stage!==active.stage||(owner.framework?.ordinal??null)!==active.ordinal||input.event!==active.source.event
+        ||stableStringify(dataCopy(claimed['source']))!==stableStringify(active.source))return invalid('EMIT DATA lacks its exact current original occurrence.');
+    active.occurrence=text(claimed['occurrence']);active.emitted=true;ownerHealthy(owner);
   }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
 }
 

@@ -1,0 +1,71 @@
+app SourceEmitData
+Given
+ Location {enabled:bool=true}
+ Root {location:Location,capacity:int=2,checked:bool=false,last:text?,source:text="Readable source",reason:text?,secret:text="Hidden source",visible:bool=true}
+ Hidden {label:text="No readable fields"}
+ policy Hidden read=owner
+ contract Snapshot {title:text,reason:text}
+ event Checked {value:Snapshot}
+ event TextChecked {message:text}
+ event InputChecked {text:text,value:Snapshot}
+ event Mixed {root:Root,other:Hidden,value:Snapshot}
+ derive echo(value:Snapshot):Snapshot=value
+ derive snapshot(root:Root,reason:text):Snapshot=Snapshot {title=root.source,reason=root.reason ?? reason}
+ Child in Root {active:bool=true}
+ derive Root.remaining:int=row.capacity-count(row.Child as child where child.active)
+ derive allowed(root:Root):bool=any(root.Child as child,child.active)
+ policy Location read=members fields=enabled
+ policy Root read=members where=row.visible and row.location.enabled fields=source,reason
+ policy Child read=owner
+ invariant Root: row.capacity>=0
+When
+ scenario notify(root:Root,reason:text) -> date by=members
+  require root.remaining>0
+  require allowed(root)
+  do
+   set root {checked=true}
+   emit Checked {value=snapshot(root,reason)}
+   return add_days(local_date(now,"UTC"),1)
+ scenario lose_grant(root:Root,reason:text) -> date by=members
+  require allowed(root)
+  do
+   emit Checked {value=snapshot(root,reason)}
+   set root {checked=true,visible=false}
+   return add_days(local_date(now,"UTC"),1)
+ scenario change_reference(root:Root,other:Location,reason:text) -> date by=members
+  require allowed(root)
+  do
+   emit Checked {value=snapshot(root,reason)}
+   set root {checked=true,location=other}
+   return add_days(local_date(now,"UTC"),1)
+ scenario secret(root:Root) -> date by=members
+  require allowed(root)
+  do
+   set root {checked=true}
+   emit Checked {value=Snapshot {title=root.secret,reason="Forbidden source"}}
+   return add_days(local_date(now,"UTC"),1)
+ scenario mixed(root:Root,other:Hidden,reason:text) -> date by=members
+  require allowed(root)
+  do
+   set root {checked=true}
+   emit Mixed {root,other,value=snapshot(root,reason)}
+   return add_days(local_date(now,"UTC"),1)
+ scenario input(root:Root,value:Snapshot) -> date by=members
+  require allowed(root)
+  do
+   set root {checked=true}
+   emit InputChecked {text=root.source,value=echo(value)}
+   return add_days(local_date(now,"UTC"),1)
+ scenario direct(root:Root) -> date by=members
+  require allowed(root)
+  do
+   set root {checked=true}
+   emit TextChecked {message=root.source}
+   return add_days(local_date(now,"UTC"),1)
+ scenario abort(root:Root,reason:text) -> date by=members
+  require allowed(root)
+  do
+   emit Checked {value=snapshot(root,reason)}
+   set root {capacity=-1}
+   return add_days(local_date(now,"UTC"),1)
+Then

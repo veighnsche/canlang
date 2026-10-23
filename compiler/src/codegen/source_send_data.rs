@@ -1,5 +1,5 @@
-//! Original source-bound SEND argument DATA. These proofs install no saved
-//! result or general record reader; the live State SEND frame owns execution.
+//! Original source-bound effect argument DATA. These proofs install no saved
+//! result or general record reader; separate live SEND/EMIT frames own execution.
 use super::ir::{IrProgram,IrItem,IrItemKind,IrExpr,IrType,IrStmt,TypedExpr,IrCallTarget,IrBinOp};
 use crate::analysis::{ResolvedType,Scalar,SymbolId};
 use crate::source::Span;
@@ -132,7 +132,8 @@ impl Reads {
             }else{
                 let Some(super::ir::IrDefault::Literal(value))=default else{return None;};value
             };
-            if let ResolvedType::Record{symbol,stored:true}=ty{
+            if let ResolvedType::Record{symbol,stored:true}=ty
+                && matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..}){
                 let IrExpr::Name(name)=&arg.expr else{return None;};let root=env.roots.get(name)?;
                 if root.model!=*symbol||root.query.is_some()||arg.ty!=*ty{return None;}
                 callee.roots.insert(param.name.clone(),root.clone());
@@ -198,8 +199,8 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
     let mut env=Environment::default();let mut models=BTreeMap::new();
     for id in params{
         let param=ir.items.get(id.0 as usize)?;let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};
-        if let ResolvedType::Record{symbol,stored:true}=ty{
-            if !matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..}){return None;}
+        if let ResolvedType::Record{symbol,stored:true}=ty
+            && matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..}){
             env.roots.insert(param.name.clone(),Root{parameter:param.name.clone(),model:*symbol,query:None});models.insert(param.name.clone(),*symbol);
         }else if plain_value(ir,ty,0){env.values.insert(param.name.clone());}
     }
@@ -221,6 +222,64 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
                 let mut value=serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},
                     "owner":owner.canonical,"node":{"start":span.start,"end":span.end},"operation":operation,"binding":binding,"parameters":parameters});
                 if !reads.queries.is_empty(){value["queries"]=serde_json::json!(reads.queries.values().collect::<Vec<_>>());}
+                output.insert(*span,value);
+            },
+            IrStmt::If{then_branch,else_branch,..}=>{walk(ir,context,owner,then_branch,&mut env.clone(),models,source,module,output);walk(ir,context,owner,else_branch,&mut env.clone(),models,source,module,output);},
+            IrStmt::Match{arms,..}=>for arm in arms{walk(ir,context,owner,&arm.body,&mut env.clone(),models,source,module,output);},
+            _=>{},
+        }}
+    }
+    let mut output=HashMap::new();walk(ir,context,owner,effects,&mut env,&models,&source,module,&mut output);Some(output)
+}
+
+pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,
+    requires:&HashMap<Span,serde_json::Value>,module:&str)->Option<HashMap<Span,serde_json::Value>>{
+    let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
+    let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
+    fn has_emit(body:&[IrStmt])->bool{body.iter().any(|statement|match statement{IrStmt::Emit{..}=>true,
+        IrStmt::If{then_branch,else_branch,..}=>has_emit(then_branch)||has_emit(else_branch),IrStmt::Match{arms,..}=>arms.iter().any(|arm|has_emit(&arm.body)),_=>false})}
+    if !has_emit(effects){return Some(HashMap::new());}
+    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
+    let mut env=Environment::default();let mut models=BTreeMap::new();
+    for id in params{
+        let param=ir.items.get(id.0 as usize)?;let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};
+        if let ResolvedType::Record{symbol,stored:true}=ty
+            && matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..}){
+            env.roots.insert(param.name.clone(),Root{parameter:param.name.clone(),model:*symbol,query:None});models.insert(param.name.clone(),*symbol);
+        }else if plain_value(ir,ty,0){env.values.insert(param.name.clone());}
+    }
+    fn walk(ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem,body:&[IrStmt],env:&mut Environment,
+        models:&BTreeMap<String,SymbolId>,source:&serde_json::Value,module:&str,output:&mut HashMap<Span,serde_json::Value>){
+        for statement in body{match statement{
+            IrStmt::Let{name,value,..}=>{let pure=send_value(ir,value,&env.values,0);env.values.remove(name);env.roots.remove(name);if pure{env.values.insert(name.clone());}},
+            IrStmt::Emit{event,payload:args,span}=>{
+                if context.same_event_schema(event).is_none(){continue;}
+                let Some(declaration)=ir.items.iter().find(|item|item.canonical==*event&&item.module==owner.module)else{continue;};
+                let IrItemKind::Event{fields}=&declaration.kind else{continue;};
+                let IrExpr::Object(entries)=&args.expr else{continue;};
+                if fields.len()!=entries.len()||!entries.iter().all(|(name,value)|fields.iter().filter_map(|id|ir.items.get(id.0 as usize)).any(|field|field.name==*name&&matches!(&field.kind,
+                    IrItemKind::Field{ty:IrType::Known(ty),..}if ty==&value.ty||matches!((ty,&value.ty),
+                        (ResolvedType::Record{symbol:a,..},ResolvedType::Record{symbol:b,stored:false})if a==b&&matches!(ir.items.get(a.0 as usize).map(|item|&item.kind),Some(IrItemKind::Contract{..})))))){continue;}
+                let mut reads=Reads::default();let mut references=Vec::new();let mut valid=true;
+                for(field,value)in entries{
+                    if let (IrExpr::Name(name),ResolvedType::Record{symbol,stored:true})=(&value.expr,&value.ty)
+                        && let Some(root)=env.roots.get(name)
+                        && root.model==*symbol&&root.query.is_none()&&matches!(ir.items[symbol.0 as usize].kind,IrItemKind::Model{..}){
+                        references.push(serde_json::json!({"field":field,"parameter":root.parameter,"model":ir.items[symbol.0 as usize].canonical}));
+                    }else if reads.read(ir,context,value,env,0).is_none(){valid=false;break;}
+                }
+                if !valid||reads.fields.is_empty()||reads.fields.len()>200||!reads.queries.is_empty(){continue;}
+                let mut parameters=Vec::new();
+                for(name,fields)in &reads.fields{
+                    let Some(model)=models.get(name)else{continue;};
+                    let mut value=serde_json::json!({"name":name,"model":ir.items[model.0 as usize].canonical,
+                        "fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>()});
+                    if let Some(identity)=reads.identities.get(name){value["identity"]=serde_json::json!(identity);}
+                    parameters.push(value);
+                }
+                let mut value=serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},
+                    "owner":owner.canonical,"node":{"start":span.start,"end":span.end},"event":event,"parameters":parameters});
+                if !references.is_empty(){value["references"]=serde_json::json!(references);}
                 output.insert(*span,value);
             },
             IrStmt::If{then_branch,else_branch,..}=>{walk(ir,context,owner,then_branch,&mut env.clone(),models,source,module,output);walk(ir,context,owner,else_branch,&mut env.clone(),models,source,module,output);},

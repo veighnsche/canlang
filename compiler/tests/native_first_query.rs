@@ -2343,3 +2343,40 @@ fn created_parent_keeps_its_exact_original_create_and_required_parent_associatio
   let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
  }
 }
+
+#[test]
+fn source_only_emit_data_seals_helper_formals_and_nominal_event_payload() {
+    use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+    let source=include_str!("../../packages/cloudflare/test/fixtures/native-source-emit-data.can");
+    let(db,program,ir,catalog)=fixture_source("source-emit-data.can",source);
+    let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let owner=item(&ir,"SourceEmitData.notify");
+    assert!(serialize_decision_sources(&program,&ir,owner,&db,Some(&catalog)).is_some());
+    let input=item(&ir,"SourceEmitData.input");
+    assert!(serialize_decision_sources(&program,&ir,input,&db,Some(&catalog)).is_some());
+    for name in ["SourceEmitData.Snapshot.title","SourceEmitData.Snapshot.reason"]{
+        let mut changed=ir.clone();let field=item(&changed,name).id;
+        let IrItemKind::Field{ty,..}=&mut changed.items[field.0 as usize].kind else{panic!("Contract field");};
+        *ty=IrType::Known(ResolvedType::Scalar(Scalar::Int));
+        assert!(serialize_decision_sources(&program,&changed,&changed.items[input.id.0 as usize],&db,Some(&catalog)).is_none(),"supplied nominal Event Contract schema {name}");
+    }
+    for mode in ["helper-field","helper-formal","contract-field","contract-order","event-field","event-default"]{
+        let mut changed=ir.clone();
+        match mode{
+            "helper-field"=>{let helper=item(&changed,"SourceEmitData.snapshot").id;
+                let IrItemKind::DeriveFn{expr:Some(value),..}=&mut changed.items[helper.0 as usize].kind else{panic!("helper");};
+                let IrExpr::Object(fields)=&mut value.expr else{panic!("object");};
+                let IrExpr::Member{field,..}=&mut fields[0].1.expr else{panic!("source");};*field="secret".into();},
+            "helper-formal"=>{let helper=item(&changed,"SourceEmitData.snapshot").id;
+                let IrItemKind::DeriveFn{params,..}=&changed.items[helper.0 as usize].kind else{panic!("helper");};let param=params[0];
+                let IrItemKind::Param{index,..}=&mut changed.items[param.0 as usize].kind else{panic!("formal");};*index+=1;},
+            "contract-order"=>{let contract=item(&changed,"SourceEmitData.Snapshot").id;
+                let IrItemKind::Contract{fields,..}=&mut changed.items[contract.0 as usize].kind else{panic!("contract");};fields.swap(0,1);},
+            _=>{let name=if mode=="contract-field"{"SourceEmitData.Snapshot.title"}else{"SourceEmitData.Checked.value"};let field=item(&changed,name).id;
+                let IrItemKind::Field{ty,default,..}=&mut changed.items[field.0 as usize].kind else{panic!("field");};
+                if mode=="event-default"{*default=Some(ir::IrDefault::Literal(ir::TypedExpr{expr:IrExpr::Null,ty:ResolvedType::Null,span:owner.span}));}
+                else{*ty=IrType::Known(ResolvedType::Scalar(Scalar::Int));}},
+        }
+        assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode}");
+    }
+}

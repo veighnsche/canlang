@@ -1522,10 +1522,7 @@ impl SemanticJoin<'_> {
             ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => {
                 self.constructor_schema(inner, depth + 1, active)
             }
-            ResolvedType::Record {
-                symbol,
-                stored: false,
-            } => {
+            ResolvedType::Record {symbol,..} => {
                 let expected = self.expected.items.get(symbol.0 as usize)?;
                 let fields=match &expected.kind{
                     IrItemKind::Contract{fields,..}|IrItemKind::Event{fields}=>fields,
@@ -1948,6 +1945,7 @@ impl SemanticJoin<'_> {
                 if *symbol==branch)
     }
     fn join_derive_fn_formal(&mut self, item: &IrItem, b: &[crate::analysis::resolve::SymbolId]) -> Option<()> {
+        join_semantic_params(self,self.actual,self.expected,item.id,b)?;
         // Supplied slots do not visit defaults. The exact transcript
         // projection still consumes its original required Branch
         // formal, so seal that declaration independently of the body.

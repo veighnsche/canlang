@@ -1527,7 +1527,7 @@ it('finalizes source-only declared EMIT with genuine references and ordinary rep
       const original=await readFile(fixture('native-source-require-emit.can'),'utf8');
       const refused=fixture('.native-source-require-emit-refusal.can');
       try{
-        for(const changed of [original.replaceAll('emit Checked {root,message}','emit Checked {root,message=root.secret}'),
+        for(const changed of [original.replaceAll('emit Checked {root,message}','emit Checked {root,message=format("{amount}",{amount=root.remaining})}'),
           original.replaceAll('emit Checked {root,message}','let alias=root\n   emit Checked {root=alias,message}')]){
           await writeFile(refused,changed);
           const report=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,refused],{cwd:root,encoding:'utf8'});
@@ -2568,3 +2568,88 @@ it('keeps an original created-row parent as a staged identity across COUNT and C
     }
   }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('authorizes original EMIT Contract DATA through its separate declared Work lifecycle',
+  {timeout:180000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-source-emit-data-'));
+    try{
+      const {artifact,asm}=await installed('native-source-emit-data.can',directory);
+      for(const name of ['notify','lose_grant','change_reference','secret'])assert.equal(artifact.operations?.find(op=>op.name===`SourceEmitData.${name}`)?.result?.disclosure,undefined);
+      const original=await readFile(fixture('native-source-emit-data.can'),'utf8'),refused=fixture('.native-source-emit-data-refused.can');
+      try{
+        for(const changed of [original.replaceAll('title=root.source','title=root.location.id'),
+          original.replaceAll('emit Checked {value=snapshot(root,reason)}','let alias=root\n   emit Checked {value=snapshot(alias,reason)}')]){
+          await writeFile(refused,changed);const report=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,refused],{cwd:root,encoding:'utf8'});
+          assert.equal(report.status,10,report.stdout+report.stderr);
+          assert.ok((JSON.parse(report.stdout) as {diagnostics:{code:string}[]}).diagnostics.some(item=>item.code==='E6008'));
+        }
+      }finally{await rm(refused,{force:true});}
+      for(const mode of ['allowed','input','direct','mixed','reference-at-commit','nonnull','late-invariant','hidden-row','field-withheld','grant-loss','reference-change','identity-during-source','source-at-commit']){
+        const {now,identities,identity,membership}=await member(`source-data-${mode}`);
+        const scope={app:'SourceEmitData',owner:membership.team_id,ownerPackage:'SourceEmitData'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'source-emit-data-state',fileStoreId:'source-emit-data-files',receiver:{app:scope.app,owner:scope.owner,team:scope.owner}};
+        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(scope.owner));}});
+        const rootModel=model('SourceEmitData','Root'),locationModel=model('SourceEmitData','Location');
+        const location={...makeRow({id:asId('location'),data:{enabled:true}}),parent:null};
+        const other={...location,id:asId('other'),data:{enabled:false}};
+        const hidden={...makeRow({id:asId('hidden-reference'),data:{label:'No readable fields'}}),parent:null};
+        const row={...makeRow({id:asId('root'),data:{location:{id:location.id},capacity:'2',checked:false,last:null,
+          source:'Readable source',reason:mode==='nonnull'?'Stored reason':null,secret:'Hidden source',visible:mode!=='hidden-row'}}),parent:null};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:locationModel,row:location},
+          {kind:'insert',model:locationModel,row:other},{kind:'insert',model:model('SourceEmitData','Hidden'),row:hidden},{kind:'insert',model:rootModel,row},
+          {kind:'insert',model:model('SourceEmitData','Child'),row:{...makeRow({id:asId('child'),data:{active:true}}),parent:{model:rootModel,id:row.id}}}]}));
+        let raced=false;
+        if(mode==='identity-during-source'){
+          const load=store.load.bind(store);store.load=async(model,id)=>{
+            if(!raced&&model==='work.occurrence'){raced=true;await identities.removeMembership(membership.membership_id);}
+            return load(model,id);
+          };
+        }
+        if(mode==='source-at-commit'){
+          const commit=store.commit.bind(store);store.commit=async batch=>{
+            if(!raced&&batch.writes.some(write=>write.model==='work.occurrence')){
+              raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:rootModel,id:row.id,
+                expectedVersion:asVersion(row.version),row:{...row,version:asVersion(row.version+1),data:{...row.data,source:'Changed original source'}}}]}));
+            }
+            return commit(batch);
+          };
+        }
+        if(mode==='reference-at-commit'){
+          const commit=store.commit.bind(store);store.commit=async batch=>{
+            if(!raced&&batch.writes.some(write=>write.model==='work.occurrence')){
+              raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('SourceEmitData','Hidden'),id:hidden.id,expectedVersion:hidden.version,row:{...hidden,version:asVersion(hidden.version+1),archivedAt:now}}]}));
+            }return commit(batch);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const operation=`SourceEmitData.${mode==='grant-loss'?'lose_grant':mode==='reference-change'?'change_reference':mode==='field-withheld'?'secret':mode==='late-invariant'?'abort':mode==='input'?'input':mode==='direct'?'direct':mode==='mixed'||mode==='reference-at-commit'?'mixed':'notify'}`;
+        const request={operation,operation_id:operationId(now),inputs:{root:{id:row.id,version:String(row.version)},
+          ...(mode==='field-withheld'||mode==='direct'||mode==='input'?{}:{reason:'Fallback reason'}),...(mode==='input'?{value:{title:'Supplied title',reason:'Supplied reason'}}:{}),...(mode==='mixed'||mode==='reference-at-commit'?{other:{id:hidden.id,version:String(hidden.version)}}:{}),...(mode==='reference-change'?{other:{id:other.id,version:String(other.version)}}:{})}};
+        const outcome=await invoker.invokeMutation(request,identity);
+        const allowed=mode==='allowed'||mode==='nonnull'||mode==='direct'||mode==='mixed'||mode==='input';
+        assert.equal('result'in outcome?outcome.result.status:outcome.error.code,
+          allowed?'committed':mode==='source-at-commit'||mode==='reference-at-commit'?'conflict':mode==='late-invariant'?'rule_failed':'forbidden',`${mode}: ${JSON.stringify(outcome)}`);
+        const actual=await store.load(rootModel,row.id);assert.ok(actual);
+        assert.equal(actual.data.checked,allowed,mode);assert.equal(actual.data.visible,row.data.visible,mode);
+        assert.deepEqual(actual.data.location,row.data.location,mode);
+        const pending=await store.outboxPending(),sources=await store.query({model:asModel('work.occurrence'),authority:'owner'});
+        assert.equal(pending.length,0,mode);assert.equal(sources.length,allowed?1:0,mode);
+        if(mode==='identity-during-source'||mode==='source-at-commit'||mode==='reference-at-commit')assert.equal(raced,true,mode);
+        assert.equal(actual.data.last,null);if(!allowed)continue;
+        const result=sources[0]!.data['result'] as {payload:unknown;context:{kind:string;operation:string}};
+        assert.deepEqual(result.payload,mode==='input'?{text:'Readable source',value:{title:'Supplied title',reason:'Supplied reason'}}:mode==='direct'?{message:'Readable source'}:mode==='mixed'?{root:{id:row.id,version:String(actual.version)},other:{id:hidden.id,version:String(hidden.version)},value:{title:'Readable source',reason:'Fallback reason'}}:{value:{title:'Readable source',reason:mode==='nonnull'?'Stored reason':'Fallback reason'}});
+        assert.equal(result.context.kind,'user');assert.equal(result.context.operation,request.operation);
+        const read=await invoker.invokeRead({operation:'SourceEmitData.Root.read',inputs:{}},identity);
+        assert.ok('result'in read,JSON.stringify(read));
+        assert.ok(!JSON.stringify(read).includes('Hidden source'),'EMIT authorization does not expose ungranted row fields');
+        if(mode==='mixed'){const hiddenRead=await invoker.invokeRead({operation:'SourceEmitData.Hidden.read',inputs:{}},identity);assert.ok('result'in hiddenRead&&((hiddenRead.result as {records:unknown[]}).records.length===0),'retaining an admitted reference grants no model read');}
+        const saved=await store.readReceipt({app:'SourceEmitData',owner:membership.team_id,principal:membership.user_id,
+          operation,operationId:request.operation_id} as Parameters<typeof store.readReceipt>[0]);assert.ok(saved);assert.ok(saved.outcome.status==='committed');
+        assert.equal(saved.outcome.scenario,undefined);
+        const replay=await invoker.invokeMutation(request,identity);
+        assert.ok('error'in replay&&replay.error.code==='validation',JSON.stringify(replay));
+        assert.deepEqual(await store.query({model:asModel('work.occurrence'),authority:'owner'}),sources);assert.deepEqual(await store.readReceipt(saved.identity),saved);
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });

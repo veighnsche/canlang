@@ -316,3 +316,14 @@ export async function nativeScenarioSourceSendQuery(context:unknown,id:string,pa
   if(typeof fallback!=='function')throw new StateError('validation','Source SEND query needs its original guarded query.');
   return read===undefined?fallback():read(id,parent);
 }
+
+const sourceEmitDataReaders=new WeakMap<object,(body:Function,inputs:Readonly<Record<string,unknown>>)=>Promise<unknown>>();
+export function bindNativeScenarioSourceEmitData(context:object,evaluate:(body:Function,inputs:Readonly<Record<string,unknown>>)=>Promise<unknown>):void{
+  if(sourceEmitDataReaders.has(context))throw new StateError('validation','Source EMIT DATA reader cannot be rebound.');
+  sourceEmitDataReaders.set(context,evaluate);
+}
+export async function nativeScenarioSourceEmitData(context:unknown,body:Function,inputs:Readonly<Record<string,unknown>>):Promise<unknown>{
+  const evaluate=typeof context==='object'&&context!==null?sourceEmitDataReaders.get(context):undefined;
+  if(evaluate===undefined||typeof body!=='function')throw new StateError('validation','Source EMIT DATA needs its actual installed event owner.');
+  return evaluate(body,inputs);
+}
