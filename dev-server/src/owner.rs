@@ -692,6 +692,14 @@ impl Loop {
         captured: &Capture,
         hint: u64,
     ) -> std::result::Result<(), String> {
+        let cancel = self
+            .cancel
+            .as_ref()
+            .ok_or("check request was cancelled")?
+            .clone();
+        if cancel.load(Ordering::Acquire) {
+            return Err("check request was cancelled".into());
+        }
         self.state
             .observe_inputs(identity(captured), hint)
             .map_err(|e| format!("{e:?}"))?;
@@ -712,7 +720,7 @@ impl Loop {
                     captured,
                     id,
                 ),
-                crate::refusals::Catalog::from_capture(captured, &AtomicBool::new(false))?,
+                crate::refusals::Catalog::from_capture(captured, &cancel)?,
             )
             .map_err(|e| e.to_string())?;
         self.state
@@ -721,6 +729,11 @@ impl Loop {
         self.state
             .phase(&ticket.operation, CheckPhase::Publishing, None, now());
         let replacing = self.state.snapshot().preview.build.is_some();
+        // The worker's final recapture cannot authorize publication after its
+        // request was cancelled while the owner was selecting the candidate.
+        if cancel.load(Ordering::Acquire) {
+            return Err("check request was cancelled".into());
+        }
         self.state
             .publish(ticket, id, now())
             .map_err(|e| format!("{e:?}"))?;
@@ -748,6 +761,11 @@ impl Loop {
         }
         let snapshot = self.state.snapshot();
         let stopping = snapshot.lifecycle != Lifecycle::Running;
+        let cancelled = stopping
+            || self
+                .cancel
+                .as_ref()
+                .is_some_and(|c| c.load(Ordering::Acquire));
         let source = match snapshot.operation.as_ref().map(|o| o.phase) {
             Some(CheckPhase::PreparingPreview | CheckPhase::Publishing) => SourceResult::Valid,
             Some(CheckPhase::Capturing) => SourceResult::Incomplete,
@@ -758,12 +776,12 @@ impl Loop {
         }
         self.state.finish(
             operation,
-            if stopping {
+            if cancelled {
                 SourceResult::Cancelled
             } else {
                 source
             },
-            if !stopping && source == SourceResult::Valid {
+            if !cancelled && source == SourceResult::Valid {
                 PreviewResult::Failed
             } else {
                 PreviewResult::Unavailable
@@ -772,12 +790,7 @@ impl Loop {
             now(),
         );
         self.cleanup_requested = true;
-        if stopping
-            || self
-                .cancel
-                .as_ref()
-                .is_some_and(|c| c.load(Ordering::Acquire))
-        {
+        if cancelled {
             if let Some(waiter) = self.waiter.take() {
                 let _ = waiter.send(Err(error(
                     "REQUEST_CANCELLED",

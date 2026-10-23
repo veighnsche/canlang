@@ -12,7 +12,10 @@ use std::{
     os::unix::fs::{PermissionsExt, symlink},
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    sync::atomic::AtomicBool,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     thread,
     time::{Duration, Instant},
 };
@@ -373,6 +376,99 @@ fn real_owner_retains_serving_preview_across_errors_reuses_exact_inputs_and_join
     )
     .unwrap();
 
+    session.wait_for_check_admission();
+
+    // Detach a synchronous check during final verification after its real
+    // replacement runtime is prepared. This covers cancellation and custody;
+    // phase observation does not pin the post-recapture publication micro-window.
+    let retained = session.status();
+    let opened = session.request("preview.open", Value::Null);
+    let bootstrap = Url::parse(opened["url"].as_str().unwrap()).unwrap();
+    let response = get(&bootstrap, None);
+    assert!(response.starts_with("HTTP/1.1 303"), "{response}");
+    let current_cookie = response
+        .lines()
+        .find_map(|line| line.strip_prefix("set-cookie: "))
+        .unwrap()
+        .split(';')
+        .next()
+        .unwrap()
+        .to_owned();
+    let cancelled_source = SOURCE.replace("Owner lifecycle", "Cancelled replacement");
+    fs::write(session.root.join("App.can"), &cancelled_source).unwrap();
+    let cancel = Arc::new(AtomicBool::new(false));
+    thread::scope(|scope| {
+        let request_cancel = cancel.clone();
+        let client = &session.client;
+        let request = scope.spawn(move || {
+            client.request(
+                ControlCommand {
+                    command: "check".into(),
+                    payload: Value::Null,
+                },
+                &request_cancel,
+            )
+        });
+        let mut observed = false;
+        let mut status;
+        loop {
+            status = session.status();
+            let operation = &status["observation"]["operation"];
+            if operation["phase"] == "preparing_preview"
+                && matches!(
+                    operation["subphase"].as_str(),
+                    Some(
+                        "verifying_publication_inputs"
+                            | "verifying_inventory"
+                            | "verifying_generated_membership"
+                            | "verifying_producer_bytes"
+                    )
+                )
+            {
+                observed = true;
+                break;
+            }
+            // Client::request already enforces the normal finite request deadline.
+            if request.is_finished() {
+                break;
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+        cancel.store(true, Ordering::Release);
+        let detached = request.join().unwrap();
+        assert!(
+            observed,
+            "the real check must reach final publication verification: {status}; {detached:?}"
+        );
+        assert_eq!(detached.unwrap_err().code, "REQUEST_ABORTED");
+    });
+    session.wait_for_check_admission();
+    let cancelled = session.status();
+    assert_eq!(cancelled["serving_build"], retained["serving_build"]);
+    assert_eq!(cancelled["serving_revision"], retained["serving_revision"]);
+    assert_eq!(
+        cancelled["observation"]["preview"]["origin"], retained["observation"]["preview"]["origin"],
+        "the cancelled replacement never selects a new gateway"
+    );
+    assert_eq!(
+        cancelled["observation"]["lastOutcome"]["source"], "cancelled",
+        "{cancelled}"
+    );
+    let response = get(&active_url, Some(&current_cookie));
+    assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+    assert!(response.contains("Owner lifecycle"));
+    assert!(!response.contains("Cancelled replacement"));
+
+    let recovered = session.request("check", Value::Null);
+    assert_eq!(recovered["state"], "valid", "{recovered}");
+    assert_eq!(recovered["preview"], "ready", "{recovered}");
+    assert_ne!(session.status()["serving_build"], retained["serving_build"]);
+    let active_url = Url::parse(
+        session.status()["observation"]["preview"]["origin"]
+            .as_str()
+            .unwrap(),
+    )
+    .unwrap();
     session.wait_for_check_admission();
 
     // Stop an admitted real check through the control seam; the native owner

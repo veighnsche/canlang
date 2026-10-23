@@ -259,6 +259,9 @@ impl CheckWorker {
         if !capture::is_current_with_phases(&captured, inventory, &self.cancel, &|phase| {
             self.phase(CheckPhase::PreparingPreview, phase)
         }) {
+            if self.cancel.load(Ordering::Acquire) {
+                return Err("check request was cancelled".into());
+            }
             self.tx
                 .send(Event::Superseded(self.operation.clone()))
                 .map_err(|e| e.to_string())?;
