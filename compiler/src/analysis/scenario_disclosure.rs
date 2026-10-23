@@ -2994,7 +2994,8 @@ impl<'a> Closure<'a> {
         let field = fields.iter().filter_map(|id| self.resolve.symbols.get(id.0 as usize))
             .find(|field| field.name == name && matches!(field.kind, SymbolKind::Field {owner, ..} if owner == target))?;
         let ty = self.types.symbol_types.get(&field.id)?;
-        if !primitive_type(ty) || self.types.node_types.get(&key) != Some(ty)
+        if (!primitive_type(ty) && *ty != ResolvedType::Scalar(Scalar::Timezone))
+            || self.types.node_types.get(&key) != Some(ty)
             || self.types.field_reuse_sources.contains_key(&field.id) { return None; }
         Some((parameter, source, reference_field, target, field.id))
     }

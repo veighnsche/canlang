@@ -1,0 +1,13 @@
+app ParentTimezone
+Given
+ Resource {timezone:timezone,visible:bool=true}
+ Booking in Resource {location:Resource,active:bool=true,checked:bool=false,visible:bool=true}
+ policy Resource read=members where=row.visible fields=timezone
+ policy Booking read=members where=row.visible
+When
+ scenario day(booking:Booking) -> date by=members
+  require booking.active
+  do
+   set booking {checked=true}
+   return local_date(now,booking.location.timezone)
+Then

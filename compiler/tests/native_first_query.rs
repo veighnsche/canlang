@@ -1906,19 +1906,26 @@ fn original_book_and_reschedule_keep_required_reference_and_body_correspondence(
 
 #[test]
 fn parent_timezone_keeps_its_original_stored_dependency() {
-    let source=include_str!("../../packages/cloudflare/test/fixtures/native-parent-timezone.can");
-    let (db,program,ir,catalog)=fixture_source("native-parent-timezone.can",source);
+    for (name,source) in [
+        ("native-parent-timezone.can",include_str!("../../packages/cloudflare/test/fixtures/native-parent-timezone.can")),
+        ("native-reference-timezone.can",include_str!("../../packages/cloudflare/test/fixtures/native-reference-timezone.can")),
+    ] {
+    let (db,program,ir,catalog)=fixture_source(name,source);
     let owner=item(&ir,"ParentTimezone.day");
     assert!(matches!(&ir.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)),"{:?}",ir.scenario_disclosures[&owner.id]);
     let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);
     assert!(diagnostics.is_empty(),"{diagnostics:?}");
     let operation=artifact["operations"].as_array().unwrap().iter().find(|value|value["name"]=="ParentTimezone.day").unwrap();
     assert!(operation["result"]["disclosure"].is_object(),"{operation}");
-    let mut changed=ir.clone();
-    let field=changed.items.iter_mut().find(|value|value.canonical=="ParentTimezone.Resource.timezone").unwrap();
-    let IrItemKind::Field{ty,..}=&mut field.kind else {panic!("stored field");};
-    *ty=IrType::Known(ResolvedType::Scalar(Scalar::Text));
-    assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),"$can$m$506172656e7454696d657a6f6e65.mjs").is_none(),"timezone must not be rescued by a plain string descriptor");
+    for field_name in ["ParentTimezone.Resource.timezone"].into_iter().chain(
+        (name=="native-reference-timezone.can").then_some("ParentTimezone.Booking.location")) {
+        let mut changed=ir.clone();
+        let field=changed.items.iter_mut().find(|value|value.canonical==field_name).unwrap();
+        let IrItemKind::Field{ty,..}=&mut field.kind else {panic!("stored field");};
+        *ty=IrType::Known(ResolvedType::Scalar(Scalar::Text));
+        assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),"$can$m$506172656e7454696d657a6f6e65.mjs").is_none(),"{field_name}: the actual stored reference and timezone declarations must remain original");
+    }
+}
 }
 
 #[test]

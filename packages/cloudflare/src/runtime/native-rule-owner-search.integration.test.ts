@@ -1395,20 +1395,21 @@ it('retains exact nullable enum membership through real owner execution and fina
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
-it('authorizes a stored timezone through the original parent path and rechecks saved disclosure',
+it('authorizes a stored timezone through original parent and required reference paths and rechecks saved disclosure',
   {timeout:120000},async()=>{
     const directory=await mkdtemp(join(tmpdir(),'can-parent-timezone-'));
     try{
-      const {artifact,asm}=await installed('native-parent-timezone.can',directory);
+      for(const fixtureName of ['native-parent-timezone.can','native-reference-timezone.can']){
+      const {artifact,asm}=await installed(fixtureName,directory);
       const plan=artifact.operations?.find(operation=>operation.name==='ParentTimezone.day')?.result?.disclosure;
       assert.ok(plan,'the date must retain its actual parent DATA dependencies');
       assert.ok(plan.returns.some(returned=>returned.dependencies.some(dependency=>dependency.field==='timezone'&&dependency.type==='timezone')));
-      for(const mode of ['utc','new-york','hidden','changed-at-commit','hidden-at-commit']){
-        const {now,identities,identity}=await member(`parent-zone-${mode}`);
+      for(const mode of ['utc','new-york','hidden','changed-at-commit','hidden-at-commit',...(fixtureName==='native-reference-timezone.can'?['root-hidden']:[])]){
+        const {now,identities,identity}=await member(`${fixtureName}-${mode}`);
         const store=createMemoryStorage(),resourceModel=model('ParentTimezone','Resource'),bookingModel=model('ParentTimezone','Booking');
         const zone=mode==='new-york'?'America/New_York':'UTC';
         const resource={...makeRow({id:asId('resource'),data:{timezone:zone,visible:mode!=='hidden'}}),parent:null};
-        const booking={...makeRow({id:asId('booking'),data:{active:true,checked:false}}),parent:{model:resourceModel,id:resource.id}};
+        const booking={...makeRow({id:asId('booking'),data:{active:true,checked:false,...(fixtureName==='native-reference-timezone.can'?{location:{id:resource.id},visible:mode!=='root-hidden'}:{})}}),parent:{model:resourceModel,id:resource.id}};
         await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:resourceModel,row:resource},{kind:'insert',model:bookingModel,row:booking}]}));
         const updateResource=async(data:Record<string,unknown>)=>{
           const current=await store.load(resourceModel,resource.id);assert.ok(current);
@@ -1441,6 +1442,7 @@ it('authorizes a stored timezone through the original parent path and rechecks s
           const hidden=await invoker.invokeMutation(request,identity);
           assert.ok('error'in hidden || hidden.result.result===null,'saved date cannot disclose a now-hidden parent timezone');
         }
+      }
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });

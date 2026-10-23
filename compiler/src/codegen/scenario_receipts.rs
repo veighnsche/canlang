@@ -2193,7 +2193,8 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 || creates.len()==1 && source_owned_created_return_tail(context,item,&creates[0]).is_some()));
     let mut profile_scalar_pairs = HashMap::new();
     let mut profile_source_pairs = HashMap::new();
-    if (created_model.is_some() || sealed_created_tail)
+    let scalar_result = matches!(&item.kind, IrItemKind::Scenario { result:Some(ResolvedType::Scalar(_)), .. });
+    if (created_model.is_some() || sealed_created_tail || scalar_result)
         && let Some(db) = db
     {
         for (site, expressions) in &sites.members {
@@ -13314,7 +13315,8 @@ fn checked_reference_receiver_pairs<'a>(
             return None;
         }
         target
-    } else if guarded || matches!(leaf.ty,ResolvedType::Scalar(_)) && native_result_type(&leaf.ty) {
+    } else if guarded || matches!(leaf.ty,ResolvedType::Scalar(_))
+        && (native_result_type(&leaf.ty) || leaf.ty == ResolvedType::Scalar(Scalar::Timezone)) {
         let facts = super::scenario_calls::checked_source(ir, owner, db)?;
         let schema = facts
             .stored_contracts
