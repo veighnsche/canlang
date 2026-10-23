@@ -17068,6 +17068,39 @@ impl<'a> Closure<'a> {
         }
     }
 
+    /// A finite authored enum filter is a Values expression. Its predicate
+    /// retains ordinary DATA dependencies; it acquires no model query census.
+    fn literal_enum_value_query(&self,query:&super::types::CheckedQuery)->Option<NodeKey> {
+        let ResolvedType::Array{element,ordered:true,nonempty:true}=&query.domain_type else{return None;};
+        let ResolvedType::Enum{owner:Some(owner),cases}=element.as_ref() else{return None;};
+        if cases.is_empty() || self.types.symbol_types.get(owner)!=Some(element.as_ref())
+            || query.result!=(ResolvedType::Array{element:element.clone(),ordered:true,nonempty:false}) || query.projection.is_some()
+            || self.types.node_types.get(&query.domain)!=Some(&query.domain_type) {return None;}
+        let domain=self.nodes.get(&query.domain)?;
+        if domain.kind!=SyntaxKind::Array{return None;}
+        let entries:Vec<_>=domain.children.iter().filter(|child|expression(child.kind)).collect();
+        if entries.is_empty() || entries.len()>200 || entries.iter().any(|entry|
+            !self.types.resolved_cases.contains(&NodeKey::of(entry))
+                || self.types.node_types.get(&NodeKey::of(entry))!=Some(element.as_ref())) {return None;}
+        let [alias,filter]=query.clauses.as_slice() else{return None;};
+        let [predicate]=filter.expressions.as_slice() else{return None;};
+        if !matches!(alias.kind,CheckedQueryClauseKind::As{..}) || filter.kind!=CheckedQueryClauseKind::Where
+            || self.types.node_types.get(predicate)!=Some(&ResolvedType::Scalar(Scalar::Bool)){return None;}
+        let (left,right)=self.query_binary(*predicate,"==")?;
+        let formal_case=|formal:NodeKey,case:NodeKey|{
+            let Some(Binding::Symbol(parameter))=self.query_binding(formal) else{return false;};
+            let Some(SymbolKind::Param{owner,..})=self.resolve.symbols.get(parameter.0 as usize).map(|symbol|&symbol.kind) else{return false;};
+            matches!(self.types.symbol_types.get(parameter),Some(ResolvedType::Enum{owner:Some(_),cases}) if !cases.is_empty())
+                && self.types.node_types.get(&formal)==self.types.symbol_types.get(parameter)
+                && self.types.node_types.get(&case)==self.types.symbol_types.get(parameter)
+                && self.types.resolved_cases.contains(&case)
+                && self.original_reference_parameter(formal,*parameter)
+                && self.effects.derives.get(owner).is_some_and(|derive|derive.params.iter()
+                    .any(|param|param.param==*parameter&&param.default.is_none()))
+        };
+        (formal_case(left,right)||formal_case(right,left)).then_some(*predicate)
+    }
+
     fn constructor_value_order_query(&mut self, key: NodeKey, module: ModuleId, env: &Env,
         calls: &[NodeKey]) -> Option<Vec<ValuePath>> {
         let query = self.types.checked_queries.get(&key)?.clone();
@@ -17147,6 +17180,10 @@ impl<'a> Closure<'a> {
             SyntaxKind::Call => self.call(key, module, env, calls),
             SyntaxKind::Query if self.inline_selection_at(key, module).is_some() => {
                 self.inline_selection_value(key, module, env, calls)
+            }
+            SyntaxKind::Query if self.types.checked_queries.get(&key).and_then(|query|self.literal_enum_value_query(query)).is_some() => {
+                let predicate=self.literal_enum_value_query(&self.types.checked_queries[&key]).unwrap();
+                self.expr(predicate,module,env,calls)
             }
             SyntaxKind::Query => if let Some(value) = self.constructor_value_order_query(key, module, env, calls) {
                 Ok(value)
@@ -22024,6 +22061,11 @@ impl<'a> Closure<'a> {
                 helper_reference_reads,
             ),
             SelectedCallTarget::Builtin { id, .. } => {
+                if id=="first" && selected.slots.as_slice()==[Some(0)] && selected.arguments.len()==1
+                    && self.query_group(selected.arguments[0]).and_then(|key|self.types.checked_queries.get(&key))
+                        .and_then(|query|self.literal_enum_value_query(query)).is_some() {
+                    return Ok(argument_paths.into_iter().map(|(value,_)|value).collect());
+                }
                 if matches!(id.as_str(), "count" | "first" | "any" | "sum") {
                     return Err(self.influence(
                         key,

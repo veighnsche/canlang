@@ -2185,6 +2185,26 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             return None;
         }
     };
+    if !sites.enum_values.is_empty() {
+        let context=source_context?;
+        super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),item)?;
+        for (id,cases) in &sites.enum_values {
+            let actual=ir.items.get(id.0 as usize)?;
+            let original=context.fresh().items.get(id.0 as usize)?;
+            let (IrItemKind::Field{owner:actual_owner,..},IrItemKind::Field{owner:original_owner,..})=(&actual.kind,&original.kind) else{return None;};
+            if actual_owner!=original_owner{return None;}
+            let parent=ir.items.get(actual_owner.0 as usize)?;
+            let original_parent=context.fresh().items.get(original_owner.0 as usize)?;
+            if parent.id!=original_parent.id || parent.canonical!=original_parent.canonical || parent.name!=original_parent.name
+                || parent.module!=original_parent.module || parent.span!=original_parent.span
+                || std::mem::discriminant(&parent.kind)!=std::mem::discriminant(&original_parent.kind) {return None;}
+            if actual.id!=*id || original.id!=*id || actual.canonical!=original.canonical
+                || actual.name!=original.name || actual.module!=original.module || actual.span!=original.span
+                || ![actual,original].iter().all(|item|matches!(&item.kind,
+                    IrItemKind::Field{ty:IrType::Known(ResolvedType::Enum{owner:Some(owner),cases:declared}),..}
+                        if owner==id && declared==cases)) {return None;}
+        }
+    }
     if match_effect_proofs(ir, item, models, checked, &sites, db, send_guards, source_context).is_none() {
 
         return None;
@@ -19029,8 +19049,29 @@ fn file_assignment_input_matches(
     )
 }
 
+/// This IR profile is immutable Values filtering, never records().
+fn literal_enum_values_query(query:&super::ir::IrQuery)->Option<(crate::analysis::SymbolId,Vec<String>,&TypedExpr,&TypedExpr)> {
+    let super::ir::IrQueryDomain::Value{base,..}=&query.domain else{return None;};
+    let ResolvedType::Array{element,ordered:true,nonempty:true}=&base.ty else{return None;};
+    let ResolvedType::Enum{owner:Some(owner),cases}=element.as_ref() else{return None;};
+    let IrExpr::Array(entries)=&base.expr else{return None;};
+    let predicate=query.where_pred.as_ref()?;
+    let IrExpr::Binary{op:super::ir::IrBinOp::Eq,left,right}=&predicate.expr else{return None;};
+    if left.ty!=right.ty || !matches!(&left.ty,ResolvedType::Enum{owner:Some(_),cases} if !cases.is_empty())
+        || !(matches!((&left.expr,&right.expr),(IrExpr::Name(_),IrExpr::Text(_))|(IrExpr::Text(_),IrExpr::Name(_)))) {return None;}
+    if cases.is_empty() || entries.is_empty() || entries.len()>200 || predicate.ty!=ResolvedType::Scalar(Scalar::Bool)
+        || query.parent.is_some() || query.select.is_some() || query.select_param.is_some() || query.where_async
+        || query.limit.is_some() || query.archived.is_some() || !query.order.is_empty() || query.value_order.is_some()
+        || query.collection_call.is_some() || query.contract_collection_call.is_some()
+        || entries.iter().any(|entry|entry.ty!=**element || !matches!(&entry.expr,IrExpr::Text(value) if cases.contains(value))) {
+        return None;
+    }
+    Some((*owner,cases.clone(),base,predicate))
+}
+
 #[derive(Default)]
 struct Sites<'a> {
+    enum_values: HashMap<crate::analysis::SymbolId, Vec<String>>,
     members: HashMap<NativeSite, Vec<&'a TypedExpr>>,
     names: HashMap<NativeSite, Vec<&'a TypedExpr>>,
     transitions: HashMap<NativeSite, Vec<&'a IrStmt>>,
@@ -19354,6 +19395,14 @@ impl<'a> Sites<'a> {
                 },
                 Visit::Expression(expression) if event_notice.is_some() && effects.iter().take(2).any(|stmt| matches!(stmt,IrStmt::Let{value,..} if std::ptr::eq(value,expression))) => {},
                 Visit::Expression(expression) => match &expression.expr {
+                    IrExpr::Query(query) if literal_enum_values_query(query).is_some() => {
+                        let (owner,cases,base,predicate)=literal_enum_values_query(query)?;
+                        if out.enum_values.insert(owner,cases.clone()).is_some_and(|previous|previous!=cases){return None;}
+                        let IrExpr::Binary{left,..}=&predicate.expr else{return None;};
+                        let ResolvedType::Enum{owner:Some(owner),cases}=&left.ty else{return None;};
+                        if out.enum_values.insert(*owner,cases.clone()).is_some_and(|previous|previous!=*cases){return None;}
+                        push!(Visit::Expression(base));push!(Visit::Expression(predicate));
+                    }
                     IrExpr::Query(query) if updated_model_owner && constructor_values_order_domain(ir, query).is_some() => {
                         push!(Visit::Expression(constructor_values_order_domain(ir, query)?));
                     }

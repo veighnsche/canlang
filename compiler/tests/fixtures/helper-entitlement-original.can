@@ -1,0 +1,43 @@
+app EntitlementSource uses=[rent_reservations]
+package customer
+ Given
+  export Customer {active:bool=true}
+  policy Customer read=members
+ When
+ Then
+package rent_catalog
+ Given
+  export Location {active:bool=true}
+  policy Location read=members
+ When
+ Then
+package member_terms
+ Given
+  Benefit {unit:enum(hour,day)=hour}
+  export contract BenefitInterval { from:datetime, until:datetime }
+  export contract Entitlement { source:text, customer:text, account:user, location:text, product:text, intervals:BenefitInterval[]!, quantity:int, unit:Benefit.unit, duration:duration, rate:money, previous_source:text?, restore_consumed:bool=false }
+ When
+ Then
+package rent_reservations
+ use customer {Customer}
+ use rent_catalog {Location}
+ use member_terms {Entitlement,BenefitInterval}
+ Given
+  Resource {location:Location,price_unit:enum(hour,day)=hour}
+  Booking in Resource {source:text,customer:Customer,account:user,benefit_intervals:BenefitInterval[],quantity:int,benefit_unit:Resource.price_unit,benefit_duration:duration,benefit_rate:money?,rate:money,checked:bool=false,permitted:bool=true,rate_visible:bool=true}
+  Evidence {value:Entitlement}
+  policy Resource read=members
+  policy Booking read=members fields=source,customer,account,benefit_intervals,quantity,benefit_duration,benefit_rate
+  policy Booking read=members and row.rate_visible fields=rate
+  policy Booking read=members and row.permitted fields=benefit_unit
+  policy Evidence read=members
+  derive allowed(booking:Booking):bool=booking.quantity>0
+  derive membership_unit(unit:Resource.price_unit):Entitlement.unit = first([Entitlement.unit.hour] as selected where unit==Resource.price_unit.hour) ?? Entitlement.unit.day
+  derive benefit_request(booking:Booking):Entitlement = Entitlement {source=booking.source,customer=booking.customer.id,account=booking.account,location=booking.parent.location.id,product="workspace",intervals=booking.benefit_intervals,quantity=booking.quantity,unit=membership_unit(booking.benefit_unit),duration=booking.benefit_duration,rate=booking.benefit_rate ?? booking.rate,previous_source=null,restore_consumed=false}
+ When
+  scenario prepare(booking:Booking) by=members
+   require allowed(booking)
+   do
+    set booking {checked=true}
+    create Evidence {value=benefit_request(booking)} as evidence
+ Then

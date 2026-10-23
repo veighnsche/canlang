@@ -2649,3 +2649,50 @@ fn created_refund_send_keeps_original_create_binding_stage_and_scalar_sources() 
     let (db,program,_,catalog)=fixture_source("copied-created-refund.can",&copied);
     let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{diagnostics:?}");
 }
+
+
+#[test]
+fn original_entitlement_helper_keeps_imported_reference_identity() {
+ let source=include_str!("fixtures/helper-entitlement-original.can");
+ let(db,program,ir,catalog)=fixture_source("helper-entitlement-original.can",source);
+ let owner=item(&ir,"rent_reservations.prepare");
+ assert!(matches!(ir.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)),"{:?}",ir.scenario_disclosures[&owner.id]);
+ let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let operation=artifact["operations"].as_array().unwrap().iter().find(|operation|operation["name"]==owner.canonical).unwrap();
+ assert!(operation["result"]["disclosure"].is_object(),"{operation}");
+ assert_eq!(operation["result"]["disclosure"]["queries"].as_array().map_or(0,Vec::len),0,"literal Values FIRST grants no records query");
+ let project=std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+ for (path,prefix) in [("draft/apps/CanRent/CanRent.can","derive benefit_request("),("draft/apps/CanRent/CanRent.can","derive membership_unit("),
+   ("draft/apps/CanMember/CanMember.can","export contract Entitlement "),("draft/apps/CanMember/CanMember.can","export contract BenefitInterval ")] {
+  let original=std::fs::read_to_string(project.join(path)).unwrap();
+  assert_eq!(source.lines().find(|line|line.trim_start().starts_with(prefix)).unwrap().trim(),
+   original.lines().find(|line|line.trim_start().starts_with(prefix)).unwrap().trim());
+ }
+ for mode in ["unused-case","declaring-owner","foreign-owner","predicate","literal"] {
+  let mut changed=ir.clone();
+  if mode=="declaring-owner" {
+   let other=item(&changed,"rent_reservations.Resource").id;let id=item(&changed,"member_terms.Benefit.unit").id;
+   let IrItemKind::Field{owner,..}=&mut changed.items[id.0 as usize].kind else{panic!("owner");};*owner=other;
+  }else if mode=="unused-case" {
+   let id=item(&changed,"member_terms.Benefit.unit").id;
+   let IrItemKind::Field{ty:IrType::Known(ResolvedType::Enum{cases,..}),..}=&mut changed.items[id.0 as usize].kind else{panic!("enum");};cases.push("week".into());
+  }else{
+   let other=item(&changed,"rent_reservations.Resource.price_unit").id;
+   let id=item(&changed,"rent_reservations.membership_unit").id;
+   let IrItemKind::DeriveFn{expr:Some(body),..}=&mut changed.items[id.0 as usize].kind else{panic!("helper");};
+   let IrExpr::Binary{left,..}=&mut body.expr else{panic!("fallback");};
+   let IrExpr::Call{args,..}=&mut left.expr else{panic!("first");};
+   let IrExpr::Query(query)=&mut args[0].expr else{panic!("query");};
+   if mode=="predicate"{query.where_pred.as_mut().unwrap().expr=IrExpr::Bool(false);}else{
+    let canlang_compiler::codegen::ir::IrQueryDomain::Value{base,..}=&mut query.domain else{panic!("Values");};
+    let IrExpr::Array(entries)=&mut base.expr else{panic!("literal");};
+    if mode=="literal"{entries[0].expr=IrExpr::Text("day".into());}else{
+     let ResolvedType::Array{element,..}=&mut base.ty else{panic!("type");};
+     let ResolvedType::Enum{owner,..}=element.as_mut() else{panic!("enum type");};*owner=Some(other);
+     for entry in entries{entry.ty=element.as_ref().clone();}
+    }
+   }
+  }
+  assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),"$can$m$456e7469746c656d656e74536f75726365.mjs").is_none(),"{mode}");
+ }
+}

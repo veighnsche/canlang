@@ -3042,3 +3042,46 @@ it('projects original created refund scalar fields independently from admitted p
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+
+
+it('evaluates the original Entitlement enum FIRST through immutable Values and field authority', {timeout:240000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-entitlement-values-first-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/helper-entitlement-original.can');
+  const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout) as CompileArtifact;
+  const plan=artifact.operations?.find(operation=>operation.name==='rent_reservations.prepare')?.result?.disclosure;
+  assert.ok(plan);assert.equal(plan.queries?.length??0,0,'literal enum FIRST grants no Model query authority');
+  const asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['hour','day','preferred-rate','unused-rate-denied','needed-rate-denied','denied-unit','empty-intervals','unit-race','identity-race']){
+   const {now,identities,identity,membership,user}=await member('entitlement-values-'+mode);
+   const {store}=createTestMemoryStorage(),model=asModel('rent_reservations.Booking');
+   const intervals=mode==='empty-intervals'?[]:[{from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T10:00:00.000Z'}];
+   const preferred=['preferred-rate','unused-rate-denied'].includes(mode),rate={minor:'2400',currency:'EUR'},benefitRate={minor:'1200',currency:'EUR'};
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    {kind:'insert',model:asModel('customer.Customer'),row:makeRow({id:asId('customer'),data:{active:true}})},
+    {kind:'insert',model:asModel('rent_catalog.Location'),row:makeRow({id:asId('location'),data:{active:true}})},
+    {kind:'insert',model:asModel('rent_reservations.Resource'),row:makeRow({id:asId('resource'),data:{location:{id:'location'},price_unit:'hour'}})},
+    {kind:'insert',model,row:{...makeRow({id:asId('booking'),data:{source:'original-booking',customer:{id:'customer'},account:{id:user.user_id},
+     benefit_intervals:intervals,quantity:'2',benefit_unit:mode==='day'?'day':'hour',benefit_duration:'3600000',benefit_rate:preferred?benefitRate:null,
+     rate,checked:false,permitted:mode!=='denied-unit',rate_visible:!['unused-rate-denied','needed-rate-denied'].includes(mode)}}),
+     parent:{model:asModel('rent_reservations.Resource'),id:asId('resource')}}}]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.load=async(model,id)=>{const row=await load(model,id);if(model==='rent_reservations.Evidence'&&mode==='identity-race'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return row;};
+   store.commit=async batch=>{if(mode==='unit-race'&&batch.writes.some(write=>write.kind==='insert'&&write.model==='rent_reservations.Evidence')){
+    raced=true;const row=await load(model,asId('booking'));assert.ok(row);
+    await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model,id:row.id,expectedVersion:row.version,row:{...row,version:asVersion(row.version+1),data:{...row.data,benefit_unit:'day'}}}]}));
+   }return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+   const request={operation:'rent_reservations.prepare',operation_id:operationId(now),inputs:{booking:{id:'booking',version:'1'}}};
+   const result=await invoker.invokeMutation(request,identity),success=['hour','day','preferred-rate','unused-rate-denied','empty-intervals'].includes(mode);
+   assert.equal('result'in result,success,mode+': '+JSON.stringify(result));if(mode.endsWith('-race'))assert.equal(raced,true,mode);
+   const evidence=await store.query({model:asModel('rent_reservations.Evidence'),authority:'owner'});
+   assert.equal(evidence.length,success?1:0,mode);assert.equal((await load(model,asId('booking')))?.data['checked'],success,mode);
+   if(success){assert.deepEqual(evidence[0]!.data['value'],{source:'original-booking',customer:'customer',account:{id:user.user_id},location:'location',product:'workspace',
+    intervals,quantity:'2',unit:mode==='day'?'day':'hour',duration:'3600000',rate:preferred?benefitRate:rate,previous_source:null,restore_consumed:false});
+    assert.ok('result'in await invoker.invokeMutation(request,identity));assert.deepEqual(await store.query({model:asModel('rent_reservations.Evidence'),authority:'owner'}),evidence);}
+   assert.equal((await store.query({model:asModel('member_terms.Benefit'),authority:'owner'})).length,0,'enum namespace never becomes a Model query');
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});
