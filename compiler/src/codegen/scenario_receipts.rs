@@ -8682,7 +8682,9 @@ fn constructor_count_source(
     let mut stage=0;
     for statement in &effects[..position] {
         match statement {
-            IrStmt::Let{..}|IrStmt::Require{..}=>{},
+            // The exact whole-owner seal retains CANCEL order/key, and its
+            // Work stage does not advance this business CREATE stage.
+            IrStmt::Let{..}|IrStmt::Require{..}|IrStmt::Cancel{..}=>{},
             IrStmt::Set{when:None,..}|IrStmt::Create{when:None,..}=>stage+=1,
             _=>return None,
         }
@@ -16160,7 +16162,7 @@ fn source_owned_void_create(context: &super::scenario_decisions::FreshSourceCont
     fn closed(body:&[IrStmt],depth:usize)->bool {
         depth<64 && body.iter().all(|statement|match statement {
             IrStmt::Let{..}|IrStmt::Require{..}|IrStmt::Set{when:None,..}
-                |IrStmt::Send{binding:Some(_),..}|IrStmt::Emit{..}=>true,
+                |IrStmt::Send{binding:Some(_),..}|IrStmt::Emit{..}|IrStmt::Cancel{..}=>true,
             IrStmt::If{then_branch,else_branch,..}=>closed(then_branch,depth+1)&&closed(else_branch,depth+1),
             IrStmt::Create{binding:Some(_),when:None,..}=>depth==0,
             _=>false,
@@ -16847,6 +16849,9 @@ fn checked_created_statements(
                     )?;
                 }
                 (SyntaxKind::Call, *span, None)
+            }
+            IrStmt::Cancel{key,span,..} if void_owner => {
+                (SyntaxKind::Cancel,*span,Some(key))
             }
             IrStmt::Emit { event, payload, span } if void_owner => {
                 let mut proofs = checked.effects.iter().filter(|proof| node_span(proof.node) == *span);

@@ -56,6 +56,17 @@ package rent_reservations
     create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
     create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
     emit ReservationChanged {booking,revision=booking.version+1}
+  export scenario depart(booking:Booking) by=reception label="Record departure"@{nl="Vertrek vastleggen"}
+   require can_work(actor,booking.parent.location) and booking.checked_in!=null and booking.checked_out==null
+   do
+    cancel format("{source}:occupancy",{source=booking.source})
+    set booking {status=completed,overdue=false,checked_out=now,reserved_until=max([booking.reserved_until,now+booking.departure_buffer])}
+    create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
+    emit ReservationChanged {booking,revision=booking.version+1}
+  scenario seed_occupancy(booking:Booking) by=reception
+   require booking.source!=""
+   do schedule format("{source}:occupancy",{source=booking.source}) at=now event=ReservationChanged {booking,revision=1}
   scenario observed on=ReservationChanged
    require event.revision==event.booking.version
    do set event.booking {overdue=false}
