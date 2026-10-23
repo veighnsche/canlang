@@ -13062,7 +13062,7 @@ fn null_equality(
                     let previous_data_body=self.source_data_body;self.source_data_body=source.get("queries").is_some()||source["parameters"].as_array().is_some_and(|parameters|parameters.iter().any(|parameter|parameter.get("derived").is_some()));
                     let fields=entries.iter().map(|(field,value)|{
                         let value=if let Some(reference)=references.iter().find(|reference|reference["field"]==*field){
-                            format!("$can$emit$refs[{}]",descriptor_json(&reference["parameter"]))
+                            format!("$can$emit$refs[{}]",descriptor_json(&reference[if references.iter().any(|reference|reference.get("path").is_some()){"field"}else{"parameter"}]))
                         }else{self.lower_expr(value)};
                         format!("{}:{value}",object_key(field))
                     }).collect::<Vec<_>>().join(",");

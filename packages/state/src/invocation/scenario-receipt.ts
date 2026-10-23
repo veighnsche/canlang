@@ -10034,7 +10034,7 @@ export interface ScenarioSourceSendDataSource {
   readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
   readonly node:{readonly start:number;readonly end:number};readonly operation:string;readonly binding:string;
   readonly parameters:readonly {readonly name:string;readonly model:ModelName;
-    readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identityPaths?:readonly {readonly path:readonly {readonly field:string;readonly model:ModelName;readonly nullable?:true}[];readonly leaf:'id'}[];readonly parent?:{readonly model:ModelName;readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[]};readonly derived?:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identity?:readonly ('id'|'version')[];readonly loop?:string;readonly created?:ScenarioSourceCreatedRoot}[];
+    readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identityPaths?:readonly {readonly path:readonly {readonly field:string;readonly model:ModelName;readonly nullable?:true}[];readonly leaf:'id'}[];readonly dataPaths?:readonly{readonly path:NonNullable<ScenarioSourceSendDataSource['parameters'][number]['identityPaths']>[number]['path'];readonly field:string;readonly type:CanTypeId}[];readonly parent?:{readonly model:ModelName;readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[]};readonly derived?:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identity?:readonly ('id'|'version')[];readonly loop?:string;readonly created?:ScenarioSourceCreatedRoot}[];
   readonly queries?:readonly ScenarioSourceSendQuerySource[];
 }
 interface SourceSendDataProducer extends ScenarioReceiptReferenceProducer {readonly sites:readonly ScenarioSourceSendDataSource[];}
@@ -10097,25 +10097,39 @@ function sourceSendFieldType(bound:BoundPlan,model:ModelName,name:string,type:st
       ||field.field.kind==='enum'&&stableStringify(field.field.values)===stableStringify(cases));
   }catch{return false;}
 }
-function checkSourceEffectIdentityPaths(bound:BoundPlan,model:ModelName,value:unknown):void{
-  const paths=list(value),seen=new Set<string>();if(paths.length===0)return invalid('Effect identity paths are empty.');
-  for(const value of paths){
-    const profile=object(value,['path','leaf']),path=list(profile['path']);let current=model;
-    if(profile['leaf']!=='id'||path.length===0||path.length>8)return invalid('Effect identity path lacks its bounded original ID leaf.');
-    for(const value of path){const edge=object(value,['field','model',...(Object.hasOwn(value as object,'nullable')?['nullable']:[])]),field=text(edge['field']),target=text(edge['model']) as ModelName;
+type SourceEffectPath=NonNullable<ScenarioSourceSendDataSource['parameters'][number]['identityPaths']>[number]['path'];
+function checkSourceEffectPath(bound:BoundPlan,model:ModelName,value:unknown):ModelName{
+  const path=list(value);let current=model;
+  if(path.length===0||path.length>8)return invalid('Effect path lacks its bounded original stored edges.');
+  for(const value of path){const edge=object(value,['field','model',...(Object.hasOwn(value as object,'nullable')?['nullable']:[])]),field=text(edge['field']),target=text(edge['model']) as ModelName;
       const source=bound.artifactModels.get(current),stored=source?.fields.find(candidate=>candidate.name===field);
       if(!bound.artifactModels.has(target)||(field==='parent'?source?.parent!==target||Object.hasOwn(edge,'nullable'):
           stored?.field.kind!=='ref'||stored.field.model!==target||(stored.nullable===true)!==(edge['nullable']===true)||Object.hasOwn(edge,'nullable')&&edge['nullable']!==true||stored.array!==undefined||stored.default?.kind==='derived'))return invalid('Effect identity path differs from its required original stored edge.');
       current=target;
     }
+  return current;
+}
+function checkSourceEffectIdentityPaths(bound:BoundPlan,model:ModelName,value:unknown):void{
+  const paths=list(value),seen=new Set<string>();if(paths.length===0)return invalid('Effect identity paths are empty.');
+  for(const value of paths){const profile=object(value,['path','leaf']);
+    if(profile['leaf']!=='id')return invalid('Effect identity path lacks its original ID leaf.');
+    checkSourceEffectPath(bound,model,profile['path']);
     const key=stableStringify(profile);if(seen.has(key))return invalid('Effect identity path repeats.');seen.add(key);
   }
 }
-async function observeSourceEffectIdentityPaths(call:AdmittedCall,store:StoragePort,owner:ReceiptOwnerSession,state:Capture,
-  parameter:ScenarioSourceSendDataSource['parameters'][number],root:StoredRow,producer:ScenarioReceiptReferenceProducer,rows:Record<string,ProjectedRecord>):Promise<void>{
-  for(const [index,profile]of (parameter.identityPaths??[]).entries()){
-    let model=parameter.model,row=root;
-    for(const [depth,edge]of profile.path.entries()){
+function checkSourceEffectDataPaths(bound:BoundPlan,model:ModelName,value:unknown):void{
+  const paths=list(value),seen=new Set<string>();if(paths.length===0)return invalid('Effect scalar paths are empty.');
+  for(const value of paths){const profile=object(value,['path','field','type']),target=checkSourceEffectPath(bound,model,profile['path']),field=text(profile['field']),type=text(profile['type']);
+    const parsed=parseTypeId(type),stored=bound.artifactModels.get(target)?.fields.find(item=>item.name===field);
+    if(field==='id'||field==='version'||!sourceSendFieldType(bound,target,field,type)||stored?.default?.kind==='derived'||parsed.array
+        ||!(['scalar','stringlike','enum','user'].includes(parsed.base.kind)||parsed.base.kind==='nominal'&&Object.hasOwn(bound.valueSchema?.enums??{},parsed.base.path)))return invalid('Effect path lacks its exact original stored scalar leaf.');
+    const key=stableStringify(profile);if(seen.has(key))return invalid('Effect scalar path repeats.');seen.add(key);
+  }
+}
+async function observeSourceEffectPath(call:AdmittedCall,store:StoragePort,owner:ReceiptOwnerSession,state:Capture,
+  rootModel:ModelName,root:StoredRow,path:SourceEffectPath,producer:ScenarioReceiptReferenceProducer,label:string):Promise<{model:ModelName;row:StoredRow}>{
+    let model=rootModel,row=root;
+    for(const [depth,edge]of path.entries()){
       await observeModelQuerySourceAuthority(call,store,owner,state,model,row,[edge.field],0,undefined,undefined,producer);
       const wire=edge.field==='parent'?row.parent:row.data[edge.field];
       if(typeof wire!=='object'||wire===null||!('id'in wire)||typeof wire.id!=='string'||edge.field==='parent'&&row.parent?.model!==edge.model)return invalid('Effect identity path lost its actual required edge.');
@@ -10123,7 +10137,7 @@ async function observeSourceEffectIdentityPaths(call:AdmittedCall,store:StorageP
       if(current===null||current.archivedAt!==null)return invalid('Effect identity target lifetime is unavailable.');
       const sourceModel=model,sourceRow=row;
       if(owner.callGuards.length>=MAX_ITEMS)return invalid('Effect identity paths exceed their final guard bound.');
-      owner.callGuards.push(Object.freeze({name:`effect identity ${parameter.name}:${index}:${depth}`,evaluate:async()=>{
+      owner.callGuards.push(Object.freeze({name:`effect identity ${label}:${depth}`,evaluate:async()=>{
         const final=owner.finalized;if(final===null||owner.capture.poisoned)return invalid('Effect identity lost its final owner.');
         const write=final.writes.find(write=>write.model===sourceModel&&(write.kind==='insert'?write.row.id:write.id)===sourceRow.id);
         const latest=write===undefined?await store.cohortLoad({model:sourceModel,id:sourceRow.id,expectedRevision:call.revision}):write.kind==='remove'?null:write.row;
@@ -10134,10 +10148,25 @@ async function observeSourceEffectIdentityPaths(call:AdmittedCall,store:StorageP
       }}));
       model=edge.model;row=current;
     }
+    return {model,row};
+}
+async function observeSourceEffectIdentityPaths(call:AdmittedCall,store:StoragePort,owner:ReceiptOwnerSession,state:Capture,
+  parameter:ScenarioSourceSendDataSource['parameters'][number],root:StoredRow,producer:ScenarioReceiptReferenceProducer,rows:Record<string,ProjectedRecord>):Promise<void>{
+  for(const [index,profile]of (parameter.identityPaths??[]).entries()){
+    const {model,row}=await observeSourceEffectPath(call,store,owner,state,parameter.model,root,profile.path,producer,`${parameter.name}:identity:${index}`);
     // ID is genuine readable row metadata, not a fabricated stored scalar grant.
     const authority=await observeModelQuerySourceAuthority(call,store,owner,state,model,row,[],0,undefined,undefined,producer);
     rows[`${parameter.name}.identity.${index}`]=authority.record;
   }
+  for(const [index,profile]of (parameter.dataPaths??[]).entries()){
+    const {model,row}=await observeSourceEffectPath(call,store,owner,state,parameter.model,root,profile.path,producer,`${parameter.name}:scalar:${index}`);
+    const authority=await observeModelQuerySourceAuthority(call,store,owner,state,model,row,[profile.field],0,undefined,undefined,producer);
+    rows[`${parameter.name}.scalar.${index}`]=authority.record;
+  }
+}
+function sitesPathIdentity(parameters:readonly unknown[],name:string,path:unknown):boolean{
+  const parameter=parameters.find(value=>(value as {name:string}).name===name) as ScenarioSourceSendDataSource['parameters'][number]|undefined;
+  return parameter?.identityPaths?.some(profile=>stableStringify(profile.path)===stableStringify(path))===true;
 }
 function checkSourceEffectParent(bound:BoundPlan,model:ModelName,value:unknown):void{
   const parent=object(value,['model','fields']),name=text(parent['model']) as ModelName,fields=list(parent['fields']),seen=new Set<string>();
@@ -10185,7 +10214,7 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
     const parameters=list(site['parameters']);if(parameters.length===0)return invalid('SEND DATA needs its actual source root census.');
     const names=new Set<string>();
     for(const value of parameters){
-      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[]),...(Object.hasOwn(value as object,'created')?['created']:[]),...(Object.hasOwn(value as object,'derived')?['derived']:[]),...(Object.hasOwn(value as object,'parent')?['parent']:[]),...(Object.hasOwn(value as object,'identityPaths')?['identityPaths']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
+      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[]),...(Object.hasOwn(value as object,'created')?['created']:[]),...(Object.hasOwn(value as object,'derived')?['derived']:[]),...(Object.hasOwn(value as object,'parent')?['parent']:[]),...(Object.hasOwn(value as object,'identityPaths')?['identityPaths']:[]),...(Object.hasOwn(value as object,'dataPaths')?['dataPaths']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
       const input=bound.inputs.find(input=>input.name===name),declaration=bound.models.get(model);
       const loop=Object.hasOwn(parameter,'loop')?sourceBodyLoopProducers.get(def)?.loops.find(loop=>loop.id===parameter['loop']):undefined;
       const created=Object.hasOwn(parameter,'created')?object(parameter['created'],['id','node','stage','binding','model','parentParameter','parentModel']):undefined;
@@ -10195,11 +10224,12 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
       names.add(name);const fields=list(parameter['fields']);
       if(Object.hasOwn(parameter,'parent'))checkSourceEffectParent(bound,model,parameter['parent']);
       if(Object.hasOwn(parameter,'identityPaths'))checkSourceEffectIdentityPaths(bound,model,parameter['identityPaths']);
+      if(Object.hasOwn(parameter,'dataPaths'))checkSourceEffectDataPaths(bound,model,parameter['dataPaths']);
       if(Object.hasOwn(parameter,'identity')){
         const identity=list(parameter['identity']);
         if(identity.length===0||identity.length>2||new Set(identity).size!==identity.length||identity.some(value=>value!=='id'&&value!=='version'))return invalid('SEND DATA has invalid admitted identity leaves.');
       }
-      if(fields.length===0&&!Object.hasOwn(parameter,'identityPaths')&&!Object.hasOwn(parameter,'parent')&&!Object.hasOwn(parameter,'identity')&&!Object.hasOwn(site,'queries'))return invalid('SEND DATA needs its exact field census.');
+      if(fields.length===0&&!Object.hasOwn(parameter,'dataPaths')&&!Object.hasOwn(parameter,'identityPaths')&&!Object.hasOwn(parameter,'parent')&&!Object.hasOwn(parameter,'identity')&&!Object.hasOwn(site,'queries'))return invalid('SEND DATA needs its exact field census.');
       const selected=new Set<string>();
       for(const value of fields){const field=object(value,['name','type']),name=text(field['name']),type=text(field['type']);
         if(selected.has(name)||!sourceSendFieldType(bound,model,name,type)||['file','secret','member','json','bytes'].includes(type.replace(/\?$/,''))){
@@ -10331,7 +10361,7 @@ export async function executeScenarioSourceSendQuery(call:AdmittedCall,store:Sto
 export type ScenarioSourceEmitDataSource=Omit<ScenarioSourceSendDataSource,'operation'|'binding'|'parameters'>&{
   readonly event:string;
   readonly parameters:readonly (ScenarioSourceSendDataSource['parameters'][number]&{readonly derived?:readonly{readonly name:string;readonly type:CanTypeId}[]})[];
-  readonly references?:readonly{readonly field:string;readonly parameter:string;readonly model:ModelName;readonly created?:ScenarioSourceCreatedRoot}[];
+  readonly references?:readonly{readonly field:string;readonly parameter:string;readonly model:ModelName;readonly created?:ScenarioSourceCreatedRoot;readonly path?:SourceEffectPath}[];
 };
 interface SourceEmitDataProducer extends ScenarioReceiptReferenceProducer{readonly sites:readonly ScenarioSourceEmitDataSource[];readonly events:readonly string[];}
 const sourceEmitDataProducers=new WeakMap<GeneratedOperationDef,SourceEmitDataProducer>();
@@ -10359,7 +10389,7 @@ export function bindScenarioSourceEmitDataProducer(def:GeneratedOperationDef,pro
     const parameters=list(site['parameters']);if(parameters.length===0)return invalid('EMIT DATA needs its actual source root census.');
     const names=new Set<string>();
     for(const value of parameters){
-      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[]),...(Object.hasOwn(value as object,'derived')?['derived']:[]),...(Object.hasOwn(value as object,'parent')?['parent']:[]),...(Object.hasOwn(value as object,'identityPaths')?['identityPaths']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
+      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[]),...(Object.hasOwn(value as object,'derived')?['derived']:[]),...(Object.hasOwn(value as object,'parent')?['parent']:[]),...(Object.hasOwn(value as object,'identityPaths')?['identityPaths']:[]),...(Object.hasOwn(value as object,'dataPaths')?['dataPaths']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
       const input=bound.inputs.find(input=>input.name===name),declaration=bound.models.get(model);
       if(names.has(name)||input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,name)||declaration===undefined){
         return invalid('EMIT DATA needs an exact required singular original model parameter.');
@@ -10367,11 +10397,12 @@ export function bindScenarioSourceEmitDataProducer(def:GeneratedOperationDef,pro
       names.add(name);const fields=list(parameter['fields']);
       if(Object.hasOwn(parameter,'parent'))checkSourceEffectParent(bound,model,parameter['parent']);
       if(Object.hasOwn(parameter,'identityPaths'))checkSourceEffectIdentityPaths(bound,model,parameter['identityPaths']);
+      if(Object.hasOwn(parameter,'dataPaths'))checkSourceEffectDataPaths(bound,model,parameter['dataPaths']);
       if(Object.hasOwn(parameter,'identity')){
         const identity=list(parameter['identity']);
         if(identity.length===0||identity.length>2||new Set(identity).size!==identity.length||identity.some(value=>value!=='id'&&value!=='version'))return invalid('EMIT DATA has invalid admitted identity leaves.');
       }
-      if(fields.length===0&&!Object.hasOwn(parameter,'identityPaths')&&!Object.hasOwn(parameter,'parent')&&!Object.hasOwn(parameter,'identity')&&!Object.hasOwn(parameter,'derived')&&!Object.hasOwn(site,'queries'))return invalid('EMIT DATA needs its exact field census.');
+      if(fields.length===0&&!Object.hasOwn(parameter,'dataPaths')&&!Object.hasOwn(parameter,'identityPaths')&&!Object.hasOwn(parameter,'parent')&&!Object.hasOwn(parameter,'identity')&&!Object.hasOwn(parameter,'derived')&&!Object.hasOwn(site,'queries'))return invalid('EMIT DATA needs its exact field census.');
       const selected=new Set<string>();
       for(const value of fields){const field=object(value,['name','type']),name=text(field['name']),type=text(field['type']);
         if(selected.has(name)||!sourceSendFieldType(bound,model,name,type)||['file','secret','member','json','bytes'].includes(type.replace(/\?$/,''))){
@@ -10419,12 +10450,14 @@ export function bindScenarioSourceEmitDataProducer(def:GeneratedOperationDef,pro
     if(Object.hasOwn(site,'references')){
       const references=list(site['references']),fields=new Set<string>();if(references.length===0||references.length>200)return invalid('EMIT DATA reference census is invalid.');
       for(const value of references){
-        const reference=object(value,['field','parameter','model',...(Object.hasOwn(value as object,'created')?['created']:[])]),field=text(reference['field']),parameter=text(reference['parameter']),model=text(reference['model']);
+        const reference=object(value,['field','parameter','model',...(Object.hasOwn(value as object,'created')?['created']:[]),...(Object.hasOwn(value as object,'path')?['path']:[])]),field=text(reference['field']),parameter=text(reference['parameter']),model=text(reference['model']);
         const input=bound.inputs.find(input=>input.name===parameter);
         const created=Object.hasOwn(reference,'created')?object(reference['created'],['id','node','stage','binding','model','parentParameter','parentModel']):undefined;
         if(fields.has(field)||!bound.models.has(model as ModelName)||(created===undefined?
-            input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,parameter):
-            created['binding']!==parameter||created['model']!==model||Number(object(created['node'],['start','end'])['end'])>Number(node['start'])))return invalid('EMIT DATA reference lost its exact original admitted or created model binding.');
+            input?.kind!=='ref'||input.nullable===true||Object.hasOwn(def.inputArrays,parameter)
+              ||(Object.hasOwn(reference,'path')?checkSourceEffectPath(bound,input.model as ModelName,reference['path'])!==model
+                ||!sitesPathIdentity(parameters,parameter,reference['path']):input.model!==model):
+            Object.hasOwn(reference,'path')||created['binding']!==parameter||created['model']!==model||Number(object(created['node'],['start','end'])['end'])>Number(node['start'])))return invalid('EMIT DATA reference lost its exact original admitted or created model binding.');
         fields.add(field);
       }
     }
@@ -10454,13 +10487,14 @@ export async function executeScenarioSourceEmitData(call:AdmittedCall,store:Stor
     const rows:Record<string,ProjectedRecord>=Object.create(null),createdRows=new Map<string,StoredRow>();
     for(const reference of source.references??[])if(reference.created!==undefined&&!createdRows.has(reference.parameter))createdRows.set(reference.parameter,await readScenarioSourceCreatedRoot(call,store,{id:reference.created.id}));
     await ownerOperation(owner,async()=>{
-      for(const parameter of new Set((source.references??[]).map(reference=>reference.parameter))){
-        const declaration=source.references!.find(reference=>reference.parameter===parameter)!,refs=call.recordRefs.filter(ref=>ref.param===parameter),ref=refs[0];
+      for(const declaration of source.references??[]){
+        const parameter=declaration.parameter,refs=call.recordRefs.filter(ref=>ref.param===parameter),ref=refs[0];
+        const rootModel=declaration.path===undefined?declaration.model:source.parameters.find(input=>input.name===parameter)?.model;
         const original=declaration.created===undefined?ref?.row:createdRows.get(parameter);
-        if(declaration.created===undefined?(refs.length!==1||ref?.model!==declaration.model||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version):
+        if(declaration.created===undefined?(refs.length!==1||ref===undefined||rootModel===undefined||ref.model!==rootModel||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version):
             sourceCreatedRootProducers.get(call.def as GeneratedOperationDef)?.get(declaration.created.id)?.model!==declaration.model)return invalid('EMIT reference lost its genuine admitted or created root.');
         if(original===undefined)return invalid('EMIT reference has no actual source row.');
-        const row=await owner.session!.views.final.get(declaration.model,original.id);ownerHealthy(owner);
+        const row=await owner.session!.views.final.get(rootModel!,original.id);ownerHealthy(owner);
         if(row===null||row.archivedAt!==null||!sameModelLifetime(original,row)||owner.stage!==stage)return invalid('EMIT reference root lifetime changed.');
       }
       for(const parameter of source.parameters){

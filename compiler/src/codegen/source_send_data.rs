@@ -66,6 +66,7 @@ struct Reads {
     identities:BTreeMap<String,BTreeSet<String>>,
     parents:BTreeMap<String,(SymbolId,BTreeMap<String,String>)>,
     identity_paths:BTreeMap<String,BTreeMap<Vec<(String,u32,bool)>,String>>,
+    data_paths:BTreeMap<String,BTreeMap<(Vec<(String,u32,bool)>,String),String>>,
     query_fields:BTreeMap<String,BTreeMap<String,String>>,
     queries:BTreeMap<String,serde_json::Value>,
     query_spans:BTreeSet<(u32,u32,u32)>,
@@ -133,6 +134,18 @@ impl Reads {
                     &&!path.is_empty(){
                     self.fields.entry(root.parameter.clone()).or_default();
                     self.identity_paths.entry(root.parameter).or_default().insert(path.into_iter().map(|(field,model,narrowed)|(field,model.0,narrowed)).collect(),"id".into());return Some(());
+                }
+                if !matches!(field.as_str(),"id"|"version")
+                    &&let Some((root,path))=required_identity_path(ir,base,env,0)
+                    &&let Some((_,model,_))=path.last(){
+                    let(_,declared)=declared_field(ir,*model,field)?;
+                    if declared!=&value.ty&&!matches!(declared,ResolvedType::Nullable(inner)if inner.as_ref()==&value.ty){return None;}
+                    let leaf=if let ResolvedType::Nullable(inner)=declared{inner.as_ref()}else{declared};
+                    if matches!(leaf,ResolvedType::Scalar(_)|ResolvedType::Enum{..}){
+                        let ty=data_type(ir,declared)?;
+                        self.fields.entry(root.parameter.clone()).or_default();
+                        self.data_paths.entry(root.parameter).or_default().insert((path.into_iter().map(|(field,model,narrowed)|(field,model.0,narrowed)).collect(),field.clone()),ty);return Some(());
+                    }
                 }
                 let (root,parent)=if let IrExpr::Name(parameter)=&base.expr{(env.roots.get(parameter)?.clone(),false)}else{
                     let IrExpr::Member{base:child,field:parent}=&base.expr else{return None;};
@@ -348,7 +361,7 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
             },
             IrStmt::Send{operation,deployment_binding:Some(binding),args,when:None,span,..}=>{
                 let mut reads=Reads{contract_derives:true,..Reads::default()};
-                if reads.read(ir,context,args,env,0).is_none()||reads.fields.is_empty()||reads.fields.len()>200||reads.identity_paths.keys().any(|name|loop_roots.contains_key(name)||created_roots.contains_key(name))||reads.identities.keys().any(|name|loop_roots.contains_key(name)||created_roots.contains_key(name))||reads.queries.values().any(|query|query["parameter"].as_str().is_some_and(|name|loop_roots.contains_key(name)||created_roots.contains_key(name))){continue;}
+                if reads.read(ir,context,args,env,0).is_none()||reads.fields.is_empty()||reads.fields.len()>200||reads.data_paths.keys().any(|name|loop_roots.contains_key(name)||created_roots.contains_key(name))||reads.identity_paths.keys().any(|name|loop_roots.contains_key(name)||created_roots.contains_key(name))||reads.identities.keys().any(|name|loop_roots.contains_key(name)||created_roots.contains_key(name))||reads.queries.values().any(|query|query["parameter"].as_str().is_some_and(|name|loop_roots.contains_key(name)||created_roots.contains_key(name))){continue;}
                 let mut parameters=Vec::new();
                 for(name,fields)in &reads.fields{
                     let Some(model)=models.get(name)else{continue;};
@@ -358,6 +371,7 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
                     if let Some(created)=created_roots.get(name){value["created"]=created.clone();}
                     if let Some(identity)=reads.identities.get(name){value["identity"]=serde_json::json!(identity);}
                     if let Some(paths)=reads.identity_paths.get(name){value["identityPaths"]=serde_json::json!(paths.iter().map(|(path,leaf)|serde_json::json!({"path":path.iter().map(|(field,model,narrowed)|{let mut edge=serde_json::json!({"field":field,"model":ir.items[*model as usize].canonical});if *narrowed{edge["nullable"]=serde_json::json!(true);}edge}).collect::<Vec<_>>(),"leaf":leaf})).collect::<Vec<_>>());}
+                    if let Some(paths)=reads.data_paths.get(name){value["dataPaths"]=serde_json::json!(paths.iter().map(|((path,field),ty)|serde_json::json!({"path":path.iter().map(|(field,model,narrowed)|{let mut edge=serde_json::json!({"field":field,"model":ir.items[*model as usize].canonical});if *narrowed{edge["nullable"]=serde_json::json!(true);}edge}).collect::<Vec<_>>(),"field":field,"type":ty})).collect::<Vec<_>>());}
                     if let Some((model,fields))=reads.parents.get(name){value["parent"]=serde_json::json!({"model":ir.items[model.0 as usize].canonical,"fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>()});}
                     if let Some(derived)=reads.derived.get(name){value["derived"]=serde_json::json!(derived.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>());}
                     parameters.push(value);
@@ -427,6 +441,13 @@ pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super:
                         && let Some(profile)=created.get(name)
                         && profile["model"]==ir.items[symbol.0 as usize].canonical {
                         references.push(serde_json::json!({"field":field,"parameter":name,"model":profile["model"],"created":profile}));
+                    }else if let Some((root,path))=required_identity_path(ir,value,env,0)
+                        && !path.is_empty(){
+                        let target=path.last().expect("nonempty original path").1;
+                        let path=path.into_iter().map(|(field,model,narrowed)|(field,model.0,narrowed)).collect::<Vec<_>>();
+                        let wire=path.iter().map(|(field,model,narrowed)|{let mut edge=serde_json::json!({"field":field,"model":ir.items[*model as usize].canonical});if *narrowed{edge["nullable"]=serde_json::json!(true);}edge}).collect::<Vec<_>>();
+                        reads.fields.entry(root.parameter.clone()).or_default();reads.identity_paths.entry(root.parameter.clone()).or_default().insert(path,"id".into());
+                        references.push(serde_json::json!({"field":field,"parameter":root.parameter,"model":ir.items[target.0 as usize].canonical,"path":wire}));
                     }else if reads.read(ir,context,value,env,0).is_none(){valid=false;break;}
                 }
                 if !valid||reads.fields.is_empty()||reads.fields.len()>200{continue;}
@@ -437,6 +458,7 @@ pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super:
                         "fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>()});
                     if let Some(identity)=reads.identities.get(name){value["identity"]=serde_json::json!(identity);}
                     if let Some(paths)=reads.identity_paths.get(name){value["identityPaths"]=serde_json::json!(paths.iter().map(|(path,leaf)|serde_json::json!({"path":path.iter().map(|(field,model,narrowed)|{let mut edge=serde_json::json!({"field":field,"model":ir.items[*model as usize].canonical});if *narrowed{edge["nullable"]=serde_json::json!(true);}edge}).collect::<Vec<_>>(),"leaf":leaf})).collect::<Vec<_>>());}
+                    if let Some(paths)=reads.data_paths.get(name){value["dataPaths"]=serde_json::json!(paths.iter().map(|((path,field),ty)|serde_json::json!({"path":path.iter().map(|(field,model,narrowed)|{let mut edge=serde_json::json!({"field":field,"model":ir.items[*model as usize].canonical});if *narrowed{edge["nullable"]=serde_json::json!(true);}edge}).collect::<Vec<_>>(),"field":field,"type":ty})).collect::<Vec<_>>());}
                     if let Some((model,fields))=reads.parents.get(name){value["parent"]=serde_json::json!({"model":ir.items[model.0 as usize].canonical,"fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>()});}
                     if let Some(derived)=reads.derived.get(name){
                         value["derived"]=serde_json::json!(derived.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>());

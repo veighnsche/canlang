@@ -3684,3 +3684,41 @@ it('records the complete original CRM win from one genuine nullable booking or t
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('emits the complete original Shift decline with native parent identity and granted path scalars', {timeout:180000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-shift-decline-path-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/shift-decline-original.can'),original=await readFile(join(root,'draft/apps/CanShift/CanShift.can'),'utf8'),text=await readFile(source,'utf8');
+  const start=original.indexOf('  scenario decline('),end=original.indexOf('   examples',start);assert.ok(text.includes(original.slice(start,end)));
+  const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout) as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['allowed','member-only','denied-ref','denied-user','denied-revision','denied-duty','false-prefix','stale','ref-race','revision-race','grant-race','identity-race']){
+   const {now,identities,identity,team,user,membership}=await member('shift-decline-'+mode,mode==='member-only'?[]:['shift.scheduler']);
+   const recipient=await identities.createUser({email:'original-'+mode+'@shift.test',password_hash:'unused',email_verified:true});
+   const scope={app:'CanShift',owner:team.team_id,ownerPackage:'shift'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'decline-state',fileStoreId:'decline-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+   const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+   const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent}),employee={home:{id:'location'},locations:[],operator_wide:false,active:true,skills:['reception'],role:'Reception',visible:true,user_visible:true};
+   const commitment=row('commitment',{employee:{id:'original'},location:{id:'location'},from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T17:00:00.000Z',before:'0',after:'0',skill:'reception',kind:'duty',source:'original-duty',previous:null,revision:'7',active:true,conflict:false,revision_visible:mode!=='denied-revision'},{model:model('shift','Roster'),id:asId('roster')});
+   const duty=row('duty',{role:'Reception',published:true,target_visible:mode!=='denied-duty',published_revision:'7',published_by:{id:user.user_id},override_reason:null},{model:model('shift','Commitment'),id:commitment.id});
+   const swap=row('swap',{substitute:{id:'substitute'},original:{id:'original'},revision:'1',state:mode==='false-prefix'?'accepted':'open',original_visible:mode!=='denied-ref'},{model:model('shift','Duty'),id:duty.id});
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    {kind:'insert',model:model('rent_catalog','Location'),row:row('location',{active:true})},
+    {kind:'insert',model:model('employee','Employee'),row:row('original',{...employee,user:{id:recipient.user_id},user_visible:mode!=='denied-user'})},
+    {kind:'insert',model:model('employee','Employee'),row:row('substitute',{...employee,user:{id:user.user_id}})},
+    {kind:'insert',model:model('shift','Roster'),row:row('roster',{name:'Original roster'})},
+    {kind:'insert',model:model('shift','Commitment'),row:commitment},{kind:'insert',model:model('shift','Duty'),row:duty},{kind:'insert',model:model('shift','Swap'),row:swap}]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.load=async(name,id)=>{if(!raced&&mode==='identity-race'&&name==='work.occurrence'){raced=true;await identities.removeMembership(membership.membership_id);}return load(name,id);};
+   store.commit=async batch=>{if(!raced&&['ref-race','revision-race','grant-race'].includes(mode)&&batch.writes.some(write=>write.model==='work.occurrence')){
+    raced=true;const name=mode==='ref-race'?model('shift','Swap'):mode==='revision-race'?model('shift','Commitment'):model('employee','Employee'),old=await load(name,mode==='ref-race'?swap.id:mode==='revision-race'?commitment.id:asId('original'));assert.ok(old);
+    await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:name,id:old.id,expectedVersion:old.version,row:{...old,version:asVersion(old.version+1),data:{...old.data,...(mode==='ref-race'?{original:{id:'substitute'}}:mode==='revision-race'?{revision:'8'}:{user_visible:false})}}}]}));
+   }return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'shift.decline',operation_id:operationId(now),inputs:{swap:{id:'swap',version:mode==='stale'?'2':'1'}}};
+   const result=await invoker.invokeMutation(request,identity),success=['allowed','revision-race'].includes(mode);assert.equal('result'in result,success,mode+': '+JSON.stringify(result));if(mode.endsWith('-race'))assert.ok(raced,mode);
+   const events=await store.query({model:asModel('work.occurrence'),authority:'owner'}),current=await load(model('shift','Swap'),swap.id);assert.equal(events.length,success?1:0,mode);assert.ok(current);
+   if(success){assert.equal(current.data.state,'rejected');assert.deepEqual((events[0]!.data.result as {payload:unknown}).payload,{duty:{id:'duty'},recipient:{id:recipient.user_id},revision:mode==='revision-race'?'8':'7',kind:'swap_rejected',swap:{id:'swap',version:'2'}});const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay||replay.error.code==='validation');assert.deepEqual(await store.query({model:asModel('work.occurrence'),authority:'owner'}),events);}
+   else if(mode==='ref-race'){assert.equal(current.data.state,swap.data.state);assert.deepEqual(current.data.original,{id:'substitute'});}else assert.deepEqual(current,swap,mode+': original SET rolls back');
+   assert.deepEqual(await load(model('shift','Duty'),duty.id),duty,'decline leaves duty unchanged');
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});

@@ -5873,7 +5873,7 @@ async function bindNativeSourceSendData(asm:AssembledModules,artifact:CompileArt
     const readPolicies=new Map<ModelName,import('@canlang/state/query').ViewerSourceReadPolicy>();
     for(const site of sites){
       for(const parameter of site.parameters)for(const [model,policy]of sourceReads!.policies(parameter.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
-      for(const parameter of site.parameters)for(const profile of parameter.identityPaths??[])for(const edge of profile.path)for(const [model,policy]of sourceReads!.policies(edge.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
+      for(const parameter of site.parameters)for(const profile of [...parameter.identityPaths??[],...parameter.dataPaths??[]])for(const edge of profile.path)for(const [model,policy]of sourceReads!.policies(edge.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
       for(const query of site.queries??[])for(const [model,policy]of sourceReads!.policies(query.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
     }
     const app=privateSourceMember(privateSourceMember(module,'appDefinition'),'id');
@@ -5933,7 +5933,7 @@ async function bindNativeSourceEmitData(asm:AssembledModules,artifact:CompileArt
     if(context===undefined)continue;
     const readPolicies=new Map<ModelName,import('@canlang/state/query').ViewerSourceReadPolicy>();
     for(const site of sites){
-      for(const parameter of site.parameters)for(const profile of parameter.identityPaths??[])for(const edge of profile.path)for(const [model,policy]of sourceReads!.policies(edge.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
+      for(const parameter of site.parameters)for(const profile of [...parameter.identityPaths??[],...parameter.dataPaths??[]])for(const edge of profile.path)for(const [model,policy]of sourceReads!.policies(edge.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
       for(const modelName of [...site.parameters.map(parameter=>parameter.model),...(site.queries??[]).map(query=>query.model)])
         for(const [model,policy]of sourceReads!.policies(modelName))if(!readPolicies.has(model))readPolicies.set(model,policy);
     }
@@ -13080,6 +13080,16 @@ async function runScenarioExecution(
                 }
                 fields.parent=Object.freeze(data);
               }
+              for(const [index,profile]of (parameter.dataPaths??[]).entries()){
+                const target=rows[`${parameter.name}.scalar.${index}`],wire=target===undefined?undefined:Object.getOwnPropertyDescriptor(target.data,profile.field);
+                if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('Effect scalar path lacks its actual independently granted leaf.');
+                let current=fields;
+                for(const edge of profile.path){const next=Object.hasOwn(current,edge.field)?current[edge.field]:Object.create(null);
+                  if(!isUnknownRecord(next))return refuseRecordBinding('Effect scalar path collides with another original DATA value.');
+                  const copy:Record<string,unknown>={...next};current[edge.field]=copy;current=copy;
+                }
+                current[profile.field]=decodeCanonicalValue(loaded.valueSchema,profile.type,wire.value);
+              }
               for(const [index,profile]of (parameter.identityPaths??[]).entries()){
                 const target=rows[`${parameter.name}.identity.${index}`];if(target===undefined)return refuseRecordBinding('Effect identity lacks its actual granted target.');
                 let current=fields;
@@ -13161,6 +13171,16 @@ async function runScenarioExecution(
                 }
                 fields.parent=Object.freeze(data);
               }
+              for(const [index,profile]of (parameter.dataPaths??[]).entries()){
+                const target=rows[`${parameter.name}.scalar.${index}`],wire=target===undefined?undefined:Object.getOwnPropertyDescriptor(target.data,profile.field);
+                if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('Effect scalar path lacks its actual independently granted leaf.');
+                let current=fields;
+                for(const edge of profile.path){const next=Object.hasOwn(current,edge.field)?current[edge.field]:Object.create(null);
+                  if(!isUnknownRecord(next))return refuseRecordBinding('Effect scalar path collides with another original DATA value.');
+                  const copy:Record<string,unknown>={...next};current[edge.field]=copy;current=copy;
+                }
+                current[profile.field]=decodeCanonicalValue(loaded.valueSchema,profile.type,wire.value);
+              }
               for(const [index,profile]of (parameter.identityPaths??[]).entries()){
                 const target=rows[`${parameter.name}.identity.${index}`];if(target===undefined)return refuseRecordBinding('Effect identity lacks its actual granted target.');
                 let current=fields;
@@ -13179,11 +13199,21 @@ async function runScenarioExecution(
             }
             if(activeSourceEmitData!==null)return refuseRecordBinding('EMIT DATA cannot nest its original event execution.');
             const references:Record<string,unknown>=Object.create(null);
+            const pathReferences=source.references?.some(reference=>reference.path!==undefined)===true;
             for(const reference of source.references??[]){
               const root=roots[reference.parameter];if(!isUnknownRecord(root))return refuseRecordBinding('EMIT DATA reference lost its original graph.');
               const binding=recordBindings.get(root),refs=actual.recordRefs.filter(ref=>ref.param===reference.parameter),ref=refs[0];
-              if(reference.created===undefined&&(refs.length!==1||ref?.model!==reference.model||ref.expectedVersion===null||binding?.model!==ref.model||binding.id!==ref.id||binding.version!==ref.row.version))return refuseRecordBinding('EMIT DATA reference lost its genuine original native binding.');
-              references[reference.parameter]=root;
+              const rootModel=reference.path===undefined?reference.model:source.parameters.find(parameter=>parameter.name===reference.parameter)?.model;
+              if(reference.created===undefined&&(refs.length!==1||ref===undefined||rootModel===undefined||ref.model!==rootModel||ref.expectedVersion===null||binding?.model!==ref.model||binding.id!==ref.id||binding.version!==ref.row.version))return refuseRecordBinding('EMIT DATA reference lost its genuine original native binding.');
+              let selected:Record<string,unknown>=root;
+              if(reference.path!==undefined){
+                const parameter=source.parameters.find(parameter=>parameter.name===reference.parameter),index=parameter?.identityPaths?.findIndex(profile=>stableStringify(profile.path)===stableStringify(reference.path))??-1;
+                const target=rows[`${reference.parameter}.identity.${index}`];if(index<0||target===undefined)return refuseRecordBinding('EMIT Model path lacks its genuine target identity observation.');
+                for(const edge of reference.path){const next:unknown=await selected[edge.field];if(!isUnknownRecord(next))return refuseRecordBinding('EMIT Model path lost its original native reference getter.');selected=next;}
+                const actual=recordBindings.get(selected)??ownerNavigation.resolveRecord(selected)??viewerNavigation.resolveRecord(selected);
+                if(actual?.model!==reference.model||actual.id!==target.id||actual.version<1||actual.version>target.version)return refuseRecordBinding('EMIT Model path differs from its genuine authorized target.');
+              }
+              references[pathReferences?reference.field:reference.parameter]=selected;
             }
             const count=emittedEvents.length;activeSourceEmitData=source;
             if(queryExecution!==null)return refuseRecordBinding('EMIT DATA aggregate frame cannot nest.');

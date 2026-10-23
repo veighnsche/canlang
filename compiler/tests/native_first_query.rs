@@ -3074,3 +3074,19 @@ package checks
   assert!(diagnostics.is_empty(),"{name}: {diagnostics:?}");
  }
 }
+
+#[test]
+fn original_shift_decline_seals_model_paths_and_scalar_leaf_schemas() {
+ let source=include_str!("fixtures/shift-decline-original.can");
+ let(db,program,_,catalog)=fixture_source("shift-decline-original.can",source);
+ let(artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let js=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str()).collect::<String>();assert!(js.contains("dataPaths")&&js.contains("identityPaths"));
+ for(name,ty)in [("shift.DutyNotice.duty",ResolvedType::Scalar(Scalar::Text)),("employee.Employee.user",ResolvedType::Scalar(Scalar::Text)),("shift.Commitment.revision",ResolvedType::Scalar(Scalar::Money))]{
+  let(db,mut changed,_,catalog)=fixture_source("shift-decline-schema-substitution.can",source);let field=changed.symbols.iter().find(|symbol|symbol.canonical==name).unwrap().id;
+  changed.types.symbol_types.insert(field,ty);let(_,diagnostics)=prepared_artifact(&changed,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
+ }
+ for(mode,changed)in [
+  ("copied-parent",source.replace("    emit DutyNotice {duty=swap.parent", "    let copied=swap\n    emit DutyNotice {duty=copied.parent")),
+  ("reserved-version",source.replace("revision=swap.parent.parent.revision","revision=swap.parent.parent.version")),
+ ]{let(db,program,_,catalog)=fixture_source(&format!("shift-decline-{mode}.can"),&changed);let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {diagnostics:?}");}
+}
