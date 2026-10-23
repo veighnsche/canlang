@@ -27889,7 +27889,14 @@ impl<'a> Closure<'a> {
                     && scenario.result.is_none() && scenario.cohort.is_none()
                     && scenario.effects.iter().any(|candidate|candidate.node == effect.node)
                     && scenario.effects.iter().all(|candidate|matches!(candidate.verb,
-                        EffectVerb::Set | EffectVerb::Cancel | EffectVerb::For)));
+                        EffectVerb::Set | EffectVerb::Cancel | EffectVerb::For)
+                        // The independently sealed native owner may end with
+                        // one original conditional declared-event notification.
+                        || scenario.effects.last().is_some_and(|last|last.node==candidate.node)
+                            &&candidate.verb==EffectVerb::If&&candidate.else_effects.is_empty()
+                            &&candidate.match_arms.is_empty()&&candidate.cond.is_some_and(|cond|
+                                self.types.node_types.get(&cond)==Some(&ResolvedType::Scalar(Scalar::Bool)))
+                            &&matches!(candidate.then_effects.as_slice(),[emitted]if emitted.verb==EffectVerb::Emit)));
                 let sealed_loop_owner = updated_owner || void_owner;
                 let mut assignments = Vec::new();
                 for child in &effect.then_effects {

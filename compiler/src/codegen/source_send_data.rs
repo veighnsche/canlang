@@ -429,7 +429,8 @@ pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super:
                 let IrItemKind::Event{fields}=&declaration.kind else{continue;};
                 let IrExpr::Object(entries)=&args.expr else{continue;};
                 if fields.len()!=entries.len()||!entries.iter().all(|(name,value)|fields.iter().filter_map(|id|ir.items.get(id.0 as usize)).any(|field|field.name==*name&&matches!(&field.kind,
-                    IrItemKind::Field{ty:IrType::Known(ty),..}if ty==&value.ty||matches!(ty,ResolvedType::Nullable(inner) if inner.as_ref()==&value.ty)||matches!((ty,&value.ty),
+                    IrItemKind::Field{ty:IrType::Known(ty),..}if ty==&value.ty||matches!(ty,ResolvedType::Nullable(inner) if inner.as_ref()==&value.ty)
+                        ||matches!(ty,ResolvedType::Nullable(_))&&value.ty==ResolvedType::Null&&matches!(value.expr,IrExpr::Null)||matches!((ty,&value.ty),
                         (ResolvedType::Record{symbol:a,..},ResolvedType::Record{symbol:b,stored:false})if a==b&&matches!(ir.items.get(a.0 as usize).map(|item|&item.kind),Some(IrItemKind::Contract{..})))))){continue;}
                 let mut reads=Reads{aggregates:true,..Reads::default()};let mut references=Vec::new();let mut valid=true;
                 for(field,value)in entries{

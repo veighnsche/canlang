@@ -3722,3 +3722,42 @@ it('emits the complete original Shift decline with native parent identity and gr
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('cancels the complete original Shift duty with its bounded swaps and optional notice', {timeout:180000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-shift-cancel-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/shift-cancel-original.can'),original=await readFile(join(root,'draft/apps/CanShift/CanShift.can'),'utf8'),text=await readFile(source,'utf8');
+  const start=original.indexOf('  scenario cancel('),end=original.indexOf('  # Resolve',start);assert.ok(text.includes(original.slice(start,end)));
+  const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout) as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['allowed','unpublished','unpublished-denied-user','denied-user','denied-revision','hidden-swap','dependent','limit','stale','insert-race','grant-race','identity-race']){
+   const {now,identities,identity,team,user,membership}=await member('shift-cancel-'+mode,['shift.scheduler']);
+   const recipient=await identities.createUser({email:'cancel-original-'+mode+'@shift.test',password_hash:'unused',email_verified:true});
+   const scope={app:'CanShift',owner:team.team_id,ownerPackage:'shift'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'cancel-state',fileStoreId:'cancel-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+   const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+   const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent}),employee={home:{id:'location'},locations:[],operator_wide:false,active:true,skills:['reception'],role:'Reception',visible:true,user_visible:true};
+   const commitment=row('commitment',{employee:{id:'original'},location:{id:'location'},from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T17:00:00.000Z',before:'0',after:'0',skill:'reception',kind:'duty',source:'original-duty',previous:null,revision:'7',active:true,conflict:false,revision_visible:mode!=='denied-revision'},{model:model('shift','Roster'),id:asId('roster')});
+   const duty=row('duty',{role:'Reception',published:!mode.startsWith('unpublished'),published_revision:'7',published_by:{id:user.user_id},override_reason:null},{model:model('shift','Commitment'),id:commitment.id});
+   const swap=(id:string,state='open',parent=duty.id)=>row(id,{substitute:{id:'actor'},original:{id:'original'},revision:'1',state,hidden:mode==='hidden-swap'},{model:model('shift','Duty'),id:parent});
+   const swaps=Array.from({length:mode==='limit'?101:2},(_,index)=>swap('swap-'+index));
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    {kind:'insert',model:model('rent_catalog','Location'),row:row('location',{active:true})},
+    {kind:'insert',model:model('employee','Employee'),row:row('original',{...employee,user:{id:recipient.user_id},user_visible:!['denied-user','unpublished-denied-user'].includes(mode)})},
+    {kind:'insert',model:model('employee','Employee'),row:row('actor',{...employee,user:{id:user.user_id}})},
+    {kind:'insert',model:model('shift','Roster'),row:row('roster',{name:'Original roster'})},
+    {kind:'insert',model:model('shift','Commitment'),row:commitment},{kind:'insert',model:model('shift','Duty'),row:duty},
+    {kind:'insert',model:model('shift','Commitment'),row:{...commitment,id:asId('other-commitment'),data:{...commitment.data,source:'other'}}},{kind:'insert',model:model('shift','Duty'),row:{...duty,id:asId('other-duty'),parent:{model:model('shift','Commitment'),id:asId('other-commitment')}}},
+    ...[...swaps,swap('accepted','accepted'),swap('foreign','open',asId('other-duty'))].map(row=>({kind:'insert' as const,model:model('shift','Swap'),row})),
+    ...(mode==='dependent'?[{kind:'insert' as const,model:model('shift','Commitment'),row:{...commitment,id:asId('dependent'),data:{...commitment.data,kind:'visit',source:'dependent'}}}]:[])]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.load=async(name,id)=>{if(!raced&&mode==='identity-race'&&name==='work.occurrence'){raced=true;await identities.removeMembership(membership.membership_id);}return load(name,id);};
+   store.commit=async batch=>{if(!raced&&['insert-race','grant-race'].includes(mode)&&batch.writes.some(write=>write.model==='work.occurrence')){raced=true;if(mode==='insert-race')await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('shift','Swap'),row:swap('inserted')}]}));else{const old=await load(model('employee','Employee'),asId('original'));assert.ok(old);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('employee','Employee'),id:old.id,expectedVersion:old.version,row:{...old,version:asVersion(old.version+1),data:{...old.data,user_visible:false}}}]}));}}return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'shift.cancel',operation_id:operationId(now),inputs:{duty:{id:'duty',version:mode==='stale'?'2':'1'},reason:'Original release reason'}};
+   const result=await invoker.invokeMutation(request,identity),success=['allowed','unpublished','unpublished-denied-user','hidden-swap','insert-race'].includes(mode);assert.equal('result'in result,success,mode+': '+JSON.stringify(result));if(mode.endsWith('-race'))assert.ok(raced,mode);
+   const events=await store.query({model:asModel('work.occurrence'),authority:'owner'}),current=await load(model('shift','Commitment'),commitment.id);assert.equal(events.length,success&&!mode.startsWith('unpublished')?1:0,mode);assert.ok(current);
+   if(success){assert.equal(current.data.active,false);assert.equal(current.data.revision,'8');for(const candidate of [...swaps,...(mode==='insert-race'?[swap('inserted')]:[])])assert.equal((await load(model('shift','Swap'),candidate.id))?.data.state,'obsolete',mode);if(events.length)assert.deepEqual((events[0]!.data.result as {payload:unknown}).payload,{duty:{id:'duty',version:'1'},recipient:{id:recipient.user_id},revision:'8',kind:'cancelled',swap:null});const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay||replay.error.code==='validation');assert.deepEqual(await store.query({model:asModel('work.occurrence'),authority:'owner'}),events);}
+   else{assert.deepEqual(current,commitment,mode+': parent SET rolls back');for(const candidate of swaps)assert.deepEqual(await load(model('shift','Swap'),candidate.id),candidate,mode+': all sibling SETs roll back');}
+   assert.equal((await load(model('shift','Swap'),asId('accepted')))?.data.state,'accepted');assert.equal((await load(model('shift','Swap'),asId('foreign')))?.data.state,'open');assert.deepEqual(await load(model('shift','Duty'),duty.id),duty,'cancel does not rewrite Duty');
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});
