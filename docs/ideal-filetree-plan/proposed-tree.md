@@ -1,6 +1,6 @@
 # Complete selected target tree
 
-This is an exact leaf allocation, not an implementation result. Every baseline parent leaf except the evidenced obsolete executors.ts is retained; the `draft` gitlink is expanded only to show its 951 separately owned tracked inputs. The obsolete Cloudflare executors.ts producer is the sole whole-file retirement, resolved during implementation. New planning documents are additional to the committed inventory. Fourteen future private extraction leaves plus two gated dev-policy leaves are allocated by [tasks](tasks.md); filenames in this tree do not authorize or qualify those changes. Ignored caches, private dependencies, credentials and worktrees are outside scope.
+This is an exact leaf allocation, not an implementation result. Every baseline parent leaf except the evidenced obsolete executors.ts is retained; the `draft` gitlink is expanded only to show its 951 separately owned tracked inputs. The obsolete Cloudflare executors.ts producer is the sole whole-file retirement, resolved during implementation. New planning documents are additional to the committed inventory. Fourteen private extraction leaves, the dev-server build guard and lifecycle integration, and the public-boundary integration suite are allocated by [tasks](tasks.md). Current implementation results are recorded there; filenames alone do not qualify behavior. Ignored caches, private dependencies, credentials and worktrees are outside scope.
 
 ```text
 canlang/
@@ -585,6 +585,21 @@ canlang/
 │   │   ├── ui.rs
 │   │   └── watch.rs
 │   ├── tests/
+│   │   ├── integration/
+│   │   │   ├── capture.rs
+│   │   │   ├── claim.rs
+│   │   │   ├── cli.rs
+│   │   │   ├── compiler.rs
+│   │   │   ├── construct.rs
+│   │   │   ├── control.rs
+│   │   │   ├── files.rs
+│   │   │   ├── fixtures.rs
+│   │   │   ├── inventory.rs
+│   │   │   ├── refusals.rs
+│   │   │   ├── runtime.rs
+│   │   │   ├── terminal.rs
+│   │   │   └── watch.rs
+│   │   ├── boundaries.rs
 │   │   ├── gateway.rs
 │   │   ├── session_lifecycle.rs
 │   │   └── state.rs

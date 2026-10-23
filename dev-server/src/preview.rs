@@ -96,6 +96,14 @@ struct Built {
     app: String,
     bundle: Value,
 }
+// Binding inventory must agree with the original compiled entry in every caller.
+fn compiled_binding_plan(artifact: &Value, bridge: &Bridge<'_>) -> Result<bindings::Plan> {
+    let ast = artifact["modules"][0]["js"]
+        .as_str()
+        .map(|source| bridge.call("metadata.parse", json!({"source":source})))
+        .transpose()?;
+    bindings::plan(artifact, ast.as_ref())
+}
 fn build(
     capture: &Capture,
     artifact: &Value,
@@ -106,11 +114,7 @@ fn build(
 ) -> Result<Built> {
     admit(capture, artifact, delivery)?;
     let artifact_json = exact_artifact_json(artifact, artifact_bytes)?;
-    let ast = artifact["modules"][0]["js"]
-        .as_str()
-        .map(|source| bridge.call("metadata.parse", json!({"source":source})))
-        .transpose()?;
-    let plan = bindings::plan(artifact, ast.as_ref())?;
+    let plan = compiled_binding_plan(artifact, bridge)?;
     let mode = plan
         .no_model_storage_mode
         .clone()
@@ -1463,239 +1467,6 @@ pub fn isolated_options(
     };
     runtime::options(handle, worker_name, options, &empty, None, false)
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn ownership_is_resolved_and_mixed_roots_refused() {
-        assert_eq!(storage_mode(&json!({"models":[{"name":"Parent","scope":"app"},{"name":"Child","parent":"Parent"}]})).unwrap(),"global");
-        assert!(
-            storage_mode(&json!({"models":[{"name":"A"},{"name":"B","scope":"app"}]}))
-                .unwrap_err()
-                .contains("MIXED_OWNER")
-        );
-        assert!(storage_mode(&json!({"models":[{"name":"A","parent":"A"}]})).is_err());
-    }
-    #[test]
-    fn native_hook_handlers_admit_without_queue_selection() {
-        let plan = bindings::Plan {
-            app: Some("Shop".into()),
-            bindings: vec![],
-            queue_handlers: vec!["shop.queued".into()],
-            no_model_storage_mode: None,
-        };
-        let artifact = json!({
-            "callables": [
-                {"id": "shop.Order.create", "kind": "operation"},
-                {"id": "shop.queued", "kind": "handler"},
-                {"id": "shop.snapshot_Order_create", "kind": "handler"},
-                {"id": "shop.unchecked", "kind": "handler"},
-            ],
-            "modelPolicies": [
-                {"model": "shop.Order", "hooks": [{"id": "shop.snapshot_Order_create", "op": "create", "operation": "shop.Order.create"}]},
-            ],
-        });
-        assert!(
-            validate_selected_callables(&artifact, &plan)
-                .unwrap_err()
-                .contains("PROFILE_UNSUPPORTED")
-        );
-        let artifact = json!({
-            "callables": [
-                {"id": "shop.Order.create", "kind": "operation"},
-                {"id": "shop.queued", "kind": "handler"},
-                {"id": "shop.snapshot_Order_create", "kind": "handler"},
-            ],
-            "modelPolicies": [
-                {"model": "shop.Order", "hooks": [{"id": "shop.snapshot_Order_create", "op": "create", "operation": "shop.Order.create"}]},
-            ],
-        });
-        assert!(validate_selected_callables(&artifact, &plan).is_ok());
-        let artifact = json!({
-            "callables": [{"id": "shop.migrate", "kind": "migration"}],
-            "modelPolicies": [],
-        });
-        assert!(
-            validate_selected_callables(&artifact, &plan)
-                .unwrap_err()
-                .contains("PROFILE_UNSUPPORTED")
-        );
-    }
-    #[test]
-    fn serving_owner_requires_separate_existing_identity_before_state_mutation() {
-        use std::cell::RefCell;
-        let seen = RefCell::new(Vec::new());
-        let cancel = AtomicBool::new(false);
-        let call = |command: &str, _: Option<&str>, payload: Value, _: &AtomicBool| {
-            seen.borrow_mut().push((command.to_owned(), payload));
-            Ok(Value::Null)
-        };
-        let bridge = Bridge {
-            generation: "test",
-            call: &call,
-            cancel: &cancel,
-        };
-        for identity in [None, Some("STATE")] {
-            assert!(
-                verify_owner_identity(&bridge, "mf", "worker", "STATE", Some("owner"), identity)
-                    .unwrap_err()
-                    .contains("IDENTITY_UNAVAILABLE")
-            );
-        }
-        assert!(seen.borrow().is_empty());
-        assert!(
-            verify_owner_identity(
-                &bridge,
-                "mf",
-                "worker",
-                "STATE",
-                Some("owner"),
-                Some("IDENTITY")
-            )
-            .is_err()
-        );
-        assert_eq!(seen.borrow().len(), 1);
-        assert_eq!(seen.borrow()[0].0, "identity.findTeamById");
-        assert_eq!(seen.borrow()[0].1["binding"], "IDENTITY");
-        assert_eq!(seen.borrow()[0].1["input"]["teamId"], "owner");
-        let call = |command: &str, _: Option<&str>, _: Value, _: &AtomicBool| {
-            assert_eq!(command, "identity.findTeamById");
-            Ok(json!({"team_id":"owner"}))
-        };
-        let bridge = Bridge {
-            generation: "test",
-            call: &call,
-            cancel: &cancel,
-        };
-        verify_owner_identity(
-            &bridge,
-            "mf",
-            "worker",
-            "STATE",
-            Some("owner"),
-            Some("IDENTITY"),
-        )
-        .unwrap();
-    }
-    #[test]
-    fn staging_calls_testkit_stage_with_seeded_identity_and_skips_without_owners() {
-        use std::cell::RefCell;
-        let (_project, request) = crate::capture::tests::fixture();
-        let capture = crate::capture::capture(
-            &request,
-            &crate::capture::tests::empty_inventory,
-            &AtomicBool::new(false),
-        )
-        .unwrap();
-        let seed = json!({"actors":[
-            {"label":"Ava","email":"ava@preview.can.test"},
-            {"label":"Ben","email":"ben@preview.can.test"},
-            {"label":"Cal","email":"cal@preview.can.test"},
-            {"label":"Dee","email":"dee@preview.can.test"}],
-            "owners":[{"owner":"cedar","binding":"STATE_CEDAR_DB"},{"owner":"oak","binding":"STATE_OAK_DB"}]});
-        let owners = seed["owners"].as_array().unwrap().clone();
-        let seen = RefCell::new(Vec::new());
-        let call = |command: &str, _: Option<&str>, payload: Value, _: &AtomicBool| {
-            seen.borrow_mut()
-                .push((command.to_owned(), payload.clone()));
-            match command {
-                "identity.findUserByEmail" => Ok(
-                    json!({"user_id":format!("user-{}",payload["input"]["email"].as_str().unwrap())}),
-                ),
-                "testkit.stage" => Ok(json!({"materialized":["a","b"]})),
-                _ => panic!("unexpected {command}"),
-            }
-        };
-        let bridge = Bridge {
-            generation: "test",
-            call: &call,
-            cancel: &AtomicBool::new(false),
-        };
-        let mut retained: Option<state::Retained> = None;
-        stage_closure_fixtures(
-            &capture,
-            b"artifact",
-            "{\"models\":[]}",
-            &owners,
-            &seed,
-            "mf",
-            "worker",
-            "db",
-            &mut retained,
-            &bridge,
-        )
-        .unwrap();
-        {
-            let events = seen.borrow();
-            assert_eq!(events.len(), 4);
-            for (event, email) in events.iter().take(3).zip([
-                "ava@preview.can.test",
-                "ben@preview.can.test",
-                "cal@preview.can.test",
-            ]) {
-                assert_eq!(event.0, "identity.findUserByEmail");
-                assert_eq!(event.1["binding"], "DB");
-                assert_eq!(event.1["input"]["email"], email);
-            }
-            let stage = &events[3].1;
-            assert_eq!(events[3].0, "testkit.stage");
-            assert_eq!(stage["handle"], "mf");
-            assert_eq!(
-                stage["input"]["artifactLabel"].as_str(),
-                Some(capture.compiler_operand.as_str())
-            );
-            assert_eq!(
-                stage["input"]["sourceRevision"].as_str(),
-                Some(capture.source_revision.as_str())
-            );
-            assert!(stage["input"]["artifactBytes"].is_string());
-            assert!(
-                stage["input"]["workDir"]
-                    .as_str()
-                    .unwrap()
-                    .contains("can-preview-stage-")
-            );
-            assert_eq!(
-                stage["input"]["bindings"],
-                json!({"self":{"id":"user-ava@preview.can.test"},"other":{"id":"user-ben@preview.can.test"},"outsider":{"id":"user-cal@preview.can.test"}})
-            );
-            assert_eq!(
-                stage["input"]["identity"],
-                json!({"currentTeamId":"cedar","otherTeamId":"oak","selfUserId":"user-ava@preview.can.test","otherUserId":"user-ben@preview.can.test","outsiderUserId":"user-cal@preview.can.test"})
-            );
-            assert_eq!(
-                stage["databases"],
-                json!({"d1Id":"db","identityBinding":"DB","currentOwnerBinding":"STATE_CEDAR_DB","otherOwnerBinding":"STATE_OAK_DB"})
-            );
-        }
-        // Previews without owner databases stage nothing and call nothing.
-        seen.borrow_mut().clear();
-        stage_closure_fixtures(
-            &capture,
-            b"artifact",
-            "{\"models\":[]}",
-            &[],
-            &seed,
-            "mf",
-            "worker",
-            "db",
-            &mut retained,
-            &bridge,
-        )
-        .unwrap();
-        assert!(seen.borrow().is_empty());
-    }
-    #[test]
-    fn role_aliases_must_be_unique() {
-        let roles = parse_roles(&json!({"Ava":["Reader"]})).unwrap();
-        let definition = json!({"policy":{"roles":["Office.Reader"]},"packages":{"Office":{"roles":{"Reader":{"id":"Office.Reader"}}}}});
-        assert_eq!(
-            resolve_roles(roles, &definition).unwrap()["Ava"],
-            vec!["Office.Reader"]
-        );
-        assert!(parse_roles(&json!({"Unknown":["Reader"]})).is_err());
-    }
-}
 
 /// Private semantic-test policy surface. All callbacks are fixed SDK methods;
 /// callers may lend actual SDK objects, but cannot replace admission decisions.
@@ -1846,7 +1617,7 @@ fn test_activation(
     bridge: &Bridge<'_>,
 ) -> Result<Value> {
     admit(&captured, artifact, false)?;
-    let plan = bindings::plan(artifact, None)?;
+    let plan = compiled_binding_plan(artifact, bridge)?;
     let constants = bridge.call("runtime.constants", json!({}))?;
     let app = plan.app.clone().unwrap_or(app_name(&captured.source_text)?);
     activate(

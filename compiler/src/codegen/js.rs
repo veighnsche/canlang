@@ -12624,6 +12624,14 @@ fn null_equality(
 
     /// The installed source closure observes control only at its actual owner stage.
     fn lower_source_condition(&mut self,cond:&TypedExpr)->Option<String> {
+        // A sealed receipt consumer owns its actual staged observation. Keep it
+        // outside the generic source closure, which has no receipt execution frame.
+        // The existing consumer checks the complete original profile and node.
+        if let IrExpr::Call { target, .. } | IrExpr::BoundCall { target, .. } = &cond.expr
+            && let Some(expression) = self.lower_purchase_all(target, cond.span)
+        {
+            return Some(expression);
+        }
         let identity=self.source_requires.get(&cond.span).cloned()?;
         let parameters = identity["parameters"]
             .as_array()
@@ -21526,60 +21534,10 @@ impl<'a> Emitter<'a> {
         guards: &[IrStmt],
         effects: &[IrStmt],
     ) {
-        if let Some(decision) = self.receipt_capture.as_ref()
-            .and_then(|receipt| receipt.plan.rent_notice_decision.clone())
-            && matches!(item.canonical.as_str(),"rent_reservations.correspondence" | "rent_reservations.remind")
+        if let Some(body) = self.receipt_capture.as_ref()
+            .and_then(|receipt| receipt.plan.owner_body(&item.canonical))
         {
-            self.emit_rent_notice_decision_body(out,item,guards,effects,&decision);
-            return;
-        }
-        if let Some(decision) = self.receipt_capture.as_ref()
-            .and_then(|receipt| receipt.plan.invoice_issue_decision.clone())
-            && item.canonical == "invoice.issue"
-        {
-            self.emit_invoice_issue_decision_body(out,item,guards,effects,&decision);
-            return;
-        }
-        if let Some(decision) = self.receipt_capture.as_ref()
-            .and_then(|receipt| receipt.plan.invoice_collect_decision.clone())
-            && item.canonical == "invoice.collect"
-        {
-            self.emit_invoice_collect_decision_body(out,item,guards,effects,&decision);
-            return;
-        }
-        if let Some(decision) = self.receipt_capture.as_ref()
-            .and_then(|receipt| receipt.plan.rent_movement_refund_decision.clone())
-            && item.canonical == "rent_reservations.refund_movement_credit"
-        {
-            self.emit_rent_movement_refund_decision_body(out,item,guards,effects,&decision);
-            return;
-        }
-        if let Some(decision) = self.receipt_capture.as_ref()
-            .and_then(|receipt| receipt.plan.refer_reject_decision.clone())
-            && item.canonical == "refer.reject_source"
-        {
-            self.emit_refer_reject_decision_body(out,item,guards,effects,&decision);
-            return;
-        }
-        if let Some(decision) = self.receipt_capture.as_ref()
-            .and_then(|receipt| receipt.plan.member_retry_decision.clone())
-            && item.canonical == "member_terms.retry_collection"
-        {
-            self.emit_member_retry_decision_body(out,item,guards,effects,&decision);
-            return;
-        }
-        if let Some(decision) = self.receipt_capture.as_ref()
-            .and_then(|receipt| receipt.plan.leave_decide_decision.clone())
-            && item.canonical == "leave.decide"
-        {
-            self.emit_leave_decide_decision_body(out,item,guards,effects,&decision);
-            return;
-        }
-        if let Some(decision) = self.receipt_capture.as_ref()
-            .and_then(|receipt| receipt.plan.leave_request_decision.clone())
-            && item.canonical == "leave.request"
-        {
-            self.emit_leave_request_decision_body(out,item,guards,effects,&decision);
+            self.emit_owner_decision_body(out, item, guards, effects, body);
             return;
         }
         if let Some(decision) = self.receipt_capture.as_ref()
@@ -21627,288 +21585,79 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    fn emit_rent_notice_decision_body(&mut self, out: &mut JsWriter, item: &IrItem,
-        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value) {
-        let expected = if item.canonical == "rent_reservations.correspondence" {3} else {4};
-        if guards.len()!=1 || effects.len()!=expected {
-            self.unsupported("booking notice owner decision",
-                "the exact authored event body is missing",item.span);
+    /// All collected owner decisions share the same lexical/query lifetime.
+    /// The layout retains each original body's shape, admission and staged prefix.
+    fn emit_owner_decision_body(
+        &mut self, out: &mut JsWriter, item: &IrItem,
+        guards: &[IrStmt], effects: &[IrStmt], body: super::scenario_receipts::OwnerDecisionBody,
+    ) {
+        use super::scenario_receipts::OwnerDecisionAdmission;
+        if guards.len() != body.guards || effects.len() != body.effects ||
+            body.first_defaults && !matches!(&effects[0], IrStmt::Let { name, .. } if name == "defaults")
+        {
+            self.unsupported(body.context, body.missing_body, item.span);
             return;
         }
-        let previous_owner=self.owner_handler_body;
-        let previous_query=self.query_capture.take();
-        self.owner_handler_body=true;
-        self.enter_scope();
-        let event=format!("{}:{}",object_key("event"),self.bind("event"));
-        self.stdlib.insert("nativeScenarioRentNoticeDecision".into());
-        out.push(item.span,Some(item.canonical.clone()),
-            &format!("await nativeScenarioRentNoticeDecision(c,{},async(c,{{{event}}})=>{{",
-                descriptor_json(decision)));
-        for stmt in guards.iter().chain(effects) {
-            for (line,span) in self.lower_stmt(stmt,0) {
-                out.push(span,Some(item.canonical.clone()),&line);
-            }
-        }
-        out.push(item.span,Some(item.canonical.clone()),"return undefined;});");
-        self.exit_scope();
-        self.owner_handler_body=previous_owner;
-        self.query_capture=previous_query;
-    }
-
-    fn emit_invoice_issue_decision_body(&mut self, out: &mut JsWriter, item: &IrItem,
-        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value) {
-        if guards.len()!=2 || effects.len()!=7 ||
-            !matches!(&effects[0], IrStmt::Let {name,..} if name == "defaults") {
-            self.unsupported("invoice issue owner decision",
-                "the exact authored defaults stage is missing",item.span);
+        if let OwnerDecisionAdmission::Role { name, missing } = body.admission
+            && let IrItemKind::Scenario { by, .. } = &item.kind
+            && !matches!(by.as_slice(), [IrGuard::Role(role)] if role == name)
+        {
+            self.unsupported(body.context, missing, item.span);
             return;
         }
-        let previous_owner=self.owner_handler_body;
-        let previous_query=self.query_capture.take();
-        self.owner_handler_body=true;
+        let previous_owner = self.owner_handler_body;
+        let previous_query = self.query_capture.take();
+        self.owner_handler_body = true;
         self.enter_scope();
-        let invoice=format!("{}:{}",object_key("invoice"),self.bind("invoice"));
-        let number=format!("{}:{}",object_key("number"),self.bind("number"));
-        let first_defaults=self.bind("firstDefaults");
-        self.stdlib.insert("nativeScenarioInvoiceIssueDecision".into());
-        out.push(item.span,Some(item.canonical.clone()),
-            &format!("await nativeScenarioInvoiceIssueDecision(c,{},async(c,{{{invoice},{number},firstDefaults:{first_defaults}}})=>{{",
-                descriptor_json(decision)));
+        let mut names = body.parameters.iter()
+            .map(|name| format!("{}:{}", object_key(name), self.bind(name)))
+            .collect::<Vec<_>>();
+        let first_defaults = body.first_defaults.then(|| self.bind("firstDefaults"));
+        if let Some(first_defaults) = &first_defaults {
+            names.push(format!("firstDefaults:{first_defaults}"));
+        }
+        self.stdlib.insert(body.runtime.into());
+        out.push(item.span, Some(item.canonical.clone()),
+            &format!("await {}(c,{},async(c,{{{}}})=>{{",
+                body.runtime, descriptor_json(&body.decision), names.join(",")));
         if let IrItemKind::Scenario { by, .. } = &item.kind {
-            let admission=self.lower_admission(by);
-            out.push(item.span,Some(item.canonical.clone()),&format!("{admission};"));
+            let admission = match body.admission {
+                OwnerDecisionAdmission::None => None,
+                OwnerDecisionAdmission::Original => Some(self.lower_admission(by)),
+                OwnerDecisionAdmission::Role { name, .. } => {
+                    // The checked State owner observes this role at the original
+                    // pre-query stage over the authenticated subject.
+                    self.stdlib.insert("check".into());
+                    self.stdlib.insert("hasRole".into());
+                    Some(format!("check(await hasRole(c,{},c.actor),\"forbidden\")", js_string(name)))
+                }
+            };
+            if let Some(admission) = admission {
+                out.push(item.span, Some(item.canonical.clone()), &format!("{admission};"));
+            }
         }
         for stmt in guards {
-            for (line,span) in self.lower_stmt(stmt,0) {
-                out.push(span,Some(item.canonical.clone()),&line);
+            for (line, span) in self.lower_stmt(stmt, 0) {
+                out.push(span, Some(item.canonical.clone()), &line);
             }
         }
-        if let IrStmt::Let {name,span,..}=&effects[0] {
-            let bound=self.bind(name);
-            out.push(*span,Some(item.canonical.clone()),
-                &format!("const {bound}=await {first_defaults}();"));
-        }
-        for stmt in &effects[1..] {
-            for (line,span) in self.lower_stmt(stmt,0) {
-                out.push(span,Some(item.canonical.clone()),&line);
+        let effects = if let Some(first_defaults) = first_defaults {
+            if let IrStmt::Let { name, span, .. } = &effects[0] {
+                let bound = self.bind(name);
+                out.push(*span, Some(item.canonical.clone()),
+                    &format!("const {bound}=await {first_defaults}();"));
+            }
+            &effects[1..]
+        } else { effects };
+        for stmt in effects {
+            for (line, span) in self.lower_stmt(stmt, 0) {
+                out.push(span, Some(item.canonical.clone()), &line);
             }
         }
-        out.push(item.span,Some(item.canonical.clone()),"return undefined;});");
+        out.push(item.span, Some(item.canonical.clone()), "return undefined;});");
         self.exit_scope();
-        self.owner_handler_body=previous_owner;
-        self.query_capture=previous_query;
-    }
-
-    fn emit_invoice_collect_decision_body(
-        &mut self, out: &mut JsWriter, item: &IrItem,
-        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value,
-    ) {
-        if guards.len()!=2 || effects.len()!=7 {
-            self.unsupported("invoice collection owner decision",
-                "the exact authored body is missing",item.span);
-            return;
-        }
-        let previous_owner=self.owner_handler_body;
-        let previous_query=self.query_capture.take();
-        self.owner_handler_body=true;
-        self.enter_scope();
-        let invoice=format!("{}:{}",object_key("invoice"),self.bind("invoice"));
-        self.stdlib.insert("nativeScenarioInvoiceCollectDecision".into());
-        out.push(item.span,Some(item.canonical.clone()),
-            &format!("await nativeScenarioInvoiceCollectDecision(c,{},async(c,{{{invoice}}})=>{{",
-                descriptor_json(decision)));
-        if let IrItemKind::Scenario { by, .. } = &item.kind {
-            let admission=self.lower_admission(by);
-            out.push(item.span,Some(item.canonical.clone()),&format!("{admission};"));
-        }
-        for stmt in guards.iter().chain(effects) {
-            for (line,span) in self.lower_stmt(stmt,0) {
-                out.push(span,Some(item.canonical.clone()),&line);
-            }
-        }
-        out.push(item.span,Some(item.canonical.clone()),"return undefined;});");
-        self.exit_scope();
-        self.owner_handler_body=previous_owner;
-        self.query_capture=previous_query;
-    }
-
-    fn emit_rent_movement_refund_decision_body(
-        &mut self, out: &mut JsWriter, item: &IrItem,
-        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value,
-    ) {
-        if guards.len()!=2 || effects.len()!=2 {
-            self.unsupported("movement-credit refund owner decision",
-                "the exact authored body is missing",item.span);
-            return;
-        }
-        let previous_owner=self.owner_handler_body;
-        let previous_query=self.query_capture.take();
-        self.owner_handler_body=true;
-        self.enter_scope();
-        let names=["movement","charge_source","amount","reason"].iter()
-            .map(|name|format!("{}:{}",object_key(name),self.bind(name)))
-            .collect::<Vec<_>>();
-        self.stdlib.insert("nativeScenarioRentMovementRefundDecision".into());
-        out.push(item.span,Some(item.canonical.clone()),
-            &format!("await nativeScenarioRentMovementRefundDecision(c,{},async(c,{{{}}})=>{{",
-                descriptor_json(decision),names.join(",")));
-        if let IrItemKind::Scenario { by, .. } = &item.kind {
-            if !matches!(by.as_slice(), [IrGuard::Role(role)] if role == "rent_reservations.billing") {
-                self.unsupported("movement-credit refund owner decision",
-                    "the original billing admission is missing", item.span);
-                return;
-            }
-            self.stdlib.insert("check".into());
-            self.stdlib.insert("hasRole".into());
-            out.push(item.span, Some(item.canonical.clone()),
-                "check(await hasRole(c,\"rent_reservations.billing\",c.actor),\"forbidden\");");
-        }
-        for stmt in guards.iter().chain(effects) {
-            for (line,span) in self.lower_stmt(stmt,0) {
-                out.push(span,Some(item.canonical.clone()),&line);
-            }
-        }
-        out.push(item.span,Some(item.canonical.clone()),"return undefined;});");
-        self.exit_scope();
-        self.owner_handler_body=previous_owner;
-        self.query_capture=previous_query;
-    }
-
-    fn emit_refer_reject_decision_body(
-        &mut self, out: &mut JsWriter, item: &IrItem,
-        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value,
-    ) {
-        if guards.len()!=1 || effects.len()!=3 {
-            self.unsupported("referral rejection owner decision",
-                "the exact authored body is missing",item.span);
-            return;
-        }
-        let previous_owner=self.owner_handler_body;
-        let previous_query=self.query_capture.take();
-        self.owner_handler_body=true;
-        self.enter_scope();
-        let names=["evidence","reason"].iter()
-            .map(|name|format!("{}:{}",object_key(name),self.bind(name)))
-            .collect::<Vec<_>>();
-        self.stdlib.insert("nativeScenarioReferRejectDecision".into());
-        out.push(item.span,Some(item.canonical.clone()),
-            &format!("await nativeScenarioReferRejectDecision(c,{},async(c,{{{}}})=>{{",
-                descriptor_json(decision),names.join(",")));
-        if let IrItemKind::Scenario { by, .. } = &item.kind {
-            if !matches!(by.as_slice(), [IrGuard::Role(role)] if role == "refer.program_manager") {
-                self.unsupported("referral rejection owner decision",
-                    "the original role admission is missing", item.span);
-                return;
-            }
-            // State's checked owner lease observes this exact source role at
-            // the original pre-query stage. The three-argument form consumes
-            // the actor's authenticated subject-role observation.
-            self.stdlib.insert("check".into());
-            self.stdlib.insert("hasRole".into());
-            out.push(item.span, Some(item.canonical.clone()),
-                "check(await hasRole(c,\"refer.program_manager\",c.actor),\"forbidden\");");
-        }
-        for stmt in guards.iter().chain(effects) {
-            for (line,span) in self.lower_stmt(stmt,0) {
-                out.push(span,Some(item.canonical.clone()),&line);
-            }
-        }
-        out.push(item.span,Some(item.canonical.clone()),"return undefined;});");
-        self.exit_scope();
-        self.owner_handler_body=previous_owner;
-        self.query_capture=previous_query;
-    }
-
-    fn emit_member_retry_decision_body(
-        &mut self, out: &mut JsWriter, item: &IrItem,
-        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value,
-    ) {
-        if guards.len()!=2 || effects.len()!=4 {
-            self.unsupported("member retry owner decision",
-                "the exact authored body is missing",item.span);
-            return;
-        }
-        let previous_owner=self.owner_handler_body;
-        let previous_query=self.query_capture.take();
-        self.owner_handler_body=true;
-        self.enter_scope();
-        let name=format!("{}:{}",object_key("term"),self.bind("term"));
-        self.stdlib.insert("nativeScenarioMemberRetryDecision".into());
-        out.push(item.span,Some(item.canonical.clone()),
-            &format!("await nativeScenarioMemberRetryDecision(c,{},async(c,{{{name}}})=>{{",
-                descriptor_json(decision)));
-        if let IrItemKind::Scenario{by,..}=&item.kind {
-            let admission=self.lower_admission(by);
-            out.push(item.span,Some(item.canonical.clone()),&format!("{admission};"));
-        }
-        for stmt in guards.iter().chain(effects) {
-            for (line,span) in self.lower_stmt(stmt,0) {
-                out.push(span,Some(item.canonical.clone()),&line);
-            }
-        }
-        out.push(item.span,Some(item.canonical.clone()),"return undefined;});");
-        self.exit_scope();
-        self.owner_handler_body=previous_owner;
-        self.query_capture=previous_query;
-    }
-
-    fn emit_leave_decide_decision_body(
-        &mut self, out: &mut JsWriter, item: &IrItem,
-        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value,
-    ) {
-        if guards.len()!=1 || effects.len()!=2 {
-            self.unsupported("leave decide owner decision","the exact authored body is missing",item.span);
-            return;
-        }
-        let previous_owner=self.owner_handler_body;
-        let previous_query=self.query_capture.take();
-        self.owner_handler_body=true;
-        self.enter_scope();
-        let names=["request","approve","reason"].iter()
-            .map(|name|format!("{}:{}",object_key(name),self.bind(name)))
-            .collect::<Vec<_>>();
-        self.stdlib.insert("nativeScenarioLeaveDecideDecision".into());
-        out.push(item.span,Some(item.canonical.clone()),
-            &format!("await nativeScenarioLeaveDecideDecision(c,{},async(c,{{{}}})=>{{",
-                descriptor_json(decision),names.join(",")));
-        for stmt in guards.iter().chain(effects) {
-            for (line,span) in self.lower_stmt(stmt,0) {
-                out.push(span,Some(item.canonical.clone()),&line);
-            }
-        }
-        out.push(item.span,Some(item.canonical.clone()),"return undefined;});");
-        self.exit_scope();
-        self.owner_handler_body=previous_owner;
-        self.query_capture=previous_query;
-    }
-
-    fn emit_leave_request_decision_body(
-        &mut self, out: &mut JsWriter, item: &IrItem,
-        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value,
-    ) {
-        if guards.len()!=3 || effects.len()!=6 {
-            self.unsupported("leave request owner decision","the exact authored body is missing",item.span);
-            return;
-        }
-        let previous_owner=self.owner_handler_body;
-        let previous_query=self.query_capture.take();
-        self.owner_handler_body=true;
-        self.enter_scope();
-        let names=["calendar","from","until","bucket","reason","reviewer"]
-            .iter().map(|name|format!("{}:{}",object_key(name),self.bind(name))).collect::<Vec<_>>();
-        self.stdlib.insert("nativeScenarioLeaveRequestDecision".into());
-        out.push(item.span,Some(item.canonical.clone()),
-            &format!("await nativeScenarioLeaveRequestDecision(c,{},async(c,{{{}}})=>{{",
-                descriptor_json(decision),names.join(",")));
-        for stmt in guards.iter().chain(effects) {
-            for (line,span) in self.lower_stmt(stmt,0) {
-                out.push(span,Some(item.canonical.clone()),&line);
-            }
-        }
-        out.push(item.span,Some(item.canonical.clone()),"return undefined;});");
-        self.exit_scope();
-        self.owner_handler_body=previous_owner;
-        self.query_capture=previous_query;
+        self.owner_handler_body = previous_owner;
+        self.query_capture = previous_query;
     }
 
     fn emit_term_decision_body(
@@ -22381,92 +22130,6 @@ fn checked_string_value_type(ty: &IrType) -> Option<&'static str> {
     })
 }
 
-fn numeric_scalar_profile(scalar: &Scalar, array: bool, nullable: bool) -> Option<&'static str> {
-    match (scalar, array, nullable) {
-        (Scalar::Int, false, false) => Some("int"),
-        (Scalar::Int, false, true) => Some("int?"),
-        (Scalar::Int, true, false) => Some("int[]"),
-        (Scalar::Int, true, true) => Some("int[]?"),
-        (Scalar::Decimal, false, false) => Some("decimal"),
-        (Scalar::Decimal, false, true) => Some("decimal?"),
-        (Scalar::Decimal, true, false) => Some("decimal[]"),
-        (Scalar::Decimal, true, true) => Some("decimal[]?"),
-        (Scalar::Money, false, false) => Some("money"),
-        (Scalar::Money, false, true) => Some("money?"),
-        (Scalar::Money, true, false) => Some("money[]"),
-        (Scalar::Money, true, true) => Some("money[]?"),
-        _ => None,
-    }
-}
-
-fn text_scalar_profile(scalar: &Scalar, array: bool, nullable: bool) -> Option<&'static str> {
-    match (scalar, array, nullable) {
-        (Scalar::Url, false, false) => Some("url"),
-        (Scalar::Url, false, true) => Some("url?"),
-        (Scalar::Url, true, false) => Some("url[]"),
-        (Scalar::Url, true, true) => Some("url[]?"),
-        (Scalar::Text, false, false) => Some("text"),
-        (Scalar::Text, false, true) => Some("text?"),
-        (Scalar::Text, true, false) => Some("text[]"),
-        (Scalar::Text, true, true) => Some("text[]?"),
-        _ => None,
-    }
-}
-
-fn flag_scalar_profile(scalar: &Scalar, array: bool, nullable: bool) -> Option<&'static str> {
-    match (scalar, array, nullable) {
-        (Scalar::Bool, false, false) => Some("bool"),
-        (Scalar::Bool, false, true) => Some("bool?"),
-        (Scalar::Bool, true, false) => Some("bool[]"),
-        (Scalar::Bool, true, true) => Some("bool[]?"),
-        (Scalar::Email, false, false) => Some("email"),
-        (Scalar::Email, false, true) => Some("email?"),
-        (Scalar::Email, true, false) => Some("email[]"),
-        (Scalar::Email, true, true) => Some("email[]?"),
-        _ => None,
-    }
-}
-
-fn temporal_scalar_profile(scalar: &Scalar, array: bool, nullable: bool) -> Option<&'static str> {
-    match (scalar, array, nullable) {
-        (Scalar::Datetime, false, false) => Some("datetime"),
-        (Scalar::Datetime, false, true) => Some("datetime?"),
-        (Scalar::Datetime, true, false) => Some("datetime[]"),
-        (Scalar::Datetime, true, true) => Some("datetime[]?"),
-        (Scalar::Date, false, false) => Some("date"),
-        (Scalar::Date, false, true) => Some("date?"),
-        (Scalar::Date, true, false) => Some("date[]"),
-        (Scalar::Date, true, true) => Some("date[]?"),
-        (Scalar::Duration, false, false) => Some("duration"),
-        (Scalar::Duration, false, true) => Some("duration?"),
-        (Scalar::Duration, true, false) => Some("duration[]"),
-        (Scalar::Duration, true, true) => Some("duration[]?"),
-        (Scalar::Timezone, false, false) => Some("timezone"),
-        (Scalar::Timezone, false, true) => Some("timezone?"),
-        (Scalar::Timezone, true, false) => Some("timezone[]"),
-        (Scalar::Timezone, true, true) => Some("timezone[]?"),
-        _ => None,
-    }
-}
-
-fn entity_scalar_profile(scalar: &Scalar, array: bool, nullable: bool) -> Option<&'static str> {
-    match (scalar, array, nullable) {
-        (Scalar::Currency, false, false) => Some("currency"),
-        (Scalar::Currency, false, true) => Some("currency?"),
-        (Scalar::Currency, true, false) => Some("currency[]"),
-        (Scalar::Currency, true, true) => Some("currency[]?"),
-        (Scalar::User, false, false) => Some("user"),
-        (Scalar::User, false, true) => Some("user?"),
-        (Scalar::User, true, false) => Some("user[]"),
-        (Scalar::User, true, true) => Some("user[]?"),
-        (Scalar::File, false, false) => Some("file"),
-        (Scalar::File, false, true) => Some("file?"),
-        (Scalar::File, true, false) => Some("file[]"),
-        (Scalar::File, true, true) => Some("file[]?"),
-        _ => None,
-    }
-}
-
 pub(super) fn checked_value_profile(result: &ResolvedType) -> Option<&'static str> {
     let (value, nullable) = match result {
         ResolvedType::Nullable(value) => (value.as_ref(), true),
@@ -22479,11 +22142,26 @@ pub(super) fn checked_value_profile(result: &ResolvedType) -> Option<&'static st
     let ResolvedType::Scalar(scalar) = scalar else {
         return None;
     };
-    numeric_scalar_profile(scalar, array, nullable)
-        .or_else(|| text_scalar_profile(scalar, array, nullable))
-        .or_else(|| flag_scalar_profile(scalar, array, nullable))
-        .or_else(|| temporal_scalar_profile(scalar, array, nullable))
-        .or_else(|| entity_scalar_profile(scalar, array, nullable))
+    // Every supported scalar has the same four outer shapes. Keep the scalar
+    // set closed and retain the existing refusal of nested/nullable elements.
+    let profiles = match scalar {
+        Scalar::Int => ["int", "int?", "int[]", "int[]?"],
+        Scalar::Decimal => ["decimal", "decimal?", "decimal[]", "decimal[]?"],
+        Scalar::Money => ["money", "money?", "money[]", "money[]?"],
+        Scalar::Url => ["url", "url?", "url[]", "url[]?"],
+        Scalar::Text => ["text", "text?", "text[]", "text[]?"],
+        Scalar::Bool => ["bool", "bool?", "bool[]", "bool[]?"],
+        Scalar::Email => ["email", "email?", "email[]", "email[]?"],
+        Scalar::Datetime => ["datetime", "datetime?", "datetime[]", "datetime[]?"],
+        Scalar::Date => ["date", "date?", "date[]", "date[]?"],
+        Scalar::Duration => ["duration", "duration?", "duration[]", "duration[]?"],
+        Scalar::Timezone => ["timezone", "timezone?", "timezone[]", "timezone[]?"],
+        Scalar::Currency => ["currency", "currency?", "currency[]", "currency[]?"],
+        Scalar::User => ["user", "user?", "user[]", "user[]?"],
+        Scalar::File => ["file", "file?", "file[]", "file[]?"],
+        _ => return None,
+    };
+    Some(profiles[usize::from(array) * 2 + usize::from(nullable)])
 }
 
 /// Object key: bare identifier when safe, quoted otherwise.

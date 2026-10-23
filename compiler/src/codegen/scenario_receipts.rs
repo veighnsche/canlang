@@ -80,6 +80,63 @@ pub(super) struct ReceiptDisclosurePlan {
     pub returns: Vec<ReceiptReturn>,
 }
 
+/// Emission layout of an already collected owner decision. The source-specific
+/// collectors still prove the whole body; this layout grants no receipt or role.
+pub(super) struct OwnerDecisionBody {
+    pub decision: serde_json::Value,
+    pub runtime: &'static str,
+    pub context: &'static str,
+    pub parameters: &'static [&'static str],
+    pub guards: usize,
+    pub effects: usize,
+    pub admission: OwnerDecisionAdmission,
+    pub first_defaults: bool,
+    pub missing_body: &'static str,
+}
+
+#[derive(Clone, Copy)]
+pub(super) enum OwnerDecisionAdmission {
+    None,
+    Original,
+    Role { name: &'static str, missing: &'static str },
+}
+
+impl ReceiptDisclosurePlan {
+    pub(super) fn owner_body(&self, canonical: &str) -> Option<OwnerDecisionBody> {
+        use OwnerDecisionAdmission::{None as NoAdmission, Original, Role};
+        let missing = "the exact authored body is missing";
+        let (decision, runtime, context, parameters, guards, effects, admission, first_defaults, missing_body):
+            (_, _, _, &'static [&'static str], _, _, _, _, _) = match canonical {
+            "rent_reservations.correspondence" | "rent_reservations.remind" => (
+                self.rent_notice_decision.as_ref()?, "nativeScenarioRentNoticeDecision",
+                "booking notice owner decision", &["event"], 1,
+                if canonical == "rent_reservations.correspondence" { 3 } else { 4 },
+                NoAdmission, false, "the exact authored event body is missing"),
+            "invoice.issue" => (self.invoice_issue_decision.as_ref()?, "nativeScenarioInvoiceIssueDecision",
+                "invoice issue owner decision", &["invoice", "number"], 2, 7, Original, true, "the exact authored defaults stage is missing"),
+            "invoice.collect" => (self.invoice_collect_decision.as_ref()?, "nativeScenarioInvoiceCollectDecision",
+                "invoice collection owner decision", &["invoice"], 2, 7, Original, false, missing),
+            "rent_reservations.refund_movement_credit" => (
+                self.rent_movement_refund_decision.as_ref()?, "nativeScenarioRentMovementRefundDecision",
+                "movement-credit refund owner decision", &["movement", "charge_source", "amount", "reason"], 2, 2,
+                Role { name: "rent_reservations.billing", missing: "the original billing admission is missing" }, false, missing),
+            "refer.reject_source" => (self.refer_reject_decision.as_ref()?, "nativeScenarioReferRejectDecision",
+                "referral rejection owner decision", &["evidence", "reason"], 1, 3,
+                Role { name: "refer.program_manager", missing: "the original role admission is missing" }, false, missing),
+            "member_terms.retry_collection" => (self.member_retry_decision.as_ref()?, "nativeScenarioMemberRetryDecision",
+                "member retry owner decision", &["term"], 2, 4, Original, false, missing),
+            "leave.decide" => (self.leave_decide_decision.as_ref()?, "nativeScenarioLeaveDecideDecision",
+                "leave decide owner decision", &["request", "approve", "reason"], 1, 2, NoAdmission, false, missing),
+            "leave.request" => (self.leave_request_decision.as_ref()?, "nativeScenarioLeaveRequestDecision",
+                "leave request owner decision", &["calendar", "from", "until", "bucket", "reason", "reviewer"],
+                3, 6, NoAdmission, false, missing),
+            _ => return None,
+        };
+        Some(OwnerDecisionBody { decision: decision.clone(), runtime, context, parameters,
+            guards, effects, admission, first_defaults, missing_body })
+    }
+}
+
 /// Budget only complete, source-checked contained loops whose sole effect
 /// is emitting their exactly typed item. This data grants no scan by itself.
 pub(super) fn checked_source_emissions(ir:&IrProgram,owner:&IrItem,
@@ -2408,19 +2465,13 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             implicit,
             reference_result: None,
         };
-        let mut plan_return = ReceiptReturn {
-            id: returned.id.clone(),
-            source: transport_source(&returned.source, entry_module)?,
-            influences: effective_plan.map_or_else(Vec::new, |plan| {
-                plan.returns
-                    .iter()
-                    .find(|candidate| candidate.id == returned.id)
-                    .map_or_else(Vec::new, |candidate| candidate.influences.clone())
-            }),
-            dependencies: Vec::new(),
-            intrinsics: Vec::new(),
-            projection: None,
-        };
+        let influences = effective_plan.map_or_else(Vec::new, |plan| {
+            plan.returns
+                .iter()
+                .find(|candidate| candidate.id == returned.id)
+                .map_or_else(Vec::new, |candidate| candidate.influences.clone())
+        });
+        let mut plan_return = receipt_return(returned, entry_module, influences)?;
         for decision in &returned.decisions {
             let mut site = checked_site(decision.node, &decision.calls)?;
             site.default_selection = matches!(
@@ -4304,34 +4355,14 @@ pub(super) fn checked_native_any_query_plan<'a>(
         };
         *parent
     };
-    Some(ReceiptQuery {
-        id: query.id.clone(),
+    let parent = ReceiptQueryParent {
         source: transport_source(&query.source, entry)?,
-        model: query.model_name.clone(),
-        parent: Some(ReceiptQueryParent {
-            source: transport_source(&query.source, entry)?,
-            model: ir.items.get(parent_model.0 as usize)?.canonical.clone(),
-            origin: ReceiptQueryParentOrigin::AdmittedReference {
-                parameter: parameter.name.clone(),
-            },
-        }),
-        order: Vec::new(),
-        limit: None,
-        archived: "exclude".into(),
-        dependencies: query
-            .dependencies
-            .iter()
-            .map(|read| {
-                Some(ReceiptQueryDependency {
-                    id: read.id.clone(),
-                    source: transport_source(&read.source, entry)?,
-                    role: ReceiptRole::Control,
-                    field: read.field_name.clone(),
-                    type_id: read.type_id.clone(),
-                })
-            })
-            .collect::<Option<Vec<_>>>()?,
-    })
+        model: ir.items.get(parent_model.0 as usize)?.canonical.clone(),
+        origin: ReceiptQueryParentOrigin::AdmittedReference {
+            parameter: parameter.name.clone(),
+        },
+    };
+    receipt_unordered_query(query, entry, Some(parent), receipt_query_dependencies(query, entry)?)
 }
 
 /// Direct leading-`any` plan for the `[any, first]` composition: the checked
@@ -4601,28 +4632,7 @@ fn guard_any_fragment(
         };
         find_nested_guard_any(ir, guards, query, *outer)?;
     }
-    Some(ReceiptQuery {
-        id: query.id.clone(),
-        source: transport_source(&query.source, entry)?,
-        model: query.model_name.clone(),
-        parent: None,
-        order: Vec::new(),
-        limit: None,
-        archived: "exclude".into(),
-        dependencies: query
-            .dependencies
-            .iter()
-            .map(|read| {
-                Some(ReceiptQueryDependency {
-                    id: read.id.clone(),
-                    source: transport_source(&read.source, entry)?,
-                    role: ReceiptRole::Control,
-                    field: read.field_name.clone(),
-                    type_id: read.type_id.clone(),
-                })
-            })
-            .collect::<Option<Vec<_>>>()?,
-    })
+    receipt_unordered_query(query, entry, None, receipt_query_dependencies(query, entry)?)
 }
 
 /// A local executable plan for guard-only plain boolean `any` queries: one
@@ -4691,14 +4701,7 @@ fn checked_guard_any_query_plan(
         }) {
             return None;
         }
-        returns.push(ReceiptReturn {
-            id: returned.id.clone(),
-            source: transport_source(&returned.source, entry)?,
-            influences,
-            dependencies: Vec::new(),
-            intrinsics: Vec::new(),
-            projection: None,
-        });
+        returns.push(receipt_return(returned, entry, influences)?);
     }
     Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None,
@@ -4760,31 +4763,18 @@ pub(super) fn checked_native_any_direct_query_plan(
             .returns
             .iter()
             .map(|returned| {
-                Some(ReceiptReturn {
-                    id: returned.id.clone(),
-                    source: transport_source(&returned.source, entry)?,
-                    influences: influences
-                        .iter()
-                        .filter(|value| {
-                            returned
-                                .influences
-                                .iter()
-                                .any(|original| original.id == value.id)
-                        })
-                        .cloned()
-                        .collect(),
-                    dependencies: Vec::new(),
-                    intrinsics: Vec::new(),
-                    projection: None,
-                })
+                let selected = influences.iter().filter(|value| {
+                    returned.influences.iter().any(|original| original.id == value.id)
+                }).cloned().collect();
+                receipt_return(returned, entry, selected)
             })
             .collect::<Option<Vec<_>>>()?,
     })
 }
 
-fn checked_query_influence_census(
+fn checked_query_influence_shape(
     query: &crate::analysis::scenario_disclosure::DisclosureQuery,
-) -> Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
+) -> Option<()> {
     let mut ids = HashSet::new();
     let kinds = [
         InfluenceKind::QueryExistence,
@@ -4806,6 +4796,13 @@ fn checked_query_influence_census(
             return None;
         }
     }
+    Some(())
+}
+
+fn checked_query_influence_census(
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+) -> Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
+    checked_query_influence_shape(query)?;
     Some(query.influences.clone())
 }
 
@@ -4976,6 +4973,58 @@ fn mixed_helper_influences_valid(
             == all.len()
 }
 
+/// Transport already checked query controls through one exact source/field codec.
+/// Each profile retains its own source, census, role and execution-site admission.
+fn receipt_query_dependencies(
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    entry: &str,
+) -> Option<Vec<ReceiptQueryDependency>> {
+    query.dependencies.iter().map(|read| Some(ReceiptQueryDependency {
+        id: read.id.clone(),
+        source: transport_source(&read.source, entry)?,
+        role: ReceiptRole::Control,
+        field: read.field_name.clone(),
+        type_id: read.type_id.clone(),
+    })).collect()
+}
+
+/// Wire layout shared by already checked ANY and COUNT fragments. The caller
+/// still proves the execution site, dependencies and any admitted parent edge.
+fn receipt_unordered_query(
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    entry: &str,
+    parent: Option<ReceiptQueryParent>,
+    dependencies: Vec<ReceiptQueryDependency>,
+) -> Option<ReceiptQuery> {
+    Some(ReceiptQuery {
+        id: query.id.clone(),
+        source: transport_source(&query.source, entry)?,
+        model: query.model_name.clone(),
+        parent,
+        order: Vec::new(),
+        limit: None,
+        archived: "exclude".into(),
+        dependencies,
+    })
+}
+
+/// Encode a return after its owning profile selected and checked the influences.
+/// DATA reads, intrinsics and projections are attached by their defining collectors.
+fn receipt_return(
+    returned: &crate::analysis::scenario_disclosure::DisclosureReturn,
+    entry: &str,
+    influences: Vec<ReceiptInfluence>,
+) -> Option<ReceiptReturn> {
+    Some(ReceiptReturn {
+        id: returned.id.clone(),
+        source: transport_source(&returned.source, entry)?,
+        influences,
+        dependencies: Vec::new(),
+        intrinsics: Vec::new(),
+        projection: None,
+    })
+}
+
 fn receipt_influence(
     value: &crate::analysis::scenario_disclosure::DisclosureInfluence,
 ) -> Option<ReceiptInfluence> {
@@ -5033,28 +5082,9 @@ fn push_mixed_helper_query(
     if checked_helper_any_query_ir(ir, owner, actual, db)? != query {
         return None;
     }
-    plan.queries.push(ReceiptQuery {
-        id: query.id.clone(),
-        source: transport_source(&query.source, entry)?,
-        model: query.model_name.clone(),
-        parent: None,
-        order: Vec::new(),
-        limit: None,
-        archived: "exclude".into(),
-        dependencies: query
-            .dependencies
-            .iter()
-            .map(|read| {
-                Some(ReceiptQueryDependency {
-                    id: read.id.clone(),
-                    source: transport_source(&read.source, entry)?,
-                    role: ReceiptRole::Control,
-                    field: read.field_name.clone(),
-                    type_id: read.type_id.clone(),
-                })
-            })
-            .collect::<Option<Vec<_>>>()?,
-    });
+    plan.queries.push(receipt_unordered_query(
+        query, entry, None, receipt_query_dependencies(query, entry)?,
+    )?);
     Some(())
 }
 
@@ -5191,41 +5221,13 @@ pub(super) fn checked_native_helper_any_query_plan(
     Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&facts.source, entry)?,
-        queries: vec![ReceiptQuery {
-            id: query.id.clone(),
-            source: transport_source(&query.source, entry)?,
-            model: query.model_name.clone(),
-            parent: None,
-            order: Vec::new(),
-            limit: None,
-            archived: "exclude".into(),
-            dependencies: query
-                .dependencies
-                .iter()
-                .map(|read| {
-                    Some(ReceiptQueryDependency {
-                        id: read.id.clone(),
-                        source: transport_source(&read.source, entry)?,
-                        role: ReceiptRole::Control,
-                        field: read.field_name.clone(),
-                        type_id: read.type_id.clone(),
-                    })
-                })
-                .collect::<Option<Vec<_>>>()?,
-        }],
+        queries: vec![receipt_unordered_query(
+            query, entry, None, receipt_query_dependencies(query, entry)?,
+        )?],
         returns: checked
             .returns
             .iter()
-            .map(|returned| {
-                Some(ReceiptReturn {
-                    id: returned.id.clone(),
-                    source: transport_source(&returned.source, entry)?,
-                    influences: influences.clone(),
-                    dependencies: Vec::new(),
-                    intrinsics: Vec::new(),
-                    projection: None,
-                })
-            })
+            .map(|returned| receipt_return(returned, entry, influences.clone()))
             .collect::<Option<Vec<_>>>()?,
     })
 }
@@ -5594,24 +5596,7 @@ fn single_inline_influences(
     {
         return None;
     }
-    let mut ids = HashSet::new();
-    for (influence, kind) in query.influences.iter().zip([
-        InfluenceKind::QueryExistence,
-        InfluenceKind::QueryCardinality,
-        InfluenceKind::QueryMembership,
-        InfluenceKind::QueryOrder,
-    ]) {
-        if influence.kind != kind
-            || influence.id.is_empty()
-            || !ids.insert(influence.id.as_str())
-            || influence.source != query.source
-            || influence.node != query.node
-            || influence.query_id.as_deref() != Some(query.id.as_str())
-        {
-            return None;
-        }
-    }
-    Some(query.influences.clone())
+    checked_query_influence_census(query)
 }
 
 fn transcript_influence_order_mismatch(
@@ -6805,41 +6790,7 @@ fn checked_native_first_query_source_plan(
     if !first_query_dependencies_valid(query, model) {
         return None;
     }
-    let kinds = [
-        InfluenceKind::QueryExistence,
-        InfluenceKind::QueryCardinality,
-        InfluenceKind::QueryMembership,
-        InfluenceKind::QueryOrder,
-    ];
-    let mut ids = HashSet::new();
-    let influences = query
-        .influences
-        .iter()
-        .zip(kinds)
-        .map(|(influence, expected)| {
-            if influence.id.is_empty()
-                || !ids.insert(influence.id.as_str())
-                || influence.source != query.source
-                || influence.node != query.node
-                || influence.kind != expected
-                || influence.query_id.as_deref() != Some(query.id.as_str())
-            {
-                return None;
-            }
-            Some(ReceiptInfluence {
-                id: influence.id.clone(),
-                query_id: influence.query_id.clone(),
-                kind: match expected {
-                    InfluenceKind::QueryExistence => "query-existence",
-                    InfluenceKind::QueryCardinality => "query-cardinality",
-                    InfluenceKind::QueryMembership => "query-membership",
-                    InfluenceKind::QueryOrder => "query-order",
-                    _ => return None,
-                }
-                .into(),
-            })
-        })
-        .collect::<Option<Vec<_>>>()?;
+    let influences = receipt_query_influences(query)?;
     // A contained domain carries its admitted parent edge; unscoped first
     // queries keep no parent. Re-proves the disclosure receiver here, so a
     // mismatched parent keeps the source-plan refusal.
@@ -6862,41 +6813,16 @@ fn checked_native_first_query_source_plan(
                 .collect(),
             limit: None,
             archived: if query.archived { "include" } else { "exclude" }.into(),
-            dependencies: query
-                .dependencies
-                .iter()
-                .map(|dependency| {
-                    Some(ReceiptQueryDependency {
-                        id: dependency.id.clone(),
-                        source: transport_source(&dependency.source, entry_module)?,
-                        role: ReceiptRole::Control,
-                        field: dependency.field_name.clone(),
-                        type_id: dependency.type_id.clone(),
-                    })
-                })
-                .collect::<Option<Vec<_>>>()?,
+            dependencies: receipt_query_dependencies(query, entry_module)?,
         }],
         returns: checked
             .returns
             .iter()
             .map(|returned| {
-                Some(ReceiptReturn {
-                    id: returned.id.clone(),
-                    source: transport_source(&returned.source, entry_module)?,
-                    influences: influences
-                        .iter()
-                        .filter(|value| {
-                            returned
-                                .influences
-                                .iter()
-                                .any(|original| original.id == value.id)
-                        })
-                        .cloned()
-                        .collect(),
-                    dependencies: Vec::new(),
-                    intrinsics: Vec::new(),
-                    projection: None,
-                })
+                let selected = influences.iter().filter(|value| {
+                    returned.influences.iter().any(|original| original.id == value.id)
+                }).cloned().collect();
+                receipt_return(returned, entry_module, selected)
             })
             .collect::<Option<Vec<_>>>()?,
     };
@@ -8068,18 +7994,7 @@ fn checked_native_ancestor_count_query_plan(
             if influence.kind != kind {
                 return None;
             }
-            Some(ReceiptInfluence {
-                id: influence.id.clone(),
-                query_id: influence.query_id.clone(),
-                kind: match kind {
-                    InfluenceKind::QueryExistence => "query-existence",
-                    InfluenceKind::QueryCardinality => "query-cardinality",
-                    InfluenceKind::QueryMembership => "query-membership",
-                    InfluenceKind::QueryOrder => "query-order",
-                    _ => return None,
-                }
-                .into(),
-            })
+            receipt_influence(influence)
         })
         .collect::<Option<Vec<_>>>()?;
     if proof.returns.is_empty()
@@ -8095,41 +8010,13 @@ fn checked_native_ancestor_count_query_plan(
     Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
-        queries: vec![ReceiptQuery {
-            id: query.id.clone(),
-            source: transport_source(&query.source, entry)?,
-            model: query.model_name.clone(),
-            parent: None,
-            order: Vec::new(),
-            limit: None,
-            archived: "exclude".into(),
-            dependencies: query
-                .dependencies
-                .iter()
-                .map(|read| {
-                    Some(ReceiptQueryDependency {
-                        id: read.id.clone(),
-                        source: transport_source(&read.source, entry)?,
-                        role: ReceiptRole::Control,
-                        field: read.field_name.clone(),
-                        type_id: read.type_id.clone(),
-                    })
-                })
-                .collect::<Option<Vec<_>>>()?,
-        }],
+        queries: vec![receipt_unordered_query(
+            query, entry, None, receipt_query_dependencies(query, entry)?,
+        )?],
         returns: proof
             .returns
             .iter()
-            .map(|returned| {
-                Some(ReceiptReturn {
-                    id: returned.id.clone(),
-                    source: transport_source(&returned.source, entry)?,
-                    influences: influences.clone(),
-                    dependencies: Vec::new(),
-                    intrinsics: Vec::new(),
-                    projection: None,
-                })
-            })
+            .map(|returned| receipt_return(returned, entry, influences.clone()))
             .collect::<Option<Vec<_>>>()?,
     })
 }
@@ -8258,47 +8145,11 @@ fn native_count_result_matches(
     Some(())
 }
 
-fn native_count_influences(
+fn receipt_query_influences(
     query: &crate::analysis::scenario_disclosure::DisclosureQuery,
 ) -> Option<Vec<ReceiptInfluence>> {
-    let mut ids = HashSet::new();
-    let kinds = [
-        InfluenceKind::QueryExistence,
-        InfluenceKind::QueryCardinality,
-        InfluenceKind::QueryMembership,
-        InfluenceKind::QueryOrder,
-    ];
-    if query.influences.len() != kinds.len() {
-        return None;
-    }
-    query
-        .influences
-        .iter()
-        .zip(kinds)
-        .map(|(influence, kind)| {
-            if influence.id.is_empty()
-                || !ids.insert(influence.id.as_str())
-                || influence.source != query.source
-                || influence.node != query.node
-                || influence.kind != kind
-                || influence.query_id.as_deref() != Some(query.id.as_str())
-            {
-                return None;
-            }
-            Some(ReceiptInfluence {
-                id: influence.id.clone(),
-                query_id: influence.query_id.clone(),
-                kind: match kind {
-                    InfluenceKind::QueryExistence => "query-existence",
-                    InfluenceKind::QueryCardinality => "query-cardinality",
-                    InfluenceKind::QueryMembership => "query-membership",
-                    InfluenceKind::QueryOrder => "query-order",
-                    _ => return None,
-                }
-                .into(),
-            })
-        })
-        .collect::<Option<Vec<_>>>()
+    checked_query_influence_shape(query)?;
+    query.influences.iter().map(receipt_influence).collect()
 }
 
 fn native_count_plan(
@@ -8313,34 +8164,22 @@ fn native_count_plan(
     Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
-        queries: vec![ReceiptQuery {
-            id: query.id.clone(),
-            source: transport_source(&query.source, entry)?,
-            model: query.model_name.clone(),
-            parent: Some(ReceiptQueryParent {
+        queries: vec![receipt_unordered_query(query, entry, Some(ReceiptQueryParent {
                 source: transport_source(&query.source, entry)?,
                 model: ir.items.get(parent_id.0 as usize)?.canonical.clone(),
                 origin: ReceiptQueryParentOrigin::AdmittedReference {
                     parameter: parameter.name.clone(),
                 },
-            }),
-            order: Vec::new(),
-            limit: None,
-            archived: "exclude".into(),
-            dependencies: Vec::new(),
-        }],
+            }), Vec::new())?],
         returns: checked
             .returns
             .iter()
             .map(|returned| {
-                Some(ReceiptReturn {
-                    id: returned.id.clone(),
-                    source: transport_source(&returned.source, entry)?,
-                    influences: if returned.influences.iter().any(|value|value.query_id.as_deref()==Some(query.id.as_str())) {influences.clone()} else {Vec::new()},
-                    dependencies: Vec::new(),
-                    intrinsics: Vec::new(),
-                    projection: None,
-                })
+                let selected = if returned.influences.iter().any(|value|
+                    value.query_id.as_deref() == Some(query.id.as_str())) {
+                    influences.clone()
+                } else { Vec::new() };
+                receipt_return(returned, entry, selected)
             })
             .collect::<Option<Vec<_>>>()?,
     })
@@ -8428,14 +8267,13 @@ pub(super) fn checked_native_assign_count_query_plan(
     let schema = checked_first_query_schema(ir, owner, query, db)?;
     if !schema.fields.iter().any(|field| field.id == active.field && field.name == "active"
         && field.ty == active.ty) { return None; }
-    let influences = native_count_influences(query)?;
+    let influences = receipt_query_influences(query)?;
     let returns = checked.returns.iter().map(|returned| {
         let selected = returned.influences.iter().filter(|value|
             value.query_id.as_deref() == Some(query.id.as_str())).collect::<Vec<_>>();
         if selected.len() != 4 || selected.iter().map(|value| value.id.as_str())
             .ne(query.influences.iter().map(|value| value.id.as_str())) { return None; }
-        Some(ReceiptReturn {id: returned.id.clone(), source: transport_source(&returned.source, entry)?,
-            influences: influences.clone(), dependencies: Vec::new(), intrinsics: Vec::new(), projection: None})
+        receipt_return(returned, entry, influences.clone())
     }).collect::<Option<Vec<_>>>()?;
     Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None, invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
@@ -8589,7 +8427,7 @@ pub(super) fn checked_native_count_query_plan(
     )?;
     let parameter = checked_count_query_parent(ir, owner, query, db)?;
     let parent_id=checked_first_query_schema(ir,owner,query,db)?.parent?;
-    let influences = native_count_influences(query)?;
+    let influences = receipt_query_influences(query)?;
     native_count_plan(ir, query, checked, entry, parameter, parent_id, influences)
 }
 

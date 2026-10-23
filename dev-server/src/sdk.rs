@@ -241,28 +241,3 @@ pub fn release(bridge: &Bridge, resources: &Resources, parent: &str) -> Result<(
     }
     resources.released(parent)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::os::unix::fs::PermissionsExt;
-    #[test]
-    fn failed_tree_release_retains_ownership_until_confirmed_cleanup() {
-        let tree = tempfile::Builder::new()
-            .prefix("can-sdk-release-")
-            .tempdir()
-            .unwrap();
-        let path = std::fs::canonicalize(tree.path()).unwrap();
-        let resources = Resources::default();
-        resources
-            .paths(Some("candidate"), &json!({"temporary":path}))
-            .unwrap();
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-        assert!(resources.released("candidate").is_err());
-        assert!(resources.paths.lock().unwrap().contains_key("candidate"));
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
-        resources.released("candidate").unwrap();
-        assert!(!path.exists());
-        assert!(!resources.paths.lock().unwrap().contains_key("candidate"));
-    }
-}

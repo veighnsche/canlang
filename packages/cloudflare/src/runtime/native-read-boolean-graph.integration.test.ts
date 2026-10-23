@@ -103,21 +103,25 @@ it('runs original membership role/work and coverage query/reference closures und
         }
         return result;
       } };
-      const source = buildPageSourceContext(identity), opts = { asm, artifact, identity, store, memberships, pageSource: source, now: () => now };
+      let scope: ReturnType<typeof createPageReadScopeCanonical>;
+      const source = buildPageSourceContext(identity, (model, query) => scope.readRecords!(model, query));
+      const opts = { asm, artifact, identity, store, memberships, pageSource: source, now: () => now };
+      scope = createPageReadScopeCanonical(opts);
       bindPageReadBooleanContextCanonical(source, async () => opts);
-      await page.admit(source, { 'Customer.id': 'company' });
-      if (mode === 'admin-lazy') assert.equal(employeeQueries, 0, 'administrator branch skips all work queries');
-      else assert.ok(employeeQueries > 0, 'manager branch uses actual employee work query');
-      const scope = createPageReadScopeCanonical(opts);
       try {
+        await page.admit(source, { 'Customer.id': 'company' });
+        if (mode === 'admin-lazy') assert.equal(employeeQueries, 0, 'administrator branch skips all work queries');
+        else assert.ok(employeeQueries > 0, 'manager branch uses actual employee work query');
         const employees = await scope.readRecords!(`${app}.Employee`, {});
         assert.equal(employees.length, 2, 'staff policy decides its own Employee query without policy recursion');
-        for (const employee of employees) assert.equal(Object.hasOwn(employee, 'private_notes'), false, 'data reads retain original field grants');
+        for (const employee of employees) assert.equal(Object.keys(employee).includes('private_notes'), false, 'data projections omit private fields');
         const records = await scope.readRecords!(`${app}.Coverage`, { where: { op: 'eq', field: 'id', value: coverage.id } });
         assert.equal(records.length, 1); armed = true;
         const evaluate = () => met({ canonical: { readRecords: scope.readRecords } }, records[0]);
         if (mode.startsWith('revoke-')) { await assert.rejects(evaluate()); assert.equal(revoked, true); }
         else assert.equal(await evaluate(), mode !== 'subject-removed');
+        for (const employee of employees) assert.throws(() => employee.private_notes,
+          (error: any) => error.code === 'forbidden', 'native field access retains original field grants');
       } finally { await scope.close?.(); }
       for (const [name, row] of rows) { assert.deepEqual(await backing.load(model(name), row.id), row); assert.deepEqual(await backing.historyFor(model(name), row.id), []); }
     }

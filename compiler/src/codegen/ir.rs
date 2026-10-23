@@ -4994,6 +4994,31 @@ pub struct IrSequence {
     pub span: Span,
 }
 
+/// The two native verified-event source profiles. This only selects the
+/// existing source proof; the original handler census and payload still qualify
+/// each occurrence, and runtime ingress authority remains separate.
+#[derive(Clone, Copy)]
+enum NativeCapabilityEvent {
+    MailboxReceived,
+    PaymentsChanged,
+}
+
+impl NativeCapabilityEvent {
+    fn member(self) -> &'static str {
+        match self {
+            Self::MailboxReceived => "MailboxV1",
+            Self::PaymentsChanged => "PaymentsV1",
+        }
+    }
+
+    fn event(self) -> &'static str {
+        match self {
+            Self::MailboxReceived => "received",
+            Self::PaymentsChanged => "changed",
+        }
+    }
+}
+
 // --- Bridge build ---------------------------------------------------------
 
 impl<'a> Cx<'a> {
@@ -5013,7 +5038,7 @@ impl<'a> Cx<'a> {
         Some(original)
     }
 
-    fn mailbox_received_declared(
+    fn capability_event_declared(
         &self,
         id: SymbolId,
     ) -> Option<(
@@ -5092,7 +5117,7 @@ impl<'a> Cx<'a> {
             || module.span != original.module_span
     }
 
-    fn mailbox_scenario_shape_matches(
+    fn capability_event_scenario_shape_matches(
         symbol: &crate::analysis::resolve::Symbol,
         data: &crate::analysis::effects::ScenarioData,
         id: SymbolId,
@@ -5113,7 +5138,7 @@ impl<'a> Cx<'a> {
             || data.cohort.is_some()
     }
 
-    fn mailbox_syntax_identity_matches(
+    fn capability_event_syntax_identity_matches(
         owner: &SyntaxNode,
         header: &SyntaxNode,
         on: crate::analysis::NodeKey,
@@ -5122,6 +5147,7 @@ impl<'a> Cx<'a> {
         symbol: &crate::analysis::resolve::Symbol,
         text: &str,
         event: &str,
+        profile: NativeCapabilityEvent,
     ) -> bool {
         owner.kind != SyntaxKind::Scenario
             || header.kind != SyntaxKind::Path
@@ -5135,7 +5161,7 @@ impl<'a> Cx<'a> {
                         .is_some_and(|token| token.text(text) == symbol.name)
             })
             || crate::analysis::attribute_value(owner, "on", text).map(NodeKey::of) != Some(on)
-            || event != "received"
+            || event != profile.event()
     }
 
     fn mailbox_fact_envelope_matches(
@@ -5161,11 +5187,12 @@ impl<'a> Cx<'a> {
                 if capability == &fact.capability && event == &fact.event && source == &fact.source)
     }
 
-    fn mailbox_received_route<'s>(
+    fn capability_event_route<'s>(
         &'s self,
         module: &'s crate::analysis::resolve::Module,
         alias: &str,
         source: &'s crate::source::Source,
+        profile: NativeCapabilityEvent,
     ) -> Option<(
         &'s crate::analysis::resolve::Import,
         &'s crate::analysis::resolve::ImportMember,
@@ -5200,8 +5227,8 @@ impl<'a> Cx<'a> {
             .filter_map(|node| crate::analysis::name_text(node, &source.text))
             .collect();
         let original_alias = match names.as_slice() {
-            ["MailboxV1"] => "MailboxV1",
-            ["MailboxV1", "as", alias] => *alias,
+            [name] if *name == profile.member() => *name,
+            [name, "as", alias] if *name == profile.member() => *alias,
             _ => return None,
         };
         if routes.next().is_some() {
@@ -5210,7 +5237,7 @@ impl<'a> Cx<'a> {
         Some((import, member, from, from_node, original_alias))
     }
 
-    fn mailbox_route_valid(
+    fn capability_event_route_valid(
         import: &crate::analysis::resolve::Import,
         member: &crate::analysis::resolve::ImportMember,
         original_alias: &str,
@@ -5219,9 +5246,10 @@ impl<'a> Cx<'a> {
         from_node: &SyntaxNode,
         source: &crate::source::Source,
         fact: &crate::analysis::types::CheckedStdCapabilityEvent,
+        profile: NativeCapabilityEvent,
     ) -> Option<()> {
         if import.provider != "std"
-            || member.name != "MailboxV1"
+            || member.name != profile.member()
             || original_alias != alias
             || from.is_empty()
             || source
@@ -5247,14 +5275,15 @@ impl<'a> Cx<'a> {
 
     fn mailbox_received_source(&self, id: SymbolId) -> Option<IrEventSource> {
         let original = self.mailbox_received_handler(id)?;
-        let (symbol, data, on, fact, module) = self.mailbox_received_declared(id)?;
+        let (symbol, data, on, fact, module) = self.capability_event_declared(id)?;
         let (owner, source, header, alias, event, value, email) =
             self.mailbox_received_syntax(&data.node, on, module.file, &fact.payload)?;
         if Self::mailbox_symbol_identity_matches(symbol, original, id)
             || Self::mailbox_declared_identity_matches(data, on, module, original)
-            || Self::mailbox_scenario_shape_matches(symbol, data, id, &module.name)
-            || Self::mailbox_syntax_identity_matches(
+            || Self::capability_event_scenario_shape_matches(symbol, data, id, &module.name)
+            || Self::capability_event_syntax_identity_matches(
                 owner, header, on, data, module.file, symbol, &source.text, event,
+                NativeCapabilityEvent::MailboxReceived,
             )
             || Self::mailbox_fact_envelope_matches(
                 fact,
@@ -5270,8 +5299,8 @@ impl<'a> Cx<'a> {
             return None;
         }
         let (import, member, from, from_node, original_alias) =
-            self.mailbox_received_route(module, alias, source)?;
-        Self::mailbox_route_valid(
+            self.capability_event_route(module, alias, source, NativeCapabilityEvent::MailboxReceived)?;
+        Self::capability_event_route_valid(
             import,
             member,
             original_alias,
@@ -5280,6 +5309,7 @@ impl<'a> Cx<'a> {
             from_node,
             source,
             fact,
+            NativeCapabilityEvent::MailboxReceived,
         )?;
         Some(IrEventSource::MailboxReceived {
             source: fact.source.clone(),
@@ -5302,27 +5332,6 @@ impl<'a> Cx<'a> {
             return None;
         }
         Some(original)
-    }
-
-    fn payments_changed_declared(
-        &self,
-        id: SymbolId,
-    ) -> Option<(
-        &crate::analysis::resolve::Symbol,
-        &crate::analysis::effects::ScenarioData,
-        crate::analysis::NodeKey,
-        &crate::analysis::types::CheckedStdCapabilityEvent,
-        &crate::analysis::resolve::Module,
-    )> {
-        let symbol = self.program.symbols.get(id.0 as usize)?;
-        let SymbolKind::Scenario { trusted: true, .. } = &symbol.kind else {
-            return None;
-        };
-        let data = self.program.effects.scenarios.get(&id)?;
-        let on = data.on_node?;
-        let fact = self.program.types.std_capability_event_handlers.get(&on)?;
-        let module = self.program.modules.get(symbol.module.0 as usize)?;
-        Some((symbol, data, on, fact, module))
     }
 
     fn payments_changed_syntax<'s>(
@@ -5381,52 +5390,6 @@ impl<'a> Cx<'a> {
             || module.span != original.module_span
     }
 
-    fn payments_changed_scenario_shape_matches(
-        symbol: &crate::analysis::resolve::Symbol,
-        data: &crate::analysis::effects::ScenarioData,
-        id: SymbolId,
-        module_name: &str,
-    ) -> bool {
-        let params = match &symbol.kind {
-            SymbolKind::Scenario { params, .. } => params,
-            _ => return true,
-        };
-        symbol.module != data.module
-            || data.scenario != id
-            || symbol.canonical != format!("{}.{}", module_name, symbol.name)
-            || !params.is_empty()
-            || !data.params.is_empty()
-            || data.by.is_some()
-            || data.read
-            || data.scope_authority
-            || data.cohort.is_some()
-    }
-
-    fn payments_changed_syntax_identity_matches(
-        owner: &SyntaxNode,
-        header: &SyntaxNode,
-        on: crate::analysis::NodeKey,
-        data: &crate::analysis::effects::ScenarioData,
-        module_file: crate::source::SourceId,
-        symbol: &crate::analysis::resolve::Symbol,
-        text: &str,
-        event: &str,
-    ) -> bool {
-        owner.kind != SyntaxKind::Scenario
-            || header.kind != SyntaxKind::Path
-            || on.file != module_file
-            || data.node.file != module_file
-            || !owner.children.iter().any(|node| {
-                node.kind == SyntaxKind::Name
-                    && node.span == symbol.span
-                    && node
-                        .token()
-                        .is_some_and(|token| token.text(text) == symbol.name)
-            })
-            || crate::analysis::attribute_value(owner, "on", text).map(NodeKey::of) != Some(on)
-            || event != "changed"
-    }
-
     fn payments_changed_fact_envelope_matches(
         fact: &crate::analysis::types::CheckedStdCapabilityEvent,
         original_event: &crate::analysis::types::CheckedStdCapabilityEvent,
@@ -5448,100 +5411,17 @@ impl<'a> Cx<'a> {
                 if capability == &fact.capability && event == &fact.event && source == &fact.source)
     }
 
-    fn payments_changed_route<'s>(
-        &'s self,
-        module: &'s crate::analysis::resolve::Module,
-        alias: &str,
-        source: &'s crate::source::Source,
-    ) -> Option<(
-        &'s crate::analysis::resolve::Import,
-        &'s crate::analysis::resolve::ImportMember,
-        &'s String,
-        &'s SyntaxNode,
-        &'s str,
-    )> {
-        let mut routes = module.imports.iter().flat_map(|import| {
-            import
-                .members
-                .iter()
-                .filter(move |member| member.alias == alias)
-                .map(move |member| (import, member))
-        });
-        let (import, member) = routes.next()?;
-        let from = import.from.as_ref()?;
-        let import_node = self.node(&NodeKey {
-            file: import.span.file,
-            start: import.span.start,
-            end: import.span.end,
-            kind: SyntaxKind::Import as u8,
-        })?;
-        let from_node = crate::analysis::attribute_value(import_node, "from", &source.text)?;
-        let member_node = self.node(&NodeKey {
-            file: member.span.file,
-            start: member.span.start,
-            end: member.span.end,
-            kind: SyntaxKind::ImportMember as u8,
-        })?;
-        let names: Vec<_> = kids(member_node)
-            .iter()
-            .filter_map(|node| crate::analysis::name_text(node, &source.text))
-            .collect();
-        let original_alias = match names.as_slice() {
-            ["PaymentsV1"] => "PaymentsV1",
-            ["PaymentsV1", "as", alias] => *alias,
-            _ => return None,
-        };
-        if routes.next().is_some() {
-            return None;
-        }
-        Some((import, member, from, from_node, original_alias))
-    }
-
-    fn payments_changed_route_valid(
-        import: &crate::analysis::resolve::Import,
-        member: &crate::analysis::resolve::ImportMember,
-        original_alias: &str,
-        alias: &str,
-        from: &str,
-        from_node: &SyntaxNode,
-        source: &crate::source::Source,
-        fact: &crate::analysis::types::CheckedStdCapabilityEvent,
-    ) -> Option<()> {
-        if import.provider != "std"
-            || member.name != "PaymentsV1"
-            || original_alias != alias
-            || from.is_empty()
-            || source
-                .text
-                .get(import.provider_span.start as usize..import.provider_span.end as usize)
-                != Some("std")
-            || from_node.kind != SyntaxKind::Path
-            || crate::analysis::path_segments(from_node, &source.text)
-                .first()
-                .copied()
-                != Some("deployment")
-            || source
-                .text
-                .get(from_node.span.start as usize..from_node.span.end as usize)?
-                .trim()
-                != from
-            || std_capability(&member.name)?.name != fact.capability
-        {
-            return None;
-        }
-        Some(())
-    }
-
     fn payments_changed_source(&self, id: SymbolId) -> Option<IrEventSource> {
         let original = self.payments_changed_handler(id)?;
-        let (symbol, data, on, fact, module) = self.payments_changed_declared(id)?;
+        let (symbol, data, on, fact, module) = self.capability_event_declared(id)?;
         let (owner, source, header, alias, event) =
             self.payments_changed_syntax(&data.node, on, module.file, &fact.payload)?;
         if Self::payments_changed_symbol_identity_matches(symbol, original, id)
             || Self::payments_changed_declared_identity_matches(data, on, module, original)
-            || Self::payments_changed_scenario_shape_matches(symbol, data, id, &module.name)
-            || Self::payments_changed_syntax_identity_matches(
+            || Self::capability_event_scenario_shape_matches(symbol, data, id, &module.name)
+            || Self::capability_event_syntax_identity_matches(
                 owner, header, on, data, module.file, symbol, &source.text, event,
+                NativeCapabilityEvent::PaymentsChanged,
             )
             || Self::payments_changed_fact_envelope_matches(
                 fact,
@@ -5555,8 +5435,8 @@ impl<'a> Cx<'a> {
             return None;
         }
         let (import, member, from, from_node, original_alias) =
-            self.payments_changed_route(module, alias, source)?;
-        Self::payments_changed_route_valid(
+            self.capability_event_route(module, alias, source, NativeCapabilityEvent::PaymentsChanged)?;
+        Self::capability_event_route_valid(
             import,
             member,
             original_alias,
@@ -5565,6 +5445,7 @@ impl<'a> Cx<'a> {
             from_node,
             source,
             fact,
+            NativeCapabilityEvent::PaymentsChanged,
         )?;
         Some(IrEventSource::PaymentsChanged {
             source: fact.source.clone(),
@@ -9887,50 +9768,14 @@ impl<'a> Cx<'a> {
         node: &SyntaxNode,
         head: &SyntaxNode,
         ty: &ResolvedType,
-        parts: &[&SyntaxNode],
         checked: &Option<CheckedQuery>,
     ) -> Option<()> {
         let fact = checked.as_ref()?;
-        let clauses: Vec<_> = parts
-            .iter()
-            .filter(|part| part.kind == SyntaxKind::QueryClause)
-            .collect();
-        if fact.node != NodeKey::of(node)
-            || fact.domain != NodeKey::of(head)
+        let text = &self.db.get(node.span.file)?.text;
+        if fact.domain != NodeKey::of(head)
             || fact.result != *ty
             || self.program.types.node_types.get(&fact.domain) != Some(&fact.domain_type)
-            || fact.clauses.len() != clauses.len()
-            || fact.clauses.iter().zip(&clauses).any(|(fact, clause)| {
-                let parts = kids(clause);
-                let keyword = parts
-                    .iter()
-                    .find_map(|part| name_text(self.db, part))
-                    .unwrap_or_default();
-                let kind_matches = match &fact.kind {
-                    CheckedQueryClauseKind::As { name } => {
-                        keyword == "as"
-                            && parts
-                                .iter()
-                                .rev()
-                                .find_map(|part| name_text(self.db, part))
-                                .as_ref()
-                                == Some(name)
-                    }
-                    CheckedQueryClauseKind::Where => keyword == "where",
-                    CheckedQueryClauseKind::Order => keyword == "order",
-                    CheckedQueryClauseKind::Limit => keyword == "limit",
-                    CheckedQueryClauseKind::Archived => keyword == "archived",
-                    CheckedQueryClauseKind::Select => keyword == "select",
-                };
-                !kind_matches
-                    || fact.node != NodeKey::of(clause)
-                    || fact.expressions
-                        != kids(clause)
-                            .iter()
-                            .filter(|part| is_expression(part.kind))
-                            .map(|part| NodeKey::of(part))
-                            .collect::<Vec<_>>()
-            })
+            || !fact.matches_source(node, text, is_expression)
         {
             return None;
         }
@@ -10234,7 +10079,7 @@ impl<'a> Cx<'a> {
             .cloned();
         if checked.is_some()
             && self
-                .query_source_facts_valid(node, head, ty, &parts, &checked)
+                .query_source_facts_valid(node, head, ty, &checked)
                 .is_none()
         {
             return IrExpr::Unsupported {

@@ -9,6 +9,7 @@ use std::{
     fs,
     io::{Read, Write},
     net::TcpStream,
+    os::unix::fs::{PermissionsExt, symlink},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::atomic::AtomicBool,
@@ -16,6 +17,9 @@ use std::{
     time::{Duration, Instant},
 };
 use url::Url;
+
+#[path = "integration/terminal.rs"]
+mod terminal;
 
 const SOURCE: &str = "app SessionLifecycle\nGiven\n Item {title:text}\n policy Item read=members\nWhen\n crud Item by=members fields=title\nThen\n page / title=\"Owner lifecycle\"\n  text \"Owner lifecycle\"\n";
 
@@ -204,6 +208,16 @@ fn real_owner_retains_serving_preview_across_errors_reuses_exact_inputs_and_join
     let first = session.request("check", Value::Null);
     assert_eq!(first["state"], "valid", "{first}");
     assert_eq!(first["preview"], "ready", "{first}");
+    terminal::attached(
+        &session.root,
+        session._directory.path(),
+        &session.client.identity.session_id,
+    );
+    assert_eq!(
+        session.status()["observation"]["lifecycle"],
+        "running",
+        "attached UI cannot stop its owner"
+    );
     let serving = session.status();
     let build = serving["serving_build"].clone();
     assert!(build.is_string());
@@ -237,6 +251,72 @@ fn real_owner_retains_serving_preview_across_errors_reuses_exact_inputs_and_join
         "identical captured inputs reuse the selected generation"
     );
 
+    // Admit replacement previews through the real compiler/SDK/Workerd path while
+    // retained metadata is unsafe. Every refusal preserves both state and serving generation.
+    let state_root = session._directory.path().join("state");
+    let state_directory = fs::read_dir(&state_root)
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    let manifest = state_directory.join("preview.json");
+    let original_metadata = fs::read(&manifest).unwrap();
+    assert_eq!(
+        fs::metadata(&manifest).unwrap().permissions().mode() & 0o777,
+        0o600
+    );
+    assert_eq!(
+        fs::metadata(&state_directory).unwrap().permissions().mode() & 0o777,
+        0o700
+    );
+    let retained: Value = serde_json::from_slice(&original_metadata).unwrap();
+    assert!(retained["seed"]["actors"].is_array());
+    for fault in ["permissions", "symlink", "schema"] {
+        let moved = state_directory.join("retained-original.json");
+        let expected = match fault {
+            "permissions" => {
+                fs::set_permissions(&manifest, fs::Permissions::from_mode(0o644)).unwrap();
+                original_metadata.clone()
+            }
+            "symlink" => {
+                fs::rename(&manifest, &moved).unwrap();
+                symlink(&moved, &manifest).unwrap();
+                original_metadata.clone()
+            }
+            _ => {
+                let mut changed = retained.clone();
+                changed["schema"] = json!("0".repeat(64));
+                let bytes = serde_json::to_vec(&changed).unwrap();
+                fs::write(&manifest, &bytes).unwrap();
+                bytes
+            }
+        };
+        fs::write(
+            session.root.join("App.can"),
+            format!("{SOURCE}## retained admission {fault}\n"),
+        )
+        .unwrap();
+        session.wait_for_check_admission();
+        let refused = session.request("check", Value::Null);
+        assert_eq!(refused["state"], "valid", "{fault}: {refused}");
+        assert_eq!(refused["preview"], "build_failed", "{fault}: {refused}");
+        assert_eq!(session.status()["serving_build"], build);
+        assert!(get(&url, Some(&cookie)).contains("Owner lifecycle"));
+        assert_eq!(
+            fs::read(&manifest).unwrap(),
+            expected,
+            "refused metadata must be preserved"
+        );
+        if fault == "symlink" {
+            fs::remove_file(&manifest).unwrap();
+            fs::rename(&moved, &manifest).unwrap();
+        } else {
+            fs::set_permissions(&manifest, fs::Permissions::from_mode(0o600)).unwrap();
+            fs::write(&manifest, &original_metadata).unwrap();
+        }
+    }
+
     fs::write(
         session.root.join("App.can"),
         SOURCE.replace("Item {title:text}", "Item {title:missing_type}"),
@@ -253,6 +333,33 @@ fn real_owner_retains_serving_preview_across_errors_reuses_exact_inputs_and_join
     assert_eq!(stale["preview"], "ready");
     assert_eq!(stale["stale"], true);
     assert!(get(&url, Some(&cookie)).contains("Owner lifecycle"));
+    let revision = failed["revision"].as_str().unwrap();
+    let diagnostics = session.request(
+        "diagnostics",
+        json!({"revision":revision,"after":-1,"limit":1}),
+    );
+    assert_eq!(diagnostics["revision"], revision);
+    assert!(!diagnostics["diagnostics"].as_array().unwrap().is_empty());
+    let detail = session.request(
+        "diagnostic.detail",
+        json!({"revision":revision,"index":0,"presentationOnly":true}),
+    );
+    assert!(
+        detail["captured_excerpt"]
+            .to_string()
+            .contains("missing_type")
+    );
+    let invalid = session
+        .client
+        .request(
+            ControlCommand {
+                command: "diagnostics".into(),
+                payload: json!({"revision":revision,"after":-2}),
+            },
+            &AtomicBool::new(false),
+        )
+        .unwrap_err();
+    assert_eq!(invalid.code, "INVALID_REQUEST");
 
     fs::write(session.root.join("App.can"), SOURCE).unwrap();
     session.wait_for_check_admission();

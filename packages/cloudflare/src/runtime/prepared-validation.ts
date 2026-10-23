@@ -73,7 +73,15 @@ function wireLengthBound(value: unknown): unknown {
 function wireField(value: unknown): FieldDescriptor {
   const field = record(capture(value)), type = member(field, 'type');
   if (typeof type !== 'string') return refuse('field has no owning type');
-  const base = parseTypeId(type);
+  // Model enum declarations keep their cases beside the leaf type. Join the
+  // exact original list before applying wrappers or encoding creation defaults.
+  let base = parseTypeId(type);
+  if (type === 'enum' && Object.hasOwn(field, 'cases')) {
+    const cases = field.cases;
+    if (!Array.isArray(cases) || cases.some(item => typeof item !== 'string')) return refuse('invalid enum cases');
+    base = parseTypeId(`enum(${cases.join(',')})`);
+    if (base.base.kind !== 'enum' || sealedData(base.base.cases) !== sealedData(cases)) return refuse('invalid enum cases');
+  }
   // Model declarations keep wrappers beside the leaf type; contract/parameter
   // declarations may already carry the complete type ID. Encode defaults only
   // after joining those exact owning wrappers.
@@ -186,7 +194,12 @@ function assertFieldPair(source: unknown, expected: ArtifactInputField, enums: R
     (!parsed.array || parsed.requiredArray === (expected.array?.required === true));
   if (!matches) return refuse(`input ${expected.name} differs from its checked type`);
   if (parsed.array) for (const key of ['min', 'max'] as const) if (field[key] !== expected[key]) return refuse(`input ${expected.name} differs from its checked bound`);
-  if (expected.default?.kind === 'literal') {
+  const computedInput = 'computedDefault' in expected && expected.computedDefault === true;
+  const computed = computedInput || expected.default?.kind === 'parent';
+  if ((original.computedDefault === true) !== computed) return refuse(`input ${expected.name} differs from its checked deferred default`);
+  if (computedInput) {
+    if (expected.default !== undefined || Object.hasOwn(original, 'default')) return refuse(`input ${expected.name} added a conflicting default`);
+  } else if (expected.default?.kind === 'literal') {
     if (!Object.hasOwn(original, 'default') ||
         JSON.stringify(encodeValue(field.type, original.default as CanValue)) !== JSON.stringify(encodeValue(field.type, decodeValue(field.type, expected.default.value)))) {
       return refuse(`input ${expected.name} differs from its checked default`);
@@ -259,7 +272,11 @@ function assertDeclarationPair(definition: unknown, operation: string, artifact:
  * catching a failed plan or switching a native backend. Canonical HTTP/State
  * still own aliases/NAME/keyed arrays without claiming a prepared Values plan. */
 function unsupportedProfile(descriptor: SchemaDescriptor): boolean {
-  return Object.hasOwn(descriptor, 'aliases') || [
+  // Values permits engine-resolved fields on contracts only. Computed
+  // operation defaults retain canonical HTTP omission and State evaluation.
+  return Object.hasOwn(descriptor, 'aliases') ||
+    Object.values(descriptor.operations ?? {}).some(operation =>
+      Object.values(operation.inputs).some(field => field.server === true || field.derived === true)) || [
     ...Object.values(descriptor.contracts ?? {}).map(contract => contract.fields),
     ...Object.values(descriptor.operations ?? {}).map(operation => operation.inputs),
   ].some(fields => Object.values(fields).some(field =>

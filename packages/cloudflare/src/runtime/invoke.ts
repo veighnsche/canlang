@@ -13178,6 +13178,51 @@ async function runScenarioExecution(
       } catch (error) { recordEngineFailure(error); throw error; }
     });
   }
+  // One actual owner callback consumes one original occurrence. Family-specific
+  // source/phase/lease checks remain in the evaluator, before any domain effects.
+  const ownerDecisionCallback = <Result>(actualCall: AdmittedCall, checked: unknown,
+    sourceError: string, evaluate: (descriptor: unknown, body: Function) => Promise<Result>,
+    blocked: () => boolean = () => false) => {
+    let consumed = false;
+    return async (descriptor: unknown, body: Function): Promise<Result> => {
+      try {
+        if (consumed || blocked() || stableStringify(descriptor) !== stableStringify(checked) ||
+            nativeScenarioExecutions.get(actualCall) === undefined) return refuseRecordBinding(sourceError);
+        consumed = true;
+        return await evaluate(descriptor, body);
+      } catch (error) { recordEngineFailure(error); throw error; }
+    };
+  };
+  const rememberOwnerDecisionRow = (model: string, row: StoredRow, changedError: string): void => {
+    const key = stagedKey(model, row.id), known = ownerRows.get(key);
+    if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
+      return refuseRecordBinding(changedError);
+    }
+    ownerRows.set(key, row);
+  };
+  // Query-site, parent and phase admission remain in each defining profile.
+  // This shared traversal only installs its issued rows and evaluates the
+  // original predicate, in order, with the same live-owner checks after awaits.
+  const projectOwnerDecisionDomain = async (model: string, domain: readonly StoredRow[],
+    selection: CanonicalReadQuery, healthy: () => void, prepareNavigation: boolean,
+    changedError: string | null, predicateError: string): Promise<ReadonlyArray<Record<string, unknown>>> => {
+    const result: Record<string, unknown>[] = [];
+    for (const row of domain) {
+      if (changedError === null) ownerRows.set(stagedKey(model, row.id), row);
+      else rememberOwnerDecisionRow(model, row, changedError);
+      if (prepareNavigation) {
+        await ownerNavigation.prepare(model, row);
+        healthy();
+      }
+      const view = recordView(model, row);
+      const match = selection.where === undefined ? true :
+        await Reflect.apply(selection.where as Function, undefined, [view, ctx]);
+      healthy();
+      if (typeof match !== 'boolean') return refuseRecordBinding(predicateError);
+      if (match) result.push(view);
+    }
+    return Object.freeze(result);
+  };
   if (receiptAware && receiptStore !== undefined && ownerSession !== undefined &&
       scenarioDef?.name === 'member_terms.term') {
     const actualCall = call as AdmittedCall;
@@ -13187,14 +13232,8 @@ async function runScenarioExecution(
     if (checked === undefined || execute === undefined || callable?.inputStyle !== 'parameters') {
       return refuseRecordBinding('Term needs its exact installed owner decision.');
     }
-    let consumed = false;
-    bindNativeScenarioTermDecision(ctx, async (descriptor, select) => {
-      try {
-        if (consumed || stableStringify(descriptor) !== stableStringify(checked) ||
-            nativeScenarioExecutions.get(actualCall) === undefined) {
-          return refuseRecordBinding('Term decision differs from its unique checked original occurrence.');
-        }
-        consumed = true;
+    bindNativeScenarioTermDecision(ctx, ownerDecisionCallback(actualCall, checked,
+      'Term decision differs from its unique checked original occurrence.', async (descriptor, select) => {
         let selected: unknown;
         const result = await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
           evaluate: async frame => {
@@ -13226,8 +13265,7 @@ async function runScenarioExecution(
           return refuseRecordBinding('Term decision lost its selected current Renewal.');
         }
         return selected;
-      } catch (error) { recordEngineFailure(error); throw error; }
-    });
+      }));
   }
   if (receiptAware && receiptStore !== undefined && ownerSession !== undefined &&
       scenarioDef?.name === 'leave.request') {
@@ -13238,14 +13276,8 @@ async function runScenarioExecution(
     if (checked === undefined || execute === undefined || callable?.inputStyle !== 'parameters') {
       return refuseRecordBinding('Leave request needs its exact installed owner decision.');
     }
-    let consumed = false;
-    bindNativeScenarioLeaveRequestDecision(ctx, async (descriptor, body) => {
-      try {
-        if (consumed || stableStringify(descriptor) !== stableStringify(checked) ||
-            nativeScenarioExecutions.get(actualCall) === undefined) {
-          return refuseRecordBinding('Leave request differs from its unique checked source occurrence.');
-        }
-        consumed = true;
+    bindNativeScenarioLeaveRequestDecision(ctx, ownerDecisionCallback(actualCall, checked,
+      'Leave request differs from its unique checked source occurrence.', async (descriptor, body) => {
         await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
           evaluate: async frame => {
             const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
@@ -13319,8 +13351,7 @@ async function runScenarioExecution(
               if (answer !== undefined) return refuseRecordBinding('Leave request original body must return void.');
             } finally { closeRole?.(); leaveDecisionReadRecords = null; leaveDecisionCreateParent = null; }
           } });
-      } catch (error) { recordEngineFailure(error); throw error; }
-    });
+      }));
   }
   if (receiptAware && receiptStore !== undefined && ownerSession !== undefined &&
       scenarioDef?.name === 'leave.decide') {
@@ -13331,14 +13362,9 @@ async function runScenarioExecution(
     if (checked === undefined || execute === undefined || callable?.inputStyle !== 'parameters') {
       return refuseRecordBinding('Leave decision needs its exact installed owner decision.');
     }
-    let consumed = false, active = false;
-    bindNativeScenarioLeaveDecideDecision(ctx, async (descriptor, body) => {
-      try {
-        if (consumed || stableStringify(descriptor) !== stableStringify(checked) ||
-            nativeScenarioExecutions.get(actualCall) === undefined) {
-          return refuseRecordBinding('Leave decision differs from its unique checked source occurrence.');
-        }
-        consumed = true;
+    let active = false;
+    bindNativeScenarioLeaveDecideDecision(ctx, ownerDecisionCallback(actualCall, checked,
+      'Leave decision differs from its unique checked source occurrence.', async (descriptor, body) => {
         await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
           evaluate: async frame => {
             const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
@@ -13361,12 +13387,7 @@ async function runScenarioExecution(
               ['leave.Request', frame.request], ['leave.Calendar', frame.calendar],
               ['employee.Employee', frame.employee],
             ] as const) {
-              const key = stagedKey(model, row.id);
-              const known = ownerRows.get(key);
-              if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
-                return refuseRecordBinding('Leave decision owner ancestry differs from its admitted row.');
-              }
-              ownerRows.set(key, row);
+              rememberOwnerDecisionRow(model, row, 'Leave decision owner ancestry differs from its admitted row.');
             }
             await ownerNavigation.prepare('leave.Request', frame.request);
             healthy();
@@ -13460,8 +13481,7 @@ async function runScenarioExecution(
               if (answer !== undefined) return refuseRecordBinding('Leave decision original body must return void.');
             } finally { active = false; leaveDecideReadRecords = null; }
           } });
-      } catch (error) { recordEngineFailure(error); throw error; }
-    });
+      }));
   }
   if (receiptAware && receiptStore !== undefined && ownerSession !== undefined &&
       scenarioDef?.name === 'refer.reject_source') {
@@ -13472,14 +13492,9 @@ async function runScenarioExecution(
     if (checked === undefined || execute === undefined || callable?.inputStyle !== 'parameters') {
       return refuseRecordBinding('Referral rejection needs its exact installed owner decision.');
     }
-    let consumed = false, active = false;
-    bindNativeScenarioReferRejectDecision(ctx, async (descriptor, body) => {
-      try {
-        if (consumed || stableStringify(descriptor) !== stableStringify(checked) ||
-            nativeScenarioExecutions.get(actualCall) === undefined) {
-          return refuseRecordBinding('Referral rejection differs from its unique checked source occurrence.');
-        }
-        consumed = true;
+    let active = false;
+    bindNativeScenarioReferRejectDecision(ctx, ownerDecisionCallback(actualCall, checked,
+      'Referral rejection differs from its unique checked source occurrence.', async (descriptor, body) => {
         await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
           evaluate: async frame => {
             const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
@@ -13505,12 +13520,7 @@ async function runScenarioExecution(
               ['refer.SourceEvidence', frame.evidence], ['refer.Advocate', frame.advocate],
               ['refer.Program', frame.program],
             ] as const) {
-              const key = stagedKey(model, row.id);
-              const known = ownerRows.get(key);
-              if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
-                return refuseRecordBinding('Referral rejection owner ancestry differs from its admitted row.');
-              }
-              ownerRows.set(key, row);
+              rememberOwnerDecisionRow(model, row, 'Referral rejection owner ancestry differs from its admitted row.');
               await ownerNavigation.prepare(model, row);
               healthy();
             }
@@ -13543,21 +13553,8 @@ async function runScenarioExecution(
               const domain = await frame.query(site.id, model as ModelName,
                 header ? undefined : { model: 'refer.Advocate' as ModelName, id: frame.advocate.id });
               healthy();
-              const result: Record<string, unknown>[] = [];
-              for (const row of domain) {
-                ownerRows.set(stagedKey(model, row.id), row);
-                await ownerNavigation.prepare(model, row);
-                healthy();
-                const view = recordView(model, row);
-                const match = selection.where === undefined ? true :
-                  await Reflect.apply(selection.where as Function, undefined, [view, ctx]);
-                healthy();
-                if (typeof match !== 'boolean') {
-                  return refuseRecordBinding('Referral rejection query predicate must return Bool.');
-                }
-                if (match) result.push(view);
-              }
-              return Object.freeze(result);
+              return projectOwnerDecisionDomain(model, domain, selection, healthy,
+                true, null, 'Referral rejection query predicate must return Bool.');
             };
             let closeRole: (() => void) | undefined;
             try {
@@ -13573,8 +13570,7 @@ async function runScenarioExecution(
             } finally { closeRole?.(); active = false; referRejectReadRecords = null;
               referRejectEvidenceLink = null; referRejectCreateParent = null; }
           } });
-      } catch (error) { recordEngineFailure(error); throw error; }
-    });
+      }));
   }
   if (receiptAware && receiptStore !== undefined && ownerSession !== undefined &&
       scenarioDef?.name === 'member_terms.retry_collection') {
@@ -13585,14 +13581,9 @@ async function runScenarioExecution(
     if (checked === undefined || execute === undefined || callable?.inputStyle !== 'parameters') {
       return refuseRecordBinding('Member retry needs its exact installed owner decision.');
     }
-    let consumed = false, active = false;
-    bindNativeScenarioMemberRetryDecision(ctx, async (descriptor, body) => {
-      try {
-        if (consumed || stableStringify(descriptor) !== stableStringify(checked) ||
-            nativeScenarioExecutions.get(actualCall) === undefined) {
-          return refuseRecordBinding('Member retry differs from its unique checked source occurrence.');
-        }
-        consumed = true;
+    let active = false;
+    bindNativeScenarioMemberRetryDecision(ctx, ownerDecisionCallback(actualCall, checked,
+      'Member retry differs from its unique checked source occurrence.', async (descriptor, body) => {
         await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
           evaluate: async frame => {
             const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
@@ -13615,12 +13606,7 @@ async function runScenarioExecution(
               ['member_terms.Term', frame.term], ['member_terms.Membership', frame.membership],
               ['customer.Customer', frame.customer],
             ] as const) {
-              const key = stagedKey(model, row.id);
-              const known = ownerRows.get(key);
-              if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
-                return refuseRecordBinding('Member retry owner ancestry differs from its admitted row.');
-              }
-              ownerRows.set(key, row);
+              rememberOwnerDecisionRow(model, row, 'Member retry owner ancestry differs from its admitted row.');
               await ownerNavigation.prepare(model, row);
               healthy();
             }
@@ -13653,21 +13639,8 @@ async function runScenarioExecution(
               const domain = await frame.query(site.id, model as ModelName,
                 employee ? undefined : { model: 'customer.Customer' as ModelName, id: frame.customer.id });
               healthy();
-              const result: Record<string, unknown>[] = [];
-              for (const row of domain) {
-                ownerRows.set(stagedKey(model, row.id), row);
-                await ownerNavigation.prepare(model, row);
-                healthy();
-                const view = recordView(model, row);
-                const match = selection.where === undefined ? true :
-                  await Reflect.apply(selection.where as Function, undefined, [view, ctx]);
-                healthy();
-                if (typeof match !== 'boolean') {
-                  return refuseRecordBinding('Member retry query predicate must return Bool.');
-                }
-                if (match) result.push(view);
-              }
-              return Object.freeze(result);
+              return projectOwnerDecisionDomain(model, domain, selection, healthy,
+                true, null, 'Member retry query predicate must return Bool.');
             };
             try {
               const answer = await Reflect.apply(body, undefined, [ctx, Object.freeze({ term })]);
@@ -13675,8 +13648,7 @@ async function runScenarioExecution(
               if (answer !== undefined) return refuseRecordBinding('Member retry original body must return void.');
             } finally { active = false; memberRetryReadRecords = null; }
           } });
-      } catch (error) { recordEngineFailure(error); throw error; }
-    });
+      }));
   }
   if (receiptAware && receiptStore !== undefined && ownerSession !== undefined &&
       scenarioDef?.name === 'invoice.collect') {
@@ -13691,14 +13663,9 @@ async function runScenarioExecution(
         selected.length !== 1 || selected[0]!.guard.rule !== checked.sendRule.rule) {
       return refuseRecordBinding('Invoice collect needs its exact owner decision and guarded Payments SEND.');
     }
-    let consumed = false, active = false;
-    bindNativeScenarioInvoiceCollectDecision(ctx, async (descriptor, body) => {
-      try {
-        if (consumed || stableStringify(descriptor) !== stableStringify(checked) ||
-            nativeScenarioExecutions.get(actualCall) === undefined) {
-          return refuseRecordBinding('Invoice collect differs from its unique checked source occurrence.');
-        }
-        consumed = true;
+    let active = false;
+    bindNativeScenarioInvoiceCollectDecision(ctx, ownerDecisionCallback(actualCall, checked,
+      'Invoice collect differs from its unique checked source occurrence.', async (descriptor, body) => {
         await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
           evaluate: async frame => {
             const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
@@ -13719,12 +13686,7 @@ async function runScenarioExecution(
             for (const [model, row] of [
               ['customer.Customer', frame.customer], ['invoice.Invoice', frame.invoice],
             ] as const) {
-              const key = stagedKey(model, row.id);
-              const known = ownerRows.get(key);
-              if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
-                return refuseRecordBinding('Invoice collect owner ancestry changed before source execution.');
-              }
-              ownerRows.set(key, row);
+              rememberOwnerDecisionRow(model, row, 'Invoice collect owner ancestry changed before source execution.');
               await ownerNavigation.prepare(model, row);
               healthy();
             }
@@ -13765,26 +13727,8 @@ async function runScenarioExecution(
                 expectedParent === undefined ? undefined :
                   { model: expectedParent.model as ModelName, id: expectedParent.id as RecordId });
               healthy();
-              const result: Record<string, unknown>[] = [];
-              for (const row of domain) {
-                const key = stagedKey(model, row.id);
-                const known = ownerRows.get(key);
-                if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
-                  return refuseRecordBinding('Invoice collect source domain changed within its owner frame.');
-                }
-                ownerRows.set(key, row);
-                await ownerNavigation.prepare(model, row);
-                healthy();
-                const view = recordView(model, row);
-                const match = selection.where === undefined ? true :
-                  await Reflect.apply(selection.where as Function, undefined, [view, ctx]);
-                healthy();
-                if (typeof match !== 'boolean') {
-                  return refuseRecordBinding('Invoice collect query predicate must return Bool.');
-                }
-                if (match) result.push(view);
-              }
-              return Object.freeze(result);
+              return projectOwnerDecisionDomain(model, domain, selection, healthy,
+                true, 'Invoice collect source domain changed within its owner frame.', 'Invoice collect query predicate must return Bool.');
             };
             let closeRole: (() => void) | undefined;
             try {
@@ -13798,8 +13742,7 @@ async function runScenarioExecution(
               invoiceCollectCancel = null;
             }
           } });
-      } catch (error) { recordEngineFailure(error); throw error; }
-    });
+      }));
   }
   if (receiptAware && receiptStore !== undefined && ownerSession !== undefined &&
       scenarioDef?.name === 'invoice.issue') {
@@ -13815,14 +13758,9 @@ async function runScenarioExecution(
         opts.formatting?.appDefault === undefined || opts.deploymentBase === undefined) {
       return refuseRecordBinding('Invoice issue needs its exact owner decision, guarded Mail and app presentation.');
     }
-    let consumed = false, active = false, defaultsUsed = false;
-    bindNativeScenarioInvoiceIssueDecision(ctx, async (descriptor, body) => {
-      try {
-        if (consumed || stableStringify(descriptor) !== stableStringify(checked) ||
-            nativeScenarioExecutions.get(actualCall) === undefined) {
-          return refuseRecordBinding('Invoice issue differs from its unique checked source occurrence.');
-        }
-        consumed = true;
+    let active = false, defaultsUsed = false;
+    bindNativeScenarioInvoiceIssueDecision(ctx, ownerDecisionCallback(actualCall, checked,
+      'Invoice issue differs from its unique checked source occurrence.', async (descriptor, body) => {
         await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
           appDefault: opts.formatting!.appDefault, appBaseUrl: opts.deploymentBase!,
           evaluate: async frame => {
@@ -13896,25 +13834,8 @@ async function runScenarioExecution(
                 unscoped ? undefined : { model: 'invoice.Invoice' as ModelName,
                   id: frame.invoice.id as RecordId });
               healthy();
-              const result: Record<string, unknown>[] = [];
-              for (const row of domain) {
-                const key = stagedKey(model, row.id), known = ownerRows.get(key);
-                if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
-                  return refuseRecordBinding('Invoice issue source domain changed within its owner frame.');
-                }
-                ownerRows.set(key, row);
-                await ownerNavigation.prepare(model, row);
-                healthy();
-                const view = recordView(model, row);
-                const match = selection.where === undefined ? true :
-                  await Reflect.apply(selection.where as Function, undefined, [view, ctx]);
-                healthy();
-                if (typeof match !== 'boolean') {
-                  return refuseRecordBinding('Invoice issue query predicate must return Bool.');
-                }
-                if (match) result.push(view);
-              }
-              return Object.freeze(result);
+              return projectOwnerDecisionDomain(model, domain, selection, healthy,
+                true, 'Invoice issue source domain changed within its owner frame.', 'Invoice issue query predicate must return Bool.');
             };
             const firstDefaults = async () => {
               healthy();
@@ -13952,8 +13873,7 @@ async function runScenarioExecution(
               invoiceIssueSlot.current = null; invoiceIssueEmit = null; invoiceIssueSchedule = null;
             }
           } });
-      } catch (error) { recordEngineFailure(error); throw error; }
-    });
+      }));
   }
   if (receiptAware && receiptStore !== undefined && ownerSession !== undefined &&
       scenarioDef?.name === 'rent_reservations.refund_movement_credit') {
@@ -13965,14 +13885,9 @@ async function runScenarioExecution(
     if (checked === undefined || execute === undefined || callable?.inputStyle !== 'parameters') {
       return refuseRecordBinding('Movement refund needs its exact installed owner decision.');
     }
-    let consumed = false, active = false;
-    bindNativeScenarioRentMovementRefundDecision(ctx, async (descriptor, body) => {
-      try {
-        if (consumed || stableStringify(descriptor) !== stableStringify(checked) ||
-            nativeScenarioExecutions.get(actualCall) === undefined) {
-          return refuseRecordBinding('Movement refund differs from its unique checked source occurrence.');
-        }
-        consumed = true;
+    let active = false;
+    bindNativeScenarioRentMovementRefundDecision(ctx, ownerDecisionCallback(actualCall, checked,
+      'Movement refund differs from its unique checked source occurrence.', async (descriptor, body) => {
         await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
           evaluate: async frame => {
             const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
@@ -13995,12 +13910,7 @@ async function runScenarioExecution(
               ['rent_reservations.Resource', frame.resource], ['rent_reservations.Booking', frame.booking],
               ['rent_reservations.Movement', frame.movement],
             ] as const) {
-              const key = stagedKey(model, row.id);
-              const known = ownerRows.get(key);
-              if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
-                return refuseRecordBinding('Movement refund owner ancestry changed before source execution.');
-              }
-              ownerRows.set(key, row);
+              rememberOwnerDecisionRow(model, row, 'Movement refund owner ancestry changed before source execution.');
               if (model !== 'rent_reservations.Resource') await ownerNavigation.prepare(model, row);
               healthy();
             }
@@ -14040,24 +13950,8 @@ async function runScenarioExecution(
               const domain = await frame.query(site.id, model as ModelName,
                 parent === undefined ? undefined : { model: parent.model as ModelName, id: parent.id as RecordId });
               healthy();
-              const result: Record<string, unknown>[] = [];
-              for (const row of domain) {
-                const key = stagedKey(model, row.id);
-                const known = ownerRows.get(key);
-                if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
-                  return refuseRecordBinding('Movement refund source domain changed within its owner frame.');
-                }
-                ownerRows.set(key, row);
-                const view = recordView(model, row);
-                const match = selection.where === undefined ? true :
-                  await Reflect.apply(selection.where as Function, undefined, [view, ctx]);
-                healthy();
-                if (typeof match !== 'boolean') {
-                  return refuseRecordBinding('Movement refund query predicate must return Bool.');
-                }
-                if (match) result.push(view);
-              }
-              return Object.freeze(result);
+              return projectOwnerDecisionDomain(model, domain, selection, healthy,
+                false, 'Movement refund source domain changed within its owner frame.', 'Movement refund query predicate must return Bool.');
             };
             let closeRole: (() => void) | undefined;
             try {
@@ -14071,8 +13965,7 @@ async function runScenarioExecution(
             } finally { closeRole?.(); active = false; rentMovementRefundReadRecords = null;
               rentMovementRefundCreateParent = null; }
           } });
-      } catch (error) { recordEngineFailure(error); throw error; }
-    });
+      }));
   }
   if ((internalHandlerDue || internalRentNoticeRetained || internalRetainedGuarded) && receiptStore !== undefined &&
       ownerSession !== undefined &&
@@ -14095,15 +13988,8 @@ async function runScenarioExecution(
           [...checked.sendRules.map(item => item.rule)].sort().join('\0')) {
       return refuseRecordBinding('Rent notice needs its exact retained event, checked presentation and guarded Mail sends.');
     }
-    let consumed = false;
-    bindNativeScenarioRentNoticeDecision(ctx, async (descriptor, body) => {
-      try {
-        if (consumed || rentNoticeHooks !== null ||
-            stableStringify(descriptor) !== stableStringify(checked) ||
-            nativeScenarioExecutions.get(actualCall) === undefined) {
-          return refuseRecordBinding('Rent notice differs from its unique checked source handler.');
-        }
-        consumed = true;
+    bindNativeScenarioRentNoticeDecision(ctx, ownerDecisionCallback(actualCall, checked,
+      'Rent notice differs from its unique checked source handler.', async (descriptor, body) => {
         await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
           appDefault: opts.formatting!.appDefault,
           evaluate: async frame => {
@@ -14117,12 +14003,7 @@ async function runScenarioExecution(
               ['rent_reservations.Resource', frame.resource],
               ['rent_reservations.Booking', frame.event.booking],
             ] as const) {
-              const key = stagedKey(model, row.id);
-              const known = ownerRows.get(key);
-              if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
-                return refuseRecordBinding('Rent notice owner ancestry changed before source execution.');
-              }
-              ownerRows.set(key, row);
+              rememberOwnerDecisionRow(model, row, 'Rent notice owner ancestry changed before source execution.');
               await ownerNavigation.prepare(model, row);
               healthy();
             }
@@ -14139,8 +14020,7 @@ async function runScenarioExecution(
               if (answer !== undefined) return refuseRecordBinding('Rent notice original body must return void.');
             } finally { rentNoticeHooks = null; rentNoticeLocationSlot.current = null; }
           } });
-      } catch (error) { recordEngineFailure(error); throw error; }
-    });
+      }, () => rentNoticeHooks !== null));
   }
   if (internalHandlerDue && receiptStore !== undefined && scenarioDef !== undefined && isSuccessNoticeOwner(scenarioDef.name)) {
     const checked = (scenarioDef.descriptor.result?.disclosure as

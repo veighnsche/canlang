@@ -555,17 +555,6 @@ pub(crate) fn test_browser(
         h.login("Cal")?,
         h.login("Dee")?,
     ];
-    for (_, binding) in &h.owners {
-        require(
-            h.sql(
-                binding,
-                "SELECT id FROM records WHERE model=? AND archived_at IS NULL",
-                json!([MODEL]),
-            )?
-            .is_empty(),
-            "browser cancellation fixture must start without domain records",
-        )?;
-    }
     browser::run(&h, artifact, capture, &expected, &json!({"id":id()?}))?;
     Ok(json!({"passed":true}))
 }

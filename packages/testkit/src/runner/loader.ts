@@ -26,6 +26,7 @@ import type { ReportValue } from "@canlang/contracts";
 export interface FixtureBindings {
   self: unknown;
   other: unknown;
+  outsider?: unknown;
   imported: unknown;
 }
 

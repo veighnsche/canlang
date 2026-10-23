@@ -297,6 +297,36 @@ impl ResolvedType {
         matches!(self, ResolvedType::Error)
     }
 
+    /// A bounded structural check shared by query facts and receipt source
+    /// proofs. Concrete types remain data; this does not admit any profile.
+    pub(crate) fn is_resolved_shape(&self) -> bool {
+        let mut pending = vec![(self, 0usize)];
+        let mut steps = 0usize;
+        while let Some((ty, depth)) = pending.pop() {
+            steps += 1;
+            if steps > 4096 || depth > 64 {
+                return false;
+            }
+            match ty {
+                Self::Unknown | Self::Error | Self::Opaque(_) => return false,
+                Self::Nullable(inner) | Self::Array { element: inner, .. } => {
+                    pending.push((inner, depth + 1));
+                }
+                Self::Object(fields) | Self::StdNominal { fields, .. } => {
+                    if fields.len() > 4096 {
+                        return false;
+                    }
+                    pending.extend(fields.iter().map(|(_, ty)| (ty, depth + 1)));
+                }
+                _ => {}
+            }
+            if pending.len() > 4096 {
+                return false;
+            }
+        }
+        true
+    }
+
     /// Strip one nullable layer, if present.
     pub fn nullable_inner(&self) -> Option<&ResolvedType> {
         match self {
@@ -516,6 +546,62 @@ pub struct CheckedQuery {
     pub projection: Option<Box<CheckedQueryProjection>>,
 }
 
+impl CheckedQuery {
+    /// Compare the whole original query occurrence's domain/clause census.
+    /// Consumer-specific source/type/owner and execution checks remain separate.
+    pub(crate) fn matches_source_nodes(
+        &self,
+        node: &SyntaxNode,
+        expression: fn(SyntaxKind) -> bool,
+    ) -> bool {
+        let mut domains = node.children.iter().filter(|child| expression(child.kind));
+        let mut clauses = node
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::QueryClause);
+        node.kind == SyntaxKind::Query
+            && self.node == NodeKey::of(node)
+            && domains.next().map(NodeKey::of) == Some(self.domain)
+            && domains.next().is_none()
+            && self
+                .clauses
+                .iter()
+                .all(|fact| clauses.next().map(NodeKey::of) == Some(fact.node))
+            && clauses.next().is_none()
+    }
+
+    /// Re-read exact clause kinds, aliases and expression positions from source.
+    pub(crate) fn matches_source(
+        &self,
+        node: &SyntaxNode,
+        text: &str,
+        expression: fn(SyntaxKind) -> bool,
+    ) -> bool {
+        self.matches_source_nodes(node, expression)
+            && self
+                .clauses
+                .iter()
+                .zip(
+                    node.children
+                        .iter()
+                        .filter(|child| child.kind == SyntaxKind::QueryClause),
+                )
+                .all(|(fact, clause)| {
+                    CheckedQueryClause::from_source(clause, text, expression).as_ref() == Some(fact)
+                        && match &fact.kind {
+                            CheckedQueryClauseKind::As { name } => {
+                                kids(clause)
+                                    .iter()
+                                    .rev()
+                                    .find_map(|part| name_text(part, text))
+                                    == Some(name.as_str())
+                            }
+                            _ => true,
+                        }
+                })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct CheckedQueryProjection {
     pub node: NodeKey,
@@ -548,6 +634,37 @@ pub struct CheckedQueryClause {
     pub node: NodeKey,
     pub kind: CheckedQueryClauseKind,
     pub expressions: Vec<NodeKey>,
+}
+
+impl CheckedQueryClause {
+    fn from_source(
+        node: &SyntaxNode,
+        text: &str,
+        expression: fn(SyntaxKind) -> bool,
+    ) -> Option<Self> {
+        let parts = kids(node);
+        let head = parts.iter().find_map(|part| name_text(part, text))?;
+        let kind = match head {
+            "as" => CheckedQueryClauseKind::As {
+                name: name_text(parts.get(1)?, text)?.to_owned(),
+            },
+            "where" => CheckedQueryClauseKind::Where,
+            "order" => CheckedQueryClauseKind::Order,
+            "limit" => CheckedQueryClauseKind::Limit,
+            "archived" => CheckedQueryClauseKind::Archived,
+            "select" => CheckedQueryClauseKind::Select,
+            _ => return None,
+        };
+        Some(Self {
+            node: NodeKey::of(node),
+            kind,
+            expressions: parts
+                .into_iter()
+                .filter(|child| expression(child.kind))
+                .map(NodeKey::of)
+                .collect(),
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19467,29 +19584,6 @@ impl<'a> Typer<'a> {
         }
     }
 
-    /// Classify one query clause head: `as` binds its name, the rest
-    /// are fixed clause kinds, anything else is not a clause.
-    fn query_clause_kind(
-        part: &SyntaxNode,
-        head: &str,
-        text: &str,
-    ) -> Option<CheckedQueryClauseKind> {
-        match head {
-            "as" => kids(part)
-                .get(1)
-                .and_then(|name| name_text(name, text))
-                .map(|name| CheckedQueryClauseKind::As {
-                    name: name.to_owned(),
-                }),
-            "where" => Some(CheckedQueryClauseKind::Where),
-            "order" => Some(CheckedQueryClauseKind::Order),
-            "limit" => Some(CheckedQueryClauseKind::Limit),
-            "archived" => Some(CheckedQueryClauseKind::Archived),
-            "select" => Some(CheckedQueryClauseKind::Select),
-            _ => None,
-        }
-    }
-
     /// Whether a query is fully resolved: domain and result contain no
     /// poison, every clause expression is typed, and no new error was
     /// recorded while checking the query.
@@ -19500,14 +19594,14 @@ impl<'a> Typer<'a> {
         checked_clauses: &[CheckedQueryClause],
         diagnostic_start: usize,
     ) -> bool {
-        Self::query_type_resolved(base_ty)
-            && Self::query_type_resolved(result)
+        base_ty.is_resolved_shape()
+            && result.is_resolved_shape()
             && checked_clauses.iter().all(|clause| {
                 clause.expressions.iter().all(|expression| {
                     self.types
                         .node_types
                         .get(expression)
-                        .is_some_and(Self::query_type_resolved)
+                        .is_some_and(ResolvedType::is_resolved_shape)
                 })
             })
             && !self.diags[diagnostic_start..]
@@ -19577,17 +19671,8 @@ impl<'a> Typer<'a> {
                 .iter()
                 .find_map(|n| name_text(n, cx.text))
                 .unwrap_or("");
-            let kind = Self::query_clause_kind(part, head, cx.text);
-            if let Some(kind) = kind {
-                checked_clauses.push(CheckedQueryClause {
-                    node: NodeKey::of(part),
-                    kind,
-                    expressions: kids(part)
-                        .into_iter()
-                        .filter(|child| is_expression(child.kind))
-                        .map(NodeKey::of)
-                        .collect(),
-                });
+            if let Some(clause) = CheckedQueryClause::from_source(part, cx.text, is_expression) {
+                checked_clauses.push(clause);
             } else {
                 complete_clauses = false;
             }
@@ -19641,35 +19726,6 @@ impl<'a> Typer<'a> {
             );
         }
         result
-    }
-
-    /// Whether one query type is fully resolved: no poison anywhere
-    /// in the shape (bounded walk).
-    fn query_type_resolved(ty: &ResolvedType) -> bool {
-        let mut pending = vec![(ty, 0usize)];
-        let mut steps = 0usize;
-        while let Some((ty, depth)) = pending.pop() {
-            steps += 1;
-            if steps > 4096 || depth > 64 {
-                return false;
-            }
-            match ty {
-                ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => {
-                    return false;
-                }
-                ResolvedType::Array { element, .. } | ResolvedType::Nullable(element) => {
-                    pending.push((element, depth + 1))
-                }
-                ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => {
-                    pending.extend(fields.iter().map(|(_, ty)| (ty, depth + 1)))
-                }
-                _ => {}
-            }
-            if pending.len() > 4096 {
-                return false;
-            }
-        }
-        true
     }
 
     /// True-facts of a query's `where` clauses about the

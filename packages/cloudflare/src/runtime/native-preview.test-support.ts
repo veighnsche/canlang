@@ -49,7 +49,10 @@ async function policy<T>(operation:string,input:unknown,databases:Record<string,
   child.stdin.on('error',()=>{}); child.stderr.resume();
   // Stop actual SDK objects before joining callbacks: mf.ready/dispatch may need destruction to settle.
   const stop = (reason:unknown) => { cancel.abort(reason); void registry.stopResources().catch(error=>{failure??=error;}); };
-  const timer=setTimeout(()=>{failure=Error('native semantic policy timed out');stop(failure);child.stdin.end();child.kill('SIGTERM');},180_000);
+  // Resource policies intentionally await their owner's disposal across the
+  // complete semantic workflow; one-shot policy decisions keep their own bound.
+  const lifetimePolicy = ['worker','gateway','preview'].includes(operation);
+  const timer=setTimeout(()=>{failure=Error('native semantic policy timed out');stop(failure);child.stdin.end();child.kill('SIGTERM');},lifetimePolicy ? 420_000 : 180_000);
   child.stdout.on('data',(chunk:Buffer)=>{
     buffer=Buffer.concat([buffer,chunk]); if(buffer.length>limit){failure=Error('native policy frame exceeds limit');stop(failure);child.stdin.end();child.kill('SIGTERM');return;}
     for(;;){const end=buffer.indexOf(10);if(end<0)break;const line=buffer.subarray(0,end);buffer=buffer.subarray(end+1);queue=queue.then(async()=>{

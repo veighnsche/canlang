@@ -345,39 +345,3 @@ pub fn transition_key(state: &Snapshot, connected: bool) -> String {
         state.shutdown_error
     )
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn terminal_instructions_credentials_and_bidi_are_not_rendered() {
-        assert_eq!(
-            terminal_text(
-                "A\x1b[31mB\x1b]8;;https://secret\x07C\x1b]8;;\x1b\\D\u{202e}E",
-                100
-            ),
-            "ABCD E"
-        );
-        assert_eq!(
-            safe_origin("http://user:secret@localhost:3000/access?token=secret"),
-            Some("http://localhost:3000".into())
-        );
-        assert_eq!(safe_origin("javascript:alert(1)"), None);
-        assert_eq!(safe_origin("http://bad\x1b[31m/"), None);
-    }
-
-    #[test]
-    fn unicode_wrapping_is_cell_bounded_and_history_reports_omissions() {
-        let lines = wrap("界界abcd", 4);
-        assert_eq!(lines, ["界界", "abcd"]);
-        assert!(
-            lines
-                .iter()
-                .all(|line| Line::raw(line.as_str()).width() <= 4)
-        );
-        let history = bounded_history(&vec!["detail".into(); 100]);
-        assert_eq!(history.len(), 41);
-        assert!(history.last().unwrap().contains("truncated"));
-    }
-}

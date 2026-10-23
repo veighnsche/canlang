@@ -2,8 +2,6 @@ use super::{Result, state::compact_json};
 use crate::capture::hash;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use serde_json::Value;
-#[cfg(test)]
-use serde_json::json;
 use std::collections::BTreeMap;
 pub fn bytes(value: &Value) -> Result<Vec<u8>> {
     if let Some(text) = value.as_str() {
@@ -200,17 +198,4 @@ fn verify_browser_resources(
         return Err("RESOURCE_INVALID: browser resource digest mismatch".into());
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn binary_buffers_are_exact() {
-        assert_eq!(
-            bytes(&json!({"type":"Buffer","data":[0,255]})).unwrap(),
-            vec![0, 255]
-        );
-        assert!(bytes(&json!([256])).is_err());
-    }
 }

@@ -186,10 +186,19 @@ pub fn collect_checked_unique_conditions(
     catalog: Option<&Catalog>,
 ) -> Option<Vec<CheckedUniqueCondition>> {
     let fresh = fresh_rule_ir(program, actual, db, catalog)?;
+    collect_unique_conditions(program, actual, &fresh, db)
+}
+
+fn collect_unique_conditions(
+    program: &CheckedProgram,
+    actual: &IrProgram,
+    fresh: &IrProgram,
+    db: &SourceDb,
+) -> Option<Vec<CheckedUniqueCondition>> {
     let _ = model_rule_origins(program, actual, db)?;
     let mut result = Vec::new();
     for model in &actual.items {
-        collect_model_uniques(program, actual, &fresh, db, model, &mut result)?;
+        collect_model_uniques(program, actual, fresh, db, model, &mut result)?;
     }
     // Effects ordinals retain true declaration order across model grouping.
     result.sort_by_key(|condition| condition.ordinal);
@@ -207,6 +216,24 @@ pub fn collect_checked_model_rule_origins(
 ) -> Option<Vec<Value>> {
     let _ = fresh_rule_ir(program, actual, db, catalog)?;
     model_rule_origins(program, actual, db)
+}
+
+/// Both emission inventories consume the same immutable actual cohort. Rebuild
+/// and compare its original rule IR once; each inventory retains its independent
+/// declaration and conditional-unique checks and refusal result.
+pub(super) fn collect_checked_model_rules(
+    program: &CheckedProgram,
+    actual: &IrProgram,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+) -> (Option<Vec<Value>>, Option<Vec<CheckedUniqueCondition>>) {
+    let Some(fresh) = fresh_rule_ir(program, actual, db, catalog) else {
+        return (None, None);
+    };
+    (
+        model_rule_origins(program, actual, db),
+        collect_unique_conditions(program, actual, &fresh, db),
+    )
 }
 
 fn fresh_modules_match(actual: &IrProgram, fresh: &IrProgram) -> bool {
@@ -381,13 +408,13 @@ fn rule_declaration_ok(
     module: ModuleId,
     node: NodeKey,
 ) -> bool {
-    declaration.kind != expected
-        || owner.id != target
-        || owner.module != module
-        || owning.id != module
-        || owning.file != node.file
-        || owner.canonical != format!("{}.{}", owning.name, owner.name)
-        || !matches!(
+    declaration.kind == expected
+        && owner.id == target
+        && owner.module == module
+        && owning.id == module
+        && owning.file == node.file
+        && owner.canonical == format!("{}.{}", owning.name, owner.name)
+        && matches!(
             owner.kind,
             IrItemKind::Model { .. } | IrItemKind::Preferences { .. }
         )
@@ -689,7 +716,6 @@ fn model_rule_origins(
     db: &SourceDb,
 ) -> Option<Vec<Value>> {
     let (syntax_order, original_nodes) = collect_syntax_order(program, db)?;
-    let mut output = Vec::<(u32, NodeKey, ModuleId, RuleKind, Value)>::new();
     let mut output = Vec::<(u32, NodeKey, ModuleId, RuleKind, Value)>::new();
     for model in program.effects.models.values() {
         add_model_origins(&original_nodes, actual, db, &mut output, model)?;

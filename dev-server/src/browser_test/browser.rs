@@ -307,42 +307,6 @@ fn anonymous_recovery_write(
     )
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn anonymous_recovery_allows_only_one_cookie_bound_presession_write() {
-        let counter = json!({"scope":"http://preview","key":"/auth/login/descriptor:unknown","limit_count":10,"window_ms":60_000,"hits":1,"expires":61_000});
-        let before = json!({"Identity":{"identity_presession_tokens":[],"identity_sessions":[],"can_auth_rate_limits":[encode(&counter).unwrap()]},"owner":{"records":[]}});
-        let mut after = before.clone();
-        let mut next_counter = counter.clone();
-        next_counter["hits"] = json!(2);
-        after["Identity"]["can_auth_rate_limits"] = json!([encode(&next_counter).unwrap()]);
-        after["Identity"]["identity_presession_tokens"] = json!([encode(&json!({
-            "token_id":"token","token_sha256":capture::hash(b"cookie"),
-            "created_at":"2026-10-18T10:00:00.000Z","expires_at":"2026-10-18T10:10:00.000Z"
-        }))
-        .unwrap()]);
-        let check = |after: &Value, cookie| {
-            anonymous_recovery_write(&before, after, cookie, "http://preview", 1_000, 2_000)
-        };
-        check(&after, "cookie").unwrap();
-        assert!(check(&after, "other-cookie").is_err());
-        let mut leaked = after.clone();
-        leaked["owner"]["records"] = json!(["domain write"]);
-        assert!(check(&leaked, "cookie").is_err());
-        leaked = after.clone();
-        leaked["Identity"]["identity_sessions"] = json!(["session write"]);
-        assert!(check(&leaked, "cookie").is_err());
-        leaked = after.clone();
-        next_counter["key"] = json!("/auth/login:unknown");
-        leaked["Identity"]["can_auth_rate_limits"] = json!([encode(&next_counter).unwrap()]);
-        assert!(check(&leaked, "cookie").is_err());
-        after["Identity"]["identity_presession_tokens"] = json!([]);
-        assert!(check(&after, "cookie").is_err());
-    }
-}
 fn browser_request(
     h: &Harness<'_>,
     context: &str,

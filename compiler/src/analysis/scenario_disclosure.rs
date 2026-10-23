@@ -803,28 +803,7 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
         nodes.insert(NodeKey::of(node), node);
         pending.extend(node.children.iter());
     }
-    let mut cx = Closure {
-        catalog,
-        db,
-        resolve,
-        types,
-        effects,
-        nodes,
-        stack: HashSet::new(),
-        steps: 0,
-        depth: 0,
-        statement_depth: 0,
-        authorization: false,
-        effect_proofs: Vec::new(),
-        require_consumptions: Vec::new(),
-        effect_visits: 0,
-        loop_node: None,
-        complete_children: HashSet::new(),
-        complete_model_children: HashMap::new(),
-        result_model: None,
-        statement_expressions: None,
-        source_facts: RefCell::new(ImmutableSourceFacts::default()),
-    };
+    let mut cx = Closure::new(db, resolve, types, effects, nodes, catalog);
     let mut out = HashMap::new();
     // Resolve only proven acyclic children. A prior wave can establish a
     // parent, never its own recursive prerequisite; cap the call depth at 16.
@@ -989,16 +968,7 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
                                 };
                                 let mut evaluated = flow.clone();
                                 evaluated.evaluated.push(decision.clone());
-                                for observed in &value.observed {
-                                    if !evaluated.observed.contains(observed) {
-                                        evaluated.observed.push(observed.clone());
-                                    }
-                                }
-                                for choice in &value.decisions {
-                                    if !evaluated.evaluated.contains(choice) {
-                                        evaluated.evaluated.push(choice.clone());
-                                    }
-                                }
+                                evaluated.observe_value(&value);
                                 value.decisions.push(decision);
                                 evaluated.env.insert(Local::Symbol(param.param), value);
                                 next.push(evaluated);
@@ -1370,28 +1340,7 @@ pub fn checked_read_decision_sites(
     {
         return None;
     }
-    let cx = Closure {
-        catalog: None,
-        db,
-        resolve,
-        types,
-        effects,
-        nodes,
-        stack: HashSet::new(),
-        steps: 0,
-        depth: 0,
-        statement_depth: 0,
-        authorization: false,
-        effect_proofs: Vec::new(),
-        require_consumptions: Vec::new(),
-        effect_visits: 0,
-        loop_node: None,
-        complete_children: HashSet::new(),
-        complete_model_children: HashMap::new(),
-        result_model: None,
-        statement_expressions: None,
-        source_facts: RefCell::new(ImmutableSourceFacts::default()),
-    };
+    let cx = Closure::new(db, resolve, types, effects, nodes, None);
     let mut sites = Vec::new();
     let mut steps = 0;
     let mut call_count = 0;
@@ -1456,28 +1405,7 @@ pub fn checked_read_predicate_site(
     {
         return None;
     }
-    let cx = Closure {
-        catalog: None,
-        db,
-        resolve,
-        types,
-        effects,
-        nodes,
-        stack: HashSet::new(),
-        steps: 0,
-        depth: 0,
-        statement_depth: 0,
-        authorization: false,
-        effect_proofs: Vec::new(),
-        require_consumptions: Vec::new(),
-        effect_visits: 0,
-        loop_node: None,
-        complete_children: HashSet::new(),
-        complete_model_children: HashMap::new(),
-        result_model: None,
-        statement_expressions: None,
-        source_facts: RefCell::new(ImmutableSourceFacts::default()),
-    };
+    let cx = Closure::new(db, resolve, types, effects, nodes, None);
     let mut calls = Vec::new();
     let mut steps = 0;
     let mut count = 0;
@@ -1609,28 +1537,7 @@ pub fn collect_read_calls(
     // Only this predicate plus the selected helper closure spend the finite
     // node budget. Unrelated bulk remains in the checked cohort unindexed.
     let nodes = pruned_closure_nodes(trees, &HashSet::from([predicate]), effects)?;
-    let cx = Closure {
-        catalog: None,
-        db,
-        resolve,
-        types,
-        effects,
-        nodes,
-        stack: HashSet::new(),
-        steps: 0,
-        depth: 0,
-        statement_depth: 0,
-        authorization: false,
-        effect_proofs: Vec::new(),
-        require_consumptions: Vec::new(),
-        effect_visits: 0,
-        loop_node: None,
-        complete_children: HashSet::new(),
-        complete_model_children: HashMap::new(),
-        result_model: None,
-        statement_expressions: None,
-        source_facts: RefCell::new(ImmutableSourceFacts::default()),
-    };
+    let cx = Closure::new(db, resolve, types, effects, nodes, None);
     let mut calls = Vec::new();
     cx.checked_decision_expression(
         predicate,
@@ -1687,34 +1594,6 @@ pub fn expression_reads_membership(
     false
 }
 
-fn checked_source_type(ty: &ResolvedType) -> bool {
-    let mut pending = vec![(ty, 0usize)];
-    let mut steps = 0usize;
-    while let Some((ty, depth)) = pending.pop() {
-        steps += 1;
-        if steps > 4096 || depth > 64 {
-            return false;
-        }
-        match ty {
-            ResolvedType::Unknown | ResolvedType::Error | ResolvedType::Opaque(_) => return false,
-            ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => {
-                pending.push((inner, depth + 1));
-            }
-            ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => {
-                if fields.len() > 4096 {
-                    return false;
-                }
-                pending.extend(fields.iter().map(|(_, ty)| (ty, depth + 1)));
-            }
-            _ => {}
-        }
-        if pending.len() > 4096 {
-            return false;
-        }
-    }
-    true
-}
-
 /// Assignment correspondence used by the bounded create source proof. Unknown
 /// values never qualify; concrete arrays may carry a stronger nonempty fact.
 fn created_input_type_matches(
@@ -1722,7 +1601,7 @@ fn created_input_type_matches(
     expected: &ResolvedType,
     depth: usize,
 ) -> bool {
-    if depth > 64 || !checked_source_type(actual) || !checked_source_type(expected) {
+    if depth > 64 || !actual.is_resolved_shape() || !expected.is_resolved_shape() {
         return false;
     }
     match (actual, expected) {
@@ -1902,6 +1781,21 @@ struct Flow {
     observed: Vec<(NodeKey, Vec<NodeKey>)>,
 }
 
+impl Flow {
+    fn observe_value(&mut self, value: &ValuePath) {
+        for read in &value.observed {
+            if !self.observed.contains(read) {
+                self.observed.push(read.clone());
+            }
+        }
+        for decision in &value.decisions {
+            if !self.evaluated.contains(decision) {
+                self.evaluated.push(decision.clone());
+            }
+        }
+    }
+}
+
 /// Reuse completed compiler analysis, never an evaluated application value.
 /// Every lexical value and its ordered provenance participate in equality.
 struct CompletedStatementExpression {
@@ -1956,6 +1850,38 @@ enum BodyValue {
 }
 
 impl<'a> Closure<'a> {
+    fn new(
+        db: &'a SourceDb,
+        resolve: &'a ResolveTables,
+        types: &'a TypeTable,
+        effects: &'a EffectTables,
+        nodes: HashMap<NodeKey, &'a SyntaxNode>,
+        catalog: Option<&'a Catalog>,
+    ) -> Self {
+        Self {
+            catalog,
+            db,
+            resolve,
+            types,
+            effects,
+            nodes,
+            stack: HashSet::new(),
+            steps: 0,
+            depth: 0,
+            statement_depth: 0,
+            authorization: false,
+            effect_proofs: Vec::new(),
+            require_consumptions: Vec::new(),
+            effect_visits: 0,
+            loop_node: None,
+            complete_children: HashSet::new(),
+            complete_model_children: HashMap::new(),
+            result_model: None,
+            statement_expressions: None,
+            source_facts: RefCell::new(ImmutableSourceFacts::default()),
+        }
+    }
+
     fn authorization_expr(
         &mut self,
         key: NodeKey,
@@ -3951,7 +3877,7 @@ impl<'a> Closure<'a> {
                 || param
                     .default
                     .is_some_and(|node| !self.source_anchor(scenario, node))
-                || !checked_source_type(ty)
+                || !ty.is_resolved_shape()
             {
                 return None;
             }
@@ -4031,7 +3957,7 @@ impl<'a> Closure<'a> {
             return None;
         }
         let result = self.types.effect_call_results.get(&effect.node)?.clone();
-        if result.as_ref().is_some_and(|ty| !checked_source_type(ty)) {
+        if result.as_ref().is_some_and(|ty| !ty.is_resolved_shape()) {
             return None;
         }
         let inputs = self.source_fact_call_inputs(scenario, effect)?;
@@ -4060,7 +3986,7 @@ impl<'a> Closure<'a> {
             if !self.source_anchor(scenario, argument.key_node)
                 || !self.source_anchor(scenario, node)
                 || !names.insert(argument.key.as_str())
-                || !checked_source_type(ty)
+                || !ty.is_resolved_shape()
             {
                 return None;
             }
@@ -4127,7 +4053,7 @@ impl<'a> Closure<'a> {
             return None;
         }
         let result = self.types.symbol_results.get(&scenario.scenario)?.clone();
-        if result.as_ref().is_some_and(|ty| !checked_source_type(ty)) {
+        if result.as_ref().is_some_and(|ty| !ty.is_resolved_shape()) {
             return None;
         }
         let parameters = self.source_fact_params(scenario)?;
@@ -4276,27 +4202,13 @@ impl<'a> Closure<'a> {
         };
         let ty = self.types.node_types.get(&value)?;
         let query_syntax = self.nodes.get(&query_node)?;
-        let clauses: Vec<_> = query_syntax
-            .children
-            .iter()
-            .filter(|part| part.kind == SyntaxKind::QueryClause)
-            .map(NodeKey::of)
-            .collect();
-        let domains: Vec<_> = query_syntax
-            .children
-            .iter()
-            .filter(|part| expression(part.kind))
-            .map(NodeKey::of)
-            .collect();
-        if query_syntax.kind != SyntaxKind::Query
+        if !checked.matches_source_nodes(query_syntax, expression)
             || checked.node != query_node
             || checked.projection.is_some()
             || !alias.expressions.is_empty()
             || predicate.kind != CheckedQueryClauseKind::Where
             || order.kind != CheckedQueryClauseKind::Order
             || select.kind != CheckedQueryClauseKind::Select
-            || clauses != [alias.node, predicate.node, order.node, select.node]
-            || domains != [checked.domain]
             || checked.result != *ty
             || self.types.node_types.get(&query_node) != Some(ty)
             || self.types.node_types.get(&selected) != Some(ty)
@@ -6135,7 +6047,7 @@ impl<'a> Closure<'a> {
                 || argument.key_node != key_node
                 || argument.value != value.map(NodeKey::of)
                 || !seen.insert(name.to_string())
-                || !checked_source_type(ty)
+                || !ty.is_resolved_shape()
             {
                 return None;
             }
@@ -6352,7 +6264,7 @@ impl<'a> Closure<'a> {
                         if member.canonical != format!("{}.{}", symbol.canonical, value.name)
                             || member.name != value.name
                             || value.default.is_none()
-                            || !checked_source_type(ty)
+                            || !ty.is_resolved_shape()
                         {
                             return None;
                         }
@@ -6475,7 +6387,7 @@ impl<'a> Closure<'a> {
                 || text.get(field.span.start as usize..field.span.end as usize)
                     != Some(field.name.as_str())
                 || NodeKey::of(node) != data.node
-                || !checked_source_type(ty)
+                || !ty.is_resolved_shape()
                 || !self.checked_created_field_type(data.type_node, module, ty, 0)
                 || !self.checked_created_field(node, data, &field.name, ty)
             {
@@ -7620,18 +7532,6 @@ impl<'a> Closure<'a> {
         name: &String,
         query_node: &SyntaxNode,
     ) -> bool {
-        let clauses: Vec<_> = query_node
-            .children
-            .iter()
-            .filter(|child| child.kind == SyntaxKind::QueryClause)
-            .map(NodeKey::of)
-            .collect();
-        let domains: Vec<_> = query_node
-            .children
-            .iter()
-            .filter(|child| expression(child.kind))
-            .map(NodeKey::of)
-            .collect();
         collection.node == call.node
             && collection.builtin == *builtin_id
             && collection.overload == overload
@@ -7644,13 +7544,7 @@ impl<'a> Closure<'a> {
             && self.types.node_types.get(&query.domain) == Some(array)
             && alias.expressions.is_empty()
             && !name.is_empty()
-            && clauses
-                == query
-                    .clauses
-                    .iter()
-                    .map(|clause| clause.node)
-                    .collect::<Vec<_>>()
-            && domains == [query.domain]
+            && query.matches_source_nodes(query_node, expression)
     }
 
     fn stored_contract_collection_source(
@@ -9299,18 +9193,6 @@ impl<'a> Closure<'a> {
             _ => false,
         };
         let query_node = self.nodes.get(domain)?;
-        let source_domains: Vec<_> = query_node
-            .children
-            .iter()
-            .filter(|child| expression(child.kind))
-            .map(NodeKey::of)
-            .collect();
-        let source_clauses: Vec<_> = query_node
-            .children
-            .iter()
-            .filter(|child| child.kind == SyntaxKind::QueryClause)
-            .map(NodeKey::of)
-            .collect();
         let alias_words: Vec<_> = self
             .nodes
             .get(&alias.node)?
@@ -9361,9 +9243,7 @@ impl<'a> Closure<'a> {
             || nested.module != data.module
             || !nested.defaults.is_empty()
             || nested.slots.as_slice() != [Some(0), Some(1)]
-            || query_node.kind != SyntaxKind::Query
-            || source_domains != [checked.domain]
-            || source_clauses != [alias.node]
+            || !checked.matches_source_nodes(query_node, expression)
             || alias_words != ["as", name.as_str()]
             || self.types.symbol_results.get(&derive) != Some(&Some(boolean.clone()))
             || checked.node != *domain
@@ -10326,16 +10206,6 @@ impl<'a> Closure<'a> {
         Some((member, field))
     }
 
-    fn any_query_clause_shape_ok(
-        clauses: &[NodeKey],
-        domains: &[NodeKey],
-        query: &super::types::CheckedQuery,
-        alias: &super::types::CheckedQueryClause,
-    ) -> bool {
-        let expected: Vec<_> = query.clauses.iter().map(|clause| clause.node).collect();
-        clauses == expected.as_slice() && domains == [query.domain] && clauses == [alias.node]
-    }
-
     fn any_query_fact_shape_ok(
         &self,
         call: NodeKey,
@@ -10349,8 +10219,6 @@ impl<'a> Closure<'a> {
         query: &super::types::CheckedQuery,
         array: &ResolvedType,
         supplied: NodeKey,
-        domains: &[NodeKey],
-        clauses: &[NodeKey],
         alias_words: &[&str],
         name: &String,
         owner: &Symbol,
@@ -10374,7 +10242,7 @@ impl<'a> Closure<'a> {
             || self.types.node_types.get(&node) != Some(array)
             || self.types.node_types.get(&supplied) != Some(array)
             || self.types.node_types.get(&query.domain) != Some(array)
-            || !Self::any_query_clause_shape_ok(clauses, domains, query, alias)
+            || !query.matches_source_nodes(authored, expression)
             || !alias.expressions.is_empty()
             || alias_words != ["as", name.as_str()]
             || collection != owner.name
@@ -10526,8 +10394,6 @@ impl<'a> Closure<'a> {
         parameter_data: &'t super::effects::ParamData,
         array: &ResolvedType,
         authored: &'a SyntaxNode,
-        domains: &[NodeKey],
-        clauses: &[NodeKey],
         alias_words: &[&str],
         members: &[(NodeKey, SymbolId)],
         selected_slots: &[Option<usize>],
@@ -10535,7 +10401,7 @@ impl<'a> Closure<'a> {
     ) -> Option<DisclosureQuery> {
         self.any_query_fact_shape_ok(
             call, fact, overload, node, alias, predicate, boolean, authored, query,
-            array, supplied, domains, clauses, alias_words, name, owner, collection, hops,
+            array, supplied, alias_words, name, owner, collection, hops,
         )?;
         self.any_query_fact_owner_ok(
             scenario,
@@ -10802,18 +10668,6 @@ impl<'a> Closure<'a> {
         let (parent, hops, parameter_owner, parameter_symbol, type_node, parameter_data, array) =
             self.any_query_domain_parameter(scenario, receiver, parameter, model, scope)?;
         let authored = self.nodes.get(&node)?;
-        let domains: Vec<_> = authored
-            .children
-            .iter()
-            .filter(|part| expression(part.kind))
-            .map(NodeKey::of)
-            .collect();
-        let clauses: Vec<_> = authored
-            .children
-            .iter()
-            .filter(|part| part.kind == SyntaxKind::QueryClause)
-            .map(NodeKey::of)
-            .collect();
         let alias_words: Vec<_> = self
             .nodes
             .get(&alias.node)?
@@ -10863,8 +10717,6 @@ impl<'a> Closure<'a> {
             parameter_data,
             &array,
             authored,
-            &domains,
-            &clauses,
             &alias_words,
             &members,
             selected_slots,
@@ -11159,18 +11011,6 @@ impl<'a> Closure<'a> {
         let (parent, hops, parameter_owner, parameter_symbol, type_node, parameter_data, array) =
             self.any_query_domain_parameter(scenario, receiver, parameter, model, Some(&scope))?;
         let authored = self.nodes.get(&node)?;
-        let domains: Vec<_> = authored
-            .children
-            .iter()
-            .filter(|part| expression(part.kind))
-            .map(NodeKey::of)
-            .collect();
-        let clauses: Vec<_> = authored
-            .children
-            .iter()
-            .filter(|part| part.kind == SyntaxKind::QueryClause)
-            .map(NodeKey::of)
-            .collect();
         let alias_words: Vec<_> = self
             .nodes
             .get(&alias.node)?
@@ -11190,7 +11030,7 @@ impl<'a> Closure<'a> {
         )?;
         self.any_query_fact_shape_ok(
             nested.node, fact, *overload, node, alias, *predicate, &boolean, authored, query,
-            &array, *supplied, &domains, &clauses, &alias_words, name, owner, collection, hops,
+            &array, *supplied, &alias_words, name, owner, collection, hops,
         )?;
         self.any_query_fact_owner_ok(
             scenario,
@@ -11594,8 +11434,6 @@ impl<'a> Closure<'a> {
         model: SymbolId,
         alias: &super::types::CheckedQueryClause,
         predicate: &super::types::CheckedQueryClause,
-        clauses: &[NodeKey],
-        domains: &[NodeKey],
         alias_names: &[&str],
         where_names: &[&str],
     ) -> Option<()> {
@@ -11612,8 +11450,7 @@ impl<'a> Closure<'a> {
             || !alias.expressions.is_empty()
             || predicate.kind != CheckedQueryClauseKind::Where
             || predicate.expressions.len() != 1
-            || clauses != [alias.node, predicate.node]
-            || domains != [query.domain]
+            || !query.matches_source_nodes(self.nodes.get(&node)?, expression)
             || where_names != ["where"]
         {
             return None;
@@ -11637,19 +11474,6 @@ impl<'a> Closure<'a> {
     )> {
         let (fact, query, alias, predicate) = self.count_query_fact_lookup(call, node)?;
         self.count_query_fact_attrs(fact, call, node, model, overload, alias.node)?;
-        let authored = self.nodes.get(&node)?;
-        let clauses: Vec<_> = authored
-            .children
-            .iter()
-            .filter(|part| part.kind == SyntaxKind::QueryClause)
-            .map(NodeKey::of)
-            .collect();
-        let domains: Vec<_> = authored
-            .children
-            .iter()
-            .filter(|part| expression(part.kind))
-            .map(NodeKey::of)
-            .collect();
         let alias_names: Vec<_> = self
             .nodes
             .get(&alias.node)?
@@ -11674,8 +11498,6 @@ impl<'a> Closure<'a> {
             model,
             alias,
             predicate,
-            &clauses,
-            &domains,
             &alias_names,
             &where_names,
         )?;
@@ -16796,7 +16618,7 @@ impl<'a> Closure<'a> {
         if *calls > 200 {
             return None;
         }
-        if !checked_source_type(self.types.node_types.get(&key)?) {
+        if !self.types.node_types.get(&key)?.is_resolved_shape() {
             return None;
         }
         let selected = self.types.selected_calls.get(&key)?;
@@ -16833,7 +16655,7 @@ impl<'a> Closure<'a> {
             self.nodes.get(argument)?;
             self.source(module, *argument).ok()?;
             let ty = self.types.node_types.get(argument)?;
-            if !checked_source_type(ty) {
+            if !ty.is_resolved_shape() {
                 return None;
             }
             arguments.push((*argument, ty.clone()));
@@ -16892,7 +16714,7 @@ impl<'a> Closure<'a> {
                         let default = param.default?;
                         self.nodes.get(&default)?;
                         self.source(data.module, default).ok()?;
-                        if !checked_source_type(self.types.node_types.get(&default)?) {
+                        if !self.types.node_types.get(&default)?.is_resolved_shape() {
                             return None;
                         }
                         defaults.push((param.param, default));
@@ -22920,16 +22742,7 @@ impl<'a> Closure<'a> {
                         continue;
                     }
                     let mut path = flow.clone();
-                    for read in &evaluated.observed {
-                        if !path.observed.contains(read) {
-                            path.observed.push(read.clone());
-                        }
-                    }
-                    for decision in &evaluated.decisions {
-                        if !path.evaluated.contains(decision) {
-                            path.evaluated.push(decision.clone());
-                        }
-                    }
+                    path.observe_value(&evaluated);
                     path.env.insert(Local::Let(effect.node), evaluated);
                     if path.env.len() > 256 {
                         return Err(self.fail(effect.node, "binding closure bound"));
@@ -22961,27 +22774,11 @@ impl<'a> Closure<'a> {
                 };
                 self.effect_visits += 1;
                 for evaluated in alternatives {
-                    if !compatible(&flow.evaluated, &evaluated.decisions) {
+                    let Some(mut path) = self.statement_write_path(
+                        effect.node, &flow, &evaluated, "effect write dependency bound",
+                    )? else {
                         continue;
-                    }
-                    let mut path = flow.clone();
-                    path.executed_effect = true;
-                    path.writes.join(&flow.effect_guards);
-                    path.writes.join(&flow.controls);
-                    path.writes.join(&evaluated);
-                    if path.writes.reads.len() + path.writes.intrinsics.len() > 200 {
-                        return Err(self.fail(effect.node, "effect write dependency bound"));
-                    }
-                    for read in &evaluated.observed {
-                        if !path.observed.contains(read) {
-                            path.observed.push(read.clone());
-                        }
-                    }
-                    for decision in &evaluated.decisions {
-                        if !path.evaluated.contains(decision) {
-                            path.evaluated.push(decision.clone());
-                        }
-                    }
+                    };
                     self.bind_statement_effect_results(effect, &mut path, &evaluated, &delivery)?;
                     next.push(path);
                     if next.len() > 1024 {
@@ -22989,6 +22786,30 @@ impl<'a> Closure<'a> {
                     }
                 }
                 Ok(())
+            }
+
+            /// Join one already-checked statement write without changing the
+            /// family's qualification, execution timing or refusal diagnostic.
+            fn statement_write_path(
+                &self,
+                node: NodeKey,
+                flow: &Flow,
+                write: &ValuePath,
+                dependency_bound: &'static str,
+            ) -> Result<Option<Flow>, DisclosureDecline> {
+                if !compatible(&flow.evaluated, &write.decisions) {
+                    return Ok(None);
+                }
+                let mut path = flow.clone();
+                path.executed_effect = true;
+                path.writes.join(&flow.effect_guards);
+                path.writes.join(&flow.controls);
+                path.writes.join(write);
+                if path.writes.reads.len() + path.writes.intrinsics.len() > 200 {
+                    return Err(self.fail(node, dependency_bound));
+                }
+                path.observe_value(write);
+                Ok(Some(path))
             }
 
             /// Retain a send receipt or bound call result after its writes join.
@@ -23036,29 +22857,11 @@ impl<'a> Closure<'a> {
             ) -> Result<(), DisclosureDecline> {
                 self.effect_visits += 1;
                 for write in self.transition(effect, module, &flow.env, calls)? {
-                    if !compatible(&flow.evaluated, &write.decisions) {
+                    let Some(path) = self.statement_write_path(
+                        effect.node, &flow, &write, "transition write dependency bound",
+                    )? else {
                         continue;
-                    }
-                    let mut path = flow.clone();
-                    path.executed_effect = true;
-                    path.writes.join(&flow.effect_guards);
-                    path.writes.join(&flow.controls);
-                    path.writes.join(&write);
-                    if path.writes.reads.len() + path.writes.intrinsics.len() > 200 {
-                        return Err(
-                            self.fail(effect.node, "transition write dependency bound")
-                        );
-                    }
-                    for observed in &write.observed {
-                        if !path.observed.contains(observed) {
-                            path.observed.push(observed.clone());
-                        }
-                    }
-                    for decision in &write.decisions {
-                        if !path.evaluated.contains(decision) {
-                            path.evaluated.push(decision.clone());
-                        }
-                    }
+                    };
                     next.push(path);
                     if next.len() > 1024 {
                         return Err(self.fail(effect.node, "transition path bound"));
@@ -23080,27 +22883,11 @@ impl<'a> Closure<'a> {
                 let alternatives = self.external_effect(effect, module, &flow.env, calls)?;
                 self.effect_visits += 1;
                 for evaluated in alternatives {
-                    if !compatible(&flow.evaluated, &evaluated.decisions) {
+                    let Some(path) = self.statement_write_path(
+                        effect.node, &flow, &evaluated, "effect write dependency bound",
+                    )? else {
                         continue;
-                    }
-                    let mut path = flow.clone();
-                    path.executed_effect = true;
-                    path.writes.join(&flow.effect_guards);
-                    path.writes.join(&flow.controls);
-                    path.writes.join(&evaluated);
-                    if path.writes.reads.len() + path.writes.intrinsics.len() > 200 {
-                        return Err(self.fail(effect.node, "effect write dependency bound"));
-                    }
-                    for read in &evaluated.observed {
-                        if !path.observed.contains(read) {
-                            path.observed.push(read.clone());
-                        }
-                    }
-                    for decision in &evaluated.decisions {
-                        if !path.evaluated.contains(decision) {
-                            path.evaluated.push(decision.clone());
-                        }
-                    }
+                    };
                     next.push(path);
                     if next.len() > 1024 {
                         return Err(self.fail(effect.node, "effect evaluation path bound"));
@@ -24355,22 +24142,7 @@ impl<'a> Closure<'a> {
                 else {
                     return false;
                 };
-                match self.resolve.node_typeref.get(&NodeKey::of(path)) {
-                    Some(TypeRef::FieldChain { fields, .. }) if fields.len() == 1 => {
-                        self.types.field_reuse_sources.get(&parameter.param) == fields.first()
-                            && self.types.symbol_types.get(&fields[0]) == Some(ty)
-                    }
-                    Some(TypeRef::Symbol(alias)) => self
-                        .resolve
-                        .judgment_value_constraints
-                        .get(alias)
-                        .is_some_and(|constraints| {
-                            constraints.alias == Some(*alias)
-                                && self.types.value_constraints.get(&parameter.param) == Some(constraints)
-                                && self.types.symbol_types.get(alias) == Some(ty)
-                        }),
-                    _ => false,
-                }
+                self.reused_parameter_type_matches(parameter, path, ty)
             }
 
             /// Non-file array slots (`text[]`, `Slot[]`, …) keep their exact element
@@ -24408,7 +24180,7 @@ impl<'a> Closure<'a> {
                 else {
                     return false;
                 };
-                self.array_param_typeref_ok(parameter, path, ty)
+                self.reused_parameter_type_matches(parameter, path, ty)
             }
 
             /// Whether an array parameter's element keeps its exact shape:
@@ -24450,9 +24222,9 @@ impl<'a> Closure<'a> {
                     && self.types.node_types.get(&default) == Some(ty)
             }
 
-            /// Whether an array parameter's declared type resolves through a
-            /// field-reuse or an aliased judgment constraint of matching type.
-            fn array_param_typeref_ok(
+            /// Reused enum/array CALL slots retain the same original field or
+            /// checked alias declaration, constraint identity and exact type.
+            fn reused_parameter_type_matches(
                 &self,
                 parameter: &super::effects::ParamData,
                 path: &SyntaxNode,

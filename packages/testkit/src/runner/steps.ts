@@ -151,7 +151,7 @@ function rolesFromCellArray(value: unknown[]): readonly string[] {
 
 export function callerFromCell(
   value: unknown,
-  bindings: { readonly self: unknown; readonly other: unknown },
+  bindings: { readonly self: unknown; readonly other: unknown; readonly outsider?: unknown },
   suite: RecipeSuite,
 ): CallerSelection {
   if (value === bindings.self || value === "self") {
@@ -159,6 +159,9 @@ export function callerFromCell(
   }
   if (value === bindings.other || value === "other") {
     return { kind: "other" };
+  }
+  if (bindings.outsider != null && value === bindings.outsider) {
+    return { kind: "outsider" };
   }
   if (typeof value === "string") {
     if (value === "outsider") {

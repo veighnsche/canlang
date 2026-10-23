@@ -1,6 +1,6 @@
 # Current canonical findings and boundary queue
 
-Source: [baseline](baseline.md). Requirement authority, observation, inference and performed proof remain distinct. These findings supersede stale current claims, not the historical evidence itself. A source inspection does not reproduce an exploit or establish installed behavior.
+Source: [baseline](baseline.md). These observations describe that audited baseline; completed corrections and remaining implementation scope are recorded in [current implementation status](tasks.md#implementation-status--2026-10-23). Requirement authority, observation, inference and performed proof remain distinct. These findings supersede stale current claims, not the historical evidence itself. A source inspection does not reproduce an exploit or establish installed behavior.
 
 | ID / primary | Requirement and exact observation | Classification / supported correction | Challenge and gate |
 | --- | --- | --- | --- |

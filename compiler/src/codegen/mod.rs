@@ -302,18 +302,13 @@ pub fn emit(
         sources.catalog,
         &policy_module,
     );
-    let model_rule_origins = model_unique_conditions::collect_checked_model_rule_origins(
-        program,
-        &ir,
-        sources.db,
-        sources.catalog,
-    );
-    let unique_conditions = model_unique_conditions::collect_checked_unique_conditions(
-        program,
-        &ir,
-        sources.db,
-        sources.catalog,
-    );
+    let (model_rule_origins, unique_conditions) =
+        model_unique_conditions::collect_checked_model_rules(
+            program,
+            &ir,
+            sources.db,
+            sources.catalog,
+        );
     let owner_handlers = ir.items.iter().filter_map(|owner| {
         scenario_decisions::owner_handler_queries(query_context?, owner).map(|()| owner.id)
     }).collect::<std::collections::HashSet<_>>();

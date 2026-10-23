@@ -65,9 +65,12 @@ function projection(value: unknown): Projection {
 }
 function mutationWire(value: unknown): MutationWire {
   const body = object(value);
+  // A durable rejection may carry the canonical renewed-attempt envelope.
+  const error = body.error === undefined ? body : object(body.error);
+  if (body.error !== undefined) assert.equal(body.code, undefined);
   if (body.records !== undefined) assert.ok(Array.isArray(body.records));
   return { result: body.result, ...(body.status === undefined ? {} : { status: word(body.status) }),
-    ...(body.code === undefined ? {} : { code: word(body.code) }),
+    ...(error.code === undefined ? {} : { code: word(error.code) }),
     ...(body.records === undefined ? {} : { records: (body.records as unknown[]).map(value => {
       const row = object(value), data = object(row.data);
       if (Object.hasOwn(data, 'quantity')) return projection(value);
@@ -91,7 +94,8 @@ function mcpWire(value: unknown): McpWire {
 }
 type Actor = { cookie: string; csrf: string; owner: string | null; principal: string; grant?: string };
 
-it('consumes captured native saved scalar, array, derive and machine scenarios through real portable owner D1, auth and MCP', { timeout: 180000 }, async () => {
+// This complete capture/HTTP/CSV/MCP/default/replay workflow also verifies every physical store.
+it('consumes captured native saved scalar, array, derive and machine scenarios through real portable owner D1, auth and MCP', { timeout: 420000 }, async () => {
   let worker: LocalDev | undefined, bridge: ProtectedPreview | undefined, provisioning: LocalDev | undefined;
   let persistence: string | undefined;
   let capture: Awaited<ReturnType<typeof captureSingleFileSource>> | undefined;
@@ -331,9 +335,18 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       const names = (await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all<{name:string}>())
         .results.map(row => row.name).filter(name => !name.startsWith('_cf_'));
       const result: DatabaseSnapshot = {};
-      for (const name of names) {
+      const queries = names.map(name => {
         assert.match(name, /^[A-Za-z_][A-Za-z0-9_]*$/);
-        const rows = (await db.prepare(`SELECT * FROM "${name}"`).all()).results;
+        return db.prepare(`SELECT * FROM "${name}"`);
+      });
+      // Snapshot every physical table together after the awaited operation.
+      // Retain the complete census and row digests with one SDK round trip.
+      const snapshots = queries.length === 0 ? [] : await db.batch(queries);
+      assert.equal(snapshots.length, names.length);
+      for (const [index, name] of names.entries()) {
+        const snapshot = snapshots[index]!;
+        assert.equal(snapshot.success, true);
+        const rows = snapshot.results;
         result[name] = { count: rows.length, digest: digest(rows.map(row => JSON.stringify(row)).sort()) };
       }
       return result;

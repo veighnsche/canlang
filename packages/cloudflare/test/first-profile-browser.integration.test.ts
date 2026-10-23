@@ -87,8 +87,13 @@ it('cancels the genuine whole HelpOffice browser consumer after authenticated De
             assert.ok(owner); owners.set(owner, await runtime.value.getD1Database(binding, runtime.workerName) as D1Database);
           }
           servingBefore = await snapshot();
-          for (const db of owners.values()) assert.equal((await db.prepare('SELECT id FROM records WHERE model=? AND archived_at IS NULL')
-            .bind('HelpOffice.Supply').all()).results.length, 0);
+          for (const [owner, db] of owners) {
+            const records = (await db.prepare('SELECT data FROM records WHERE model=? AND archived_at IS NULL')
+              .bind('HelpOffice.Supply').all<{ data: string }>()).results;
+            assert.equal(records.length, owner === expectedActors.Ava.owner ? 1 : 0,
+              'preview staging retains the authored editable fixture only in Cedar');
+            if (records.length === 1) assert.equal(JSON.parse(records[0]!.data).name, 'Printer paper');
+          }
           const lease = await registry.api('browser.launch', payload, parent, signal);
           browser = registry.resources.get(payload.handle)!.value as Browser; browserHandle = payload.handle;
           assert.deepEqual(lease.identity, availability.identity);

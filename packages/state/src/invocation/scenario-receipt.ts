@@ -99,12 +99,8 @@ export async function prepareObserveVenueScanQuery(call: AdmittedCall, store: St
       typeof input.source !== 'string' || input.source === '') {
     return invalid('Observe venue scan needs its unique active initial owner stage.');
   }
-  const original = checkObserveVenueDecisionPlan(dataCopy(input.original), state.bound.plan.source);
-  const checked = checkObserveVenueDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
-  if (stableStringify(original) !== stableStringify(checked) ||
-      stableStringify(original) !== stableStringify(profile)) {
-    return invalid('Observe venue scan differs from its independently checked source.');
-  }
+  const checked = checkOwnerDecisionSources(input, profile, state.bound.plan.source, checkObserveVenueDecisionPlan,
+    'Observe venue scan differs from its independently checked source.');
   const admittedInputs = call.inputs as unknown;
   const admittedValue = typeof admittedInputs === 'object' && admittedInputs !== null
     ? (admittedInputs as Record<string, unknown>).value : undefined;
@@ -3325,6 +3321,82 @@ interface OwnerDecisionLease {
   staged: number;
   queryIndex: number;
 }
+/** Both supplied views must independently validate against the same checked
+ * source before either can participate in the private owner decision. */
+function checkOwnerDecisionSources<T>(input: { readonly original: T; readonly checked: T }, profile: T,
+  source: ScenarioResultDisclosurePlan['source'], check: (value: unknown, source: ScenarioResultDisclosurePlan['source']) => T,
+  failure: string): T {
+  const original = check(dataCopy(input.original), source);
+  const checked = check(dataCopy(input.checked), source);
+  if (stableStringify(original) !== stableStringify(checked) ||
+      stableStringify(original) !== stableStringify(profile)) return invalid(failure);
+  return checked;
+}
+
+interface OwnerDecisionDomain {
+  readonly model: ModelName;
+  readonly parent?: Readonly<{ model: ModelName; id: RecordId }>;
+  readonly allowanceId?: RecordId;
+  readonly rows: readonly StoredRow[];
+}
+const ownerDecisionDomainKey = (model: ModelName, parent?: OwnerDecisionDomain['parent']) =>
+  stableStringify([model, parent ?? null]);
+
+/** Source-site and stage admission stays with the decision. This private
+ * reader only captures its complete current owner domains, never viewer rows. */
+function ownerDecisionDomains(owner: ReceiptOwnerSession, rows: Map<string, StoredRow>, failure: string,
+  uncontained: (model: ModelName, row: StoredRow) => boolean = (_model, row) => row.parent === null) {
+  const domains = new Map<string, OwnerDecisionDomain>();
+  const readDomain = async (model: ModelName, parent?: OwnerDecisionDomain['parent']): Promise<readonly StoredRow[]> => {
+    const identity = ownerDecisionDomainKey(model, parent);
+    let domain = domains.get(identity);
+    if (domain === undefined) {
+      const scanned = await ownerOperation(owner, () => owner.session!.views.final.query({ model,
+        ...(parent === undefined ? {} : { parent }), authority: 'owner', archived: 'exclude',
+        order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows }));
+      if (scanned.length > 4_000 || scanned.some(row => row.archivedAt !== null ||
+          (parent === undefined ? !uncontained(model, row) :
+            row.parent?.model !== parent.model || row.parent.id !== parent.id))) return invalid(failure);
+      domain = Object.freeze({ model, ...(parent === undefined ? {} : { parent }), rows: Object.freeze([...scanned]) });
+      domains.set(identity, domain);
+      for (const row of scanned) rows.set(`${model}\0${row.id}`, row);
+    }
+    return domain.rows;
+  };
+  return { domains, readDomain };
+}
+
+/** Recheck original rows, then complete domains, then Identity, between the
+ * same revision fences. Profile-specific stage and effect checks run first. */
+async function revalidateOwnerDecisionSources(call: AdmittedCall, store: StoragePort, owner: ReceiptOwnerSession,
+  rows: ReadonlyMap<string, StoredRow>, domains: Iterable<OwnerDecisionDomain>,
+  authority: { revalidate(): Promise<void> } | undefined,
+  failure: { readonly before: string; readonly row: string; readonly domain: string; readonly after: string },
+  options: { readonly maxDomainRows?: number | null; readonly domainLimitFailure?: string } = {}): Promise<true> {
+  if (await store.readRevision() !== call.revision) throw new StateError('conflict', failure.before);
+  for (const [identity, row] of rows) {
+    const separator = identity.indexOf('\0');
+    const current = await store.cohortLoad({ model: identity.slice(0, separator) as ModelName,
+      id: identity.slice(separator + 1) as RecordId, expectedRevision: call.revision });
+    if (stableStringify(current) !== stableStringify(row)) throw new StateError('forbidden', failure.row);
+  }
+  const maximum = options.maxDomainRows === undefined ? 4_000 : options.maxDomainRows;
+  for (const domain of domains) {
+    const current = await store.query({ model: domain.model,
+      ...(domain.parent === undefined ? {} : { parent: domain.parent }), authority: 'owner', archived: 'exclude',
+      order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows,
+      ...(domain.allowanceId === undefined ? {} :
+        { where: { op: 'eq' as const, field: 'allowance', value: { id: domain.allowanceId } } }) });
+    if (maximum !== null && current.length > maximum) {
+      throw new StateError('forbidden', options.domainLimitFailure ?? failure.domain);
+    }
+    if (stableStringify(current) !== stableStringify(domain.rows)) throw new StateError('forbidden', failure.domain);
+  }
+  if (authority !== undefined) await authority.revalidate();
+  if (await store.readRevision() !== call.revision) throw new StateError('conflict', failure.after);
+  return true;
+}
+
 function claimOwnerDecisionQuery(owner: ReceiptOwnerSession, lease: OwnerDecisionLease,
   siteId: string, model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>): void {
   let expected = lease.queries[lease.queryIndex];
@@ -4980,6 +5052,110 @@ export async function executeScenarioReceiptPurchaseAll(call: AdmittedCall, stor
 }
 const eventNoticeCaptures=new WeakMap<Capture,{ readonly values: Array<{readonly text:string;readonly locale:string}>; consumed:boolean }>();
 
+/** Private original-stage control observation shared by Requires, sealed IFs
+ * and Event formatters. It keeps raw rows and complete reached domains, never
+ * DATA grants; each caller still owns admission, stage and predicate execution. */
+function sourceStageObservation(call: AdmittedCall, store: StoragePort, state: Capture,
+  owner: ReceiptOwnerSession, healthy: () => void, kind: 'Require' | 'Event formatter') {
+  const label = kind === 'Require' ? 'Source Require' : 'Event formatter';
+  const rows = new Map<string, StoredRow>();
+  const rowKey = (model: string, id: string) => `${model}\0${id}`;
+  const read = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+    healthy();
+    // Freeze reads from this exact source stage. This control observer
+    // grants no DATA; Identity and the revision fence remain live.
+    const key = rowKey(model, id), cached = rows.get(key);
+    if (cached !== undefined) return cached;
+    const row = await owner.session!.views.final.get(model, id); healthy();
+    if (row !== null) rows.set(key, row);
+    return row;
+  };
+  const policyDomains = ownerPolicyDomains(owner, healthy);
+  const query = async (model: ModelName, parent?: Readonly<{model: ModelName; id: RecordId}>): Promise<readonly StoredRow[]> => {
+    const domain = await policyDomains.capture(model, parent);
+    for (const row of domain) rows.set(rowKey(model, row.id), row);
+    return domain;
+  };
+  const domains: Array<{ model: ModelName; ids: readonly string[]; id?: RecordId;
+    parent?: Readonly<{ model: ModelName; id: RecordId }> }> = [];
+  const observe = <T>(action: () => T): T => {
+    try { healthy(); return action(); }
+    catch (error) { state.poisoned = true; owner.capture.poisoned = true; throw error; }
+  };
+  const observer: ScenarioReceiptRequireObserver = Object.freeze({
+    field: (model: string, projected: StoredRow | ProjectedRecord, field: string) => observe(() => {
+      const row = rows.get(rowKey(model, projected.id));
+      if (row === undefined || row.version !== projected.version || !state.bound.artifactModels.has(model as ModelName)) {
+        return invalid('source field needs its actual original owner row.');
+      }
+      // Metadata identity is already tied to this issued row, without a data grant.
+      if (!state.bound.artifactModels.get(model as ModelName)!.fields.some(entry => entry.name === field) && field !== 'parent') return;
+      // The row/field identity is checked here. Its owner value belongs to
+      // this original stage; this operation's later writes cannot revoke
+      // the decision, while the storage revision fence catches other writers.
+    }),
+    query: (model: string, records: readonly ProjectedRecord[], id?: string,
+      parent?: Readonly<{ model: string; id: string }>) => observe(() => {
+      if (domains.length >= MAX_ITEMS || !state.bound.artifactModels.has(model as ModelName) ||
+          records.some(record => rows.get(rowKey(model, record.id))?.version !== record.version)) {
+        return invalid('source query needs its complete genuine owning domain.');
+      }
+      domains.push({ model: model as ModelName, ids: Object.freeze(records.map(record => record.id)),
+        ...(id === undefined ? {} : { id: id as RecordId }),
+        ...(parent === undefined ? {} : { parent: { model: parent.model as ModelName, id: parent.id as RecordId } }) });
+    }),
+  });
+  const evaluate = (root: StoredRow, predicate: InstalledSourceQueryPredicate, context: ByContext) => {
+    const ownerRecord = (row: StoredRow) => projectSourceRowFields(row,
+      [{ fields: Object.keys(row.data) }], []);
+    let answer: boolean | undefined;
+    return observeRowGrantAuthority(context, async observed => {
+      // The first pass records all actual source subjects. Snapshot validation
+      // may call this collector again; the original authored guard runs once.
+      if (answer !== undefined) return answer;
+      answer = await evaluateInstalledReadPredicate(predicate, ownerRecord(root), {
+        context: observed, row: root, revision: call.revision, fence: undefined,
+        sourcePresence: Object.freeze(Object.keys(root.data)),
+      }, store, { read, assertHealthy: healthy, query, policyQuery: policyDomains.capture });
+      healthy(); return answer;
+    });
+  };
+  const retain = (occurrence: string, context: ByContext,
+    authority: { readonly revalidate: () => Promise<void> }): void => {
+    owner.callGuards.push(Object.freeze({ name: occurrence, evaluate: async () => {
+      const final = owner.finalized;
+      if (final === null) return invalid(`source ${kind} needs actual finalized owner effects.`);
+      const finalHealthy = () => {
+        if (owner.finalized !== final || owner.capture.poisoned) return invalid(`source ${kind} final capture changed.`);
+      };
+      // Retain this exact source-stage decision across later own writes.
+      // Stage-zero Requires and post-write IFs each keep the domain they
+      // actually observed. Current Identity and the storage fence recheck it;
+      // this control observation issues no DATA authority.
+      const originalDomains = policyDomains.retained(finalHealthy);
+      const originalRead = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+        finalHealthy();
+        const key = rowKey(model, id);
+        if (!rows.has(key)) throw new StateError('forbidden', `${label} requested an unobserved original row.`);
+        return rows.get(key)!;
+      };
+      const current = await observeRowGrantAuthority(context, async _observed => {
+        for (const domain of domains) {
+          const candidates = domain.id === undefined ? await originalDomains(domain.model, domain.parent) :
+            [await originalRead(domain.model, domain.id)].filter((row): row is StoredRow => row !== null);
+          const ids = candidates.map(row => row.id);
+          if (stableStringify(ids) !== stableStringify(domain.ids)) throw new StateError('forbidden', `${label} owner query domain changed.`);
+        }
+        return true;
+      });
+      await current.revalidate(); await authority.revalidate(); finalHealthy();
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', `${label} moved beyond its original revision.`);
+      return true;
+    } }));
+  };
+  return { read, observer, evaluate, retain };
+}
+
 /** One original control expression, evaluated once on its genuine owner row.
  * Requires retain stage zero; a sealed IF captures its actual staged snapshot.
  * Complete observed domains and current Identity survive to the fence. */
@@ -5038,24 +5214,7 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
         return invalid('source Require crossed its original owner stage.');
       }
     };
-    const rows = new Map<string, StoredRow>();
-    const rowKey = (model: string, id: string) => `${model}\0${id}`;
-    const read = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
-      healthy();
-      // Freeze reads from this exact source stage. This control observer
-      // grants no DATA; Identity and the revision fence remain live.
-      const key = rowKey(model, id), cached = rows.get(key);
-      if (cached !== undefined) return cached;
-      const row = await owner.session!.views.final.get(model, id); healthy();
-      if (row !== null) rows.set(key, row);
-      return row;
-    };
-    const policyDomains = ownerPolicyDomains(owner, healthy);
-    const query = async (model: ModelName, parent?: Readonly<{model: ModelName; id: RecordId}>): Promise<readonly StoredRow[]> => {
-      const domain = await policyDomains.capture(model, parent);
-      for (const row of domain) rows.set(rowKey(model, row.id), row);
-      return domain;
-    };
+    const { read, observer, evaluate, retain } = sourceStageObservation(call, store, state, owner, healthy, 'Require');
     if(loopItem!==undefined){const selected=await read(loopItem.execution.loop.model,loopItem.row.id);
       if(selected===null||selected.archivedAt!==null||!sameModelLifetime(loopItem.row,selected))return invalid('Loop IF selected row lifetime changed.');}
     const root = await read(reference.model, reference.id);
@@ -5074,35 +5233,6 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
         return invalid('Invoice collection Require lacks its current direct Customer.');
       }
     }
-    const domains: Array<{ model: ModelName; ids: readonly string[]; id?: RecordId;
-      parent?: Readonly<{ model: ModelName; id: RecordId }> }> = [];
-    const observe = <T>(action: () => T): T => {
-      try { healthy(); return action(); }
-      catch (error) { state.poisoned = true; owner.capture.poisoned = true; throw error; }
-    };
-    const observer: ScenarioReceiptRequireObserver = Object.freeze({
-      field: (model: string, projected: StoredRow | ProjectedRecord, field: string) => observe(() => {
-        const row = rows.get(rowKey(model, projected.id));
-        if (row === undefined || row.version !== projected.version || !state.bound.artifactModels.has(model as ModelName)) {
-          return invalid('source field needs its actual original owner row.');
-        }
-        // Metadata identity is already tied to this issued row, without a data grant.
-        if (!state.bound.artifactModels.get(model as ModelName)!.fields.some(entry => entry.name === field) && field !== 'parent') return;
-        // The row/field identity is checked here. Its owner value belongs to
-        // this original stage; this operation's later writes cannot revoke
-        // the decision, while the storage revision fence catches other writers.
-      }),
-      query: (model: string, records: readonly ProjectedRecord[], id?: string,
-        parent?: Readonly<{ model: string; id: string }>) => observe(() => {
-        if (domains.length >= MAX_ITEMS || !state.bound.artifactModels.has(model as ModelName) ||
-            records.some(record => rows.get(rowKey(model, record.id))?.version !== record.version)) {
-          return invalid('source query needs its complete genuine owning domain.');
-        }
-        domains.push({ model: model as ModelName, ids: Object.freeze(records.map(record => record.id)),
-          ...(id === undefined ? {} : { id: id as RecordId }),
-          ...(parent === undefined ? {} : { parent: { model: parent.model as ModelName, id: parent.id as RecordId } }) });
-      }),
-    });
     const predicate = input.capture(observer);
     if (typeof predicate !== 'function') return invalid('source Require needs its installed original predicate.');
     const memberships = scenarioReceiptMemberships(owner.call, store), actorUserId = call.context.actor?.userId ?? null,
@@ -5110,51 +5240,10 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
     const membership = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId);
     healthy();
     const context: ByContext = { actorUserId, teamId, membership, memberships };
-    const ownerRecord = (row: StoredRow) => projectSourceRowFields(row,
-      [{ fields: Object.keys(row.data) }], []);
-    let answer: boolean | undefined;
-    const authority = await observeRowGrantAuthority(context, async observed => {
-      // The first pass records all actual source subjects. Snapshot validation
-      // may call this collector again; the original authored guard runs once.
-      if (answer !== undefined) return answer;
-      answer = await evaluateInstalledReadPredicate(predicate, ownerRecord(root), {
-        context: observed, row: root, revision: call.revision, fence: undefined,
-        sourcePresence: Object.freeze(Object.keys(root.data)),
-      }, store, { read, assertHealthy: healthy, query, policyQuery: policyDomains.capture });
-      healthy(); return answer;
-    });
+    const authority = await evaluate(root, predicate, context);
     await authority.revalidate(); healthy();
-    if(loopItem!==undefined){if(typeof answer!=='boolean')return invalid('Loop IF did not produce its original bool.');loopItem.answer=answer;}
-    owner.callGuards.push(Object.freeze({ name: occurrence, evaluate: async () => {
-      const final = owner.finalized;
-      if (final === null) return invalid('source Require needs actual finalized owner effects.');
-      const finalHealthy = () => {
-        if (owner.finalized !== final || owner.capture.poisoned) return invalid('source Require final capture changed.');
-      };
-      // Retain this exact source-stage decision across later own writes.
-      // Stage-zero Requires and post-write IFs each keep the domain they
-      // actually observed. Current Identity and the storage fence recheck it;
-      // this control observation issues no DATA authority.
-      const originalDomains = policyDomains.retained(finalHealthy);
-      const originalRead = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
-        finalHealthy();
-        const key = rowKey(model, id);
-        if (!rows.has(key)) throw new StateError('forbidden', 'Source Require requested an unobserved original row.');
-        return rows.get(key)!;
-      };
-      const current = await observeRowGrantAuthority(context, async _observed => {
-        for (const domain of domains) {
-          const candidates = domain.id === undefined ? await originalDomains(domain.model, domain.parent) :
-            [await originalRead(domain.model, domain.id)].filter((row): row is StoredRow => row !== null);
-          const ids = candidates.map(row => row.id);
-          if (stableStringify(ids) !== stableStringify(domain.ids)) throw new StateError('forbidden', 'Source Require owner query domain changed.');
-        }
-        return true;
-      });
-      await current.revalidate(); await authority.revalidate(); finalHealthy();
-      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Source Require moved beyond its original revision.');
-      return true;
-    } }));
+    if(loopItem!==undefined){if(typeof authority.value!=='boolean')return invalid('Loop IF did not produce its original bool.');loopItem.answer=authority.value;}
+    retain(occurrence, context, authority);
     return authority.value;
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
   finally { if (acquired) { state.pending--; owner!.busy = false; } }
@@ -5195,57 +5284,11 @@ export async function executeScenarioReceiptEventNoticeFormat(call:AdmittedCall,
         return invalid('source Event formatter crossed its original owner stage.');
       }
     };
-    const rows = new Map<string, StoredRow>();
-    const rowKey = (model: string, id: string) => `${model}\0${id}`;
-    const read = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
-      healthy();
-      // This observer cannot cross stage zero or write. Reuse raw snapshot
-      // rows, never projected grants; Identity and the revision fence stay live.
-      const key = rowKey(model, id), cached = rows.get(key);
-      if (cached !== undefined) return cached;
-      const row = await owner.session!.views.final.get(model, id); healthy();
-      if (row !== null) rows.set(key, row);
-      return row;
-    };
-    const policyDomains = ownerPolicyDomains(owner, healthy);
-    const query = async (model: ModelName, parent?: Readonly<{model: ModelName; id: RecordId}>): Promise<readonly StoredRow[]> => {
-      const domain = await policyDomains.capture(model, parent);
-      for (const row of domain) rows.set(rowKey(model, row.id), row);
-      return domain;
-    };
+    const { read, observer, evaluate, retain } = sourceStageObservation(call, store, state, owner, healthy, 'Event formatter');
     const root = await read(reference.model, reference.id);
     if (root === null || stableStringify(root) !== stableStringify(reference.row)) {
       throw new StateError('conflict', 'Event formatter model differs from its admitted row.');
     }
-    const domains: Array<{ model: ModelName; ids: readonly string[]; id?: RecordId;
-      parent?: Readonly<{ model: ModelName; id: RecordId }> }> = [];
-    const observe = <T>(action: () => T): T => {
-      try { healthy(); return action(); }
-      catch (error) { state.poisoned = true; owner.capture.poisoned = true; throw error; }
-    };
-    const observer: ScenarioReceiptRequireObserver = Object.freeze({
-      field: (model: string, projected: StoredRow | ProjectedRecord, field: string) => observe(() => {
-        const row = rows.get(rowKey(model, projected.id));
-        if (row === undefined || row.version !== projected.version || !state.bound.artifactModels.has(model as ModelName)) {
-          return invalid('source field needs its actual original owner row.');
-        }
-        // Metadata identity is already tied to this issued row, without a data grant.
-        if (!state.bound.artifactModels.get(model as ModelName)!.fields.some(entry => entry.name === field) && field !== 'parent') return;
-        // The row/field identity is checked here. Its owner value belongs to
-        // this original stage; this operation's later writes cannot revoke
-        // the decision, while the storage revision fence catches other writers.
-      }),
-      query: (model: string, records: readonly ProjectedRecord[], id?: string,
-        parent?: Readonly<{ model: string; id: string }>) => observe(() => {
-        if (domains.length >= MAX_ITEMS || !state.bound.artifactModels.has(model as ModelName) ||
-            records.some(record => rows.get(rowKey(model, record.id))?.version !== record.version)) {
-          return invalid('source query needs its complete genuine owning domain.');
-        }
-        domains.push({ model: model as ModelName, ids: Object.freeze(records.map(record => record.id)),
-          ...(id === undefined ? {} : { id: id as RecordId }),
-          ...(parent === undefined ? {} : { parent: { model: parent.model as ModelName, id: parent.id as RecordId } }) });
-      }),
-    });
     const predicate = input.capture(observer);
     if (typeof predicate !== 'function') return invalid('source Event formatter needs its installed original predicate.');
     const memberships = scenarioReceiptMemberships(owner.call, store), actorUserId = call.context.actor?.userId ?? null,
@@ -5253,51 +5296,9 @@ export async function executeScenarioReceiptEventNoticeFormat(call:AdmittedCall,
     const membership = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId);
     healthy();
     const context: ByContext = { actorUserId, teamId, membership, memberships };
-    const ownerRecord = (row: StoredRow) => projectSourceRowFields(row,
-      [{ fields: Object.keys(row.data) }], []);
-    let answer: boolean | undefined;
-    const authority = await observeRowGrantAuthority(context, async observed => {
-      // The first pass records all actual source subjects. Snapshot validation
-      // may call this collector again; the original authored guard runs once.
-      if (answer !== undefined) return answer;
-      answer = await evaluateInstalledReadPredicate(predicate, ownerRecord(root), {
-        context: observed, row: root, revision: call.revision, fence: undefined,
-        sourcePresence: Object.freeze(Object.keys(root.data)),
-      }, store, { read, assertHealthy: healthy, query, policyQuery: policyDomains.capture });
-      healthy(); return answer;
-    });
+    const authority = await evaluate(root, predicate, context);
     await authority.revalidate(); healthy();
-    owner.callGuards.push(Object.freeze({ name: occurrence, evaluate: async () => {
-      const final = owner.finalized;
-      if (final === null) return invalid('source Event formatter needs actual finalized owner effects.');
-      const finalHealthy = () => {
-        if (owner.finalized !== final || owner.capture.poisoned) return invalid('source Event formatter final capture changed.');
-      };
-      // The original decision is retained across this operation's own
-      // writes. Recheck its complete pre-write domains at the fenced revision.
-      // Source guards execute at their original pre-write stage. Own later
-      // effects do not replace that domain; current Identity still rechecks it.
-      // Consumed fields separately retain their final-overlay authority below.
-      const originalDomains = policyDomains.retained(finalHealthy);
-      const originalRead = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
-        finalHealthy();
-        const key = rowKey(model, id);
-        if (!rows.has(key)) throw new StateError('forbidden', 'Event formatter requested an unobserved original row.');
-        return rows.get(key)!;
-      };
-      const current = await observeRowGrantAuthority(context, async _observed => {
-        for (const domain of domains) {
-          const candidates = domain.id === undefined ? await originalDomains(domain.model, domain.parent) :
-            [await originalRead(domain.model, domain.id)].filter((row): row is StoredRow => row !== null);
-          const ids = candidates.map(row => row.id);
-          if (stableStringify(ids) !== stableStringify(domain.ids)) throw new StateError('forbidden', 'Event formatter owner query domain changed.');
-        }
-        return true;
-      });
-      await current.revalidate(); await authority.revalidate(); finalHealthy();
-      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Event formatter moved beyond its original revision.');
-      return true;
-    } }));
+    retain(occurrence, context, authority);
     if (authority.value!==true) return invalid('Event formatter capture must finish its original source expression.');
     const result=object(dataCopy(input.result(),true),['descriptor','locale','formatted']);
     const descriptor=object(result['descriptor'],['source','sourceLocale','variants','params']);
@@ -5389,12 +5390,8 @@ export async function executeScenarioReceiptEventDecision(call: AdmittedCall, st
         typeof input.evaluate !== 'function' || !['if', 'when'].includes(input.decision)) {
       return invalid('event decision needs its exact active initial private owner stage.');
     }
-    const original = checkEventDecisionPlan(dataCopy(input.original), state.bound.plan.source);
-    const checked = checkEventDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
-    if (stableStringify(original) !== stableStringify(checked) ||
-        stableStringify(original) !== stableStringify(profile)) {
-      return invalid('event decision differs from its independently checked source.');
-    }
+    checkOwnerDecisionSources(input, profile, state.bound.plan.source, checkEventDecisionPlan,
+      'event decision differs from its independently checked source.');
     const decision = input.decision, site = decision === 'if' ? profile.ifSite : profile.whenSite;
     const occurrence = `event-decision:${site.id}`;
     if (owner.callGuards.some(guard => guard.name === occurrence) ||
@@ -5601,12 +5598,8 @@ export async function executeScenarioReceiptSuccessRenewalDecision(call: Admitte
         typeof input.evaluate !== 'function' || !['if', 'when'].includes(input.decision)) {
       return invalid('renewal decision needs its exact active initial private owner stage.');
     }
-    const original = checkSuccessRenewalDecisionPlan(dataCopy(input.original), state.bound.plan.source);
-    const checked = checkSuccessRenewalDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
-    if (stableStringify(original) !== stableStringify(checked) ||
-        stableStringify(original) !== stableStringify(profile)) {
-      return invalid('renewal decision differs from its independently checked source.');
-    }
+    checkOwnerDecisionSources(input, profile, state.bound.plan.source, checkSuccessRenewalDecisionPlan,
+      'renewal decision differs from its independently checked source.');
     const decision = input.decision, site = decision === 'if' ? profile.sites.if : profile.sites.send;
     const occurrence = `success-renewal:${site.id}`;
     if (owner.callGuards.some(guard => guard.name === occurrence) ||
@@ -5804,12 +5797,8 @@ export async function executeScenarioReceiptTermDecision(call: AdmittedCall, sto
         owner.callGuards.length >= MAX_ITEMS || typeof input.evaluate !== 'function') {
       return invalid('term decision needs its one active pre-write owner stage.');
     }
-    const original = checkTermDecisionPlan(dataCopy(input.original), state.bound.plan.source);
-    const checked = checkTermDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
-    if (stableStringify(original) !== stableStringify(checked) ||
-        stableStringify(original) !== stableStringify(profile)) {
-      return invalid('term decision differs from its independently checked source.');
-    }
+    checkOwnerDecisionSources(input, profile, state.bound.plan.source, checkTermDecisionPlan,
+      'term decision differs from its independently checked source.');
     const membershipRefs = call.recordRefs.filter(ref => ref.param === 'membership' &&
       ref.model === 'member_terms.Membership');
     const captureRefs = call.recordRefs.filter(ref => ref.param === 'capture' &&
@@ -5989,26 +5978,10 @@ export async function executeScenarioReceiptTermDecision(call: AdmittedCall, sto
     state.termDecision = { membership, capture: captureRow, previous: selected, cycle };
     owner.callGuards.push(Object.freeze({ name: `term-decision:${profile.sites.renewalFirst.id}`, evaluate: async () => {
       if (owner.finalized === null || owner.capture.poisoned) return invalid('term decision needs actual final owner effects.');
-      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Term decision moved before outer commit.');
-      for (const [identity, row] of rows) {
-        const separator = identity.indexOf('\0');
-        const current = await store.cohortLoad({ model: identity.slice(0, separator) as ModelName,
-          id: identity.slice(separator + 1) as RecordId, expectedRevision: call.revision });
-        if (stableStringify(current) !== stableStringify(row)) {
-          throw new StateError('forbidden', 'Term decision referenced row changed before commit.');
-        }
-      }
-      for (const domain of domains) {
-        const current = await store.query({ model: domain.model, authority: 'owner', archived: 'exclude',
-          order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows,
-          ...(domain.parent === undefined ? {} : { parent: domain.parent }) });
-        if (stableStringify(current) !== stableStringify(domain.rows)) {
-          throw new StateError('forbidden', 'Term decision owner query domain changed before commit.');
-        }
-      }
-      await authority.revalidate();
-      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Term decision moved beyond outer commit.');
-      return true;
+      return revalidateOwnerDecisionSources(call, store, owner, rows, domains, authority, {
+        before: 'Term decision moved before outer commit.', row: 'Term decision referenced row changed before commit.',
+        domain: 'Term decision owner query domain changed before commit.', after: 'Term decision moved beyond outer commit.',
+      }, { maxDomainRows: null });
     } }));
     return selected;
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
@@ -6038,12 +6011,8 @@ export async function executeScenarioReceiptLeaveRequestDecision(call: AdmittedC
         owner.callGuards.length >= MAX_ITEMS || typeof input.evaluate !== 'function') {
       return invalid('leave request needs its unique active initial owner stage.');
     }
-    const original = checkLeaveRequestDecisionPlan(dataCopy(input.original), state.bound.plan.source);
-    const checked = checkLeaveRequestDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
-    if (stableStringify(original) !== stableStringify(checked) ||
-        stableStringify(original) !== stableStringify(profile)) {
-      return invalid('leave request differs from its independently checked source.');
-    }
+    checkOwnerDecisionSources(input, profile, state.bound.plan.source, checkLeaveRequestDecisionPlan,
+      'leave request differs from its independently checked source.');
     const refs = call.recordRefs.filter(ref => ref.param === 'calendar' && ref.model === 'leave.Calendar');
     const ref = refs[0];
     const wire = decodeValue('leave.Calendar', admittedInputWire(call.inputs, 'calendar')) as { readonly id: string };
@@ -6193,29 +6162,10 @@ export async function executeScenarioReceiptLeaveRequestDecision(call: AdmittedC
       if (owner.finalized === null || owner.capture.poisoned || owner.activeLeaveDecision !== null) {
         return invalid('leave request needs its actual finalized serial owner effects.');
       }
-      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Leave request moved before outer commit.');
-      for (const [identity, row] of rows) {
-        const separator = identity.indexOf('\0');
-        const current = await store.cohortLoad({ model: identity.slice(0, separator) as ModelName,
-          id: identity.slice(separator + 1) as RecordId, expectedRevision: call.revision });
-        if (stableStringify(current) !== stableStringify(row)) {
-          throw new StateError('forbidden', 'Leave request owner row changed before commit.');
-        }
-      }
-      for (const domain of domains.values()) {
-        const current = await store.query({ model: domain.model, authority: 'owner', archived: 'exclude',
-          order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows,
-          ...(domain.parent === undefined ? {} : { parent: domain.parent }) });
-        if (current.length > 4_000) {
-          throw new StateError('forbidden', 'Leave request owner collection exceeded its complete domain bound before commit.');
-        }
-        if (stableStringify(current) !== stableStringify(domain.rows)) {
-          throw new StateError('forbidden', 'Leave request owner collection changed before commit.');
-        }
-      }
-      await authority.revalidate();
-      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Leave request moved beyond outer commit.');
-      return true;
+      return revalidateOwnerDecisionSources(call, store, owner, rows, domains.values(), authority, {
+        before: 'Leave request moved before outer commit.', row: 'Leave request owner row changed before commit.',
+        domain: 'Leave request owner collection changed before commit.', after: 'Leave request moved beyond outer commit.',
+      }, { domainLimitFailure: 'Leave request owner collection exceeded its complete domain bound before commit.' });
     } }));
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
 }
@@ -6244,12 +6194,8 @@ export async function executeScenarioReceiptLeaveDecideDecision(call: AdmittedCa
         owner.callGuards.length >= MAX_ITEMS || typeof input.evaluate !== 'function') {
       return invalid('leave decision needs its unique active initial owner stage.');
     }
-    const original = checkLeaveDecideDecisionPlan(dataCopy(input.original), state.bound.plan.source);
-    const checked = checkLeaveDecideDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
-    if (stableStringify(original) !== stableStringify(checked) ||
-        stableStringify(original) !== stableStringify(profile)) {
-      return invalid('leave decision differs from its independently checked source.');
-    }
+    checkOwnerDecisionSources(input, profile, state.bound.plan.source, checkLeaveDecideDecisionPlan,
+      'leave decision differs from its independently checked source.');
     const refs = call.recordRefs.filter(ref => ref.param === 'request' && ref.model === 'leave.Request');
     const ref = refs[0];
     const wire = decodeValue('leave.Request', admittedInputWire(call.inputs, 'request')) as { readonly id: string };
@@ -6424,28 +6370,10 @@ export async function executeScenarioReceiptLeaveDecideDecision(call: AdmittedCa
       if (owner.finalized === null || owner.capture.poisoned || owner.activeLeaveDecideDecision !== null) {
         return invalid('leave decision needs its actual finalized serial owner effects.');
       }
-      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Leave decision moved before outer commit.');
-      for (const [identity, row] of rows) {
-        const separator = identity.indexOf('\0');
-        const current = await store.cohortLoad({ model: identity.slice(0, separator) as ModelName,
-          id: identity.slice(separator + 1) as RecordId, expectedRevision: call.revision });
-        if (stableStringify(current) !== stableStringify(row)) {
-          throw new StateError('forbidden', 'Leave decision owner row changed before commit.');
-        }
-      }
-      for (const domain of domains.values()) {
-        const current = await store.query({ model: domain.model, authority: 'owner', archived: 'exclude',
-          order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows,
-          ...(domain.parent === undefined ? {} : { parent: domain.parent }),
-          ...(domain.allowanceId === undefined ? {} :
-            { where: { op: 'eq' as const, field: 'allowance', value: { id: domain.allowanceId } } }) });
-        if (current.length > 4_000 || stableStringify(current) !== stableStringify(domain.rows)) {
-          throw new StateError('forbidden', 'Leave decision owner collection changed before commit.');
-        }
-      }
-      await authority.revalidate();
-      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Leave decision moved beyond outer commit.');
-      return true;
+      return revalidateOwnerDecisionSources(call, store, owner, rows, domains.values(), authority, {
+        before: 'Leave decision moved before outer commit.', row: 'Leave decision owner row changed before commit.',
+        domain: 'Leave decision owner collection changed before commit.', after: 'Leave decision moved beyond outer commit.',
+      });
     } }));
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
 }
@@ -6475,12 +6403,8 @@ export async function executeScenarioReceiptReferRejectDecision(call: AdmittedCa
         owner.callGuards.length >= MAX_ITEMS || typeof input.evaluate !== 'function') {
       return invalid('referral rejection needs its unique active initial owner stage.');
     }
-    const original = checkReferRejectDecisionPlan(dataCopy(input.original), state.bound.plan.source);
-    const checked = checkReferRejectDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
-    if (stableStringify(original) !== stableStringify(checked) ||
-        stableStringify(original) !== stableStringify(profile)) {
-      return invalid('referral rejection differs from its independently checked source.');
-    }
+    checkOwnerDecisionSources(input, profile, state.bound.plan.source, checkReferRejectDecisionPlan,
+      'referral rejection differs from its independently checked source.');
     const refs = call.recordRefs.filter(ref => ref.param === 'evidence' && ref.model === 'refer.SourceEvidence');
     const ref = refs[0];
     const wire = decodeValue('refer.SourceEvidence', admittedInputWire(call.inputs, 'evidence')) as { readonly id: string };
@@ -6611,25 +6535,10 @@ export async function executeScenarioReceiptReferRejectDecision(call: AdmittedCa
       if (owner.finalized === null || owner.capture.poisoned || owner.activeOwnerDecision !== null) {
         return invalid('referral rejection needs its actual finalized source effects.');
       }
-      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Referral rejection moved before commit.');
-      for (const [identity, row] of rows) {
-        const separator = identity.indexOf('\0');
-        const current = await store.cohortLoad({ model: identity.slice(0, separator) as ModelName,
-          id: identity.slice(separator + 1) as RecordId, expectedRevision: call.revision });
-        if (stableStringify(current) !== stableStringify(row)) {
-          throw new StateError('forbidden', 'Referral rejection owner row changed before commit.');
-        }
-      }
-      for (const domain of domains) {
-        const current = await store.query({ model: domain.model, ...(domain.parent === undefined ? {} : { parent: domain.parent }),
-          authority: 'owner', archived: 'exclude', order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows });
-        if (current.length > 4_000 || stableStringify(current) !== stableStringify(domain.rows)) {
-          throw new StateError('forbidden', 'Referral rejection owner domain changed before commit.');
-        }
-      }
-      await authority.revalidate();
-      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Referral rejection moved beyond commit.');
-      return true;
+      return revalidateOwnerDecisionSources(call, store, owner, rows, domains, authority, {
+        before: 'Referral rejection moved before commit.', row: 'Referral rejection owner row changed before commit.',
+        domain: 'Referral rejection owner domain changed before commit.', after: 'Referral rejection moved beyond commit.',
+      });
     } }));
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
 }
@@ -6657,12 +6566,8 @@ export async function executeScenarioReceiptRentMovementRefundDecision(call: Adm
         owner.callGuards.length >= MAX_ITEMS - 4 || typeof input.evaluate !== 'function') {
       return invalid('movement refund needs its unique live initial owner stage and finite SEND ledger.');
     }
-    const original = checkRentMovementRefundDecisionPlan(dataCopy(input.original), state.bound.plan.source);
-    const checked = checkRentMovementRefundDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
-    if (stableStringify(original) !== stableStringify(checked) ||
-        stableStringify(original) !== stableStringify(profile)) {
-      return invalid('movement refund differs from its independently checked original source.');
-    }
+    checkOwnerDecisionSources(input, profile, state.bound.plan.source, checkRentMovementRefundDecisionPlan,
+      'movement refund differs from its independently checked original source.');
     const refs = call.recordRefs.filter(ref => ref.param === 'movement' &&
       ref.model === 'rent_reservations.Movement');
     const ref = refs[0];
@@ -6721,32 +6626,10 @@ export async function executeScenarioReceiptRentMovementRefundDecision(call: Adm
         return invalid('movement refund crossed its original serial owner stage.');
       }
     };
-    const domains = new Map<string, { readonly model: ModelName;
-      readonly parent?: Readonly<{ model: ModelName; id: RecordId }>;
-      readonly rows: readonly StoredRow[] }>();
-    const domainKey = (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>) =>
-      stableStringify([model, parent ?? null]);
-    const readDomain = async (model: ModelName,
-      parent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
-      const identity = domainKey(model, parent);
-      let domain = domains.get(identity);
-      if (domain === undefined) {
-        const scanned = await ownerOperation(owner, () => owner.session!.views.final.query({ model,
-          ...(parent === undefined ? {} : { parent }), authority: 'owner', archived: 'exclude',
-          order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows }));
-        if (scanned.length > 4_000 || scanned.some(row => row.archivedAt !== null ||
-            (parent === undefined ? model === 'employee.Employee' ? row.parent !== null :
-              row.parent?.model !== 'rent_reservations.Movement' :
-              row.parent?.model !== parent.model || row.parent.id !== parent.id))) {
-          return invalid('movement refund collection exceeds or differs from its complete owner domain.');
-        }
-        domain = Object.freeze({ model, ...(parent === undefined ? {} : { parent }),
-          rows: Object.freeze([...scanned]) });
-        domains.set(identity, domain);
-        for (const row of scanned) rows.set(key(model, row.id), row);
-      }
-      return domain.rows;
-    };
+    const { domains, readDomain } = ownerDecisionDomains(owner, rows,
+      'movement refund collection exceeds or differs from its complete owner domain.',
+      (model, row) => model === 'employee.Employee' ? row.parent === null : row.parent?.model === 'rent_reservations.Movement');
+    const domainKey = ownerDecisionDomainKey;
     const query = async (siteId: string, model: ModelName,
       parent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
       healthy();
@@ -6845,30 +6728,10 @@ export async function executeScenarioReceiptRentMovementRefundDecision(call: Adm
       if (owner.finalized === null || owner.capture.poisoned || owner.activeOwnerDecision !== null) {
         return invalid('movement refund needs its actual finalized source effects.');
       }
-      if (await store.readRevision() !== call.revision) {
-        throw new StateError('conflict', 'Movement refund moved before commit.');
-      }
-      for (const [identity, row] of rows) {
-        const separator = identity.indexOf('\0');
-        const current = await store.cohortLoad({ model: identity.slice(0, separator) as ModelName,
-          id: identity.slice(separator + 1) as RecordId, expectedRevision: call.revision });
-        if (stableStringify(current) !== stableStringify(row)) {
-          throw new StateError('forbidden', 'Movement refund source row changed before commit.');
-        }
-      }
-      for (const domain of domains.values()) {
-        const current = await store.query({ model: domain.model,
-          ...(domain.parent === undefined ? {} : { parent: domain.parent }), authority: 'owner',
-          archived: 'exclude', order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows });
-        if (current.length > 4_000 || stableStringify(current) !== stableStringify(domain.rows)) {
-          throw new StateError('forbidden', 'Movement refund source domain changed before commit.');
-        }
-      }
-      await authority.revalidate();
-      if (await store.readRevision() !== call.revision) {
-        throw new StateError('conflict', 'Movement refund moved beyond commit.');
-      }
-      return true;
+      return revalidateOwnerDecisionSources(call, store, owner, rows, domains.values(), authority, {
+        before: 'Movement refund moved before commit.', row: 'Movement refund source row changed before commit.',
+        domain: 'Movement refund source domain changed before commit.', after: 'Movement refund moved beyond commit.',
+      });
     } }));
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
 }
@@ -6896,12 +6759,8 @@ export async function executeScenarioReceiptMemberRetryDecision(call: AdmittedCa
         owner.callGuards.length >= MAX_ITEMS - 4 || typeof input.evaluate !== 'function') {
       return invalid('member retry needs its unique live initial owner stage and SEND ledger.');
     }
-    const original = checkMemberRetryDecisionPlan(dataCopy(input.original), state.bound.plan.source);
-    const checked = checkMemberRetryDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
-    if (stableStringify(original) !== stableStringify(checked) ||
-        stableStringify(original) !== stableStringify(profile)) {
-      return invalid('member retry differs from its independently checked original source.');
-    }
+    checkOwnerDecisionSources(input, profile, state.bound.plan.source, checkMemberRetryDecisionPlan,
+      'member retry differs from its independently checked original source.');
     const refs = call.recordRefs.filter(ref => ref.param === 'term' && ref.model === 'member_terms.Term');
     const ref = refs[0];
     const wire = decodeValue('member_terms.Term', admittedInputWire(call.inputs, 'term')) as { readonly id: string };
@@ -6953,30 +6812,9 @@ export async function executeScenarioReceiptMemberRetryDecision(call: AdmittedCa
         return invalid('member retry crossed its original serial owner stage.');
       }
     };
-    const domains = new Map<string, { readonly model: ModelName;
-      readonly parent?: Readonly<{ model: ModelName; id: RecordId }>;
-      readonly rows: readonly StoredRow[] }>();
+    const { domains, readDomain } = ownerDecisionDomains(owner, rows,
+      'member retry collection exceeds or differs from its complete owner domain.');
     const sourceQueries: string[] = [];
-    const readDomain = async (model: ModelName,
-      selectedParent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
-      const identity = stableStringify([model, selectedParent ?? null]);
-      let domain = domains.get(identity);
-      if (domain === undefined) {
-        const scanned = await ownerOperation(owner, () => owner.session!.views.final.query({ model,
-          ...(selectedParent === undefined ? {} : { parent: selectedParent }),
-          authority: 'owner', archived: 'exclude', order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows }));
-        if (scanned.length > 4_000 || scanned.some(row => row.archivedAt !== null ||
-            (selectedParent === undefined ? row.parent !== null :
-              row.parent?.model !== selectedParent.model || row.parent.id !== selectedParent.id))) {
-          return invalid('member retry collection exceeds or differs from its complete owner domain.');
-        }
-        domain = Object.freeze({ model, ...(selectedParent === undefined ? {} : { parent: selectedParent }),
-          rows: Object.freeze([...scanned]) });
-        domains.set(identity, domain);
-        for (const row of scanned) rows.set(key(model, row.id), row);
-      }
-      return domain.rows;
-    };
     let expectedSites: readonly string[] = [];
     const query = async (siteId: string, model: ModelName,
       selectedParent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
@@ -7072,26 +6910,10 @@ export async function executeScenarioReceiptMemberRetryDecision(call: AdmittedCa
       if (owner.finalized === null || owner.capture.poisoned || owner.activeOwnerDecision !== null) {
         return invalid('member retry needs its actual finalized source effects.');
       }
-      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Member retry moved before commit.');
-      for (const [identity, row] of rows) {
-        const separator = identity.indexOf('\0');
-        const current = await store.cohortLoad({ model: identity.slice(0, separator) as ModelName,
-          id: identity.slice(separator + 1) as RecordId, expectedRevision: call.revision });
-        if (stableStringify(current) !== stableStringify(row)) {
-          throw new StateError('forbidden', 'Member retry owner row changed before commit.');
-        }
-      }
-      for (const domain of domains.values()) {
-        const current = await store.query({ model: domain.model,
-          ...(domain.parent === undefined ? {} : { parent: domain.parent }),
-          authority: 'owner', archived: 'exclude', order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows });
-        if (current.length > 4_000 || stableStringify(current) !== stableStringify(domain.rows)) {
-          throw new StateError('forbidden', 'Member retry owner domain changed before commit.');
-        }
-      }
-      await authority.revalidate();
-      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Member retry moved beyond commit.');
-      return true;
+      return revalidateOwnerDecisionSources(call, store, owner, rows, domains.values(), authority, {
+        before: 'Member retry moved before commit.', row: 'Member retry owner row changed before commit.',
+        domain: 'Member retry owner domain changed before commit.', after: 'Member retry moved beyond commit.',
+      });
     } }));
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
 }
@@ -7124,12 +6946,8 @@ export async function executeScenarioReceiptInvoiceCollectDecision(call: Admitte
         typeof input.evaluate !== 'function') {
       return invalid('Invoice collection needs its unique live initial owner stage and SEND ledger.');
     }
-    const original = checkInvoiceCollectDecisionPlan(dataCopy(input.original), state.bound.plan.source);
-    const checked = checkInvoiceCollectDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
-    if (stableStringify(original) !== stableStringify(checked) ||
-        stableStringify(original) !== stableStringify(profile)) {
-      return invalid('Invoice collection differs from its independently checked original source.');
-    }
+    checkOwnerDecisionSources(input, profile, state.bound.plan.source, checkInvoiceCollectDecisionPlan,
+      'Invoice collection differs from its independently checked original source.');
     const refs = call.recordRefs.filter(ref => ref.param === 'invoice' && ref.model === 'invoice.Invoice');
     const ref = refs[0];
     const wire = decodeValue('invoice.Invoice', admittedInputWire(call.inputs, 'invoice')) as { readonly id: string };
@@ -7153,31 +6971,8 @@ export async function executeScenarioReceiptInvoiceCollectDecision(call: Admitte
       [key('customer.Customer', customer.id), customer]]);
     const invoiceParent = Object.freeze({ model: 'invoice.Invoice' as ModelName, id: invoice.id });
     const customerParent = Object.freeze({ model: 'customer.Customer' as ModelName, id: customer.id });
-    const domains = new Map<string, { readonly model: ModelName;
-      readonly parent?: Readonly<{ model: ModelName; id: RecordId }>;
-      readonly rows: readonly StoredRow[] }>();
-    const domainKey = (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>) =>
-      stableStringify([model, parent ?? null]);
-    const readDomain = async (model: ModelName,
-      parent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
-      const identity = domainKey(model, parent);
-      let domain = domains.get(identity);
-      if (domain === undefined) {
-        const scanned = await ownerOperation(owner, () => owner.session!.views.final.query({ model,
-          ...(parent === undefined ? {} : { parent }), authority: 'owner', archived: 'exclude',
-          order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows }));
-        if (scanned.length > 4_000 || scanned.some(row => row.archivedAt !== null ||
-            (parent === undefined ? row.parent !== null :
-              row.parent?.model !== parent.model || row.parent.id !== parent.id))) {
-          return invalid('Invoice collection exceeds or differs from its complete owner domain.');
-        }
-        domain = Object.freeze({ model, ...(parent === undefined ? {} : { parent }),
-          rows: Object.freeze([...scanned]) });
-        domains.set(identity, domain);
-        for (const row of scanned) rows.set(key(model, row.id), row);
-      }
-      return domain.rows;
-    };
+    const { domains, readDomain } = ownerDecisionDomains(owner, rows,
+      'Invoice collection exceeds or differs from its complete owner domain.');
     const credits = await readDomain('invoice.Credit' as ModelName, invoiceParent);
     const attempts = await readDomain('invoice.Attempt' as ModelName, invoiceParent);
     const payments = await readDomain('invoice.ExternalPayment' as ModelName, invoiceParent);
@@ -7402,30 +7197,10 @@ export async function executeScenarioReceiptInvoiceCollectDecision(call: Admitte
         if (owner.finalized === null || owner.capture.poisoned || owner.activeOwnerDecision !== null) {
           return invalid('Invoice collection needs its actual finalized source effects.');
         }
-        if (await store.readRevision() !== call.revision) {
-          throw new StateError('conflict', 'Invoice collection moved before commit.');
-        }
-        for (const [identity, row] of rows) {
-          const separator = identity.indexOf('\0');
-          const current = await store.cohortLoad({ model: identity.slice(0, separator) as ModelName,
-            id: identity.slice(separator + 1) as RecordId, expectedRevision: call.revision });
-          if (stableStringify(current) !== stableStringify(row)) {
-            throw new StateError('forbidden', 'Invoice collection source row changed before commit.');
-          }
-        }
-        for (const domain of domains.values()) {
-          const current = await store.query({ model: domain.model,
-            ...(domain.parent === undefined ? {} : { parent: domain.parent }), authority: 'owner',
-            archived: 'exclude', order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows });
-          if (current.length > 4_000 || stableStringify(current) !== stableStringify(domain.rows)) {
-            throw new StateError('forbidden', 'Invoice collection source domain changed before commit.');
-          }
-        }
-        await authority.revalidate();
-        if (await store.readRevision() !== call.revision) {
-          throw new StateError('conflict', 'Invoice collection moved beyond commit.');
-        }
-        return true;
+        return revalidateOwnerDecisionSources(call, store, owner, rows, domains.values(), authority, {
+          before: 'Invoice collection moved before commit.', row: 'Invoice collection source row changed before commit.',
+          domain: 'Invoice collection source domain changed before commit.', after: 'Invoice collection moved beyond commit.',
+        });
       } }));
       return true;
     });
@@ -7469,12 +7244,8 @@ export async function executeScenarioReceiptInvoiceIssueDecision(call: AdmittedC
         canonicalLocale(input.appDefault) !== input.appDefault || typeof input.appBaseUrl !== 'string') {
       return invalid('Invoice issue needs its unique live owner, locale and deployment URL.');
     }
-    const original = checkInvoiceIssueDecisionPlan(dataCopy(input.original), state.bound.plan.source);
-    const checked = checkInvoiceIssueDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
-    if (stableStringify(original) !== stableStringify(checked) ||
-        stableStringify(original) !== stableStringify(profile)) {
-      return invalid('Invoice issue differs from its independently checked original source.');
-    }
+    checkOwnerDecisionSources(input, profile, state.bound.plan.source, checkInvoiceIssueDecisionPlan,
+      'Invoice issue differs from its independently checked original source.');
     const refs = call.recordRefs.filter(ref => ref.param === 'invoice' && ref.model === 'invoice.Invoice');
     const ref = refs[0];
     const wire = decodeValue('invoice.Invoice', admittedInputWire(call.inputs, 'invoice')) as { readonly id: string };
@@ -7502,32 +7273,9 @@ export async function executeScenarioReceiptInvoiceIssueDecision(call: AdmittedC
     const rows = new Map<string, StoredRow>([[key('invoice.Invoice', invoice.id), invoice],
       [key('customer.Customer', customer.id), customer], [key('rent_catalog.Location', location.id), location]]);
     const invoiceParent = Object.freeze({ model: 'invoice.Invoice' as ModelName, id: invoice.id });
-    const domains = new Map<string, { readonly model: ModelName;
-      readonly parent?: Readonly<{ model: ModelName; id: RecordId }>;
-      readonly rows: readonly StoredRow[] }>();
-    const domainKey = (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>) =>
-      stableStringify([model, parent ?? null]);
-    const readDomain = async (model: ModelName,
-      parent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
-      const identity = domainKey(model, parent);
-      let domain = domains.get(identity);
-      if (domain === undefined) {
-        const scanned = await ownerOperation(owner, () => owner.session!.views.final.query({ model,
-          ...(parent === undefined ? {} : { parent }), authority: 'owner', archived: 'exclude',
-          order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows }));
-        if (scanned.length > 4_000 || scanned.some(row => row.archivedAt !== null ||
-            (parent !== undefined && (row.parent?.model !== parent.model || row.parent.id !== parent.id)) ||
-            (parent === undefined && model === 'invoice.Invoice' && row.parent?.model !== 'customer.Customer') ||
-            (parent === undefined && model !== 'invoice.Invoice' && row.parent !== null))) {
-          return invalid('Invoice issue exceeds or differs from its complete owner domain.');
-        }
-        domain = Object.freeze({ model, ...(parent === undefined ? {} : { parent }),
-          rows: Object.freeze([...scanned]) });
-        domains.set(identity, domain);
-        for (const row of scanned) rows.set(key(model, row.id), row);
-      }
-      return domain.rows;
-    };
+    const { domains, readDomain } = ownerDecisionDomains(owner, rows,
+      'Invoice issue exceeds or differs from its complete owner domain.',
+      (model, row) => model === 'invoice.Invoice' ? row.parent?.model === 'customer.Customer' : row.parent === null);
     const lines = await readDomain('invoice.Line' as ModelName, invoiceParent);
     const allInvoices = await readDomain('invoice.Invoice' as ModelName);
     const defaultsRows = await readDomain('invoice.Defaults' as ModelName);
@@ -7734,30 +7482,10 @@ export async function executeScenarioReceiptInvoiceIssueDecision(call: AdmittedC
         if (owner.finalized === null || owner.capture.poisoned || owner.activeOwnerDecision !== null) {
           return invalid('Invoice issue needs its actual finalized source effects.');
         }
-        if (await store.readRevision() !== call.revision) {
-          throw new StateError('conflict', 'Invoice issue moved before commit.');
-        }
-        for (const [identity, row] of rows) {
-          const separator = identity.indexOf('\0');
-          const current = await store.cohortLoad({ model: identity.slice(0, separator) as ModelName,
-            id: identity.slice(separator + 1) as RecordId, expectedRevision: call.revision });
-          if (stableStringify(current) !== stableStringify(row)) {
-            throw new StateError('forbidden', 'Invoice issue source row changed before commit.');
-          }
-        }
-        for (const domain of domains.values()) {
-          const current = await store.query({ model: domain.model,
-            ...(domain.parent === undefined ? {} : { parent: domain.parent }), authority: 'owner',
-            archived: 'exclude', order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows });
-          if (current.length > 4_000 || stableStringify(current) !== stableStringify(domain.rows)) {
-            throw new StateError('forbidden', 'Invoice issue source domain changed before commit.');
-          }
-        }
-        await authority.revalidate();
-        if (await store.readRevision() !== call.revision) {
-          throw new StateError('conflict', 'Invoice issue moved beyond commit.');
-        }
-        return true;
+        return revalidateOwnerDecisionSources(call, store, owner, rows, domains.values(), authority, {
+          before: 'Invoice issue moved before commit.', row: 'Invoice issue source row changed before commit.',
+          domain: 'Invoice issue source domain changed before commit.', after: 'Invoice issue moved beyond commit.',
+        });
       } }));
       return true;
     });
@@ -7795,12 +7523,8 @@ export async function executeScenarioReceiptRentNoticeDecision(call: AdmittedCal
         canonicalLocale(input.appDefault) !== input.appDefault) {
       return invalid('Rent Notice needs its unique current Work handler and checked locale.');
     }
-    const original = checkRentNoticeDecisionPlan(dataCopy(input.original), state.bound.plan.source);
-    const checked = checkRentNoticeDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
-    if (stableStringify(original) !== stableStringify(checked) ||
-        stableStringify(original) !== stableStringify(profile)) {
-      return invalid('Rent Notice differs from its independently checked source.');
-    }
+    checkOwnerDecisionSources(input, profile, state.bound.plan.source, checkRentNoticeDecisionPlan,
+      'Rent Notice differs from its independently checked source.');
     const source = admittedEventIntrinsic(call, 'eventTerm');
     const eventPayload = admittedWorkEventPayload(call, profile.event);
     if (source?.event !== profile.event || source.modelField.name !== 'booking' ||
@@ -7991,21 +7715,10 @@ export async function executeScenarioReceiptRentNoticeDecision(call: AdmittedCal
       if (owner.finalized === null || owner.capture.poisoned || owner.activeOwnerDecision !== null) {
         return invalid('Rent Notice needs its finalized source effects.');
       }
-      if (await store.readRevision() !== call.revision) {
-        throw new StateError('conflict', 'Rent Notice moved before commit.');
-      }
-      for (const [identity, row] of rows) {
-        const separator = identity.indexOf('\0');
-        const current = await store.cohortLoad({ model: identity.slice(0, separator) as ModelName,
-          id: identity.slice(separator + 1) as RecordId, expectedRevision: call.revision });
-        if (stableStringify(current) !== stableStringify(row)) {
-          throw new StateError('forbidden', 'Rent Notice source row changed before commit.');
-        }
-      }
-      if (await store.readRevision() !== call.revision) {
-        throw new StateError('conflict', 'Rent Notice moved beyond commit.');
-      }
-      return true;
+      return revalidateOwnerDecisionSources(call, store, owner, rows, [], undefined, {
+        before: 'Rent Notice moved before commit.', row: 'Rent Notice source row changed before commit.',
+        domain: '', after: 'Rent Notice moved beyond commit.',
+      });
     } }));
   } catch (error) {
     if (!isAuthoredRequireFailure(error) || owner?.stage !== 0 || owner.framework?.ordinal !== 0 ||

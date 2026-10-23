@@ -74,10 +74,11 @@ it('releases original page and false derived values after current read authority
         }
         return result;
       } };
-      const source = buildPageSourceContext(identity), opts = { asm, artifact, store, identity, memberships,
-        pageSource: source, now: () => now };
+      let scope: ReturnType<typeof createPageReadScopeCanonical>;
+      const source = buildPageSourceContext(identity, (model, query) => scope.readRecords!(model, query));
+      const opts = { asm, artifact, store, identity, memberships, pageSource: source, now: () => now };
+      scope = createPageReadScopeCanonical(opts);
       bindPageReadBooleanContextCanonical(source, async () => opts);
-      const scope = createPageReadScopeCanonical(opts);
       try {
         const records = await scope.readRecords!('NativeBoolean.Item', { where: { op: 'eq', field: 'id', value: row.id } });
         assert.equal(records.length, 1);
