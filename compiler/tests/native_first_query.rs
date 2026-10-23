@@ -2080,3 +2080,22 @@ fn declared_contract_send_seals_constructor_nested_schema_and_authored_defaults(
         assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
     }
 }
+
+#[test]
+fn literal_format_keeps_operand_data_and_original_template_correspondence() {
+    let source=include_str!("../../packages/cloudflare/test/fixtures/native-literal-format.can");
+    let (db,program,ir,catalog)=fixture_source("native-literal-format.can",source);
+    let owner=item(&ir,"LiteralFormat.render");
+    assert!(matches!(&ir.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)),"{:?}",ir.scenario_disclosures[&owner.id]);
+    let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);
+    assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let operation=artifact["operations"].as_array().unwrap().iter().find(|value|value["name"]=="LiteralFormat.render").unwrap();
+    let dependencies=operation["result"]["disclosure"]["returns"][0]["dependencies"].as_array().unwrap();
+    assert!(dependencies.iter().any(|value|value["model"]=="LiteralFormat.Root"&&value["field"]=="code"&&value["role"]=="data"));
+    let mut changed=ir.clone();
+    let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("scenario");};
+    let IrStmt::Return{value:Some(value),..}=&mut effects[1] else{panic!("return");};
+    let args=match &mut value.expr{IrExpr::Call{args,..}|IrExpr::BoundCall{args,..}=>args,_=>panic!("format")};
+    args[0].expr=IrExpr::Text("Substituted {code}".into());
+    assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),"$can$m$4c69746572616c466f726d6174.mjs").is_none());
+}

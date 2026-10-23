@@ -1,0 +1,14 @@
+app LiteralFormat
+Given
+ Root {code:text="Original",checked:bool=false}
+ Child in Root {active:bool=true}
+ derive allowed(root:Root):bool=any(root.Child as child,child.active)
+ policy Root read=members
+ policy Child read=members
+When
+ scenario render(root:Root) -> text by=members
+  require allowed(root)
+  do
+   set root {checked=true}
+   return format("{code}:occupancy",{code=root.code})
+Then

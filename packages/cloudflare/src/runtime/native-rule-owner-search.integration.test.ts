@@ -2047,3 +2047,39 @@ it('constructs declared nested Contract SEND arguments through real Values and W
       }
     } finally {await rm(directory,{recursive:true,force:true});}
   });
+
+it('formats original scalar DATA with saved result privacy and commit fences',
+  {timeout:120000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-literal-format-'));
+    try{
+      const {artifact,asm}=await installed('native-literal-format.can',directory);
+      for(const mode of ['allowed','no-child','changed-at-commit']){
+        const {now,identities,identity,membership}=await member(`literal-format-${mode}`);
+        const store=createMemoryStorage(),rootModel=model('LiteralFormat','Root');
+        const row={...makeRow({id:asId('root'),data:{code:'Original',checked:false}}),parent:null};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:rootModel,row},
+          ...(mode==='no-child'?[]:[{kind:'insert' as const,model:model('LiteralFormat','Child'),row:{
+            ...makeRow({id:asId('child'),data:{active:true}}),parent:{model:rootModel,id:row.id}}}])]}));
+        if(mode==='changed-at-commit'){
+          const commit=store.commit.bind(store);let changed=false;
+          store.commit=async batch=>{
+            if(!changed){changed=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:rootModel,
+              id:row.id,expectedVersion:row.version,row:{...row,version:asVersion(row.version+1),data:{...row.data,code:'Changed'}}}]}));}
+            return commit(batch);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const request={operation:'LiteralFormat.render',operation_id:operationId(now),inputs:{root:{id:row.id,version:String(row.version)}}};
+        const outcome=await invoker.invokeMutation(request,identity),allowed=mode==='allowed';
+        assert.equal('result'in outcome?outcome.result.status:outcome.error.code,
+          allowed?'committed':mode==='changed-at-commit'?'conflict':'rule_failed',`${mode}: ${JSON.stringify(outcome)}`);
+        assert.equal((await store.load(rootModel,row.id))?.data.checked,allowed);
+        if(allowed){
+          assert.ok('result'in outcome);assert.equal(outcome.result.result,'Original:occupancy');
+          const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay);assert.equal(replay.result.result,'Original:occupancy');
+          await identities.removeMembership(membership.membership_id);
+          const denied=await invoker.invokeMutation(request,identity);assert.ok('error'in denied||denied.result.result===null);
+        }
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });

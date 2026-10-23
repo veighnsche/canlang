@@ -20772,9 +20772,20 @@ impl<'a> Closure<'a> {
     fn literal_format_arguments(&self, arguments: &[NodeKey], slots: &[Option<usize>]) -> Option<()> {
         if arguments.len() != 2 || slots.len() != 2 || slots[0] == slots[1] { return None; }
         let descriptor = self.query_group(*arguments.get(slots[0]?)?)?;
-        let locale = self.types.node_types.get(arguments.get(slots[1]?)?)?;
-        (self.literal_message_descriptor(descriptor)
-            && matches!(locale, ResolvedType::Null | ResolvedType::Scalar(Scalar::Locale))).then_some(())
+        let value = self.query_group(*arguments.get(slots[1]?)?)?;
+        let value_ty = self.types.node_types.get(&value)?;
+        let message = self.literal_message_descriptor(descriptor)
+            && matches!(value_ty, ResolvedType::Null | ResolvedType::Scalar(Scalar::Locale));
+        // Both format overloads consume their ordinary checked arguments.
+        // A literal template adds no data or reference authority of its own.
+        let plain = self.catalog.and_then(|catalog| catalog.effects("format")) == Some(Effects::Pure)
+            && self.types.node_types.get(&descriptor) == Some(&ResolvedType::Scalar(Scalar::Text))
+            && self.nodes.get(&descriptor).is_some_and(|node| node.kind == SyntaxKind::Literal)
+            && self.nodes.get(&value).is_some_and(|node| node.kind == SyntaxKind::Object)
+            && matches!(value_ty, ResolvedType::Object(fields) if fields.len() <= 200
+                && fields.iter().all(|(_,ty)| matches!(ty, ResolvedType::Scalar(scalar) if scalar.is_display())
+                    || matches!(ty, ResolvedType::Enum {cases,..} if !cases.is_empty())));
+        (message || plain).then_some(())
     }
 
     fn settled_scalar_call(&self, id: &str, arguments: &[NodeKey], slots: &[Option<usize>]) -> bool {
