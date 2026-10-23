@@ -1093,3 +1093,73 @@ it('evaluates original booking availability over civil dates and both owning cal
       }
     } finally {await rm(directory,{recursive:true,force:true});}
   });
+
+
+it('runs source-only guard frames without inventing result disclosure',
+  { timeout: 120000 }, async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'can-source-only-frame-'));
+    try {
+      const source = join(root, 'compiler/tests/fixtures/native-require-missing-owner-frame.can');
+      const { stdout } = await promisify(execFile)(compiler,
+        ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
+        { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+      const artifact = JSON.parse(stdout) as CompileArtifact;
+      assert.equal(artifact.operations?.find(operation => operation.name === 'GuardOwnerFrame.run')?.result?.disclosure, undefined);
+      const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
+        stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+      for (const mode of ['allowed', 'full', 'inactive', 'other-parent', 'capacity-at-commit', 'membership-during-query']) {
+        const { now, identities, identity, membership } = await member(`source-only-${mode}`);
+        const store = createMemoryStorage(), rootModel = model('GuardOwnerFrame', 'Root');
+        const rootRow = { ...makeRow({ id: asId('root-1'), data: { capacity: mode === 'full' ? '1' : '2', checked: false } }), parent: null };
+        const writes: Array<{ kind: 'insert'; model: ModelName; row: StoredRow }> = [
+          { kind: 'insert', model: rootModel, row: rootRow },
+          { kind: 'insert', model: rootModel, row: { ...rootRow, id: asId('root-2') } },
+          { kind: 'insert', model: model('GuardOwnerFrame', 'Child'), row: {
+            ...makeRow({ id: asId('child-1'), data: { active: mode !== 'inactive' } }),
+            parent: { model: rootModel, id: asId(mode === 'other-parent' ? 'root-2' : 'root-1') },
+          } },
+        ];
+        await store.commit(makeBatch(await store.readRevision(), { writes }));
+        let changed = false;
+        if (mode === 'membership-during-query') {
+          const query = store.query.bind(store);
+          store.query = async spec => {
+            if (!changed && spec.model === model('GuardOwnerFrame', 'Child')) {
+              changed = true;
+              await identities.removeMembership(membership.membership_id);
+            }
+            return query(spec);
+          };
+        }
+        if (mode === 'capacity-at-commit') {
+          const commit = store.commit.bind(store);
+          store.commit = async batch => {
+            if (!changed) {
+              changed = true;
+              if (mode === 'capacity-at-commit') await commit(makeBatch(await store.readRevision(), { writes: [
+                { kind: 'update', model: rootModel, id: rootRow.id, expectedVersion: asVersion(rootRow.version),
+                  row: { ...rootRow, version: asVersion(rootRow.version + 1), data: { ...rootRow.data, capacity: '0' } } },
+              ] }));
+            }
+            return commit(batch);
+          };
+        }
+        const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+        const request = { operation: 'GuardOwnerFrame.run', operation_id: operationId(now),
+          inputs: { root: { id: rootRow.id, version: String(rootRow.version) } } };
+        const outcome = await invoker.invokeMutation(request, identity);
+        assert.equal('result' in outcome ? outcome.result.status : outcome.error.code,
+          mode === 'allowed' ? 'committed' : mode === 'capacity-at-commit' ? 'conflict' : mode === 'membership-during-query' ? 'forbidden' : 'rule_failed',
+          `${mode}: ${JSON.stringify(outcome)}`);
+        assert.equal((await store.load(rootModel, rootRow.id))?.data.checked, mode === 'allowed');
+        if (mode === 'allowed') {
+          assert.equal('result' in outcome && outcome.result.result, new Date(now).toISOString().slice(0, 10));
+          const replay = await invoker.invokeMutation(request, identity);
+          // Guard execution supplies no saved DATA authority. The ordinary
+          // replay path must keep refusing a value without its association.
+          assert.equal('error' in replay && replay.error.code, 'validation', JSON.stringify(replay));
+          assert.match('error' in replay ? replay.error.message : '', /no supported execution association/);
+        }
+      }
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });

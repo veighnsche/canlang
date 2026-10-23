@@ -7,8 +7,10 @@ Given
  policy Root read=members
  policy Child read=members
 When
- scenario run(root:Root) -> bool by=members
+ scenario run(root:Root) -> date by=members
   require root.remaining>0
   require allowed(root)
-  do return true
+  do
+   set root {checked=true}
+   return local_date(now,"UTC")
 Then

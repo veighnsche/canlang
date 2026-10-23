@@ -80,7 +80,7 @@ import { StateError, storageToStateError } from '../errors.js';
 import { stageEffectsStaging } from '../effects/staging.js';
 import { checkFanoutChildId } from '../fanout/cohort.js';
 import { FenceConflictError, StorageConstraintError } from '../storage/port.js';
-import { beginScenarioReceiptExecution, closeScenarioReceiptExecution, retainScenarioReceipt, snapshotScenarioReceiptEffects, revalidateScenarioReceiptCalls } from './scenario-receipt.js';
+import { hasScenarioExecutionPlan, beginScenarioReceiptExecution, closeScenarioReceiptExecution, retainScenarioReceipt, snapshotScenarioReceiptEffects, revalidateScenarioReceiptCalls } from './scenario-receipt.js';
 
 /** Fenced-commit attempts per invocation, per DESIGN §7. */
 export const MAX_ADMISSION_ATTEMPTS = 3;
@@ -562,7 +562,7 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
       activeAdmittedExecutions.add(call);
       scenarioExecutionMemberships.set(call, input.memberships);
       try {
-        const claimed = isGeneratedOperationDef(def) && def.descriptor.result?.disclosure !== undefined;
+        const claimed = isGeneratedOperationDef(def) && (def.descriptor.result?.disclosure !== undefined || hasScenarioExecutionPlan(def));
         scenarioExecutions.set(call, { store: input.store, def: call.def, context: call.context, revision: call.revision,
           contextSnapshot: structuredClone(call.context), checkpointSnapshot: structuredClone(call.checkpoint),
           inputs: call.inputs, inputsSnapshot: claimed ? snapshotExecutionInputs(call.inputs) : structuredClone(call.inputs),
@@ -570,7 +570,7 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
           inputHash: call.inputHash });
         beginScenarioReceiptExecution(call, input.store);
         raw = await input.execute(call);
-        if (isGeneratedOperationDef(def) && def.descriptor.result?.disclosure !== undefined) {
+        if (isGeneratedOperationDef(def) && (def.descriptor.result?.disclosure !== undefined || hasScenarioExecutionPlan(def))) {
           assertScenarioReceiptExecution(call, input.store);
         }
         raw = snapshotScenarioReceiptEffects(call, raw);

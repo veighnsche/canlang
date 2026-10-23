@@ -3664,6 +3664,8 @@ interface NativeScenarioExecution {
   readonly prepareReceiptOrigin: (frame: ScenarioReceiptDeliveryOriginFrame) => Promise<FrameworkFilePayloadOrigin>;
 }
 const nativeScenarioExecutions = new WeakMap<AdmittedCall, NativeScenarioExecution>();
+// A guard-only frame has no saved result or native body/call privileges.
+const sourceRequireFrames = new WeakMap<GeneratedOperationDef, ScenarioReceiptRequireSource['source']>();
 // Only the verified static occurrence installs these explicit stored File slots.
 const nativeScenarioStoredFileSlots = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, {
   readonly target: GeneratedOperationDef;
@@ -6427,6 +6429,27 @@ async function loadCanonicalDescriptorsInternal(
   }
   if (ownerPolicyControl !== undefined) localOwnerPolicyControls.set(canonical, ownerPolicyControl);
   if (crudCandidates.size > 0) nativeCrudCandidateBindings.set(canonical, crudCandidates);
+  // Verified source guard inventories can bind an execution frame even when
+  // this ordinary public scenario has no saved-result disclosure recipe.
+  for (const [owner, sites] of canonical.requireSources) {
+    const def = generatedScenarioDef({ def: canonical.registry.get(owner) });
+    if (def === undefined || def.descriptor.result?.disclosure !== undefined) continue;
+    const callable = artifact.callables.find(entry => entry.id === owner && entry.kind === 'operation');
+    const source = sites[0]!.source;
+    if (def.kind !== 'scenario' || callable?.inputStyle !== 'parameters' ||
+        sites.some(site => stableStringify(site.source) !== stableStringify(source)) ||
+        !artifact.sources.some(original => original.path === source.path && original.sha256 === source.sha256)) {
+      throw new AssemblyCorrespondenceError('Source Require frame lacks its original public scenario and source census.');
+    }
+    const transport = Object.freeze({ ...source, module: callable.module });
+    const state = await import('@canlang/state/invocation');
+    state.bindScenarioSourceRequireFrame(def, artifact.models ?? [], {
+      parameterStyle: true, canonicalModels: canonical.models,
+      ...(canonical.valueSchema === undefined ? {} : { valueSchema: canonical.valueSchema }),
+      ...(canonical.valueTypes === undefined ? {} : { valueTypes: canonical.valueTypes }),
+    }, transport);
+    sourceRequireFrames.set(def, transport);
+  }
   await bindScenarioFrameworkProducers(asm, artifact, canonical);
   await bindNativeScenarioCalls(asm, artifact, canonical);
   await bindNativeScenarioNominalFiles(canonical, artifact);
@@ -6453,7 +6476,7 @@ async function loadCanonicalDescriptorsInternal(
     // source with its transported plan source. An owner without SEND guards
     // needs the same one-time association before its producer can be bound.
     if (!nativeSourceSendGuards.has(def)) {
-      const transport = def.descriptor.result?.disclosure?.source;
+      const transport = def.descriptor.result?.disclosure?.source ?? sourceRequireFrames.get(def);
       if (transport === undefined) throw new AssemblyCorrespondenceError('Membership owner lacks its original checked disclosure source.');
       const state = await import('@canlang/state/invocation');
       state.bindScenarioReceiptMembershipSource(def, { logical: ownerSites[0]!.source, transport });
@@ -9554,6 +9577,8 @@ async function runScenarioExecution(
 ): Promise<{ readonly effects: CanonicalExecutionEffects } | { readonly wire: unknown }> {
   const scenarioDef = generatedScenarioDef(call);
   const receiptAware = scenarioDef?.descriptor.result?.disclosure !== undefined;
+  const sourceRequireAware = scenarioDef !== undefined && sourceRequireFrames.has(scenarioDef);
+  const hasExecutionFrame = receiptAware || sourceRequireAware;
   const ownerControl = localOwnerPolicyControls.get(loaded);
   // Original model invariants and locks also apply to scenarios without a
   // saved-disclosure recipe. Stage those scenarios through the same owner
@@ -9582,7 +9607,7 @@ async function runScenarioExecution(
       removalSource.scope.app === call.context.app && removalSource.scope.owner === call.checkpoint?.owner &&
       removalSource.routes.some(route => route.handler === opts.operation)) &&
     call.checkpoint !== undefined && call.checkpoint.owner === (call.context.team?.teamId ?? call.context.app);
-  const useOwnerSession = receiptAware || stageSources !== undefined || ownerControl !== undefined || trustedOwnerReads;
+  const useOwnerSession = hasExecutionFrame || stageSources !== undefined || ownerControl !== undefined || trustedOwnerReads;
   const beginReceiptMutation = loaded.producers.invoke.beginScenarioReceiptMutation;
   const observeReceiptDefault = loaded.producers.invoke.observeScenarioInputComputedDefault;
   // C24 scope-1: an internal trusted-handler due session may run
@@ -9605,11 +9630,11 @@ async function runScenarioExecution(
     call.context.trustedSource === 'event:rent_reservations.ReservationChanged' &&
     nativeDeclaredEventCalls.has(call.context) &&
     opts.artifact.callables.some(entry => entry.id === opts.operation && entry.kind === 'handler');
-  if (receiptAware && (receiptStore === undefined || (child === undefined && beginReceiptMutation === undefined) || cohort !== undefined ||
+  if (hasExecutionFrame && (receiptStore === undefined || (child === undefined && beginReceiptMutation === undefined) || cohort !== undefined ||
       (due !== undefined && !internalHandlerDue && !internalRentNoticeRetained))) {
     throw new loaded.producers.errors('validation', 'Saved scenario mutation requires its installed State producer and actual admitted receipt execution.');
   }
-  if (receiptAware && observeReceiptDefault === undefined && (scenarioDef?.descriptor.inputs ?? []).some(field =>
+  if (hasExecutionFrame && observeReceiptDefault === undefined && (scenarioDef?.descriptor.inputs ?? []).some(field =>
       field.kind !== 'delivery' && field.computedDefault === true && !Object.hasOwn(call.inputs, field.name))) {
     throw new loaded.producers.errors('validation', 'Saved scenario computed input defaults require their installed State contribution producer.');
   }
@@ -9893,7 +9918,7 @@ async function runScenarioExecution(
     ...((trustedOwnerReads || receiptAware) ? { stageSources: emissionSourceStage }
       : stageSources === undefined ? {} : { stageSources }),
   };
-  const rootOwnerSession = !useOwnerSession || child !== undefined ? undefined : receiptAware
+  const rootOwnerSession = !useOwnerSession || child !== undefined ? undefined : hasExecutionFrame
     ? await beginReceiptMutation!(call as AdmittedCall, receiptStore!, ownerOptions)
     : await (requireProducerFn(await loadProducerModule('@canlang/state/mutation', 'committed scenario owner finalizer'),
       'beginOwnerMutation', 'committed scenario owner finalizer') as typeof import('@canlang/state/mutation').beginOwnerMutation)({
@@ -12129,7 +12154,7 @@ async function runScenarioExecution(
       ? scenarioParameters(call, loaded, recordView, resolvedDefaults, scenarioReceiptFrame).value
       : scenarioParameters(call, loaded, recordView, resolvedDefaults, scenarioReceiptFrame) }
     : callable?.inputStyle === "parameters"
-    ? scenarioParameters(call, loaded, recordView, receiptAware ? undefined : resolvedDefaults, scenarioReceiptFrame)
+    ? scenarioParameters(call, loaded, recordView, hasExecutionFrame ? undefined : resolvedDefaults, scenarioReceiptFrame)
     : { operation_id: call.context.operationId, inputs: call.inputs };
   if(sourceEmissionPlan!==undefined){
     if(!receiptAware||receiptStore===undefined||ownerSession===undefined||scenarioDef===undefined||
@@ -12248,7 +12273,7 @@ async function runScenarioExecution(
       } catch (error) {recordEngineFailure(error);throw error;}
     });
   }
-  if (receiptAware && receiptStore !== undefined && ownerSession !== undefined && callable?.inputStyle === 'parameters' &&
+  if (hasExecutionFrame && receiptStore !== undefined && ownerSession !== undefined && callable?.inputStyle === 'parameters' &&
       due === undefined && cohort === undefined && scenarioDef !== undefined) {
     // This exact context and parameter graph belong to the genuine admitted
     // mutation. Generated closures cannot select a different row or scalar.
@@ -12270,7 +12295,7 @@ async function runScenarioExecution(
         const assertRequireCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
         if (assertRequireCall === undefined) return refuseRecordBinding('Source Require needs its actual State execution join.');
         assertRequireCall(actualCall, receiptStore);
-        if (nativeScenarioExecutions.get(actualCall) === undefined) return refuseRecordBinding('Source Require has no live original mutation.');
+        if (receiptAware && nativeScenarioExecutions.get(actualCall) === undefined) return refuseRecordBinding('Source Require has no live original mutation.');
         const module = await importVerifiedAssemblyModule(opts.asm, callable.module, opts.artifact);
         const getter = privateSourceMember(module, 'canScenarioRequireSource');
         if (typeof getter !== 'function') throw new AssemblyCorrespondenceError('Scenario Require lacks its original source getter.');
@@ -13566,7 +13591,7 @@ async function runScenarioExecution(
         if (field.valueType === undefined) throw new StateError('validation', 'Computed default lacks its owning value type.');
         wire = encodeValue(field.valueType, value as CanValue, nativeValueReferenceEncoder(field.valueType, loaded.valueSchema, value), loaded.valueSchema);
       }
-      if (!receiptAware) resolvedDefaults[field.name] = wire;
+      if (!hasExecutionFrame) resolvedDefaults[field.name] = wire;
       else observeReceiptDefault!(call as AdmittedCall, receiptStore!, { name: field.name, wire });
       observedNativeDefaults.set(field.name, value);
       observedDefaults.add(field.name);
@@ -13577,7 +13602,7 @@ async function runScenarioExecution(
     }
   };
   if (scenarioDef !== undefined && hasNativeOwnerMembership(scenarioDef)) {
-    if (!receiptAware || receiptStore === undefined) return refuseRecordBinding('Membership requires its original active State receipt owner.');
+    if (!hasExecutionFrame || receiptStore === undefined) return refuseRecordBinding('Membership requires its original active State receipt owner.');
     nativeMembershipFrame = openNativeOwnerMembershipFrame(ctx, call as AdmittedCall, receiptStore, recordEngineFailure);
   }
   if (internalHandlerDue && receiptStore !== undefined && scenarioDef?.name === 'events.observe_venue') {

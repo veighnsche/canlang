@@ -1778,6 +1778,8 @@ function modelResultWire(result: unknown): RecordId {
   return text(object(result, ['id'])['id']) as RecordId;
 }
 interface BoundPlan {
+  /** Execution only: source decisions convey no saved-result association. */
+  readonly sourceRequireOnly?: true;
   anyQueries: ReadonlyMap<string, ScenarioQueryAnyProfile>;
   readonly eventDecision?: EventDecisionPlan;
   readonly termDecision?: TermDecisionPlan;
@@ -1811,6 +1813,11 @@ interface BoundPlan {
 }
 const boundPlans = new WeakMap<GeneratedOperationDef, BoundPlan>();
 const invokedPlans = new WeakSet<GeneratedOperationDef>();
+/** Invoke uses the private installed plan census for scope snapshots, including
+ * execution-only frames whose public result has no disclosure metadata. */
+export function hasScenarioExecutionPlan(def: GeneratedOperationDef): boolean {
+  return boundPlans.has(def);
+}
 
 /** Literal installed Files adapter, bound by the checked owning loader. Saved
  * facts grant no access; every physical check consumes the current receiver. */
@@ -2515,10 +2522,29 @@ export async function invokeScenarioReceiptCall(call: AdmittedCall, store: Stora
 export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: readonly ArtifactModel[],
   defaults: { readonly parameterStyle: boolean; readonly valueSchema?: NormalizedSchema; readonly valueTypes?: CanonicalValueTypes;
     readonly canonicalModels: readonly CanonicalModelDescriptor[] }): void {
+  bindScenarioPlan(def, models, defaults);
+}
+
+/** The verified loader installs a decision-only frame from the original
+ * Require inventory. This is not a result disclosure or a DATA grant. */
+export function bindScenarioSourceRequireFrame(def: GeneratedOperationDef, models: readonly ArtifactModel[],
+  defaults: Parameters<typeof bindScenarioReceiptPlan>[2], source: ScenarioResultDisclosurePlan['source']): void {
+  if (def.kind !== 'scenario' || def.descriptor.result?.disclosure !== undefined ||
+      boundPlans.has(def) || invokedPlans.has(def) || !defaults.parameterStyle) {
+    return invalid('source Require frame needs its original uninvoked parameter-style scenario.');
+  }
+  const checked = deepFreeze(dataCopy(source)); origin(checked);
+  bindScenarioPlan(def, models, defaults, checked);
+}
+
+function bindScenarioPlan(def: GeneratedOperationDef, models: readonly ArtifactModel[],
+  defaults: Parameters<typeof bindScenarioReceiptPlan>[2], sourceRequire?: ScenarioResultDisclosurePlan['source']): void {
   const claim = def.descriptor.result?.disclosure;
-  if (claim === undefined) return;
+  if (claim === undefined && sourceRequire === undefined) return;
   if (def.kind !== 'scenario' && def.kind !== 'read') return invalid('dependency plans require a scenario or checked read.');
-  const plan = checkScenarioResultDisclosurePlan(claim), declared = def.descriptor.result!.type;
+  const plan: ScenarioResultDisclosurePlan = sourceRequire === undefined ? checkScenarioResultDisclosurePlan(claim)
+    : { version: 1, source: sourceRequire, returns: [], queries: [] };
+  const declared = sourceRequire === undefined ? def.descriptor.result!.type : 'void';
   const rawEventDecision = (plan as ScenarioResultDisclosurePlan & { readonly eventDecision?: unknown }).eventDecision;
   const eventDecision = rawEventDecision === undefined ? undefined : checkEventDecisionPlan(rawEventDecision, plan.source);
   const rawTermDecision = (plan as ScenarioResultDisclosurePlan & { readonly termDecision?: unknown }).termDecision;
@@ -2956,7 +2982,8 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
       queryParentInputModel(def, query.parent.origin.parameter, query.parent.model, artifactModels) === undefined) {
     return invalid('query parent requires its declared required singular versioned reference input.');
   }
-  boundPlans.set(def, { plan, type, resultModel, anyQueries: new Map(), models: inventory, inputs: deepFreeze(dataCopy(def.descriptor.inputs)),
+  boundPlans.set(def, { ...(sourceRequire === undefined ? {} : { sourceRequireOnly: true as const }),
+    plan, type, resultModel, anyQueries: new Map(), models: inventory, inputs: deepFreeze(dataCopy(def.descriptor.inputs)),
     ...(eventDecision === undefined ? {} : { eventDecision }),
     ...(termDecision === undefined ? {} : { termDecision }),
     ...(leaveRequestDecision === undefined ? {} : { leaveRequestDecision }),
@@ -11890,6 +11917,14 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
       captures.delete(call);
       return undefined;
     }
+  }
+  if (state?.bound.sourceRequireOnly) {
+    if (owner === undefined || state.poisoned || state.pending !== 0 || state.returnId !== null ||
+        state.observations.length !== 0 || state.intrinsics.length !== 0 || state.queries.length !== 0) {
+      return invalid('source Require frame must close its actual owner without result captures.');
+    }
+    captures.delete(call);
+    return undefined;
   }
   const files = boundPlans.has(call.def as GeneratedOperationDef) ? matchScenarioFileAssignments(call, effects) : [];
   captures.delete(call);

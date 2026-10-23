@@ -1766,7 +1766,7 @@ fn original_booking_guard_requires_a_finite_literal_civil_date_domain() {
 }
 
 #[test]
-fn source_require_cannot_outlive_its_defining_owner_receipt() {
+fn source_require_has_a_frame_without_fabricating_result_disclosure() {
     use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
     use canlang_compiler::diagnostic::DiagnosticResult;
     let mut db=SourceDb::new();
@@ -1782,11 +1782,20 @@ fn source_require_cannot_outlive_its_defining_owner_receipt() {
     let artifact:serde_json::Value=serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
     let operation=artifact["operations"].as_array().unwrap().iter()
         .find(|operation|operation["name"]=="GuardOwnerFrame.run").unwrap();
-    if operation["result"].get("disclosure").is_some() {
-        // Later support for the original derived guard may admit this owner;
-        // it must actually publish the execution frame its callbacks need.
-        assert!(diagnostics.is_empty(),"{diagnostics:?}");
-    } else {
-        assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008" && diagnostic.message.contains("checked owner receipt is unavailable")),"{diagnostics:?}");
-    }
+    assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    assert!(operation["result"].get("disclosure").is_none(), "execution-only frame must not invent result disclosure");
+    assert!(artifact["modules"].to_string().contains("canScenarioRequireSources"), "source guards need their original verified execution inventory");
+
+    // A frame for boolean decisions cannot make an unsupported body getter
+    // executable. The original derived value still needs its own consumer.
+    let unsupported=include_str!("fixtures/native-require-missing-owner-frame.can")
+        .replace("-> date by=members", "-> int by=members")
+        .replace("return local_date(now,\"UTC\")", "return root.remaining");
+    let mut db=SourceDb::new();
+    let file=db.add("unsupported-body.can".into(),unsupported);
+    let(program,diagnostics)=check_program(&db,&[file],catalog.as_ref());
+    assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let mut result=DiagnosticResult::new("owner-body","1.0",1);result.add_sources(&db);
+    let(_,diagnostics)=emit(&program,&EmitSources{db:&db,result:&result,catalog:catalog.as_ref(),options:EmitOptions{allow_incomplete_test_only:false,native_scenario_receipts:true}});
+    assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008" && diagnostic.message.contains("checked owner receipt is unavailable")),"{diagnostics:?}");
 }

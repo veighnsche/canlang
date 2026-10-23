@@ -1619,6 +1619,56 @@ fn missing_source_checked_send_rule(
         && executable.iter().any(|span| prepared.is_none_or(|guards| !guards.contains_key(span)))
 }
 
+// A decision-only frame does not install saved query, child-call, File or
+// Work producers. Keep those body joins diagnosed until their real owner
+// implementations are available; ordinary CRUD and scalar evaluation retain
+// their existing caller grants and mutation pipeline.
+fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem) -> bool {
+    fn expression(ir: &IrProgram, value: &TypedExpr, depth: usize) -> bool {
+        if depth > 64 { return false; }
+        let child = |value: &TypedExpr| expression(ir, value, depth + 1);
+        match &value.expr {
+            IrExpr::Int(_) | IrExpr::Decimal(_) | IrExpr::Text(_) | IrExpr::Bool(_)
+            | IrExpr::Null | IrExpr::Money { .. } | IrExpr::DurationMs(_)
+            | IrExpr::Date(_) | IrExpr::Datetime(_) | IrExpr::Name(_) => true,
+            IrExpr::Member { base, field } => {
+                let mut ty = &base.ty;
+                while let ResolvedType::Nullable(inner) = ty { ty = inner; }
+                let derived = matches!(ty, ResolvedType::Record { symbol, .. } if
+                    ir.items.iter().any(|item| matches!(&item.kind, IrItemKind::DeriveField { model, .. }
+                        if model == symbol && item.canonical.rsplit('.').next() == Some(field.as_str()))));
+                !derived && child(base)
+            }
+            IrExpr::Call { target: IrCallTarget::Builtin { awaited: false, .. }, args }
+            | IrExpr::BoundCall { target: IrCallTarget::Builtin { awaited: false, .. }, args, .. }
+                => args.iter().all(child),
+            IrExpr::Binary { left, right, .. } => child(left) && child(right),
+            IrExpr::Unary { operand, .. } => child(operand),
+            IrExpr::Array(values) => values.iter().all(child),
+            IrExpr::Object(fields) => fields.iter().all(|(_, value)| child(value)),
+            IrExpr::HasRole { person, .. } => person.as_ref().is_none_or(|value| child(value)),
+            _ => false,
+        }
+    }
+    fn statements(ir: &IrProgram, body: &[IrStmt], depth: usize) -> bool {
+        if depth > 64 { return false; }
+        body.iter().all(|statement| match statement {
+            IrStmt::Let { value, .. } => expression(ir, value, 0),
+            IrStmt::Return { value, .. } => value.as_ref().is_none_or(|value| expression(ir, value, 0)),
+            IrStmt::Create { input, when: None, .. } => expression(ir, input, 0),
+            IrStmt::Set { record, changes, when: None, .. } => expression(ir, record, 0) && expression(ir, changes, 0),
+            IrStmt::Delete { record, .. } | IrStmt::Transition { record, .. } => expression(ir, record, 0),
+            IrStmt::Require { cond, .. } => expression(ir, cond, 0),
+            IrStmt::If { cond, then_branch, else_branch, .. } => expression(ir, cond, 0)
+                && statements(ir, then_branch, depth + 1) && statements(ir, else_branch, depth + 1),
+            IrStmt::Match { subject, arms, .. } => expression(ir, subject, 0)
+                && arms.iter().all(|arm| statements(ir, &arm.body, depth + 1)),
+            _ => false,
+        })
+    }
+    matches!(&owner.kind, IrItemKind::Scenario { effects, hook: None, .. } if statements(ir, effects, 0))
+}
+
 pub(super) fn emit_program_with_feasible_query_sources(
     ir: &IrProgram,
     native_receipts: bool,
@@ -3025,6 +3075,10 @@ fn emit_program_with_sources(
     if native_receipts {
         for item in &ir.items {
             if !emitter.native_receipts.contains_key(&item.id)
+                // Public parameter-style source guards bind a decision-only
+                // State frame from this verified inventory. Private handlers
+                // still need their independently admitted retained frame.
+                && !source_require_only_body_supported(ir, item)
                 && emitter.source_requires.values().any(|source| source["owner"] == item.canonical)
                 && !emitter.diags.iter().any(|diagnostic| diagnostic.primary == item.span
                     && diagnostic.severity == crate::diagnostic::Severity::Error)

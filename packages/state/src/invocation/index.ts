@@ -27,7 +27,7 @@ export {
   observeScenarioReceiptDependency, observeScenarioReceiptRowId, type ScenarioReceiptRowIdInput, observeScenarioReceiptIntrinsic, type ScenarioReceiptIntrinsicInput, selectScenarioReceiptReturn,
   beginScenarioReceiptMutation, observeScenarioInputComputedDefault, type ScenarioReceiptMutationInput,
   executeScenarioReceiptEventNoticeFormat, materializeScenarioReceiptEventNoticeAudit, type EventNoticeAuditPlan,
-  executeScenarioReceiptRequire, type ScenarioReceiptRequireSource, type ScenarioReceiptRequireObserver,
+  bindScenarioSourceRequireFrame, executeScenarioReceiptRequire, type ScenarioReceiptRequireSource, type ScenarioReceiptRequireObserver,
   executeScenarioReceiptEventDecision, type EventDecisionPlan,
   executeScenarioReceiptSuccessRenewalDecision, type SuccessRenewalDecisionPlan,
   executeScenarioReceiptTermDecision, type TermDecisionPlan,
