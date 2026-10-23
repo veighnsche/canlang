@@ -292,6 +292,7 @@ fn lexical_request_model_preserves_fixture_observation_and_input_channel() {
             "same fixture identity lowers: {emitted:?}"
         );
         let js = &artifact.tests[0].module.js;
+        assert!(js.contains("provider:\"Probe\",member:\"one\",alias:\"Probe.one\""), "canonical linked fixture: {js}");
         assert!(
             js.contains(&format!(
                 "selectors:[\"as\",\"{name}.state\"],selectorChannels:[\"caller\",\"input\"]"
@@ -299,11 +300,11 @@ fn lexical_request_model_preserves_fixture_observation_and_input_channel() {
             "full lexical selector: {js}"
         );
         assert!(
-            js.contains(&format!("inputs:async(c,s)=>({{{name}:s.one,state:")),
+            js.contains(&format!("inputs:async(c,s)=>({{{name}:s[\"Probe.one\"],state:")),
             "original fixture-bound input: {js}"
         );
         assert!(
-            js.contains("observations:[async(c,s)=>s.one.state]"),
+            js.contains("observations:[async(c,s)=>s[\"Probe.one\"].state]"),
             "observation retains exact fixture identity: {js}"
         );
 
@@ -380,10 +381,9 @@ fn lexical_request_fixture_observation_keeps_declared_fixture_identity() {
         !emitted.iter().any(|d| d.code == "E6008"),
         "fixture observation lowers: {emitted:?}"
     );
-    assert!(artifact.tests[0]
-        .module
-        .js
-        .contains("observations:[async(c,s)=>s.request.state]"));
+    let js = &artifact.tests[0].module.js;
+    assert!(js.contains("provider:\"Probe\",member:\"request\",alias:\"Probe.request\""), "canonical linked fixture: {js}");
+    assert!(js.contains("observations:[async(c,s)=>s[\"Probe.request\"].state]"));
 }
 
 #[test]
@@ -1085,4 +1085,25 @@ fn t02_derive_pure_accepted() {
     const SRC: &str = "app Probe\nGiven\n derive staff(person:user):bool = true\nWhen\nThen\n";
     let (_program, diags) = check_src(SRC, Some(&catalog));
     assert!(diags.is_empty(), "pure derive is clean: {diags:?}");
+}
+
+#[test]
+fn expected_values_are_typed_in_tables_and_sequences_without_typing_negative_inputs() {
+    for examples in [
+        "  examples\n   as -> 1\n   self -> \"wrong\"\n",
+        "  examples\n   do\n    call probe {} by=self\n    1 -> \"wrong\"\n",
+    ] {
+        let source = format!("app Expectations\nGiven\nWhen\n scenario probe() read=true -> int by=members\n  do return 1\n{examples}Then\n");
+        let (_, diagnostics) = check_src(&source, None);
+        assert_eq!(diagnostics.len(), 1, "{source}\n{diagnostics:?}");
+        assert_eq!(diagnostics[0].code, "E3001", "{diagnostics:?}");
+        assert!(diagnostics[0].message.contains("example expected value: expected int, found text"));
+        let (start, end) = span_of(&source, "\"wrong\"", 1);
+        assert_eq!((diagnostics[0].primary.start, diagnostics[0].primary.end), (start, end));
+    }
+    // Contextual enum and numeric inference remains legal in expected cells;
+    // deliberately invalid submitted input remains a runner rejection case.
+    let source = "app Expectations\nGiven\n Task {state:enum(open,done)=open}\nWhen\n scenario probe(value:int) read=true -> int by=members\n  do return value\n  examples value=1\n   as,value -> 1\n   self,1 -> 1\n   self,\"invalid input\" -> error(validation)\n scenario numeric() read=true -> decimal by=members\n  do return 1.5\n  examples\n   as -> 1.5\n   self -> 1\n scenario state(value:Task.state) read=true -> Task.state by=members\n  do return value\n  examples value=open\n   as -> value\n   self -> open\nThen\n";
+    let (_, diagnostics) = check_src(source, None);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
 }

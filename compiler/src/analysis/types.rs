@@ -1185,6 +1185,7 @@ pub fn check_types(
     typer.phase2(trees);
     typer.check_runtime_authority(trees);
     typer.check_strict_membership_closures();
+    typer.check_retention_context_closures();
     typer.check_input_choice_cycles();
     typer.check_cycles();
     typer.types.symbol_types = std::mem::take(&mut typer.decl);
@@ -5272,6 +5273,7 @@ impl<'a> Typer<'a> {
             let field = field_parts(param_node, text);
             let default = field.default;
             if let Some(default) = default {
+                self.parameter_defaults.insert(param, default.clone());
                 if default.kind == SyntaxKind::NameRef
                     && let Some(Binding::Symbol(seed)) =
                         self.tables.node_binding.get(&NodeKey::of(default))
@@ -6348,10 +6350,33 @@ impl<'a> Typer<'a> {
                     } else {
                         input_types.get(column).cloned()
                     };
-                    self.expr(cx, part, expectation);
+                    if expected {
+                        self.check_example_expected(cx, part, expectation);
+                    } else {
+                        self.expr(cx, part, expectation);
+                    }
                 }
                 column += 1;
             }
+        }
+    }
+
+    /// Expected values are typed assertions, unlike deliberately invalid
+    /// submitted example inputs. Preserve contextual literal inference first,
+    /// then require compatibility even in the examples' light context.
+    fn check_example_expected(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        value: &SyntaxNode,
+        expected: Option<ResolvedType>,
+    ) {
+        let actual = self.expr(cx, value, expected.clone());
+        if let Some(expected) = expected {
+            let strict = Ctx { strict: true, ..*cx };
+            self.assign_ok(
+                &strict, tight_span(cx.text, value), &actual, &expected,
+                "example expected value",
+            );
         }
     }
 
@@ -6421,7 +6446,7 @@ impl<'a> Typer<'a> {
                 continue;
             }
             if expected {
-                self.expr(
+                self.check_example_expected(
                     &cx,
                     part,
                     observations.get(column).map(|(_, ty)| ty.clone()),
@@ -7607,15 +7632,9 @@ impl<'a> Typer<'a> {
                 tight_span(cx.text, until),
             ));
         }
-        for banned in ["actor", "now", "operation"] {
-            if expr_uses_name(until, cx.text, banned) {
-                self.diags.push(Diagnostic::error(
-                    "E3017",
-                    format!("retain until= cannot use {banned}"),
-                    tight_span(cx.text, until),
-                ));
-            }
-        }
+        // Resolve the full consuming closure after every helper/default body
+        // has been typed, including declarations in later/imported modules.
+        self.retention_roots.push(until.clone());
         for (name, span) in self.effectful_calls(until, cx.text) {
             self.diags.push(Diagnostic::error(
                 "E3017",
@@ -8408,6 +8427,54 @@ impl<'a> Typer<'a> {
                     self.diags.push(Diagnostic::error("E3010", format!("pure value cannot call membership-reading derived function '{canonical}'"), span));
                 }
                 pending.extend(kids(node).into_iter().rev());
+            }
+        }
+    }
+
+    /// Retention is row-only even when a contextual expression is extracted
+    /// into a helper. Follow resolved bodies and only defaults actually omitted
+    /// at each selected call; same-spelled parameters/fields are not context.
+    fn check_retention_context_closures(&mut self) {
+        for root in std::mem::take(&mut self.retention_roots) {
+            let mut pending = vec![&root];
+            let mut visited = HashSet::new();
+            let mut banned = HashSet::new();
+            while let Some(node) = pending.pop() {
+                if !visited.insert(NodeKey::of(node)) {
+                    continue;
+                }
+                match self.tables.node_binding.get(&NodeKey::of(node)) {
+                    Some(Binding::Context(ContextVar::Actor(_))) => { banned.insert("actor"); }
+                    Some(Binding::Context(ContextVar::Now)) => { banned.insert("now"); }
+                    Some(Binding::Context(ContextVar::Operation)) => { banned.insert("operation"); }
+                    _ => {}
+                }
+                if let Some(id) = self.membership_derive_at(node) {
+                    if let Some(body) = self.membership_derive_bodies.get(&id) {
+                        pending.push(body);
+                    }
+                    if let Some(selected) = self.types.selected_calls.get(&NodeKey::of(node))
+                        && let SymbolKind::DeriveFn { params, .. } =
+                            &self.tables.symbols[id.0 as usize].kind
+                    {
+                        for (param, slot) in params.iter().zip(&selected.slots) {
+                            if slot.is_none()
+                                && let Some(default) = self.parameter_defaults.get(param)
+                            {
+                                pending.push(default);
+                            }
+                        }
+                    }
+                }
+                pending.extend(kids(node).into_iter().rev());
+            }
+            let span = tight_span(self.text(root.span.file), &root);
+            for name in ["actor", "now", "operation"] {
+                if banned.contains(name) {
+                    self.diags.push(Diagnostic::error(
+                        "E3017", format!("retain until= cannot use {name}"), span,
+                    ));
+                }
             }
         }
     }
@@ -13229,6 +13296,8 @@ struct Typer<'a> {
     judgment_messages: HashMap<SymbolId, SyntaxNode>,
     /// Existing strict purity sites retain their source roots for helper closure.
     strict_purity_roots: Vec<SyntaxNode>,
+    retention_roots: Vec<SyntaxNode>,
+    parameter_defaults: HashMap<SymbolId, SyntaxNode>,
     membership_derive_bodies: HashMap<SymbolId, SyntaxNode>,
     membership_page_guards: HashSet<NodeKey>,
 }
@@ -13292,6 +13361,8 @@ impl<'a> Typer<'a> {
             queue_names: HashSet::new(),
             judgment_messages: HashMap::new(),
             strict_purity_roots: Vec::new(),
+            retention_roots: Vec::new(),
+            parameter_defaults: HashMap::new(),
             membership_derive_bodies: HashMap::new(),
             membership_page_guards: HashSet::new(),
         }

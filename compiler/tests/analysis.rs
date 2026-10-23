@@ -1060,13 +1060,19 @@ fn draft_outcome_table() {
     // All49 other rows and the explanation-code checks remain unchanged.
     // Merge recount: draft 1c254a6 plus retained local app prompt/comment
     // edits, full generation syntax and bounded CRUD guards, real catalog.
+    // Reconcile the current isolated-source snapshot; this is not composed
+    // application acceptance. CHECK-C2 adds 23 expected-value mismatches:
+    // Gallery3/Grant5/Hire2/Leave5/Time3 preserve lexical bindings before
+    // same-spelled enum cases; Rent4 compare inferred money with integer cells.
+    // Remaining count movement was already present in the existing checker:
+    // e.g. CRM's unresolved imports/calls and Shift's isolated owner typing.
     let table: &[(&str, usize)] = &[
-        ("draft/apps/CanAffiliate/CanAffiliate.can", 39),
+        ("draft/apps/CanAffiliate/CanAffiliate.can", 40),
         ("draft/apps/CanApprove/CanApprove.can", 46),
         ("draft/apps/CanBoard/CanBoard.can", 46),
         ("draft/apps/CanBook/CanBook.can", 154),
-        ("draft/apps/CanCRM/CanCRM.can", 148),
-        ("draft/apps/CanCatch/CanCatch.can", 52),
+        ("draft/apps/CanCRM/CanCRM.can", 194),
+        ("draft/apps/CanCatch/CanCatch.can", 55),
         ("draft/apps/CanChat/CanChat.can", 0),
         ("draft/apps/CanCheck/CanCheck.can", 38),
         ("draft/apps/CanContract/CanContract.can", 22),
@@ -1083,56 +1089,56 @@ fn draft_outcome_table() {
         ("draft/apps/CanEnrich/CanEnrich.can", 8),
         ("draft/apps/CanEvent/CanEvent.can", 198),
         ("draft/apps/CanExpense/CanExpense.can", 92),
-        ("draft/apps/CanFeedback/CanFeedback.can", 22),
+        ("draft/apps/CanFeedback/CanFeedback.can", 23),
         ("draft/apps/CanField/CanField.can", 121),
         // R26-purity (T37 pilot): CRUD `when=` guards are bounded, so
         // crud-when membership reads no longer diagnose (Gallery -1).
-        ("draft/apps/CanGallery/CanGallery.can", 20),
-        ("draft/apps/CanGrant/CanGrant.can", 47),
-        ("draft/apps/CanHire/CanHire.can", 120),
+        ("draft/apps/CanGallery/CanGallery.can", 23),
+        ("draft/apps/CanGrant/CanGrant.can", 52),
+        ("draft/apps/CanHire/CanHire.can", 124),
         // Exact IncomingEmail identity clears only the replay guard E3002;
         // all other original findings and all 52 corpus rows remain.
-        ("draft/apps/CanInbox/CanInbox.can", 40),
+        ("draft/apps/CanInbox/CanInbox.can", 41),
         ("draft/apps/CanInvoice/CanInvoice.can", 203),
         // R26-purity (T37 pilot): CRUD `when=` guards are bounded, so
         // crud-when membership reads no longer diagnose (Knowledge -2).
         ("draft/apps/CanKnowledge/CanKnowledge.can", 44),
-        ("draft/apps/CanLearn/CanLearn.can", 49),
-        ("draft/apps/CanLeave/CanLeave.can", 74),
+        ("draft/apps/CanLearn/CanLearn.can", 51),
+        ("draft/apps/CanLeave/CanLeave.can", 79),
         // The same owned bound-tab cases (rewards/history) now resolve;
         // transient caption tabs and all original source remain unchanged.
         ("draft/apps/CanLoyalty/CanLoyalty.can", 66),
         ("draft/apps/CanMail/CanMail.can", 132),
-        ("draft/apps/CanMaintain/CanMaintain.can", 110),
-        ("draft/apps/CanMember/CanMember.can", 319),
+        ("draft/apps/CanMaintain/CanMaintain.can", 112),
+        ("draft/apps/CanMember/CanMember.can", 320),
         // R26-purity (T37 pilot): CRUD `when=` guards are bounded, so
         // crud-when membership reads no longer diagnose (Onboard -1).
-        ("draft/apps/CanOnboard/CanOnboard.can", 53),
+        ("draft/apps/CanOnboard/CanOnboard.can", 58),
         // The nonexported hold_result no longer captures nine held cases;
         // the callback body and stored inventory states remain unchanged.
         ("draft/apps/CanPropose/CanPropose.can", 118),
         // The private receive date input no longer captures stored received.
-        ("draft/apps/CanPurchase/CanPurchase.can", 137),
-        ("draft/apps/CanReception/CanReception.can", 179),
+        ("draft/apps/CanPurchase/CanPurchase.can", 142),
+        ("draft/apps/CanReception/CanReception.can", 180),
         // The nonexported join_program retains its input scope without
         // redeclaring closed builtin join; only its four cascades disappear.
         ("draft/apps/CanRefer/CanRefer.can", 75),
         // Booking benefit_unit reuses Resource.price_unit's hour/day type;
         // the two owning assignments resolve without any domain conversion.
-        ("draft/apps/CanRent/CanRent.can", 536),
+        ("draft/apps/CanRent/CanRent.can", 550),
         ("draft/apps/CanReport/CanReport.can", 16),
         // Stored commitments reuse their owning request kind. The released
         // Teams removed subject also clears account: expected user?, found opaque.
-        ("draft/apps/CanShift/CanShift.can", 93),
+        ("draft/apps/CanShift/CanShift.can", 91),
         ("draft/apps/CanStats/CanStats.can", 28),
         // The location-name sort derives from an imported Location. This
         // isolated row keeps that import opaque; the full source closure
         // resolves the derive and removes the original order-key finding.
         ("draft/apps/CanStock/CanStock.can", 42),
-        ("draft/apps/CanSuccess/CanSuccess.can", 43),
+        ("draft/apps/CanSuccess/CanSuccess.can", 45),
         ("draft/apps/CanSync/CanSync.can", 12),
         ("draft/apps/CanTable/CanTable.can", 31),
-        ("draft/apps/CanTime/CanTime.can", 126),
+        ("draft/apps/CanTime/CanTime.can", 129),
         ("draft/apps/CanTrade/CanTrade.can", 19),
         // Bound tab headers claim only their owning preference enum cases;
         // the original source and assignments authentication gate stay intact.
@@ -2027,5 +2033,38 @@ fn c03_url_owner_admission_and_source_anchors() {
                 assert_findings(&src, &diags, &[("E3001", &token, 1)]);
             }
         }
+    }
+}
+
+#[test]
+fn retention_context_dependencies_follow_helpers_members_imports_and_selected_defaults() {
+    for (declarations, until) in [
+        ("", "now+30d"),
+        (" derive deadline():datetime = now+30d\n", "deadline()"),
+        (" derive deadline():datetime = now+30d\n derive indirect():datetime = deadline()\n", "indirect()"),
+        (" derive Entry.deadline:datetime = now+30d\n", "row.deadline"),
+        (" derive deadline(at:datetime=now):datetime = at+30d\n", "deadline()"),
+    ] {
+        let source = format!("app Retention\nGiven\n Entry {{at:datetime}}\n{declarations} retain Entry until={until}\nWhen\nThen\n");
+        let diagnostics = check(&source, None);
+        assert_eq!(diagnostics.len(), 1, "{source}\n{diagnostics:?}");
+        assert_eq!(diagnostics[0].code, "E3017", "{diagnostics:?}");
+        assert_eq!(diagnostics[0].message, "retain until= cannot use now");
+        let (start, end) = span_of(&source, &format!("until={until}"), 1);
+        assert_eq!((diagnostics[0].primary.start, diagnostics[0].primary.end), (start + 6, end));
+    }
+    let imported = "package Clock\n Given\n  export derive deadline():datetime = now+30d\n When\n Then\npackage Records\n use Clock {deadline as expiry}\n Given\n  Entry {at:datetime}\n  retain Entry until=expiry()\n When\n Then\n";
+    let diagnostics = check(imported, None);
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+    assert_eq!(diagnostics[0].code, "E3017");
+    for (declarations, until) in [
+        ("", "row.now+30d"),
+        (" derive deadline(at:datetime=now):datetime = at+30d\n", "deadline(row.now)"),
+        (" derive deadline(at:datetime):datetime = at+30d\n", "deadline(row.now)"),
+        (" derive Entry.deadline:datetime = row.now+30d\n", "row.deadline"),
+    ] {
+        let source = format!("app Retention\nGiven\n Entry {{now:datetime}}\n{declarations} retain Entry until={until}\nWhen\nThen\n");
+        let diagnostics = check(&source, None);
+        assert!(diagnostics.is_empty(), "{source}\n{diagnostics:?}");
     }
 }
