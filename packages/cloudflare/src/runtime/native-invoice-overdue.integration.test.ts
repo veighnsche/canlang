@@ -323,7 +323,7 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
                   const row=await load(name,id);
                   if(row===null||name!=='work.dispatch')return row;
                   const changed=structuredClone(row);
-                  if(tamper==='mode')(changed.data['filePayloadOrigin']as {origin:{declaration:Record<string,unknown>}}).origin.declaration['evaluation']='current';
+                  if(tamper==='mode')delete (changed.data['filePayloadOrigin']as {origin:{declaration:Record<string,unknown>}}).origin.declaration['evaluation'];
                   else (changed.data['sourceGuard']as {owner:string}).owner='foreign.handler';
                   altered=true;return changed;
                 };
