@@ -1,6 +1,6 @@
 # Remaining implementation tasks
 
-Updated after the DEV-C2 fixture staging custody repair on 23 October 2026. This is the execution checklist for the audit-derived backlog: **16 open named packets**. The initial analysis repair is complete; the current native-host compile has **51 E6008 emission diagnostics**, attributed below. Fourteen packets have implemented results below; File admission retains the stated support limits. Packet counts are not estimates of effort or diagnostic counts.
+Updated after the V-LOOKUP-C1 schema namespace repair on 23 October 2026. This is the execution checklist for the audit-derived backlog: **15 open named packets**. The initial analysis repair is complete; the current native-host compile has **51 E6008 emission diagnostics**, attributed below. Fifteen packets have implemented results below; File admission retains the stated support limits. Packet counts are not estimates of effort or diagnostic counts.
 
 The [reviews](reviews/index.md) retain the original source reasoning at audit baseline `8d48f969`. Current completion status is recorded here. The [broader product roadmap](../implementation/REMAINING-WORK.md) also contains older feature proposals and app-specific requirements; this checklist does not declare all of those satisfied or all external app semantics reviewed.
 
@@ -28,7 +28,7 @@ Source completeness covers the 24 explicit operands and two saved generated cont
 
 </details>
 
-**Next task: V-LOOKUP-C1**, own-declaration schema lookup. Both development lifecycle tasks are complete: final publication checks cancellation, and fixture staging remains under generation custody until confirmed release. Both generation result tasks remain complete. RT-C1's selected original `CanCustomer.approve_account` workflow remains complete; the full native-host corpus remains at 51 emission diagnostics. These generation/development lifecycle changes do not alter that count.
+**Next task: V-ORDER-C1**, validation and error order in the optional Wasm path. Schema namespace resolution now requires own declarations; both development lifecycle and generation result tasks remain complete. RT-C1's selected original `CanCustomer.approve_account` workflow remains complete; the full native-host corpus remains at 51 emission diagnostics. These host/runtime repairs do not alter that count.
 
 - [ ] **Finish the remaining native emission support.** Work through the attributed refusals below using complete original-source workflows and real permission/recovery consumers. RT-C1 covers one selected workflow; it does not complete this corpus requirement. A changed refusal reason is not a fixed scenario. Keep all 24 operands, both saved contributions and the owning host catalog in the measurement.
 
@@ -141,8 +141,9 @@ These are the next correctness fixes. The two generation tasks share one control
 
 These tasks are independently actionable. Coordinate V-LOOKUP-C1 with any other Values schema writer; the optional Wasm fixes retain their distinct domain and ordering requirements.
 
-- [ ] **V-LOOKUP-C1 — Use own declarations for schema lookup.** Resolve operation/contract/enum names with own membership or null-prototype maps. Unknown `toString`/`constructor` must follow ordinary ValueError/model-reference behavior while explicitly declared names remain legal. Verify real public schema and nominal inputs.
+- [x] **V-LOOKUP-C1 — Use own declarations for schema lookup.** Three own-membership guards now resolve operation, contract and enum names in the canonical schema core, preserving published object shapes. Unknown inherited names produce the existing ValueError before argument access, or use nominal model-reference validation; explicitly declared `constructor`/`toString` operations, contracts, enums and fields remain legal. The existing public Values/Testkit integration passes with four added consumer groups covering owning errors, model-ref wire round trips, declaration/default validation, public serving validation, issued defaults and live-plan invalidation after close. Wire/prepared coverage already requires own membership; permission/lifetime gates are unchanged. The owning Values build, unit-test bans and whitespace check pass.
   - Owner: Values `src/internal/schema-core.ts`. [Source review](reviews/values.md).
+  - Validation limit: the broader root `tsc -p tsconfig.check.json` still reports errors in unchanged Cloudflare test consumers (durable Files, pending CanChat, partner-share source and Soda writer) and `tests/integration/identity-auth.test.ts`; no errors point to the edited schema core or Values integration. This packet does not claim a clean root typecheck.
 - [ ] **V-ORDER-C1 — Preserve validation and error order in the optional Wasm path.** Keep original operation guards, property access and errors before tagging selected calls. Use genuine provenance or canonical compatibility paths; never eagerly inspect arbitrary values to classify them as inert. Default TypeScript behavior remains. Compare real getter/error traces through public selected-backend consumers.
   - Owner: Values `bindings/backend.ts`, coordinated with carriers and decimal calls. [Source review](reviews/values.md).
 - [ ] **V-BOUNDS-C1 — Enforce inclusive bounds in native owned-value validation.** Apply constraints after exact scalar decoding, preserving omitted/null/array handling and ordered errors. Implement the owning comparison or explicitly refuse unsupported constrained joins. Preserve HTTP/MCP postchecks; no silent TypeScript fallback after native failure.
@@ -212,6 +213,7 @@ Run these against the relevant implementation/contract, using real retained stat
 | CHECK-C2 | Expected example values receive compatibility checks; checker/example suites pass 38 + 30 tests. |
 | EMIT-C1 | All seven emitted decimal helpers pin the owning family; three decimal integrations pass. |
 | LANG-VALUE-EXPECTATIONS | Stale compile-refusal assertions corrected while genuine unsupported cases remain; ten inventory integrations pass. |
+| V-LOOKUP-C1 | Own-declaration schema resolution preserves model-ref fallback and legal prototype-looking names; public Values/serving/default/lifetime integration and owning build pass. |
 | DEV-C2 | Shared generation resource custody retains fixture staging through uncertain SDK work and cleanup failures; ten runtime integrations and the full real lifecycle pass. |
 | DEV-C1 | Request cancellation gates final owner selection/publication; real final-verification cancellation preserves serving preview, cleans candidates and permits recovery/stop. |
 | GEN-C1 | Shared composed-outcome classification; eight real producer/CLI replay cases preserve saved/candidate bytes; prepare reuse remains successful. |

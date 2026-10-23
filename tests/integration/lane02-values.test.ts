@@ -175,7 +175,8 @@ interface CatalogEntryView {
 interface ValuesProducer {
   CATALOG: { entries: readonly CatalogEntryView[] };
   decodeValue: (typeId: string, wire: unknown) => unknown;
-  encodeValue: (typeId: string, value: unknown) => unknown;
+  encodeValue: (typeId: string, value: unknown, resolveReference?: undefined, schema?: unknown) => unknown;
+  validateValue: (schema: unknown, typeId: string, wire: unknown, mode: "create" | "update") => unknown;
   normalizeSchema: (descriptor: unknown) => unknown;
   validateOperationInput: (schema: unknown, op: string, args: unknown) => Record<string, unknown>;
   [key: string]: unknown;
@@ -202,6 +203,7 @@ async function loadProducer(): Promise<ValuesProducer | null> {
     typeof mod["decodeValue"] !== "function" ||
     typeof mod["encodeValue"] !== "function" ||
     typeof mod["normalizeSchema"] !== "function" ||
+    typeof mod["validateValue"] !== "function" ||
     typeof mod["validateOperationInput"] !== "function"
   ) {
     throw new Error("@canlang/values dist is present but lacks the join surface (stale build?)");
@@ -431,6 +433,107 @@ function blockedRows(): TableRowResult[] {
   ];
 }
 
+const NAMESPACE_ROWS = ["unknown operation names", "nominal reference fallback", "declared prototype names", "serving validation lifetime"];
+const SERVING_SPECIFIER = "@canlang/values/bindings/serving-validation";
+
+interface ServingConsumer {
+  schema: unknown;
+  plan(): unknown;
+  validate(typeId: string, wire: unknown, mode: "create"): unknown;
+  resolveDefault(ref: unknown): unknown;
+  close(): void;
+}
+
+function namespaceDescriptor(): unknown {
+  return {
+    contracts: { constructor: { fields: {
+      toString: { type: "text" },
+      constructor: { type: "text", default: "field-default" },
+      prototype: { type: "int", default: "7" },
+    } } },
+    enums: { toString: { cases: ["open", "closed"] } },
+    operations: {
+      constructor: { inputs: { toString: { type: "constructor" } } },
+      toString: { inputs: { constructor: { type: "toString" } } },
+    },
+  };
+}
+
+function owningError(call: () => unknown): { name: string; code: unknown } {
+  try { call(); }
+  catch (error) {
+    if (!isRecord(error)) throw new Error("expected an owning typed error");
+    return { name: String(error["name"]), code: error["code"] };
+  }
+  throw new Error("expected the owning operation to refuse");
+}
+
+function checkNamespaceRows(producer: ValuesProducer, createServing: (scope: unknown, descriptor: unknown) => ServingConsumer): TableRowResult[] {
+  return NAMESPACE_ROWS.map((label, rowIndex) => runCheck(rowIndex, label, () => {
+    if (rowIndex === 0) {
+      const schema = producer.normalizeSchema({});
+      let argsReads = 0;
+      const args = new Proxy({}, { ownKeys: () => { argsReads++; throw new Error("unknown operation touched arguments"); } });
+      for (const name of ["toString", "constructor", "hasOwnProperty"]) {
+        expect(owningError(() => producer.validateOperationInput(schema, name, args)))
+          .toEqual({ name: "ValueError", code: "invalid-construction" });
+      }
+      expect(argsReads).toBe(0);
+    } else if (rowIndex === 1) {
+      const schema = producer.normalizeSchema({});
+      for (const name of ["toString", "constructor", "hasOwnProperty"]) {
+        const wire = { id: "record-1", version: "7" };
+        const value = producer.validateValue(schema, name, wire, "create");
+        expect(producer.encodeValue(name, value, undefined, schema)).toEqual(wire);
+        expect(producer.encodeValue(name, producer.decodeValue(name, wire))).toEqual(wire);
+        const rejected = observeSchemaRejection(() => producer.validateValue(schema, name, { id: 7 }, "create"));
+        if (!rejected.ok) throw new Error(rejected.problem);
+      }
+    } else if (rowIndex === 2) {
+      const schema = producer.normalizeSchema(namespaceDescriptor());
+      const wire = { toString: "kept", constructor: "field-default", prototype: "7" };
+      const value = producer.validateValue(schema, "constructor", { toString: "kept" }, "create");
+      expect(producer.encodeValue("constructor", value, undefined, schema)).toEqual(wire);
+      expect(producer.encodeValue("constructor", producer.validateValue(schema, "constructor", wire, "create"), undefined, schema)).toEqual(wire);
+      expect(producer.validateValue(schema, "toString", "closed", "create")).toBe("closed");
+      const operation = producer.validateOperationInput(schema, "constructor", { toString: { toString: "kept" } });
+      expect(producer.encodeValue("constructor", operation["toString"], undefined, schema)).toEqual(wire);
+      expect(producer.validateOperationInput(schema, "toString", { constructor: "open" })).toEqual({ constructor: "open" });
+      for (const call of [
+        () => producer.validateValue(schema, "toString", "missing", "create"),
+        () => producer.validateValue(schema, "constructor", { toString: 7 }, "create"),
+        () => producer.validateOperationInput(schema, "toString", { constructor: "missing" }),
+        () => producer.validateOperationInput(schema, "constructor", { unknown: true }),
+      ]) {
+        const rejected = observeSchemaRejection(call);
+        if (!rejected.ok) throw new Error(rejected.problem);
+      }
+    } else {
+      const serving = createServing({ abiVersion: "1", profileVersion: "namespace-v1", backendId: "typescript", ownerRevision: "namespace-join" }, namespaceDescriptor());
+      try {
+        const value = serving.validate("constructor", { toString: "served" }, "create");
+        expect(producer.encodeValue("constructor", value, undefined, serving.schema))
+          .toEqual({ toString: "served", constructor: "field-default", prototype: "7" });
+        expect(serving.validate("toString", "open", "create")).toBe("open");
+        const rejected = observeSchemaRejection(() => serving.validate("toString", "missing", "create"));
+        if (!rejected.ok) throw new Error(rejected.problem);
+        const plan = serving.plan();
+        if (!isRecord(plan) || !isRecord(plan["contracts"]) || !isRecord(plan["contracts"]["constructor"])) throw new Error("serving plan omits declared constructor contract");
+        const fields = plan["contracts"]["constructor"]["fields"];
+        if (!Array.isArray(fields)) throw new Error("serving plan omits declared fields");
+        const field = fields.find(candidate => isRecord(candidate) && candidate["name"] === "prototype");
+        if (!isRecord(field) || !isRecord(field["defaultRef"])) throw new Error("serving plan omits its default reference");
+        expect(producer.encodeValue("int", serving.resolveDefault(field["defaultRef"]))).toBe("7");
+        serving.close();
+        expect(owningError(() => serving.plan())).toEqual({ name: "PlanError", code: "unknown-plan" });
+        expect(owningError(() => serving.validate("constructor", { toString: "late" }, "create")))
+          .toEqual({ name: "PlanError", code: "unknown-plan" });
+      } finally { serving.close(); }
+    }
+    return [];
+  }));
+}
+
 // ---------------------------------------------------------------------------
 // The join case.
 // ---------------------------------------------------------------------------
@@ -465,14 +568,17 @@ describe("lane02 values join", () => {
       builder.addCase(wireCase);
       builder.addCase(opCase);
       builder.addCase(blockedCase);
+      const namespaceCase: TableCaseResult = { kind: "table", operation: "lane02.values.namespace-consumers",
+        rows: NAMESPACE_ROWS.map((_label, rowIndex) => unsupportedRow(rowIndex, ABSENT_DETAIL)) };
+      builder.addCase(namespaceCase);
       const report = builder.build();
-      expect(report.summary.total).toBe(catalogRows.length + wireRows.length + opRows.length + 2);
+      expect(report.summary.total).toBe(catalogRows.length + wireRows.length + opRows.length + NAMESPACE_ROWS.length + 2);
       expect(report.summary.passed).toBe(0);
       expect(report.summary.failed).toBe(0);
       expect(report.summary.setupFailed).toBe(0);
       expect(report.summary.unsupported).toBe(report.summary.total);
       expect(report.summary.unsupported).toBeGreaterThan(0);
-      for (const table of [catalogCase, wireCase, opCase]) {
+      for (const table of [catalogCase, wireCase, opCase, namespaceCase]) {
         for (const row of table.rows) {
           expect(row.outcome).toBe("unsupported");
           expect(row.detail).toContain(ABSENT_SENTENCE);
@@ -572,6 +678,12 @@ describe("lane02 values join", () => {
       });
     });
     builder.addCase({ kind: "table", operation: "lane02.values.operations", rows: opRows });
+    const servingModule: unknown = await import(SERVING_SPECIFIER);
+    if (!isRecord(servingModule) || typeof servingModule["createServingValidation"] !== "function") {
+      throw new Error("@canlang/values serving-validation export is missing (stale build?)");
+    }
+    const createServing = servingModule["createServingValidation"] as (scope: unknown, descriptor: unknown) => ServingConsumer;
+    builder.addCase({ kind: "table", operation: "lane02.values.namespace-consumers", rows: checkNamespaceRows(producer, createServing) });
     builder.addCase({ kind: "table", operation: "lane02.values.blocked", rows: blockedRows() });
 
     const report = builder.build();

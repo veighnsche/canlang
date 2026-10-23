@@ -955,11 +955,11 @@ function validateNominalValue(
     if (stored !== null && hasBounds(alias) && ctx.violations.length === before) checkBounds(alias, stored as CanValue, path, ctx);
     return ctx.violations.length === before ? stored : FAIL;
   }
-  const contract = schema.contracts[name];
+  const contract = Object.hasOwn(schema.contracts, name) ? schema.contracts[name] : undefined;
   if (contract !== undefined) {
     return validateContractValue(schema, name, contract, wire, path, ctx, options);
   }
-  const enumeration = schema.enums[name];
+  const enumeration = Object.hasOwn(schema.enums, name) ? schema.enums[name] : undefined;
   if (enumeration !== undefined) {
     return validateEnumValue(name, enumeration.cases, wire, path, ctx);
   }
@@ -2536,7 +2536,7 @@ export function validateOperationInputTsCore(
   if (typeof opName !== "string" || opName.length === 0) {
     throw new ValueError("invalid-construction", "operation name must be a non-empty string");
   }
-  const op = schema.operations[opName];
+  const op = Object.hasOwn(schema.operations, opName) ? schema.operations[opName] : undefined;
   if (op === undefined) {
     throw new ValueError("invalid-construction", `unknown operation ${JSON.stringify(opName)}`);
   }
