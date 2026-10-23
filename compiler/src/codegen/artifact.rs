@@ -568,7 +568,18 @@ fn compute_requires(
                 "money",
             ],
         ),
-        ("values.decimal", &["divideDecimal", "compareDecimal"]),
+        (
+            "values.decimal",
+            &[
+                "parseDecimal",
+                "addDecimal",
+                "subtractDecimal",
+                "multiplyDecimal",
+                "divideDecimal",
+                "negateDecimal",
+                "compareDecimal",
+            ],
+        ),
         (
             "values.temporal",
             &[

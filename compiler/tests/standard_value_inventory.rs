@@ -508,8 +508,8 @@ fn checked_source_catalog_and_selection_associations_are_required_before_ir_seal
 }
 
 #[test]
-fn selected_inspection_with_unknown_workflow_fields_remains_a_cli_refusal() {
-    let source = r#"app UnresolvedInspection
+fn selected_inspection_publishes_its_typed_contract_without_claiming_provider_execution() {
+    let source = r#"app Inspection
 use std {ImagesV1 as Images} from=deployment.images
 Given
 When
@@ -520,24 +520,28 @@ Then
 "#;
     let scratch = tempfile::tempdir().unwrap();
     let output = compile(source, &scratch.path().join("inspection.can"));
-    assert!(!output.status.success());
-    let result: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert!(
-        result["diagnostics"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|diagnostic| diagnostic["code"] == "E6008"),
-        "{result}"
+    let artifact = successful_artifact(&output);
+    assert_eq!(
+        names(&artifact["valueTypes"]),
+        BTreeSet::from(["DeliveryError", "WorkflowField", "WorkflowInspection"])
     );
-    assert!(
-        result.get("artifact").is_none_or(Value::is_null),
-        "no partial artifact: {result}"
-    );
-    assert!(
-        result.get("modules").is_none(),
-        "no partial executable modules: {result}"
-    );
+    let contracts = artifact["valueTypes"]["contracts"].as_array().unwrap();
+    let inspection = contracts.iter().find(|value| value["name"] == "WorkflowInspection").unwrap();
+    assert_eq!(inspection["fields"][0]["name"], "fields");
+    assert_eq!(inspection["fields"][0]["type"], "WorkflowField[]");
+    let field = contracts.iter().find(|value| value["name"] == "WorkflowField").unwrap();
+    assert_eq!(field["fields"], json!([
+        {"name":"node","type":"text"}, {"name":"key","type":"text"},
+        {"name":"kind","type":"text"}, {"name":"label","type":"text"}
+    ]));
+    // These are schema/binding facts only. The installed Images adapter's
+    // submit/control admission, not compilation, owns provider availability.
+    let (db, ir) = build(source);
+    let emitted = js::emit_program_with_native_source_receipts(&ir, false, &db);
+    assert!(emitted.diagnostics.is_empty(), "{:?}", emitted.diagnostics);
+    assert_eq!(serde_json::to_value(emitted.value_types.unwrap()).unwrap(), artifact["valueTypes"]);
+    assert!(emitted.entry.js.contains("std.ImagesV1.inspect"));
+    assert!(emitted.entry.js.contains("deployment.images"));
 }
 
 #[test]
@@ -629,9 +633,7 @@ for(const invalid of [{source:'s',revision:'1',state:'invented'},{source:'s',sta
     );
 }
 
-#[test]
-fn unrelated_lowering_refusals_preserve_only_source_owned_standard_metadata() {
-    let source = r#"app PartialOutcome uses=[outcome]
+const VERSIONED_OUTCOME: &str = r#"app PartialOutcome uses=[outcome]
 package outcome
  use std {OperationOutcome as Outcome}
  use outcome {Workflow as Bound} from=deployment.workflow
@@ -642,13 +644,35 @@ package outcome
  When
  Then
 "#;
+
+#[test]
+fn versioned_bound_declaration_publishes_its_contract_without_provider_execution() {
+    let scratch = tempfile::tempdir().unwrap();
+    let output = compile(VERSIONED_OUTCOME, &scratch.path().join("versioned.can"));
+    let artifact = successful_artifact(&output);
+    assert_eq!(names(&artifact["valueTypes"]), BTreeSet::from(["OperationOutcome"]));
+    let (db, ir) = build(VERSIONED_OUTCOME);
+    let emitted = js::emit_program_with_native_source_receipts(&ir, false, &db);
+    assert!(emitted.diagnostics.is_empty(), "{:?}", emitted.diagnostics);
+    assert!(emitted.entry.js.contains("deployment.workflow"));
+}
+
+#[test]
+fn unrelated_lowering_refusals_preserve_only_source_owned_standard_metadata() {
+    // Corpus has no executable producer. A versioned local capability is an
+    // admitted contract, so it must not supply this unrelated refusal.
+    let source = VERSIONED_OUTCOME.replace(
+        " When\n",
+        "  Item {title:text}\n  corpus Handbook model=Item scope=title title=title content=title where=true from=deployment.knowledge\n When\n",
+    );
+    let source = source.as_str();
     let (db, checked, catalog) = checked(source);
     let (ir, diagnostics) = ir::build(&checked, &db, Some(&catalog));
     assert!(
         diagnostics
             .iter()
-            .any(|diagnostic| diagnostic.code == "E6007"),
-        "retain unrelated producer refusal: {diagnostics:?}"
+            .any(|diagnostic| diagnostic.code == "E6008" && diagnostic.message.contains("corpus outcome.Handbook")),
+        "retain actual unsupported Corpus refusal: {diagnostics:?}"
     );
     let output = js::emit_program_with_native_source_receipts(&ir, false, &db);
     let inventory =

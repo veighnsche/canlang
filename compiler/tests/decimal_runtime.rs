@@ -112,3 +112,65 @@ fn decimal_range_refusals_and_action_target_construction() {
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert!(json.get("diagnostics").is_none(), "{json}");
 }
+
+#[test]
+fn isolated_decimal_helpers_pin_their_family_through_real_artifact_compatibility() {
+    let scratch = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(root().join("node_modules"), scratch.path().join("node_modules")).unwrap();
+    let helpers = [
+        ("parseDecimal", "decimal", "1.5"),
+        ("addDecimal", "decimal", "a+b"),
+        ("subtractDecimal", "decimal", "a-b"),
+        ("multiplyDecimal", "decimal", "a*b"),
+        ("divideDecimal", "decimal", "a/b"),
+        ("negateDecimal", "decimal", "-a"),
+        ("compareDecimal", "bool", "a<b"),
+    ];
+    let mut artifacts = Vec::new();
+    for (helper, result, expression) in helpers {
+        let source = format!("app DecimalRequirement\nGiven\n derive value(a:decimal,b:decimal):{result} = {expression}\nWhen\nThen\n");
+        let output = compile(scratch.path(), helper, &source);
+        assert!(output.status.success(), "{helper}: {}", String::from_utf8_lossy(&output.stdout));
+        let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        let js = artifact["modules"][0]["js"].as_str().unwrap();
+        assert!(js.contains(helper), "{helper}: {js}");
+        for (other, _, _) in helpers {
+            if other != helper {
+                assert!(!js.contains(other), "{helper} must not acquire its requirement through {other}");
+            }
+        }
+        let requires = artifact["requires"].as_array().unwrap();
+        assert_eq!(requires.iter().filter(|r| r["capability"] == "values.decimal").count(), 1);
+        assert!(requires.iter().any(|r| r["capability"] == "values.decimal" && r["min_version"] == 1));
+        assert!(requires.iter().any(|r| r["capability"] == "canlang.builtins"));
+        artifacts.push(artifact);
+    }
+    let plain = compile(scratch.path(), "plain", "app Plain\nGiven\n derive value():bool = true\nWhen\nThen\n");
+    assert!(plain.status.success(), "{}", String::from_utf8_lossy(&plain.stdout));
+    let plain: serde_json::Value = serde_json::from_slice(&plain.stdout).unwrap();
+    assert!(!plain["requires"].as_array().unwrap().iter().any(|r| r["capability"] == "values.decimal"));
+    std::fs::write(scratch.path().join("artifacts.json"), serde_json::to_vec(&artifacts).unwrap()).unwrap();
+    let runner = scratch.path().join("compatibility.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {parseArtifactText} from '@canlang/cloudflare/runtime/artifact';
+import {checkCompatibility} from '@canlang/cloudflare/deploy/compat';
+for(const artifact of JSON.parse(readFileSync(new URL('./artifacts.json',import.meta.url),'utf8'))){
+ const loaded=parseArtifactText(JSON.stringify(artifact),'decimal.can');
+ assert.deepEqual(loaded.artifact.requires,artifact.requires);
+ const requiredCapabilities=artifact.requires.map(value=>value.capability);
+ const descriptor={identity:{contractsVersion:1,languageVersion:artifact.language_version},
+  requiredCapabilities,resourceBindings:[],secrets:[],schedules:[]};
+ const environment={resources:[],secretsPresent:[]};
+ const installed={contractsVersion:1,runtimeVersion:'test',knownLanguageVersions:[artifact.language_version],
+  capabilities:requiredCapabilities,supportsSchedules:false};
+ assert.deepEqual(checkCompatibility(descriptor,environment,installed),{compatible:true});
+ assert.deepEqual(checkCompatibility(descriptor,environment,{...installed,
+  capabilities:requiredCapabilities.filter(value=>value!=='values.decimal')}),
+  {compatible:false,reasons:[{code:'missing-capability',detail:'values.decimal'}]});
+}
+"#).unwrap();
+    let executed = Command::new("node").arg(runner).current_dir(scratch.path()).output().unwrap();
+    assert!(executed.status.success(), "{}\n{}", String::from_utf8_lossy(&executed.stdout), String::from_utf8_lossy(&executed.stderr));
+}
