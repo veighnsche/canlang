@@ -3457,3 +3457,37 @@ it('clears the original optional Event candidate before scheduling both cancella
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('sends original Propose offers through independently authorized parent identities', {timeout:180000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-propose-parent-id-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/propose-handoff-original.can'),original=await readFile(join(root,'draft/apps/CanPropose/CanPropose.can'),'utf8'),text=await readFile(source,'utf8');
+  for(const head of ['  scenario hold_inventory(','  export scenario request_booking(']){const start=original.indexOf(head),end=original.indexOf('   examples',start);assert.ok(text.includes(original.slice(start,end)));}
+  const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout) as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const operation of ['hold_inventory','request_booking'])for(const mode of ['allowed','denied-customer','denied-location','denied-ref','false-prefix','link-race','grant-race','identity-race']){
+   const {now,identities,identity,team,user,membership}=await member('propose-parent-'+operation+'-'+mode,['propose.salesperson']);
+   const scope={app:'CanPropose',owner:team.team_id,ownerPackage:'propose'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'parent-state',fileStoreId:'parent-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+   const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+   const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent}),money={minor:'1000',currency:'EUR'},zero={minor:'0',currency:'EUR'},intervals=[{from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T10:00:00.000Z'}];
+   const proposal=row('proposal',{location:{id:'location'},recipient:{id:'contact'},issuer:'Issuer',title:'Offer',currency:'EUR',valid_days:'14',current:'1',link_visible:mode!=='denied-ref'},{model:model('customer','Customer'),id:asId('customer')});
+   const revision=row('revision',{product:null,attribution:null,exclusive_program:null,attributed_at:null,attribution_window:null,number:'1',issuer_snapshot:'Issuer',title_snapshot:'Offer',location_snapshot:'Frozen location',customer_snapshot:'Frozen customer',alternative_to:null,recipient_email:user.email,account:{id:user.user_id},expires:'2099-01-01T08:00:00.000Z',terms:'Terms',refund_before:intervals[0]!.from,resource:'office',from:intervals[0]!.from,until:intervals[0]!.until,intervals,seats:'4',quantity:'2',held_until:null,total:money,state:mode==='false-prefix'?'withdrawn':operation==='hold_inventory'?'sent':'accepted',decided_by:{id:user.user_id},decided_at:'2026-01-01T08:00:00.000Z',handoff:'none',delivery:null,booking:null,invoice:null,hold_state:'none',booking_version:'0',hold_version:'0',hold_delivery:null,hold_release:null,notice:null,document_state:'none',document:null,pdf:null},{model:model('propose','Proposal'),id:proposal.id});
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    {kind:'insert',model:model('rent_catalog','Location'),row:row('location',{active:true,visible:mode!=='denied-location'})},
+    {kind:'insert',model:model('rent_catalog','Location'),row:row('replacement',{active:true,visible:true})},
+    {kind:'insert',model:model('employee','Employee'),row:row('employee',{user:{id:user.user_id},home:{id:'location'},locations:[{id:'replacement'}],operator_wide:false,active:true,hidden:false})},
+    {kind:'insert',model:model('customer','Customer'),row:row('customer',{active:true,visible:mode!=='denied-customer'})},
+    {kind:'insert',model:model('customer','Contact'),row:row('contact',{account:{id:user.user_id}},{model:model('customer','Customer'),id:asId('customer')})},
+    {kind:'insert',model:model('propose','Proposal'),row:proposal},{kind:'insert',model:model('propose','Revision'),row:revision},
+    {kind:'insert',model:model('propose','Item'),row:row('item',{title:'Line',quantity:'2',unit:'hour',price:money,tax:zero,discount:zero,hidden:false,tax_visible:true},{model:model('propose','Revision'),id:revision.id})}]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.load=async(name,id)=>{if(!raced&&mode==='identity-race'&&name==='work.dispatch'){raced=true;await identities.removeMembership(membership.membership_id);}return load(name,id);};
+   store.commit=async batch=>{if(!raced&&['link-race','grant-race'].includes(mode)&&batch.writes.some(write=>write.model==='work.dispatch')){raced=true;const name=mode==='link-race'?model('propose','Proposal'):model('rent_catalog','Location'),old=await load(name,mode==='link-race'?proposal.id:asId('location'));assert.ok(old);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:name,id:old.id,expectedVersion:old.version,row:{...old,version:asVersion(old.version+1),data:{...old.data,...(mode==='link-race'?{location:{id:'replacement'}}:{visible:false})}}}]}));}return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'propose.'+operation,operation_id:operationId(now),inputs:{revision:{id:'revision',version:'1'},...(operation==='hold_inventory'?{until:'2098-12-31T00:00:00.000Z'}:{})}};
+   const result=await invoker.invokeMutation(request,identity),success=['allowed','link-race'].includes(mode);assert.equal('result'in result,success,operation+'/'+mode+': '+JSON.stringify(result));if(mode.endsWith('-race'))assert.ok(raced,mode);
+   const pending=await store.outboxPending(),current=await load(model('propose','Revision'),revision.id);assert.equal(pending.length,success?1:0,mode);assert.ok(current);
+   if(success){const args=(pending[0]!.arguments as {arguments:{value:Record<string,unknown>}}).arguments.value;assert.equal(args.customer,'customer');assert.equal(args.location,mode==='link-race'?'replacement':'location');assert.equal(args.source,'revision');assert.equal((args.snapshot as {lines:unknown[]}).lines.length,1);assert.equal(current.data[operation==='hold_inventory'?'hold_state':'handoff'],'pending');assert.ok('result'in await invoker.invokeMutation(request,identity));assert.deepEqual(await store.outboxPending(),pending);}
+   else assert.deepEqual(current,revision,mode+': no partial SEND or revision SET');
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});

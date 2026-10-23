@@ -65,6 +65,7 @@ struct Reads {
     fields:BTreeMap<String,BTreeMap<String,String>>,
     identities:BTreeMap<String,BTreeSet<String>>,
     parents:BTreeMap<String,(SymbolId,BTreeMap<String,String>)>,
+    identity_paths:BTreeMap<String,BTreeMap<Vec<(String,u32)>,String>>,
     query_fields:BTreeMap<String,BTreeMap<String,String>>,
     queries:BTreeMap<String,serde_json::Value>,
     query_spans:BTreeSet<(u32,u32,u32)>,
@@ -90,6 +91,24 @@ fn declared_field<'a>(ir:&'a IrProgram,model:SymbolId,name:&str)->Option<(&'a Ir
     let IrItemKind::Field{owner,ty:IrType::Known(ty),..}=&field.kind else{return None;};
     (*owner==model).then_some((field,ty))
 }
+fn required_identity_path(ir:&IrProgram,value:&TypedExpr,env:&Environment,depth:usize)->Option<(Root,Vec<(String,SymbolId)>)>{
+    if depth>=8{return None;}
+    if let IrExpr::Name(name)=&value.expr{
+        let root=env.roots.get(name)?.clone();
+        return (root.query.is_none()&&value.ty==ResolvedType::Record{symbol:root.model,stored:true}).then_some((root,Vec::new()));
+    }
+    let IrExpr::Member{base,field}=&value.expr else{return None;};
+    let (root,mut path)=required_identity_path(ir,base,env,depth+1)?;
+    let owner=path.last().map(|(_,model)|*model).unwrap_or(root.model);
+    let ResolvedType::Record{symbol:target,stored:true}=&value.ty else{return None;};
+    if field=="parent"{
+        if !matches!(ir.items.get(owner.0 as usize)?.kind,IrItemKind::Model{owner:super::ir::IrOwner::ChildOf(parent),..}if parent==*target){return None;}
+    }else{
+        let(_,declared)=declared_field(ir,owner,field)?;
+        if declared!=&value.ty{return None;}
+    }
+    path.push((field.clone(),*target));Some((root,path))
+}
 impl Reads {
     fn read(&mut self,ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,
         value:&TypedExpr,env:&Environment,depth:usize)->Option<()> {
@@ -103,6 +122,12 @@ impl Reads {
             IrExpr::Member{base,field}=>{
                 if self.aggregates&&field=="now"&&base.ty==ResolvedType::Unknown&&matches!(&base.expr,IrExpr::Name(name)if name=="c")
                     && value.ty==ResolvedType::Scalar(Scalar::Datetime){return Some(());}
+                if field=="id"&&value.ty==ResolvedType::Scalar(Scalar::Text)
+                    &&let Some((root,path))=required_identity_path(ir,base,env,0)
+                    &&!path.is_empty(){
+                    self.fields.entry(root.parameter.clone()).or_default();
+                    self.identity_paths.entry(root.parameter).or_default().insert(path.into_iter().map(|(field,model)|(field,model.0)).collect(),"id".into());return Some(());
+                }
                 let (root,parent)=if let IrExpr::Name(parameter)=&base.expr{(env.roots.get(parameter)?.clone(),false)}else{
                     let IrExpr::Member{base:child,field:parent}=&base.expr else{return None;};
                     let IrExpr::Name(parameter)=&child.expr else{return None;};let original=env.roots.get(parameter)?;
@@ -317,7 +342,7 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
             },
             IrStmt::Send{operation,deployment_binding:Some(binding),args,when:None,span,..}=>{
                 let mut reads=Reads{contract_derives:true,..Reads::default()};
-                if reads.read(ir,context,args,env,0).is_none()||reads.fields.is_empty()||reads.fields.len()>200||reads.identities.keys().any(|name|loop_roots.contains_key(name)||created_roots.contains_key(name))||reads.queries.values().any(|query|query["parameter"].as_str().is_some_and(|name|loop_roots.contains_key(name)||created_roots.contains_key(name))){continue;}
+                if reads.read(ir,context,args,env,0).is_none()||reads.fields.is_empty()||reads.fields.len()>200||reads.identity_paths.keys().any(|name|loop_roots.contains_key(name)||created_roots.contains_key(name))||reads.identities.keys().any(|name|loop_roots.contains_key(name)||created_roots.contains_key(name))||reads.queries.values().any(|query|query["parameter"].as_str().is_some_and(|name|loop_roots.contains_key(name)||created_roots.contains_key(name))){continue;}
                 let mut parameters=Vec::new();
                 for(name,fields)in &reads.fields{
                     let Some(model)=models.get(name)else{continue;};
@@ -326,6 +351,7 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
                     if let Some(id)=loop_roots.get(name){value["loop"]=serde_json::json!(id);}
                     if let Some(created)=created_roots.get(name){value["created"]=created.clone();}
                     if let Some(identity)=reads.identities.get(name){value["identity"]=serde_json::json!(identity);}
+                    if let Some(paths)=reads.identity_paths.get(name){value["identityPaths"]=serde_json::json!(paths.iter().map(|(path,leaf)|serde_json::json!({"path":path.iter().map(|(field,model)|serde_json::json!({"field":field,"model":ir.items[*model as usize].canonical})).collect::<Vec<_>>(),"leaf":leaf})).collect::<Vec<_>>());}
                     if let Some((model,fields))=reads.parents.get(name){value["parent"]=serde_json::json!({"model":ir.items[model.0 as usize].canonical,"fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>()});}
                     if let Some(derived)=reads.derived.get(name){value["derived"]=serde_json::json!(derived.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>());}
                     parameters.push(value);
@@ -404,6 +430,7 @@ pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super:
                     let mut value=serde_json::json!({"name":name,"model":ir.items[model.0 as usize].canonical,
                         "fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>()});
                     if let Some(identity)=reads.identities.get(name){value["identity"]=serde_json::json!(identity);}
+                    if let Some(paths)=reads.identity_paths.get(name){value["identityPaths"]=serde_json::json!(paths.iter().map(|(path,leaf)|serde_json::json!({"path":path.iter().map(|(field,model)|serde_json::json!({"field":field,"model":ir.items[*model as usize].canonical})).collect::<Vec<_>>(),"leaf":leaf})).collect::<Vec<_>>());}
                     if let Some((model,fields))=reads.parents.get(name){value["parent"]=serde_json::json!({"model":ir.items[model.0 as usize].canonical,"fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>()});}
                     if let Some(derived)=reads.derived.get(name){
                         value["derived"]=serde_json::json!(derived.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>());

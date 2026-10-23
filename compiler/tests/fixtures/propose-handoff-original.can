@@ -1,0 +1,87 @@
+app CanPropose uses=[propose]
+package rent_catalog
+ Given
+  export Location {active:bool=true,visible:bool=true}
+  policy Location read=members and row.visible
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,home:Location,locations:Location[],operator_wide:bool=false,active:bool=true,hidden:bool=false}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members and not row.hidden
+ When
+ Then
+package customer
+ Given
+  export Customer {active:bool=true,visible:bool=true}
+  export Contact in Customer {account:user?}
+  policy Customer read=members and row.visible
+  policy Contact read=members
+ When
+ Then
+package propose
+ use customer {Customer,Contact}
+ use rent_catalog {Location}
+ use employee {can_work}
+ use rent_reservations {RoomsV1 as Rooms} from=deployment.rooms
+ use std {EmailV1 as Mail} from=deployment.mail
+ use propose {DocumentsV1 as Documents} from=deployment.documents
+ Given
+  message heading_itemized_quote = "Itemized quote"@{nl="Gespecificeerde offerte"}
+  message label_QuoteLine_tax = "Tax"@{nl="Belasting"}
+  message label_QuoteLine_discount = "Discount"@{nl="Korting"}
+  message label_QuoteDocument_issuer = "Issuer"@{nl="Uitgever"}
+  message label_QuoteDocument_recipient = "Recipient"@{nl="Ontvanger"}
+  message label_QuoteDocument_from = "Start"@{nl="Begin"}
+  message label_QuoteDocument_until = "End"@{nl="Einde"}
+  message label_QuoteDocument_terms = "Terms"@{nl="Voorwaarden"}
+  message label_QuoteDocument_expires = "Expires at"@{nl="Vervalt op"}
+  message label_QuotePdf_document = "Generate quote document"@{nl="Offertedocument genereren"}
+  message label_Revision_resource = "Resource reference"@{nl="Referentie voorziening"}
+  message label_Revision_seats = "Seats"@{nl="Plaatsen"}
+  export contract QuoteLine { title:text, quantity:decimal, unit:text, price:money, tax:money label=label_QuoteLine_tax, discount:money label=label_QuoteLine_discount } label="Quote line"@{nl="Offerteregel"}
+  export contract QuoteInterval { from:datetime, until:datetime } label="Quoted access interval"@{nl="Geoffreerd toegangstijdvak"}
+  export contract QuoteDocument { issuer:text label=label_QuoteDocument_issuer, customer:text, resource:text?, quantity:int, attendees:int, recipient:email label=label_QuoteDocument_recipient, title:text, location:text, from:datetime label=label_QuoteDocument_from, until:datetime label=label_QuoteDocument_until, intervals:QuoteInterval[] label="Exact service intervals"@{nl="Exacte gebruikstijdvakken"}, terms:text label=label_QuoteDocument_terms, refund_before:datetime label="Refund deadline"@{nl="Terugbetalingsdeadline"}, expires:datetime label=label_QuoteDocument_expires, lines:QuoteLine[]! label="Lines"@{nl="Regels"}, total:money } label="Quote document"@{nl="Offertedocument"}
+  export contract QuotePdf { source:text label="Source reference"@{nl="Bronreferentie"}, document:file label=label_QuotePdf_document, revision:int } label="Quote PDF"@{nl="Offerte-PDF"}
+
+  export contract QuoteOffer { source:text, revision:int, customer:text, location:text, resource:text, recipient:email, quantity:int, attendees:int, snapshot:QuoteDocument, hold_until:datetime } label="Temporary quote reservation"@{nl="Tijdelijke offertereservering"}
+  export contract AcceptedOffer { product:text?, attribution:text?, exclusive_program:text?, attributed_at:datetime?, attribution_window:duration?, source:text, revision:int, customer:text, location:text, resource:text, account:user, recipient:email, accepted_at:datetime, quantity:int, attendees:int, snapshot:QuoteDocument } label="Accepted offer handoff"@{nl="Overdracht geaccepteerde offerte"}
+  export capability DocumentsV1 version=1
+   quote(source:text,snapshot:QuoteDocument,revision:int) -> QuotePdf
+  role salesperson
+  export Proposal in Customer { location:Location, recipient:Contact label=label_QuoteDocument_recipient, issuer:text label=label_QuoteDocument_issuer, title:text, currency:currency, valid_days:int=14 min=1 label="Validity in days"@{nl="Geldigheid in dagen"}, link_visible:bool=true, current:int=0 label="Current revision"@{nl="Huidige versie"} } label="Proposal"@{nl="Offerte"}
+  export Revision in Proposal { product:text? label="Product code"@{nl="Productcode"}, attribution:text?, exclusive_program:text?, attributed_at:datetime?, attribution_window:duration?, number:int label="Offer revision number"@{nl="Offerteversienummer"}, issuer_snapshot:text label="Frozen issuer"@{nl="Vastgelegde uitgever"}, title_snapshot:text label="Frozen title"@{nl="Vastgelegde titel"}, location_snapshot:text label="Frozen location"@{nl="Vastgelegde locatie"}, customer_snapshot:text label="Frozen customer"@{nl="Vastgelegde klant"}, alternative_to:Revision? label="Alternative to revision"@{nl="Alternatief voor offerteversie"}, recipient_email:email label="Recipient email"@{nl="E-mailadres ontvanger"}, account:user? label="Account"@{nl="Account"}, expires:datetime label=label_QuoteDocument_expires, terms:text label=label_QuoteDocument_terms, refund_before:datetime label="Frozen refund deadline"@{nl="Vastgelegde terugbetalingsdeadline"}, resource:text? label=label_Revision_resource, from:datetime label=label_QuoteDocument_from, until:datetime label=label_QuoteDocument_until, intervals:QuoteInterval[] label="Exact service intervals"@{nl="Exacte gebruikstijdvakken"}, seats:int=1 min=1 label=label_Revision_seats, quantity:int=1 min=1 label="Capacity units"@{nl="Capaciteitseenheden"}, held_until:datetime? label="Hold deadline"@{nl="Reserveringsdeadline"}, total:money, state:enum(draft,sent,accepted,declined,withdrawn)=draft label={text="State"@{nl="Status"},values={draft="Draft"@{nl="Concept"},sent="Sent"@{nl="Verstuurd"},accepted="Accepted"@{nl="Geaccepteerd"},declined="Declined"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"}}}, decided_by:user? label="Decided by"@{nl="Besloten door"}, decided_at:datetime? label="Decided at"@{nl="Besloten op"}, handoff:enum(none,pending,confirmed,unavailable,unknown,alternative_selected)=none label={text="Booking handoff"@{nl="Boekingsoverdracht"},values={none="None"@{nl="Geen"},pending="Pending"@{nl="In afwachting"},confirmed="Confirmed"@{nl="Bevestigd"},unavailable="Accepted; awaiting alternative"@{nl="Geaccepteerd; wacht op alternatief"},unknown="Unknown"@{nl="Onbekend"},alternative_selected="Alternative accepted"@{nl="Alternatief geaccepteerd"}}}, delivery:text? label="Delivery reference"@{nl="Verzendingsreferentie"}, booking:text? label="Booking reference"@{nl="Boekingsreferentie"}, invoice:text? label="Invoice reference"@{nl="Factuurreferentie"}, hold_state:enum(none,pending,held,releasing,released,unavailable,unknown,expired)=none label={text="Inventory hold outcome"@{nl="Resultaat voorraadreservering"},values={none="Not held"@{nl="Niet gereserveerd"},pending="Hold pending"@{nl="Reservering in behandeling"},held="Held until deadline"@{nl="Gereserveerd tot deadline"},releasing="Release pending"@{nl="Vrijgave in behandeling"},released="Released"@{nl="Vrijgegeven"},unavailable="Unavailable"@{nl="Niet beschikbaar"},unknown="Unknown"@{nl="Onbekend"},expired="Expired"@{nl="Verlopen"}}}, booking_version:int=0, hold_version:int=0, hold_delivery:text?, hold_release:text?, notice:delivery(Mail.send)?, document_state:enum(none,pending,ready,failed,unknown,skipped)=none label={text="Document outcome"@{nl="Documentresultaat"},values={none="Not requested"@{nl="Niet aangevraagd"},pending="Pending"@{nl="In behandeling"},ready="Ready"@{nl="Gereed"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}}, document:delivery(Documents.quote)? label="Document request"@{nl="Documentaanvraag"}, pdf:file? label="PDF document"@{nl="PDF-document"} } label="Offer revision"@{nl="Offerteversie"}
+  export Item in Revision {title:text,quantity:decimal,unit:text,price:money,tax:money,discount:money,hidden:bool=false,tax_visible:bool=true}
+  derive Revision.snapshot:QuoteDocument = QuoteDocument {issuer=row.issuer_snapshot,customer=row.customer_snapshot,resource=row.resource,quantity=row.quantity,attendees=row.seats,recipient=row.recipient_email,title=row.title_snapshot,location=row.location_snapshot,from=row.from,until=row.until,intervals=row.intervals,terms=row.terms,refund_before=row.refund_before,expires=row.expires,lines=row.Item as item select QuoteLine {title=item.title,quantity=item.quantity,unit=item.unit,price=item.price,tax=item.tax,discount=item.discount},total=row.total}
+  policy Proposal read=salesperson and can_work(actor,row.location) fields=parent,recipient,issuer,title,currency,valid_days,current,link_visible
+  policy Proposal read=salesperson and can_work(actor,row.location) and row.link_visible fields=location
+  policy Revision read=salesperson and can_work(actor,row.parent.location)
+  policy Revision read=authenticated where=actor.email_verified and row.recipient_email==actor.email
+  policy Item read=members and not row.hidden fields=title,quantity,unit,price,discount,hidden,tax_visible
+  policy Item read=members and not row.hidden and row.tax_visible fields=tax
+ When
+  scenario hold_inventory(revision:Revision,until:datetime) by=salesperson label="Hold quoted inventory"@{nl="Geoffreerde voorraad tijdelijk reserveren"}
+   require can_work(actor,revision.parent.location) and revision.state==sent and revision.number==revision.parent.current and revision.resource!=null and revision.expires>now
+   require now<until and until<=revision.expires and revision.hold_state in [none,unavailable]
+   do
+    send Rooms.hold_offer {value=QuoteOffer {source=revision.id,revision=revision.number,customer=revision.parent.parent.id,location=revision.parent.location.id,resource=revision.resource,recipient=revision.recipient_email,quantity=revision.quantity,attendees=revision.seats,snapshot=revision.snapshot,hold_until=until}} as delivery
+    set revision {hold_state=pending,hold_delivery=delivery.id,held_until=until,hold_release=null}
+  export scenario request_booking(revision:Revision) by=authenticated or salesperson label="Request booking"@{nl="Boeking aanvragen"}
+   require revision.state==accepted and revision.resource!=null and revision.account!=null and revision.handoff==none
+   require revision.account==actor or (salesperson and can_work(actor,revision.parent.location))
+   require revision.decided_at!=null and revision.decided_by==revision.account
+   do
+    send Rooms.accept_offer {value=AcceptedOffer {product=revision.product,attribution=revision.attribution,exclusive_program=revision.exclusive_program,attributed_at=revision.attributed_at,attribution_window=revision.attribution_window,source=revision.id,revision=revision.number,customer=revision.parent.parent.id,location=revision.parent.location.id,resource=revision.resource,account=revision.account,recipient=revision.recipient_email,accepted_at=revision.decided_at,quantity=revision.quantity,attendees=revision.seats,snapshot=revision.snapshot}} as delivery
+    set revision {handoff=pending,delivery=delivery.id}
+ Then
+package rent_reservations
+ use propose {QuoteOffer,AcceptedOffer}
+ Given
+  export contract ReservationOfferOutcome { source:text, revision:int, kind:enum(hold,booking,release) label={text="Kind"@{nl="Soort"},values={hold="Temporary hold"@{nl="Tijdelijke reservering"},booking="Booking"@{nl="Boeking"},release="Release"@{nl="Vrijgave"}}}, version:int, state:enum(pending,confirmed,unavailable,failed,unknown,released) label={text="State"@{nl="Status"},values={pending="Pending"@{nl="In behandeling"},confirmed="Confirmed"@{nl="Bevestigd"},unavailable="Unavailable"@{nl="Niet beschikbaar"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},released="Released"@{nl="Vrijgegeven"}}}, reference:text?, detail:text?, invoice:text?, expires:datetime? } label="Quote reservation outcome"@{nl="Offerte-reserveringsresultaat"}
+  export capability RoomsV1 version=1
+   hold_offer(value:QuoteOffer) -> ReservationOfferOutcome
+   accept_offer(value:AcceptedOffer) -> ReservationOfferOutcome
+ When
+ Then

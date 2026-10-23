@@ -2880,3 +2880,24 @@ fn original_event_cancel_clears_only_declared_optional_reference_with_null() {
  let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
  assert!(diagnostics.is_empty(),"{diagnostics:?}");
 }
+
+#[test]
+fn original_propose_offers_keep_required_identity_path_ownership() {
+ let source=include_str!("fixtures/propose-handoff-original.can");
+ let(db,program,_,catalog)=fixture_source("propose-handoff-original.can",source);
+ let(artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let js=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str()).collect::<String>();assert!(js.contains("identityPaths"));
+ for nullable in [false,true]{
+  let(db,mut changed,_,catalog)=fixture_source("propose-path-schema-substitution.can",source);
+  let field=changed.symbols.iter().find(|symbol|symbol.canonical=="propose.Proposal.location").unwrap().id;
+  let customer=changed.symbols.iter().find(|symbol|symbol.canonical=="customer.Customer").unwrap().id;
+  let ty=if nullable{ResolvedType::Nullable(Box::new(changed.types.symbol_types[&field].clone()))}else{ResolvedType::Record{symbol:customer,stored:true}};
+  changed.types.symbol_types.insert(field,ty);let(_,diagnostics)=prepared_artifact(&changed,&db,&catalog);
+  assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"nullable={nullable}: {diagnostics:?}");
+ }
+ let changed=source.replace("    send Rooms.hold_offer {value=QuoteOffer", "    let copied=revision\n    send Rooms.hold_offer {value=QuoteOffer").replace("customer=revision.parent.parent.id","customer=copied.parent.parent.id");
+ // Apply only to the hold scenario so the alias remains a genuine local.
+ let boundary=changed.find("  export scenario request_booking(").unwrap();let changed=format!("{}{}",&changed[..boundary],changed[boundary..].replace("customer=copied.parent.parent.id","customer=revision.parent.parent.id"));
+ let(db,program,_,catalog)=fixture_source("propose-path-copied-root.can",&changed);
+ let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{diagnostics:?}");
+}

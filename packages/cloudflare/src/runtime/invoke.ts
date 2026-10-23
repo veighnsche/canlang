@@ -5873,6 +5873,7 @@ async function bindNativeSourceSendData(asm:AssembledModules,artifact:CompileArt
     const readPolicies=new Map<ModelName,import('@canlang/state/query').ViewerSourceReadPolicy>();
     for(const site of sites){
       for(const parameter of site.parameters)for(const [model,policy]of sourceReads!.policies(parameter.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
+      for(const parameter of site.parameters)for(const profile of parameter.identityPaths??[])for(const edge of profile.path)for(const [model,policy]of sourceReads!.policies(edge.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
       for(const query of site.queries??[])for(const [model,policy]of sourceReads!.policies(query.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
     }
     const app=privateSourceMember(privateSourceMember(module,'appDefinition'),'id');
@@ -5932,6 +5933,7 @@ async function bindNativeSourceEmitData(asm:AssembledModules,artifact:CompileArt
     if(context===undefined)continue;
     const readPolicies=new Map<ModelName,import('@canlang/state/query').ViewerSourceReadPolicy>();
     for(const site of sites){
+      for(const parameter of site.parameters)for(const profile of parameter.identityPaths??[])for(const edge of profile.path)for(const [model,policy]of sourceReads!.policies(edge.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
       for(const modelName of [...site.parameters.map(parameter=>parameter.model),...(site.queries??[]).map(query=>query.model)])
         for(const [model,policy]of sourceReads!.policies(modelName))if(!readPolicies.has(model))readPolicies.set(model,policy);
     }
@@ -13058,6 +13060,15 @@ async function runScenarioExecution(
                 }
                 fields.parent=Object.freeze(data);
               }
+              for(const [index,profile]of (parameter.identityPaths??[]).entries()){
+                const target=rows[`${parameter.name}.identity.${index}`];if(target===undefined)return refuseRecordBinding('Effect identity lacks its actual granted target.');
+                let current=fields;
+                for(const edge of profile.path){
+                  const next=Object.hasOwn(current,edge.field)?current[edge.field]:Object.create(null);if(!isUnknownRecord(next))return refuseRecordBinding('Effect identity collides with a different original DATA value.');
+                  const copy:Record<string,unknown>={...next};current[edge.field]=copy;current=copy;
+                }
+                current[profile.leaf]=target.id;
+              }
               if(parameter.identity!==undefined){
                 const references=actual.recordRefs.filter(ref=>ref.param===parameter.name),reference=references[0];
                 if(references.length!==1||reference?.model!==parameter.model||reference.expectedVersion===null)return refuseRecordBinding('SEND DATA lost its actual admitted identity.');
@@ -13129,6 +13140,15 @@ async function runScenarioExecution(
                   data[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);
                 }
                 fields.parent=Object.freeze(data);
+              }
+              for(const [index,profile]of (parameter.identityPaths??[]).entries()){
+                const target=rows[`${parameter.name}.identity.${index}`];if(target===undefined)return refuseRecordBinding('Effect identity lacks its actual granted target.');
+                let current=fields;
+                for(const edge of profile.path){
+                  const next=Object.hasOwn(current,edge.field)?current[edge.field]:Object.create(null);if(!isUnknownRecord(next))return refuseRecordBinding('Effect identity collides with a different original DATA value.');
+                  const copy:Record<string,unknown>={...next};current[edge.field]=copy;current=copy;
+                }
+                current[profile.leaf]=target.id;
               }
               if(parameter.identity!==undefined){
                 const references=actual.recordRefs.filter(ref=>ref.param===parameter.name),reference=references[0];
