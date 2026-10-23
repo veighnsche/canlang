@@ -3934,3 +3934,36 @@ it('executes the complete original Invoice void with its unique fence, Work canc
   }
  }finally{await rm(directory,{recursive:true,force:true});await rm(sourceDirectory,{recursive:true,force:true});}
 });
+
+
+it('adjusts the original Stock ledger with a complete contained integer sum', {timeout:180000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-stock-adjust-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/stock-adjust-original.can'),original=await readFile(join(root,'draft/apps/CanStock/CanStock.can'),'utf8'),text=await readFile(source,'utf8');
+  const start=original.indexOf('  scenario adjust('),end=original.indexOf('   examples',start);assert.ok(text.includes(original.slice(start,end)));
+  for(const prefix of ['  derive available(','  invariant Movement:','  lock Movement fields='])for(const line of original.split('\n').filter(line=>line.startsWith(prefix)))assert.ok(text.includes(line),line);
+  const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout)as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of (process.env['CAN_STOCK_ADJUST_CASE']??'consume,empty,insufficient,hidden-negative,hidden-positive,other-location,overflow,inactive,empty-reason,stale,insert-race,update-race,identity-race,location-race').split(',')){
+   const{now,identities,identity,team,user,membership}=await member('stock-adjust-'+mode,['stock.stock_staff']);
+   const scope={app:'CanStock',owner:team.team_id,ownerPackage:'stock'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'stock-state',fileStoreId:'stock-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+   const{store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+   const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent}),parent={model:model('stock','Item'),id:asId('item')};
+   const item=row('item',{sku:'coffee',name:'Coffee',unit:'box',reorder:'0',active:mode!=='inactive'}),movement=(id:string,quantity:string,location='location',visible=true)=>row(id,{visible,location:{id:location},quantity,reason:'Initial count',source:id,transfer:null,reversal:null,order:null,actor:null,revision:null,unit:null},parent);
+   const overflow=['overflow','inactive','empty-reason'].includes(mode),ledger=mode==='empty'?[]:[movement('opening',overflow?'9223372036854775807':mode==='hidden-negative'?'6':mode==='hidden-positive'?'1':'3'),...(overflow?[movement('overflow','1')]:[]),...(mode==='hidden-negative'?[movement('hidden','-4','location',false)]:mode==='hidden-positive'?[movement('hidden','3','location',false)]:[])];
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    {kind:'insert',model:model('rent_catalog','Location'),row:row('location',{name:'Original location',active:true})},{kind:'insert',model:model('rent_catalog','Location'),row:row('elsewhere',{name:'Other location',active:true})},
+    {kind:'insert',model:model('employee','Employee'),row:row('worker',{user:{id:user.user_id},home:{id:'location'},locations:[],operator_wide:false,active:true,skills:[],role:'Stock',visible:true,user_visible:true})},
+    {kind:'insert',model:model('stock','Item'),row:item},{kind:'insert',model:model('stock','Item'),row:{...item,id:asId('other-item'),data:{...item.data,sku:'other'}}},
+    ...[...ledger,movement('foreign-location','100','elsewhere'),{...movement('foreign-item','100'),parent:{model:model('stock','Item'),id:asId('other-item')}}].map(row=>({kind:'insert'as const,model:model('stock','Movement'),row}))]}));
+   const load=store.load.bind(store),query=store.query.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.query=async request=>{const rows=await query(request);if(!raced&&['identity-race','location-race'].includes(mode)&&request.model===model('stock','Movement')){raced=true;if(mode==='identity-race')await identities.removeMembership(membership.membership_id);else{const old=await load(model('employee','Employee'),asId('worker'));assert.ok(old);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('employee','Employee'),id:old.id,expectedVersion:old.version,row:{...old,version:asVersion(old.version+1),data:{...old.data,active:false}}}]}));}}return rows;};
+   store.commit=async batch=>{if(!raced&&['insert-race','update-race'].includes(mode)&&batch.writes.some(write=>write.model===model('stock','Movement')&&write.kind==='insert')){raced=true;if(mode==='insert-race')await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('stock','Movement'),row:movement('concurrent','-2')}]}));else{const old=await load(model('stock','Movement'),asId('opening'));assert.ok(old);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('stock','Movement'),id:old.id,expectedVersion:old.version,row:{...old,version:asVersion(old.version+1),data:{...old.data,quantity:'1'}}}]}));}}return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'stock.adjust',operation_id:operationId(now),inputs:{item:{id:'item',version:mode==='stale'?'2':'1'},location:{id:'location',version:'1'},quantity:mode==='empty'?'2':mode==='insufficient'||mode==='other-location'?'-4':'-3',reason:mode==='empty-reason'?'  ':'Consumption'}};
+   const result=await invoker.invokeMutation(request,identity),success=['consume','empty','hidden-positive'].includes(mode);assert.equal('result'in result,success,mode+': '+JSON.stringify(result));if(mode.endsWith('-race'))assert.ok(raced,mode);
+   const all=await query({model:model('stock','Movement'),authority:'owner'}),created=all.filter(row=>row.data.source===request.operation_id);assert.equal(created.length,success?1:0,mode);assert.deepEqual(await load(model('stock','Item'),item.id),item,mode+': ledger never rewrites its Item');
+   if(success){assert.equal(created[0]!.parent?.id,item.id);assert.equal(created[0]!.data.quantity,request.inputs.quantity);assert.deepEqual(created[0]!.data.location,{id:'location'});assert.deepEqual(created[0]!.data.actor,{id:user.user_id});const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed',mode+': '+JSON.stringify(replay));assert.deepEqual(await query({model:model('stock','Movement'),authority:'owner'}),all);}
+   assert.equal((await load(model('stock','Movement'),asId('foreign-location')))?.data.quantity,'100');assert.equal((await load(model('stock','Movement'),asId('foreign-item')))?.data.quantity,'100');assert.equal((await store.outboxPending()).length,0);
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});

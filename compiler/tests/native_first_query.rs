@@ -3174,3 +3174,29 @@ fn original_invoice_void_joins_its_unique_condition_and_both_owned_cancellations
  }
  for(name,changed)in[("positive-any",source.replace("if not any(BillingCancellation as fence,fence.source==invoice.source)","if any(BillingCancellation as fence,fence.source==invoice.source)")),("different-source",source.replace("create BillingCancellation {source=invoice.source,reason} as fence","create BillingCancellation {source=reason,reason} as fence")),("non-unique",source.replace("BillingCancellation {source:text unique,reason:text}","BillingCancellation {source:text,reason:text}")),("raw-scalar-alias",source.replace("    if not any(BillingCancellation as fence,fence.source==invoice.source)","    let copied=invoice.source\n    if not any(BillingCancellation as fence,fence.source==invoice.source)").replace("create BillingCancellation {source=invoice.source,reason} as fence","create BillingCancellation {source=invoice.source,reason=copied} as fence"))]{let(db,program,_,catalog)=fixture_source(name,&changed);let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");}
 }
+
+
+#[test]
+fn original_stock_integer_sum_retains_containment_and_checked_contextual_shorthand() {
+ let source=include_str!("fixtures/stock-adjust-original.can");
+ let(db,program,ir,catalog)=fixture_source("stock-adjust-original.can",source);
+ let(artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let js=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str()).collect::<String>();
+ assert!(js.contains("actor:c.actor")&&js.contains("nativeScenarioRequire"));
+ let IrItemKind::Scenario{effects,..}=&item(&ir,"stock.adjust").kind else{panic!("original adjust");};
+ let [IrStmt::Create{input,..}]=effects.as_slice()else{panic!("single original constructor");};
+ let IrExpr::Object(fields)=&input.expr else{panic!("original constructor fields");};
+ assert!(matches!(&fields.iter().find(|(name,_)|name=="actor").unwrap().1.expr,
+    IrExpr::Member{base,field}if field=="actor"&&matches!(&base.expr,IrExpr::Name(name)if name=="c")));
+ let global=source.replace("sum(item.Movement as movement", "sum(Movement as movement");assert_ne!(global,source);
+ let(db,program,_,catalog)=fixture_source("stock-global-sum-refused.can",&global);
+ let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{diagnostics:?}");
+ let(db,mut changed,_,catalog)=fixture_source("stock-sum-projection-substituted.can",source);
+ let quantity=changed.symbols.iter().find(|symbol|symbol.canonical=="stock.Movement.quantity").unwrap().id;
+ changed.types.symbol_types.insert(quantity,ResolvedType::Scalar(Scalar::Money));
+ let(_,diagnostics)=prepared_artifact(&changed,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{diagnostics:?}");
+ let shadow=source.replace("   do create Movement", "   do\n    let actor=actor\n    create Movement");assert_ne!(shadow,source);
+ let mut db=SourceDb::new();let file=db.add("stock-lexical-actor.can".into(),shadow);
+ let(_,diagnostics)=check_program(&db,&[file],Some(&catalog));
+ assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E2012"),"contextual shadow: {diagnostics:?}");
+}

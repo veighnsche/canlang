@@ -16076,18 +16076,21 @@ impl<'a> Closure<'a> {
             && self.source_require_contained_query(scenario,call,query)
     }
 
-    /// A leading Money SUM observes one complete original contained domain.
-    /// The original checked predicate may correlate its row with admitted
-    /// parameters; all reached fields still execute in the source observer.
-    fn source_require_contained_money_sum(&self,scenario:&super::effects::ScenarioData,
+    /// A leading integer or Money SUM observes one complete original contained
+    /// domain. Its checked signature and scalar projection remain exact; every
+    /// reached predicate/projection read executes in the source observer.
+    fn source_require_contained_sum(&self,scenario:&super::effects::ScenarioData,
         call:&CheckedDecisionCall)->bool {
-        let money=ResolvedType::Scalar(Scalar::Money);
-        let [Some(values),Some(currency)]=call.slots.as_slice()else{return false;};
-        if call.arguments.len()!=2||self.types.node_types.get(&call.node)!=Some(&money)
-            ||call.arguments.get(*currency).is_none_or(|(_,ty)|*ty!=ResolvedType::Scalar(Scalar::Currency))
-        {return false;}
-        let Some((values,ty))=call.arguments.get(*values)else{return false;};
-        if !matches!(ty,ResolvedType::Array{element,ordered:true,nonempty:false}if element.as_ref()==&money){return false;}
+        let Some(result)=self.types.node_types.get(&call.node)else{return false;};
+        let values=match (result,call.slots.as_slice()) {
+            (ResolvedType::Scalar(Scalar::Int),[Some(values)]) if call.arguments.len()==1=>*values,
+            (ResolvedType::Scalar(Scalar::Money),[Some(values),Some(currency)])
+                if call.arguments.len()==2&&call.arguments.get(*currency)
+                    .is_some_and(|(_,ty)|*ty==ResolvedType::Scalar(Scalar::Currency))=>*values,
+            _=>return false,
+        };
+        let Some((values,ty))=call.arguments.get(values)else{return false;};
+        if !matches!(ty,ResolvedType::Array{element,ordered:true,nonempty:false}if element.as_ref()==result){return false;}
         let Some(query)=self.query_group(*values).and_then(|key|self.types.checked_queries.get(&key))else{return false;};
         let clauses=query.clauses.as_slice();
         let select=match clauses {
@@ -16098,7 +16101,7 @@ impl<'a> Closure<'a> {
             _=>return false,
         };
         select.kind==CheckedQueryClauseKind::Select&&select.expressions.len()==1
-            &&self.types.node_types.get(&select.expressions[0])==Some(&money)
+            &&self.types.node_types.get(&select.expressions[0])==Some(result)
             &&self.source_require_contained_query(scenario,call,query)
     }
 
@@ -16213,7 +16216,7 @@ impl<'a> Closure<'a> {
             // Model collection. The existing primitive Text-array count
             // remains separate and carries no collection-query authority.
             CheckedDecisionCallTarget::Builtin { id, .. } if id == "sum" && !body => {
-                if !self.source_require_contained_money_sum(scenario,call){*supported=false;return Some(false);}
+                if !self.source_require_contained_sum(scenario,call){*supported=false;return Some(false);}
                 *helper_query=true;Some(true)
             }
             CheckedDecisionCallTarget::Builtin { id, .. } if id == "count" && !body => {

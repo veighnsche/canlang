@@ -8140,7 +8140,7 @@ impl<'a> Cx<'a> {
                 .map(|n| self.decode_expr(scope, n))
                 .unwrap_or_else(|| {
                     let anchor = NodeKey::of(parts[0]);
-                    self.shorthand_value(&key, anchor)
+                    self.shorthand_value(scope, &key, anchor)
                 });
             entries.push((key, value));
         }
@@ -8150,7 +8150,7 @@ impl<'a> Cx<'a> {
     /// Preserve the lexical type checked at an actual shorthand key. The
     /// owning type pass supplies this fact; field expectations are not a
     /// substitute for the value's binding type.
-    fn shorthand_value(&self, name: &str, key: NodeKey) -> TypedExpr {
+    fn shorthand_value(&mut self, scope: &Scope, name: &str, key: NodeKey) -> TypedExpr {
         let ty = self
             .program
             .types
@@ -8158,11 +8158,13 @@ impl<'a> Cx<'a> {
             .get(&key)
             .cloned()
             .unwrap_or(ResolvedType::Unknown);
-        TypedExpr::new(
-            IrExpr::Name(name.to_string()),
-            ty,
-            Span::new(key.file, key.start, key.end),
-        )
+        let span = Span::new(key.file, key.start, key.end);
+        // The checked contextual binding owns this shorthand. Lexical
+        // shadows retain their own Name and hook context gates stay intact.
+        let expr = if self.program.types.contextual_references.contains_key(&key) {
+            self.decode_bare_name(scope, name, &ty, span)
+        } else { IrExpr::Name(name.to_string()) };
+        TypedExpr::new(expr, ty, span)
     }
 
     /// Decode member access, wrapping delivery-typed bases in the sole
@@ -11734,7 +11736,7 @@ impl<'a> Cx<'a> {
                     .value
                     .as_ref()
                     .map(|key| self.decode_anchored(scope, key, "effect argument"));
-                let value = value.unwrap_or_else(|| self.shorthand_value(&arg.key, arg.key_node));
+                let value = value.unwrap_or_else(|| self.shorthand_value(scope, &arg.key, arg.key_node));
                 (arg.key.clone(), value)
             })
             .collect();
