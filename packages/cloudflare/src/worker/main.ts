@@ -548,11 +548,13 @@ async function defaultLoadHttpAuthJoin(): Promise<HttpAuthJoin | undefined> {
   try { mod = await import(HTTP_OPERATIONS_SPECIFIER); }
   catch { return undefined; }
   if (!isRecord(mod) || typeof mod['handleAuthRequest'] !== 'function' ||
-      typeof mod['SESSION_EXPIRES_MS'] !== 'number') {
+      typeof mod['SESSION_EXPIRES_MS'] !== 'number' || typeof mod['handleOAuthRequest'] !== 'function') {
     throw new Error('deploy main: worker sibling ./http-operations.js lacks owning auth handler/session lifetime');
   }
   const handle = mod['handleAuthRequest'] as (deps: unknown, request: Request) => Promise<Response>;
-  return { createHandler: deps => request => handle(deps, request), sessionExpiresMs: mod['SESSION_EXPIRES_MS'] };
+  const oauth = mod['handleOAuthRequest'] as (deps: unknown, request: Request) => Promise<Response>;
+  return { createHandler: deps => request => handle(deps, request),
+    createOAuthHandler: deps => request => oauth(deps, request), sessionExpiresMs: mod['SESSION_EXPIRES_MS'] };
 }
 
 async function defaultLoadHttpPageFactory(): Promise<HttpPageHandlerFactory | undefined> {
@@ -1065,6 +1067,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
       return {
         http: {
           ...(deps.auth === undefined ? {} : { auth: deps.auth }),
+          ...(deps.stateTeam === undefined ? {} : { authorizationTeamId: deps.stateTeam.owner }),
           ...(deps.preferences === undefined ? {} : { preferences: deps.preferences }),
           ...(deps.exportDownloads === undefined ? {} : { exportDownloads: deps.exportDownloads }),
           ...(authJoin === undefined ? {} : { authHandler: authJoin }),

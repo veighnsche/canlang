@@ -26,11 +26,13 @@
  * MUST tell the caller the address is taken, else legitimate users cannot
  * proceed — unlike sign-in and recovery, which stay oracle-free.
  */
-import { browserAuthResponse, renderBrowserLogin, renderBrowserTeams, wantsBrowserAuth } from './browser-auth.js';
+import { browserAuthResponse, renderBrowserInvitation, renderBrowserLogin, renderBrowserTeams, wantsBrowserAuth } from './browser-auth.js';
 import { CSRF_FIELD, PRESESSION_FIELD, TEAM_FIELD } from '@canlang/contracts';
 import type { BusinessError } from '@canlang/contracts';
 import {
   IdentityError,
+  acceptInvitation,
+  deriveCsrfToken,
   buildPreSessionCookie,
   buildPreSessionClearCookie,
   parsePreSessionCookie,
@@ -282,6 +284,36 @@ async function handleRecoverConfirm(deps: AuthHttpDeps, request: Request): Promi
   return jsonOk({ ok: true });
 }
 
+/** Invitation IDs name addressed offers; only the current verified user may accept. */
+async function handleInvitation(deps: AuthHttpDeps, request: Request): Promise<Response> {
+  const { identity, sessionToken } = await resolveRequestIdentity(deps.identity.store, request, { clock: deps.clock });
+  if (sessionToken === null || identity.actor === null) {
+    throw new IdentityError('forbidden', 'Authentication required.');
+  }
+  const body = await readAuthBody(request);
+  if (Object.keys(body).some(name => name !== 'invitation_id' && name !== CSRF_FIELD)) {
+    throw new IdentityError('validation', 'Invalid invitation fields.');
+  }
+  await assertPostCsrf({ sessionToken, headerValue: request.headers.get(CSRF_HEADER), fieldValue: body[CSRF_FIELD] });
+  const membership = await acceptInvitation(deps.identity.store,
+    { invitation_id: requiredString(body, 'invitation_id'), user_id: identity.actor.user_id },
+    { clock: deps.identity.clock });
+  return jsonOk({ ok: true, team_id: membership.team_id }, { 'cache-control': 'no-store' });
+}
+
+async function handleInvitationDescriptor(deps: AuthHttpDeps, request: Request): Promise<Response> {
+  const params = new URL(request.url).searchParams;
+  const ids = params.getAll('invitation_id');
+  if (params.size !== ids.length || ids.length > 1 || ids.some(id => !TEAM_CURSOR.test(id))) {
+    throw new IdentityError('validation', 'Invalid invitation.');
+  }
+  if (wantsBrowserAuth(request)) return await renderBrowserInvitation(deps, request, ids[0] ?? '');
+  const { identity, sessionToken } = await resolveRequestIdentity(deps.identity.store, request, { clock: deps.clock });
+  if (sessionToken === null || identity.actor === null) throw new IdentityError('forbidden', 'Authentication required.');
+  return jsonOk({ ...descriptor('invite', [{ name: 'invitation_id', type: 'text', required: true }], '/auth/invite'),
+    inputs: { invitation_id: ids[0] ?? '' }, csrfToken: await deriveCsrfToken(sessionToken) }, { 'cache-control': 'no-store' });
+}
+
 async function handleSelectTeam(deps: AuthHttpDeps, request: Request): Promise<Response> {
   const { sessionToken } = await resolveRequestIdentity(deps.identity.store, request, {
     clock: deps.clock,
@@ -392,11 +424,15 @@ async function dispatchAuthGet(deps: AuthHttpDeps, request: Request, pathname: s
   if (method === 'GET' && pathname === '/auth/select-team') {
     return wantsBrowserAuth(request) ? await renderBrowserTeams(deps, request) : jsonOk(SELECT_TEAM_DESCRIPTOR());
   }
+  if (method === 'GET' && pathname === '/auth/invite') return await handleInvitationDescriptor(deps, request);
   if (method === 'GET' && pathname === '/auth/teams') return await handleTeams(deps, request);
   return null;
 }
 
 async function dispatchAuthPost(deps: AuthHttpDeps, request: Request, pathname: string, method: string): Promise<Response | null> {
+  if (method === 'POST' && pathname === '/auth/invite') {
+    return browserAuthResponse(request, await handleInvitation(deps, request), '/auth/select-team');
+  }
   if (method === 'POST' && pathname === '/auth/register') return await handleRegister(deps, request);
   if (method === 'POST' && pathname === '/auth/verify') return await handleVerifyPost(deps, request);
   if (method === 'POST' && pathname === '/auth/login') {
@@ -427,7 +463,7 @@ export async function handleAuthRequest(deps: AuthHttpDeps, request: Request): P
   const method = request.method;
   try {
     if ((method === 'GET' && pathname === '/auth/login') || (method === 'POST' &&
-        ['/auth/login', '/auth/logout', '/auth/select-team', '/auth/select-team/clear'].includes(pathname))) {
+        ['/auth/login', '/auth/logout', '/auth/select-team', '/auth/select-team/clear', '/auth/invite'].includes(pathname))) {
       assertTrustedAuthOrigin(request, deps.authOrigin);
     }
     const getResponse = await dispatchAuthGet(deps, request, pathname, method);
@@ -437,7 +473,7 @@ export async function handleAuthRequest(deps: AuthHttpDeps, request: Request): P
     return deny(deps, buildBusinessError('not_found', 'Unknown auth route.'), pathname);
   } catch (err) {
     const response = authFailureResponse(deps, err, pathname);
-    return ['/auth/login', '/auth/select-team', '/auth/logout'].includes(pathname)
+    return ['/auth/login', '/auth/select-team', '/auth/logout', '/auth/invite'].includes(pathname)
       ? browserAuthResponse(request, response, '/auth/login') : response;
   }
 }

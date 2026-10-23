@@ -456,8 +456,12 @@ export interface AuthHttpDeps {
   readonly authOrigin?: string;
 }
 export type HttpAuthHandlerFactory = (deps: AuthHttpDeps) => (request: Request) => Promise<Response>;
+export interface OAuthHttpDeps extends Omit<AuthHttpDeps, 'secureCookies'> {
+  readonly authorization: { readonly appName: string; readonly teamRequired: boolean; readonly teamId?: string };
+}
 export interface HttpAuthJoin {
   readonly createHandler: HttpAuthHandlerFactory;
+  readonly createOAuthHandler?: (deps: OAuthHttpDeps) => (request: Request) => Promise<Response>;
   /** Owning Identity session lifetime, released by the same auth bundle. */
   readonly sessionExpiresMs: number;
 }
@@ -466,6 +470,8 @@ export interface HttpJoin {
   readonly exportDownloads?: ExportDownloadStore;
   readonly auth?: HttpAuthConfiguration;
   readonly authHandler?: HttpAuthJoin;
+  /** Physical single-team mount, supplied only by trusted owner routing. */
+  readonly authorizationTeamId?: string;
   readonly formBindings?: SourceFormBindings;
   readonly preferences?: PagePreferenceStore;
   readonly createPageHandler?: HttpPageHandlerFactory;
@@ -1679,6 +1685,44 @@ async function handleHttpExportRequest(req: Request, ctx: InterimDispatchContext
   return factory(deps)(req);
 }
 
+/** One trusted origin/session configuration for both account and OAuth delivery. */
+async function handleAuthTransport(req: Request, ctx: InterimDispatchContext, oauth: boolean): Promise<Response> {
+  const config = ctx.http?.auth;
+  const join = ctx.http?.authHandler;
+  if (join === undefined || (oauth && join.createOAuthHandler === undefined)) {
+    return interimUnavailable('auth routes need the defining Interfaces auth/OAuth join');
+  }
+  if (config === undefined || typeof config.limiter?.check !== 'function') {
+    return jsonResponse({ code: 'auth-configuration',
+      message: 'Authentication requires CAN_AUTH_ORIGIN or explicit trusted host auth configuration.' }, 500);
+  }
+  let origin: URL;
+  try { origin = new URL(config.origin); }
+  catch { return jsonResponse({ code: 'auth-configuration', message: 'Invalid host authentication configuration.' }, 500); }
+  if (origin.origin !== config.origin || !['https:', 'http:'].includes(origin.protocol) ||
+      typeof config.secureCookies !== 'boolean' || (origin.protocol === 'https:' && !config.secureCookies) ||
+      !Number.isSafeInteger(join.sessionExpiresMs) || join.sessionExpiresMs <= 0) {
+    return jsonResponse({ code: 'auth-configuration', message: 'Invalid host authentication configuration.' }, 500);
+  }
+  const deps: AuthHttpDeps = {
+    identity: { store: ctx.identityStore, clock: { nowMs: ctx.now },
+      ...(config.mail === undefined ? {} : { mail: config.mail }),
+      verifyBaseUrl: new URL('/auth/verify', origin).href,
+      recoveryBaseUrl: new URL('/auth/recover', origin).href,
+      inviteBaseUrl: new URL('/auth/invite', origin).href,
+      sessionMaxAgeSeconds: join.sessionExpiresMs / 1000 },
+    limiter: config.limiter, logger: httpLogger, clock: { nowMs: ctx.now }, secureCookies: config.secureCookies,
+    authOrigin: config.origin,
+  };
+  if (oauth) return join.createOAuthHandler!({
+    identity: deps.identity, limiter: deps.limiter, logger: deps.logger, clock: deps.clock,
+    authOrigin: config.origin,
+    authorization: { appName: ctx.app.appId, teamRequired: true,
+      ...(ctx.http?.authorizationTeamId === undefined ? {} : { teamId: ctx.http.authorizationTeamId }) },
+  })(req);
+  return join.createHandler(deps)(req);
+}
+
 function buildInterimFetch(
   ctx: InterimDispatchContext,
 ): (req: Request) => Promise<Response> {
@@ -1704,33 +1748,10 @@ function buildInterimFetch(
       return handleHttpExportRequest(req, ctx);
     }
     if (pathname.startsWith("/auth/")) {
-      const config = ctx.http?.auth;
-      const join = ctx.http?.authHandler;
-      if (join === undefined) {
-        return interimUnavailable('auth routes need the defining handleAuthRequest join');
-      }
-      if (config === undefined || typeof config.limiter?.check !== 'function') {
-        return jsonResponse({ code: 'auth-configuration',
-          message: 'Authentication requires CAN_AUTH_ORIGIN or explicit trusted host auth configuration.' }, 500);
-      }
-      let origin: URL;
-      try { origin = new URL(config.origin); }
-      catch { return jsonResponse({ code: 'auth-configuration', message: 'Invalid host authentication configuration.' }, 500); }
-      if (origin.origin !== config.origin || !['https:', 'http:'].includes(origin.protocol) ||
-          typeof config.secureCookies !== 'boolean' || (origin.protocol === 'https:' && !config.secureCookies) ||
-          !Number.isSafeInteger(join.sessionExpiresMs) || join.sessionExpiresMs <= 0) {
-        return jsonResponse({ code: 'auth-configuration', message: 'Invalid host authentication configuration.' }, 500);
-      }
-      return join.createHandler({
-        identity: { store: ctx.identityStore, clock: { nowMs: ctx.now },
-          ...(config.mail === undefined ? {} : { mail: config.mail }),
-          verifyBaseUrl: new URL('/auth/verify', origin).href,
-          recoveryBaseUrl: new URL('/auth/recover', origin).href,
-          inviteBaseUrl: new URL('/auth/invite', origin).href,
-          sessionMaxAgeSeconds: join.sessionExpiresMs / 1000 },
-        limiter: config.limiter, logger: httpLogger, clock: { nowMs: ctx.now }, secureCookies: config.secureCookies,
-        authOrigin: config.origin,
-      })(req);
+      return handleAuthTransport(req, ctx, false);
+    }
+    if (pathname.startsWith('/oauth/') || pathname.startsWith('/.well-known/')) {
+      return handleAuthTransport(req, ctx, true);
     }
     if (pathname.startsWith("/files/")) {
       if (ctx.files?.fetch !== undefined) return ctx.files.fetch(req);

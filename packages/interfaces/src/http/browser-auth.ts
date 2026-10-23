@@ -73,3 +73,14 @@ export async function renderBrowserTeams(deps: AuthHttpDeps, request: Request): 
   return htmlResponse('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Select team</title><link rel="stylesheet" href="/assets/browser/can-style.css"></head><body><main><h1>Select team</h1>' +
     picker + next + `<form method="POST" action="/auth/logout">${csrfInput}<button type="submit">Sign out</button></form></main></body></html>`);
 }
+
+/** No offer details are read on GET; addressed-email authority is checked on POST. */
+export async function renderBrowserInvitation(deps: AuthHttpDeps, request: Request, invitationId: string): Promise<Response> {
+  const { identity, sessionToken } = await resolveRequestIdentity(deps.identity.store, request, { clock: deps.clock });
+  if (sessionToken === null || identity.actor === null) {
+    return htmlResponse('<!doctype html><html lang="en"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Accept invitation</title><main><h1>Accept invitation</h1><p>Sign in with the invited email address, then open your invitation link again.</p><a href="/auth/login">Sign in</a></main></html>');
+  }
+  const csrf = escapeAttr(await deriveCsrfToken(sessionToken));
+  return htmlResponse('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Accept invitation</title><link rel="stylesheet" href="/assets/browser/can-style.css"></head><body><main><h1>Accept invitation</h1>' +
+    `<p>Accept using ${escapeHtml(identity.actor.email)}.</p><form method="POST" action="/auth/invite"><input type="hidden" name="${CSRF_FIELD}" value="${csrf}"><label for="auth-invitation">Invitation</label><input id="auth-invitation" name="invitation_id" required value="${escapeAttr(invitationId)}"><button type="submit">Accept invitation</button></form></main></body></html>`);
+}

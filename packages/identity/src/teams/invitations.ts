@@ -33,7 +33,7 @@ export function checkRoleName(role: string): void {
 
 export interface InviteOptions {
   readonly clock?: Clock;
-  /** Absolute page URL under which `/teams/invites/<id>` renders (S4). */
+  /** Absolute deployment origin or invitation page URL (S4). */
   readonly inviteBaseUrl: string;
   readonly inviteExpiresMs?: number;
 }
@@ -70,10 +70,12 @@ export async function inviteMember(
     invited_by: opts.invited_by,
     expires_at: toInstant(clock.nowMs() + (opts.inviteExpiresMs ?? INVITE_EXPIRES_MS)),
   });
+  const inviteUrl = new URL('/auth/invite', opts.inviteBaseUrl);
+  inviteUrl.searchParams.set('invitation_id', invitation_id);
   await mail.sendMail(
     email,
     'You are invited to a team',
-    `Sign in with this email address to accept the invitation:\n${opts.inviteBaseUrl}/teams/invites/${invitation_id}\nThis invitation expires in 7 days.`,
+    `Sign in with this email address to accept the invitation:\n${inviteUrl.href}\nThis invitation expires in 7 days.`,
   );
   return { invitation_id };
 }

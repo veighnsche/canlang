@@ -2,8 +2,9 @@
  * S7 OAuth metadata (coordinator-owned): protected-resource + authorization-
  * server documents and the `WWW-Authenticate` challenge. Lane 06 is its own
  * authorization server (public clients, PKCE S256 only, access-token =
- * McpGrant Bearer, no refresh in v1). Origins derive per-request from the
- * request URL: same-origin deployment is the honest source at runtime.
+ * McpGrant Bearer, no refresh in v1). The HTTP dispatcher supplies its
+ * trusted deployment origin when configured; standalone callers may use
+ * the request origin.
  */
 export const PROTECTED_RESOURCE_PATH = '/.well-known/oauth-protected-resource';
 export const AUTHORIZATION_SERVER_PATH = '/.well-known/oauth-authorization-server';

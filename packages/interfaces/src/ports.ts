@@ -643,7 +643,13 @@ export interface IngressDeps {
 export interface OAuthDeps {
   /** Trusted canonical HTTP(S) auth origin, independent of metadata URLs. */
   readonly authOrigin?: string;
-  readonly identity: IdentityDeps;
+  /** Owning deployment scope; browser/query input cannot select another owner. */
+  readonly authorization?: {
+    readonly appName: string;
+    readonly teamRequired: boolean;
+    readonly teamId?: string;
+  };
+  readonly identity: Pick<IdentityDeps, 'store' | 'clock'>;
   readonly limiter: RateLimiter;
   readonly logger: Logger;
   readonly clock: InterfacesClock;

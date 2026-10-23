@@ -1,5 +1,5 @@
 /** Actual native app-root artifact, installed preview, Identity and canonical HTTP/MCP. */
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { compileFunction, constants } from 'node:vm';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -93,7 +93,55 @@ it('serves one app-owned CRUD model with shared app reads and saved-outcome repl
       const granted = await request('/mcp/grants', { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': csrf },
         body: JSON.stringify({ client_id: 'app-owned-preview-consumer' }) });
       expect(granted.status).toBe(200);
-      const grant = await granted.json() as { token: string }; expect(typeof grant.token).toBe('string');
+      const directGrant = await granted.json() as { token: string }; expect(typeof directGrant.token).toBe('string');
+      // Actual generated Worker delivery: discovery -> consent -> public PKCE -> MCP.
+      const metadata = await request('/.well-known/oauth-authorization-server');
+      expect(metadata.status).toBe(200);
+      const discoveredOAuth = await metadata.json() as { issuer: string; authorization_endpoint: string; token_endpoint: string };
+      expect(discoveredOAuth.issuer).toBe(origin);
+      expect(discoveredOAuth.authorization_endpoint).toBe(origin + '/oauth/authorize');
+      expect(discoveredOAuth.token_endpoint).toBe(origin + '/oauth/token');
+      const redirectUri = 'http://127.0.0.1:47183/callback';
+      const registered = await request('/oauth/register', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ redirect_uris: [redirectUri], client_name: 'Generated transport consumer' }) });
+      expect(registered.status).toBe(201);
+      const client = await registered.json() as { client_id: string };
+      const verifier = randomBytes(32).toString('base64url');
+      const challenge = createHash('sha256').update(verifier).digest('base64url');
+      const consentFields = { client_id: client.client_id, redirect_uri: redirectUri, code_challenge: challenge,
+        code_challenge_method: 'S256', response_type: 'code', team, state: 'generated-consent-state' };
+      const consentPath = '/oauth/authorize?' + new URLSearchParams(consentFields);
+      const consent = await request(consentPath, { headers: { accept: 'text/html' } });
+      expect(consent.status).toBe(200);
+      const consentHtml = await consent.text();
+      expect(consentHtml).toContain('Generated transport consumer');
+      expect(consentHtml).toContain('AppOwnedPreview');
+      expect(consentHtml).toContain('name="_csrf"');
+      expect(consentHtml).toContain('value="' + team + '"');
+      const submitConsent = (fields: Record<string, string>) => request('/oauth/authorize', { method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(fields) });
+      expect((await submitConsent(consentFields)).status).toBe(403);
+      const cancelled = await submitConsent({ ...consentFields, _csrf: csrf, decision: 'deny' });
+      expect(cancelled.status).toBe(302);
+      const cancellation = new URL(cancelled.headers.get('location')!);
+      expect(cancellation.searchParams.get('error')).toBe('access_denied');
+      expect(cancellation.searchParams.has('code')).toBe(false);
+      const authorized = await submitConsent({ ...consentFields, _csrf: csrf, decision: 'approve' });
+      expect(authorized.status).toBe(302);
+      const callback = new URL(authorized.headers.get('location')!);
+      expect(callback.origin + callback.pathname).toBe(redirectUri);
+      expect(callback.searchParams.get('state')).toBe(consentFields.state);
+      const tokenFields = { grant_type: 'authorization_code', code: callback.searchParams.get('code')!,
+        client_id: client.client_id, redirect_uri: redirectUri, code_verifier: verifier };
+      const exchange = () => request('/oauth/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams(tokenFields) });
+      const exchanged = await exchange(); expect(exchanged.status).toBe(200);
+      const oauth = await exchanged.json() as { access_token: string; token_type: string };
+      expect(oauth.token_type).toBe('Bearer'); expect(typeof oauth.access_token).toBe('string');
+      expect((await exchange()).status).toBe(400);
+      const invitation = await request('/auth/invite?invitation_id=00000000-0000-4000-8000-000000000000', { headers: { accept: 'text/html' } });
+      expect(invitation.status).toBe(200); expect(await invitation.text()).toContain('Accept invitation');
+      const grant = { token: oauth.access_token };
       const mcp = async (operation: string, args: Record<string, unknown>) => {
         const response = await request('/mcp', { method: 'POST',
           headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${grant.token}` },

@@ -21,6 +21,7 @@ import {
   buildSessionCookie,
   deriveCsrfToken,
   issueMcpGrant,
+  sha256HexText,
   loginWithPassword,
   registerWithEmail,
   removeMember,
@@ -240,6 +241,7 @@ interface Assembly {
 
 async function setup(opts: {
   permissions?: McpPermissions;
+  oauthTeamScope?: 'required' | 'owner';
 } = {}): Promise<Assembly> {
   const fixture = await createIdentityFixture({ email: 'owner@test.example' });
   const store = fixture.store;
@@ -386,7 +388,11 @@ async function setup(opts: {
       ),
     oauth: (req) =>
       handleOAuthRequest(
-        { identity, limiter: httpDeps.limiter, logger, clock: systemInterfacesClock },
+        { identity, limiter: httpDeps.limiter, logger, clock: systemInterfacesClock, authOrigin: 'https://test.invalid',
+          ...(opts.oauthTeamScope === undefined ? {} : { authorization: {
+            appName: 'Lifecycle app', teamRequired: true,
+            ...(opts.oauthTeamScope === 'owner' ? { teamId: fixture.teamId } : {}),
+          } }) },
         req,
       ),
   });
@@ -508,6 +514,121 @@ test('B2 oauth: authorize team override binds the grant team', async () => {
   assert.equal(toolResult(call.body).isError, undefined);
   assert.equal(t.invoker.reads.length, 1);
   assert.equal(t.invoker.reads[0]?.identity.team?.team_id, t.team2);
+});
+
+// Browser consent uses the same real issuance/exchange store and MCP receiver
+// as JSON clients, with native forms and a deployment-owned team scope.
+test('B2 oauth: browser consent is read-only, escaped, scoped and CSRF guarded', async () => {
+  const t = await setup({ oauthTeamScope: 'owner' });
+  const metadata = await t.http(new Request('https://untrusted.invalid/.well-known/oauth-authorization-server'));
+  assert.equal(metadata.status, 200);
+  const advertised = await metadata.json() as { issuer: string; authorization_endpoint: string };
+  assert.equal(advertised.issuer, 'https://test.invalid');
+  assert.equal(advertised.authorization_endpoint, 'https://test.invalid/oauth/authorize');
+  const registered = await t.http(testRequest('/oauth/register', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ redirect_uris: [REDIRECT], client_name: 'Desk <script>untrusted()</script>' }),
+  }));
+  assert.equal(registered.status, 201);
+  const { client_id } = await registered.json() as { client_id: string };
+  const state = 'opaque<&"state>';
+  const query = new URLSearchParams({ response_type: 'code', client_id, redirect_uri: REDIRECT,
+    code_challenge: CHALLENGE, code_challenge_method: 'S256', state });
+  const authorize = `/oauth/authorize?${query}`;
+  let issued = 0;
+  const issue = t.store.createAuthCode.bind(t.store);
+  Object.defineProperty(t.store, 'createAuthCode', { value: async (input: Parameters<typeof issue>[0]) => {
+    issued++; return issue(input);
+  } });
+  const consent = await t.http(testRequest(authorize, { cookie: t.owner.cookie, headers: { accept: 'text/html' } }));
+  assert.equal(consent.status, 200);
+  assert.match(consent.headers.get('content-type') ?? '', /^text\/html/);
+  assert.equal(consent.headers.get('cache-control'), 'no-store');
+  assert.match(consent.headers.get('content-security-policy') ?? '', /frame-ancestors 'none'/);
+  const html = await consent.text();
+  assert.ok(html.includes('Lifecycle app'));
+  assert.ok(html.includes('Desk &lt;script&gt;untrusted()&lt;/script&gt;'));
+  assert.ok(!html.includes('<script>untrusted()'));
+  const form: Record<string, string> = {};
+  const decode = (value: string) => value.replaceAll('&quot;', '"').replaceAll('&#39;', "'")
+    .replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
+  for (const match of html.matchAll(/<input type="hidden" name="([^"]+)" value="([^"]*)">/g)) {
+    form[decode(match[1]!)] = decode(match[2]!);
+  }
+  assert.equal(form['_csrf'], t.owner.csrf);
+  assert.equal(form['state'], state);
+  assert.equal(form['team'], t.team1);
+  assert.equal(form['client_id'], client_id);
+  assert.equal(form['redirect_uri'], REDIRECT);
+  assert.equal(issued, 0);
+  const descriptor = await t.http(testRequest(authorize, { cookie: t.owner.cookie, headers: { accept: 'application/json' } }));
+  assert.equal(descriptor.status, 200);
+  assert.match(descriptor.headers.get('content-type') ?? '', /^application\/json/);
+  assert.equal(issued, 0);
+  const submit = (fields: Record<string, string>, cookie = t.owner.cookie, origin = 'https://test.invalid') =>
+    t.http(testRequest('/oauth/authorize', { method: 'POST', cookie,
+      headers: { 'content-type': 'application/x-www-form-urlencoded', origin, accept: 'text/html' },
+      body: new URLSearchParams(fields).toString() }));
+  assert.equal((await submit({ ...form, decision: 'approve', _csrf: 'invalid' })).status, 403);
+  assert.equal((await submit({ ...form, decision: 'approve' }, t.owner.cookie, 'https://foreign.invalid')).status, 403);
+  assert.equal((await submit({ ...form, decision: 'approve', team: t.team2 })).status, 403);
+  assert.equal((await submit({ ...form, decision: 'deny', redirect_uri: 'https://foreign.invalid/callback' })).status, 400);
+  assert.equal((await t.http(testRequest(`${authorize}&team=${t.team2}`, { cookie: t.owner.cookie }))).status, 403);
+  assert.equal(issued, 0);
+  const cancel = await submit({ ...form, decision: 'deny' });
+  assert.equal(cancel.status, 302);
+  const cancelled = new URL(cancel.headers.get('location') ?? '');
+  assert.equal(cancelled.origin + cancelled.pathname, REDIRECT);
+  assert.equal(cancelled.searchParams.get('error'), 'access_denied');
+  assert.equal(cancelled.searchParams.get('state'), state);
+  assert.equal(cancelled.searchParams.has('code'), false);
+  assert.equal(issued, 0);
+  const approved = await submit({ ...form, decision: 'approve' });
+  assert.equal(approved.status, 302);
+  assert.equal(issued, 1);
+  const redirect = new URL(approved.headers.get('location') ?? '');
+  assert.equal(redirect.searchParams.get('state'), state);
+  const code = redirect.searchParams.get('code'); assert.ok(code);
+  const tokenRequest = () => testRequest('/oauth/token', { method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({
+      grant_type: 'authorization_code', code, redirect_uri: REDIRECT, client_id, code_verifier: VERIFIER,
+    }).toString() });
+  const exchanged = await t.http(tokenRequest());
+  assert.equal(exchanged.status, 200);
+  assert.equal(exchanged.headers.get('cache-control'), 'no-store');
+  const token = await exchanged.json() as { access_token: string };
+  const call = await mcpCall(t.mcp, 'tools/call', { name: MUT_OP,
+    arguments: { operation_id: freshOperationId(), qty: 1 } }, { grant: token.access_token });
+  assert.equal(toolResult(call.body).isError, undefined);
+  assert.equal(t.invoker.mutations[0]?.identity.actor?.user_id, t.owner.userId);
+  assert.equal(t.invoker.mutations[0]?.identity.team?.team_id, t.team1);
+  assert.equal((await t.http(tokenRequest())).status, 400, 'authorization code is single-use');
+
+  // A real membership removal between render and submit cannot use the
+  // previously rendered team/CSRF as cached authorization.
+  const memberConsent = await t.http(testRequest(authorize, { cookie: t.member.cookie, headers: { accept: 'text/html' } }));
+  assert.equal(memberConsent.status, 200);
+  const membership = await t.store.findMembership(t.team1, t.member.userId); assert.ok(membership);
+  await t.store.removeMembership(membership.membership_id);
+  assert.equal((await submit({ ...form, _csrf: t.member.csrf, decision: 'approve' }, t.member.cookie)).status, 400);
+  assert.equal(issued, 1);
+  const login = await t.http(testRequest(authorize, { headers: { accept: 'text/html' } }));
+  assert.equal(login.status, 401);
+  assert.match(await login.text(), /href="\/auth\/login"/);
+});
+
+test('B2 oauth: team-required deployment refuses teamless consent', async () => {
+  const t = await setup({ oauthTeamScope: 'required' });
+  const session = await t.store.findSessionByTokenHash(await sha256HexText(t.owner.sessionToken));
+  assert.ok(session);
+  await t.store.setSessionTeam(session.session_id, null);
+  const registration = await t.http(testRequest('/oauth/register', { method: 'POST',
+    headers: { 'content-type': 'application/json' }, body: JSON.stringify({ redirect_uris: [REDIRECT] }) }));
+  assert.equal(registration.status, 201);
+  const { client_id } = await registration.json() as { client_id: string };
+  const request = { client_id, redirect_uri: REDIRECT, code_challenge: CHALLENGE, code_challenge_method: 'S256' };
+  assert.equal((await t.http(testRequest(`/oauth/authorize?${new URLSearchParams(request)}`, { cookie: t.owner.cookie }))).status, 403);
+  assert.equal((await t.http(sessionPost('/oauth/authorize', t.owner.cookie, t.owner.csrf, request))).status, 403);
 });
 
 /* ------------------------------------------------------------------ */

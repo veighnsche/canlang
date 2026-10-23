@@ -8,8 +8,8 @@
  * ambient session cookie would be CSRF-issuable — a forged GET carrying
  * the attacker's PKCE challenge redirects a code (for a registered,
  * possibly loopback, redirect URI) that the attacker can exchange with
- * their own verifier. So GET only READS a consent descriptor (no code is
- * minted, CSRF-safe) for the future L5 consent screen, and issuance
+ * their own verifier. So GET only renders consent or its JSON descriptor
+ * (no code is minted, CSRF-safe), and issuance
  * happens on POST with the session-bound CSRF token (header or `_csrf`
  * field, same rule as every other mutating route). Standard MCP clients
  * drive a browser to GET and POST the consent form; the 302 carries the
@@ -28,6 +28,7 @@
  */
 import { CSRF_FIELD } from '@canlang/contracts';
 import type { BusinessError } from '@canlang/contracts';
+import { escapeAttr, escapeHtml } from '@canlang/ui';
 import {
   IdentityError,
   MCP_GRANT_TTL_MS,
@@ -46,9 +47,11 @@ import {
   assertTrustedAuthOrigin,
   caughtToBusinessError,
   clientKey,
+  csrfTokenForSession,
   jsonErrorResponse,
   resolveRequestIdentity,
 } from '../http/context.js';
+import { wantsBrowserAuth } from '../http/browser-auth.js';
 import {
   RATE_LIMIT_AUTH,
   RATE_LIMIT_WINDOW_MS,
@@ -77,7 +80,7 @@ function requestPath(url: string): string {
 function jsonOk(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json; charset=utf-8' },
+    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', pragma: 'no-cache' },
   });
 }
 
@@ -103,9 +106,12 @@ function deny(
  * contract table would say 403, but a missing/invalid credential is 401
  * here, mirroring the S5/S6 credential paths).
  */
-function unauthorized(deps: OAuthDeps, message: string, route: string): Response {
+function unauthorized(deps: OAuthDeps, message: string, route: string, request?: Request): Response {
   const error = buildBusinessError('forbidden', message);
   logBusinessError(deps.logger, error, { route });
+  if (request !== undefined && wantsBrowserAuth(request)) {
+    return consentPage('<p>Sign in before authorizing this connection.</p><a href="/auth/login">Sign in</a>', 401);
+  }
   return jsonErrorResponse(error, 401);
 }
 
@@ -147,7 +153,7 @@ async function checkOAuthRateLimit(
   return decision.allowed ? null : { retryAfterMs: decision.retryAfterMs };
 }
 
-/** Registration and authorize-POST bodies are JSON only (form encoding is a token-endpoint matter). */
+/** Registration keeps its JSON contract; consent also accepts a native browser form. */
 async function readJsonObject(request: Request): Promise<Record<string, unknown>> {
   const mediaType =
     request.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() ?? '';
@@ -241,15 +247,20 @@ async function authorizeContext(
   request: Request,
   team: string | undefined,
 ): Promise<AuthorizeContext | Response> {
+  const policy = deps.authorization;
+  if (policy?.teamId !== undefined && team !== undefined && team !== policy.teamId) {
+    throw new IdentityError('forbidden', 'Authorization is unavailable for this team.');
+  }
+  const selectedTeam = policy?.teamId ?? team;
   let resolved;
   try {
     resolved = await resolveRequestIdentity(deps.identity.store, request, {
       clock: deps.clock,
-      ...(team === undefined ? {} : { teamId: team }),
+      ...(selectedTeam === undefined ? {} : { teamId: selectedTeam }),
     });
   } catch (err) {
     if (err instanceof IdentityError && err.code === 'forbidden') {
-      return unauthorized(deps, err.message, AUTHORIZE_PATH);
+      return unauthorized(deps, err.message, AUTHORIZE_PATH, request);
     }
     if (err instanceof IdentityError && err.code === 'not_found') {
       throw new IdentityError('validation', 'Unknown team.');
@@ -258,16 +269,33 @@ async function authorizeContext(
   }
   if (resolved.sessionToken === null || resolved.identity.actor === null) {
     // The browser login page is L5's; this endpoint only demands the cookie.
-    return unauthorized(deps, 'Login required.', AUTHORIZE_PATH);
+    return unauthorized(deps, 'Login required.', AUTHORIZE_PATH, request);
   }
   if (resolved.identity.team !== null && resolved.identity.membership === null) {
     throw new IdentityError('validation', 'No active membership in this team.');
+  }
+  if (policy?.teamRequired && resolved.identity.team === null) {
+    throw new IdentityError('forbidden', 'Select an active team before authorizing this connection.');
   }
   return {
     user_id: resolved.identity.actor.user_id,
     team_id: resolved.identity.team?.team_id ?? null,
     sessionToken: resolved.sessionToken,
   };
+}
+
+function consentPage(content: string, status = 200): Response {
+  return new Response('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Authorize connection</title><link rel="stylesheet" href="/assets/browser/can-style.css"></head><body><main><h1>Authorize connection</h1>' + content + '</main></body></html>', {
+    status, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', vary: 'Accept',
+      'referrer-policy': 'no-referrer', 'content-security-policy': "default-src 'none'; style-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'" },
+  });
+}
+
+function authorizationRedirect(redirect: string, state: string | undefined, key: 'code' | 'error', value: string): Response {
+  const target = new URL(redirect);
+  target.searchParams.append(key, value);
+  if (state !== undefined) target.searchParams.append('state', state);
+  return new Response(null, { status: 302, headers: { location: target.toString(), 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' } });
 }
 
 async function handleAuthorizeGet(deps: OAuthDeps, request: Request, url: URL): Promise<Response> {
@@ -291,14 +319,28 @@ async function handleAuthorizeGet(deps: OAuthDeps, request: Request, url: URL): 
   if (code_challenge === '') {
     throw new IdentityError('validation', `Missing required field 'code_challenge'.`, 'code_challenge');
   }
-  checkedState(params.get('state'));
+  const state = checkedState(params.get('state'));
+  if (params.has('response_type') && params.get('response_type') !== 'code') {
+    throw new IdentityError('validation', 'response_type must be code.');
+  }
   const client = await validateAuthorizationRequest(deps.identity.store, {
     client_id,
     redirect_uri,
     code_challenge,
   });
-  // Interim descriptor (no code issued — a CSRF-safe read); L5 renders the
-  // consent screen and POSTs back here. Mirrors the S4 auth descriptors.
+  if (wantsBrowserAuth(request)) {
+    const fields = { client_id, redirect_uri, code_challenge, code_challenge_method: 'S256', response_type: 'code',
+      ...(state === undefined ? {} : { state }), ...(context.team_id === null ? {} : { team: context.team_id }),
+      [CSRF_FIELD]: await csrfTokenForSession(context.sessionToken) };
+    const hidden = Object.entries(fields).map(([name, value]) => `<input type="hidden" name="${escapeAttr(name)}" value="${escapeAttr(value)}">`).join('');
+    return consentPage(`<p><strong>${escapeHtml(client.client_name)}</strong> requests a connection to ${escapeHtml(deps.authorization?.appName ?? 'this app')}.</p>` +
+      `<p>${context.team_id === null ? 'App-only access' : `Team: ${escapeHtml(context.team_id)}`}</p>` +
+      '<p>Your current roles and record permissions continue to apply.</p>' +
+      `<p>Return address: <span>${escapeHtml(redirect_uri)}</span></p>` +
+      `<form method="POST" action="${AUTHORIZE_PATH}">${hidden}<button type="submit" name="decision" value="approve">Authorize connection</button>` +
+      '<button type="submit" name="decision" value="deny">Cancel</button></form>');
+  }
+  // Machine clients retain the existing CSRF-safe descriptor contract.
   return jsonOk({
     client_id: client.client_id,
     client_name: client.client_name,
@@ -311,7 +353,9 @@ async function handleAuthorizeGet(deps: OAuthDeps, request: Request, url: URL): 
 
 async function handleAuthorizePost(deps: OAuthDeps, request: Request): Promise<Response> {
   assertTrustedAuthOrigin(request, deps.authOrigin);
-  const body = await readJsonObject(request);
+  const mediaType = request.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
+  const body: Record<string, unknown> = mediaType === 'application/x-www-form-urlencoded'
+    ? await parseFormBody(request) : await readJsonObject(request);
   const teamValue = body['team'];
   if (teamValue !== undefined && typeof teamValue !== 'string') {
     throw new IdentityError('validation', `Field 'team' must be a string.`, 'team');
@@ -331,6 +375,16 @@ async function handleAuthorizePost(deps: OAuthDeps, request: Request): Promise<R
   const redirect_uri = requiredString(body, 'redirect_uri');
   const code_challenge = requiredString(body, 'code_challenge');
   const state = checkedState(body['state']);
+  if (body['response_type'] !== undefined && body['response_type'] !== 'code') {
+    throw new IdentityError('validation', 'response_type must be code.');
+  }
+  if (body['decision'] !== undefined && body['decision'] !== 'approve' && body['decision'] !== 'deny') {
+    throw new IdentityError('validation', 'Invalid consent decision.');
+  }
+  if (body['decision'] === 'deny') {
+    await validateAuthorizationRequest(deps.identity.store, { client_id, redirect_uri, code_challenge });
+    return authorizationRedirect(redirect_uri, state, 'error', 'access_denied');
+  }
   const { code } = await issueAuthCode(
     deps.identity.store,
     {
@@ -342,12 +396,7 @@ async function handleAuthorizePost(deps: OAuthDeps, request: Request): Promise<R
     },
     { clock: deps.identity.clock },
   );
-  // redirect_uri exactly matched a registered absolute URI, so this parse
-  // cannot throw; query-bearing URIs keep their params (append, not set).
-  const target = new URL(redirect_uri);
-  target.searchParams.append('code', code);
-  if (state !== undefined) target.searchParams.append('state', state);
-  return Response.redirect(target.toString(), 302);
+  return authorizationRedirect(redirect_uri, state, 'code', code);
 }
 
 /** Token params arrive as RFC 6749 form or (accepted) JSON; values are strings only. */
@@ -423,8 +472,8 @@ async function handleToken(deps: OAuthDeps, request: Request): Promise<Response>
 }
 
 function handleMetadata(deps: OAuthDeps, request: Request, pathname: string): Response {
-  const origin = requestOrigin(request.url);
-  if (origin === null) {
+  const origin = deps.authOrigin ?? requestOrigin(request.url);
+  if (origin === null || requestOrigin(origin) !== origin) {
     return deny(deps, buildBusinessError('not_found', 'Not found.'), pathname);
   }
   return jsonOk(
@@ -436,7 +485,7 @@ function handleMetadata(deps: OAuthDeps, request: Request, pathname: string): Re
 
 /**
  * Dispatch one OAuth request: well-known metadata (GET only), registration
- * (POST JSON), two-step authorize (GET descriptor / POST issuance+302),
+ * (POST JSON), two-step authorize (GET consent/descriptor, POST form/JSON issuance+302),
  * and the token endpoint (POST form-or-JSON). Anything unmapped is
  * `not_found`.
  */
