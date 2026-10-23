@@ -3090,3 +3090,22 @@ fn original_shift_decline_seals_model_paths_and_scalar_leaf_schemas() {
   ("reserved-version",source.replace("revision=swap.parent.parent.revision","revision=swap.parent.parent.version")),
  ]{let(db,program,_,catalog)=fixture_source(&format!("shift-decline-{mode}.can"),&changed);let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {diagnostics:?}");}
 }
+
+#[test]
+fn source_observer_budget_belongs_to_each_original_owner() {
+ let mut source=String::from("app ManyGuards uses=[checks]\npackage checks\n Given\n  Root {active:bool=true}\n  Child in Root {allowed:bool}\n  policy Root read=members\n  policy Child read=members\n When\n");
+ for index in 0..101 {source.push_str(&format!("  scenario mutate_{index}(root:Root) by=members\n   require any(root.Child as child,child.allowed)\n   require not any(root.Child as child,not child.allowed)\n   do set root {{active=false}}\n"));}
+ source.push_str(" Then\n");
+ let (db,program,_,catalog)=fixture_source("many-original-observers.can",&source);
+ let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);
+ assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let code=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str()).collect::<Vec<_>>().join("\n");
+ assert_eq!(code.matches("await nativeScenarioRequire(c,").count(),202);
+ let (changed_db,mut changed,_,changed_catalog)=fixture_source("many-original-observers.can",&source);
+ let owner=changed.symbols.iter().find(|symbol|symbol.canonical=="checks.mutate_100").unwrap().id;
+ let root=changed.symbols.iter().find(|symbol|symbol.canonical=="checks.Root").unwrap().id;
+ let literal=changed.effects.models[&root].fields.iter().find_map(|field|field.default).unwrap();
+ changed.effects.scenarios.get_mut(&owner).unwrap().guards[0].cond=Some(literal);
+ let (_,diagnostics)=prepared_artifact(&changed,&changed_db,&changed_catalog);
+ assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{diagnostics:?}");
+}

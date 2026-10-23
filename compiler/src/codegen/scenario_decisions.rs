@@ -3912,6 +3912,9 @@ pub(super) fn serialize_scenario_requires(
         let required = collect_require_keys(original, sites)?;
         consumer.index_required(sources.trees(), &required)?;
         let mut staged_owner_sealed=false;
+        // State binds each operation's observer inventory independently.
+        // Keep the existing finite site bound on that owner, not the corpus.
+        let mut owner_output=Vec::new();
         for site in sites {
             if site.stage==crate::analysis::scenario_disclosure::CheckedDecisionStage::BodyCondition && !staged_owner_sealed {
                 // A staged branch must retain its original prefix and both
@@ -3938,9 +3941,10 @@ pub(super) fn serialize_scenario_requires(
                 site,
                 cond,
                 parameters,
-                &mut output,
+                &mut owner_output,
             )?;
         }
+        output.extend(owner_output);
     }
     Some(output)
 }
