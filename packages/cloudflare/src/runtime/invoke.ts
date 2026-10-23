@@ -157,7 +157,7 @@ import type { ViewerGenerationCallbackReadObservation } from '@canlang/state/rec
 import { bindInstalledSourceQueryPredicate } from '@canlang/state/receipt';
 import { registerNativeUiQueryBinder, forwardNativeUiQueryBinder } from './native-ui-query.js';
 import { bindNativeReadBooleanContext, bindNativeReadBooleanReader, bindNativeSourceReferenceReader } from './native-read-boolean.js';
-import { bindNativeScenarioSourceEmitData, bindNativeScenarioSourceSendQuery, bindNativeScenarioSourceSchedule, bindNativeScenarioSourceCancel, bindNativeScenarioSourceSendData, bindNativeScenarioSourceLoopCopy, bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
+import { bindNativeScenarioSourceEmitData, bindNativeScenarioSourceSendQuery, bindNativeScenarioSourceSchedule, bindNativeScenarioSourceCancel, bindNativeScenarioSourceSendData, bindNativeScenarioSourceLoopItem, bindNativeScenarioSourceLoopCopy, bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
   bindNativeScenarioLeaveRequestDecision, bindNativeScenarioLeaveDecideDecision,
   bindNativeLeaveDecideAllowance, bindNativeScenarioReferRejectDecision,
   bindNativeScenarioMemberRetryDecision, bindNativeScenarioInvoiceOverdueDecision,
@@ -1479,6 +1479,9 @@ interface StateInvokeProducer {
   readonly bindScenarioSourceEmitDataProducer?: typeof import('@canlang/state/invocation').bindScenarioSourceEmitDataProducer;
   readonly executeScenarioSourceEmitData?: typeof import('@canlang/state/invocation').executeScenarioSourceEmitData;
   readonly consumeScenarioSourceEmitData?: typeof import('@canlang/state/invocation').consumeScenarioSourceEmitData;
+  readonly bindScenarioSourceLoopProducer?:typeof import('@canlang/state/invocation').bindScenarioSourceLoopProducer;
+  readonly executeScenarioSourceLoop?:typeof import('@canlang/state/invocation').executeScenarioSourceLoop;
+  readonly executeScenarioSourceLoopItem?:typeof import('@canlang/state/invocation').executeScenarioSourceLoopItem;
   readonly bindScenarioSourceSendDataProducer?: typeof import('@canlang/state/invocation').bindScenarioSourceSendDataProducer;
   readonly executeScenarioSourceSendData?: typeof import('@canlang/state/invocation').executeScenarioSourceSendData;
   readonly executeScenarioSourceSendQuery?: typeof import('@canlang/state/invocation').executeScenarioSourceSendQuery;
@@ -1793,6 +1796,9 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     ...(typeof scenarioMod['bindScenarioSourceEmitDataProducer']!=='function'?{}:{bindScenarioSourceEmitDataProducer:scenarioMod['bindScenarioSourceEmitDataProducer'] as NonNullable<StateInvokeProducer['bindScenarioSourceEmitDataProducer']>}),
     ...(typeof scenarioMod['executeScenarioSourceEmitData']!=='function'?{}:{executeScenarioSourceEmitData:scenarioMod['executeScenarioSourceEmitData'] as NonNullable<StateInvokeProducer['executeScenarioSourceEmitData']>}),
     ...(typeof scenarioMod['consumeScenarioSourceEmitData']!=='function'?{}:{consumeScenarioSourceEmitData:scenarioMod['consumeScenarioSourceEmitData'] as NonNullable<StateInvokeProducer['consumeScenarioSourceEmitData']>}),
+    ...(typeof scenarioMod['bindScenarioSourceLoopProducer']!=='function'?{}:{bindScenarioSourceLoopProducer:scenarioMod['bindScenarioSourceLoopProducer'] as NonNullable<StateInvokeProducer['bindScenarioSourceLoopProducer']>}),
+    ...(typeof scenarioMod['executeScenarioSourceLoop']!=='function'?{}:{executeScenarioSourceLoop:scenarioMod['executeScenarioSourceLoop'] as NonNullable<StateInvokeProducer['executeScenarioSourceLoop']>}),
+    ...(typeof scenarioMod['executeScenarioSourceLoopItem']!=='function'?{}:{executeScenarioSourceLoopItem:scenarioMod['executeScenarioSourceLoopItem'] as NonNullable<StateInvokeProducer['executeScenarioSourceLoopItem']>}),
     ...(typeof scenarioMod['bindScenarioSourceSendDataProducer']!=='function'?{}:{bindScenarioSourceSendDataProducer:scenarioMod['bindScenarioSourceSendDataProducer'] as NonNullable<StateInvokeProducer['bindScenarioSourceSendDataProducer']>}),
     ...(typeof scenarioMod['executeScenarioSourceSendData']!=='function'?{}:{executeScenarioSourceSendData:scenarioMod['executeScenarioSourceSendData'] as NonNullable<StateInvokeProducer['executeScenarioSourceSendData']>}),
     ...(typeof scenarioMod['executeScenarioSourceSendQuery']!=='function'?{}:{executeScenarioSourceSendQuery:scenarioMod['executeScenarioSourceSendQuery'] as NonNullable<StateInvokeProducer['executeScenarioSourceSendQuery']>}),
@@ -3696,6 +3702,8 @@ interface SourceScheduleSource extends SourceCancelSource{readonly event:string;
 const nativeSourceSchedules=new WeakMap<GeneratedOperationDef,readonly SourceScheduleSource[]>();
 type SourceEmitDataSource=import('@canlang/state/invocation').ScenarioSourceEmitDataSource;
 const nativeSourceEmitData=new WeakMap<GeneratedOperationDef,{readonly sources:readonly SourceEmitDataSource[];readonly original:(body:Function)=>unknown}>();
+type SourceBodyLoopPlan=import('@canlang/state/invocation').ScenarioSourceBodyLoopPlan;
+const nativeSourceBodyLoops=new WeakMap<GeneratedOperationDef,{readonly plan:SourceBodyLoopPlan;readonly original:(body:Function)=>unknown}>();
 type SourceSendDataSource=import('@canlang/state/invocation').ScenarioSourceSendDataSource;
 const nativeSourceSendData=new WeakMap<GeneratedOperationDef,{readonly sources:readonly SourceSendDataSource[];readonly original:(body:Function)=>unknown}>();
 const sourceRequireFrames = new WeakMap<GeneratedOperationDef, ScenarioReceiptRequireSource['source']>();
@@ -5767,6 +5775,22 @@ async function bindNativeSourceSchedules(asm:AssembledModules,artifact:CompileAr
   }
 }
 
+async function bindNativeSourceBodyLoops(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors,bindState:boolean):Promise<void>{
+  for(const value of loaded.registry.values()){
+    const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def);
+    if(def===undefined||source===undefined)continue;
+    const callable=artifact.callables.find(callable=>callable.id===def.name&&callable.kind==='operation'&&callable.module===source.module);
+    if(callable?.inputStyle!=='parameters')throw new AssemblyCorrespondenceError('Source loop lacks its original parameter-style operation.');
+    const module=await importVerifiedAssemblyModule(asm,callable.module,artifact),getter=privateSourceMember(module,'canScenarioBodyLoopSources');
+    if(typeof getter!=='function')continue;
+    const census=localPolicyObject(getter()),raw=Object.getOwnPropertyDescriptor(census,def.name);if(raw===undefined)continue;
+    const plan=captureDispatchPreclaimData(raw.value) as unknown as SourceBodyLoopPlan;
+    const original=privateSourceMember(module,'canScenarioSourceLoopSource'),bind=loaded.producers.invoke.bindScenarioSourceLoopProducer;
+    if(plan.owner!==def.name||stableStringify(plan.source)!==stableStringify(source)||typeof original!=='function'||bind===undefined)throw new AssemblyCorrespondenceError('Source loop differs from its actual original owner/census.');
+    if(bindState)bind(def,plan);nativeSourceBodyLoops.set(def,{plan,original:original as (body:Function)=>unknown});
+  }
+}
+
 async function bindNativeSourceSendData(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors,
   context?:InvocationSourceReadContext):Promise<void>{
   const sourceReads=context===undefined?undefined:createSourceReadPolicyAdapter({loaded,opts:context.opts,now:context.now,
@@ -6781,6 +6805,7 @@ async function loadCanonicalDescriptorsInternal(
   // Selected-row execution dependencies bind against the checked first-query mark.
   await bindNativeSourceCancels(asm,artifact,canonical);
   await bindNativeSourceSchedules(asm,artifact,canonical);
+  await bindNativeSourceBodyLoops(asm,artifact,canonical,invocationSourceReads!==undefined);
   await bindNativeSourceSendData(asm,artifact,canonical,invocationSourceReads);
   await bindNativeSourceEmitData(asm,artifact,canonical,invocationSourceReads);
   await bindNativeScenarioQueries(asm, artifact, canonical, invocationSourceReads);
@@ -10234,9 +10259,11 @@ async function runScenarioExecution(
     return [...existing, ...stamped, ...termScheduleSourceWrites, ...rentNoticeSourceWrites,
       ...invoiceIssueSourceWrites, ...cancellationSourceWrites, ...scheduleSourceWrites];
   };
-  const sourceCopyBounds=receiptAware&&receiptStore!==undefined&&scenarioDef?.descriptor.result?.disclosure?.sourceLoops?.loops.some(loop=>loop.copy!==undefined)
+  const privateSourceBodyLoop=scenarioDef===undefined?undefined:nativeSourceBodyLoops.get(scenarioDef);
+  const needsSourceLoopBounds=hasExecutionFrame&&(privateSourceBodyLoop!==undefined||scenarioDef?.descriptor.result?.disclosure?.sourceLoops?.loops.some(loop=>loop.copy!==undefined));
+  const sourceCopyBounds=needsSourceLoopBounds&&receiptStore!==undefined
     ?loaded.producers.invoke.readScenarioReceiptSourceLoopBounds?.(call as AdmittedCall,receiptStore):undefined;
-  if(receiptAware&&scenarioDef?.descriptor.result?.disclosure?.sourceLoops?.loops.some(loop=>loop.copy!==undefined)&&sourceCopyBounds===undefined)
+  if(needsSourceLoopBounds&&sourceCopyBounds===undefined)
     return refuseRecordBinding('Source copy lacks its actual State-derived call graph budget.');
   const ownerBounds = sourceCopyBounds!==undefined
     ? Object.freeze({maxRows:sourceCopyBounds.maxRows,maxWork:sourceCopyBounds.maxWork})
@@ -12604,6 +12631,37 @@ async function runScenarioExecution(
     : callable?.inputStyle === "parameters"
     ? scenarioParameters(call, loaded, recordView, hasExecutionFrame ? undefined : resolvedDefaults, scenarioReceiptFrame)
     : { operation_id: call.context.operationId, inputs: call.inputs };
+  let activeSourceLoopItem:{readonly id:string;readonly item:unknown;readonly row:StoredRow}|null=null;
+  if(privateSourceBodyLoop!==undefined){
+    if(!sourceRequireAware||receiptStore===undefined||ownerSession===undefined||scenarioDef===undefined||callable?.inputStyle!=='parameters'||due!==undefined||cohort!==undefined)return refuseRecordBinding('Source loop lacks its actual installed source-only owner frame.');
+    const actual=call as AdmittedCall,parameters=localPolicyObject(argument),selected=new Map<unknown,{readonly id:string;readonly row:StoredRow}>();
+    const original=(body:Function,loop:SourceBodyLoopPlan['loops'][number],item:boolean)=>{
+      const issued=localPolicyObject(privateSourceBodyLoop.original(body),['source','context']);
+      const expected={source:privateSourceBodyLoop.plan.source,owner:privateSourceBodyLoop.plan.owner,loop,...(item?{phase:'item'}:{})};
+      if(issued.context!==ctx||stableStringify(captureDispatchPreclaimData(issued.source))!==stableStringify(expected))return refuseRecordBinding('Source loop callback differs from its exact original phase and context.');
+    };
+    bindNativeScenarioSourceLoop(ctx,async(id,parent,predicate)=>{
+      try{
+        const loop=privateSourceBodyLoop.plan.loops.find(loop=>loop.id===id),execute=loaded.producers.invoke.executeScenarioSourceLoop;
+        if(loop===undefined||execute===undefined||parent!==parameters[loop.parameter]||loop.filtered!==(typeof predicate==='function'))return refuseRecordBinding('Source loop differs from its original parent/filter.');
+        if(predicate!==null)original(predicate,loop,false);
+        const rows=await execute(actual,receiptStore,{id,predicate:predicate===null?null:async row=>{
+          ownerRows.set(stagedKey(loop.model,row.id),row);return await predicate(recordView(loop.model,row));
+        }});
+        return Object.freeze(rows.map(row=>{ownerRows.set(stagedKey(loop.model,row.id),row);const view=recordView(loop.model,row);selected.set(view,{id,row});return view;}));
+      }catch(error){recordEngineFailure(error);throw error;}
+    });
+    bindNativeScenarioSourceLoopItem(ctx,async(id,item,body)=>{
+      try{
+        const loop=privateSourceBodyLoop.plan.loops.find(loop=>loop.id===id),entry=selected.get(item),execute=loaded.producers.invoke.executeScenarioSourceLoopItem;
+        if(loop===undefined||entry?.id!==id||execute===undefined||activeSourceLoopItem!==null)return refuseRecordBinding('Source loop item differs from its genuine original selection.');
+        original(body,loop,true);
+        await execute(actual,receiptStore,{id,row:entry.row,execute:async()=>{
+          activeSourceLoopItem={id,item,row:entry.row};try{await body();}finally{activeSourceLoopItem=null;}
+        }});
+      }catch(error){recordEngineFailure(error);throw error;}
+    });
+  }
   if(sourceEmissionPlan!==undefined){
     if(!receiptAware||receiptStore===undefined||ownerSession===undefined||scenarioDef===undefined||
         callable?.inputStyle!=='parameters'||due!==undefined||cohort!==undefined||sourceEmissionPlan.owner!==scenarioDef.name||
@@ -12854,7 +12912,7 @@ async function runScenarioExecution(
           const source=data.sources.find(source=>stableStringify(source)===stableStringify(captureDispatchPreclaimData(issued.source)));
           if(issued.context!==ctx||source===undefined)return refuseRecordBinding('SEND DATA closure differs from its original source/context.');
           const roots=localPolicyObject(supplied,source.parameters.map(parameter=>parameter.name));
-          if(Object.keys(roots).length!==source.parameters.length||source.parameters.some(parameter=>roots[parameter.name]!==parameters[parameter.name]))return refuseRecordBinding('SEND DATA changed its genuine original parameter graph.');
+          if(Object.keys(roots).length!==source.parameters.length||source.parameters.some(parameter=>parameter.loop===undefined?roots[parameter.name]!==parameters[parameter.name]:activeSourceLoopItem?.id!==parameter.loop||roots[parameter.name]!==activeSourceLoopItem.item))return refuseRecordBinding('SEND DATA changed its genuine original parameter graph.');
           return await execute(actual,receiptStore,{source,execute:async rows=>{
             const projected:Record<string,unknown>=Object.create(null);
             for(const parameter of source.parameters){

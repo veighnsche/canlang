@@ -2798,3 +2798,68 @@ it('observes original helper parent getters at their authored identity reads', {
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('executes the original contained Invoice cancellation loop through authentic Work deliveries',
+  {timeout:240000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-invoice-cancel-loop-'));
+    try{
+      const {artifact,asm}=await installed('invoice-credit-loop-source.can',directory);
+      const original=await readFile(join(root,'draft/apps/CanInvoice/CanInvoice.can'),'utf8');
+      const text=await readFile(fixture('invoice-credit-loop-source.can'),'utf8');
+      const credit=original.slice(original.indexOf('  scenario credit('));
+      const begin=credit.indexOf('    for attempt in invoice.Attempt');
+      assert.ok(text.includes(credit.slice(begin,credit.indexOf('\n    if ',begin))),'the exact original per-child SET, SEND and typed CREATE are retained');
+      for(const mode of ['allowed','empty','hidden','withheld-reference','inactive','stale','overflow','maximum','physical-cap','role-during-send','insert-at-commit']){
+        if(process.env['CAN_INVOICE_LOOP_CASE']&&process.env['CAN_INVOICE_LOOP_CASE']!==mode)continue;
+        if(process.env['CAN_INVOICE_LOOP_SKIP_MAXIMUM']==='1'&&mode==='maximum')continue;
+        const {now,identities,identity,team,user}=await member(`invoice-loop-${mode}`,['invoice.finance']);
+        const scope={app:'CanInvoice',owner:team.team_id,ownerPackage:'invoice'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'loop-state',fileStoreId:'loop-files',
+          receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+        const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent});
+        const location=row('location',{active:true}),customer=row('customer',{kind:'company',hidden:false});
+        const invoice=row('invoice',{location:{id:location.id},source:'original-invoice',currency:'EUR',state:'issued',total:{minor:'1000',currency:'EUR'},next_collection:null,ledger_revision:'0',first_paid_at:null,hidden:false},{model:model('customer','Customer'),id:customer.id});
+        const child={model:model('invoice','Invoice'),id:invoice.id};
+        const attempt=(id:string,status='pending',kind='collection',parent=child)=>row(id,{reference:id,amount:{minor:'100',currency:'EUR'},kind,status,failure:null,disabled:false,delivery:null,checkout:'https://checkout.test/'+id,outcome_at:null,received:null,reference_readable:mode!=='withheld-reference',hidden:mode==='hidden'},parent);
+        const count=mode==='empty'?0:mode==='maximum'?100:mode==='overflow'?101:2;
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          {kind:'insert',model:model('rent_catalog','Location'),row:location},{kind:'insert',model:model('customer','Customer'),row:customer},
+          {kind:'insert',model:model('employee','Employee'),row:row('worker',{user:{id:user.user_id},home:{id:location.id},locations:[],operator_wide:false,active:mode!=='inactive',hidden:true})},
+          {kind:'insert',model:model('invoice','Invoice'),row:invoice},{kind:'insert',model:model('invoice','Invoice'),row:{...invoice,id:asId('foreign')}},
+          ...Array.from({length:count},(_,index)=>({kind:'insert' as const,model:model('invoice','Attempt'),row:attempt(`attempt-${String(index).padStart(3,'0')}`,index===1?'unknown':'pending')})),
+          ...Array.from({length:mode==='physical-cap'?199:1},(_,index)=>({kind:'insert' as const,model:model('invoice','Attempt'),row:attempt(`succeeded-${index}`,'succeeded')})),
+          {kind:'insert',model:model('invoice','Attempt'),row:attempt('refund','pending','refund')},
+          {kind:'insert',model:model('invoice','Attempt'),row:attempt('foreign-attempt','pending','collection',{model:child.model,id:asId('foreign')})}
+        ]}));
+        let raced=false;
+        if(mode==='role-during-send'){
+          const load=store.load.bind(store);store.load=async(model,id)=>{if(!raced&&model==='work.dispatch'){raced=true;const membership=await identities.findMembership(team.team_id,user.user_id);assert.ok(membership);await identities.setMembershipRoles(membership.membership_id,[]);}return load(model,id);};
+        }
+        if(mode==='insert-at-commit'){
+          const commit=store.commit.bind(store);store.commit=async batch=>{if(!raced&&batch.writes.some(write=>write.model==='work.dispatch')){raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('invoice','Attempt'),row:attempt('late-attempt')}]}));}return commit(batch);};
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const request={operation:'invoice.cancel_pending',operation_id:operationId(now),inputs:{invoice:{id:invoice.id,version:mode==='stale'?'0':String(invoice.version)}}};
+        const outcome=await invoker.invokeMutation(request,identity),success=['allowed','empty','maximum','insert-at-commit'].includes(mode);
+        assert.equal('result'in outcome&&outcome.result.status==='committed',success,`${mode}: ${JSON.stringify(outcome)}`);
+        const pending=await store.outboxPending(),requests=await store.query({model:model('invoice','PaymentRequest'),authority:'owner'});
+        const expected=success?count+(mode==='insert-at-commit'?1:0):0;
+        assert.equal(pending.length,expected,mode);assert.equal(requests.length,expected,mode);
+        for(const current of await store.query({model:model('invoice','Attempt'),authority:'owner'})){
+          const selected=current.id.startsWith('attempt-')||current.id==='late-attempt';
+          assert.equal(current.data.disabled,success&&selected,`${mode}: ${current.id}`);
+          if(success&&selected)assert.equal(current.data.checkout,null);
+        }
+        for(const retained of requests){
+          assert.equal(retained.data.kind,'cancel');const delivery=retained.data.cancellation as {id:string};assert.ok(delivery);
+          const intent=pending.find(intent=>intent.intentId===delivery.id);assert.ok(intent,'typed cancellation belongs to this actual retained SEND');
+          assert.equal(intent.target,'std.PaymentsV1.cancel');assert.equal((intent.arguments as {arguments:{reference:string}}).arguments.reference,retained.parent?.id);
+          const receipt=await store.load(asModel('work.receipt'),asId(delivery.id));assert.ok(receipt,'owning typed delivery retains the real pending receipt');assert.equal(receipt.data.status,'pending');assert.equal(receipt.data.result,null);
+        }
+        if(mode==='role-during-send'||mode==='insert-at-commit')assert.equal(raced,true);
+        if(success){const replay=await invoker.invokeMutation(request,identity);if('error'in replay)assert.equal(replay.error.code,'validation',JSON.stringify(replay));else{assert.equal(replay.result.status,'replayed');assert.equal(replay.result.result,null);}assert.deepEqual(await store.outboxPending(),pending);assert.deepEqual(await store.query({model:model('invoice','PaymentRequest'),authority:'owner'}),requests);}
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });

@@ -1992,6 +1992,107 @@ interface BoundCalls {
   readonly targets: ReadonlyMap<string, GeneratedOperationDef>;
 }
 const callProducers = new WeakMap<GeneratedOperationDef, BoundCalls>();
+/** Private source-only loops grant control selection, never a read projection.
+ * SEND roots borrow only their actual once-entered item lifetime below. */
+export interface ScenarioSourceBodyLoop {
+  readonly id:string;readonly node:{readonly start:number;readonly end:number};
+  readonly domain:{readonly start:number;readonly end:number};readonly maximum:number;
+  readonly parameter:string;readonly parentModel:ModelName;readonly model:ModelName;
+  readonly item:string;readonly filtered:boolean;readonly writes:number;readonly sends:number;
+}
+export interface ScenarioSourceBodyLoopPlan {
+  readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
+  readonly loops:readonly ScenarioSourceBodyLoop[];
+}
+const sourceBodyLoopProducers=new WeakMap<GeneratedOperationDef,ScenarioSourceBodyLoopPlan>();
+interface SourceBodyLoopExecution {
+  readonly loop:ScenarioSourceBodyLoop;readonly parent:StoredRow;
+  readonly rows:Map<RecordId,{readonly row:StoredRow;completed:boolean}>;
+}
+const sourceBodyLoopExecutions=new WeakMap<ReceiptOwnerSession,Map<string,SourceBodyLoopExecution>>();
+const sourceBodyLoopItems=new WeakMap<ReceiptOwnerSession,{readonly execution:SourceBodyLoopExecution;readonly row:StoredRow}>();
+export function bindScenarioSourceLoopProducer(def:GeneratedOperationDef,value:ScenarioSourceBodyLoopPlan):void{
+  const bound=boundPlans.get(def);
+  if(!bound?.sourceRequireOnly||invokedPlans.has(def)||sourceBodyLoopProducers.has(def)||!frameworkProducers.has(def))return invalid('Source loop needs its uninvoked original source-only framework owner.');
+  const raw=object(dataCopy(value),['source','owner','loops']);origin(raw['source']);
+  if(raw['owner']!==def.name||stableStringify(raw['source'])!==stableStringify(bound.plan.source))return invalid('Source loop differs from its defining owner/source.');
+  const loops=list(raw['loops']),ids=new Set<string>();let maximum=0,sends=0;
+  if(loops.length===0||loops.length>MAX_ITEMS)return invalid('Source loop needs a finite complete original census.');
+  for(const value of loops){
+    const loop=object(value,['id','node','domain','maximum','parameter','parentModel','model','item','filtered','writes','sends']);
+    const id=text(loop['id']),parameter=text(loop['parameter']),parent=text(loop['parentModel']) as ModelName,model=text(loop['model']) as ModelName;
+    const input=bound.inputs.find(input=>input.name===parameter);
+    const node=object(loop['node'],['start','end']),domain=object(loop['domain'],['start','end']);
+    if(!/^[a-f0-9]{64}$/.test(id)||ids.has(id)||input?.kind!=='ref'||input.model!==parent||input.nullable===true
+        ||Object.hasOwn(def.inputArrays,parameter)||bound.artifactModels.get(model)?.parent!==parent
+        ||text(loop['item'])===parameter||typeof loop['filtered']!=='boolean'
+        ||[node['start'],node['end'],domain['start'],domain['end']].some(value=>!Number.isSafeInteger(value))
+        ||Number(node['start'])<0||Number(node['end'])<=Number(node['start'])||Number(domain['start'])<Number(node['start'])
+        ||Number(domain['end'])>Number(node['end'])||Number(domain['end'])<=Number(domain['start'])
+        ||!Number.isSafeInteger(loop['maximum'])||Number(loop['maximum'])<1||Number(loop['maximum'])>MAX_ITEMS
+        ||!Number.isSafeInteger(loop['writes'])||Number(loop['writes'])<1||Number(loop['writes'])>4
+        ||!Number.isSafeInteger(loop['sends'])||Number(loop['sends'])<1||Number(loop['sends'])>2)return invalid('Source loop lost its exact contained input and bounded body.');
+    ids.add(id);maximum+=Number(loop['maximum']);sends+=Number(loop['maximum'])*Number(loop['sends']);
+  }
+  if(maximum>MAX_ITEMS||sends>MAX_ITEMS)return invalid('Source loop original aggregate exceeds its finite item/Work census.');
+  sourceBodyLoopProducers.set(def,deepFreeze(raw) as unknown as ScenarioSourceBodyLoopPlan);
+}
+function sourceBodyLoopLimits(def:GeneratedOperationDef):{readonly maxRows:number;readonly maxWork:number;readonly maxWrites:number}|undefined{
+  const plan=sourceBodyLoopProducers.get(def);if(plan===undefined)return undefined;
+  const maxWrites=MAX_ITEMS+plan.loops.reduce((total,loop)=>total+loop.maximum*loop.writes,0),maxRows=maxWrites;
+  return Object.freeze({maxRows,maxWrites,maxWork:maxRows*MAX_ITEMS*2});
+}
+export async function executeScenarioSourceLoop(call:AdmittedCall,store:StoragePort,input:{readonly id:string;
+  readonly predicate:null|((row:StoredRow)=>Promise<boolean>)}):Promise<readonly StoredRow[]>{
+  const state=capture(call,store),owner=ownerSessions.get(call);
+  try{
+    object(input,['id','predicate']);const loop=sourceBodyLoopProducers.get(call.def as GeneratedOperationDef)?.loops.find(loop=>loop.id===input.id);
+    if(owner===undefined||owner.session===null||loop===undefined||owner.busy||state.pending!==0||owner.executingCall!==call
+        ||sourceBodyLoopItems.has(owner)||loop.filtered!==(typeof input.predicate==='function'))return invalid('Source loop lacks its actual quiescent original selection.');
+    let executions=sourceBodyLoopExecutions.get(owner);if(executions===undefined){executions=new Map();sourceBodyLoopExecutions.set(owner,executions);}
+    if(executions.has(loop.id))return invalid('Source loop repeats its original selection.');
+    return await ownerOperation(owner,async()=>{
+      const refs=call.recordRefs.filter(ref=>ref.param===loop.parameter),ref=refs[0];
+      if(refs.length!==1||ref?.model!==loop.parentModel||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('Source loop lost its original versioned parent input.');
+      const parent=await owner.session!.views.final.get(ref.model,ref.id);ownerHealthy(owner);
+      if(parent===null||!sameModelLifetime(ref.row,parent)||parent.archivedAt!==null)return invalid('Source loop parent lifetime changed.');
+      const rows=await owner.session!.views.final.query({model:loop.model,parent:{model:ref.model,id:ref.id},authority:'owner',archived:'exclude',
+        order:[{field:'id',direction:'asc'}],limit:MAX_ITEMS});ownerHealthy(owner);
+      const selected=new Map<RecordId,{row:StoredRow;completed:boolean}>();
+      for(const row of rows){
+        if(row.archivedAt!==null||row.parent?.model!==ref.model||row.parent.id!==ref.id)return invalid('Source loop crossed its original contained live domain.');
+        ownerRows.set(row,{session:owner,stage:owner.stage,model:loop.model});
+        const matches=input.predicate===null?true:await input.predicate(row);ownerHealthy(owner);
+        if(typeof matches!=='boolean')return invalid('Source loop original predicate did not return bool.');
+        if(matches){selected.set(row.id,{row,completed:false});if(selected.size>loop.maximum)return invalid('Source loop selected domain exceeds its original authored bound.');}
+      }
+      executions!.set(loop.id,{loop,parent,rows:selected});
+      if(await store.readRevision()!==call.revision)throw new StateError('conflict','Source loop selection moved beyond its original checkpoint.');
+      return Object.freeze([...selected.values()].map(entry=>entry.row));
+    },call);
+  }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
+}
+export async function executeScenarioSourceLoopItem(call:AdmittedCall,store:StoragePort,input:{readonly id:string;readonly row:StoredRow;readonly execute:()=>Promise<void>}):Promise<void>{
+  const state=capture(call,store),owner=ownerSessions.get(call);
+  try{
+    object(input,['id','row','execute']);const execution=owner===undefined?undefined:sourceBodyLoopExecutions.get(owner)?.get(input.id),entry=execution?.rows.get(input.row.id);
+    if(owner===undefined||owner.session===null||owner.framework===null||owner.busy||state.pending!==0||owner.executingCall!==call
+        ||execution===undefined||entry?.row!==input.row||entry.completed||sourceBodyLoopItems.has(owner)||typeof input.execute!=='function')return invalid('Source loop item lacks its unique actual original selection.');
+    const current=await ownerOperation(owner,()=>owner.session!.views.final.get(execution.loop.model,entry.row.id),call);
+    if(current===null||!sameModelLifetime(entry.row,current)||current.archivedAt!==null)return invalid('Source loop selected item lifetime changed.');
+    const stage=owner.stage,ordinal=owner.framework.ordinal;sourceBodyLoopItems.set(owner,{execution,row:entry.row});
+    try{
+      await input.execute();ownerHealthy(owner);capture(call,store);
+      if(owner.busy||state.pending!==0||owner.executingCall!==call||owner.stage!==stage+execution.loop.writes
+          ||owner.framework.ordinal!==ordinal+execution.loop.sends)return invalid('Source loop item did not execute its exact original write/Work stages.');
+      entry.completed=true;
+    }finally{sourceBodyLoopItems.delete(owner);}
+  }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
+}
+function requireSourceBodyLoopsComplete(owner:ReceiptOwnerSession):void{
+  if(sourceBodyLoopItems.has(owner)||[...sourceBodyLoopExecutions.get(owner)?.values()??[]].some(execution=>[...execution.rows.values()].some(entry=>!entry.completed)))return invalid('Source loop omitted or retained an unfinished original selected item.');
+}
+
 /** Finite source-copy budgets compose actual checked child plans. The caller
  * SET aliases the child's created result; it adds no second row identity. */
 function sourceCopyLimits(plan:ScenarioResultDisclosurePlan,children:readonly {
@@ -2070,7 +2171,7 @@ export function readScenarioReceiptSourceLoopBounds(call:AdmittedCall,store:Stor
   readonly maxRows:number;readonly maxWork:number;readonly maxWrites:number;
 }{
   capture(call,store);
-  return sourceCopyDefinitionLimits(call.def as GeneratedOperationDef)
+  return sourceBodyLoopLimits(call.def as GeneratedOperationDef)??sourceCopyDefinitionLimits(call.def as GeneratedOperationDef)
     ??Object.freeze({maxRows:MAX_ITEMS,maxWork:10_000,maxWrites:MAX_ITEMS});
 }
 
@@ -5623,7 +5724,7 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
       checkSourceEmissions(state.bound.plan.sourceEmissions,state.bound.plan.source);
     const loopRows=sourceLoops?.loops.reduce((sum,loop)=>sum+loop.maximum,0);
     const sourceRows=sourceLoops?.loops.reduce((sum,loop)=>sum+loop.maximum*(loop.handler===null?1:2),0);
-    const sourceCopy=sourceCopyDefinitionLimits(call.def as GeneratedOperationDef);
+    const sourceCopy=sourceBodyLoopLimits(call.def as GeneratedOperationDef)??sourceCopyDefinitionLimits(call.def as GeneratedOperationDef);
     const maxRows = loopRows===undefined ? extendedOwner ? 4_001 : sourceCopy?.maxRows??MAX_ITEMS : loopRows+1;
     if (!Number.isSafeInteger(bounds['maxRows']) || (bounds['maxRows'] as number) < 1 ||
         (bounds['maxRows'] as number) > maxRows ||
@@ -5823,13 +5924,14 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
       finalize: async () => {
         try {
           if (owner.computedIndex !== owner.computedDefaults.length) return invalid('generated handler omitted a required computed-default contribution.');
+          requireSourceBodyLoopsComplete(owner);
           const result = await ownerOperation(owner, () => session.finalize());
           const businessWrites = ownerMutationBusinessWrites(result);
-          const maximum=sourceCopyDefinitionLimits(call.def as GeneratedOperationDef)?.maxWrites??MAX_ITEMS;
+          const maximum=(sourceBodyLoopLimits(call.def as GeneratedOperationDef)??sourceCopyDefinitionLimits(call.def as GeneratedOperationDef))?.maxWrites??MAX_ITEMS;
           if (businessWrites.length > maximum) return invalid('changed snapshot budget exceeded.');
           // The actual seal must not alias mutable output from the ordinary
           // model pipeline; both consumer and retention receive this copy.
-          const dataBudget=Math.max(sourceCopyDataBudget(sourceCopyDefinitionLimits(call.def as GeneratedOperationDef)),
+          const dataBudget=Math.max(sourceCopyDataBudget(sourceBodyLoopLimits(call.def as GeneratedOperationDef)??sourceCopyDefinitionLimits(call.def as GeneratedOperationDef)),
             boundPlans.get(call.def as GeneratedOperationDef)?.plan.sourceEmissions===undefined?20_000:200_000);
           const finalized = deepFreeze(dataCopy({ ...result, writes: [...businessWrites],
             resolvedDefaults: finalizedDefaults(owner, result.resolvedDefaults) },false,dataBudget));
@@ -5911,7 +6013,9 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
       // The private result is a frozen one-field canonical wire; retaining
       // this exact object closes the copy boundary without mutable aliases.
       snapshot[key] = member.value;
-    } else snapshot[key] = dataCopy(member.value,false,key==='writes'
+    } else snapshot[key] = dataCopy(member.value,false,sourceBodyLoopLimits(call.def as GeneratedOperationDef)!==undefined
+      && ['writes','outbox','history','uniqueClaims','uniqueReleases','resolvedDefaults'].includes(key)
+      ? sourceCopyDataBudget(sourceBodyLoopLimits(call.def as GeneratedOperationDef)) : key==='writes'
       ? Math.max(boundPlans.get(call.def as GeneratedOperationDef)?.plan.sourceEmissions!==undefined?200_000:20_000,
         sourceCopyDataBudget(sourceCopyDefinitionLimits(call.def as GeneratedOperationDef))) : 20_000);
   }
@@ -5978,7 +6082,7 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
   if (state !== undefined && state.rowIdGuards.length !== 0) {
     if (state.rowIdWrites !== undefined) return invalid('row id effects were already captured.');
     state.rowIdWrites = deepFreeze(dataCopy(snapshot['writes'],false,Math.max(state.bound.plan.sourceEmissions===undefined?20_000:200_000,
-      sourceCopyDataBudget(sourceCopyDefinitionLimits(call.def as GeneratedOperationDef))))) as readonly DomainWrite[];
+      sourceCopyDataBudget(sourceBodyLoopLimits(call.def as GeneratedOperationDef)??sourceCopyDefinitionLimits(call.def as GeneratedOperationDef))))) as readonly DomainWrite[];
   }
   const guards = [...(owner?.callGuards ?? []), ...(captures.get(call)?.rowIdGuards ?? [])];
   if (guards.length !== 0) retainedCallGuards.set(call, Object.freeze(guards));
@@ -9710,7 +9814,7 @@ export interface ScenarioSourceSendDataSource {
   readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
   readonly node:{readonly start:number;readonly end:number};readonly operation:string;readonly binding:string;
   readonly parameters:readonly {readonly name:string;readonly model:ModelName;
-    readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identity?:readonly ('id'|'version')[]}[];
+    readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identity?:readonly ('id'|'version')[];readonly loop?:string}[];
   readonly queries?:readonly ScenarioSourceSendQuerySource[];
 }
 interface SourceSendDataProducer extends ScenarioReceiptReferenceProducer {readonly sites:readonly ScenarioSourceSendDataSource[];}
@@ -9755,9 +9859,10 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
     const parameters=list(site['parameters']);if(parameters.length===0)return invalid('SEND DATA needs its actual source root census.');
     const names=new Set<string>();
     for(const value of parameters){
-      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
+      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
       const input=bound.inputs.find(input=>input.name===name),declaration=bound.models.get(model);
-      if(names.has(name)||input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,name)||declaration===undefined){
+      const loop=Object.hasOwn(parameter,'loop')?sourceBodyLoopProducers.get(def)?.loops.find(loop=>loop.id===parameter['loop']):undefined;
+      if(names.has(name)||declaration===undefined||(Object.hasOwn(parameter,'loop')?loop?.item!==name||loop.model!==model||Object.hasOwn(parameter,'identity'):input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,name))){
         return invalid('SEND DATA needs an exact required singular original model parameter.');
       }
       names.add(name);const fields=list(parameter['fields']);
@@ -9819,16 +9924,20 @@ export async function executeScenarioSourceSendData(call:AdmittedCall,store:Stor
     const matches=producer?.sites.filter(source=>stableStringify(source)===stableStringify(claimed))??[];
     if(owner===undefined||owner.session===null||owner.framework===null||!state.bound.sourceRequireOnly||matches.length!==1||producer===undefined
         ||owner.busy||owner.capture.pending!==0||owner.executingCall!==call||sourceSendDataExecutions.has(owner)||sourceEmitDataExecutions.has(owner))return invalid('SEND DATA lacks its actual quiescent source owner.');
-    const source=matches[0]!,stage=owner.stage,ordinal=owner.framework.ordinal,key=`${source.node.start}:${source.node.end}`;
+    const source=matches[0]!,stage=owner.stage,ordinal=owner.framework.ordinal,key=`${source.node.start}:${source.node.end}:${source.parameters.some(parameter=>parameter.loop!==undefined)?sourceBodyLoopItems.get(owner)?.row.id??'unissued-loop':''}`;
     const consumed=consumedSourceSendData.get(call)??new Set<string>();consumedSourceSendData.set(call,consumed);
     if(consumed.has(key))return invalid('SEND DATA repeats its original source occurrence.');consumed.add(key);
     const rows:Record<string,ProjectedRecord>=Object.create(null);
     await ownerOperation(owner,async()=>{
       for(const parameter of source.parameters){
+        const item=parameter.loop===undefined?undefined:sourceBodyLoopItems.get(owner);
         const refs=call.recordRefs.filter(ref=>ref.param===parameter.name),ref=refs[0];
-        if(refs.length!==1||ref?.model!==parameter.model||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('SEND DATA lost its genuine versioned admitted root.');
-        const row=await owner.session!.views.final.get(parameter.model,ref.id);ownerHealthy(owner);
-        if(row===null||!sameModelLifetime(ref.row,row)||owner.stage!==stage)return invalid('SEND DATA source root lifetime changed.');
+        const original=parameter.loop===undefined?ref?.row:item?.row;
+        if(parameter.loop===undefined?(refs.length!==1||ref?.model!==parameter.model||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version):
+            item?.execution.loop.id!==parameter.loop||item.execution.loop.item!==parameter.name||item.execution.loop.model!==parameter.model){return invalid('SEND DATA lost its genuine admitted or selected-loop root.');}
+        if(original===undefined)return invalid('SEND DATA source root was not issued.');
+        const row=await owner.session!.views.final.get(parameter.model,original.id);ownerHealthy(owner);
+        if(row===null||!sameModelLifetime(original,row)||owner.stage!==stage)return invalid('SEND DATA source root lifetime changed.');
         const authority=await observeModelQuerySourceAuthority(call,store,owner,state,parameter.model,row,parameter.fields.map(field=>field.name),0,undefined,undefined,producer);
         rows[parameter.name]=authority.record;
       }
@@ -12892,7 +13001,7 @@ function verifyReferRejectEffects(call: AdmittedCall, decision: NonNullable<Capt
 }
 /** Invoke alone calls this after execution; no executor-supplied association is accepted. */
 export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffects): ScenarioReceiptAssociation | undefined {
-  const dataBudget=Math.max(sourceCopyDataBudget(sourceCopyDefinitionLimits(call.def as GeneratedOperationDef)),
+  const dataBudget=Math.max(sourceCopyDataBudget(sourceBodyLoopLimits(call.def as GeneratedOperationDef)??sourceCopyDefinitionLimits(call.def as GeneratedOperationDef)),
             boundPlans.get(call.def as GeneratedOperationDef)?.plan.sourceEmissions===undefined?20_000:200_000);
   let state = captures.get(call);
   const owner = ownerSessions.get(call); ownerSessions.delete(call);
@@ -12967,7 +13076,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
         }
       }
     }
-    if (owner.framework !== null && stableStringify(dataCopy(effects.outbox)) !== stableStringify(owner.commitEffects.outbox)) {
+    if (owner.framework !== null && stableStringify(dataCopy(effects.outbox,false,dataBudget)) !== stableStringify(owner.commitEffects.outbox)) {
       return invalid('executor outbox differs from its actual finalized framework effects.');
     }
     // Duplicate schedule keys use last-operation-wins semantics. An extra
@@ -13081,7 +13190,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   const intrinsicIds = new Set(returned.intrinsics?.map(dep => dep.id));
   const intrinsics = state.intrinsics.filter(entry => intrinsicIds.has(entry.dependencyId));
   if (returned.intrinsics?.some(dep => !intrinsics.some(entry => entry.dependencyId === dep.id))) return invalid('required intrinsic was not evaluated/captured.');
-  if (writes.length > (sourceCopyDefinitionLimits(call.def as GeneratedOperationDef)?.maxWrites ?? MAX_ITEMS)) return invalid('changed snapshot budget exceeded.');
+  if (writes.length > ((sourceBodyLoopLimits(call.def as GeneratedOperationDef)??sourceCopyDefinitionLimits(call.def as GeneratedOperationDef))?.maxWrites ?? MAX_ITEMS)) return invalid('changed snapshot budget exceeded.');
   const changed: ScenarioReceiptAssociation['changed'][number][] = [];
   const identities = new Set<string>();
   for (const write of writes) {

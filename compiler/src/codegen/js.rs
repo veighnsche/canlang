@@ -1706,7 +1706,7 @@ fn source_only_schedules(ir:&IrProgram,owner:&IrItem,context:&super::scenario_de
     let mut output=HashMap::new();walk(ir,owner,effects,&mut roots,&mut values,&source,module,context,&mut output);Some(output)
 }
 
-fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&HashMap<Span,serde_json::Value>,data_sends:&HashMap<Span,serde_json::Value>,cancels:&HashMap<Span,serde_json::Value>,schedules:&HashMap<Span,serde_json::Value>,data_emits:&HashMap<Span,serde_json::Value>,context:Option<&super::scenario_decisions::FreshSourceContext<'_>>) -> bool {
+fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&HashMap<Span,serde_json::Value>,data_sends:&HashMap<Span,serde_json::Value>,cancels:&HashMap<Span,serde_json::Value>,schedules:&HashMap<Span,serde_json::Value>,data_emits:&HashMap<Span,serde_json::Value>,loops:&HashMap<String,serde_json::Value>,context:Option<&super::scenario_decisions::FreshSourceContext<'_>>) -> bool {
     fn expression(ir: &IrProgram, value: &TypedExpr, depth: usize) -> bool {
         if depth > 64 { return false; }
         let child = |value: &TypedExpr| expression(ir, value, depth + 1);
@@ -1734,9 +1734,12 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
         }
     }
     fn statements(ir: &IrProgram,owner:&IrItem, body: &[IrStmt], depth: usize,
-        values:&mut BTreeSet<String>,records:&mut BTreeMap<String,ResolvedType>,consumed:&HashSet<Span>,data_sends:&HashMap<Span,serde_json::Value>,cancels:&HashMap<Span,serde_json::Value>,schedules:&HashMap<Span,serde_json::Value>,data_emits:&HashMap<Span,serde_json::Value>,context:Option<&super::scenario_decisions::FreshSourceContext<'_>>) -> bool {
+        values:&mut BTreeSet<String>,records:&mut BTreeMap<String,ResolvedType>,consumed:&HashSet<Span>,data_sends:&HashMap<Span,serde_json::Value>,cancels:&HashMap<Span,serde_json::Value>,schedules:&HashMap<Span,serde_json::Value>,data_emits:&HashMap<Span,serde_json::Value>,loops:&HashMap<String,serde_json::Value>,context:Option<&super::scenario_decisions::FreshSourceContext<'_>>) -> bool {
         if depth > 64 { return false; }
         body.iter().all(|statement| match statement {
+            IrStmt::For{span,body,..}=>loops.get(&owner.canonical).and_then(|source|source["loops"].as_array()).is_some_and(|entries|
+                entries.iter().any(|entry|entry["node"]["start"]==span.start&&entry["node"]["end"]==span.end))
+                &&statements(ir,owner,body,depth+1,&mut values.clone(),&mut records.clone(),consumed,data_sends,cancels,schedules,loops,context),
             IrStmt::Let { name,value,.. } => {
                 let pure=send_value(ir,value,values,0);
                 values.remove(name);
@@ -1754,9 +1757,9 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
             IrStmt::Delete { record, .. } | IrStmt::Transition { record, .. } => expression(ir, record, 0),
             IrStmt::Require { cond, .. } => consumed.contains(&cond.span) || expression(ir, cond, 0),
             IrStmt::If { cond, then_branch, else_branch, .. } => (consumed.contains(&cond.span)||expression(ir, cond, 0))
-                && statements(ir,owner, then_branch, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,cancels,schedules,data_emits,context) && statements(ir,owner, else_branch, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,cancels,schedules,data_emits,context),
+                && statements(ir,owner, then_branch, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,cancels,schedules,data_emits,loops,context) && statements(ir,owner, else_branch, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,cancels,schedules,data_emits,loops,context),
             IrStmt::Match { subject, arms, .. } => expression(ir, subject, 0)
-                && arms.iter().all(|arm| statements(ir,owner, &arm.body, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,cancels,schedules,data_emits,context)),
+                && arms.iter().all(|arm| statements(ir,owner, &arm.body, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,cancels,schedules,data_emits,loops,context)),
             _ => false,
         })
     }
@@ -1775,8 +1778,8 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
             if ir.items.get(symbol.0 as usize).is_some_and(|item|matches!(item.kind,IrItemKind::Model{..})))
             .then(||(param.name.clone(),ty.clone()))
     }).collect();
-    statements(ir,owner,guards,0,&mut values,&mut records,&consumed,data_sends,cancels,schedules,data_emits,context)
-        && statements(ir,owner,effects,0,&mut values,&mut records,&consumed,data_sends,cancels,schedules,data_emits,context)
+    statements(ir,owner,guards,0,&mut values,&mut records,&consumed,data_sends,cancels,schedules,data_emits,loops,context)
+        && statements(ir,owner,effects,0,&mut values,&mut records,&consumed,data_sends,cancels,schedules,data_emits,loops,context)
 }
 
 pub(super) fn emit_program_with_feasible_query_sources(
@@ -3090,14 +3093,11 @@ fn emit_program_with_sources(
         body.push(entry_span, Some("canScenarioQueryPredicateSource".into()),
             "const $can$query$predicates=new WeakMap();function $can$query$issue(marker,context,predicate){$can$query$predicates.set(predicate,{marker,context});return predicate;}export function canScenarioQueryPredicateSource(predicate){const issued=$can$query$predicates.get(predicate);return issued===undefined?null:{marker:JSON.parse(issued.marker),context:issued.context};}");
     }
-    if native_receipts && emitter.native_receipts.values().any(|receipt|receipt.plan.source_loops.is_some()) {
-        body.push(entry_span,Some("canScenarioSourceLoopSource".into()),
-            "const $can$loop$sources=new WeakMap();function $can$loop$issue(source,context,predicate){$can$loop$sources.set(predicate,{source,context});return predicate;}export function canScenarioSourceLoopSource(predicate){const issued=$can$loop$sources.get(predicate);return issued===undefined?null:{source:JSON.parse(issued.source),context:issued.context};}");
-    }
     if native_receipts && let Some(context)=decisions.source_context {
         for owner in &ir.items {
             if emitter.native_receipts.contains_key(&owner.id) {continue;}
-            if let Some(sends)=source_only_data_sends(ir,owner,context,&emitter.source_requires,&module_path(&entry_name)) {
+            if let Some(loops)=super::source_loops::collect(ir,owner,context,&emitter.source_requires,&module_path(&entry_name)){emitter.source_body_loops.insert(owner.canonical.clone(),loops);}
+            if let Some(sends)=source_only_data_sends(ir,owner,context,&emitter.source_requires,&module_path(&entry_name),emitter.source_body_loops.get(&owner.canonical)) {
                 emitter.source_data_sends.extend(sends);
             }
             if let Some(emits)=source_only_data_emits(ir,owner,context,&emitter.source_requires,&module_path(&entry_name)){emitter.source_data_emits.extend(emits);}
@@ -3106,6 +3106,15 @@ fn emit_program_with_sources(
             }
             if let Some(schedules)=source_only_schedules(ir,owner,context,&emitter.source_requires,&module_path(&entry_name)){emitter.source_schedules.extend(schedules);}
         }
+    }
+    if !emitter.source_body_loops.is_empty(){
+        let inventory:BTreeMap<_,_>=emitter.source_body_loops.iter().collect();
+        let payload=descriptor_json(&descriptor_json(&inventory));
+        body.push(entry_span,Some("canScenarioBodyLoopSources".into()),&format!("export function canScenarioBodyLoopSources(){{return JSON.parse({payload});}}"));
+    }
+    if native_receipts && (!emitter.source_body_loops.is_empty() || emitter.native_receipts.values().any(|receipt|receipt.plan.source_loops.is_some())) {
+        body.push(entry_span,Some("canScenarioSourceLoopSource".into()),
+            "const $can$loop$sources=new WeakMap();function $can$loop$issue(source,context,predicate){$can$loop$sources.set(predicate,{source,context});return predicate;}export function canScenarioSourceLoopSource(predicate){const issued=$can$loop$sources.get(predicate);return issued===undefined?null:{source:JSON.parse(issued.source),context:issued.context};}");
     }
     if !emitter.source_schedules.is_empty(){
         let mut inventory:BTreeMap<String,Vec<serde_json::Value>>=BTreeMap::new();
@@ -3249,7 +3258,7 @@ fn emit_program_with_sources(
                 // Public parameter-style source guards bind a decision-only
                 // State frame from this verified inventory. Private handlers
                 // still need their independently admitted retained frame.
-                && !source_require_only_body_supported(ir, item,&emitter.source_requires,&emitter.source_data_sends,&emitter.source_cancels,&emitter.source_schedules,&emitter.source_data_emits,decisions.source_context)
+                && !source_require_only_body_supported(ir, item,&emitter.source_requires,&emitter.source_data_sends,&emitter.source_cancels,&emitter.source_schedules,&emitter.source_data_emits,&emitter.source_body_loops,decisions.source_context)
                 && emitter.source_requires.values().any(|source| source["owner"] == item.canonical)
                 && !emitter.diags.iter().any(|diagnostic| diagnostic.primary == item.span
                     && diagnostic.severity == crate::diagnostic::Severity::Error)
@@ -4985,6 +4994,7 @@ pub struct Emitter<'a> {
     source_requires: HashMap<Span, serde_json::Value>,
     source_data_sends: HashMap<Span, serde_json::Value>,
     source_data_emits: HashMap<Span, serde_json::Value>,
+    source_body_loops: HashMap<String, serde_json::Value>,
     source_cancels: HashMap<Span, serde_json::Value>,
     source_schedules: HashMap<Span, serde_json::Value>,
     source_require_identity: Option<serde_json::Value>,
@@ -5235,6 +5245,7 @@ impl<'a> Emitter<'a> {
             source_requires: HashMap::new(),
             source_data_sends: HashMap::new(),
             source_data_emits: HashMap::new(),
+            source_body_loops: HashMap::new(),
             source_cancels: HashMap::new(),
             source_schedules: HashMap::new(),
             source_require_identity: None,
@@ -13302,7 +13313,10 @@ fn null_equality(
             } => {
                 let source_loop = self.receipt_capture.as_ref().and_then(|receipt|receipt.plan.source_loops.as_ref().or(receipt.plan.source_emissions.as_ref()))
                     .and_then(|source|source["loops"].as_array().and_then(|loops|loops.iter().find(|loop_|
-                        loop_["node"]["start"]==span.start && loop_["node"]["end"]==span.end).map(|loop_|(source.clone(),loop_.clone()))));
+                        loop_["node"]["start"]==span.start && loop_["node"]["end"]==span.end).map(|loop_|(source.clone(),loop_.clone()))))
+                    .or_else(||self.source_body_loops.values().find_map(|source|source["loops"].as_array()?.iter().find(|entry|
+                        entry["node"]["start"]==span.start&&entry["node"]["end"]==span.end).map(|entry|(source.clone(),entry.clone()))));
+                let body_loop=source_loop.as_ref().filter(|(_,entry)|entry.get("item").is_some()).cloned();
                 let copy_loop=source_loop.as_ref().filter(|(_,loop_)|loop_.get("copy").is_some()).cloned();
                 let domain_text = if let Some((source,loop_)) = source_loop {
                     let parent = self.reference(loop_["parameter"].as_str().expect("checked loop parameter"));
@@ -13371,7 +13385,13 @@ fn null_equality(
                     }
                 }
                 lines.push((format!("{pad}for (const {item} of {over}) {{"), *span));
-                if let Some((source,loop_))=copy_loop{
+                if let Some((source,loop_))=body_loop{
+                    self.stdlib.insert("nativeScenarioSourceLoopItem".into());
+                    let marker=descriptor_json(&descriptor_json(&serde_json::json!({"source":source["source"],"owner":source["owner"],"loop":loop_,"phase":"item"})));
+                    lines.push((format!("{pad}  await nativeScenarioSourceLoopItem(c,{},{item},$can$loop$issue({marker},c,async()=>{{",descriptor_json(&loop_["id"])),*span));
+                    for stmt in body{lines.extend(self.lower_stmt(stmt,indent+2));}
+                    lines.push((format!("{pad}  }}));"),*span));
+                }else if let Some((source,loop_))=copy_loop{
                     self.stdlib.insert("nativeScenarioSourceLoopCopy".into());
                     let parent=self.reference(loop_["copy"]["parent"].as_str().expect("checked copy parent"));
                     let marker=descriptor_json(&descriptor_json(&serde_json::json!({"source":source["source"],"owner":source["owner"],"loop":loop_})));

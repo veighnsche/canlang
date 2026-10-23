@@ -252,6 +252,17 @@ export async function nativeScenarioSourceLoop(context:unknown,id:string,parent:
   return read(id,parent,predicate);
 }
 
+type SourceLoopItem=(id:string,item:unknown,body:Function)=>Promise<void>;
+const sourceLoopItems=new WeakMap<object,SourceLoopItem>();
+export function bindNativeScenarioSourceLoopItem(context:object,execute:SourceLoopItem):void{
+  if(sourceLoopItems.has(context))throw new StateError('validation','Source loop item cannot be rebound.');sourceLoopItems.set(context,execute);
+}
+export async function nativeScenarioSourceLoopItem(context:unknown,id:string,item:unknown,body:Function):Promise<void>{
+  const execute=typeof context==='object'&&context!==null?sourceLoopItems.get(context):undefined;
+  if(execute===undefined||typeof body!=='function')throw new StateError('validation','Source loop item needs its actual original installed execution.');
+  return execute(id,item,body);
+}
+
 /** One checked original copy constructor inside its actual issued loop item. */
 type SourceLoopCopy=(id:string,item:unknown,parent:unknown,body:Function)=>Promise<void>;
 const sourceLoopCopies=new WeakMap<object,SourceLoopCopy>();

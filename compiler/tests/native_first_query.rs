@@ -2508,3 +2508,50 @@ fn original_helper_parent_reference_keeps_containment_and_field_identity() {
   assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),"$can$m$48656c7065724964656e74697479.mjs").is_none(),"{mode}");
  }
 }
+
+#[test]
+fn contained_cancel_loop_preserves_original_domain_work_and_delivery_carrier() {
+    use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+    let full=include_str!("../../packages/cloudflare/test/fixtures/invoice-credit-loop-source.can");
+    let source=format!("{}{}",&full[..full.find("  scenario collected on=").unwrap()],&full[full.find("  scenario cancel_pending(").unwrap()..]);
+    let source=source.lines().filter(|line|!line.starts_with("  derive first_paid_invoice(")).collect::<Vec<_>>().join("\n");
+    let source=source.as_str();
+    let (db,program,ir,catalog)=fixture_source("invoice-credit-loop-source.can",source);
+    let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);
+    assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let owner=item(&ir,"invoice.cancel_pending");
+    assert!(serialize_decision_sources(&program,&ir,owner,&db,Some(&catalog)).is_some());
+    let code=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str()).collect::<Vec<_>>().join("\n");
+    assert!(code.contains("canScenarioBodyLoopSources"));assert!(code.contains("nativeScenarioSourceLoopItem"));
+    assert!(code.contains("nativeScenarioSourceSendData"));
+    for mode in ["bound","parent","filter","target","operation","binding","create-parent","carrier"]{
+        let mut changed=ir.clone();
+        {
+            let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("scenario");};
+            let IrStmt::For{domain,limit:Some(limit),body,..}=&mut effects[0] else{panic!("loop");};
+            match mode{
+                "bound"=>limit.expr=IrExpr::Int(101),
+                "parent"|"filter"=>{let IrExpr::Query(query)=&mut domain.expr else{panic!("query");};
+                    if mode=="parent"{query.parent.as_mut().unwrap().expr=IrExpr::Name("foreign".into());}
+                    else{query.where_pred.as_mut().unwrap().expr=IrExpr::Bool(true);}},
+                "target"=>{let IrStmt::Set{record,..}=&mut body[0] else{panic!("set");};record.expr=IrExpr::Name("invoice".into());},
+                "operation"|"binding"=>{let IrStmt::Send{operation,deployment_binding,..}=&mut body[1] else{panic!("send");};
+                    if mode=="operation"{*operation="std.PaymentsV1.refund".into();}else{*deployment_binding=Some("foreign.payments".into());}},
+                "create-parent"|"carrier"=>{let IrStmt::Create{input,..}=&mut body[2] else{panic!("create");};let IrExpr::Object(fields)=&mut input.expr else{panic!("object");};
+                    let field=if mode=="carrier"{"cancellation"}else{"parent"};
+                    fields.iter_mut().find(|(name,_)|name==field).unwrap().1.expr=IrExpr::Name("foreign".into());},
+                _=>unreachable!(),
+            }
+        }
+        assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode}");
+    }
+    for(name,changed)in[
+        ("oversized",source.replace("in [pending,unknown] limit=100\n     set attempt", "in [pending,unknown] limit=201\n     set attempt")),
+        ("global",source.replace("for attempt in invoice.Attempt as candidate", "for attempt in Attempt as candidate")),
+        ("data-alias",source.replace("send Payments.cancel {reference=attempt.reference}","let alias=attempt\n     send Payments.cancel {reference=alias.reference}")),
+    ]{
+        let (db,program,_,catalog)=fixture_source(&format!("{name}.can"),&changed);
+        let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+        assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
+    }
+}
