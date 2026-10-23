@@ -2730,3 +2730,24 @@ fn affiliate_scalar_let_and_created_schedule_keep_exact_original_source() {
         }else{assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode} retained source authority");}
     }
 }
+
+#[test]
+fn original_no_show_retains_required_event_identity_and_complete_created_tail() {
+ use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+ let source=include_str!("fixtures/rent-original-emission.can");
+ let(db,program,ir,catalog)=fixture_source("rent-original-emission.can",source);
+ let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let owner=item(&ir,"rent_reservations.no_show");assert!(matches!(ir.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)));
+ assert!(serialize_decision_sources(&program,&ir,owner,&db,Some(&catalog)).is_some());
+ for mode in ["emitted-root","revision","effect-order","event-type"]{
+  let mut changed=ir.clone();
+  if mode=="event-type"{let field=item(&changed,"rent_reservations.ReservationChanged.booking").id;let IrItemKind::Field{ty,..}=&mut changed.items[field.0 as usize].kind else{panic!("field")};*ty=IrType::Known(ResolvedType::Scalar(Scalar::Text));}
+  else{let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("owner")};
+   if mode=="effect-order"{effects.swap(0,3);}else{let IrStmt::Emit{payload,..}=&mut effects[3] else{panic!("emit")};let IrExpr::Object(fields)=&mut payload.expr else{panic!("payload")};if mode=="emitted-root"{fields[0].1.expr=IrExpr::Name("foreign".into());}else{fields[1].1.expr=IrExpr::Int(999);}}
+  }
+  let emitted=js::emit_program_with_native_source_receipts(&changed,true,&db);assert!(emitted.diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {:?}",emitted.diagnostics);
+ }
+ for altered in [source.replace("emit ReservationChanged {booking,revision=booking.version+1}","let copied=booking\n    emit ReservationChanged {booking=copied,revision=booking.version+1}")]{
+  let(db,program,_,catalog)=fixture_source("different-root-event.can",&altered);let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{diagnostics:?}");
+ }
+}

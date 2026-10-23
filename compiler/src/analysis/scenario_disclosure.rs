@@ -26784,6 +26784,35 @@ impl<'a> Closure<'a> {
                 Some(())
             }
 
+            /// Retain only an original singular required scenario argument in an
+            /// exactly nominal owning Event field. This carries identity only;
+            /// it grants neither a row/field read nor an arbitrary Model value.
+            fn external_effect_parameter_reference(&self,effect:&Effect,event:SymbolId,
+                module:ModuleId,argument:&super::effects::EffectArg,key:NodeKey,value:&ValuePath)->Option<()> {
+                if !matches!(effect.verb,EffectVerb::Emit|EffectVerb::Schedule){return None;}
+                let Some(ReferenceOrigin::Parameter(parameter))=value.reference_origin else{return None;};
+                let model=value.record?;
+                if value.first_query.is_some()||value.model_result.is_some()||value.delivery.is_some()
+                    ||value.members.is_some()||value.query_child.is_some()
+                    ||!matches!(self.query_binding(key),Some(Binding::Symbol(actual))if *actual==parameter)
+                    ||!(self.original_reference_parameter(key,parameter)
+                        ||argument.value.is_none()&&key==argument.key_node
+                            &&self.nodes.get(&key).is_some_and(|node|node.kind==SyntaxKind::Name
+                                &&self.word(node)==Some(argument.key.as_str()))){return None;}
+                let SymbolKind::Param{owner,..}=self.resolve.symbols.get(parameter.0 as usize)?.kind else{return None;};
+                let scenario=self.effects.scenarios.get(&owner)?;
+                let input=scenario.params.iter().find(|input|input.param==parameter)?;
+                if scenario.module!=module||input.default.is_some()
+                    ||self.types.symbol_types.get(&parameter)!=Some(&ResolvedType::Record{symbol:model,stored:true}){return None;}
+                let declaration=self.resolve.symbols.get(event.0 as usize)?;
+                let SymbolKind::Event{fields}=&declaration.kind else{return None;};
+                if declaration.module!=module{return None;}
+                let field=fields.iter().find(|field|self.resolve.symbols.get(field.0 as usize)
+                    .is_some_and(|field|field.name==argument.key))?;
+                (self.types.symbol_types.get(field)==self.types.symbol_types.get(&parameter)
+                    &&self.types.node_types.get(&key)==self.types.symbol_types.get(&parameter)).then_some(())
+            }
+
             /// An EMIT or SCHEDULE may carry its original owning CREATE binding. The
             /// checked lexical value supplies dominance; exact CreateAs/source
             /// facts pin identity. No caller-supplied or copied row qualifies.
@@ -26847,6 +26876,7 @@ impl<'a> Closure<'a> {
                         || value.record.is_some() && event.is_none_or(|event| {
                             (effect.verb != EffectVerb::Emit
                                 || self.external_effect_parent_reference(event, module, argument, key, value).is_none())
+                                && self.external_effect_parameter_reference(effect,event,module,argument,key,value).is_none()
                                 && self.external_effect_created_reference(effect, event, module, argument, key, value).is_none()
                                 && (effect.verb != EffectVerb::Emit
                                     || !self.external_effect_loop_reference(event,argument,key,value))

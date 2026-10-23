@@ -16160,7 +16160,7 @@ fn source_owned_void_create(context: &super::scenario_decisions::FreshSourceCont
     fn closed(body:&[IrStmt],depth:usize)->bool {
         depth<64 && body.iter().all(|statement|match statement {
             IrStmt::Let{..}|IrStmt::Require{..}|IrStmt::Set{when:None,..}
-                |IrStmt::Send{binding:Some(_),..}=>true,
+                |IrStmt::Send{binding:Some(_),..}|IrStmt::Emit{..}=>true,
             IrStmt::If{then_branch,else_branch,..}=>closed(then_branch,depth+1)&&closed(else_branch,depth+1),
             IrStmt::Create{binding:Some(_),when:None,..}=>depth==0,
             _=>false,
