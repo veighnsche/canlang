@@ -34,7 +34,7 @@ it('runs the original obligation due Rule with its current Term and Agreement an
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
       const artifact = JSON.parse(stdout) as CompileArtifact;
       const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
-        stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+        stdlibUrl: new URL('./stdlib.js',import.meta.url).href,
         uiUrl: import.meta.resolve('@canlang/ui') });
       assert.ok((artifact.modules[0]?.js ?? '').includes('sendWhen:'), 'the original handler Rule is emitted');
 
