@@ -113,6 +113,7 @@
     "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/cloudflare",
     "build:emit": "tsc -p tsconfig.json && node scripts/build-soda-host.mjs && node scripts/emit-native-catalog.mjs && chmod +x dist/cli/soda.js dist/cli/platform.js",
     "typecheck:check": "tsc --noEmit -p tsconfig.json",
+    "test:integration": "node --test test/*.integration.mjs",
     "test:runtime": "cd ../.. && node --test \"packages/cloudflare/dist/**/*.test.js\"",
     "build:prepare": "node ../../scripts/build-package.mjs --prepare",
     "preparation:build": "node scripts/build-preparation.mjs",

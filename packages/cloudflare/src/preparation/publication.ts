@@ -12,8 +12,9 @@
  *   never followed: any symlink in a target's parent chain, or a
  *   symlink at the target itself, refuses naming the offender.
  * - Reviewed bytes: `stage()` records exact byte lengths + sha256;
- *   `verifyReviewed()` re-checks staged bytes against the retained
- *   reviewed buffers before anything may publish.
+ *   `verifyReviewed()` matches that identity to the retained reviewed
+ *   buffers; `publish()` checks the actual consumed buffer against
+ *   that identity immediately before passing it to the writer.
  * - Preview policy: preview sessions may stage (private, verified,
  *   always cleaned up) but `publish()` throws — no deployment file
  *   publication, enforced in code, not convention.
@@ -80,7 +81,7 @@ function toBytes(bytes: Uint8Array | string): Uint8Array {
 export class PublicationError extends Error {
   /** Files already on disk when the failure happened (may be partial). */
   readonly written: string[];
-  /** Files never attempted (in publish order, after `written`). */
+  /** Files not confirmed written, including the failing file (in publish order). */
   readonly pending: string[];
   constructor(message: string, written: string[] = [], pending: string[] = []) {
     super(message);
@@ -248,9 +249,9 @@ export class PublicationSession {
   }
 
   /**
-   * Re-check staged bytes against the retained reviewed buffers:
-   * same keys, same byte lengths, same sha256. Any drift (caller
-   * mutation, disk aliasing, partial staging) refuses loudly.
+   * Match the recorded stage identity against retained reviewed buffers:
+   * same keys, same byte lengths, same sha256. Publication separately
+   * checks the bytes it consumes from disk against this identity.
    */
   verifyReviewed(staged: StagedRecord[], reviewed: ReviewedBuffer[]): void {
     this.assertLive();
@@ -274,7 +275,7 @@ export class PublicationSession {
   /**
    * Publish staged records to `destDir` (confirmed sessions only).
    * Files land in order via `writer` (default: the current
-   * mkdir+write sequence over re-read staged bytes); a failure
+   * mkdir+write sequence over re-read and identity-checked bytes); a failure
    * throws with honest `written` vs `pending` lists — partial
    * publication is reported, never hidden, and never claimed atomic.
    */
@@ -297,7 +298,13 @@ export class PublicationSession {
       const absolutePath = join(root, record.relativePath);
       try {
         assertNoSymlinkEscape(root, absolutePath, `publish ${JSON.stringify(record.relativePath)}`);
-        writer(absolutePath, readStagedBytes(record.absolutePath));
+        const bytes = readFileSync(record.absolutePath);
+        if (bytes.length !== record.byteLength || sha256Hex(bytes) !== record.sha256) {
+          throw new PublicationError(
+            `publication: staged bytes drifted from reviewed identity: ${JSON.stringify(record.relativePath)}`,
+          );
+        }
+        writer(absolutePath, bytes);
       } catch (error) {
         throw new PublicationError(
           `publication: publish failed at ${JSON.stringify(record.relativePath)}: ` +
@@ -319,12 +326,6 @@ export class PublicationSession {
       rmSync(this.root, { force: true, recursive: true });
     }
   }
-}
-
-function readStagedBytes(absolutePath: string): Uint8Array {
-  // Staged bytes are re-read (not cached) so disk drift fails loudly
-  // at publish time rather than shipping stale records.
-  return readFileSync(absolutePath);
 }
 
 /**
