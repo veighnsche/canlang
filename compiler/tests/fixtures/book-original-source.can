@@ -51,6 +51,8 @@ package rent_reservations
  When
  Then
 package appointments
+ use std {DeliveryResult}
+ use std {EmailV1 as Mail} from=deployment.mail
  use rent_catalog {Location,is_open}
  use customer {Customer,Contact}
  use employee {Employee,can_work}
@@ -72,6 +74,10 @@ package appointments
   invariant Window: row.from<row.until
   invariant Appointment: row.from<row.until and row.until-row.from==row.duration and row.contact.parent==row.customer
   lock Appointment fields=customer,contact,duration,source,host,room_snapshot,reservation_account
+  Notice in Appointment { kind:enum(confirmation,reminder) label={text="Notice kind"@{nl="Berichtsoort"},values={confirmation="Confirmation"@{nl="Bevestiging"},reminder="Reminder"@{nl="Herinnering"}}}, source:text, delivery:delivery(Mail.send)? } label="Appointment notice delivery"@{nl="Verzending afspraakbericht"}
+  derive Notice.state:DeliveryResult.status? = row.delivery?.status label={text="Delivery"@{nl="Verzending"},values={pending="Pending"@{nl="In behandeling"},succeeded="Delivered"@{nl="Afgeleverd"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"},skipped="Skipped"@{nl="Overgeslagen"}}}
+  event AttemptProgress {attempt:Attempt}
+  event Reminder {appointment:Appointment,revision:int}
   message label_Calendar_host = "Host"@{nl="Gastheer"}
   message label_Window_from = "From"@{nl="Vanaf"}
   message label_Window_until = "Until"@{nl="Tot"}
@@ -147,4 +153,43 @@ package appointments
      set appointment {state=attended,reason,reason_code=null}
     else
      set appointment {state=no_show,reason,reason_code=null}
+  scenario cleanup on=AttemptProgress
+   do
+    let attempt=event.attempt
+    if attempt.state in [failed,cancelled,retired]
+     if not attempt.host_released and attempt.host_release==null
+      send StaffSchedule.release {source=attempt.source,revision=attempt.host_revision} as release
+      set attempt {host_release=release.id}
+     if not attempt.room_released and attempt.room_release==null
+      require attempt.parent.room_snapshot!=null
+      send Rooms.release {source=attempt.source,resource=attempt.parent.room_snapshot,reason="Appointment resource cleanup"} as release
+      set attempt {room_release=release.id}
+     if attempt.host_released and attempt.room_released
+      set attempt {state=released}
+  scenario recover_attempt(attempt:Attempt) by=authenticated or host_manager label="Resume reservation follow-up"@{nl="Reserveringsopvolging hervatten"}
+   require (attempt.parent.contact.account==actor and attempt.parent.contact.verified) or (host_manager and can_work(actor,attempt.parent.parent.parent.location))
+   do emit AttemptProgress {attempt}
+  scenario ready on=AttemptProgress
+   do
+    let attempt=event.attempt
+    if attempt.state==pending and attempt.host_ok and attempt.room_ok and not attempt.host_unknown and not attempt.room_unknown
+     let appointment=attempt.parent
+     if (attempt.kind==initial and appointment.state==pending) or (attempt.kind==movement and appointment.state in [confirmed,unavailable] and appointment.active_source==attempt.previous_source)
+      if attempt.previous_source!=null
+       for previous in appointment.Attempt as item where item.source==attempt.previous_source and item.state==active limit=1
+        set previous {state=retired}
+      cancel appointment.id
+      set appointment {from=attempt.from,until=attempt.until,active_source=attempt.source,state=confirmed,host_ok=true,room_ok=true,host_delivery=attempt.host_delivery,room_delivery=attempt.room_delivery,reason=null,reason_code=null}
+      set attempt {state=active}
+      send Mail.send {to=appointment.contact.email,subject=format("Appointment confirmed"@{nl="Afspraak bevestigd"},locale=null),body=appointment.parent.parent.instructions} when=appointment.state==confirmed and appointment.active_source==attempt.source as confirmed_notice
+      create Notice {parent=appointment,kind=confirmation,source=attempt.source,delivery=confirmed_notice} as notice
+      if appointment.from>now+1h
+       schedule appointment.id at=appointment.from-1h event=Reminder {appointment,revision=appointment.version+1}
+     else
+      set attempt {state=cancelled}
+  scenario remind on=Reminder
+   require event.appointment.state==confirmed and event.appointment.version==event.revision
+   do
+    send Mail.send {to=event.appointment.contact.email,subject=format("Appointment reminder"@{nl="Afspraakherinnering"},locale=null),body=event.appointment.parent.parent.instructions} when=event.appointment.state==confirmed and event.appointment.version==event.revision as delivery
+    create Notice {parent=event.appointment,kind=reminder,source=event.appointment.active_source,delivery} as notice
  Then

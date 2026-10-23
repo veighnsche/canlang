@@ -6313,8 +6313,8 @@ function bindSourceReadMembership(loaded: LoadedCanonicalDescriptors,
 
 async function originalAppForOperation(asm: AssembledModules, artifact: CompileArtifact,
   def: GeneratedOperationDef): Promise<string> {
-  const plan = def.descriptor.result?.disclosure;
-  const callable = artifact.callables.find(value => value.kind === 'operation' && value.id === def.name && value.module === plan?.source.module);
+  const source = def.descriptor.result?.disclosure?.source ?? sourceRequireFrames.get(def);
+  const callable = artifact.callables.find(value => value.kind === 'operation' && value.id === def.name && value.module === source?.module);
   if (callable === undefined) throw new AssemblyCorrespondenceError('Membership owner lacks its checked callable/source.');
   const imported = await importVerifiedAssemblyModule(asm, callable.module, artifact);
   const definition = readMetadataMember(imported as object, 'appDefinition', 'Membership owner')?.value;
@@ -11480,7 +11480,13 @@ async function runScenarioExecution(
           for (const input of selected.guard.inputs) {
             const value = localPolicyMember(raw, input.name);
             if (sendSnapshots?.has(input.type)) {
-              const binding = isUnknownRecord(value) ? recordBindings.get(value) : undefined;
+              const issued = isUnknownRecord(value) ? recordBindings.get(value) : undefined;
+              // A retained original lexical may be a required stored-parent
+              // identity rather than a hydrated recordView. Consume only an
+              // already-read current owner row; this opens no public SEND port
+              // and performs no extra source expression or ancestry read.
+              const reference = internalRetainedGuarded ? nativeRecordReference(value) : undefined;
+              const binding = issued ?? (reference?.model === input.type ? reference : undefined);
               const row = binding === undefined ? undefined : ownerRows.get(stagedKey(binding.model, binding.id));
               if (binding?.model !== input.type || row == null) {
                 return refuseRecordBinding('SEND model lexical requires its original native binding and current owner-stage row.');

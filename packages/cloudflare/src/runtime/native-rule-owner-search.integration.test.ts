@@ -1892,3 +1892,110 @@ it('authorizes original SEND scalar DATA with independent current field projecti
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+
+it('runs original appointment ready and cleanup from genuine retained progress Work',
+  {timeout:180000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-book-progress-'));
+    try{
+      const source=join(root,'compiler/tests/fixtures/book-original-source.can');
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact;
+      const asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      for(const mode of ['initial','movement','waiting','current-row','newer','cancelled','host-released','already-releasing','all-released','missing-room','ref-substitution','stale-source','body-race']){
+        const {now,identities,identity,user:actor,membership}=await member('book-progress-'+mode);
+        const scope={app:'BookOriginalProbe',owner:membership.team_id,ownerPackage:'appointments'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'book-progress-state',fileStoreId:'book-progress-files',receiver:{app:scope.app,owner:scope.owner,team:scope.owner}};
+        const {store,probe}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(scope.owner));}});
+        const row=(model:string,id:string,data:Record<string,unknown>,parent:{model:ModelName;id:ReturnType<typeof asId>}|null=null)=>({kind:'insert' as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
+        const calendar={model:asModel('appointments.Calendar'),id:asId('calendar')},type={model:asModel('appointments.Type'),id:asId('type')},visit={model:asModel('appointments.Appointment'),id:asId('visit')};
+        const candidate={source:'candidate',kind:mode==='initial'?'initial':'movement',from:'2099-01-01T10:00:00.000Z',until:'2099-01-01T10:30:00.000Z',previous_source:mode==='initial'?null:'original',previous_host_revision:'3',previous_room_revision:'5',requested_by:{id:actor.user_id},state:['cancelled','host-released','already-releasing','all-released','missing-room'].includes(mode)?'cancelled':'pending',host_ok:mode!=='waiting',room_ok:true,host_unknown:false,room_unknown:false,host_revision:'1',room_revision:'1',host_delivery:'candidate-host',room_delivery:'candidate-room',room_confirmation:null,host_release:mode==='already-releasing'?'held-host-release':null,room_release:mode==='already-releasing'?'held-room-release':null,host_released:['host-released','all-released'].includes(mode),room_released:mode==='all-released'};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          row('rent_catalog.Location','site',{active:true,timezone:'UTC'}),
+          row('employee.Employee','host',{user:{id:actor.user_id},active:true,operator_wide:false,home:{id:'site'},locations:[]}),
+          row('customer.Customer','customer',{active:true,locations:[{id:'site'}],name:'Customer'}),
+          row('customer.Contact','contact',{account:{id:actor.user_id},verified:true,email:'customer@example.test',name:'Contact'},{model:asModel('customer.Customer'),id:asId('customer')}),
+          row('appointments.Calendar','calendar',{location:{id:'site'},host:{id:'host'},timezone:'UTC',duration:'1800000',hours:'9-18',instructions:'Reception',cutoff:'3600000',active:true}),
+          row('appointments.Type','type',{name:'Tour',duration:'1800000',room:'room-1'},calendar),
+          row('appointments.Appointment','visit',{customer:{id:'customer'},contact:{id:'contact'},from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T09:30:00.000Z',duration:'1800000',source:'original',active_source:mode==='newer'?'newer':'original',host:{id:actor.user_id},reservation_account:{id:actor.user_id},room_snapshot:mode==='missing-room'?null:'room-1',state:mode==='initial'?'pending':'confirmed',host_ok:true,room_ok:true,host_delivery:'original-host',room_delivery:'original-room',reason:null,reason_code:null},type),
+          row('appointments.Attempt','candidate',candidate,visit),
+          row('appointments.Attempt','previous',{...candidate,source:'original',kind:'initial',state:'active',host_revision:'3',room_revision:'5'},visit)
+        ]}));
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const request={operation:'appointments.recover_attempt',operation_id:operationId(now),inputs:{attempt:{id:'candidate',version:'1'}}};
+        const emitted=await invoker.invokeMutation(request,identity);assert.ok('result'in emitted,mode+': '+JSON.stringify(emitted));
+        const sources=await store.query({model:asModel('work.occurrence'),authority:'owner'});
+        const progress=sources.find(row=>(row.data['result'] as {event?:string}|undefined)?.event==='appointments.AttemptProgress');assert.ok(progress);
+        const deliver=(handler:string)=>invokeRetainedHandlerOccurrenceCanonical({asm,artifact,app:scope.app,store,identities,now:()=>now+1,
+          selector:{scope,event:'appointments.AttemptProgress',sourceOccurrence:progress.id,handler:'appointments.'+handler}});
+        if(mode==='current-row'){
+          const current=await store.load(asModel('appointments.Attempt'),asId('candidate'));assert.ok(current);
+          await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('appointments.Attempt'),id:current.id,expectedVersion:current.version,row:{...current,version:asVersion(current.version+1),data:{...current.data,host_ok:false}}}]}));
+        }
+        if(mode==='ref-substitution'){
+          const result=progress.data['result'] as Record<string,unknown>;
+          await assert.rejects(async()=>store.commit(makeBatch(await store.readRevision(),{writes:[{
+            kind:'update',model:asModel('work.occurrence'),id:progress.id,expectedVersion:progress.version,
+            row:{...progress,version:asVersion(progress.version+1),data:{...progress.data,
+              result:{...result,payload:{attempt:{id:'previous',version:'1'}}}}}
+          }]})));
+          assert.deepEqual(await store.load(asModel('work.occurrence'),progress.id),progress,'opaque Work source forbids another admitted Model identity');
+        }
+        if(mode==='waiting'){
+          const load=store.load.bind(store);
+          store.load=async(model,id)=>{assert.notEqual(model,asModel('customer.Contact'),'false prefix avoids Contact ancestry');return load(model,id);};
+        }
+        let raced=false;
+        if(mode==='stale-source'||mode==='body-race'){
+          const commit=store.commit.bind(store);
+          store.commit=async batch=>{
+            if(batch.writes.some(write=>write.model==='appointments.Appointment')){
+              raced=true;
+              const model=asModel(mode==='stale-source'?'work.occurrence':'appointments.Calendar');
+              const current=await store.load(model,mode==='stale-source'?progress.id:asId('calendar'));assert.ok(current);
+              await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model,id:current.id,expectedVersion:current.version,row:{...current,version:asVersion(current.version+1),data:mode==='body-race'?{...current.data,instructions:'Changed '+current.version}:current.data}}]}));
+            }
+            return commit(batch);
+          };
+        }
+        const ready=await deliver('ready').catch(error=>({status:'rejected',error}));
+        if(mode==='stale-source'||mode==='body-race'){
+          assert.equal(raced,true,mode);assert.notEqual((ready as {status:string}).status,'completed',mode);
+          assert.equal((await store.load(asModel('appointments.Appointment'),asId('visit')))?.version,1);
+          assert.equal((await store.load(asModel('appointments.Attempt'),asId('candidate')))?.data['state'],'pending');
+          assert.equal((await store.query({model:asModel('appointments.Notice'),authority:'owner'})).length,0);
+          assert.equal(probe.outboxAll().length,0);continue;
+        }
+        assert.equal((ready as {status:string}).status,'completed',mode+': '+JSON.stringify(ready));
+        assert.equal((await deliver('ready') as {status:string}).status,'replayed');
+        const cleanup=await deliver('cleanup').catch(error=>({status:'rejected',error}));
+        if(mode==='missing-room'){
+          assert.notEqual((cleanup as {status:string}).status,'completed');
+          assert.equal((await store.load(asModel('appointments.Attempt'),asId('candidate')))?.data['host_release'],null);
+          assert.equal(probe.outboxAll().length,0,'later authored Room Require rolls back the preceding host release');continue;
+        }
+        assert.equal((cleanup as {status:string}).status,'completed',mode+': '+JSON.stringify(cleanup));
+        assert.equal((await deliver('cleanup') as {status:string}).status,'replayed');
+        const accepted=['initial','movement','ref-substitution'].includes(mode);
+        const current=await store.load(asModel('appointments.Appointment'),asId('visit'));assert.ok(current);
+        assert.equal(current.data['from'],accepted?candidate.from:'2099-01-01T09:00:00.000Z',mode);
+        const currentAttempt=await store.load(asModel('appointments.Attempt'),asId('candidate'));assert.ok(currentAttempt);
+        assert.equal(currentAttempt.data['state'],accepted?'active':['waiting','current-row'].includes(mode)?'pending':mode==='all-released'?'released':'cancelled',mode);
+        const previous=await store.load(asModel('appointments.Attempt'),asId('previous'));assert.ok(previous);
+        assert.equal(previous.data['state'],mode==='movement'||mode==='ref-substitution'?'retired':'active');
+        const notices=await store.query({model:asModel('appointments.Notice'),authority:'owner'});assert.equal(notices.length,accepted?1:0);
+        const intents=probe.outboxAll();assert.equal(intents.length,accepted?1:['waiting','current-row','already-releasing','all-released'].includes(mode)?0:mode==='host-released'?1:2,mode);
+        if(accepted){assert.equal(notices[0]?.data['source'],'candidate');assert.equal(notices[0]?.data['kind'],'confirmation');assert.equal((notices[0]?.data['delivery'] as {id?:string})?.id,intents[0]?.intentId,'Notice retains the genuine staged Mail delivery');
+          assert.equal((intents[0]?.arguments['arguments'] as Record<string,unknown>)['to'],'customer@example.test');
+          assert.equal((intents[0]?.arguments['arguments'] as Record<string,unknown>)['body'],'Reception');
+          const schedules=await store.query({model:asModel('work.schedule'),authority:'owner'});assert.equal(schedules.length,1);
+          assert.equal((schedules[0]?.data['payload'] as {revision?:string})?.revision,String(current.version));
+        }else if(intents.length!==0){
+          const host=intents.find(intent=>intent.target==='shift.ScheduleV1.release');
+          const room=intents.find(intent=>intent.target==='rent_reservations.RoomsV1.release');assert.ok(room);
+          assert.deepEqual(room.arguments['arguments'],{source:'candidate',resource:'room-1',reason:'Appointment resource cleanup'});
+          if(mode==='host-released')assert.equal(host,undefined);else{assert.ok(host);assert.deepEqual(host.arguments['arguments'],{source:'candidate',revision:'1'});}
+        }
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });

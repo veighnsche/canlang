@@ -11575,12 +11575,32 @@ export async function noteRetainedGuardedHandlerAdmission(call:AdmittedCall,stor
   const plan=boundPlans.get(call.def as GeneratedOperationDef)?.plan.retainedGuardedHandler;
   const raw=object(dataCopy(input),['event','sourceOccurrenceId','handlerOccurrenceId','scope','eventPayload']);
   const scope=object(raw['scope'],['app','owner','ownerPackage']);
+  // The retained driver admits declared singular Model fields as current
+  // identities. Keep the full original Work payload below, but compare its
+  // exact installed Model slots with that same canonical admitted wire.
+  const admittedPayload={...object(raw['eventPayload'],(call.def as GeneratedOperationDef).descriptor.inputs.map(field=>field.name))};
+  for(const field of (call.def as GeneratedOperationDef).descriptor.inputs) {
+    if(field.kind!=='ref')continue;
+    if(Object.hasOwn((call.def as GeneratedOperationDef).inputArrays,field.name)) {
+      return invalid('retained Model inputs require their installed singular declaration.');
+    }
+    if(admittedPayload[field.name]===null) {
+      if(field.nullable!==true)return invalid('retained required Model input cannot be null.');
+      continue;
+    }
+    const reference=decodeValue(field.model,admittedPayload[field.name]) as {readonly id:string};
+    if(!call.recordRefs.some(ref=>ref.param===field.name && ref.model===field.model && ref.id===reference.id
+        && ref.expectedVersion===null && ref.row.id===ref.id && ref.row.archivedAt===null)) {
+      return invalid('retained Model input differs from its actual admitted current identity.');
+    }
+    admittedPayload[field.name]=encodeValue(field.model,makeRecordRef(field.model,reference.id));
+  }
   if(plan===undefined || retainedGuardedAdmissions.has(call) || plan.owner!==call.def.name ||
       raw['event']!==plan.event || call.context.kind!=='trusted' || call.context.actor!==null ||
       call.context.source!=='schedule' || ![`event:${plan.event}`,`schedule:${plan.event}`].includes(call.context.trustedSource??'') ||
       scope['app']!==call.context.app || scope['owner']!==(call.context.team?.teamId??call.context.app) ||
       raw['handlerOccurrenceId']!==`handler/v1/${encodeURIComponent(text(raw['sourceOccurrenceId']))}/${encodeURIComponent(call.def.name)}` ||
-      stableStringify(raw['eventPayload'])!==stableStringify(call.inputs)) {
+      stableStringify(admittedPayload)!==stableStringify(call.inputs)) {
     return invalid('retained SEND frame differs from its actual admitted Work source.');
   }
   const source=await store.cohortLoad({model:'work.occurrence' as ModelName,
