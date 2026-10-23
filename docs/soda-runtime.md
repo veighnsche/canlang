@@ -303,26 +303,27 @@ consumed producer inputs during execution and use disposable private test roots.
 ```sh
 CANLANG_REPO="$PWD"
 SODA_REPO=$(realpath "$CANLANG_REPO/../sodaos")
-CANLANG_TOOLS=/home/canlang-builder/.cache/canlang-soda/installed-tools-final-delta/canlang
-CANLANG_TEST_TMP=/home/canlang-builder/.cache/canlang-runtime-tests
+CANLANG_TOOLS=/home/canlang-builder/installed/canlang
+CANLANG_TEST_ROOT=/home/canlang-builder/runtime-tests
+CANLANG_TEST_TMP="$CANLANG_TEST_ROOT/tmp"
+CANLANG_NATIVE_STATE="$CANLANG_TEST_ROOT/native-runtime-FRESH"
+CANLANG_HOST_STATE="$CANLANG_TEST_ROOT/app-FRESH"
 mkdir -p "$CANLANG_TEST_TMP"
 
 TMPDIR="$CANLANG_TEST_TMP" node scripts/verify-soda-direct.mjs \
-  --state "$CANLANG_TEST_TMP/direct-FRESH"
-
-TMPDIR="$CANLANG_TEST_TMP" node scripts/verify-soda-runtime-closure.mjs \
-  --runtime "$CANLANG_TOOLS/runtime" --bundle /home/canlang-builder/Apps/board/build/bundle.json \
-  --tool-root "$CANLANG_TOOLS" --state "$CANLANG_TEST_TMP/closure-FRESH"
+  --state "$CANLANG_TEST_ROOT/direct-FRESH"
 
 TMPDIR="$CANLANG_TEST_TMP" node scripts/verify-native-runtime.mjs \
   --compiler compiler/target/release/can \
-  --state "$CANLANG_REPO/.artifacts/soda-native-runtime-FRESH"
+  --state "$CANLANG_NATIVE_STATE" --containers
 
 TMPDIR="$CANLANG_TEST_TMP" node scripts/verify-soda-host.mjs \
-  --tool-root "$CANLANG_TOOLS" \
-  --state "$SODA_REPO/.artifacts/canlang-soda-full-FRESH" \
-  --containers \
-  --podman-state "$CANLANG_REPO/.artifacts/soda-native-runtime"
+  --tool-root "$CANLANG_TOOLS" --state "$CANLANG_HOST_STATE" \
+  --containers --podman-state "$CANLANG_NATIVE_STATE"
+
+TMPDIR="$CANLANG_TEST_TMP" node scripts/verify-soda-runtime-closure.mjs \
+  --runtime "$CANLANG_TOOLS/runtime" --bundle "$CANLANG_HOST_STATE/input.json" \
+  --tool-root "$CANLANG_TOOLS" --state "$CANLANG_TEST_ROOT/closure-FRESH"
 ```
 
 The direct gate exercises real D1 rollback, binds, storage, autonomous alarms,
@@ -342,20 +343,36 @@ path. Add `--containers` for its container checks; it pulls its Rocky base into
 the task-owned store under `--state`. It does not describe serving-image startup. The locally qualified runtime/application recipes can be exercised from the
 canonical Soda checkout, using the already retained images and admitted assets:
 
+Set `CANLANG_ASSETS` to the admitted asset root containing
+`project-tools/canlang`, and `CANLANG_RELEASE` to that archive's matching
+`canlang-release.json`. The image gate builds the canonical recipes from those
+inputs in the selected task store:
+
 ```sh
 node "$SODA_REPO/system/containers/canlang/verify-runtime-image.mjs" \
-  --assets "$SODA_REPO/.artifacts/canlang-integration-20261014/final-assets-v2" \
-  --bundle "$SODA_REPO/.artifacts/canlang-soda-full-v4-20261014/input.json" \
-  --release "$SODA_REPO/system/project/canlang-release.json" \
-  --state "$SODA_REPO/.artifacts/canlang-production-images-FRESH" \
-  --podman-state "$CANLANG_REPO/.artifacts/soda-native-runtime" \
-  --runtime-image sha256:6f504c78ff5eb81d58b2420c4150a645c71765b83c29c26a936d4646b7241947 \
-  --application-image sha256:e959ac43b7255f1025d5556d5df3029f555e6a205339aa567dd97bbac719e85a
+  --assets "$CANLANG_ASSETS" --bundle "$CANLANG_HOST_STATE/input.json" \
+  --release "$CANLANG_RELEASE" --state "$CANLANG_TEST_ROOT/serving-images-FRESH" \
+  --podman-state "$CANLANG_NATIVE_STATE"
 ```
 
-This reuses the exact compiled G2 fixture bundle, rather than recompiling a
-different image witness. Remove both image options only when intentionally
-checking the recipes' local image-build path with the required retained base.
+To inspect already retained matching images, pass their exact IDs with
+`--runtime-image` and `--application-image`. Images from another archive or
+bundle are refused. The application runs with 1 GiB memory, two CPUs' worth of
+CPU time and 128 processes/threads; TLS/client instrumentation has a separate
+container and cgroup.
+
+The 2026-10-23 replacement runtime passed real native D1 transactions, autonomous
+alarms, inherited lock/parent-death checks and forced shutdown failure handling.
+It reopened populated local-development D1 layouts and exercised real Identity,
+HTTP/MCP, Files and scheduled-work state. The admitted clean production subtree
+passed first-owner form/claim/replay, lost-receipt recovery, expiry and foreign
+claim refusal, then private administration and retained application restart.
+The native serving image passed the adopted limits, read-only UID10000 operation,
+normal restart and abrupt gateway replacement; observed app memory peak was
+624214016 bytes. Separate pressure checks reached PID exhaustion, CPU throttling
+and an OOM-killed stress process while retained application data remained usable.
+These local gates do not substitute an installed appliance, immutable release
+publication or operator client-trust qualification.
 
 The 2026-10-14 evidence has distinct accepted scopes:
 
