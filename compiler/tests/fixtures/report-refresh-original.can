@@ -1,0 +1,43 @@
+app CanReport uses=[report]
+package rent_catalog
+ Given
+  export Location {active:bool=true}
+  policy Location read=public where=row.active
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,home:Location,locations:Location[],operator_wide:bool=false,active:bool=true,hidden:bool=false}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members and not row.hidden
+ When
+ Then
+package report
+ use rent_catalog {Location}
+ use employee {can_work}
+ use report {ReportsV1 as Reports} from=deployment.reports
+ Given
+  message label_Run_locations = "Locations"@{nl="Locaties"}
+  message label_Contribution_from = "From"@{nl="Van"}
+  message label_Contribution_until = "Until"@{nl="Tot"}
+  export contract Checkpoint {source:text,revision:text,generated:datetime,state:enum(fresh,lagging,partial,unavailable),complete:bool}
+  export contract Contribution {source:text,revision:int,location:text,from:datetime,until:datetime,metric:enum(booked_minutes,saleable_minutes,excluded_minutes,occupied_minutes,cash,receivable,renewal,backlog),quantity:decimal,unit:text,amount:money?,provisional:bool=false,reversal:text?}
+  export contract ReportBatch {checkpoint:Checkpoint,rows:Contribution[]!}
+  export capability ReportsV1 version=1
+   reports(locations:text[],from:datetime,until:datetime) -> ReportBatch
+  role manager
+  role finance
+  Definition {name:text,metric:Contribution.metric,unit:text,finance_only:bool=false,inclusion:text,display_timezone:timezone,enabled:bool=true}
+  Run in Definition {account:user,locations:Location[]!,from:datetime,until:datetime,currency:currency?,requested:datetime server=now,delivery:text unique,checkpoint:Checkpoint?,rows:Contribution[],state:Checkpoint.state=unavailable,pending:bool=true}
+  policy Definition read=manager where=(not row.finance_only or finance) and (not (row.metric in [cash,receivable]) or finance)
+  policy Run read=manager where=row.account==actor and all(row.locations as location,can_work(actor,location)) and (not row.parent.finance_only or finance) and (not (row.parent.metric in [cash,receivable]) or finance)
+  invariant Run: row.from<row.until and count(row.locations)>0
+  lock Run fields=account,locations,from,until,currency,requested,delivery
+ When
+  scenario refresh(definition:Definition,locations:Location[] label=label_Run_locations,from:datetime label=label_Contribution_from,until:datetime label=label_Contribution_until,currency:currency?) by=manager
+   require definition.enabled and from<until and count(locations)>0 and all(locations as location,can_work(actor,location)) and (not definition.finance_only or finance) and (not (definition.metric in [cash,receivable]) or finance)
+   do
+    send Reports.reports {locations=locations as location select location.id,from,until} as delivery
+    create Run {parent=definition,account=actor,locations,from,until,currency,delivery=delivery.id} as run
+ Then

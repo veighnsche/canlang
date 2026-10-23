@@ -7750,7 +7750,8 @@ function createSourceReadPolicyAdapter(input: {
   readonly formatting?: HandlerFormattingScope;
   readonly deploymentBase?: string;
   readonly observer?: { readonly predicate: Function;
-    readonly reads: import('@canlang/state/invocation').ScenarioReceiptRequireObserver;readonly admittedVersion?:number };
+    readonly reads: import('@canlang/state/invocation').ScenarioReceiptRequireObserver;readonly admittedVersion?:number;
+    readonly admittedReferences?:readonly ReturnType<typeof makeRecordRef>[] };
   readonly ownerDecisionQuery?: (model: string, query: CanonicalReadQuery,
     parent: { readonly model: string; readonly id: string } | undefined) => void;
 }) {
@@ -7795,6 +7796,9 @@ function createSourceReadPolicyAdapter(input: {
         if ('value' in descriptor) rememberReferences(descriptor.value, depth + 1);
       }
     };
+    // Indexed operation inputs borrow only their State-admitted identities.
+    // Reached navigation still uses this observer's lazy current/final reader.
+    if(ownerDecision)for(const reference of input.observer?.admittedReferences??[])rememberReferences(reference);
     const recordView = (name: string, source: StoredRow | ProjectedRecord, presence?: readonly string[],admittedVersion?:number): Record<string, unknown> => {
       const projected = nativeProjectedRecord(loaded, name, source, navigation, recordView, presence);
       const view = input.observer?.predicate !== installed ? projected : new Proxy(projected, {
@@ -11119,6 +11123,19 @@ async function runScenarioExecution(
             `delivery(${field.field.capability}.${field.field.operation})${field.nullable === true ? '?' : ''}`,
             data[field.name], loaded.valueSchema);
         }
+        // Reference arrays need the same identity-only conversion as singular
+        // links before State detaches the write. Values walks the original
+        // owning array occurrence; copied views have no private native identity.
+        for(const field of opts.artifact.models?.find(model=>model.name===write.model)?.fields??[]){
+          if(field.field.kind!=='ref'||field.array===undefined||field.valueType===undefined||data===undefined
+              ||!Object.hasOwn(data,field.name)||data[field.name]===undefined||data[field.name]===null)continue;
+          const type=parseTypeId(field.valueType);
+          if(!type.array||type.base.kind!=='nominal'||type.base.path!==field.field.model)return refuseRecordBinding('Stored reference array differs from its original owning declaration.');
+          const original=nativeValueReferenceEncoder(field.valueType,loaded.valueSchema,data[field.name]);
+          try{data[field.name]=encodeValue(field.valueType,data[field.name] as CanValue,(value,path)=>{
+            const identity=original(value,path);return identity===undefined?undefined:makeRecordRef(identity.model,identity.id);
+          },loaded.valueSchema);}catch(error){throw new StateError('validation',message(error));}
+        }
         // State snapshots submitted writes before its field codec runs. Encode
         // native identities while their private occurrence bindings still exist;
         // State retains schema validation, defaults, constraints and hook order.
@@ -13044,6 +13061,7 @@ async function runScenarioExecution(
           const query=active?.source.queries?.find(query=>query.id===id);
           if(active===null||execute===undefined||query===undefined||parent!==active.roots[query.parameter])return refuseRecordBinding('SEND DATA query differs from its exact argument source and parent.');
           const rows=await execute(actual,receiptStore,{id});
+          if(query.input===true)return Object.freeze(rows.map(row=>row.id));
           return Object.freeze(rows.map(row=>{
             const fields:Record<string,unknown>=Object.create(null);
             for(const field of query.fields){
@@ -13066,7 +13084,15 @@ async function runScenarioExecution(
           const roots=localPolicyObject(supplied,source.parameters.map(parameter=>parameter.name));
           if(Object.keys(roots).length!==source.parameters.length)return refuseRecordBinding('SEND DATA changed its genuine original parameter graph.');
           for(const parameter of source.parameters){
-            if(parameter.created!==undefined){
+            if(parameter.array===true){
+              const value=roots[parameter.name];if(value!==parameters[parameter.name]||!Array.isArray(value))return refuseRecordBinding('SEND DATA input array changed its original graph.');
+              const values=localPolicyArray(value),prefix=`${parameter.name}/`,refs=actual.recordRefs.filter(ref=>ref.param.startsWith(prefix));
+              if(refs.length!==values.length)return refuseRecordBinding('SEND DATA input array changed its indexed census.');
+              for(const [index,item]of values.entries()){
+                const matches=refs.filter(ref=>ref.param===`${prefix}${index}`),ref=matches[0],binding=isUnknownRecord(item)?recordBindings.get(item):undefined;
+                if(matches.length!==1||ref===undefined||ref.model!==parameter.model||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version||binding?.model!==ref.model||binding.id!==ref.id||binding.version!==ref.row.version)return refuseRecordBinding('SEND DATA input array lost its exact actual versioned row.');
+              }
+            }else if(parameter.created!==undefined){
               const read=loaded.producers.invoke.readScenarioSourceCreatedRoot,root=roots[parameter.name];
               if(read===undefined||!isUnknownRecord(root))return refuseRecordBinding('SEND DATA created root lacks its actual native binding.');
               const row=await read(actual,receiptStore,{id:parameter.created.id}),binding=recordBindings.get(root);
@@ -13076,6 +13102,7 @@ async function runScenarioExecution(
           return await execute(actual,receiptStore,{source,execute:async rows=>{
             const projected:Record<string,unknown>=Object.create(null);
             for(const parameter of source.parameters){
+              if(parameter.array===true){projected[parameter.name]=roots[parameter.name];continue;}
               const record=rows[parameter.name];if(record===undefined)return refuseRecordBinding('SEND DATA omitted its independently projected source row.');
               const fields:Record<string,unknown>=Object.create(null);
               for(const field of parameter.fields){
@@ -13305,6 +13332,7 @@ async function runScenarioExecution(
           return !type.array && loaded.models.some(model=>model.name===name)
             ? [{...parameter,model:name,nullable:type.nullable}] : [];
         });
+        const arrayReferences=new Map<string,readonly ReturnType<typeof makeRecordRef>[]>();
         const anchor=modelParameters.find(parameter=>!parameter.nullable);
         // The first required model parameter anchors the observed row; further
         // model parameters flow as admitted rows (the observer tracks reads
@@ -13350,6 +13378,23 @@ async function runScenarioExecution(
           const admittedTextArray = parameter.typeId === 'text[]' && parsed.array &&
             !parsed.nullable && field.kind === 'string' && field.valueType === 'text[]' &&
             Object.hasOwn(scenarioDef.inputArrays, field.name) && Array.isArray(admittedParameter(parameter.name));
+          const admittedModelArray=field.kind==='ref'&&parsed.array&&!parsed.nullable&&parsed.base.kind==='nominal'
+            &&parsed.base.path===field.model&&loaded.models.some(model=>model.name===field.model)
+            &&Object.hasOwn(scenarioDef.inputArrays,field.name)&&Array.isArray(admittedParameter(parameter.name));
+          if(admittedModelArray){
+            const values=localPolicyArray(admittedParameter(parameter.name)),prefix=`${parameter.name}/`,refs=actualCall.recordRefs.filter(reference=>reference.param.startsWith(prefix));
+            if(refs.length!==values.length)throw new AssemblyCorrespondenceError('Require model array lost its complete admitted indexed census.');
+            const references=values.map((value,index)=>{
+              const matches=refs.filter(reference=>reference.param===`${prefix}${index}`),reference=matches[0];
+              const binding=isUnknownRecord(value)?recordBindings.get(value):undefined;
+              if(matches.length!==1||reference?.model!==field.model||reference.expectedVersion===null||reference.expectedVersion!==reference.row.version
+                  ||binding?.model!==reference.model||binding.id!==reference.id||binding.version!==reference.row.version){
+                throw new AssemblyCorrespondenceError('Require model array differs from its genuine admitted indexed row.');
+              }
+              return makeRecordRef(reference.model,reference.id,BigInt(reference.row.version));
+            });
+            arrayReferences.set(parameter.name,Object.freeze(references));
+          }
           const ownedEnum = field.kind === 'enum' && parsed.base.kind === 'nominal' && !parsed.array &&
             field.valueType !== undefined && parseTypeId(field.valueType).nullable === parsed.nullable &&
             loaded.models.some(model => Object.entries(model.fields).some(([name, declaration]) =>
@@ -13359,9 +13404,9 @@ async function runScenarioExecution(
           const declaredType = admittedTextArray || ownedEnum ? parameter.typeId : type;
           const nullableModel=parsed.nullable && !parsed.array && field.kind==='ref'
             && modelParameters.some(model=>model.name===parameter.name && model.model===field.model);
-          if (field.name !== parameter.name || declaredType !== parameter.typeId || parsed.array && !admittedTextArray && !admittedValue ||
+          if (field.name !== parameter.name || declaredType !== parameter.typeId || parsed.array && !admittedTextArray && !admittedModelArray && !admittedValue ||
               (parsed.nullable && !unusedNullFile && !nullableModel && !ownedEnum && !admittedValue) ||
-              parsed.base.kind === 'nominal' && !ownedEnum && !admittedValue && !loaded.models.some(model => model.name === parameter.typeId.replace(/\?$/,'')) ||
+              parsed.base.kind === 'nominal' && !ownedEnum && !admittedModelArray && !admittedValue && !loaded.models.some(model => model.name === parameter.typeId.replace(/\?$/,'')) ||
               (!Object.hasOwn(admittedParameters, parameter.name) && !observedNativeDefaults.has(parameter.name)) ||
               localPolicyMember(suppliedValues, parameter.name) !== admittedParameter(parameter.name)) {
             throw new AssemblyCorrespondenceError('Scenario Require parameter differs from its genuine admitted native slot.');
@@ -13408,6 +13453,7 @@ async function runScenarioExecution(
                     }
                     args[modelParameter.name] = await project!(modelParameter.model, ref.id, ref.row.version);
                   }
+                  for(const [name,references]of arrayReferences)args[name]=references;
                   return Reflect.apply(fn, undefined, [context, Object.freeze(args)]);
                 } }], observation, predicate);
             };
@@ -13417,7 +13463,7 @@ async function runScenarioExecution(
             } else bindNativeReadRoleContext(predicate, original.owner);
             bindInstalledSourceQueryPredicate(predicate, { source: original.source, rule: original.owner });
             adapter = createSourceReadPolicyAdapter({ loaded, opts: { ...opts, store: receiptStore },
-              now: () => actualCall.context.now, observer: { predicate, reads,...(loopMarker===undefined?{}:{admittedVersion:actualCall.recordRefs.find(ref=>ref.param===parameter)!.expectedVersion!}) },
+              now: () => actualCall.context.now, observer: { predicate, reads,admittedReferences:Object.freeze([...arrayReferences.values()].flat()),...(loopMarker===undefined?{}:{admittedVersion:actualCall.recordRefs.find(ref=>ref.param===parameter)!.expectedVersion!}) },
               ...(scenarioDef.name !== 'invoice.collect' ? {} : {
                 ownerDecisionQuery: (model: string, query: CanonicalReadQuery,
                   parent: { readonly model: string; readonly id: string } | undefined): void => {

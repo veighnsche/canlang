@@ -315,14 +315,14 @@ export async function nativeScenarioSourceSchedule(context:unknown,source:unknow
   return evaluate(source,root,at,payload,key);
 }
 
-const sourceSendQueryReaders=new WeakMap<object,(id:string,parent:unknown)=>Promise<readonly Record<string,unknown>[]>>();
-export function bindNativeScenarioSourceSendQuery(context:object,read:(id:string,parent:unknown)=>Promise<readonly Record<string,unknown>[]>):void{
+const sourceSendQueryReaders=new WeakMap<object,(id:string,parent:unknown)=>Promise<readonly unknown[]>>();
+export function bindNativeScenarioSourceSendQuery(context:object,read:(id:string,parent:unknown)=>Promise<readonly unknown[]>):void{
   if(sourceSendQueryReaders.has(context))throw new StateError('validation','Source SEND query reader cannot be rebound.');
   sourceSendQueryReaders.set(context,read);
 }
 /** Existing callers keep their original guarded records path. Only the live
  * source SEND frame supplies this separate projected argument reader. */
-export async function nativeScenarioSourceSendQuery(context:unknown,id:string,parent:unknown,fallback:()=>Promise<readonly Record<string,unknown>[]>):Promise<readonly Record<string,unknown>[]>{
+export async function nativeScenarioSourceSendQuery(context:unknown,id:string,parent:unknown,fallback:()=>Promise<readonly unknown[]>):Promise<readonly unknown[]>{
   const read=typeof context==='object'&&context!==null?sourceSendQueryReaders.get(context):undefined;
   if(typeof fallback!=='function')throw new StateError('validation','Source SEND query needs its original guarded query.');
   return read===undefined?fallback():read(id,parent);

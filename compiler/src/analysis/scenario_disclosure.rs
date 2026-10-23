@@ -14833,6 +14833,16 @@ impl<'a> Closure<'a> {
 
     }
 
+    fn source_require_model_array_parameter(&self,scenario:&super::effects::ScenarioData,parameter:&super::effects::ParamData)->bool{
+        let Some(ResolvedType::Array{element,ordered:true,nonempty:false})=self.types.symbol_types.get(&parameter.param)else{return false;};
+        let ResolvedType::Record{symbol,stored:true}=element.as_ref()else{return false;};
+        parameter.default.is_none()&&!self.types.value_constraints.contains_key(&parameter.param)
+            &&self.effects.models.contains_key(symbol)
+            &&self.resolve.symbols.get(parameter.param.0 as usize).is_some_and(|declaration|
+                declaration.module==scenario.module&&matches!(declaration.kind,SymbolKind::Param{owner,..}if owner==scenario.scenario))
+            &&self.resolve.symbols.get(symbol.0 as usize).is_some_and(|model|matches!(model.kind,SymbolKind::Model{..}))
+    }
+
     fn source_require_params_ok(&self, scenario: &super::effects::ScenarioData) -> bool {
         !scenario.params.iter().enumerate().any(|(index, param)| {
             (param.default.is_some()
@@ -14840,6 +14850,7 @@ impl<'a> Closure<'a> {
                     .is_none_or(|ty| !self.source_require_input(ty)
                         && !self.source_require_owned_enum_formal(param)))
                 && !self.source_require_optional_primitive_input(param)
+                && !self.source_require_model_array_parameter(scenario,param)
                 && !self.source_require_value_parameter(scenario, param)
                 && !self.source_require_unread_nullable_file_input(scenario, param, index)
                 && !self.source_require_null_model_input(scenario, param, index)
@@ -15904,9 +15915,9 @@ impl<'a> Closure<'a> {
         Some(true)
     }
 
-    /// An `all` in a pre-write Require may iterate only the original stored
-    /// model input's own reference array. Its nested helper searches are
-    /// observed at the same owner stage, once for each actual array member.
+    /// An `all` in a pre-write Require may iterate an exact original
+    /// indexed Model input or the admitted model's own stored reference array.
+    /// Its nested helper searches are observed at the same owner stage, once for each actual array member.
     /// A copied array or a query with filtering/projection would lose that
     /// source correspondence and remains outside this observer profile.
     fn source_require_all_input_array(
@@ -15930,22 +15941,6 @@ impl<'a> Closure<'a> {
         let ResolvedType::Record { symbol: item_model, stored: true } = element.as_ref() else {
             return None;
         };
-        let (receiver, name) = self.count_member(query.domain)?;
-        let ResolvedType::Record { symbol: owner_model, stored: true } =
-            self.types.node_types.get(&receiver)? else {
-            return None;
-        };
-        // The stored array belongs to the exact original admitted parameter
-        // or its bounded authored containment lineage, never an equal-typed
-        // arbitrary model expression or a helper's unbound formal.
-        let parameter=scenario.params.iter().find(|parameter|
-            matches!(self.types.symbol_types.get(&parameter.param),Some(ResolvedType::Record{stored:true,..}))
-                &&self.checked_call_parent_path(receiver,parameter.param,0)
-                    .is_some_and(|(model,_)|model==*owner_model))?.param;
-        let field = self.effects.models.get(owner_model)?.fields.iter().find(|field| {
-            self.resolve.symbols.get(field.field.0 as usize)
-                .is_some_and(|decl| decl.name == name)
-        })?;
         if !call.chain.is_empty()
             || fact.node != call.node
             || fact.builtin != "all"
@@ -15966,13 +15961,30 @@ impl<'a> Closure<'a> {
             || query.result != *domain_ty
             || query.projection.is_some()
             || self.types.node_types.get(&query.domain) != Some(domain_ty)
-            || !self.checked_call_parent_path(receiver,parameter,0).is_some_and(|(model,_)|model==*owner_model)
-            || self.types.symbol_types.get(&field.field) != Some(domain_ty)
-            || field.default.is_some()
-            || field.server.is_some()
         {
             return None;
         }
+        if let Some(Binding::Symbol(parameter))=self.query_binding(query.domain)
+            &&scenario.params.iter().any(|input|input.param==*parameter
+                &&self.types.symbol_types.get(parameter)==Some(domain_ty)
+                &&self.source_require_model_array_parameter(scenario,input)){
+            return Some(());
+        }
+        let (receiver, name) = self.count_member(query.domain)?;
+        let ResolvedType::Record { symbol: owner_model, stored: true } =
+            self.types.node_types.get(&receiver)? else {
+            return None;
+        };
+        let parameter=scenario.params.iter().find(|parameter|
+            matches!(self.types.symbol_types.get(&parameter.param),Some(ResolvedType::Record{stored:true,..}))
+                &&self.checked_call_parent_path(receiver,parameter.param,0)
+                    .is_some_and(|(model,_)|model==*owner_model))?.param;
+        if !self.checked_call_parent_path(receiver,parameter,0).is_some_and(|(model,_)|model==*owner_model){return None;}
+        let field = self.effects.models.get(owner_model)?.fields.iter().find(|field| {
+            self.resolve.symbols.get(field.field.0 as usize)
+                .is_some_and(|decl| decl.name == name)
+        })?;
+        if self.types.symbol_types.get(&field.field)!=Some(domain_ty)||field.default.is_some()||field.server.is_some(){return None;}
         Some(())
     }
 
@@ -16228,8 +16240,11 @@ impl<'a> Closure<'a> {
                     && self.types.node_types.get(&call.node)==Some(&ResolvedType::Scalar(Scalar::Int))
                 { *helper_query=true; return Some(true); }
                 if call.slots.as_slice() != [Some(0)] || call.arguments.len() != 1
-                    || !matches!(&call.arguments[0].1, ResolvedType::Array { element, .. }
+                    || !(matches!(&call.arguments[0].1, ResolvedType::Array { element, .. }
                         if element.as_ref() == &ResolvedType::Scalar(Scalar::Text))
+                        ||matches!(self.query_binding(call.arguments[0].0),Some(Binding::Symbol(parameter))
+                            if scenario.params.iter().any(|input|input.param==*parameter
+                                &&self.source_require_model_array_parameter(scenario,input))))
                     || self.types.node_types.get(&call.node) != Some(&ResolvedType::Scalar(Scalar::Int))
                 { *supported = false; return Some(false); }
                 Some(true)

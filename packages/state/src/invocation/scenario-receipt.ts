@@ -10108,14 +10108,14 @@ export async function executeScenarioSourceLetData(call:AdmittedCall,store:Stora
 export interface ScenarioSourceSendQuerySource {
   readonly id:string;readonly source:ScenarioResultDisclosurePlan['source'];
   readonly node:{readonly file:number;readonly start:number;readonly end:number};
-  readonly parameter:string;readonly model:ModelName;readonly parentModel:ModelName;
+  readonly parameter:string;readonly model:ModelName;readonly parentModel?:ModelName;readonly input?:true;
   readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];
   readonly order:readonly {readonly field:string;readonly direction:'asc'|'desc'}[];
 }
 export interface ScenarioSourceSendDataSource {
   readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
   readonly node:{readonly start:number;readonly end:number};readonly operation:string;readonly binding:string;
-  readonly parameters:readonly {readonly name:string;readonly model:ModelName;
+  readonly parameters:readonly {readonly name:string;readonly model:ModelName;readonly array?:true;
     readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identityPaths?:readonly {readonly path:readonly {readonly field:string;readonly model:ModelName;readonly nullable?:true}[];readonly leaf:'id'}[];readonly dataPaths?:readonly{readonly path:NonNullable<ScenarioSourceSendDataSource['parameters'][number]['identityPaths']>[number]['path'];readonly field:string;readonly type:CanTypeId}[];readonly parent?:{readonly model:ModelName;readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[]};readonly derived?:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identity?:readonly ('id'|'version')[];readonly loop?:string;readonly created?:ScenarioSourceCreatedRoot}[];
   readonly queries?:readonly ScenarioSourceSendQuerySource[];
 }
@@ -10296,14 +10296,16 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
     const parameters=list(site['parameters']);if(parameters.length===0)return invalid('SEND DATA needs its actual source root census.');
     const names=new Set<string>();
     for(const value of parameters){
-      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[]),...(Object.hasOwn(value as object,'created')?['created']:[]),...(Object.hasOwn(value as object,'derived')?['derived']:[]),...(Object.hasOwn(value as object,'parent')?['parent']:[]),...(Object.hasOwn(value as object,'identityPaths')?['identityPaths']:[]),...(Object.hasOwn(value as object,'dataPaths')?['dataPaths']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
+      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'array')?['array']:[]),...(Object.hasOwn(value as object,'identity')?['identity']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[]),...(Object.hasOwn(value as object,'created')?['created']:[]),...(Object.hasOwn(value as object,'derived')?['derived']:[]),...(Object.hasOwn(value as object,'parent')?['parent']:[]),...(Object.hasOwn(value as object,'identityPaths')?['identityPaths']:[]),...(Object.hasOwn(value as object,'dataPaths')?['dataPaths']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
       const input=bound.inputs.find(input=>input.name===name),declaration=bound.models.get(model);
       const loop=Object.hasOwn(parameter,'loop')?sourceBodyLoopProducers.get(def)?.loops.find(loop=>loop.id===parameter['loop']):undefined;
       const created=Object.hasOwn(parameter,'created')?object(parameter['created'],['id','node','stage','binding','model','parentParameter','parentModel']):undefined;
-      if(names.has(name)||declaration===undefined||(created!==undefined?(created['binding']!==name||created['model']!==model||Object.hasOwn(parameter,'identity')||Object.hasOwn(parameter,'loop')||Number(object(created['node'],['start','end'])['end'])>Number(node['start'])):Object.hasOwn(parameter,'loop')?loop?.item!==name||loop.model!==model||Object.hasOwn(parameter,'identity'):input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,name))){
-        return invalid('SEND DATA needs an exact required singular original model parameter.');
+      if(names.has(name)||declaration===undefined||(created!==undefined?(created['binding']!==name||created['model']!==model||Object.hasOwn(parameter,'identity')||Object.hasOwn(parameter,'loop')||Number(object(created['node'],['start','end'])['end'])>Number(node['start'])):Object.hasOwn(parameter,'loop')?loop?.item!==name||loop.model!==model||Object.hasOwn(parameter,'identity'):input?.kind!=='ref'||input.model!==model||input.nullable===true||(Object.hasOwn(parameter,'array')?parameter['array']!==true||!Object.hasOwn(def.inputArrays,name):Object.hasOwn(def.inputArrays,name)))){
+        return invalid('SEND DATA needs its exact required original model parameter.');
       }
       names.add(name);const fields=list(parameter['fields']);
+      if(Object.hasOwn(parameter,'array')&&(parameter['array']!==true||fields.length!==0||Reflect.ownKeys(parameter).some(key=>!['name','model','fields','array'].includes(String(key)))
+          ||!list(site['queries']).some(value=>{const query=value as Record<string,unknown>;return query['parameter']===name&&query['model']===model&&query['input']===true;})))return invalid('SEND DATA input array needs its exact identity projection only.');
       if(Object.hasOwn(parameter,'parent'))checkSourceEffectParent(bound,model,parameter['parent']);
       if(Object.hasOwn(parameter,'identityPaths'))checkSourceEffectIdentityPaths(bound,model,parameter['identityPaths']);
       if(Object.hasOwn(parameter,'dataPaths'))checkSourceEffectDataPaths(bound,model,parameter['dataPaths']);
@@ -10336,17 +10338,18 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
       const queries=list(site['queries']);if(queries.length===0||queries.length>200)return invalid('SEND DATA query census is invalid.');
       const ids=new Set<string>();
       for(const value of queries){
-        const query=object(value,['id','source','node','parameter','model','parentModel','fields','order']);origin(query['source']);
-        const id=text(query['id']),parameter=text(query['parameter']),model=text(query['model']) as ModelName,parentModel=text(query['parentModel']) as ModelName;
-        const parent=parameters.find(value=>(value as {name:string}).name===parameter) as {model:ModelName}|undefined;
+        const inputQuery=Object.hasOwn(value as object,'input');
+        const query=object(value,['id','source','node','parameter','model',...(inputQuery?['input']:['parentModel']),'fields','order']);origin(query['source']);
+        const id=text(query['id']),parameter=text(query['parameter']),model=text(query['model']) as ModelName,parentModel=inputQuery?undefined:text(query['parentModel']) as ModelName;
+        const parent=parameters.find(value=>(value as {name:string}).name===parameter) as {model:ModelName;array?:true}|undefined;
         const declaration=bound.artifactModels.get(model),interval=object(query['node'],['file','start','end']);
-        if(!/^[a-f0-9]{64}$/.test(id)||ids.has(id)||parent?.model!==parentModel||declaration?.parent!==parentModel
+        if(!/^[a-f0-9]{64}$/.test(id)||ids.has(id)||(inputQuery?query['input']!==true||parent?.array!==true||parent.model!==model||declaration===undefined:parent?.array===true||parent?.model!==parentModel||declaration?.parent!==parentModel)
             ||!Number.isSafeInteger(interval['file'])||Number(interval['file'])<0||!Number.isSafeInteger(interval['start'])||!Number.isSafeInteger(interval['end'])
             ||Number(interval['start'])<0||Number(interval['end'])<=Number(interval['start']))return invalid('SEND DATA query lacks its original direct contained owner.');
-        ids.add(id);const fields=list(query['fields']),selected=new Set<string>();if(fields.length===0)return invalid('SEND DATA query lacks its exact field census.');
+        ids.add(id);const fields=list(query['fields']),selected=new Set<string>();if(inputQuery?fields.length!==0:fields.length===0)return invalid('SEND DATA query lacks its exact field census.');
         for(const value of fields){const field=object(value,['name','type']),name=text(field['name']),type=text(field['type']);
           if(selected.has(name)||!sourceSendFieldType(bound,model,name,type))return invalid('SEND DATA query field differs from its defining scalar field.');selected.add(name);}
-        const order=list(query['order']);if(order.length>1)return invalid('SEND DATA query order is not supported.');
+        const order=list(query['order']);if(inputQuery?order.length!==0:order.length>1)return invalid('SEND DATA query order is not supported.');
         for(const value of order){const term=object(value,['field','direction']);if(!selected.has(text(term['field']))||!['asc','desc'].includes(text(term['direction'])))return invalid('SEND DATA query order lacks its original field.');}
         const seen=new Set<ModelName>();let ancestor:ModelName|undefined=model;
         while(ancestor!==undefined){const original=bound.artifactModels.get(ancestor),read=readPolicies.get(ancestor);
@@ -10382,6 +10385,9 @@ export async function executeScenarioSourceSendData(call:AdmittedCall,store:Stor
     for(const parameter of source.parameters)if(parameter.created!==undefined)createdRows.set(parameter.name,await readScenarioSourceCreatedRoot(call,store,{id:parameter.created.id}));
     await ownerOperation(owner,async()=>{
       for(const parameter of source.parameters){
+        // No field/value permission is borrowed from the input or its guard.
+        // The exact reached query projects every indexed reference below.
+        if(parameter.array===true){sourceSendInputArrayRefs(call,parameter.name,parameter.model,owner.maxRows);continue;}
         const item=parameter.loop===undefined?undefined:sourceBodyLoopItems.get(owner);
         const refs=call.recordRefs.filter(ref=>ref.param===parameter.name),ref=refs[0];
         const original=parameter.created!==undefined?createdRows.get(parameter.name):parameter.loop===undefined?ref?.row:item?.row;
@@ -10408,8 +10414,21 @@ export async function executeScenarioSourceSendData(call:AdmittedCall,store:Stor
   }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
 }
 
-/** Read only a reached original projection inside this exact SEND argument
- * evaluation. Ordinary source grants filter rows before authored order/SELECT. */
+/** Join the complete ordinary canonical array to its actual indexed State
+ * reference census. Empty/null/versionless or substituted slots never mint IDs. */
+function sourceSendInputArrayRefs(call:AdmittedCall,name:string,model:ModelName,maximum:number){
+  const values=call.inputs[name],prefix=`${name}/`,refs=call.recordRefs.filter(ref=>ref.param.startsWith(prefix));
+  if(!Array.isArray(values)||values.length>maximum||refs.length!==values.length)return invalid('SEND DATA input array lost its complete admitted census.');
+  return values.map((_value,index)=>{
+    const matches=refs.filter(ref=>ref.param===`${prefix}${index}`),ref=matches[0];
+    if(matches.length!==1||ref===undefined||ref.model!==model||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('SEND DATA input array lost its exact versioned slot.');
+    return ref;
+  });
+}
+
+/** Read only a reached original projection inside this exact SEND argument.
+ * Contained queries filter ordinary invisible rows; indexed inputs preserve
+ * their complete original census and refuse when any ID is unreadable. */
 export async function executeScenarioSourceSendQuery(call:AdmittedCall,store:StoragePort,input:{readonly id:string}):Promise<readonly ProjectedRecord[]>{
   const state=capture(call,store),owner=ownerSessions.get(call);
   try{
@@ -10421,8 +10440,21 @@ export async function executeScenarioSourceSendQuery(call:AdmittedCall,store:Sto
         ||owner.busy||state.pending!==0||active.queries.has(id))return invalid('SEND DATA query lacks its actual original argument execution.');
     active.queries.add(id);
     return await ownerOperation(owner,async()=>{
+      if(query.input===true){
+        const selected:ProjectedRecord[]=[];
+        for(const ref of sourceSendInputArrayRefs(call,query.parameter,query.model,owner.maxRows)){
+          const row=await owner.session!.views.final.get(ref.model,ref.id);ownerHealthy(owner);
+          if(row===null||row.archivedAt!==null||!sameModelLifetime(ref.row,row)||owner.stage!==active.stage)return invalid('SEND DATA indexed source lifetime changed.');
+          // ID is readable row metadata, exactly as for checked identity paths;
+          // its ordinary row policy is still evaluated and fenced per element.
+          const authority=await observeModelQuerySourceAuthority(call,store,owner,state,query.model,row,[],0,undefined,undefined,producer,false);
+          selected.push(authority.record);
+        }
+        if(await store.readRevision()!==call.revision)throw new StateError('conflict','SEND DATA input query moved beyond its original checkpoint.');
+        return Object.freeze(selected);
+      }
       const refs=call.recordRefs.filter(ref=>ref.param===query.parameter),ref=refs[0];
-      if(refs.length!==1||ref?.model!==query.parentModel||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('SEND DATA query lost its original versioned parent.');
+      if(refs.length!==1||ref===undefined||ref.model!==query.parentModel||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('SEND DATA query lost its original versioned parent.');
       const parent=await owner.session!.views.final.get(ref.model,ref.id);ownerHealthy(owner);
       if(parent===null||!sameModelLifetime(ref.row,parent)||owner.stage!==active.stage)return invalid('SEND DATA query parent lifetime changed.');
       const rows=await owner.session!.views.final.query({model:query.model,authority:'owner',parent:{model:ref.model,id:ref.id},archived:'exclude',order:[{field:'id',direction:'asc'}],limit:owner.maxRows});ownerHealthy(owner);
@@ -10615,7 +10647,7 @@ export async function executeScenarioSourceEmitQuery(call:AdmittedCall,store:Sto
     active.queries.add(id);
     return await ownerOperation(owner,async()=>{
       const refs=call.recordRefs.filter(ref=>ref.param===query.parameter),ref=refs[0];
-      if(refs.length!==1||ref?.model!==query.parentModel||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('EMIT DATA aggregate lost its original versioned parent.');
+      if(refs.length!==1||ref===undefined||ref.model!==query.parentModel||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('EMIT DATA aggregate lost its original versioned parent.');
       const parent=await owner.session!.views.final.get(ref.model,ref.id);ownerHealthy(owner);
       if(parent===null||!sameModelLifetime(ref.row,parent)||owner.stage!==active.stage)return invalid('EMIT DATA aggregate parent lifetime changed.');
       const rows=await owner.session!.views.final.query({model:query.model,authority:'owner',parent:{model:ref.model,id:ref.id},archived:'exclude',order:[{field:'id',direction:'asc'}],limit:owner.maxRows});ownerHealthy(owner);

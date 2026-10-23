@@ -3223,3 +3223,41 @@ fn original_affiliate_refresh_seals_parent_stored_model_array_all() {
   let emitted=js::emit_program_with_native_source_receipts(&changed,true,&db);assert!(emitted.diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {:?}",emitted.diagnostics);
  }
 }
+
+#[test]
+fn original_report_refresh_seals_model_array_control_and_data_projection() {
+ use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+ let source=include_str!("fixtures/report-refresh-original.can");
+ let(db,program,ir,catalog)=fixture_source("report-refresh-original.can",source);
+ let(artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let code=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str()).collect::<String>();
+ assert!(code.contains("nativeScenarioSourceSendQuery")&&code.contains("nativeScenarioSourceSendData"));
+ assert!(artifact["operations"].as_array().unwrap().iter().find(|owner|owner["name"]=="report.refresh").unwrap()["result"]["disclosure"].is_null());
+ let owner=item(&ir,"report.refresh").id;
+ assert!(serialize_decision_sources(&program,&ir,&ir.items[owner.0 as usize],&db,Some(&catalog)).is_some());
+ for mode in ["input-model","input-owner","collection-predicate"]{
+  let mut changed=ir.clone();
+  if mode.starts_with("input-"){
+   let parameter=item(&changed,"report.refresh.locations").id;
+   let IrItemKind::Param{ty,owner:parameter_owner,..}=&mut changed.items[parameter.0 as usize].kind else{panic!("parameter");};
+   match mode{
+    "input-model"=>*ty=IrType::Known(ResolvedType::Array{element:Box::new(ResolvedType::Record{symbol:owner,stored:true}),ordered:true,nonempty:false}),
+    "input-owner"=>*parameter_owner=parameter,
+    _=>unreachable!(),
+   }
+  }else{
+   let IrItemKind::Scenario{guards,..}=&mut changed.items[owner.0 as usize].kind else{panic!("scenario");};
+   let IrStmt::Require{cond,..}=&mut guards[0]else{panic!("guard");};cond.expr=IrExpr::Bool(true);
+  }
+  assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.0 as usize],&db,Some(&catalog)).is_none(),"{mode} retained original collection authority");
+ }
+ for (mode,changed) in [
+  ("authored-default",source.replace("locations:Location[] label=", "locations:Location[]=[] label=")),
+  ("copied-input",source.replace("    send Reports.reports", "    let copied=locations\n    send Reports.reports").replace("locations=locations as location select", "locations=copied as location select")),
+  ("filtered-input",source.replace("locations as location select location.id", "locations as location where location.active select location.id")),
+ ]{
+  let(db,program,_,catalog)=fixture_source(&format!("report-array-{mode}.can"),&changed);
+  let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {diagnostics:?}");
+ }
+
+}

@@ -59,7 +59,7 @@ pub(super) fn send_value(ir:&IrProgram,value:&TypedExpr,values:&BTreeSet<String>
 #[derive(Clone)]
 struct Root { parameter:String, model:SymbolId, query:Option<String> }
 #[derive(Clone,Default)]
-struct Environment { values:BTreeSet<String>, roots:BTreeMap<String,Root> }
+struct Environment { values:BTreeSet<String>, roots:BTreeMap<String,Root>, input_arrays:BTreeMap<String,SymbolId> }
 #[derive(Default)]
 struct Reads {
     fields:BTreeMap<String,BTreeMap<String,String>>,
@@ -291,6 +291,32 @@ impl Reads {
     }
     fn query(&mut self,ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,query:&super::ir::IrQuery,
         value:&TypedExpr,env:&Environment,depth:usize)->Option<()> {
+        // An indexed admitted Model[] is not a contained scan and its IDs
+        // are DATA. Preserve the exact original array order, including repeats;
+        // the State consumer independently projects every actual input row.
+        if let super::ir::IrQueryDomain::Value{base,alias}=&query.domain{
+            let IrExpr::Name(parameter)=&base.expr else{return None;};
+            let model=*env.input_arrays.get(parameter)?;
+            if base.ty!=(ResolvedType::Array{element:Box::new(ResolvedType::Record{symbol:model,stored:true}),ordered:true,nonempty:false})
+                ||value.ty!=(ResolvedType::Array{element:Box::new(ResolvedType::Scalar(Scalar::Text)),ordered:true,nonempty:false})
+                ||query.parent.is_some()||query.where_pred.is_some()||query.limit.is_some()||query.archived.is_some()
+                ||!query.order.is_empty()||query.value_order.is_some()||self.queries.len()>=200{return None;}
+            let projection=query.select.as_deref()?;
+            let IrExpr::Member{base:receiver,field}=&projection.expr else{return None;};
+            if field!="id"||projection.ty!=ResolvedType::Scalar(Scalar::Text)||query.select_param.as_ref()!=Some(alias)
+                ||!matches!(&receiver.expr,IrExpr::Name(name)if name==alias)
+                ||receiver.ty!=(ResolvedType::Record{symbol:model,stored:true}){return None;}
+            let key=(value.span.file.0,value.span.start,value.span.end);if !self.query_spans.insert(key){return None;}
+            let source=context.db().get(value.span.file)?;
+            let module=ir.modules.iter().filter(|module|module.file==value.span.file&&module.span.start<=value.span.start&&value.span.end<=module.span.end)
+                .min_by_key(|module|module.span.end-module.span.start)?;
+            let id=crate::source::sha256_hex(format!("source-send-input-query/v1:{}:{}:{}:{}",source.path,source.sha256,value.span.start,value.span.end).as_bytes());
+            self.fields.entry(parameter.clone()).or_default();
+            self.queries.insert(id.clone(),serde_json::json!({"id":id,"source":{"path":source.path,"sha256":source.sha256,"module":module.name},
+                "node":{"file":value.span.file.0,"start":value.span.start,"end":value.span.end},"parameter":parameter,
+                "model":ir.items[model.0 as usize].canonical,"input":true,"fields":[],"order":[]}));
+            return Some(());
+        }
         let super::ir::IrQueryDomain::Model(name)=&query.domain else{return None;};
         let model=ir.items.iter().find(|item|item.canonical==*name)?;
         let IrItemKind::Model{owner:super::ir::IrOwner::ChildOf(parent_model),..}=&model.kind else{return None;};
@@ -346,14 +372,19 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
         if let ResolvedType::Record{symbol,stored:true}=ty
             && matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..}){
             env.roots.insert(param.name.clone(),Root{parameter:param.name.clone(),model:*symbol,query:None});models.insert(param.name.clone(),*symbol);
+        }else if let ResolvedType::Array{element,ordered:true,nonempty:false}=ty
+            &&let ResolvedType::Record{symbol,stored:true}=element.as_ref()
+            &&matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..})
+            &&matches!(&param.kind,IrItemKind::Param{default:None,..}){
+            env.input_arrays.insert(param.name.clone(),*symbol);models.insert(param.name.clone(),*symbol);
         }else if plain_value(ir,ty,0){env.values.insert(param.name.clone());}
     }
     fn walk(ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem,body:&[IrStmt],env:&mut Environment,
         models:&mut BTreeMap<String,SymbolId>,created_roots:&mut BTreeMap<String,serde_json::Value>,creates:&[serde_json::Value],loop_roots:&BTreeMap<String,String>,loops:Option<&serde_json::Value>,let_data:&HashMap<Span,serde_json::Value>,source:&serde_json::Value,module:&str,output:&mut HashMap<Span,serde_json::Value>){
         for statement in body{match statement{
-            IrStmt::Let{name,value,span}=>{let pure=send_value(ir,value,&env.values,0)||let_data.contains_key(span);env.values.remove(name);env.roots.remove(name);models.remove(name);created_roots.remove(name);if pure{env.values.insert(name.clone());}},
+            IrStmt::Let{name,value,span}=>{let pure=send_value(ir,value,&env.values,0)||let_data.contains_key(span);env.values.remove(name);env.roots.remove(name);env.input_arrays.remove(name);models.remove(name);created_roots.remove(name);if pure{env.values.insert(name.clone());}},
             IrStmt::Create{binding:Some(name),model,span,..}=>{
-                env.values.remove(name);env.roots.remove(name);models.remove(name);created_roots.remove(name);
+                env.values.remove(name);env.roots.remove(name);env.input_arrays.remove(name);models.remove(name);created_roots.remove(name);
                 if let Some(profile)=creates.iter().find(|profile|profile["node"]["start"]==span.start&&profile["node"]["end"]==span.end)
                     &&let Some(target)=ir.items.iter().find(|item|item.canonical==*model){
                     env.roots.insert(name.clone(),Root{parameter:name.clone(),model:target.id,query:None});models.insert(name.clone(),target.id);created_roots.insert(name.clone(),profile.clone());
@@ -367,6 +398,7 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
                     let Some(model)=models.get(name)else{continue;};
                     let mut value=serde_json::json!({"name":name,"model":ir.items[model.0 as usize].canonical,
                         "fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>()});
+                    if env.input_arrays.contains_key(name){value["array"]=serde_json::json!(true);}
                     if let Some(id)=loop_roots.get(name){value["loop"]=serde_json::json!(id);}
                     if let Some(created)=created_roots.get(name){value["created"]=created.clone();}
                     if let Some(identity)=reads.identities.get(name){value["identity"]=serde_json::json!(identity);}
@@ -384,7 +416,7 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
             IrStmt::For{item,domain,body,span,..}=>{
                 let Some(entry)=loops.and_then(|source|source["loops"].as_array()).and_then(|entries|entries.iter().find(|entry|entry["node"]["start"]==span.start&&entry["node"]["end"]==span.end))else{continue;};
                 let ResolvedType::Array{element,..}=&domain.ty else{continue;};let ResolvedType::Record{symbol,stored:true}=element.as_ref()else{continue;};
-                let mut nested=env.clone();nested.values.remove(item);nested.roots.insert(item.clone(),Root{parameter:item.clone(),model:*symbol,query:None});
+                let mut nested=env.clone();nested.values.remove(item);nested.input_arrays.remove(item);nested.roots.insert(item.clone(),Root{parameter:item.clone(),model:*symbol,query:None});
                 let mut models=models.clone();models.insert(item.clone(),*symbol);
                 let mut roots=loop_roots.clone();roots.insert(item.clone(),entry["id"].as_str().unwrap().to_owned());
                 let mut created=created_roots.clone();created.remove(item);

@@ -1874,6 +1874,8 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
         let child=|value:&TypedExpr|constructor_data(ir,value,loans,values,records,depth+1);
         match &value.expr{
             IrExpr::Name(name)=>values.contains(name)
+                ||matches!(&value.ty,ResolvedType::Array{element,ordered:true,nonempty:false}
+                    if matches!(element.as_ref(),ResolvedType::Record{stored:true,..})&&records.get(name)==Some(&value.ty))
                 ||matches!(value.ty.nullable_inner().unwrap_or(&value.ty),ResolvedType::Record{stored:true,..}|ResolvedType::StdDelivery{..}|ResolvedType::Delivery{..})
                 ||matches!(&value.ty,ResolvedType::Enum{cases,..}if cases.contains(name))
                 ||name=="c"&&value.ty==ResolvedType::Unknown,
@@ -1929,8 +1931,12 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
     let mut records=params.iter().filter_map(|id|{
         let param=ir.items.get(id.0 as usize)?;
         let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};
-        matches!(ty,ResolvedType::Record{symbol,stored:true}
+        (matches!(ty,ResolvedType::Record{symbol,stored:true}
             if ir.items.get(symbol.0 as usize).is_some_and(|item|matches!(item.kind,IrItemKind::Model{..})))
+            ||matches!(ty,ResolvedType::Array{element,ordered:true,nonempty:false}
+                if matches!(element.as_ref(),ResolvedType::Record{symbol,stored:true}
+                    if ir.items.get(symbol.0 as usize).is_some_and(|item|matches!(item.kind,IrItemKind::Model{..})))
+                    &&matches!(param.kind,IrItemKind::Param{default:None,..})))
             .then(||(param.name.clone(),ty.clone()))
     }).collect();
     statements(ir,owner,guards,0,&mut values,&mut records,&consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context)
@@ -12410,6 +12416,14 @@ fn null_equality(
                 self.append_select(&fetched, true, query)
             }
             crate::codegen::ir::IrQueryDomain::Value { base, alias } => {
+                if self.source_send_data_body {
+                    let source=self.source_data_sends.values().filter_map(|source|source["queries"].as_array()).flat_map(|queries|queries.iter())
+                        .find(|source|source["input"]==true&&source["node"]["file"]==span.file.0&&source["node"]["start"]==span.start&&source["node"]["end"]==span.end).cloned();
+                    if let Some(source)=source{
+                        self.stdlib.insert("nativeScenarioSourceSendQuery".into());let input=self.lower_expr(base);
+                        return format!("await nativeScenarioSourceSendQuery(c,{}, {input},async()=>{{throw new Error(\"unissued source input query\");}})",js_string(source["id"].as_str().expect("checked input query id")));
+                    }
+                }
                 self.lower_value_domain(query, base, alias)
             }
         }
@@ -13197,6 +13211,7 @@ fn null_equality(
                 let previous_data_body=self.source_data_body;
                 let previous_send_data_body=self.source_send_data_body;
                 if self.source_data_sends.get(span).is_some_and(|source|source["parameters"].as_array().is_some_and(|parameters|parameters.iter().any(|parameter|parameter.get("derived").is_some()))){self.source_data_body=true;self.source_send_data_body=true;}
+                if self.source_data_sends.contains_key(span){self.source_send_data_body=true;}
                 let args_text = self.lower_expr(args);
                 self.source_data_body=previous_data_body;
                 self.source_send_data_body=previous_send_data_body;
