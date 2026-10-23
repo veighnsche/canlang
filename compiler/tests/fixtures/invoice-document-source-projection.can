@@ -75,6 +75,9 @@ package invoice
   ExternalRefund in Invoice {payment:ExternalPayment,reference:text unique,amount:money,received:datetime,hidden:bool=false}
   Document in Invoice {revision:int,kind:enum(invoice,receipt)=invoice,file:file}
   DocumentRequest in Invoice {revision:int,kind:Document.kind=invoice,status:enum(pending,succeeded,failed,unknown)=pending,error:text?,delivery:text unique}
+  export contract Settlement { source:text, invoice:text, revision:int, amount:money, collected:money, refunded:money, collection_pending:bool, refund_pending:bool, state:Invoice.state, recorded_at:datetime } label="Invoice settlement snapshot"@{nl="Momentopname factuurafwikkeling"}
+  export event InvoiceSettlement { value:Settlement }
+  derive settlement(invoice:Invoice):Settlement = Settlement {source=invoice.source,invoice=invoice.id,revision=invoice.ledger_revision,amount=invoice.total,collected=invoice.received,refunded=invoice.refunded,collection_pending=any(invoice.Attempt as attempt,attempt.kind==collection and attempt.status in [pending,unknown]),refund_pending=any(invoice.Attempt as attempt,attempt.kind==refund and attempt.status in [pending,unknown]),state=invoice.state,recorded_at=now}
   derive issued_snapshot(invoice:Invoice,number:text,issued_at:datetime):InvoiceDocument = InvoiceDocument {issuer=invoice.issuer,recipient=invoice.recipient,address=invoice.address,tax_reference=invoice.tax_reference,number,issued_at,due=invoice.due,currency=invoice.currency,lines=invoice.Line as line order=line.position select DocumentLine {title=line.description,quantity=line.quantity,price=line.price,tax=line.tax,discount=line.discount,unit=line.unit,from=line.service_from,until=line.service_until,location=line.service_location,reference=line.service_reference},credits=invoice.Credit as credit select DocumentCredit {amount=credit.amount,reason=credit.reason},payments=(invoice.Attempt as payment select DocumentPayment {reference=payment.reference,amount=payment.amount,kind=payment.kind,state=format("{status}",{status=payment.status}),received=payment.received})+(invoice.ExternalPayment as payment select DocumentPayment {reference=payment.reference,amount=payment.amount,kind=collection,state="succeeded",received=payment.received})+(invoice.ExternalRefund as evidence select DocumentPayment {reference=evidence.reference,amount=evidence.amount,kind=refund,state="succeeded",received=evidence.received}),terms=invoice.terms,total=invoice.total}
   derive Invoice.collection_pending:bool = any(row.Attempt as attempt,attempt.kind==collection and attempt.status in [pending,unknown])
   derive Invoice.refund_pending:bool = any(row.Attempt as attempt,attempt.kind==refund and attempt.status in [pending,unknown])
@@ -84,13 +87,16 @@ package invoice
   derive Invoice.refunded:money = sum(row.Attempt as attempt where attempt.kind==refund and attempt.status==succeeded select attempt.amount,row.currency)+sum(row.ExternalRefund as refund select refund.amount,row.currency) label="Refunded amount"@{nl="Terugbetaald bedrag"}
   derive Invoice.balance:money = max([money(0,row.currency),row.total-row.credits-row.received]) label="Outstanding balance"@{nl="Openstaand saldo"}
   derive Invoice.refund_due:money = max([money(0,row.currency),row.received-row.refunded-(row.total-row.credits)]) label="Refund due"@{nl="Terug te betalen"}
-  policy Invoice read=members where=not row.hidden
+  policy Invoice read=members where=not row.hidden fields=location,source,ledger_revision,currency,state,total,issuer,recipient,address,tax_reference,terms,due,number,issued_at,hidden,collection_pending,refund_pending,settled,credits,balance,refund_due
+  policy Invoice read=members where=not row.hidden and row.terms!="Withhold aggregates" fields=received,refunded
   policy Line read=members where=not row.hidden fields=description,position,quantity,unit,service_from,service_until,service_location,service_reference,price,discount
   policy Line read=members where=not row.hidden and row.tax_readable fields=tax
-  policy Attempt read=members where=not row.hidden
+  policy Attempt read=members where=not row.hidden fields=reference,kind,payment,status,received,hidden
+  policy Attempt read=members where=not row.hidden and row.reference!="withheld" fields=amount
   policy Credit read=members where=not row.hidden
   policy ExternalPayment read=members where=not row.hidden
   policy ExternalRefund read=members where=not row.hidden
+  invariant Invoice: row.ledger_revision>=0
  When
   scenario document(invoice:Invoice) by=finance or authenticated label=label_PdfResult_document
    require invoice.state!=draft and invoice.number!=null and invoice.issued_at!=null and (owns(actor,invoice.parent) or has_role(actor,invoice.parent,billing) or (finance and can_work(actor,invoice.location)))
@@ -126,4 +132,27 @@ package invoice
     if invoice.refund_due.minor>0
      set invoice {needs_review=true}
     set invoice {ledger_revision=invoice.ledger_revision+1}
+  scenario record_payment(invoice:Invoice,amount:money,reference:text,received:datetime label=label_Settlement_received,evidence:text) by=finance label="Record external payment"@{nl="Externe betaling registreren"}
+   require can_work(actor,invoice.location) and invoice.state==issued and amount==invoice.balance and amount.minor>0 and trim(reference)!="" and trim(evidence)!="" and received<=now
+   require not any(invoice.Attempt as attempt,attempt.status in [pending,unknown]) and not any(ExternalPayment as payment,payment.reference==reference)
+   do
+    create ExternalPayment {parent=invoice,amount,reference,received,evidence} as payment
+    set invoice {ledger_revision=invoice.ledger_revision+1}
+    emit InvoiceSettlement {value=settlement(invoice)}
+  scenario payment_lose_grant(invoice:Invoice,amount:money,reference:text,received:datetime label=label_Settlement_received,evidence:text) by=finance label="Record external payment"@{nl="Externe betaling registreren"}
+   require can_work(actor,invoice.location) and invoice.state==issued and amount==invoice.balance and amount.minor>0 and trim(reference)!="" and trim(evidence)!="" and received<=now
+   require not any(invoice.Attempt as attempt,attempt.status in [pending,unknown]) and not any(ExternalPayment as payment,payment.reference==reference)
+   do
+    create ExternalPayment {parent=invoice,amount,reference,received,evidence} as payment
+    set invoice {ledger_revision=invoice.ledger_revision+1}
+    emit InvoiceSettlement {value=settlement(invoice)}
+    set invoice {terms="Withhold aggregates"}
+  scenario payment_abort(invoice:Invoice,amount:money,reference:text,received:datetime label=label_Settlement_received,evidence:text) by=finance label="Record external payment"@{nl="Externe betaling registreren"}
+   require can_work(actor,invoice.location) and invoice.state==issued and amount==invoice.balance and amount.minor>0 and trim(reference)!="" and trim(evidence)!="" and received<=now
+   require not any(invoice.Attempt as attempt,attempt.status in [pending,unknown]) and not any(ExternalPayment as payment,payment.reference==reference)
+   do
+    create ExternalPayment {parent=invoice,amount,reference,received,evidence} as payment
+    set invoice {ledger_revision=invoice.ledger_revision+1}
+    emit InvoiceSettlement {value=settlement(invoice)}
+    set invoice {ledger_revision=-1}
  Then

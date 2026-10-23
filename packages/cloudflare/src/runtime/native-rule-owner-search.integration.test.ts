@@ -2863,3 +2863,80 @@ it('executes the original contained Invoice cancellation loop through authentic 
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+
+it('emits the original Invoice settlement with independently granted derived Money DATA',
+  {timeout:180000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-invoice-settlement-data-'));
+    try{
+      const source=join(root,'compiler/tests/fixtures/invoice-document-source-projection.can');
+      const original=await readFile(join(root,'draft/apps/CanInvoice/CanInvoice.can'),'utf8'),text=await readFile(source,'utf8');
+      const start=original.indexOf('  scenario record_payment('),end=original.indexOf('   examples ',start);
+      assert.ok(text.includes(original.slice(start,end)),'full original financial owner remains authored');
+      assert.ok(text.includes(original.split('\n').find(line=>line.startsWith('  derive settlement('))!),'full original settlement helper remains authored');
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],
+        {cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,
+        stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      assert.equal(artifact.operations?.find(operation=>operation.name==='invoice.record_payment')?.result?.disclosure,undefined);
+      for(const mode of ['allowed','other-parent','hidden-child','withheld-child-field','withheld-derived-field','hidden-invoice','grant-loss','late-invariant','identity-during-source','child-at-commit','derived-grant-at-commit'] as const){
+        const {now,identities,identity,team,user}=await member(`invoice-settlement-${mode}`,['invoice.finance']);
+        const scope={app:'CanInvoice',owner:team.team_id,ownerPackage:'invoice'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'settlement-state',fileStoreId:'settlement-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+        const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent});
+        const location=row('location',{active:true}),customer=row('customer',{kind:'company',hidden:false});
+        const invoice=row('invoice',{location:{id:location.id},source:'original-invoice',ledger_revision:'0',currency:'EUR',state:'issued',total:{minor:'1100',currency:'EUR'},
+          issuer:'Original issuer',recipient:'Original recipient',address:'1 Road',tax_reference:null,terms:mode==='withheld-derived-field'?'Withhold aggregates':'Net 14',due:'2026-12-01',number:'INV-1',issued_at:new Date(now).toISOString(),hidden:mode==='hidden-invoice'},
+          {model:model('customer','Customer'),id:customer.id});
+        const child={model:model('invoice','Invoice'),id:invoice.id};
+        const attempt=row('attempt',{reference:mode==='withheld-child-field'?'withheld':'payment-1',amount:{minor:'500',currency:'EUR'},kind:'collection',status:'succeeded',received:new Date(now).toISOString(),hidden:mode==='hidden-child'},child);
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          {kind:'insert',model:model('rent_catalog','Location'),row:location},{kind:'insert',model:model('customer','Customer'),row:customer},
+          {kind:'insert',model:model('employee','Employee'),row:row('worker',{user:{id:user.user_id},home:{id:location.id},locations:[],operator_wide:false,active:true,hidden:true})},
+          {kind:'insert',model:model('invoice','Invoice'),row:invoice},{kind:'insert',model:model('invoice','Attempt'),row:attempt},
+          {kind:'insert',model:model('invoice','ExternalPayment'),row:row('external',{reference:'bank-1',evidence:'Original bank proof',amount:{minor:'400',currency:'EUR'},received:new Date(now).toISOString(),hidden:false},child)},
+          {kind:'insert',model:model('invoice','ExternalRefund'),row:row('refund',{payment:{id:asId('external')},reference:'refund-1',amount:{minor:'100',currency:'EUR'},received:new Date(now).toISOString(),hidden:false},child)},
+        ]}));
+        if(mode==='other-parent')await store.commit(makeBatch(await store.readRevision(),{writes:[
+          {kind:'insert',model:model('invoice','Invoice'),row:{...invoice,id:asId('other-invoice')}},
+          {kind:'insert',model:model('invoice','Attempt'),row:{...attempt,id:asId('other-attempt'),data:{...attempt.data,reference:'foreign-hidden',amount:{minor:'99999',currency:'EUR'},hidden:true},parent:{model:model('invoice','Invoice'),id:asId('other-invoice')}}},
+        ]}));
+        let raced=false;
+        if(mode==='identity-during-source'){
+          const load=store.load.bind(store);store.load=async(model,id)=>{
+            if(!raced&&model==='work.occurrence'){raced=true;const membership=await identities.findMembership(team.team_id,user.user_id);assert.ok(membership);await identities.setMembershipRoles(membership.membership_id,[]);}
+            return load(model,id);
+          };
+        }
+        if(mode==='child-at-commit'||mode==='derived-grant-at-commit'){
+          const commit=store.commit.bind(store);store.commit=async batch=>{
+            if(!raced&&batch.writes.some(write=>write.model==='work.occurrence')){
+              raced=true;
+              if(mode==='derived-grant-at-commit')await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('invoice','Invoice'),id:invoice.id,expectedVersion:invoice.version,
+                row:{...invoice,version:asVersion(invoice.version+1),data:{...invoice.data,terms:'Withhold aggregates'}}}]}));
+              else await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('invoice','Attempt'),id:attempt.id,expectedVersion:attempt.version,
+                row:{...attempt,version:asVersion(attempt.version+1),data:{...attempt.data,amount:{minor:'600',currency:'EUR'}}}}]}));
+            }return commit(batch);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const request={operation:mode==='grant-loss'?'invoice.payment_lose_grant':mode==='late-invariant'?'invoice.payment_abort':'invoice.record_payment',operation_id:operationId(now),inputs:{invoice:{id:invoice.id,version:String(invoice.version)},amount:{minor:'200',currency:'EUR'},reference:'new-bank-payment',received:new Date(now).toISOString(),evidence:'Bank statement'}};
+        const outcome=await invoker.invokeMutation(request,identity);
+        const allowed=mode==='allowed'||mode==='other-parent';
+        assert.equal('result'in outcome&&outcome.result.status==='committed',allowed,`${mode}: ${JSON.stringify(outcome)}`);
+        const actual=await store.load(model('invoice','Invoice'),invoice.id);assert.ok(actual);assert.equal(actual.data.ledger_revision,allowed?'1':'0',mode);
+        const sources=await store.query({model:asModel('work.occurrence'),authority:'owner'});assert.equal(sources.length,allowed?1:0,mode);
+        assert.equal((await store.query({model:model('invoice','ExternalPayment'),authority:'owner'})).length,allowed?2:1,mode);
+        if(mode==='identity-during-source'||mode==='child-at-commit'||mode==='derived-grant-at-commit')assert.equal(raced,true,mode);
+        if(!allowed){assert.ok('error'in outcome,`${mode}: ${JSON.stringify(outcome)}`);assert.equal(outcome.error.code,mode==='late-invariant'?'rule_failed':mode==='child-at-commit'?'rule_failed':mode==='derived-grant-at-commit'?'conflict':mode==='hidden-invoice'?'not_found':'forbidden',mode);continue;}
+        const result=sources[0]!.data.result as {payload:unknown;context:{kind:string;operation:string}};
+        assert.deepEqual(result.payload,{value:{source:'original-invoice',invoice:invoice.id,revision:'1',amount:{minor:'1100',currency:'EUR'},collected:{minor:'1100',currency:'EUR'},refunded:{minor:'100',currency:'EUR'},collection_pending:false,refund_pending:false,state:'issued',recorded_at:new Date(now).toISOString()}});
+        assert.equal(result.context.kind,'user');assert.equal(result.context.operation,request.operation);
+        assert.equal((await store.outboxPending()).length,0);
+        const saved=await store.readReceipt({app:scope.app,owner:scope.owner,principal:user.user_id,operation:request.operation,operationId:request.operation_id} as Parameters<typeof store.readReceipt>[0]);assert.ok(saved);assert.ok(saved.outcome.status==='committed');assert.equal(saved.outcome.scenario,undefined);
+        const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed',JSON.stringify(replay));assert.deepEqual(replay.result.records,[]);assert.equal(replay.result.result,null);
+        assert.deepEqual(await store.query({model:asModel('work.occurrence'),authority:'owner'}),sources);assert.deepEqual(await store.readReceipt(saved.identity),saved);
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });

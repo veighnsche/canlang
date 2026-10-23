@@ -157,7 +157,7 @@ import type { ViewerGenerationCallbackReadObservation } from '@canlang/state/rec
 import { bindInstalledSourceQueryPredicate } from '@canlang/state/receipt';
 import { registerNativeUiQueryBinder, forwardNativeUiQueryBinder } from './native-ui-query.js';
 import { bindNativeReadBooleanContext, bindNativeReadBooleanReader, bindNativeSourceReferenceReader } from './native-read-boolean.js';
-import { bindNativeScenarioSourceEmitData, bindNativeScenarioSourceSendQuery, bindNativeScenarioSourceSchedule, bindNativeScenarioSourceCancel, bindNativeScenarioSourceSendData, bindNativeScenarioSourceLoopItem, bindNativeScenarioSourceLoopCopy, bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
+import { bindNativeScenarioSourceEmitQuery, bindNativeScenarioSourceEmitData, bindNativeScenarioSourceSendQuery, bindNativeScenarioSourceSchedule, bindNativeScenarioSourceCancel, bindNativeScenarioSourceSendData, bindNativeScenarioSourceLoopItem, bindNativeScenarioSourceLoopCopy, bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
   bindNativeScenarioLeaveRequestDecision, bindNativeScenarioLeaveDecideDecision,
   bindNativeLeaveDecideAllowance, bindNativeScenarioReferRejectDecision,
   bindNativeScenarioMemberRetryDecision, bindNativeScenarioInvoiceOverdueDecision,
@@ -1478,6 +1478,7 @@ interface StateInvokeProducer {
   readonly projectScenarioReceipt?: typeof import('@canlang/state/invocation').projectScenarioReceipt;
   readonly bindScenarioSourceEmitDataProducer?: typeof import('@canlang/state/invocation').bindScenarioSourceEmitDataProducer;
   readonly executeScenarioSourceEmitData?: typeof import('@canlang/state/invocation').executeScenarioSourceEmitData;
+  readonly executeScenarioSourceEmitQuery?: typeof import('@canlang/state/invocation').executeScenarioSourceEmitQuery;
   readonly consumeScenarioSourceEmitData?: typeof import('@canlang/state/invocation').consumeScenarioSourceEmitData;
   readonly bindScenarioSourceLoopProducer?:typeof import('@canlang/state/invocation').bindScenarioSourceLoopProducer;
   readonly executeScenarioSourceLoop?:typeof import('@canlang/state/invocation').executeScenarioSourceLoop;
@@ -1795,6 +1796,7 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     }),
     ...(typeof scenarioMod['bindScenarioSourceEmitDataProducer']!=='function'?{}:{bindScenarioSourceEmitDataProducer:scenarioMod['bindScenarioSourceEmitDataProducer'] as NonNullable<StateInvokeProducer['bindScenarioSourceEmitDataProducer']>}),
     ...(typeof scenarioMod['executeScenarioSourceEmitData']!=='function'?{}:{executeScenarioSourceEmitData:scenarioMod['executeScenarioSourceEmitData'] as NonNullable<StateInvokeProducer['executeScenarioSourceEmitData']>}),
+    ...(typeof scenarioMod['executeScenarioSourceEmitQuery']!=='function'?{}:{executeScenarioSourceEmitQuery:scenarioMod['executeScenarioSourceEmitQuery'] as NonNullable<StateInvokeProducer['executeScenarioSourceEmitQuery']>}),
     ...(typeof scenarioMod['consumeScenarioSourceEmitData']!=='function'?{}:{consumeScenarioSourceEmitData:scenarioMod['consumeScenarioSourceEmitData'] as NonNullable<StateInvokeProducer['consumeScenarioSourceEmitData']>}),
     ...(typeof scenarioMod['bindScenarioSourceLoopProducer']!=='function'?{}:{bindScenarioSourceLoopProducer:scenarioMod['bindScenarioSourceLoopProducer'] as NonNullable<StateInvokeProducer['bindScenarioSourceLoopProducer']>}),
     ...(typeof scenarioMod['executeScenarioSourceLoop']!=='function'?{}:{executeScenarioSourceLoop:scenarioMod['executeScenarioSourceLoop'] as NonNullable<StateInvokeProducer['executeScenarioSourceLoop']>}),
@@ -5847,7 +5849,8 @@ async function bindNativeSourceEmitData(asm:AssembledModules,artifact:CompileArt
     if(context===undefined)continue;
     const readPolicies=new Map<ModelName,import('@canlang/state/query').ViewerSourceReadPolicy>();
     for(const site of sites){
-      for(const parameter of site.parameters)for(const [model,policy]of sourceReads!.policies(parameter.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
+      for(const modelName of [...site.parameters.map(parameter=>parameter.model),...(site.queries??[]).map(query=>query.model)])
+        for(const [model,policy]of sourceReads!.policies(modelName))if(!readPolicies.has(model))readPolicies.set(model,policy);
     }
     const app=privateSourceMember(privateSourceMember(module,'appDefinition'),'id');
     if(typeof app!=='string'||app==='')throw new AssemblyCorrespondenceError('EMIT DATA lacks its original owning app.');
@@ -12942,6 +12945,23 @@ async function runScenarioExecution(
     const data=nativeSourceEmitData.get(scenarioDef),actual=call as AdmittedCall;
     if(data!==undefined){
       const parameters=localPolicyObject(argument);
+      let queryExecution:{source:SourceEmitDataSource;roots:Readonly<Record<string,unknown>>}|null=null;
+      bindNativeScenarioSourceEmitQuery(ctx,async(id,parent)=>{
+        try{
+          const active=queryExecution,execute=loaded.producers.invoke.executeScenarioSourceEmitQuery;
+          const query=active?.source.queries?.find(query=>query.id===id);
+          if(active===null||execute===undefined||query===undefined||parent!==active.roots[query.parameter])return refuseRecordBinding('EMIT DATA aggregate differs from its exact source parent.');
+          const rows=await execute(actual,receiptStore,{id});
+          return Object.freeze(rows.map(row=>{
+            const fields:Record<string,unknown>=Object.create(null);
+            for(const field of query.fields){const wire=Object.getOwnPropertyDescriptor(row.data,field.name);
+              if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('EMIT DATA aggregate lacks its actually granted scalar.');
+              fields[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);
+            }
+            return Object.freeze(fields);
+          }));
+        }catch(error){recordEngineFailure(error);throw error;}
+      });
       bindNativeScenarioSourceEmitData(ctx,async(body,supplied)=>{
         try{
           const assertExecution=loaded.producers.invoke.assertScenarioReceiptCallExecution,execute=loaded.producers.invoke.executeScenarioSourceEmitData;
@@ -12979,11 +12999,13 @@ async function runScenarioExecution(
               references[reference.parameter]=root;
             }
             const count=emittedEvents.length;activeSourceEmitData=source;
+            if(queryExecution!==null)return refuseRecordBinding('EMIT DATA aggregate frame cannot nest.');
+            const active={source,roots:Object.freeze(projected)};queryExecution=active;
             try{
-              const result=await body(ctx,Object.freeze(projected),Object.freeze(references));
+              const result=await body(ctx,active.roots,Object.freeze(references));
               if(emittedEvents.length!==count+1||emittedEvents[count]?.event!==source.event)return refuseRecordBinding('EMIT DATA did not retain its exact original declared source.');
               return result;
-            }finally{activeSourceEmitData=null;}
+            }finally{activeSourceEmitData=null;if(queryExecution===active)queryExecution=null;}
           }});
         }catch(error){recordEngineFailure(error);throw error;}
       });

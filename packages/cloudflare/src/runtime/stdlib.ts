@@ -82,7 +82,7 @@ export {
 export const same = sameNativeReference;
 export { active_member } from './native-membership.js';
 export { nativeReadBoolean, nativeReadReference } from './native-read-boolean.js';
-export { nativeScenarioSourceSendQuery, nativeScenarioSourceSchedule, nativeScenarioSourceCancel, nativeScenarioSourceEmitData, nativeScenarioSourceSendData, nativeScenarioSourceLoopItem, nativeScenarioSourceLoopCopy, nativeScenarioSourceLoop, nativeScenarioRequire, nativeScenarioEventDecision, nativeScenarioTermDecision,
+export { nativeScenarioSourceEmitQuery, nativeScenarioSourceSendQuery, nativeScenarioSourceSchedule, nativeScenarioSourceCancel, nativeScenarioSourceEmitData, nativeScenarioSourceSendData, nativeScenarioSourceLoopItem, nativeScenarioSourceLoopCopy, nativeScenarioSourceLoop, nativeScenarioRequire, nativeScenarioEventDecision, nativeScenarioTermDecision,
   nativeScenarioLeaveRequestDecision, nativeScenarioLeaveDecideDecision,
   nativeScenarioReferRejectDecision, nativeScenarioMemberRetryDecision,
   nativeScenarioInvoiceOverdueDecision, nativeScenarioRentMovementRefundDecision,

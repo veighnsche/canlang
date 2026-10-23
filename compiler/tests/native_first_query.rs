@@ -2186,7 +2186,7 @@ fn original_invoice_document_keeps_contained_projection_and_helper_formal_corres
     assert!(serialize_decision_sources(&program,&ir,receipt,&db,Some(&catalog)).is_some());
     let guarded=artifact["modules"].as_array().unwrap().iter().map(|module|
         module["js"].as_str().unwrap().matches("check(await nativeScenarioRequire(c,").count()).sum::<usize>();
-    assert_eq!(guarded,11,"receipt, credit and correlated allowance guards need their actual source observers");
+    assert_eq!(guarded,17,"receipt, credit, correlated allowance and complete payment owners need their actual source observers");
     let module=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str()).find(|text|text.contains("invoice.credit_review")).unwrap();
     assert!(module.contains("if (await nativeScenarioRequire(c,"),"the original post-CREATE condition needs a real staged observer");
     let credit=item(&ir,"invoice.credit_review");
@@ -2553,5 +2553,53 @@ fn contained_cancel_loop_preserves_original_domain_work_and_delivery_carrier() {
         let (db,program,_,catalog)=fixture_source(&format!("{name}.can"),&changed);
         let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
         assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
+    }
+}
+
+#[test]
+fn original_settlement_emit_seals_derived_aggregate_data_closure() {
+    use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+    let source=include_str!("fixtures/invoice-document-source-projection.can");
+    let(db,program,ir,catalog)=fixture_source("invoice-settlement-source.can",source);
+    let(artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let owner=item(&ir,"invoice.record_payment");
+    assert!(artifact["modules"].as_array().unwrap().iter().any(|module|module["js"].as_str().unwrap().contains("nativeScenarioSourceEmitQuery")));
+    assert!(serialize_decision_sources(&program,&ir,owner,&db,Some(&catalog)).is_some());
+    for mode in ["derived-body","refunded-body","derived-filter","derived-owner","derived-type","helper-formal","contract-order","child-predicate"]{
+        let mut changed=ir.clone();
+        match mode{
+            "derived-body"|"refunded-body"|"derived-filter"|"derived-owner"|"derived-type"=>{
+                let id=item(&changed,if mode=="refunded-body"{"invoice.Invoice.refunded"}else{"invoice.Invoice.received"}).id;
+                let IrItemKind::DeriveField{expr,model,ty,..}=&mut changed.items[id.0 as usize].kind else{panic!("derive");};
+                if mode=="derived-body"||mode=="refunded-body"{let value=expr.as_mut().unwrap();value.expr=IrExpr::Money{minor:0,currency:"EUR".into()};}
+                else if mode=="derived-filter"{
+                    let IrExpr::Binary{left,..}=&mut expr.as_mut().unwrap().expr else{panic!("aggregate addition");};
+                    let args=match &mut left.expr{IrExpr::Call{args,..}|IrExpr::BoundCall{args,..}=>args,_=>panic!("sum")};
+                    let query=args.iter_mut().find_map(|value|match &mut value.expr{IrExpr::Query(query)=>Some(query),_=>None}).unwrap();
+                    query.where_pred.as_mut().unwrap().expr=IrExpr::Bool(true);
+                }
+                else if mode=="derived-owner"{model.0+=1;}
+                else{*ty=IrType::Known(ResolvedType::Scalar(Scalar::Bool));}
+            },
+            "helper-formal"=>{
+                let helper=item(&changed,"invoice.settlement");let IrItemKind::DeriveFn{params,..}=&helper.kind else{panic!("helper");};let id=params[0];
+                let IrItemKind::Param{index,..}=&mut changed.items[id.0 as usize].kind else{panic!("formal");};*index+=1;
+            },
+            "contract-order"=>{
+                let id=item(&changed,"invoice.Settlement").id;
+                let IrItemKind::Contract{fields,..}=&mut changed.items[id.0 as usize].kind else{panic!("contract");};fields.swap(0,1);
+            },
+            "child-predicate"=>{
+                let id=item(&changed,"invoice.settlement").id;
+                let IrItemKind::DeriveFn{expr:Some(body),..}=&mut changed.items[id.0 as usize].kind else{panic!("helper");};
+                let IrExpr::Object(fields)=&mut body.expr else{panic!("object");};
+                let pending=&mut fields.iter_mut().find(|(name,_)|name=="collection_pending").unwrap().1;
+                let args=match &mut pending.expr{IrExpr::Call{args,..}|IrExpr::BoundCall{args,..}=>args,_=>panic!("any")};
+                let predicate=args.iter_mut().find_map(|value|match &mut value.expr{IrExpr::Lambda{body,..}=>Some(body),_=>None}).unwrap();
+                predicate.expr=IrExpr::Bool(false);
+            },
+            _=>unreachable!(),
+        }
+        assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode}");
     }
 }

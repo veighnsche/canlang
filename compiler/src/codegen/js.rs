@@ -4995,6 +4995,7 @@ pub struct Emitter<'a> {
     source_data_sends: HashMap<Span, serde_json::Value>,
     source_data_emits: HashMap<Span, serde_json::Value>,
     source_body_loops: HashMap<String, serde_json::Value>,
+    source_data_body: bool,
     source_cancels: HashMap<Span, serde_json::Value>,
     source_schedules: HashMap<Span, serde_json::Value>,
     source_require_identity: Option<serde_json::Value>,
@@ -5246,6 +5247,7 @@ impl<'a> Emitter<'a> {
             source_data_sends: HashMap::new(),
             source_data_emits: HashMap::new(),
             source_body_loops: HashMap::new(),
+            source_data_body: false,
             source_cancels: HashMap::new(),
             source_schedules: HashMap::new(),
             source_require_identity: None,
@@ -6427,11 +6429,15 @@ impl<'a> Emitter<'a> {
     /// constructing a callback does not evaluate its body. In particular a
     /// pure Values grouping key must remain synchronous.
     fn implicit_expr_uses_async(&self, expression: &TypedExpr) -> bool {
-        if !self.retained_owner_body && !self.boolean_body && !self.boolean_helper { return false; }
+        if !self.retained_owner_body && !self.boolean_body && !self.boolean_helper && !self.source_data_body { return false; }
         let mut pending = vec![expression];
         while let Some(value) = pending.pop() {
             match &value.expr {
                 IrExpr::Member { base, field } => {
+                    if self.source_data_body && matches!(base.ty,ResolvedType::Record{symbol,..}if
+                        self.ir.items.iter().any(|item|item.name==*field&&matches!(item.kind,IrItemKind::DeriveField{model,..}if model==symbol))) {
+                        return true;
+                    }
                     if (self.boolean_body || self.retained_owner_body && field != "id") && self.is_model_reference(&base.ty) {
                         return true;
                     }
@@ -8699,7 +8705,7 @@ impl<'a> Emitter<'a> {
                 {
                     return format!("{}.balance", self.lower_expr(base));
                 }
-                if (self.source_guard_body || self.owner_handler_body)
+                if (self.source_guard_body || self.owner_handler_body || self.source_data_body)
                     && let Some(model)=derived_model
                     && let Some(derived) = self.ir.items.iter().find_map(|item| match &item.kind {
                         IrItemKind::DeriveField {
@@ -8720,7 +8726,7 @@ impl<'a> Emitter<'a> {
                         );
                         return self.throw_expr("unsupported source guard derive");
                     }
-                    let receiver = if self.owner_handler_body { self.lower_expr(base) } else { self.lower_boolean_record(base) };
+                    let receiver = if self.owner_handler_body || self.source_data_body { self.lower_expr(base) } else { self.lower_boolean_record(base) };
                     self.enter_scope();
                     let row = self.bind("row");
                     self.source_guard_derive_depth += 1;
@@ -10521,6 +10527,16 @@ fn conjunct_dependency_matches<'d>(
                 self.lower_builtin_rendered(id, *awaited, parts, domain_type, span, await_result, async_scoped)
             }
             IrCallTarget::DeriveFn(canonical) => {
+                if self.source_data_body {
+                    let helper=self.ir.items.iter().find(|item|item.canonical==*canonical).cloned();
+                    if let Some(IrItem{kind:IrItemKind::DeriveFn{params,expr:Some(body),..},..})=helper {
+                        if params.len()!=parts.len() { self.unsupported("effect DATA helper","original supplied formal census differs",span);return self.throw_expr("effect DATA helper formal mismatch"); }
+                        self.enter_scope();
+                        let signature=params.iter().map(|id|self.bind(&self.ir.items[id.0 as usize].name.clone())).collect::<Vec<_>>().join(",");
+                        let value=self.lower_expr(&body);self.exit_scope();
+                        return format!("{}(async({signature})=>({value}))({})",if await_result{"await "}else{""},parts.join(","));
+                    }
+                }
                 if let Some(specialized)=self.lower_source_require_derive(canonical,parts,span,await_result) {return specialized;}
                 if let Some(specialized) =
                     self.lower_derive_field_rendered(canonical, parts, span, await_result)
@@ -12059,6 +12075,19 @@ fn null_equality(
         }
         match &query.domain {
             crate::codegen::ir::IrQueryDomain::Model(model) => {
+                if self.source_data_body {
+                    let source=self.source_data_emits.values().filter_map(|source|source["queries"].as_array()).flat_map(|queries|queries.iter())
+                        .find(|source|source["node"]["file"]==span.file.0&&source["node"]["start"]==span.start&&source["node"]["end"]==span.end).cloned();
+                    let Some(source)=source else{self.unsupported("EMIT DATA query","original aggregate domain lacks its independent DATA census",span);return self.throw_expr("unsealed EMIT DATA query");};
+                    self.stdlib.insert("nativeScenarioSourceEmitQuery".into());
+                    let parent=self.lower_expr(query.parent.as_deref().expect("checked aggregate parent"));
+                    let mut fetched=format!("await nativeScenarioSourceEmitQuery(c,{}, {parent})",js_string(source["id"].as_str().expect("checked aggregate id")));
+                    if let Some(predicate)=&query.where_pred{
+                        self.enter_scope();let row=self.bind(&query.where_param);let predicate=self.lower_expr(predicate);self.exit_scope();
+                        fetched=format!("await (async($rows)=>{{const $selected=[];for(const $item of $rows){{if(await (async({row})=>({predicate}))($item))$selected.push($item);}}return Object.freeze($selected);}})({fetched})");
+                    }
+                    return self.append_select(&fetched,true,query);
+                }
                 // A private serial owner decision may issue only its checked
                 // stored-model occurrences. The marker identifies the exact
                 // source call, rather than granting authority by model name.
@@ -12890,12 +12919,14 @@ fn null_equality(
                     let inputs=roots.iter().filter(|name|!source["parameters"].as_array().expect("DATA roots").iter().any(|root|root["name"]==**name))
                         .map(|name|format!("{}:{}",object_key(name),self.reference(name))).collect::<Vec<_>>().join(",");
                     let IrExpr::Object(entries)=&payload.expr else{unreachable!("original event payload");};
+                    let previous_data_body=self.source_data_body;self.source_data_body=source.get("queries").is_some()||source["parameters"].as_array().is_some_and(|parameters|parameters.iter().any(|parameter|parameter.get("derived").is_some()));
                     let fields=entries.iter().map(|(field,value)|{
                         let value=if let Some(reference)=references.iter().find(|reference|reference["field"]==*field){
                             format!("$can$emit$refs[{}]",descriptor_json(&reference["parameter"]))
                         }else{self.lower_expr(value)};
                         format!("{}:{value}",object_key(field))
                     }).collect::<Vec<_>>().join(",");
+                    self.source_data_body=previous_data_body;
                     return vec![(format!("{pad}await nativeScenarioSourceEmitData(c,$can$emit$issue({},c,async(c,{{{bindings}}},$can$emit$refs)=>emit(c,{},{{{fields}}})),{{{bindings}{}{inputs}}});",descriptor_json(&descriptor_json(&source)),js_string(event),if inputs.is_empty(){""}else{","}),*span)];
                 }
                 let payload_text=self.lower_expr(payload);

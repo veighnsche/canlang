@@ -9726,7 +9726,8 @@ async function observeModelQuerySourceAuthority<AllowAbsent extends boolean = fa
   state: Capture, model: ModelName, row: StoredRow, fields: readonly string[], pending = 0,
   predicateDomain?: readonly StoredRow[],
   decisionPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>,
-  sourceProducer?:ScenarioReceiptReferenceProducer, allowAbsent?:AllowAbsent): Promise<{
+  sourceProducer?:ScenarioReceiptReferenceProducer, allowAbsent?:AllowAbsent,
+  computedFields?:ReadonlySet<string>): Promise<{
     readonly record:AllowAbsent extends true ? ProjectedRecord | null : ProjectedRecord;
     readonly requireFields: (fields: readonly string[]) => Promise<void>; readonly revalidate: () => Promise<void>;
   }> {
@@ -9766,7 +9767,7 @@ async function observeModelQuerySourceAuthority<AllowAbsent extends boolean = fa
   const requiredFields = new Set(fields);
   const readable = (value: Awaited<ReturnType<typeof project>>, absent = allowAbsent === true) => value.record === null ? absent : [...requiredFields].every(field => field === 'parent'
     ? value.record!.parent !== null && value.record!.parent.model === state.bound.artifactModels.get(model)?.parent
-    : ('grants' in read ? value.grants.some(grant => grant.fields.includes(field)) : true) && (field === 'id' || Object.hasOwn(value.record!.data, field)));
+    : ('grants' in read ? value.grants.some(grant => grant.fields.includes(field)) : true) && (field === 'id' || computedFields?.has(field)===true || Object.hasOwn(value.record!.data, field)));
   const authority = await observeRowGrantAuthority(context, observed => project(row, observed,
     async (model, id) => { healthy(); const value = await owner.session!.views.final.get(model, id); healthy(); return value; }, healthy,
     predicateDomain === undefined ? undefined : predicateControlDomain(model, predicateDomain, owner.maxRows, healthy)));
@@ -9985,10 +9986,14 @@ export async function executeScenarioSourceSendQuery(call:AdmittedCall,store:Sto
 }
 
 /** EMIT uses its own source lifecycle; no SEND frame or bound provider route qualifies. */
-export type ScenarioSourceEmitDataSource=Omit<ScenarioSourceSendDataSource,'operation'|'binding'|'queries'>&{readonly event:string;readonly references?:readonly{readonly field:string;readonly parameter:string;readonly model:ModelName}[]};
+export type ScenarioSourceEmitDataSource=Omit<ScenarioSourceSendDataSource,'operation'|'binding'|'parameters'>&{
+  readonly event:string;
+  readonly parameters:readonly (ScenarioSourceSendDataSource['parameters'][number]&{readonly derived?:readonly{readonly name:string;readonly type:CanTypeId}[]})[];
+  readonly references?:readonly{readonly field:string;readonly parameter:string;readonly model:ModelName}[];
+};
 interface SourceEmitDataProducer extends ScenarioReceiptReferenceProducer{readonly sites:readonly ScenarioSourceEmitDataSource[];readonly events:readonly string[];}
 const sourceEmitDataProducers=new WeakMap<GeneratedOperationDef,SourceEmitDataProducer>();
-const sourceEmitDataExecutions=new WeakMap<ReceiptOwnerSession,{readonly call:AdmittedCall;readonly source:ScenarioSourceEmitDataSource;readonly stage:number;readonly ordinal:number|null;emitted:boolean;occurrence:string|null}>();
+const sourceEmitDataExecutions=new WeakMap<ReceiptOwnerSession,{readonly call:AdmittedCall;readonly source:ScenarioSourceEmitDataSource;readonly stage:number;readonly ordinal:number|null;readonly queries:Set<string>;emitted:boolean;occurrence:string|null}>();
 const consumedSourceEmitData=new WeakMap<AdmittedCall,Set<string>>();
 export function bindScenarioSourceEmitDataProducer(def:GeneratedOperationDef,producer:SourceEmitDataProducer):void{
   const bound=boundPlans.get(def);
@@ -10004,7 +10009,7 @@ export function bindScenarioSourceEmitDataProducer(def:GeneratedOperationDef,pro
   const readPolicies=captureSourceReadPolicies(producer.readPolicies);
   const events=list(dataCopy(producer.events)).map(text);if(events.length>200||new Set(events).size!==events.length)return invalid('EMIT DATA declared event census is invalid.');
   const sites=list(dataCopy(producer.sites)).map(value=>{
-    const site=object(value,['source','owner','node','event','parameters',...(Object.hasOwn(value as object,'references')?['references']:[])]);origin(site['source']);
+    const site=object(value,['source','owner','node','event','parameters',...(Object.hasOwn(value as object,'references')?['references']:[]),...(Object.hasOwn(value as object,'queries')?['queries']:[])]);origin(site['source']);
     if(site['owner']!==def.name||stableStringify(site['source'])!==stableStringify(bound.plan.source))return invalid('EMIT DATA source owner mismatch.');
     const node=object(site['node'],['start','end']);
     if(!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start']))return invalid('EMIT DATA occurrence is invalid.');
@@ -10012,7 +10017,7 @@ export function bindScenarioSourceEmitDataProducer(def:GeneratedOperationDef,pro
     const parameters=list(site['parameters']);if(parameters.length===0)return invalid('EMIT DATA needs its actual source root census.');
     const names=new Set<string>();
     for(const value of parameters){
-      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
+      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[]),...(Object.hasOwn(value as object,'derived')?['derived']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
       const input=bound.inputs.find(input=>input.name===name),declaration=bound.models.get(model);
       if(names.has(name)||input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,name)||declaration===undefined){
         return invalid('EMIT DATA needs an exact required singular original model parameter.');
@@ -10022,17 +10027,49 @@ export function bindScenarioSourceEmitDataProducer(def:GeneratedOperationDef,pro
         const identity=list(parameter['identity']);
         if(identity.length===0||identity.length>2||new Set(identity).size!==identity.length||identity.some(value=>value!=='id'&&value!=='version'))return invalid('EMIT DATA has invalid admitted identity leaves.');
       }
-      if(fields.length===0&&!Object.hasOwn(parameter,'identity'))return invalid('EMIT DATA needs its exact field census.');
+      if(fields.length===0&&!Object.hasOwn(parameter,'identity')&&!Object.hasOwn(parameter,'derived')&&!Object.hasOwn(site,'queries'))return invalid('EMIT DATA needs its exact field census.');
       const selected=new Set<string>();
       for(const value of fields){const field=object(value,['name','type']),name=text(field['name']),type=text(field['type']);
         if(selected.has(name)||!sourceSendFieldType(bound,model,name,type)||['file','secret','member','json','bytes'].includes(type.replace(/\?$/,''))){
           return invalid('EMIT DATA field differs from its owning plain scalar declaration.');
         }selected.add(name);
       }
+      if(Object.hasOwn(parameter,'derived')){
+        const derived=list(parameter['derived']);if(derived.length===0)return invalid('EMIT DATA derived field census is empty.');
+        for(const value of derived){const field=object(value,['name','type']),name=text(field['name']),type=text(field['type']);
+          const original=bound.artifactModels.get(model)?.fields.find(field=>field.name===name);
+          if(selected.has(name)||!['money','bool'].includes(type)||original?.default?.kind!=='derived'||original.serverOnly!==true
+              ||!sourceSendFieldType(bound,model,name,type))return invalid('EMIT DATA computed grant differs from its original derived scalar.');
+          selected.add(name);
+        }
+      }
       const seen=new Set<ModelName>();let ancestor:ModelName|undefined=model;
       while(ancestor!==undefined){const original=bound.artifactModels.get(ancestor),read=readPolicies.get(ancestor);
         if(seen.has(ancestor)||original===undefined||read===undefined||read.parent!==original.parent||!('grants'in read))return invalid('EMIT DATA needs complete original field and ancestor policies.');
         seen.add(ancestor);ancestor=original.parent as ModelName|undefined;
+      }
+    }
+    if(Object.hasOwn(site,'queries')){
+      const queries=list(site['queries']),ids=new Set<string>();if(queries.length===0||queries.length>200)return invalid('EMIT DATA aggregate census is invalid.');
+      for(const value of queries){
+        const query=object(value,['id','source','node','parameter','model','parentModel','fields','order']);
+        const id=text(query['id']),parameter=text(query['parameter']),model=text(query['model']) as ModelName,parentModel=text(query['parentModel']) as ModelName;
+        const root=parameters.find(value=>(value as {name:string}).name===parameter) as Record<string,unknown>|undefined;
+        const node=object(query['node'],['file','start','end']);origin(query['source']);
+        if(!/^[a-f0-9]{64}$/.test(id)||ids.has(id)||root?.['model']!==parentModel||bound.artifactModels.get(model)?.parent!==parentModel
+            ||!Number.isSafeInteger(node['file'])||!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])
+            ||Number(node['file'])<0||Number(node['start'])<0||Number(node['end'])<=Number(node['start'])
+            ||list(query['order']).length!==0)return invalid('EMIT DATA aggregate differs from its original complete child domain.');
+        ids.add(id);const fields=list(query['fields']),seen=new Set<string>();if(fields.length===0)return invalid('EMIT DATA aggregate has no actual scalar field census.');
+        for(const value of fields){const field=object(value,['name','type']),name=text(field['name']),type=text(field['type']);
+          if(seen.has(name)||!sourceSendFieldType(bound,model,name,type)||bound.artifactModels.get(model)?.fields.find(field=>field.name===name)?.default?.kind==='derived')return invalid('EMIT DATA aggregate field differs from its original stored scalar.');
+          seen.add(name);
+        }
+        let ancestor:ModelName|undefined=model;const ancestors=new Set<ModelName>();
+        while(ancestor!==undefined){const original=bound.artifactModels.get(ancestor),read=readPolicies.get(ancestor);
+          if(ancestors.has(ancestor)||original===undefined||read===undefined||read.parent!==original.parent||!('grants'in read))return invalid('EMIT DATA aggregate needs complete independent source policies.');
+          ancestors.add(ancestor);ancestor=original.parent as ModelName|undefined;
+        }
       }
     }
     if(Object.hasOwn(site,'references')){
@@ -10078,11 +10115,12 @@ export async function executeScenarioSourceEmitData(call:AdmittedCall,store:Stor
         if(refs.length!==1||ref?.model!==parameter.model||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('EMIT DATA lost its genuine versioned admitted root.');
         const row=await owner.session!.views.final.get(parameter.model,ref.id);ownerHealthy(owner);
         if(row===null||!sameModelLifetime(ref.row,row)||owner.stage!==stage)return invalid('EMIT DATA source root lifetime changed.');
-        const authority=await observeModelQuerySourceAuthority(call,store,owner,state,parameter.model,row,parameter.fields.map(field=>field.name),0,undefined,undefined,producer);
+        const computed=new Set((parameter.derived??[]).map(field=>field.name));
+        const authority=await observeModelQuerySourceAuthority<false>(call,store,owner,state,parameter.model,row,[...parameter.fields.map(field=>field.name),...computed],0,undefined,undefined,producer,false,computed);
         rows[parameter.name]=authority.record;
       }
     },call);
-    const active={call,source,stage,ordinal,emitted:false,occurrence:null as string|null};sourceEmitDataExecutions.set(owner,active);
+    const active={call,source,stage,ordinal,queries:new Set<string>(),emitted:false,occurrence:null as string|null};sourceEmitDataExecutions.set(owner,active);
     try{
       const result=await input.execute(Object.freeze(rows));ownerHealthy(owner);capture(call,store);
       if(sourceEmitDataExecutions.get(owner)!==active||owner.executingCall!==call||owner.busy||owner.stage!==stage||owner.capture.pending!==0
@@ -10090,6 +10128,35 @@ export async function executeScenarioSourceEmitData(call:AdmittedCall,store:Stor
       if(await store.readRevision()!==call.revision)throw new StateError('conflict','EMIT DATA moved beyond its original source checkpoint.');
       return result;
     }finally{sourceEmitDataExecutions.delete(owner);}
+  }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
+}
+
+/** Complete DATA domain inside one original EMIT argument evaluation.
+ * A hidden required aggregate row refuses rather than changing its total. */
+export async function executeScenarioSourceEmitQuery(call:AdmittedCall,store:StoragePort,input:{readonly id:string}):Promise<readonly ProjectedRecord[]>{
+  const state=capture(call,store),owner=ownerSessions.get(call);
+  try{
+    const claimed=object(input,['id']),id=text(claimed['id']),active=owner===undefined?undefined:sourceEmitDataExecutions.get(owner);
+    const producer=sourceEmitDataProducers.get(call.def as GeneratedOperationDef),query=active?.source.queries?.find(query=>query.id===id);
+    if(owner===undefined||owner.session===null||active?.call!==call||producer===undefined||query===undefined
+        ||owner.executingCall!==call||owner.stage!==active.stage||(owner.framework?.ordinal??null)!==active.ordinal||active.emitted
+        ||owner.busy||state.pending!==0||active.queries.has(id))return invalid('EMIT DATA aggregate lacks its actual original source lease.');
+    active.queries.add(id);
+    return await ownerOperation(owner,async()=>{
+      const refs=call.recordRefs.filter(ref=>ref.param===query.parameter),ref=refs[0];
+      if(refs.length!==1||ref?.model!==query.parentModel||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('EMIT DATA aggregate lost its original versioned parent.');
+      const parent=await owner.session!.views.final.get(ref.model,ref.id);ownerHealthy(owner);
+      if(parent===null||!sameModelLifetime(ref.row,parent)||owner.stage!==active.stage)return invalid('EMIT DATA aggregate parent lifetime changed.');
+      const rows=await owner.session!.views.final.query({model:query.model,authority:'owner',parent:{model:ref.model,id:ref.id},archived:'exclude',order:[{field:'id',direction:'asc'}],limit:owner.maxRows});ownerHealthy(owner);
+      const projected:ProjectedRecord[]=[];
+      for(const row of rows){
+        if(row.parent?.model!==ref.model||row.parent.id!==ref.id||row.archivedAt!==null)return invalid('EMIT DATA aggregate crossed its exact contained domain.');
+        const authority=await observeModelQuerySourceAuthority(call,store,owner,state,query.model,row,query.fields.map(field=>field.name),0,undefined,undefined,producer);
+        projected.push(authority.record);
+      }
+      if(await store.readRevision()!==call.revision)throw new StateError('conflict','EMIT DATA aggregate moved beyond its original checkpoint.');
+      return Object.freeze(projected);
+    },call);
   }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
 }
 

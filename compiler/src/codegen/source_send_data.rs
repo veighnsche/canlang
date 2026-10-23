@@ -62,6 +62,8 @@ struct Reads {
     queries:BTreeMap<String,serde_json::Value>,
     query_spans:BTreeSet<(u32,u32,u32)>,
     steps:usize, stack:HashSet<SymbolId>,
+    aggregates:bool,
+    derived:BTreeMap<String,BTreeMap<String,String>>,
 }
 fn data_type(ir:&IrProgram,ty:&ResolvedType)->Option<String>{match ty{
     ResolvedType::Scalar(scalar)if !matches!(scalar,Scalar::File|Scalar::Secret|Scalar::Member|Scalar::Json|Scalar::Bytes|Scalar::Url|Scalar::Locale)=>Some(scalar.as_str().into()),
@@ -85,6 +87,8 @@ impl Reads {
             IrExpr::Array(entries)if entries.len()<=200=>{
                 for value in entries{self.read(ir,context,value,env,depth+1)?;}Some(())},
             IrExpr::Member{base,field}=>{
+                if self.aggregates&&field=="now"&&base.ty==ResolvedType::Unknown&&matches!(&base.expr,IrExpr::Name(name)if name=="c")
+                    && value.ty==ResolvedType::Scalar(Scalar::Datetime){return Some(());}
                 let IrExpr::Name(parameter)=&base.expr else{return None;};let root=env.roots.get(parameter)?;
                 if !matches!(base.ty,ResolvedType::Record{symbol,stored:true}if symbol==root.model){return None;}
                 if root.query.is_none()&&matches!(field.as_str(),"id"|"version"){
@@ -92,6 +96,15 @@ impl Reads {
                     if value.ty!=expected{return None;}
                     self.identities.entry(root.parameter.clone()).or_default().insert(field.clone());
                     self.fields.entry(root.parameter.clone()).or_default();return Some(());
+                }
+                if self.aggregates&&root.query.is_none()
+                    &&let Some(item)=ir.items.iter().find(|item|item.name==*field&&matches!(item.kind,IrItemKind::DeriveField{model,..}if model==root.model)){
+                    let IrItemKind::DeriveField{ty:IrType::Known(ty),expr:Some(body),..}=&item.kind else{return None;};
+                    if ty!=&value.ty||!matches!(ty,ResolvedType::Scalar(Scalar::Money|Scalar::Bool))||!self.stack.insert(item.id){return None;}
+                    self.derived.entry(root.parameter.clone()).or_default().insert(field.clone(),data_type(ir,ty)?);
+                    self.fields.entry(root.parameter.clone()).or_default();
+                    let mut local=env.clone();local.values.remove("row");local.roots.insert("row".into(),root.clone());
+                    self.read(ir,context,body,&local,depth+1)?;self.stack.remove(&item.id);return Some(());
                 }
                 let(_,ty)=declared_field(ir,root.model,field)?;
                 if ty!=&value.ty&&!matches!(ty,ResolvedType::Nullable(inner)if inner.as_ref()==&value.ty){return None;}
@@ -106,6 +119,14 @@ impl Reads {
             IrExpr::Binary{op:IrBinOp::Add,left,right}if matches!(value.ty,ResolvedType::Array{..})=>{
                 self.read(ir,context,left,env,depth+1)?;self.read(ir,context,right,env,depth+1)
             },
+            IrExpr::Binary{left,right,..}if self.aggregates=>{
+                self.read(ir,context,left,env,depth+1)?;self.read(ir,context,right,env,depth+1)
+            },
+            IrExpr::Unary{operand,..}if self.aggregates=>self.read(ir,context,operand,env,depth+1),
+            IrExpr::Call{target:IrCallTarget::Builtin{id,awaited:false},args}
+                if self.aggregates&&matches!(id.as_str(),"any"|"sum")=>self.aggregate(ir,context,id,args,None,env,depth),
+            IrExpr::BoundCall{target:IrCallTarget::Builtin{id,awaited:false},args,slots}
+                if self.aggregates&&matches!(id.as_str(),"any"|"sum")=>self.aggregate(ir,context,id,args,Some(slots),env,depth),
             IrExpr::Call{target:IrCallTarget::Builtin{awaited:false,..},args}
             |IrExpr::BoundCall{target:IrCallTarget::Builtin{awaited:false,..},args,..}=>{
                 for arg in args{self.read(ir,context,arg,env,depth+1)?;}Some(())
@@ -115,6 +136,57 @@ impl Reads {
             IrExpr::Query(query)=>self.query(ir,context,query,value,env,depth),
             _=>None,
         }
+    }
+    // This census grants no aggregate value. The original generated Values
+    // expression runs over independently projected complete child domains.
+    fn aggregate(&mut self,ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,id:&str,
+        args:&[TypedExpr],slots:Option<&Vec<Option<usize>>>,env:&Environment,depth:usize)->Option<()> {
+        if args.len()!=2{return None;}
+        let indexes=if let Some(slots)=slots{let [Some(a),Some(b)]=slots.as_slice()else{return None;};[*a,*b]}else{[0,1]};
+        if indexes[0]==indexes[1]{return None;}
+        let collection=args.get(indexes[0])?;let operand=args.get(indexes[1])?;
+        let IrExpr::Query(query)=&collection.expr else{return None;};
+        let super::ir::IrQueryDomain::Model(name)=&query.domain else{return None;};
+        let model=ir.items.iter().find(|item|item.canonical==*name)?;
+        let IrItemKind::Model{owner:super::ir::IrOwner::ChildOf(parent_model),..}=&model.kind else{return None;};
+        let parent=query.parent.as_deref()?;let IrExpr::Name(parameter)=&parent.expr else{return None;};
+        let root=env.roots.get(parameter)?;
+        if root.query.is_some()||root.model!=*parent_model||parent.ty!=(ResolvedType::Record{symbol:root.model,stored:true})
+            ||query.limit.is_some()||query.archived.is_some()||!query.order.is_empty()||query.value_order.is_some()
+            ||self.queries.len()>=200{return None;}
+        let key=(collection.span.file.0,collection.span.start,collection.span.end);
+        if !self.query_spans.insert(key){return None;}
+        let source=context.db().get(collection.span.file)?;
+        let module=ir.modules.iter().filter(|module|module.file==collection.span.file&&module.span.start<=collection.span.start&&collection.span.end<=module.span.end)
+            .min_by_key(|module|module.span.end-module.span.start)?;
+        let query_id=crate::source::sha256_hex(format!("source-emit-aggregate/v1:{}:{}:{}:{}",source.path,source.sha256,collection.span.start,collection.span.end).as_bytes());
+        self.query_fields.insert(query_id.clone(),BTreeMap::new());
+        let mut local=env.clone();
+        let row=Root{parameter:root.parameter.clone(),model:model.id,query:Some(query_id.clone())};
+        if let Some(predicate)=&query.where_pred{
+            if predicate.ty!=ResolvedType::Scalar(Scalar::Bool){return None;}
+            local.values.remove(&query.where_param);local.roots.insert(query.where_param.clone(),row.clone());
+            self.read(ir,context,predicate,&local,depth+1)?;
+        }
+        if id=="sum"{
+            let projection=query.select.as_deref()?;let alias=query.select_param.as_ref()?;
+            if projection.ty!=ResolvedType::Scalar(Scalar::Money)||operand.ty!=ResolvedType::Scalar(Scalar::Currency){return None;}
+            local.values.remove(alias);local.roots.insert(alias.clone(),row);
+            self.read(ir,context,projection,&local,depth+1)?;self.read(ir,context,operand,env,depth+1)?;
+        }else{
+            if query.select.is_some()||query.where_pred.is_some(){return None;}
+            let IrExpr::Lambda{param,body}=&operand.expr else{return None;};
+            if body.ty!=ResolvedType::Scalar(Scalar::Bool){return None;}
+            local.values.remove(param);local.roots.insert(param.clone(),row);
+            self.read(ir,context,body,&local,depth+1)?;
+        }
+        let fields=self.query_fields.get(&query_id)?;if fields.is_empty()||fields.len()>200{return None;}
+        self.fields.entry(root.parameter.clone()).or_default();
+        self.queries.insert(query_id.clone(),serde_json::json!({"id":query_id,"source":{"path":source.path,"sha256":source.sha256,"module":module.name},
+            "node":{"file":collection.span.file.0,"start":collection.span.start,"end":collection.span.end},"parameter":root.parameter,
+            "model":model.canonical,"parentModel":ir.items[root.model.0 as usize].canonical,
+            "fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>(),"order":[]}));
+        Some(())
     }
     fn helper(&mut self,ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,name:&str,
         args:&[TypedExpr],slots:Option<&Vec<Option<usize>>>,env:&Environment,depth:usize)->Option<()> {
@@ -269,7 +341,7 @@ pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super:
                 if fields.len()!=entries.len()||!entries.iter().all(|(name,value)|fields.iter().filter_map(|id|ir.items.get(id.0 as usize)).any(|field|field.name==*name&&matches!(&field.kind,
                     IrItemKind::Field{ty:IrType::Known(ty),..}if ty==&value.ty||matches!((ty,&value.ty),
                         (ResolvedType::Record{symbol:a,..},ResolvedType::Record{symbol:b,stored:false})if a==b&&matches!(ir.items.get(a.0 as usize).map(|item|&item.kind),Some(IrItemKind::Contract{..})))))){continue;}
-                let mut reads=Reads::default();let mut references=Vec::new();let mut valid=true;
+                let mut reads=Reads{aggregates:true,..Reads::default()};let mut references=Vec::new();let mut valid=true;
                 for(field,value)in entries{
                     if let (IrExpr::Name(name),ResolvedType::Record{symbol,stored:true})=(&value.expr,&value.ty)
                         && let Some(root)=env.roots.get(name)
@@ -277,18 +349,22 @@ pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super:
                         references.push(serde_json::json!({"field":field,"parameter":root.parameter,"model":ir.items[symbol.0 as usize].canonical}));
                     }else if reads.read(ir,context,value,env,0).is_none(){valid=false;break;}
                 }
-                if !valid||reads.fields.is_empty()||reads.fields.len()>200||!reads.queries.is_empty(){continue;}
+                if !valid||reads.fields.is_empty()||reads.fields.len()>200{continue;}
                 let mut parameters=Vec::new();
                 for(name,fields)in &reads.fields{
                     let Some(model)=models.get(name)else{continue;};
                     let mut value=serde_json::json!({"name":name,"model":ir.items[model.0 as usize].canonical,
                         "fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>()});
                     if let Some(identity)=reads.identities.get(name){value["identity"]=serde_json::json!(identity);}
+                    if let Some(derived)=reads.derived.get(name){
+                        value["derived"]=serde_json::json!(derived.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>());
+                    }
                     parameters.push(value);
                 }
                 let mut value=serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},
                     "owner":owner.canonical,"node":{"start":span.start,"end":span.end},"event":event,"parameters":parameters});
                 if !references.is_empty(){value["references"]=serde_json::json!(references);}
+                if !reads.queries.is_empty(){value["queries"]=serde_json::json!(reads.queries.values().collect::<Vec<_>>());}
                 output.insert(*span,value);
             },
             IrStmt::If{then_branch,else_branch,..}=>{walk(ir,context,owner,then_branch,&mut env.clone(),models,source,module,output);walk(ir,context,owner,else_branch,&mut env.clone(),models,source,module,output);},

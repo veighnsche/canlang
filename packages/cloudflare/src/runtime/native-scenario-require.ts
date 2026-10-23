@@ -338,3 +338,14 @@ export async function nativeScenarioSourceEmitData(context:unknown,body:Function
   if(evaluate===undefined||typeof body!=='function')throw new StateError('validation','Source EMIT DATA needs its actual installed event owner.');
   return evaluate(body,inputs);
 }
+
+const sourceEmitQueryReaders=new WeakMap<object,(id:string,parent:unknown)=>Promise<readonly Record<string,unknown>[]>>();
+export function bindNativeScenarioSourceEmitQuery(context:object,read:(id:string,parent:unknown)=>Promise<readonly Record<string,unknown>[]>):void{
+  if(sourceEmitQueryReaders.has(context))throw new StateError('validation','Source EMIT aggregate reader cannot be rebound.');
+  sourceEmitQueryReaders.set(context,read);
+}
+export async function nativeScenarioSourceEmitQuery(context:unknown,id:string,parent:unknown):Promise<readonly Record<string,unknown>[]>{
+  const read=typeof context==='object'&&context!==null?sourceEmitQueryReaders.get(context):undefined;
+  if(read===undefined)throw new StateError('validation','Source EMIT aggregate needs its actual independent DATA execution.');
+  return read(id,parent);
+}
