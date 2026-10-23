@@ -5727,6 +5727,38 @@ fn ordered_group_influences(
     Some(out)
 }
 
+/// Constructor counts may coexist with leading helper collections already
+/// owned by exact source-Require observers. They are not a second query
+/// execution: only COUNT influences may reach the implicit void return.
+pub(super) fn constructor_count_queries<'a>(facts:&'a crate::analysis::scenario_disclosure::CheckedScenarioSource)
+    ->Option<Vec<&'a crate::analysis::scenario_disclosure::DisclosureQuery>> {
+    use crate::analysis::scenario_disclosure::CheckedDecisionStage;
+    if facts.result.is_some(){return None;}
+    let queries=facts.queries.as_deref()?;
+    let mut counts=Vec::new();
+    for query in queries {
+        if let Some(count)=&query.count {
+            if count.contained_parent.is_none()||!count.parent_edges.is_empty()||query.first.is_some(){return None;}
+            checked_query_influence_census(query)?;counts.push(query);
+        }else{
+            checked_helper_query_influences(facts,query,true)?;
+            let outer=*query.dependencies.first()?.calls.first()?;
+            let mut sites=facts.source_requires.as_deref()?.iter().filter(|site|
+                site.stage==CheckedDecisionStage::LeadingRequire&&site.owner==facts.scenario&&site.source==facts.source
+                && site.calls.iter().any(|call|call.source==query.source&&call.chain.len()==1&&call.chain[0].node==outer
+                    &&call.arguments.first().is_some_and(|argument|argument.0==query.node)
+                    &&call.arguments.get(1).is_some_and(|argument|Some(argument.0)==query.predicate)));
+            sites.next()?;if sites.next().is_some(){return None;}
+        }
+    }
+    if counts.len()!=1{return None;}
+    Some(counts)
+}
+fn constructor_count_influences(facts:&crate::analysis::scenario_disclosure::CheckedScenarioSource)
+    ->Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
+    Some(constructor_count_queries(facts)?.into_iter().flat_map(|query|query.influences.clone()).collect())
+}
+
 pub(super) fn checked_scenario_query_influences(
     facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
 ) -> Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
@@ -5749,7 +5781,8 @@ pub(super) fn checked_scenario_query_influences(
     if transcripts.is_empty() {
         return checked_helper_any_influences(facts)
             .or_else(|| checked_mixed_helper_query_influences(facts))
-            .or_else(|| checked_native_query_influences(queries));
+            .or_else(|| checked_native_query_influences(queries))
+            .or_else(||constructor_count_influences(facts));
     }
     let [early, later] = transcripts else {
         return None;
@@ -5976,7 +6009,10 @@ fn checked_native_first_query_plan<'a>(
         PlainQueryOutcome::Continue => {}
         PlainQueryOutcome::Done(done) => return done,
     }
-    checked_native_query_influences(queries)?;
+    let constructor=constructor_count_queries(facts);
+    checked_native_query_influences(queries).or_else(||constructor_count_influences(facts))?;
+    let selected:Vec<_>=constructor.as_ref().map(|queries|queries.iter().map(|query|(*query).clone()).collect()).unwrap_or_else(||queries.to_vec());
+    let queries=selected.as_slice();
     let plan = supplied?;
     let db = db?;
     let mut expected = first_query_expected_plan(
@@ -7527,13 +7563,29 @@ fn checked_count_query_parent<'a>(
     };
     let fact = facts.parameters.get(*index)?;
     let child = checked_first_query_schema(ir, owner, query, db)?;
+    let domain_parent=child.parent?;
     let mut parents = facts
         .stored_contracts
         .as_deref()?
         .iter()
-        .filter(|schema| schema.model && schema.id == *parent_id);
+        .filter(|schema| schema.model && schema.id == domain_parent);
     let parent = parents.next()?;
     let source_receiver = checked_effect_node(ir, owner, receiver, db)?;
+    let receiver_root=if domain_parent==*parent_id && source_receiver.kind==SyntaxKind::NameRef {
+        &source_receiver
+    }else{
+        let root_schema=facts.stored_contracts.as_deref()?.iter().find(|schema|schema.model && schema.id==*parent_id)?;
+        if source_receiver.kind!=SyntaxKind::Member || root_schema.parent!=Some(domain_parent)
+            || !facts.expression_types.as_deref()?.iter().any(|(node,ty)|*node==receiver
+                && *ty==ResolvedType::Record{symbol:domain_parent,stored:true}) {return None;}
+        match_stored_contract_schema(ir,root_schema,db)?;
+        let field=source_receiver.children.iter().rev().find(|node|node.kind==SyntaxKind::Name)?;
+        if field.token()?.text(&db.get(receiver.file)?.text)!="parent" {return None;}
+        let mut roots=source_receiver.children.iter().filter(|node|node.kind==SyntaxKind::NameRef);
+        let root=roots.next()?;
+        if roots.next().is_some(){return None;}
+        root
+    };
     let authored_parameter = checked_effect_node(ir, owner, fact.node, db)?;
     let parameter_name = authored_parameter
         .children
@@ -7551,11 +7603,11 @@ fn checked_count_query_parent<'a>(
             fact,
             parent_id,
             parameter_name,
-            &source_receiver,
+            receiver_root,
             text,
-            receiver,
+            crate::analysis::NodeKey::of(receiver_root),
         )
-        || !count_query_models_valid(ir, owner, query, child, parent_id, parent)
+        || !count_query_models_valid(ir, owner, query, child, &domain_parent, parent)
     {
         return None;
     }
@@ -7598,7 +7650,7 @@ fn select_count_query<'a>(
     node: crate::analysis::NodeKey,
 ) -> Option<(&'a crate::analysis::scenario_disclosure::DisclosureQuery, &'a crate::analysis::scenario_disclosure::DisclosureCountQuery)> {
     let queries = facts.queries.as_deref()?;
-    checked_native_query_influences(queries)?;
+    checked_native_query_influences(queries).or_else(||constructor_count_influences(facts))?;
     let mut selected = queries
         .iter()
         .filter(|query| query.count.as_ref().is_some_and(|count| count.call == node));
@@ -7656,7 +7708,8 @@ fn count_query_target_mismatch(
         || slots.is_some_and(|slots| slots != count.slots.as_slice())
         || count.statement != original.node
         || original.model != query_model
-        || (checked_created_model_result(ir, owner) != Some(original.model)
+        || (!matches!(&owner.kind,IrItemKind::Scenario{result:None,..})
+            && checked_created_model_result(ir, owner) != Some(original.model)
             && checked_created_pair(ir, owner, db)
                 .is_none_or(|pair| pair.1.node != original.node))
 }
@@ -7713,7 +7766,9 @@ fn count_query_parent_mismatch(
         || contained.is_none_or(|parent| query.inputs.as_slice() != [parent])
         || parent.span != node_span(receiver)
         || parent.ty != *parent_type
-        || !matches!(&parent.expr, IrExpr::Name(name) if name == parameter_name)
+        || !(matches!(&parent.expr, IrExpr::Name(name) if name == parameter_name)
+            || matches!(&parent.expr,IrExpr::Member{base,field} if field=="parent"
+                && matches!(&base.expr,IrExpr::Name(name) if name==parameter_name)))
 }
 
 fn strip_source_groups<'x>(
@@ -7765,7 +7820,7 @@ fn count_query_head(
     let mut receivers = source_domain
         .children
         .iter()
-        .filter(|node| node.kind == SyntaxKind::NameRef);
+        .filter(|node| matches!(node.kind,SyntaxKind::NameRef|SyntaxKind::Member));
     if heads.next().is_some()
         || text.get(head.span.start as usize..head.span.end as usize)? != "count"
         || NodeKey::of(source_domain) != query.node
@@ -7838,13 +7893,7 @@ pub(super) fn checked_count_query_ir<'a>(
     let (target, domain, scan, slots) = count_query_call_shape(actual)?;
     let parent = scan.parent.as_deref()?;
     let parameter = checked_count_query_parent(ir, owner, query, db)?;
-    let IrItemKind::Param {
-        ty: IrType::Known(parent_type),
-        ..
-    } = &parameter.kind
-    else {
-        return None;
-    };
+    let parent_type=ResolvedType::Record{symbol:checked_first_query_schema(ir,owner,query,db)?.parent?,stored:true};
     let array = ResolvedType::Array {
         element: Box::new(ResolvedType::Record {
             symbol: query.model,
@@ -7871,7 +7920,7 @@ pub(super) fn checked_count_query_ir<'a>(
             count.contained_parent,
             parent,
             receiver,
-            parent_type,
+            &parent_type,
             &parameter.name,
         )
     {
@@ -7885,7 +7934,7 @@ pub(super) fn checked_count_query_ir<'a>(
         query,
         receiver,
         &actual.ty,
-        parent_type,
+        &parent_type,
         domain,
         db,
     )?;
@@ -8285,7 +8334,7 @@ fn native_count_original(
     if owning.next().is_some()
         || originals.is_empty()
         || originals.len() > 2
-        || facts.queries.as_deref()?.len() >= 2 && originals.len() != 2
+        || facts.queries.as_deref()?.len() >= 2 && originals.len() != 2 && constructor_count_queries(facts).is_none()
     {
         return None;
     }
@@ -8351,6 +8400,7 @@ fn native_count_result_matches(
     expected_influences: &[crate::analysis::scenario_disclosure::DisclosureInfluence],
     call: crate::analysis::NodeKey,
     db: &SourceDb,
+    void_constructor: bool,
 ) -> Option<()> {
     let count = query.count.as_ref()?;
     if query.id.is_empty()
@@ -8364,7 +8414,7 @@ fn native_count_result_matches(
             returned.node != query.return_node
                 || returned.source != query.source
                 || returned.influences != expected_influences
-                || returned.model_result.is_none()
+                || if void_constructor {returned.model_result.is_some()} else {returned.model_result.is_none()}
         })
     {
         return None;
@@ -8571,6 +8621,55 @@ pub(super) fn checked_native_assign_count_query_plan(
     })
 }
 
+/// Seal a void constructor COUNT to its original whole owner and one INT
+/// field. This is a consumption association, never a read-policy grant.
+fn constructor_count_source(
+    context: &super::scenario_decisions::FreshSourceContext<'_>, owner: &IrItem,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery, transport: &ReceiptSource,
+) -> Option<serde_json::Value> {
+    let ir=context.ir();
+    let facts=super::scenario_calls::checked_source(ir,owner,context.db())?;
+    let count=query.count.as_ref()?;
+    if !count.parent_edges.is_empty() || count.contained_parent.is_none() || !query.dependencies.is_empty() {return None;}
+    let original=native_count_original(facts,count.statement)?;
+    source_owned_void_create(context,owner,original)?;
+    let IrItemKind::Scenario{effects,..}=&owner.kind else{return None;};
+    let position=effects.iter().position(|statement|matches!(statement,IrStmt::Create{span,..} if *span==node_span(count.statement)))?;
+    let mut stage=0;
+    for statement in &effects[..position] {
+        match statement {
+            IrStmt::Let{..}|IrStmt::Require{..}=>{},
+            IrStmt::Set{when:None,..}|IrStmt::Create{when:None,..}=>stage+=1,
+            _=>return None,
+        }
+    }
+    let IrStmt::Create{input,span,when:None,..}=&effects[position] else{return None;};
+    let IrExpr::Object(entries)=&input.expr else{return None;};
+    let parent=&entries.iter().find(|(field,_)|field=="parent")?.1;
+    let receiver=count.contained_parent?.0;
+    let text=&context.db().get(receiver.file)?.text;
+    if parent.ty!=(ResolvedType::Record{symbol:checked_first_query_schema(ir,owner,query,context.db())?.parent?,stored:true})
+        || text.get(parent.span.start as usize..parent.span.end as usize)?!=text.get(receiver.start as usize..receiver.end as usize)? {return None;}
+    let operand=native_count_operand(input,count.call)?;
+    let (field,value)=entries.iter().find(|(_,value)|matches!(&value.expr,IrExpr::Binary{op:IrBinOp::Add,left,..} if left.span==operand.span))?;
+    if value.ty!=ResolvedType::Scalar(Scalar::Int) {return None;}
+    let source=original.inputs.iter().find(|input|input.name==*field && node_span(input.value_node)==value.span && input.ty==value.ty)?;
+    let field_item=ir.items.get(source.field?.0 as usize)?;
+    if !matches!(&field_item.kind,IrItemKind::Field{ty:IrType::Known(ResolvedType::Scalar(Scalar::Int)),..}) {return None;}
+    checked_count_query_parent(ir,owner,query,context.db())?;
+    Some(serde_json::json!({"owner":owner.canonical,"source":transport,"queryId":query.id,
+        "stage":stage,"create":{"start":span.start,"end":span.end},"model":original.definition.canonical,"field":field}))
+}
+
+pub(super) fn constructor_counts(context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem,
+    transport:&ReceiptSource)->Option<serde_json::Value> {
+    if !matches!(&owner.kind,IrItemKind::Scenario{result:None,..}) {return None;}
+    let facts=super::scenario_calls::checked_source(context.ir(),owner,context.db())?;
+    let counts:Vec<_>=facts.queries.as_deref()?.iter().filter(|query|query.count.is_some())
+        .map(|query|constructor_count_source(context,owner,query,transport)).collect::<Option<_>>()?;
+    (!counts.is_empty()).then(||serde_json::Value::Array(counts))
+}
+
 pub(super) fn checked_native_count_query_plan(
     ir: &IrProgram,
     owner: &IrItem,
@@ -8601,11 +8700,15 @@ pub(super) fn checked_native_count_query_plan(
         return None;
     };
     let (input, span) = native_count_create_input(effects, count.statement)?;
-    let IrStmt::Return { span: returned, .. } = effects.last()? else {
-        return None;
+    let void_constructor=matches!(&owner.kind,IrItemKind::Scenario{result:None,..});
+    let returned=if void_constructor {
+        constructor_count_source(source_context?,owner,query,&transport_source(&query.source,entry)?)?;
+        node_span(facts.node)
+    }else{
+        let IrStmt::Return{span,..}=effects.last()? else{return None;}; *span
     };
     let original = native_count_original(facts, count.statement)?;
-    if facts.creates.as_deref()?.len() == 2 {
+    if !void_constructor && facts.creates.as_deref()?.len() == 2 {
         native_count_pair_proofs(
             ir,
             owner,
@@ -8625,23 +8728,16 @@ pub(super) fn checked_native_count_query_plan(
         original,
         operand,
         span,
-        *returned,
+        returned,
         &expected_influences,
         count.call,
         db,
+        void_constructor,
     )?;
     let parameter = checked_count_query_parent(ir, owner, query, db)?;
-    let IrItemKind::Param {
-        ty: IrType::Known(ResolvedType::Record {
-            symbol: parent_id, ..
-        }),
-        ..
-    } = &parameter.kind
-    else {
-        return None;
-    };
+    let parent_id=checked_first_query_schema(ir,owner,query,db)?.parent?;
     let influences = native_count_influences(query)?;
-    native_count_plan(ir, query, checked, entry, parameter, *parent_id, influences)
+    native_count_plan(ir, query, checked, entry, parameter, parent_id, influences)
 }
 
 fn first_query_binding_spelling_matches(
@@ -19419,6 +19515,7 @@ impl<'a> Sites<'a> {
                                 .and_then(|facts| {
                                     checked_helper_any_influences(facts)
                                         .or_else(|| checked_mixed_helper_query_influences(facts))
+                                        .or_else(||constructor_count_influences(facts))
                                 })
                                 .is_some()
                             {

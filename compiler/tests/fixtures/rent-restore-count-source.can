@@ -1,0 +1,57 @@
+app ConstructorCount uses=[rent_reservations,count_visibility]
+package rent_catalog
+ Given
+  export Location {active:bool=true}
+  policy Location read=public
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,active:bool=true,operator_wide:bool=false,home:Location,locations:Location[]= []}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members
+ When
+ Then
+package rent_reservations
+ use rent_catalog {Location}
+ use employee {can_work}
+ Given
+  role reservation_manager
+  Resource {location:Location,active:bool=true,capacity:int,pooled:bool=false,timezone:timezone}
+  Downtime in Resource {source:text unique,from:datetime,until:datetime?,reason:text,active:bool=true,verified_by:user?,verification:text?}
+  contract ResourceEvidence {active:bool,capacity:int,pooled:bool,timezone:timezone}
+  ResourcePolicy in Resource {effective:datetime server=now,sequence:int,baseline:bool=false,value:ResourceEvidence}
+  unique ResourcePolicy fields=sequence
+  lock ResourcePolicy fields=effective,sequence,baseline,value
+  policy Resource read=public
+  policy Downtime read=reservation_manager and can_work(actor,row.parent.location)
+  policy ResourcePolicy read=reservation_manager and can_work(actor,row.parent.location)
+  derive resource_evidence(resource:Resource):ResourceEvidence = ResourceEvidence {active=resource.active,capacity=resource.capacity,pooled=resource.pooled,timezone=resource.timezone}
+ When
+  scenario restore(downtime:Downtime,evidence:text) by=reservation_manager label="Restore availability"@{nl="Beschikbaarheid herstellen"}
+   require can_work(actor,downtime.parent.location) and downtime.active and trim(evidence)!=""
+   do
+    set downtime {active=false,verified_by=actor,verification=evidence}
+    create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1
+ Then
+
+package count_visibility
+ Given
+  Root {label:text}
+  Snapshot in Root {sequence:int,hidden:bool=false}
+  Revision in Root {total:int}
+  policy Root read=members
+  policy Snapshot read=members and not row.hidden
+ When
+  scenario snapshot(root:Root) by=members
+   require true
+   do
+    create Snapshot {parent=root,sequence=count(root.Snapshot)+1} as snapshot
+  scenario snapshot_after_writes(root:Root) by=members
+   require true
+   do
+    create Revision {parent=root,total=1} as revision
+    set root {label="revised"}
+    create Snapshot {parent=root,sequence=count(root.Snapshot)+1} as snapshot
+ Then

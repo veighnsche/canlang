@@ -2387,3 +2387,92 @@ it('projects the original Invoice document child arrays through ordinary field D
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+
+it('consumes original post-SET parent COUNT in an atomic ResourcePolicy CREATE', {timeout:240000},async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'can-constructor-count-'));
+  try{
+    const source=join(root,'compiler/tests/fixtures/rent-restore-count-source.can');
+    const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+    const artifact=JSON.parse(stdout) as CompileArtifact;
+    const asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+    for(const mode of ['empty','siblings','other-parent','stale','inactive','policy-denied','insert-race','update-race','identity-race','grant-race']){
+      const {now,identities,identity,user:actor,membership}=await member('constructor-count-'+mode,['rent_reservations.reservation_manager']);
+      const {store}=createTestMemoryStorage();
+      const resource={model:asModel('rent_reservations.Resource'),id:asId('resource')};
+      const row=(model:string,id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({kind:'insert' as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
+      const value={active:true,capacity:'7',pooled:false,timezone:'UTC'};
+      const policy=(id:string,sequence:string,parent=resource)=>row('rent_reservations.ResourcePolicy',id,{effective:new Date(now).toISOString(),sequence,baseline:false,value},parent);
+      await store.commit(makeBatch(await store.readRevision(),{writes:[
+        row('rent_catalog.Location','site',{active:true}),
+        row('employee.Employee','operator',{user:{id:actor.user_id},active:mode!=='policy-denied',operator_wide:false,home:{id:'site'},locations:[]}),
+        row('rent_reservations.Resource','resource',{location:{id:'site'},...value}),
+        row('rent_reservations.Resource','other-resource',{location:{id:'site'},...value}),
+        row('rent_reservations.Downtime','downtime',{source:'original',from:new Date(now-1000).toISOString(),until:null,reason:'maintenance',active:mode!=='inactive',verified_by:null,verification:null},resource),
+        ...(mode==='empty'?[]:[policy('one','1'),policy('two','2')]),
+        policy('foreign','1',{model:resource.model,id:asId('other-resource')})
+      ]}));
+      const query=store.query.bind(store),load=store.load.bind(store),commit=store.commit.bind(store);let raced=false,raceNumber=0;
+      store.query=async spec=>{
+        const rows=await query(spec);
+        if(spec.model==='rent_reservations.ResourcePolicy'&&mode==='identity-race'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}
+        return rows;
+      };
+      store.commit=async batch=>{
+        if(['insert-race','update-race','grant-race'].includes(mode)&&batch.writes.some(write=>write.kind==='insert'&&write.model==='rent_reservations.ResourcePolicy')){
+          raced=true;raceNumber++;
+          if(mode==='insert-race')await commit(makeBatch(await store.readRevision(),{writes:[policy('inserted:'+raceNumber,String(8+raceNumber))]}));
+          else{
+            const model=asModel(mode==='grant-race'?'employee.Employee':'rent_reservations.ResourcePolicy');
+            const current=await load(model,asId(mode==='grant-race'?'operator':'one'));assert.ok(current);
+            await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model,id:current.id,expectedVersion:current.version,row:{...current,version:asVersion(current.version+1),data:{...current.data,...(mode==='grant-race'?{active:false}:{baseline:current.data['baseline']!==true})}}}]}));
+          }
+        }
+        return commit(batch);
+      };
+      const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+      const operation_id=operationId(now),request={operation:'rent_reservations.restore',operation_id,inputs:{downtime:{id:'downtime',version:mode==='stale'?'2':'1'},evidence:'Checked'}};
+      const result=await invoker.invokeMutation(request,identity);
+      const success=['empty','siblings','other-parent'].includes(mode);
+      assert.equal('result'in result,success,mode+': '+JSON.stringify(result));
+      if(mode.endsWith('-race'))assert.equal(raced,true,mode);
+      const downtime=await load(asModel('rent_reservations.Downtime'),asId('downtime'));assert.ok(downtime);
+      const policies=(await query({model:asModel('rent_reservations.ResourcePolicy'),authority:'owner'})).filter(row=>row.parent?.id==='resource');
+      const created=policies.filter(row=>!['one','two'].includes(row.id)&&!row.id.startsWith('inserted:'));
+      assert.equal(created.length,success?1:0,mode+': no partial snapshot');
+      assert.equal(downtime.version,success?asVersion(2):asVersion(1),mode+': preceding SET is atomic');
+      if(success){
+        assert.equal(created[0]!.data['sequence'],mode==='empty'?'1':'3');
+        assert.deepEqual(created[0]!.data['value'],value);
+        assert.equal(downtime.data['active'],false);
+        const receipt=await store.readReceipt({app:'ConstructorCount',owner:membership.team_id,principal:membership.user_id,operation:request.operation,operationId:operation_id} as Parameters<typeof store.readReceipt>[0]);
+        const before=await query({model:asModel('rent_reservations.ResourcePolicy'),authority:'owner'});
+        const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,mode+': '+JSON.stringify(replay));
+        assert.deepEqual(await query({model:asModel('rent_reservations.ResourcePolicy'),authority:'owner'}),before);
+        assert.equal((await load(asModel('rent_reservations.Downtime'),asId('downtime')))!.version,asVersion(2));
+        assert.ok(receipt);
+      }
+    }
+    for(const hidden of [false,true]){
+      const {now,identities,identity}=await member('count-visibility-'+hidden);
+      const {store}=createTestMemoryStorage(),parent={model:asModel('count_visibility.Root'),id:asId('root')};
+      await store.commit(makeBatch(await store.readRevision(),{writes:[
+        {kind:'insert',model:parent.model,row:makeRow({id:parent.id,data:{label:'root'}})},
+        {kind:'insert',model:asModel('count_visibility.Snapshot'),row:{...makeRow({id:asId('existing'),data:{sequence:'1',hidden}}),parent}}
+      ]}));
+      const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+      const result=await invoker.invokeMutation({operation:'count_visibility.snapshot',operation_id:operationId(now),inputs:{root:{id:'root',version:'1'}}},identity);
+      assert.equal('result'in result,!hidden,'hidden sibling cannot become an undercount: '+JSON.stringify(result));
+      const rows=await store.query({model:asModel('count_visibility.Snapshot'),authority:'owner'});
+      assert.equal(rows.length,hidden?1:2);
+      if(!hidden){
+        assert.equal(rows.find(row=>row.id!=='existing')!.data['sequence'],'2');
+        const second=await invoker.invokeMutation({operation:'count_visibility.snapshot_after_writes',operation_id:operationId(now),inputs:{root:{id:'root',version:'1'}}},identity);
+        assert.ok('result'in second,JSON.stringify(second));
+        const after=await store.query({model:asModel('count_visibility.Snapshot'),authority:'owner'});
+        assert.equal(after.length,3);assert.ok(after.some(row=>row.data['sequence']==='3'));
+        assert.equal((await store.query({model:asModel('count_visibility.Revision'),authority:'owner'})).length,1);
+        assert.equal((await store.load(parent.model,parent.id))!.data['label'],'revised');
+      }
+    }
+  }finally{await rm(directory,{recursive:true,force:true});}
+});

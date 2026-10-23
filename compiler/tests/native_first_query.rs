@@ -2222,3 +2222,39 @@ fn original_invoice_document_keeps_contained_projection_and_helper_formal_corres
         assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
     }
 }
+
+#[test]
+fn void_constructor_count_retains_required_parent_and_original_scalar_consumer() {
+ let source=include_str!("fixtures/rent-restore-count-source.can");
+ let (db,program,ir,catalog)=fixture_source("rent-restore-count-source.can",source);
+ let owner=item(&ir,"rent_reservations.restore");
+ assert!(matches!(&ir.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)),"{:?}",ir.scenario_disclosures[&owner.id]);
+ let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+ assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let module="$can$m$436f6e7374727563746f72436f756e74.mjs";
+ let plan=serialize_complete_query_receipt(&program,&ir,owner,&db,Some(&catalog),module).expect("original count receipt");
+ assert_eq!(plan["queries"].as_array().unwrap().len(),1,"leading helper belongs to its independently checked source observer");
+ for mode in ["count-offset","consumer-field","parent-operand","effect-order","field-type"] {
+  let mut changed=ir.clone();
+  if mode=="field-type" {
+   let field=item(&changed,"rent_reservations.ResourcePolicy.sequence").id;
+   let IrItemKind::Field{ty,..}=&mut changed.items[field.0 as usize].kind else{panic!("field");};
+   *ty=IrType::Known(ResolvedType::Scalar(Scalar::Text));
+  }else{
+   let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("scenario");};
+   if mode=="effect-order"{effects.swap(0,1);}else{
+    let IrStmt::Create{input,..}=&mut effects[1] else{panic!("create");};
+    let IrExpr::Object(entries)=&mut input.expr else{panic!("object");};
+    if mode=="consumer-field"{entries.iter_mut().find(|(name,_)|name=="sequence").unwrap().0="baseline".into();}
+    else if mode=="parent-operand"{
+     let parent=&mut entries.iter_mut().find(|(name,_)|name=="parent").unwrap().1;
+     let IrExpr::Member{field,..}=&mut parent.expr else{panic!("parent");};*field="location".into();
+    }else{
+     let value=&mut entries.iter_mut().find(|(name,_)|name=="sequence").unwrap().1;
+     let IrExpr::Binary{right,..}=&mut value.expr else{panic!("add");};right.expr=IrExpr::Int(2);
+    }
+   }
+  }
+  assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),module).is_none(),"{mode}");
+ }
+}

@@ -5812,6 +5812,8 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
     if (typeof app !== 'string' || app === '') throw new AssemblyCorrespondenceError('Scenario query lacks its owning app identity.');
     const operations = isUnknownRecord(definition) ? readMetadataMember(definition, 'operations', where)?.value : undefined;
     const operation = isUnknownRecord(operations) ? readMetadataMember(operations, def.name, where)?.value : undefined;
+    const rawCounts=isUnknownRecord(operation)?readMetadataMember(operation,'constructorCounts',where)?.value:undefined;
+    const constructorCounts=rawCounts===undefined?undefined:captureDispatchPreclaimData(nativeCallArray(rawCounts,200)) as NonNullable<Parameters<NonNullable<typeof bind>>[1]['constructorCounts']>;
     const rawFirst = isUnknownRecord(operation) ? readMetadataMember(operation, 'queryFirst', where)?.value : undefined;
     const first = rawFirst === undefined ? [] : await Promise.all(nativeCallArray(rawFirst, plan.queries.length).map(async value => {
       const metadata = localPolicyObject(value, ['queryId', 'source', 'query', 'node', 'statement', 'guardConsumed', 'presenceConsumed', 'targetConsumed']);
@@ -5972,6 +5974,7 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
     }
     bind(def, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bind>[1]['policy'],
       ...(readPolicies === undefined ? {} : { readPolicies }), ...(selections.length === 0 ? {} : { selections }),
+      ...(constructorCounts===undefined?{}:{constructorCounts}),
       ...(first.length === 0 ? {} : { first }),
       ...(any.length === 0 ? {} : { any }), ...(predicates.size === 0 ? {} : {
         captureAnyPredicate: (call: AdmittedCall, queryId: string) => {

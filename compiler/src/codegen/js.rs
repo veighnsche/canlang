@@ -2916,6 +2916,9 @@ fn emit_program_with_sources(
                     super::scenario_receipts::constructor_inputs(context,item,&recipe.plan.source)) {
                     emitter.constructor_inputs.insert(item.id,inputs);
                 }
+                if let Some(counts)=decisions.source_context.and_then(|context|super::scenario_receipts::constructor_counts(context,item,&recipe.plan.source)) {
+                    emitter.constructor_counts.insert(item.id,counts);
+                }
                 emitter.native_receipts.insert(item.id, recipe);
             } else if ir.scenario_disclosures.get(&item.id)
                 .and_then(|value| value.source_facts())
@@ -4941,6 +4944,7 @@ pub struct Emitter<'a> {
     formatted_derives: BTreeSet<String>,
     native_receipts: HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
     constructor_inputs: HashMap<SymbolId, serde_json::Value>,
+    constructor_counts: HashMap<SymbolId, serde_json::Value>,
     private_term_helper_only: bool,
     execution_dependencies:
         BTreeMap<String, Vec<super::scenario_receipts::ReceiptRequireConsumption>>,
@@ -5196,6 +5200,7 @@ impl<'a> Emitter<'a> {
             formatted_derives: BTreeSet::new(),
             native_receipts: HashMap::new(),
             constructor_inputs: HashMap::new(),
+            constructor_counts: HashMap::new(),
             private_term_helper_only: false,
             execution_dependencies: BTreeMap::new(),
             native_call_sites: HashMap::new(),
@@ -9488,9 +9493,15 @@ impl<'a> Emitter<'a> {
             && parent.span.file == parent_node.file
             && parent.span.start == parent_node.start
             && parent.span.end == parent_node.end
-            && matches!(&parent.expr, IrExpr::Name(name) if name == &parameter.name)
-            && matches!(&parameter.kind, IrItemKind::Param {ty:IrType::Known(ty),default:None,..}
-                if ty == &parent.ty && matches!(ty,ResolvedType::Record {stored:true,..}))
+            && (matches!(&parent.expr, IrExpr::Name(name) if name == &parameter.name)
+                && matches!(&parameter.kind,IrItemKind::Param{ty:IrType::Known(ty),default:None,..} if ty==&parent.ty && matches!(ty,ResolvedType::Record{stored:true,..}))
+                || self.query_capture.as_ref().is_some_and(|capture|
+                    self.ir.items.iter().find(|item|item.canonical==capture.owner)
+                        .and_then(|item|self.constructor_counts.get(&item.id)).and_then(|counts|counts.as_array())
+                        .is_some_and(|counts|counts.iter().any(|value|value["queryId"]==source.id)))
+                    && matches!(&parent.expr,IrExpr::Member{base,field} if field=="parent"
+                        && matches!(&base.expr,IrExpr::Name(name) if name==&parameter.name)
+                        && matches!(&parameter.kind,IrItemKind::Param{ty:IrType::Known(ty),default:None,..} if ty==&base.ty && matches!(ty,ResolvedType::Record{stored:true,..}))))
             && matches!(&query.domain, super::ir::IrQueryDomain::Model(model) if model == &source.model_name)
             && source.first.is_none()
             && source.projection.is_none()
@@ -17391,6 +17402,9 @@ impl<'a> Emitter<'a> {
         }
         if let Some(authority) = self.operation_root_authority(item) {
             members.push(format!("rootAuthority:{}", descriptor_json(&authority)));
+        }
+        if let Some(counts)=self.constructor_counts.get(&item.id) {
+            members.push(format!("constructorCounts:{}",descriptor_json(counts)));
         }
         if let Some(inputs) = self.constructor_inputs.get(&item.id) {
             members.push(format!("constructorInputs:{}", descriptor_json(inputs)));

@@ -1290,7 +1290,8 @@ pub(super) fn collect_complete_query_receipt(
     catalog: Option<&Catalog>,
     entry_module: &str,
 ) -> Option<NativeScenarioReceipt> {
-    let prepared = PreparedQuerySources::standalone(program, ir, db, catalog)?;
+    let context=super::scenario_decisions::FreshSourceContext::prepare_queries(program,ir,db,catalog).ok()?;
+    let prepared=PreparedQuerySources::from_context(&context);
     let plan = prepared.plan(owner, entry_module)?;
     collect_complete_query_receipt_prepared(program, ir, owner, &prepared, plan)
 }
@@ -1421,8 +1422,9 @@ fn complete_helper_receipt(
     mixed_plan: Option<ReceiptDisclosurePlan>,
     standalone_first: bool,
 ) -> Option<NativeScenarioReceipt> {
-    let (expected_influences, mixed) =
-        complete_expected_influences(&mixed_plan, &helper_plan, queries, query)?;
+    let (expected_influences, mixed) = if let Some(counts)=super::scenario_receipts::constructor_count_queries(original.source_facts()?) {
+        (counts.into_iter().flat_map(|query|query.influences.clone()).collect(),false)
+    }else{complete_expected_influences(&mixed_plan, &helper_plan, queries, query)?};
     if let Some(mut expected) = mixed_plan {
         let selected = prepared.returns.as_ref()?.returns(ir, owner.id)?;
         super::scenario_receipts::project_plan_returns(&mut expected, &selected)?;
@@ -2186,6 +2188,11 @@ fn checked_query_plan_full(
     }
     if let Some(plan) = any_helper_plan(prepared, ir, owner, db, entry_module) {
         return Some(plan);
+    }
+    if let Some(counts)=super::scenario_receipts::constructor_count_queries(source) {
+        let [count]=counts.as_slice() else{return None;};
+        prepared.decisions(owner)?;
+        return checked_count_query_plan(program,ir,owner,count,db,entry_module,source_context);
     }
     if queries
         .iter()

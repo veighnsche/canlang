@@ -11449,7 +11449,11 @@ impl<'a> Closure<'a> {
             return None;
         }
         let (receiver, name) = self.count_member(node)?;
-        let parameter = self.query_parameter(scenario, receiver)?;
+        let parameter = self.query_parameter(scenario, receiver).or_else(|| {
+            scenario.result.is_none().then(||scenario.params.iter().find(|parameter|
+                self.checked_call_parent_path(receiver,parameter.param,0).is_some_and(|(_,hops)|hops==1))
+                .map(|parameter|parameter.param)).flatten()
+        })?;
         let (parent, hops) = self.checked_call_parent_path(receiver, parameter, 0)?;
         let SymbolKind::Model {
             owner: ModelOwner::ChildOf(actual_parent),
@@ -11459,10 +11463,9 @@ impl<'a> Closure<'a> {
             return None;
         };
         let parent_owner = self.checked_count_model(parent, scenario.module)?;
-        if hops != 0
+        if hops > 1 || hops != 0 && scenario.result.is_some()
             || *actual_parent != parent
             || owner.name != name
-            || !self.original_reference_parameter(receiver, parameter)
             || self.model_has_field(parent, name)
             || self.effects.models.get(&model)?.owner != ModelOwner::ChildOf(parent)
             || parent_owner.id != parent
@@ -12038,7 +12041,7 @@ impl<'a> Closure<'a> {
                 _ => return None,
             };
         let returned = scenario.effects.last()?;
-        if returned.verb != EffectVerb::Return {
+        if returned.verb != EffectVerb::Return && scenario.result.is_some() {
             return None;
         }
         let influences = [
@@ -12075,7 +12078,7 @@ impl<'a> Closure<'a> {
             limit: None,
             archived: false,
             cardinality_guard: None,
-            return_node: returned.node,
+            return_node: if scenario.result.is_none() {scenario.node} else {returned.node},
             projection: None,
             first: None,
             count: Some(DisclosureCountQuery {

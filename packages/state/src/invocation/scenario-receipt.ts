@@ -4107,6 +4107,35 @@ function firstQueryNode(value: unknown): { readonly start: number; readonly end:
       (node.start as number) < 0 || (node.end as number) <= (node.start as number)) return invalid('first requires its exact source interval.');
   return { start: node.start as number, end: node.end as number };
 }
+/** Exact source-owned COUNT+1 consumed by one authored INT CREATE field.
+ * It authenticates scalar use only; all domain rows retain current policies. */
+interface ConstructorCount {
+  readonly owner:string; readonly source:ScenarioResultDisclosurePlan['source']; readonly queryId:string;
+  readonly stage:number; readonly create:{readonly start:number;readonly end:number};
+  readonly model:ModelName; readonly field:string;
+}
+interface ConstructorCountCapture {readonly profile:ConstructorCount;readonly query:QueryExecution;readonly wire:unknown; consumedId:RecordId|null;}
+const constructorCountCaptures=new WeakMap<ReceiptOwnerSession,Map<string,ConstructorCountCapture>>();
+function bindConstructorCounts(def:GeneratedOperationDef,bound:BoundPlan,raw:unknown):readonly ConstructorCount[] {
+  if(raw===undefined)return Object.freeze([]);
+  const profiles=list(dataCopy(raw)),ids=new Set<string>(),stages=new Set<number>();
+  if(bound.type!=='void'||bound.resultModel!==undefined||profiles.length===0||profiles.length>MAX_ITEMS)return invalid('constructor COUNT requires its exact void owner.');
+  for(const raw of profiles){
+    object(raw,['owner','source','queryId','stage','create','model','field']);
+    const value=raw as ConstructorCount;origin(value.source);firstQueryNode(value.create);
+    text(value.queryId);text(value.model);text(value.field);
+    const query=bound.plan.queries?.find(query=>query.id===value.queryId);
+    if(value.owner!==def.name||stableStringify(value.source)!==stableStringify(bound.plan.source)||
+        !Number.isSafeInteger(value.stage)||value.stage<0||value.stage>=MAX_ITEMS||ids.has(value.queryId)||stages.has(value.stage)||
+        query===undefined||query.dependencies.length!==0||query.order.length!==0||query.limit!==null||query.archived!=='exclude'||
+        query.parent?.origin.kind!=='admitted-reference'||queryParentInputModel(def,query.parent.origin.parameter,query.parent.model,bound.artifactModels)===undefined||
+        bound.artifactModels.get(query.model)?.parent!==query.parent.model||
+        bound.artifactModels.get(value.model)?.parent!==query.parent.model||bound.models.get(value.model)?.fields.get(value.field)!=='int'||
+        !bound.plan.returns.every(returned=>returned.projection===undefined&&returnQueryIds(returned).includes(query.id)))return invalid('constructor COUNT differs from its exact contained query, stage or INT CREATE field.');
+    ids.add(value.queryId);stages.add(value.stage);
+  }
+  return deepFreeze(profiles as ConstructorCount[]);
+}
 export interface ScenarioReceiptQueryProducer {
   readonly source: ScenarioResultDisclosurePlan['source'];
   readonly app: string;
@@ -4115,6 +4144,7 @@ export interface ScenarioReceiptQueryProducer {
    * Functions receive State's actual current observation, never a root actor fallback. */
   readonly readPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
   readonly selections?: readonly ScenarioQuerySelectionMetadata[];
+  readonly constructorCounts?: readonly ConstructorCount[];
   readonly first?: readonly ScenarioReceiptQueryFirstMetadata[];
   /** Literal checked stored-bool or finite first-read predicate ANY profiles. */
   readonly any?: readonly ScenarioQueryAnyMetadata[];
@@ -4128,7 +4158,7 @@ const querySelections = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, S
 export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, producer: ScenarioReceiptQueryProducer): void {
   const bound = boundPlans.get(def);
   if (bound === undefined || !bound.plan.queries?.length || invokedPlans.has(def) || queryProducers.has(def)) return invalid('query producer requires one checked source binding before execution.');
-  object(producer, ['source', 'app', 'policy', ...(Object.hasOwn(producer, 'readPolicies') ? ['readPolicies'] : []), ...(Object.hasOwn(producer, 'selections') ? ['selections'] : []), ...(Object.hasOwn(producer, 'first') ? ['first'] : []), ...(Object.hasOwn(producer, 'any') ? ['any'] : []), ...(Object.hasOwn(producer, 'captureAnyPredicate') ? ['captureAnyPredicate'] : [])]); origin(producer.source); text(producer.app);
+  object(producer, ['source', 'app', 'policy', ...(Object.hasOwn(producer,'constructorCounts')?['constructorCounts']:[]), ...(Object.hasOwn(producer, 'readPolicies') ? ['readPolicies'] : []), ...(Object.hasOwn(producer, 'selections') ? ['selections'] : []), ...(Object.hasOwn(producer, 'first') ? ['first'] : []), ...(Object.hasOwn(producer, 'any') ? ['any'] : []), ...(Object.hasOwn(producer, 'captureAnyPredicate') ? ['captureAnyPredicate'] : [])]); origin(producer.source); text(producer.app);
   if (stableStringify(dataCopy(producer.source)) !== stableStringify(bound.plan.source) || !(producer.policy instanceof Map)) return invalid('query producer differs from its checked source/policy.');
   const policies = [...producer.policy].map(([model, value]) => {
     const copied = dataCopy(value);
@@ -4235,9 +4265,11 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
   const predicates = [...anyQueries.values()].some(profile => profile.kind === 'predicate');
   if (predicates && typeof producer.captureAnyPredicate !== 'function' ||
       !predicates && Object.hasOwn(producer, 'captureAnyPredicate')) return invalid('predicate ANY requires its installed source capture producer.');
+  const constructorCounts=bindConstructorCounts(def,bound,producer.constructorCounts);
   bound.anyQueries = anyQueries;
   querySelections.set(def, selections);
   queryProducers.set(def, Object.freeze({ source: bound.plan.source, app: producer.app, policy,
+    ...(constructorCounts.length===0?{}:{constructorCounts}),
     ...(readPolicies === undefined ? {} : { readPolicies }),
     ...(first.length === 0 ? {} : { first: deepFreeze(first) }),
     ...(producer.captureAnyPredicate === undefined ? {} : { captureAnyPredicate: producer.captureAnyPredicate }) }));
@@ -5693,7 +5725,20 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
             }
           }
         }
+        const counts=[...constructorCountCaptures.get(owner)?.values()??[]].filter(capture=>capture.consumedId===null);
+        for(const captured of counts){
+          const [write]=Array.isArray(writes)?writes:[writes],profile=captured.profile;
+          if(owner.stage!==profile.stage||captured.query.stage!==owner.stage||!captured.query.countSelected||
+              Array.isArray(writes)&&writes.length!==1||write?.op!=='create'||write.model!==profile.model||
+              typeof write.id!=='string'||write.id.length===0||write.when!==undefined||write.transition!==undefined||
+              write.parent?.model!==captured.query.parent?.model||write.parent?.id!==captured.query.parent?.row.id||
+              !Object.hasOwn(write.data??{},profile.field)||
+              stableStringify(encodeValue('int',write.data![profile.field] as bigint))!==stableStringify(captured.wire)){
+            return invalid('constructor COUNT requires its once-only actual next CREATE scalar at the checked stage.');
+          }
+        }
         await session.stage(writes, options);
+        for(const captured of counts)captured.consumedId=(Array.isArray(writes)?writes[0]!:writes).id!;
         if (owner.stage === 0) for (const captured of constructorCaptures.get(owner)?.values() ?? []) {
           captured.consumedId = (Array.isArray(writes) ? writes[0]! : writes).id!;
         }
@@ -10101,6 +10146,14 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
       const domain = await owner.session!.views.final.query({ model: plan.model, authority: 'owner',
         ...(parent === undefined ? {} : { parent }), limit: owner.maxRows, archived: plan.archived });
       for (const row of domain) ownerRows.set(row, { session: owner, stage: owner.stage, model: plan.model });
+      const constructorCount=producer.constructorCounts?.find(profile=>profile.queryId===plan.id);
+      if(constructorCount!==undefined){
+        if(owner.stage!==constructorCount.stage||domain.length>=owner.maxRows)return invalid('constructor COUNT requires its complete bounded domain at the authored stage.');
+        // Every sibling must be readable. Filtering a hidden row into a smaller
+        // count cannot satisfy the original scalar constructor.
+        for(const row of domain)await observeModelQuerySourceAuthority(call,store,owner,state,plan.model,row,[]);
+      }
+
       // The exact checked any/first decision pair uses the owner domain.
       // Other query occurrences keep the viewer base below.
       const decisionPolicies = guardConsumedDecisionPolicies(call, owner, state, plan, [],
@@ -10162,6 +10215,7 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
           producer.readPolicies === undefined ? undefined : stageReader);
       if (observed.candidates.length !== execution.candidates.length || observed.candidates.some((candidate, index) =>
         candidate.row !== execution.candidates[index]!.row || candidate.matched !== execution.candidates[index]!.matched)) return invalid('actual query engine lost original candidate correspondence.');
+      if(constructorCount!==undefined&&(observed.candidates.length!==domain.length||observed.selectedIndices.length!==domain.length))return invalid('constructor COUNT lost a sibling from its complete original domain.');
       if (any) {
         const ordered = observed.selectedIndices.map(index => execution.candidates[index]!);
         const authorities = observed.selectedIndices.map(index => sourceAuthorities[index]);
@@ -10389,7 +10443,10 @@ export async function bindScenarioReceiptQueryCount(call: AdmittedCall, store: S
     const voidSeatCount = state.bound.resultModel === undefined && countFirstSeat !== undefined &&
       query?.plan.id === countFirstSeat.count.id && query.ownerDecision && query.stage === 0 &&
       owner?.stage === 0 && state.queries.length === 1 && state.queries[0] === query;
-    if (owner === undefined || state.bound.resultModel === undefined && !voidSeatCount || owner.busy || state.pending !== 0 || state.returnId !== null ||
+    const constructorCount=queryProducers.get(call.def as GeneratedOperationDef)?.constructorCounts?.find(profile=>profile.queryId===query?.plan.id);
+    const voidConstructorCount=constructorCount!==undefined&&query?.stage===constructorCount.stage&&owner?.stage===constructorCount.stage&&
+      query.candidates.length===query.selectedIndices.length;
+    if (owner === undefined || state.bound.resultModel === undefined && !voidSeatCount && !voidConstructorCount || owner.busy || state.pending !== 0 || state.returnId !== null ||
         owner.executingCall !== call || query === undefined || query.call !== call || query.owner !== owner ||
         query.stage !== owner.stage || !query.complete || query.firstSelected || query.countSelected || query.selectionConsumed || query.anyConsumed ||
         querySelections.get(call.def as GeneratedOperationDef)?.has(query.plan.id) === true ||
@@ -10397,7 +10454,26 @@ export async function bindScenarioReceiptQueryCount(call: AdmittedCall, store: S
       return invalid('count requires its genuine completed singular-model query at the original owner stage.');
     }
     return await ownerOperation(owner, async () => {
-      query.countSelected = true; return BigInt(query.selectedIndices.length);
+      const result=BigInt(query.selectedIndices.length);
+      if(voidConstructorCount){
+        let captures=constructorCountCaptures.get(owner);
+        if(captures===undefined){captures=new Map();constructorCountCaptures.set(owner,captures);}
+        if(captures.has(query.plan.id)||owner.callGuards.length>=MAX_ITEMS)return invalid('constructor COUNT was consumed twice or exceeded its guard budget.');
+        const captured:ConstructorCountCapture={profile:constructorCount!,query,wire:encodeValue('int',int64(result+1n)),consumedId:null};
+        captures.set(query.plan.id,captured);
+        owner.callGuards.push(Object.freeze({name:`constructor-count:${call.def.name}:${query.plan.id}`,evaluate:async()=>{
+          const final=owner.finalized;
+          const inserted=final?.writes.find(write=>write.kind==='insert'&&write.model===captured.profile.model&&write.row.id===captured.consumedId);
+          if(final===null||owner.capture.poisoned||captured.consumedId===null||!query.countSelected||inserted?.kind!=='insert'||
+              stableStringify(inserted.row.data[captured.profile.field])!==stableStringify(captured.wire)||
+              inserted.row.parent?.model!==query.parent?.model||inserted.row.parent?.id!==query.parent?.row.id){
+            return invalid('constructor COUNT lacks its once-consumed surviving actual CREATE scalar.');
+          }
+          if(await store.readRevision()!==call.revision)throw new StateError('conflict','Constructor COUNT checkpoint moved before commit.');
+          return true;
+        }}));
+      }
+      query.countSelected = true; return result;
     }, call);
   } catch (error) {
     state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true;
