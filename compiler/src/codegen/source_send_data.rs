@@ -64,6 +64,7 @@ struct Environment { values:BTreeSet<String>, roots:BTreeMap<String,Root> }
 struct Reads {
     fields:BTreeMap<String,BTreeMap<String,String>>,
     identities:BTreeMap<String,BTreeSet<String>>,
+    parents:BTreeMap<String,(SymbolId,BTreeMap<String,String>)>,
     query_fields:BTreeMap<String,BTreeMap<String,String>>,
     queries:BTreeMap<String,serde_json::Value>,
     query_spans:BTreeSet<(u32,u32,u32)>,
@@ -102,15 +103,21 @@ impl Reads {
             IrExpr::Member{base,field}=>{
                 if self.aggregates&&field=="now"&&base.ty==ResolvedType::Unknown&&matches!(&base.expr,IrExpr::Name(name)if name=="c")
                     && value.ty==ResolvedType::Scalar(Scalar::Datetime){return Some(());}
-                let IrExpr::Name(parameter)=&base.expr else{return None;};let root=env.roots.get(parameter)?;
+                let (root,parent)=if let IrExpr::Name(parameter)=&base.expr{(env.roots.get(parameter)?.clone(),false)}else{
+                    let IrExpr::Member{base:child,field:parent}=&base.expr else{return None;};
+                    let IrExpr::Name(parameter)=&child.expr else{return None;};let original=env.roots.get(parameter)?;
+                    let IrItemKind::Model{owner:super::ir::IrOwner::ChildOf(model),..}=&ir.items.get(original.model.0 as usize)?.kind else{return None;};
+                    if parent!="parent"||original.query.is_some()||child.ty!=(ResolvedType::Record{symbol:original.model,stored:true}){return None;}
+                    (Root{parameter:original.parameter.clone(),model:*model,query:None},true)
+                };
                 if !matches!(base.ty,ResolvedType::Record{symbol,stored:true}if symbol==root.model){return None;}
-                if root.query.is_none()&&matches!(field.as_str(),"id"|"version"){
+                if !parent&&root.query.is_none()&&matches!(field.as_str(),"id"|"version"){
                     let expected=ResolvedType::Scalar(if field=="id"{Scalar::Text}else{Scalar::Int});
                     if value.ty!=expected{return None;}
                     self.identities.entry(root.parameter.clone()).or_default().insert(field.clone());
                     self.fields.entry(root.parameter.clone()).or_default();return Some(());
                 }
-                if (self.aggregates||self.contract_derives)&&root.query.is_none()
+                if !parent&&(self.aggregates||self.contract_derives)&&root.query.is_none()
                     &&let Some(item)=ir.items.iter().find(|item|item.name==*field&&matches!(item.kind,IrItemKind::DeriveField{model,..}if model==root.model)){
                     let IrItemKind::DeriveField{ty:IrType::Known(ty),expr:Some(body),..}=&item.kind else{return None;};
                     if ty!=&value.ty||!(self.aggregates&&matches!(ty,ResolvedType::Scalar(Scalar::Money|Scalar::Bool))
@@ -124,7 +131,12 @@ impl Reads {
                 let(_,ty)=declared_field(ir,root.model,field)?;
                 if ty!=&value.ty&&!matches!(ty,ResolvedType::Nullable(inner)if inner.as_ref()==&value.ty){return None;}
                 let ty=data_type(ir,ty)?;
-                if let Some(query)=&root.query{self.query_fields.entry(query.clone()).or_default().insert(field.clone(),ty);}
+                if parent{
+                    if !matches!(&value.ty,ResolvedType::Scalar(_)|ResolvedType::Enum{..}|ResolvedType::Nullable(_)){return None;}
+                    self.fields.entry(root.parameter.clone()).or_default();
+                    let stored=self.parents.entry(root.parameter.clone()).or_insert_with(||(root.model,BTreeMap::new()));
+                    if stored.0!=root.model{return None;}stored.1.insert(field.clone(),ty);
+                }else if let Some(query)=&root.query{self.query_fields.entry(query.clone()).or_default().insert(field.clone(),ty);}
                 else{self.fields.entry(root.parameter.clone()).or_default().insert(field.clone(),ty);}
                 Some(())
             },
@@ -314,6 +326,7 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
                     if let Some(id)=loop_roots.get(name){value["loop"]=serde_json::json!(id);}
                     if let Some(created)=created_roots.get(name){value["created"]=created.clone();}
                     if let Some(identity)=reads.identities.get(name){value["identity"]=serde_json::json!(identity);}
+                    if let Some((model,fields))=reads.parents.get(name){value["parent"]=serde_json::json!({"model":ir.items[model.0 as usize].canonical,"fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>()});}
                     if let Some(derived)=reads.derived.get(name){value["derived"]=serde_json::json!(derived.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>());}
                     parameters.push(value);
                 }
@@ -347,6 +360,7 @@ pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super:
         IrStmt::If{then_branch,else_branch,..}=>has_emit(then_branch)||has_emit(else_branch),IrStmt::Match{arms,..}=>arms.iter().any(|arm|has_emit(&arm.body)),_=>false})}
     if !has_emit(effects){return Some(HashMap::new());}
     context.same_scenario(ir, owner)?;
+    let creates=super::source_created_rows::collect(ir,owner,context,&source)?;
     let mut env=Environment::default();let mut models=BTreeMap::new();
     for id in params{
         let param=ir.items.get(id.0 as usize)?;let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};
@@ -356,16 +370,20 @@ pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super:
         }else if plain_value(ir,ty,0){env.values.insert(param.name.clone());}
     }
     fn walk(ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem,body:&[IrStmt],env:&mut Environment,
-        models:&BTreeMap<String,SymbolId>,source:&serde_json::Value,module:&str,output:&mut HashMap<Span,serde_json::Value>){
+        models:&BTreeMap<String,SymbolId>,created:&mut BTreeMap<String,serde_json::Value>,creates:&[serde_json::Value],source:&serde_json::Value,module:&str,output:&mut HashMap<Span,serde_json::Value>){
         for statement in body{match statement{
-            IrStmt::Let{name,value,..}=>{let pure=send_value(ir,value,&env.values,0);env.values.remove(name);env.roots.remove(name);if pure{env.values.insert(name.clone());}},
+            IrStmt::Let{name,value,..}=>{let pure=send_value(ir,value,&env.values,0);env.values.remove(name);env.roots.remove(name);created.remove(name);if pure{env.values.insert(name.clone());}},
+            IrStmt::Create{binding:Some(name),span,..}=>{
+                created.remove(name);env.values.remove(name);env.roots.remove(name);
+                if let Some(profile)=creates.iter().find(|profile|profile["node"]["start"]==span.start&&profile["node"]["end"]==span.end){created.insert(name.clone(),profile.clone());}
+            },
             IrStmt::Emit{event,payload:args,span}=>{
                 if context.same_event_schema(event).is_none(){continue;}
                 let Some(declaration)=ir.items.iter().find(|item|item.canonical==*event&&item.module==owner.module)else{continue;};
                 let IrItemKind::Event{fields}=&declaration.kind else{continue;};
                 let IrExpr::Object(entries)=&args.expr else{continue;};
                 if fields.len()!=entries.len()||!entries.iter().all(|(name,value)|fields.iter().filter_map(|id|ir.items.get(id.0 as usize)).any(|field|field.name==*name&&matches!(&field.kind,
-                    IrItemKind::Field{ty:IrType::Known(ty),..}if ty==&value.ty||matches!((ty,&value.ty),
+                    IrItemKind::Field{ty:IrType::Known(ty),..}if ty==&value.ty||matches!(ty,ResolvedType::Nullable(inner) if inner.as_ref()==&value.ty)||matches!((ty,&value.ty),
                         (ResolvedType::Record{symbol:a,..},ResolvedType::Record{symbol:b,stored:false})if a==b&&matches!(ir.items.get(a.0 as usize).map(|item|&item.kind),Some(IrItemKind::Contract{..})))))){continue;}
                 let mut reads=Reads{aggregates:true,..Reads::default()};let mut references=Vec::new();let mut valid=true;
                 for(field,value)in entries{
@@ -373,6 +391,10 @@ pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super:
                         && let Some(root)=env.roots.get(name)
                         && root.model==*symbol&&root.query.is_none()&&matches!(ir.items[symbol.0 as usize].kind,IrItemKind::Model{..}){
                         references.push(serde_json::json!({"field":field,"parameter":root.parameter,"model":ir.items[symbol.0 as usize].canonical}));
+                    }else if let (IrExpr::Name(name),ResolvedType::Record{symbol,stored:true})=(&value.expr,&value.ty)
+                        && let Some(profile)=created.get(name)
+                        && profile["model"]==ir.items[symbol.0 as usize].canonical {
+                        references.push(serde_json::json!({"field":field,"parameter":name,"model":profile["model"],"created":profile}));
                     }else if reads.read(ir,context,value,env,0).is_none(){valid=false;break;}
                 }
                 if !valid||reads.fields.is_empty()||reads.fields.len()>200{continue;}
@@ -382,6 +404,7 @@ pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super:
                     let mut value=serde_json::json!({"name":name,"model":ir.items[model.0 as usize].canonical,
                         "fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>()});
                     if let Some(identity)=reads.identities.get(name){value["identity"]=serde_json::json!(identity);}
+                    if let Some((model,fields))=reads.parents.get(name){value["parent"]=serde_json::json!({"model":ir.items[model.0 as usize].canonical,"fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>()});}
                     if let Some(derived)=reads.derived.get(name){
                         value["derived"]=serde_json::json!(derived.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>());
                     }
@@ -393,10 +416,10 @@ pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super:
                 if !reads.queries.is_empty(){value["queries"]=serde_json::json!(reads.queries.values().collect::<Vec<_>>());}
                 output.insert(*span,value);
             },
-            IrStmt::If{then_branch,else_branch,..}=>{walk(ir,context,owner,then_branch,&mut env.clone(),models,source,module,output);walk(ir,context,owner,else_branch,&mut env.clone(),models,source,module,output);},
-            IrStmt::Match{arms,..}=>for arm in arms{walk(ir,context,owner,&arm.body,&mut env.clone(),models,source,module,output);},
+            IrStmt::If{then_branch,else_branch,..}=>{walk(ir,context,owner,then_branch,&mut env.clone(),models,&mut created.clone(),creates,source,module,output);walk(ir,context,owner,else_branch,&mut env.clone(),models,&mut created.clone(),creates,source,module,output);},
+            IrStmt::Match{arms,..}=>for arm in arms{walk(ir,context,owner,&arm.body,&mut env.clone(),models,&mut created.clone(),creates,source,module,output);},
             _=>{},
         }}
     }
-    let mut output=HashMap::new();walk(ir,context,owner,effects,&mut env,&models,&source,module,&mut output);Some(output)
+    let mut output=HashMap::new();walk(ir,context,owner,effects,&mut env,&models,&mut BTreeMap::new(),&creates,&source,module,&mut output);Some(output)
 }

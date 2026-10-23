@@ -13049,6 +13049,15 @@ async function runScenarioExecution(
                 if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('SEND DATA lacks its actually granted source field.');
                 fields[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);
               }
+              if(parameter.parent!==undefined){
+                const parent=rows[`${parameter.name}.parent`];if(parent===undefined)return refuseRecordBinding('Effect parent DATA lacks its actual independently granted row.');
+                const data:Record<string,unknown>=Object.create(null);
+                for(const field of parameter.parent.fields){const wire=Object.getOwnPropertyDescriptor(parent.data,field.name);
+                  if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('Effect parent DATA lacks its actually granted field.');
+                  data[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);
+                }
+                fields.parent=Object.freeze(data);
+              }
               if(parameter.identity!==undefined){
                 const references=actual.recordRefs.filter(ref=>ref.param===parameter.name),reference=references[0];
                 if(references.length!==1||reference?.model!==parameter.model||reference.expectedVersion===null)return refuseRecordBinding('SEND DATA lost its actual admitted identity.');
@@ -13095,7 +13104,13 @@ async function runScenarioExecution(
           if(issued.context!==ctx||source===undefined)return refuseRecordBinding('EMIT DATA closure differs from its original source/context.');
           const names=[...new Set([...source.parameters.map(parameter=>parameter.name),...(source.references??[]).map(reference=>reference.parameter)])];
           const roots=localPolicyObject(supplied,names);
-          if(Object.keys(roots).length!==names.length||names.some(name=>roots[name]!==parameters[name]))return refuseRecordBinding('EMIT DATA changed its genuine original parameter graph.');
+          if(Object.keys(roots).length!==names.length||names.some(name=>!(source.references??[]).some(reference=>reference.parameter===name&&reference.created!==undefined)&&roots[name]!==parameters[name]))return refuseRecordBinding('EMIT DATA changed its genuine original parameter graph.');
+          for(const reference of source.references??[])if(reference.created!==undefined){
+            const read=loaded.producers.invoke.readScenarioSourceCreatedRoot,root=roots[reference.parameter];
+            if(read===undefined||!isUnknownRecord(root))return refuseRecordBinding('EMIT reference lacks its actual original created root.');
+            const row=await read(actual,receiptStore,{id:reference.created.id}),binding=recordBindings.get(root);
+            if(binding?.model!==reference.model||binding.id!==row.id||binding.version<1||binding.version>row.version)return refuseRecordBinding('EMIT reference differs from its actual original CREATE row.');
+          }
           return await execute(actual,receiptStore,{source,execute:async rows=>{
             const projected:Record<string,unknown>=Object.create(null);
             for(const parameter of source.parameters){
@@ -13105,6 +13120,15 @@ async function runScenarioExecution(
                 const wire=Object.getOwnPropertyDescriptor(record.data,field.name);
                 if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('EMIT DATA lacks its actually granted source field.');
                 fields[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);
+              }
+              if(parameter.parent!==undefined){
+                const parent=rows[`${parameter.name}.parent`];if(parent===undefined)return refuseRecordBinding('Effect parent DATA lacks its actual independently granted row.');
+                const data:Record<string,unknown>=Object.create(null);
+                for(const field of parameter.parent.fields){const wire=Object.getOwnPropertyDescriptor(parent.data,field.name);
+                  if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('Effect parent DATA lacks its actually granted field.');
+                  data[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);
+                }
+                fields.parent=Object.freeze(data);
               }
               if(parameter.identity!==undefined){
                 const references=actual.recordRefs.filter(ref=>ref.param===parameter.name),reference=references[0];
@@ -13118,7 +13142,7 @@ async function runScenarioExecution(
             for(const reference of source.references??[]){
               const root=roots[reference.parameter];if(!isUnknownRecord(root))return refuseRecordBinding('EMIT DATA reference lost its original graph.');
               const binding=recordBindings.get(root),refs=actual.recordRefs.filter(ref=>ref.param===reference.parameter),ref=refs[0];
-              if(refs.length!==1||ref?.model!==reference.model||ref.expectedVersion===null||binding?.model!==ref.model||binding.id!==ref.id||binding.version!==ref.row.version)return refuseRecordBinding('EMIT DATA reference lost its genuine original native binding.');
+              if(reference.created===undefined&&(refs.length!==1||ref?.model!==reference.model||ref.expectedVersion===null||binding?.model!==ref.model||binding.id!==ref.id||binding.version!==ref.row.version))return refuseRecordBinding('EMIT DATA reference lost its genuine original native binding.');
               references[reference.parameter]=root;
             }
             const count=emittedEvents.length;activeSourceEmitData=source;

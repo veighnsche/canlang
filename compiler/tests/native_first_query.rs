@@ -2833,3 +2833,25 @@ fn contained_sibling_constructor_preserves_native_prefix_and_original_loop_closu
   assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),module).is_none(),"{mode}");
  }
 }
+
+#[test]
+fn original_shift_request_retains_created_and_parent_source_ownership() {
+ let source=include_str!("fixtures/shift-request-original.can");
+ let(db,program,_,catalog)=fixture_source("shift-request-original.can",source);
+ let(artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let operation=artifact["operations"].as_array().unwrap().iter().find(|operation|operation["name"]=="shift.request_swap").unwrap();
+ assert!(operation["result"]["disclosure"].is_null(),"source-only owner must not acquire a native receipt claim");
+ for(name,ty)in [("shift.DutyNotice.swap",ResolvedType::Scalar(Scalar::Text)),("shift.Commitment.revision",ResolvedType::Scalar(Scalar::Text)),("shift.Swap.revision",ResolvedType::Scalar(Scalar::Text))]{
+  let(db,mut changed,_,catalog)=fixture_source("shift-source-schema-substitution.can",source);
+  let field=changed.symbols.iter().find(|symbol|symbol.canonical==name).unwrap().id;changed.types.symbol_types.insert(field,ty);
+  let(_,diagnostics)=prepared_artifact(&changed,&db,&catalog);
+  assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
+ }
+ for(mode,changed)in [
+  ("copied-created",source.replace("    emit DutyNotice {duty,recipient=substitute.user", "    let copied=swap\n    emit DutyNotice {duty,recipient=substitute.user").replace("kind=swap_request,swap}","kind=swap_request,swap=copied}")),
+  ("copied-parent",source.replace("    create Swap {parent=duty", "    let copied=duty\n    create Swap {parent=copied")),
+ ]{
+  assert_ne!(source,changed,"{mode}");let(db,program,_,catalog)=fixture_source(&format!("shift-{mode}.can"),&changed);
+  let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {diagnostics:?}");
+ }
+}

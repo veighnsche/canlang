@@ -3339,3 +3339,49 @@ it('executes the original Rent block contained sibling constructors with their c
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('emits the original Shift request with its genuine created Swap and parent DATA', {timeout:180000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-shift-created-emit-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/shift-request-original.can'),original=await readFile(join(root,'draft/apps/CanShift/CanShift.can'),'utf8'),text=await readFile(source,'utf8');
+  const start=original.indexOf('  scenario request_swap('),end=original.indexOf('  # Accept',start);assert.ok(text.includes(original.slice(start,end)),'complete unchanged original request_swap');
+  const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout) as CompileArtifact;assert.equal(artifact.operations?.find(operation=>operation.name==='shift.request_swap')?.result?.disclosure,undefined,'genuine source-only frame');
+  const asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['allowed','member-only','denied-user','denied-parent-field','false-prefix','inactive-substitute','stale','parent-race','parent-grant-race','user-grant-race','identity-race']){
+   const {now,identities,identity,team,user,membership}=await member('shift-created-'+mode,mode==='member-only'?[]:['shift.scheduler']);
+   const substitute=await identities.createUser({email:'substitute-'+mode+'@shift.test',password_hash:'unused',email_verified:true});
+   await identities.createMembership({team_id:team.team_id,user_id:substitute.user_id,is_owner:false,roles:[]});
+   const scope={app:'CanShift',owner:team.team_id,ownerPackage:'shift'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'shift-state',fileStoreId:'shift-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+   const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+   await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+   const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent});
+   const employee={home:{id:'location'},locations:[],operator_wide:false,active:true,skills:['reception'],role:'Reception',visible:true,user_visible:true};
+   const commitment=row('commitment',{employee:{id:'employee'},location:{id:'location'},from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T17:00:00.000Z',before:'0',after:'0',skill:'reception',kind:'duty',source:'original-duty',previous:null,revision:'7',active:true,conflict:false,revision_visible:mode!=='denied-parent-field'},{model:model('shift','Roster'),id:asId('roster')});
+   const duty=row('duty',{role:'Reception',published:mode!=='false-prefix',published_revision:'7',published_by:{id:user.user_id},override_reason:null},{model:model('shift','Commitment'),id:commitment.id});
+   const substituteRow=row('substitute',{...employee,user:{id:substitute.user_id},active:mode!=='inactive-substitute',user_visible:mode!=='denied-user'});
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    {kind:'insert',model:model('rent_catalog','Location'),row:row('location',{active:true})},
+    {kind:'insert',model:model('employee','Employee'),row:row('employee',{...employee,user:{id:user.user_id}})},
+    {kind:'insert',model:model('employee','Employee'),row:substituteRow},
+    {kind:'insert',model:model('shift','Roster'),row:row('roster',{name:'Original roster'})},
+    {kind:'insert',model:model('shift','Commitment'),row:commitment},{kind:'insert',model:model('shift','Duty'),row:duty}]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.load=async(name,id)=>{if(!raced&&mode==='identity-race'&&name==='work.occurrence'){raced=true;await identities.removeMembership(membership.membership_id);}return load(name,id);};
+   store.commit=async batch=>{if(!raced&&['parent-race','parent-grant-race','user-grant-race'].includes(mode)&&batch.writes.some(write=>write.model==='work.occurrence')){
+    raced=true;const parent=mode.startsWith('parent-'),name=parent?model('shift','Commitment'):model('employee','Employee'),old=await load(name,parent?commitment.id:substituteRow.id);assert.ok(old);
+    await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:name,id:old.id,expectedVersion:old.version,row:{...old,version:asVersion(old.version+1),data:{...old.data,...(parent?mode==='parent-grant-race'?{revision_visible:false}:{revision:'8'}:{user_visible:false})}}}]}));
+   }return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'shift.request_swap',operation_id:operationId(now),inputs:{duty:{id:'duty',version:mode==='stale'?'2':'1'},substitute:{id:'substitute',version:'1'}}};
+   const result=await invoker.invokeMutation(request,identity),success=['allowed','parent-race'].includes(mode);assert.equal('result'in result,success,mode+': '+JSON.stringify(result));
+   if(mode==='member-only'&&'error'in result)assert.equal(result.error.code,'not_found','private Roster ancestor remains denied by original policies');
+   if(mode.endsWith('-race'))assert.ok(raced,mode);
+   const swaps=await store.query({model:model('shift','Swap'),authority:'owner'}),events=await store.query({model:asModel('work.occurrence'),authority:'owner'});assert.equal(swaps.length,success?1:0,mode);assert.equal(events.length,success?1:0,mode);
+   if(success){assert.deepEqual(swaps[0]!.parent,{model:model('shift','Duty'),id:duty.id});assert.deepEqual(swaps[0]!.data,{substitute:{id:'substitute'},original:{id:'employee'},revision:mode==='parent-race'?'2':'1',state:'open'});
+    assert.deepEqual((events[0]!.data['result'] as {payload:unknown}).payload,{duty:{id:'duty',version:'1'},recipient:{id:substitute.user_id},revision:mode==='parent-race'?'8':'7',kind:'swap_request',swap:{id:swaps[0]!.id,version:'1'}});
+    assert.ok(Object.hasOwn(events[0]!.data,'filePayloadOrigin'),'genuine declared Work source origin');
+    const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay||replay.error.code==='validation',JSON.stringify(replay));assert.deepEqual(await store.query({model:model('shift','Swap'),authority:'owner'}),swaps);assert.deepEqual(await store.query({model:asModel('work.occurrence'),authority:'owner'}),events);
+   }
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});
