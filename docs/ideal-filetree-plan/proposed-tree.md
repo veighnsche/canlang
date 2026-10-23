@@ -1,6 +1,6 @@
 # Complete selected target tree
 
-Reconciled to source `8d48f969`: 3,809 pinned parent paths plus eight substantive audit review documents, with the `draft` gitlink expanded to its 951 independently owned inputs (4,767 file leaves). The added review documents do not change the product pin. Every current leaf is retained at its exact path. Previously selected private extractions and the dev policy integration are implemented; their actual defining files now appear as current leaves. The obsolete Cloudflare executor is excluded and its retirement remains recorded in [port assessment](port-assessment.md). No further package, process or broad monolith split is selected. Remaining semantic corrections and unreviewed workflows have explicit tasks/gates rather than speculative target filenames. Ignored caches, credentials and worktrees remain outside scope.
+Reconciled to source `8d48f969`: 3,809 pinned parent paths plus twelve substantive audit review documents, with the `draft` gitlink expanded to its 951 independently owned inputs (4,771 file leaves). The added review documents do not change the product pin. Every current leaf is retained at its exact path. Previously selected private extractions and the dev policy integration are implemented; their actual defining files now appear as current leaves. The obsolete Cloudflare executor is excluded and its retirement remains recorded in [port assessment](port-assessment.md). No further package, process or broad monolith split is selected. Remaining semantic corrections and unreviewed workflows have explicit tasks/gates rather than speculative target filenames. Ignored caches, credentials and worktrees remain outside scope.
 
 ```text
 canlang/
@@ -948,15 +948,19 @@ canlang/
 │   │   │   ├── target-tree.md
 │   │   │   └── workflows.md
 │   │   ├── reviews/
+│   │   │   ├── artifact-emission.md
 │   │   │   ├── authoring.md
+│   │   │   ├── browser-presentation.md
 │   │   │   ├── compiler.md
 │   │   │   ├── delivery-upgrade.md
 │   │   │   ├── identity-authority.md
 │   │   │   ├── index.md
+│   │   │   ├── language-checking.md
 │   │   │   ├── language-current.md
 │   │   │   ├── native-development.md
 │   │   │   ├── platform-current.md
 │   │   │   ├── platform.md
+│   │   │   ├── providers-work-files.md
 │   │   │   ├── repository-current.md
 │   │   │   ├── repository.md
 │   │   │   ├── runtime-current.md

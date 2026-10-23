@@ -15,6 +15,10 @@ Current product source is `8d48f969`; [baseline](../baseline.md) separates struc
 | Native/TS Values, owned input, ABI/assets/Intl | authority_review | root on selected route/error order and host/native boundary | [Values](values.md) — source duties reviewed, open compatibility defects and unperformed runtime qualification |
 | Native dev owner/preview/transport/foreground/fixed host | migration_review | root on final cancellation, scratch custody and owner boundary | [Native development](native-development.md) |
 | Deploy/upgrade/preparation/release/install delivery | setup_review | root on staged bytes, source/installed scope and retained owners | [Delivery](delivery-upgrade.md) |
+| Syntax/checker/example responsibility families | migration_review | root on transitive retention and expected-value typing | [Checking](language-checking.md) |
+| Browser presentation/context and preference lifecycle | setup_review | root on denied content, stale read and refresh recipients | [Browser](browser-presentation.md) |
+| Provider/Work recovery/File intake and custody | authority_review | root on own-option validation and intent admission | [Providers and Files](providers-work-files.md) |
+| Artifact assembly/BDD/maps; remaining general lowering | root | migration_review on decimal capability census | [Emission](artifact-emission.md) — partial, exact remaining duties recorded |
 | Repository contracts/evidence/draft/complete allocation | root | Three current primaries and their explicit cross-boundary findings | [Repository](repository-current.md) |
 
 The accumulated changed-source allocation and selected consequential boundary challenge are refreshed. Exact path retention is complete; whole-product substantive duty/workflow review remains partial, including previously unreviewed retained branches and assertion subjects. Each review names concrete remaining packets; a complete target tree does not close them. No product test/build or installed journey was executed by this audit.
