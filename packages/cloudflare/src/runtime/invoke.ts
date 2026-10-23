@@ -5669,7 +5669,7 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
         evaluate: evaluate as NativeSourceSendGuard['evaluate'] }));
     }
     const retained = plan.retainedGuardedHandler;
-    const stagedRules = (retained as typeof retained & { readonly stagedRules?: readonly string[] })?.stagedRules ?? [];
+    const stagedRules = retained?.stagedRules ?? [];
     if (guards.some(guard => (guard.evaluation === 'source') !== stagedRules.includes(guard.rule)) || stagedRules.some(rule => {
       const guard = selected.get(rule)?.guard;
       return guard === undefined || retained?.owner !== def.name || !retained.rules.includes(rule) ||
