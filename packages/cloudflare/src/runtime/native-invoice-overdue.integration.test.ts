@@ -268,17 +268,18 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
           handler, due, store, identities, now: () => now, deploymentBase });
         const intents = storageProbe.outboxAll();
         if (mode === 'credit-at-commit') {
-          assert.equal(injected, true, 'credit race runs at the Mail commit');
+          assert.equal(injected, !sourceFalse, 'credit race runs only when Mail is queued');
           assert.equal(intents.length, 0, 'stale positive balance cannot queue Mail');
           continue;
         }
-        const expected = sourceFalse?0:[
+        const requireAccepted = [
           'current-hidden', 'revision-is-not-in-authored-guard', 'failed-attempt',
           'recipient-after-schedule','many-credits',
-        ].includes(mode) ? 1 : 0;
+        ].includes(mode);
+        const expected = !sourceFalse && requireAccepted ? 1 : 0;
         assert.equal(intents.length, expected, `${mode}: ${JSON.stringify(result)}`);
         assert.equal(result.status, mode === 'missing-work-due' ? 'refused'
-          : expected||sourceFalse ? 'completed' : 'failed', `${mode}: due status`);
+          : requireAccepted ? 'completed' : 'failed', `${mode}: due status`);
         if (expected) {
           const request = intents[0]?.arguments['arguments'] as Record<string, unknown>;
           assert.equal(request['to'], mode === 'recipient-after-schedule'
