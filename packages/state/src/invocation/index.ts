@@ -86,4 +86,4 @@ export { bindScenarioDispatchMembershipProducer,
 
 export { projectReadScenarioQueryResult } from './scenario-receipt.js';
 
-export { bindScenarioSourceSendDataProducer, executeScenarioSourceSendData, type ScenarioSourceSendDataSource } from "./scenario-receipt.js";
+export { bindScenarioSourceSendDataProducer, executeScenarioSourceSendData, executeScenarioSourceSendQuery, type ScenarioSourceSendDataSource } from "./scenario-receipt.js";

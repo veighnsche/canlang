@@ -23,6 +23,7 @@
 //! `deleteRecord` modes, bound `send`, `schedule` with `on:{every}` and
 //! CRUD `create`/`set` with `when`.
 
+use super::source_send_data::{plain_value,send_value,source_only_data_sends};
 use crate::analysis::catalog::{StdOperation, nominal_schema, std_capability};
 use crate::analysis::resolve::{CrudOp, ModuleKind, SymbolId};
 use crate::analysis::types::{ResolvedType, Scalar, canonical_datetime_literal, std_schema_type};
@@ -1623,103 +1624,6 @@ fn missing_source_checked_send_rule(
 // authority. Its Work effects and scalar DATA consumption require their
 // independently installed original owner joins; ordinary CRUD and scalar
 // evaluation retain their existing caller grants and mutation pipeline.
-fn plain_value(ir:&IrProgram,ty:&ResolvedType,depth:usize)->bool{
-    if depth>=16{return false;}
-    match ty{
-        ResolvedType::Null=>true,
-        ResolvedType::Scalar(scalar)=>!matches!(scalar,Scalar::File|Scalar::Secret|Scalar::Member|Scalar::Json|Scalar::Bytes),
-        ResolvedType::Enum {cases,..} if !cases.is_empty()=>true,
-        ResolvedType::Nullable(inner)=>plain_value(ir,inner,depth+1),
-        ResolvedType::Array{element,ordered:true,..}=>plain_value(ir,element,depth+1),
-        ResolvedType::Object(fields)=>fields.len()<=200&&fields.iter().all(|(_,ty)|plain_value(ir,ty,depth+1)),
-        ResolvedType::Record{symbol,..}=>ir.items.get(symbol.0 as usize).is_some_and(|item|{
-            let IrItemKind::Contract{fields,..}=&item.kind else{return false;};
-            !fields.is_empty()&&fields.len()<=200&&fields.iter().all(|id|matches!(ir.items.get(id.0 as usize).map(|field|&field.kind),
-                Some(IrItemKind::Field{ty:IrType::Known(ty),..})if plain_value(ir,ty,depth+1)))
-        }),
-        _=>false,
-    }
-}
-// SEND consumes data. A guard-only owner can carry its ordinary admitted
-// Values inputs and pure locals, but cannot turn a stored field/control
-// observation, File, reference or provider receipt into an egress value.
-fn send_value(ir:&IrProgram,value:&TypedExpr,values:&BTreeSet<String>,depth:usize)->bool{
-    if depth>=32{return false;}
-    let child=|value:&TypedExpr|send_value(ir,value,values,depth+1);
-    // Effect argument objects retain their owning checked operation schema;
-    // their aggregate IR carrier can be Unknown while every slot is typed.
-    if let IrExpr::Object(fields)=&value.expr{
-        return (matches!(value.ty,ResolvedType::Unknown|ResolvedType::Object(_))
-            || plain_value(ir,&value.ty,0))
-            && fields.len()<=200&&fields.iter().all(|(_,value)|child(value));
-    }
-    if !plain_value(ir,&value.ty,0){return false;}
-    match &value.expr{
-        IrExpr::Int(_)|IrExpr::Decimal(_)|IrExpr::Text(_)|IrExpr::Bool(_)|IrExpr::Null
-        |IrExpr::Money{..}|IrExpr::DurationMs(_)|IrExpr::Date(_)|IrExpr::Datetime(_)=>true,
-        IrExpr::Name(name)=>values.contains(name),
-        IrExpr::Member{base,..}=>plain_value(ir,&base.ty,0)&&child(base),
-        IrExpr::Call{target:IrCallTarget::Builtin{awaited:false,..},args}
-        |IrExpr::BoundCall{target:IrCallTarget::Builtin{awaited:false,..},args,..}=>args.iter().all(child),
-        IrExpr::Binary{left,right,..}=>child(left)&&child(right),
-        IrExpr::Unary{operand,..}=>child(operand),
-        IrExpr::Array(entries)=>entries.iter().all(child),
-        IrExpr::Object(fields)=>fields.iter().all(|(_,value)|child(value)),
-        _=>false,
-    }
-}
-fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,
-    requires:&HashMap<Span,serde_json::Value>,module:&str)->Option<HashMap<Span,serde_json::Value>>{
-    let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
-    let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
-    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
-    let mut roots:BTreeMap<String,SymbolId>=params.iter().filter_map(|id|{let param=ir.items.get(id.0 as usize)?;
-        let IrItemKind::Param{ty:IrType::Known(ResolvedType::Record{symbol,stored:true}),..}=&param.kind else{return None;};
-        matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..}).then(||(param.name.clone(),*symbol))}).collect();
-    let mut values:BTreeSet<String>=params.iter().filter_map(|id|{let param=ir.items.get(id.0 as usize)?;
-        let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};plain_value(ir,ty,0).then(||param.name.clone())}).collect();
-    fn data_type(ty:&ResolvedType)->Option<String>{match ty{
-        ResolvedType::Scalar(scalar)if !matches!(scalar,Scalar::File|Scalar::Secret|Scalar::Member|Scalar::Json|Scalar::Bytes|Scalar::Url|Scalar::Locale)=>Some(scalar.as_str().into()),
-        ResolvedType::Nullable(inner)=>Some(format!("{}?",data_type(inner)?)),_=>None}}
-    fn reads(ir:&IrProgram,value:&TypedExpr,values:&BTreeSet<String>,roots:&BTreeMap<String,SymbolId>,
-        fields:&mut BTreeMap<String,BTreeMap<String,String>>,depth:usize)->Option<()>{
-        if depth>=32{return None;}
-        if send_value(ir,value,values,0){return Some(());}
-        match &value.expr{
-            IrExpr::Object(entries)if entries.len()<=200=>{for (_,value)in entries{reads(ir,value,values,roots,fields,depth+1)?;}Some(())},
-            IrExpr::Member{base,field}=>{
-                let IrExpr::Name(parameter)=&base.expr else{return None;};let symbol=roots.get(parameter)?;
-                if !matches!(&base.ty,ResolvedType::Record{symbol:actual,stored:true}if actual==symbol){return None;}
-                let IrItemKind::Model{fields:declared,..}=&ir.items.get(symbol.0 as usize)?.kind else{return None;};
-                let declared=declared.iter().filter_map(|id|ir.items.get(id.0 as usize)).find(|item|item.name==*field)?;
-                let IrItemKind::Field{ty:IrType::Known(ty),..}=&declared.kind else{return None;};
-                if ty!=&value.ty{return None;}let ty=data_type(ty)?;
-                fields.entry(parameter.clone()).or_default().insert(field.clone(),ty);Some(())
-            },
-            IrExpr::Binary{op,left,right}if *op==IrBinOp::Coalesce&&send_value(ir,right,values,0)=>reads(ir,left,values,roots,fields,depth+1),
-            _=>None,
-        }
-    }
-    fn walk(ir:&IrProgram,owner:&IrItem,body:&[IrStmt],values:&mut BTreeSet<String>,roots:&mut BTreeMap<String,SymbolId>,source:&serde_json::Value,module:&str,
-        output:&mut HashMap<Span,serde_json::Value>){
-        for statement in body{match statement{
-            IrStmt::Let{name,value,..}=>{let pure=send_value(ir,value,values,0);values.remove(name);roots.remove(name);if pure{values.insert(name.clone());}},
-            IrStmt::Send{operation,deployment_binding:Some(binding),args,when:None,span,..}=>{
-                let mut fields=BTreeMap::new();
-                if reads(ir,args,values,roots,&mut fields,0).is_none()||fields.is_empty()||fields.len()>200{continue;}
-                let parameters:Vec<_>=fields.iter().map(|(name,fields)|serde_json::json!({"name":name,"model":ir.items[roots[name].0 as usize].canonical,
-                    "fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>()})).collect();
-                output.insert(*span,serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},
-                    "owner":owner.canonical,"node":{"start":span.start,"end":span.end},"operation":operation,"binding":binding,"parameters":parameters}));
-            },
-            IrStmt::If{then_branch,else_branch,..}=>{walk(ir,owner,then_branch,&mut values.clone(),&mut roots.clone(),source,module,output);walk(ir,owner,else_branch,&mut values.clone(),&mut roots.clone(),source,module,output);},
-            IrStmt::Match{arms,..}=>for arm in arms{walk(ir,owner,&arm.body,&mut values.clone(),&mut roots.clone(),source,module,output);},
-            _=>{},
-        }}
-    }
-    let mut output=HashMap::new();walk(ir,owner,effects,&mut values,&mut roots,&source,module,&mut output);Some(output)
-}
-
 fn source_event_payload(ir:&IrProgram,owner:&IrItem,event:&str,payload:&TypedExpr,
         values:&BTreeSet<String>,records:&BTreeMap<String,ResolvedType>,context:Option<&super::scenario_decisions::FreshSourceContext<'_>>)->bool{
         if context.is_none_or(|context|context.same_event_schema(event).is_none()){return false;}
@@ -12227,6 +12131,14 @@ fn null_equality(
                     js_string(model),
                     opts.join(",")
                 );
+                let projection=self.source_data_sends.values().filter_map(|source|source["queries"].as_array())
+                    .flat_map(|queries|queries.iter()).find(|source|source["node"]["file"]==span.file.0
+                        &&source["node"]["start"]==span.start&&source["node"]["end"]==span.end).cloned();
+                let fetched=if let Some(source)=projection{
+                    self.stdlib.insert("nativeScenarioSourceSendQuery".into());
+                    let parent=self.lower_expr(query.parent.as_deref().expect("checked direct projection parent"));
+                    format!("await nativeScenarioSourceSendQuery(c,{}, {parent},async()=>({fetched}))",js_string(source["id"].as_str().expect("checked projection id")))
+                }else{fetched};
                 self.append_select(&fetched, true, query)
             }
             crate::codegen::ir::IrQueryDomain::Value { base, alias } => {

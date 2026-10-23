@@ -1,0 +1,91 @@
+## Original CanInvoice terminal handlers with their financial helpers.
+app CanInvoice uses=[invoice]
+
+package rent_catalog
+ Given
+  export Location {active:bool=true}
+ When
+ Then
+
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,home:Location,locations:Location[],operator_wide:bool=false,active:bool=true,hidden:bool=false}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members and not row.hidden
+ When
+ Then
+
+package customer
+ Given
+  export Customer {kind:enum(individual,company),hidden:bool=false}
+  export Contact in Customer {account:user?,verified:bool=false,hidden:bool=false}
+  export CompanyRole in Customer {account:user,role:enum(administrator,booker,billing),active:bool=true,hidden:bool=false}
+  export derive has_role(person:user,org:Customer,role:CompanyRole.role):bool = any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active)
+  export derive owns(person:user,org:Customer):bool = org.kind==individual and any(org.Contact as contact,contact.account==person and contact.verified)
+  policy Customer read=members and not row.hidden
+  policy Contact read=members and not row.hidden
+  policy CompanyRole read=members and not row.hidden
+ When
+ Then
+
+package invoice
+ use customer {Customer,has_role,owns}
+ use rent_catalog {Location}
+ use employee {can_work}
+ use std {PaymentState}
+ use invoice {DocumentsV1 as Documents} from=deployment.documents
+ Given
+  message notice_invoice_issued = "Invoice issued"@{nl="Factuur uitgegeven"}
+  message page_finance_invoice_Invoice_id_title = "Invoice"@{nl="Factuur"}
+  message label_Charge_source = "Source reference"@{nl="Bronreferentie"}
+  message label_Charge_customer = "Customer"@{nl="Klant"}
+  message label_Charge_consent = "Recurrence consent"@{nl="Toestemming voor herhaling"}
+  message label_Settlement_received = "Received at"@{nl="Ontvangen op"}
+  message label_Settlement_state = "State"@{nl="Status"}
+  message label_Settlement_state_paid = "Paid"@{nl="Betaald"}
+  message label_Settlement_state_void = "Void"@{nl="Ongeldig"}
+  message label_Settlement_state_unknown = "Unknown"@{nl="Onbekend"}
+  message label_DocumentLine_tax = "Tax"@{nl="Belasting"}
+  message label_DocumentLine_discount = "Discount"@{nl="Korting"}
+  message label_InvoiceDocument_issuer = "Issuer"@{nl="Uitgever"}
+  message label_InvoiceDocument_recipient = "Recipient"@{nl="Ontvanger"}
+  message label_InvoiceDocument_tax_reference = "Tax reference"@{nl="Belastingreferentie"}
+  message label_InvoiceDocument_number = "Invoice number"@{nl="Factuurnummer"}
+  message label_InvoiceDocument_issued_at = "Issued at"@{nl="Uitgegeven op"}
+  message label_InvoiceDocument_credits = "Credits"@{nl="Credits"}
+  message label_PdfResult_document = "Generate document"@{nl="Document genereren"}
+  message label_Attempt = "Payment attempt"@{nl="Betaalpoging"}
+  message label_Attempt_delivery = "Delivery reference"@{nl="Verzendingsreferentie"}
+  message label_Credit_author = "Author"@{nl="Auteur"}
+  export contract DocumentLine { title:text, quantity:decimal, price:money, tax:money label=label_DocumentLine_tax, discount:money label=label_DocumentLine_discount, unit:text?, from:datetime?, until:datetime?, location:text?, reference:text? } label="Document line"@{nl="Documentregel"}
+  export contract DocumentCredit { amount:money, reason:text } label="Document credit"@{nl="Documentcredit"}
+  export contract DocumentPayment { reference:text, amount:money, kind:Attempt.kind, state:text label=label_Settlement_state, received:datetime? label=label_Settlement_received } label="Document payment"@{nl="Documentbetaling"}
+  export contract InvoiceDocument { issuer:text label=label_InvoiceDocument_issuer, recipient:text label=label_InvoiceDocument_recipient, address:text, tax_reference:text? label=label_InvoiceDocument_tax_reference, number:text label=label_InvoiceDocument_number, issued_at:datetime label=label_InvoiceDocument_issued_at, due:date, currency:currency, lines:DocumentLine[]! label="Lines"@{nl="Regels"}, credits:DocumentCredit[]! label=label_InvoiceDocument_credits, payments:DocumentPayment[]! label="Payments"@{nl="Betalingen"}, terms:text?, total:money } label="Issued invoice document"@{nl="Uitgegeven factuurdocument"}
+  export contract PdfResult { source:text label=label_Charge_source, document:file label=label_PdfResult_document, revision:int } label="PDF result"@{nl="PDF-resultaat"}
+  export capability DocumentsV1 version=1
+   invoice(source:text,snapshot:InvoiceDocument,revision:int) -> PdfResult
+  role finance
+  export Invoice in Customer {location:Location,source:text,currency:currency,state:enum(draft,issued,void_pending,void)=draft,total:money,issuer:text,recipient:text,address:text,tax_reference:text?,terms:text?,due:date,number:text?,issued_at:datetime?,hidden:bool=false}
+  Line in Invoice {description:text,position:int=0,quantity:decimal=1,unit:text?,service_from:datetime?,service_until:datetime?,service_location:text?,service_reference:text?,price:money,tax:money,discount:money,tax_readable:bool=true,hidden:bool=false}
+  Attempt in Invoice {reference:text unique,amount:money,kind:enum(collection,refund),status:PaymentState.status=pending,received:datetime?,hidden:bool=false}
+  Credit in Invoice {amount:money,reason:text,hidden:bool=false}
+  ExternalPayment in Invoice {reference:text unique,amount:money,received:datetime,hidden:bool=false}
+  ExternalRefund in Invoice {reference:text unique,amount:money,received:datetime,hidden:bool=false}
+  Document in Invoice {revision:int,kind:enum(invoice,receipt)=invoice,file:file}
+  DocumentRequest in Invoice {revision:int,kind:Document.kind=invoice,status:enum(pending,succeeded,failed,unknown)=pending,error:text?,delivery:text unique}
+  derive issued_snapshot(invoice:Invoice,number:text,issued_at:datetime):InvoiceDocument = InvoiceDocument {issuer=invoice.issuer,recipient=invoice.recipient,address=invoice.address,tax_reference=invoice.tax_reference,number,issued_at,due=invoice.due,currency=invoice.currency,lines=invoice.Line as line order=line.position select DocumentLine {title=line.description,quantity=line.quantity,price=line.price,tax=line.tax,discount=line.discount,unit=line.unit,from=line.service_from,until=line.service_until,location=line.service_location,reference=line.service_reference},credits=invoice.Credit as credit select DocumentCredit {amount=credit.amount,reason=credit.reason},payments=(invoice.Attempt as payment select DocumentPayment {reference=payment.reference,amount=payment.amount,kind=payment.kind,state=format("{status}",{status=payment.status}),received=payment.received})+(invoice.ExternalPayment as payment select DocumentPayment {reference=payment.reference,amount=payment.amount,kind=collection,state="succeeded",received=payment.received})+(invoice.ExternalRefund as evidence select DocumentPayment {reference=evidence.reference,amount=evidence.amount,kind=refund,state="succeeded",received=evidence.received}),terms=invoice.terms,total=invoice.total}
+  policy Invoice read=members where=not row.hidden
+  policy Line read=members where=not row.hidden fields=description,position,quantity,unit,service_from,service_until,service_location,service_reference,price,discount
+  policy Line read=members where=not row.hidden and row.tax_readable fields=tax
+  policy Attempt read=members where=not row.hidden
+  policy Credit read=members where=not row.hidden
+  policy ExternalPayment read=members where=not row.hidden
+  policy ExternalRefund read=members where=not row.hidden
+ When
+  scenario document(invoice:Invoice) by=finance or authenticated label=label_PdfResult_document
+   require invoice.state!=draft and invoice.number!=null and invoice.issued_at!=null and (owns(actor,invoice.parent) or has_role(actor,invoice.parent,billing) or (finance and can_work(actor,invoice.location)))
+   do
+    send Documents.invoice {source=invoice.id,revision=invoice.version,snapshot=issued_snapshot(invoice,invoice.number,invoice.issued_at)} as delivery
+    create DocumentRequest {parent=invoice,revision=invoice.version,delivery=delivery.id} as request
+ Then

@@ -157,7 +157,7 @@ import type { ViewerGenerationCallbackReadObservation } from '@canlang/state/rec
 import { bindInstalledSourceQueryPredicate } from '@canlang/state/receipt';
 import { registerNativeUiQueryBinder, forwardNativeUiQueryBinder } from './native-ui-query.js';
 import { bindNativeReadBooleanContext, bindNativeReadBooleanReader, bindNativeSourceReferenceReader } from './native-read-boolean.js';
-import { bindNativeScenarioSourceSchedule, bindNativeScenarioSourceCancel, bindNativeScenarioSourceSendData, bindNativeScenarioSourceLoopCopy, bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
+import { bindNativeScenarioSourceSendQuery, bindNativeScenarioSourceSchedule, bindNativeScenarioSourceCancel, bindNativeScenarioSourceSendData, bindNativeScenarioSourceLoopCopy, bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
   bindNativeScenarioLeaveRequestDecision, bindNativeScenarioLeaveDecideDecision,
   bindNativeLeaveDecideAllowance, bindNativeScenarioReferRejectDecision,
   bindNativeScenarioMemberRetryDecision, bindNativeScenarioInvoiceOverdueDecision,
@@ -1478,6 +1478,7 @@ interface StateInvokeProducer {
   readonly projectScenarioReceipt?: typeof import('@canlang/state/invocation').projectScenarioReceipt;
   readonly bindScenarioSourceSendDataProducer?: typeof import('@canlang/state/invocation').bindScenarioSourceSendDataProducer;
   readonly executeScenarioSourceSendData?: typeof import('@canlang/state/invocation').executeScenarioSourceSendData;
+  readonly executeScenarioSourceSendQuery?: typeof import('@canlang/state/invocation').executeScenarioSourceSendQuery;
   readonly executeScenarioReceiptSourceCopy?: typeof import('@canlang/state/invocation').executeScenarioReceiptSourceCopy;
   readonly readScenarioReceiptSourceLoopBounds?: typeof import('@canlang/state/invocation').readScenarioReceiptSourceLoopBounds;
   readonly beginScenarioReceiptMutation?: typeof import('@canlang/state/invocation').beginScenarioReceiptMutation;
@@ -1788,6 +1789,7 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     }),
     ...(typeof scenarioMod['bindScenarioSourceSendDataProducer']!=='function'?{}:{bindScenarioSourceSendDataProducer:scenarioMod['bindScenarioSourceSendDataProducer'] as NonNullable<StateInvokeProducer['bindScenarioSourceSendDataProducer']>}),
     ...(typeof scenarioMod['executeScenarioSourceSendData']!=='function'?{}:{executeScenarioSourceSendData:scenarioMod['executeScenarioSourceSendData'] as NonNullable<StateInvokeProducer['executeScenarioSourceSendData']>}),
+    ...(typeof scenarioMod['executeScenarioSourceSendQuery']!=='function'?{}:{executeScenarioSourceSendQuery:scenarioMod['executeScenarioSourceSendQuery'] as NonNullable<StateInvokeProducer['executeScenarioSourceSendQuery']>}),
     ...(typeof scenarioMod['executeScenarioReceiptSourceCopy'] !== 'function'?{}:{executeScenarioReceiptSourceCopy:scenarioMod['executeScenarioReceiptSourceCopy'] as NonNullable<StateInvokeProducer['executeScenarioReceiptSourceCopy']>}),
     ...(typeof scenarioMod['readScenarioReceiptSourceLoopBounds'] !== 'function' ? {} : {
       readScenarioReceiptSourceLoopBounds:scenarioMod['readScenarioReceiptSourceLoopBounds'] as NonNullable<StateInvokeProducer['readScenarioReceiptSourceLoopBounds']>,
@@ -5779,7 +5781,10 @@ async function bindNativeSourceSendData(asm:AssembledModules,artifact:CompileArt
     nativeSourceSendData.set(def,{sources:sites,original:original as (body:Function)=>unknown});
     if(context===undefined)continue;
     const readPolicies=new Map<ModelName,import('@canlang/state/query').ViewerSourceReadPolicy>();
-    for(const site of sites)for(const parameter of site.parameters)for(const [model,policy]of sourceReads!.policies(parameter.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
+    for(const site of sites){
+      for(const parameter of site.parameters)for(const [model,policy]of sourceReads!.policies(parameter.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
+      for(const query of site.queries??[])for(const [model,policy]of sourceReads!.policies(query.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
+    }
     const app=privateSourceMember(privateSourceMember(module,'appDefinition'),'id');
     if(typeof app!=='string'||app==='')throw new AssemblyCorrespondenceError('SEND DATA lacks its original owning app.');
     bind(def,{source,app,policy:loaded.policy as Parameters<typeof bind>[1]['policy'],readPolicies,sites});
@@ -12759,6 +12764,24 @@ async function runScenarioExecution(
     const data=nativeSourceSendData.get(scenarioDef),actual=call as AdmittedCall;
     if(data!==undefined){
       const parameters=localPolicyObject(argument);
+      let queryExecution:{source:SourceSendDataSource;roots:Readonly<Record<string,unknown>>}|null=null;
+      bindNativeScenarioSourceSendQuery(ctx,async(id,parent)=>{
+        try{
+          const active=queryExecution,execute=loaded.producers.invoke.executeScenarioSourceSendQuery;
+          const query=active?.source.queries?.find(query=>query.id===id);
+          if(active===null||execute===undefined||query===undefined||parent!==active.roots[query.parameter])return refuseRecordBinding('SEND DATA query differs from its exact argument source and parent.');
+          const rows=await execute(actual,receiptStore,{id});
+          return Object.freeze(rows.map(row=>{
+            const fields:Record<string,unknown>=Object.create(null);
+            for(const field of query.fields){
+              const wire=Object.getOwnPropertyDescriptor(row.data,field.name);
+              if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('SEND DATA query lacks its actually granted field.');
+              fields[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);
+            }
+            return Object.freeze(fields);
+          }));
+        }catch(error){recordEngineFailure(error);throw error;}
+      });
       bindNativeScenarioSourceSendData(ctx,async(body,supplied)=>{
         try{
           const assertExecution=loaded.producers.invoke.assertScenarioReceiptCallExecution,execute=loaded.producers.invoke.executeScenarioSourceSendData;
@@ -12779,9 +12802,16 @@ async function runScenarioExecution(
                 if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('SEND DATA lacks its actually granted source field.');
                 fields[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);
               }
+              if(parameter.identity!==undefined){
+                const references=actual.recordRefs.filter(ref=>ref.param===parameter.name),reference=references[0];
+                if(references.length!==1||reference?.model!==parameter.model||reference.expectedVersion===null)return refuseRecordBinding('SEND DATA lost its actual admitted identity.');
+                for(const field of parameter.identity)fields[field]=field==='id'?reference.id:decodeCanonicalValue(loaded.valueSchema,'int',String(reference.expectedVersion));
+              }
               projected[parameter.name]=Object.freeze(fields);
             }
-            return body(ctx,Object.freeze(projected));
+            if(queryExecution!==null)return refuseRecordBinding('SEND DATA query frame cannot nest.');
+            const active={source,roots:Object.freeze(projected)};queryExecution=active;
+            try{return await body(ctx,active.roots);}finally{if(queryExecution===active)queryExecution=null;}
           }});
         }catch(error){recordEngineFailure(error);throw error;}
       });

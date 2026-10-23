@@ -74,6 +74,7 @@ mod invoice_collect_decisions;
 mod rent_notice_decisions;
 mod invoice_issue_decisions;
 mod send_guards;
+mod source_send_data;
 pub mod sourcemap;
 pub mod then_views;
 

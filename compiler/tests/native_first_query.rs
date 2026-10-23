@@ -2171,3 +2171,54 @@ fn original_event_effects_seal_defining_schema_without_mutating_source_or_payloa
         }
     }
 }
+
+#[test]
+fn original_invoice_document_keeps_contained_projection_and_helper_formal_correspondence() {
+    use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+    let source=include_str!("fixtures/invoice-document-source-projection.can");
+    let (db,program,ir,catalog)=fixture_source("invoice-document-source-projection.can",source);
+    let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);
+    assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let owner=item(&ir,"invoice.document");
+    assert!(serialize_decision_sources(&program,&ir,owner,&db,Some(&catalog)).is_some());
+    assert!(artifact["modules"].as_array().unwrap().iter().any(|module|module["js"].as_str().unwrap().contains("nativeScenarioSourceSendQuery")));
+    for mode in ["projection","order","parent","helper-formal","nominal-kind"] {
+        let mut changed=ir.clone();
+        if mode=="nominal-kind"{
+            let id=item(&changed,"invoice.DocumentLine").id;
+            let IrItemKind::Contract{fields,..}=&changed.items[id.0 as usize].kind else{panic!("contract");};
+            changed.items[id.0 as usize].kind=IrItemKind::Event{fields:fields.clone()};
+        }else{
+            let helper=item(&changed,"invoice.issued_snapshot").id;
+            if mode=="helper-formal"{
+                let IrItemKind::DeriveFn{params,..}=&mut changed.items[helper.0 as usize].kind else{panic!("helper");};params.swap(0,1);
+            }else{
+                let IrItemKind::DeriveFn{expr:Some(body),..}=&mut changed.items[helper.0 as usize].kind else{panic!("helper");};
+                let IrExpr::Object(fields)=&mut body.expr else{panic!("snapshot");};
+                let (_,lines)=fields.iter_mut().find(|(name,_)|name=="lines").unwrap();
+                let IrExpr::Query(query)=&mut lines.expr else{panic!("query");};
+                match mode{
+                    "order"=>query.order[0].descending=true,
+                    "parent"=>query.parent.as_mut().unwrap().expr=IrExpr::Name("foreign".into()),
+                    _=>{let IrExpr::Object(fields)=&mut query.select.as_mut().unwrap().expr else{panic!("select");};fields[0].1.expr=IrExpr::Text("Substituted".into());},
+                }
+            }
+        }
+        assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode}");
+    }
+    let helper=source.lines().find(|line|line.starts_with("  derive issued_snapshot(")).unwrap();
+    let renamed=helper.replace("(invoice:Invoice,","(subject:Invoice,").replace("invoice.","subject.");
+    let (db,program,_,catalog)=fixture_source("renamed-model-formal.can",&source.replace(helper,&renamed));
+    let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    for(name,changed)in[
+        ("global-domain",source.replace("invoice.Line as line order", "Line as line order")),
+        ("unjoined-filter",source.replace("invoice.Line as line order", "invoice.Line as line where line.quantity>0 order")),
+        ("foreign-reference",source.replace("title=line.description", "title=line.parent.issuer")),
+        ("copied-receiver",source.replace("    send Documents.invoice", "    let copy=invoice\n    send Documents.invoice").replace("snapshot=issued_snapshot(invoice,", "snapshot=issued_snapshot(copy,")),
+    ]{
+        assert_ne!(source,changed,"{name}");
+        let(db,program,_,catalog)=fixture_source(&format!("{name}.can"),&changed);
+        let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+        assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
+    }
+}

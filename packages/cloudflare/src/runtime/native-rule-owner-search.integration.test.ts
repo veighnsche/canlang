@@ -2303,3 +2303,87 @@ it('schedules original admitted roots through genuine Work sources and ordinary 
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+
+it('projects the original Invoice document child arrays through ordinary field DATA grants',
+  {timeout:180000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-invoice-document-projection-'));
+    try{
+      const source=join(root,'compiler/tests/fixtures/invoice-document-source-projection.can');
+      const original=await readFile(join(root,'draft/apps/CanInvoice/CanInvoice.can'),'utf8'),text=await readFile(source,'utf8');
+      const start=original.indexOf('  scenario document('),end=original.indexOf('   examples ',start);
+      assert.ok(text.includes(original.slice(start,end)),'complete original document owner is retained');
+      assert.ok(text.includes(original.split('\n').find(line=>line.startsWith('  derive issued_snapshot('))!),'complete original snapshot helper is retained');
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],
+        {cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,
+        stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      for(const mode of ['allowed','hidden-row','other-parent','withheld-field','worker-inactive','role-during-send','child-at-commit','grant-at-commit','parent-at-commit','overflow'] as const){
+        const {now,identities,identity,team,user}=await member(`invoice-document-${mode}`,['invoice.finance']);
+        const scope={app:'CanInvoice',owner:team.team_id,ownerPackage:'invoice'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'document-state',fileStoreId:'document-files',
+          receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+        const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent});
+        const location=row('location',{active:true}),customer=row('customer',{kind:'company',hidden:false});
+        const invoice=row('invoice',{location:{id:location.id},source:'original-invoice',currency:'EUR',state:'issued',total:{minor:'2000',currency:'EUR'},
+          issuer:'Original issuer',recipient:'Original recipient',address:'1 Road',tax_reference:null,terms:'Net 14',due:'2026-12-01',number:'INV-1',issued_at:new Date(now).toISOString(),hidden:false},
+          {model:model('customer','Customer'),id:customer.id});
+        const child={model:model('invoice','Invoice'),id:invoice.id};
+        const first=row('line-a',{description:'First',position:'1',quantity:'2',unit:'seat',service_from:null,service_until:null,service_location:null,service_reference:null,
+          price:{minor:'1000',currency:'EUR'},tax:{minor:'100',currency:'EUR'},discount:{minor:'100',currency:'EUR'},tax_readable:mode!=='withheld-field',hidden:mode==='hidden-row'},child);
+        const second=row('line-b',{...first.data,description:'Second',position:'0',hidden:false},child);
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          {kind:'insert',model:model('rent_catalog','Location'),row:location},{kind:'insert',model:model('customer','Customer'),row:customer},
+          {kind:'insert',model:model('employee','Employee'),row:row('worker',{user:{id:user.user_id},home:{id:location.id},locations:[],operator_wide:false,active:mode!=='worker-inactive',hidden:true})},
+          {kind:'insert',model:model('invoice','Invoice'),row:invoice},{kind:'insert',model:model('invoice','Line'),row:first},{kind:'insert',model:model('invoice','Line'),row:second},
+          {kind:'insert',model:model('invoice','Credit'),row:row('credit',{amount:{minor:'100',currency:'EUR'},reason:'Original credit',hidden:false},child)},
+          {kind:'insert',model:model('invoice','Attempt'),row:row('attempt',{reference:'payment-1',amount:{minor:'500',currency:'EUR'},kind:'collection',status:'succeeded',received:new Date(now).toISOString(),hidden:false},child)},
+          {kind:'insert',model:model('invoice','ExternalPayment'),row:row('external',{reference:'bank-1',amount:{minor:'400',currency:'EUR'},received:new Date(now).toISOString(),hidden:false},child)},
+          {kind:'insert',model:model('invoice','ExternalRefund'),row:row('refund',{reference:'refund-1',amount:{minor:'100',currency:'EUR'},received:new Date(now).toISOString(),hidden:false},child)},
+        ]}));
+        if(mode==='other-parent')await store.commit(makeBatch(await store.readRevision(),{writes:[
+          {kind:'insert',model:model('invoice','Invoice'),row:{...invoice,id:asId('foreign-invoice')}},
+          {kind:'insert',model:model('invoice','Line'),row:{...first,id:asId('foreign-line'),data:{...first.data,description:'Foreign secret'},parent:{model:model('invoice','Invoice'),id:asId('foreign-invoice')}}},
+        ]}));
+        if(mode==='overflow')await store.commit(makeBatch(await store.readRevision(),{writes:Array.from({length:199},(_,index)=>({kind:'insert' as const,
+          model:model('invoice','Line'),row:{...first,id:asId(`overflow-${String(index).padStart(3,'0')}`)}}))}));
+        let raced=false;
+        if(mode==='role-during-send'){
+          const load=store.load.bind(store);store.load=async(model,id)=>{
+            if(!raced&&model==='work.dispatch'){raced=true;const membership=await identities.findMembership(team.team_id,user.user_id);assert.ok(membership);await identities.setMembershipRoles(membership.membership_id,[]);}
+            return load(model,id);
+          };
+        }
+        if(mode==='child-at-commit'||mode==='grant-at-commit'||mode==='parent-at-commit'){
+          const commit=store.commit.bind(store);store.commit=async batch=>{
+            if(!raced&&batch.writes.some(write=>write.model==='work.dispatch')){
+              raced=true;
+              if(mode==='parent-at-commit')await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('invoice','Invoice'),id:invoice.id,
+                expectedVersion:invoice.version,row:{...invoice,version:asVersion(invoice.version+1),data:{...invoice.data,hidden:true}}}]}));
+              else await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('invoice','Line'),id:first.id,expectedVersion:first.version,
+                row:{...first,version:asVersion(first.version+1),data:{...first.data,...(mode==='grant-at-commit'?{tax_readable:false}:{description:'Concurrent source'})}}}]}));
+            }
+            return commit(batch);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const request={operation:'invoice.document',operation_id:operationId(now),inputs:{invoice:{id:invoice.id,version:String(invoice.version)}}};
+        const result=await invoker.invokeMutation(request,identity),success=['allowed','hidden-row','other-parent','child-at-commit'].includes(mode);
+        assert.equal('result'in result&&result.result.status==='committed',success,`${mode}: ${JSON.stringify(result)}`);
+        const pending=await store.outboxPending();assert.equal(pending.length,success?1:0,mode);
+        assert.equal((await store.query({model:model('invoice','DocumentRequest'),authority:'owner'})).length,success?1:0,mode);
+        if(['child-at-commit','grant-at-commit','parent-at-commit','role-during-send'].includes(mode))assert.ok(raced,'actual final race reached');
+        if(!success)continue;
+        const snapshot=(pending[0]!.arguments as {arguments:{snapshot:{lines:{title:string}[];credits:{reason:string}[];payments:{reference:string}[]}}}).arguments.snapshot;
+        assert.deepEqual(snapshot.lines.map(line=>line.title),mode==='hidden-row'?['Second']:mode==='child-at-commit'?['Second','Concurrent source']:['Second','First']);
+        assert.deepEqual(snapshot.credits.map(credit=>credit.reason),['Original credit']);
+        assert.deepEqual(snapshot.payments.map(payment=>payment.reference),['payment-1','bank-1','refund-1']);
+        const replay=await invoker.invokeMutation(request,identity);
+        assert.ok('result'in replay&&replay.result.status==='replayed',JSON.stringify(replay));
+        assert.equal(replay.result.result,null,'void replay returns only its technical receipt');
+        assert.deepEqual(await store.outboxPending(),pending,'replay does not reevaluate or resend the private snapshot');
+        assert.equal((await store.query({model:model('invoice','DocumentRequest'),authority:'owner'})).length,1);
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });

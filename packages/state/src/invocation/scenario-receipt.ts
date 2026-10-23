@@ -9522,12 +9522,12 @@ function predicateControlDomain(model: ModelName, domain: readonly StoredRow[], 
 }
 /** Original first-query rows reuse the installed source/ancestor projector and
  * complete Identity observation, both now and against actual final effects. */
-async function observeModelQuerySourceAuthority(call: AdmittedCall, store: StoragePort, owner: ReceiptOwnerSession,
+async function observeModelQuerySourceAuthority<AllowAbsent extends boolean = false>(call: AdmittedCall, store: StoragePort, owner: ReceiptOwnerSession,
   state: Capture, model: ModelName, row: StoredRow, fields: readonly string[], pending = 0,
   predicateDomain?: readonly StoredRow[],
   decisionPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>,
-  sourceProducer?:ScenarioReceiptReferenceProducer): Promise<{
-    readonly record:ProjectedRecord;
+  sourceProducer?:ScenarioReceiptReferenceProducer, allowAbsent?:AllowAbsent): Promise<{
+    readonly record:AllowAbsent extends true ? ProjectedRecord | null : ProjectedRecord;
     readonly requireFields: (fields: readonly string[]) => Promise<void>; readonly revalidate: () => Promise<void>;
   }> {
   const producer = sourceProducer??querySourceProducer(call.def as GeneratedOperationDef, model);
@@ -9564,7 +9564,7 @@ async function observeModelQuerySourceAuthority(call: AdmittedCall, store: Stora
     }
   };
   const requiredFields = new Set(fields);
-  const readable = (value: Awaited<ReturnType<typeof project>>) => value.record !== null && [...requiredFields].every(field => field === 'parent'
+  const readable = (value: Awaited<ReturnType<typeof project>>, absent = allowAbsent === true) => value.record === null ? absent : [...requiredFields].every(field => field === 'parent'
     ? value.record!.parent !== null && value.record!.parent.model === state.bound.artifactModels.get(model)?.parent
     : ('grants' in read ? value.grants.some(grant => grant.fields.includes(field)) : true) && (field === 'id' || Object.hasOwn(value.record!.data, field)));
   const authority = await observeRowGrantAuthority(context, observed => project(row, observed,
@@ -9589,12 +9589,12 @@ async function observeModelQuerySourceAuthority(call: AdmittedCall, store: Stora
       predicateDomain === undefined ? undefined : predicateControlDomain(model, predicateDomain, owner.maxRows, finalHealthy, final.writes),
       policyDomains.retained(finalHealthy, final.writes)));
     finalHealthy();
-    if (!readable(now.value)) throw new StateError('forbidden', 'Model query source field authority changed before commit.');
+    if (!readable(now.value, allowAbsent === true && authority.value.record === null)) throw new StateError('forbidden', 'Model query source field authority changed before commit.');
     await now.revalidate(); await authority.revalidate(); finalHealthy();
     if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Model query source recheck moved beyond its original checkpoint.');
     return true;
   } }));
-  return { record:authority.value.record!,revalidate: authority.revalidate, requireFields: async fields => {
+  return { record:authority.value.record as AllowAbsent extends true ? ProjectedRecord | null : ProjectedRecord,revalidate: authority.revalidate, requireFields: async fields => {
     healthy();
     for (const field of fields) requiredFields.add(field);
     if (!readable(authority.value)) throw new StateError('forbidden', 'Executed model query source fields are unavailable.');
@@ -9603,17 +9603,40 @@ async function observeModelQuerySourceAuthority(call: AdmittedCall, store: Stora
 }
 /** Private source-only SEND consumer. These declarations never create a
  * query plan, result association, or Bool-observer field permission. */
+export interface ScenarioSourceSendQuerySource {
+  readonly id:string;readonly source:ScenarioResultDisclosurePlan['source'];
+  readonly node:{readonly file:number;readonly start:number;readonly end:number};
+  readonly parameter:string;readonly model:ModelName;readonly parentModel:ModelName;
+  readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];
+  readonly order:readonly {readonly field:string;readonly direction:'asc'|'desc'}[];
+}
 export interface ScenarioSourceSendDataSource {
   readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
   readonly node:{readonly start:number;readonly end:number};readonly operation:string;readonly binding:string;
   readonly parameters:readonly {readonly name:string;readonly model:ModelName;
-    readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[]}[];
+    readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identity?:readonly ('id'|'version')[]}[];
+  readonly queries?:readonly ScenarioSourceSendQuerySource[];
 }
 interface SourceSendDataProducer extends ScenarioReceiptReferenceProducer {readonly sites:readonly ScenarioSourceSendDataSource[];}
 const sourceSendDataProducers=new WeakMap<GeneratedOperationDef,SourceSendDataProducer>();
 const sourceSendDataExecutions=new WeakMap<ReceiptOwnerSession,{readonly call:AdmittedCall;readonly source:ScenarioSourceSendDataSource;
-  readonly stage:number;readonly ordinal:number;sent:boolean}>();
+  readonly stage:number;readonly ordinal:number;readonly queries:Set<string>;sent:boolean}>();
 const consumedSourceSendData=new WeakMap<AdmittedCall,Set<string>>();
+function sourceSendFieldType(bound:BoundPlan,model:ModelName,name:string,type:string):boolean{
+  if(/^(int|datetime|text|email|timezone|bool|decimal|money|date|duration|currency|user)\??$/.test(type))return bound.models.get(model)?.fields.get(name)===type;
+  const field=bound.artifactModels.get(model)?.fields.find(field=>field.name===name);
+  if(field?.array!==undefined)return false;
+  if(field?.field.kind==='enum'&&bound.models.get(model)?.fields.get(name)===type)return field.field.values.length>0;
+  try{
+    const parsed=parseTypeId(type),schema=bound.valueSchema,canonical=bound.canonicalModels.find(item=>item.name===model)?.fields[name];
+    if(parsed.base.kind!=='nominal'||parsed.array||schema===undefined||field===undefined||field.valueType!==type
+        ||canonical?.valueType!==type||parsed.nullable!==(field.nullable===true)||!Object.hasOwn(schema.enums,parsed.base.path)
+        ||Object.hasOwn(schema.contracts,parsed.base.path)||Object.hasOwn(schema.aliases??{},parsed.base.path)||bound.artifactModels.has(parsed.base.path as ModelName))return false;
+    const cases=schema.enums[parsed.base.path]!.cases;
+    return cases.length>0&&(field.field.kind==='nominal'&&field.field.name===parsed.base.path
+      ||field.field.kind==='enum'&&stableStringify(field.field.values)===stableStringify(cases));
+  }catch{return false;}
+}
 export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,producer:SourceSendDataProducer):void{
   const bound=boundPlans.get(def),framework=frameworkProducers.get(def);
   if(!bound?.sourceRequireOnly||invokedPlans.has(def)||sourceSendDataProducers.has(def)||framework===undefined){
@@ -9627,7 +9650,7 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
   }),bound.canonicalModels);
   const readPolicies=captureSourceReadPolicies(producer.readPolicies);
   const sites=list(dataCopy(producer.sites)).map(value=>{
-    const site=object(value,['source','owner','node','operation','binding','parameters']);origin(site['source']);
+    const site=object(value,['source','owner','node','operation','binding','parameters',...(Object.hasOwn(value as object,'queries')?['queries']:[])]);origin(site['source']);
     if(site['owner']!==def.name||stableStringify(site['source'])!==stableStringify(bound.plan.source))return invalid('SEND DATA source owner mismatch.');
     const node=object(site['node'],['start','end']);
     if(!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start']))return invalid('SEND DATA occurrence is invalid.');
@@ -9636,15 +9659,20 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
     const parameters=list(site['parameters']);if(parameters.length===0)return invalid('SEND DATA needs its actual source root census.');
     const names=new Set<string>();
     for(const value of parameters){
-      const parameter=object(value,['name','model','fields']),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
+      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
       const input=bound.inputs.find(input=>input.name===name),declaration=bound.models.get(model);
       if(names.has(name)||input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,name)||declaration===undefined){
         return invalid('SEND DATA needs an exact required singular original model parameter.');
       }
-      names.add(name);const fields=list(parameter['fields']);if(fields.length===0)return invalid('SEND DATA needs its exact field census.');
+      names.add(name);const fields=list(parameter['fields']);
+      if(Object.hasOwn(parameter,'identity')){
+        const identity=list(parameter['identity']);
+        if(identity.length===0||identity.length>2||new Set(identity).size!==identity.length||identity.some(value=>value!=='id'&&value!=='version'))return invalid('SEND DATA has invalid admitted identity leaves.');
+      }
+      if(fields.length===0&&!Object.hasOwn(parameter,'identity')&&!Object.hasOwn(site,'queries'))return invalid('SEND DATA needs its exact field census.');
       const selected=new Set<string>();
       for(const value of fields){const field=object(value,['name','type']),name=text(field['name']),type=text(field['type']);
-        if(selected.has(name)||declaration.fields.get(name)!==type||!/^(int|datetime|text|email|timezone|bool|decimal|money|date|duration|currency|user)\??$/.test(type)||['file','secret','member','json','bytes'].includes(type.replace(/\?$/,''))){
+        if(selected.has(name)||!sourceSendFieldType(bound,model,name,type)||['file','secret','member','json','bytes'].includes(type.replace(/\?$/,''))){
           return invalid('SEND DATA field differs from its owning plain scalar declaration.');
         }selected.add(name);
       }
@@ -9652,6 +9680,27 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
       while(ancestor!==undefined){const original=bound.artifactModels.get(ancestor),read=readPolicies.get(ancestor);
         if(seen.has(ancestor)||original===undefined||read===undefined||read.parent!==original.parent||!('grants'in read))return invalid('SEND DATA needs complete original field and ancestor policies.');
         seen.add(ancestor);ancestor=original.parent as ModelName|undefined;
+      }
+    }
+    if(Object.hasOwn(site,'queries')){
+      const queries=list(site['queries']);if(queries.length===0||queries.length>200)return invalid('SEND DATA query census is invalid.');
+      const ids=new Set<string>();
+      for(const value of queries){
+        const query=object(value,['id','source','node','parameter','model','parentModel','fields','order']);origin(query['source']);
+        const id=text(query['id']),parameter=text(query['parameter']),model=text(query['model']) as ModelName,parentModel=text(query['parentModel']) as ModelName;
+        const parent=parameters.find(value=>(value as {name:string}).name===parameter) as {model:ModelName}|undefined;
+        const declaration=bound.artifactModels.get(model),interval=object(query['node'],['file','start','end']);
+        if(!/^[a-f0-9]{64}$/.test(id)||ids.has(id)||parent?.model!==parentModel||declaration?.parent!==parentModel
+            ||!Number.isSafeInteger(interval['file'])||Number(interval['file'])<0||!Number.isSafeInteger(interval['start'])||!Number.isSafeInteger(interval['end'])
+            ||Number(interval['start'])<0||Number(interval['end'])<=Number(interval['start']))return invalid('SEND DATA query lacks its original direct contained owner.');
+        ids.add(id);const fields=list(query['fields']),selected=new Set<string>();if(fields.length===0)return invalid('SEND DATA query lacks its exact field census.');
+        for(const value of fields){const field=object(value,['name','type']),name=text(field['name']),type=text(field['type']);
+          if(selected.has(name)||!sourceSendFieldType(bound,model,name,type))return invalid('SEND DATA query field differs from its defining scalar field.');selected.add(name);}
+        const order=list(query['order']);if(order.length>1)return invalid('SEND DATA query order is not supported.');
+        for(const value of order){const term=object(value,['field','direction']);if(!selected.has(text(term['field']))||!['asc','desc'].includes(text(term['direction'])))return invalid('SEND DATA query order lacks its original field.');}
+        const seen=new Set<ModelName>();let ancestor:ModelName|undefined=model;
+        while(ancestor!==undefined){const original=bound.artifactModels.get(ancestor),read=readPolicies.get(ancestor);
+          if(seen.has(ancestor)||original===undefined||read===undefined||read.parent!==original.parent||!('grants'in read))return invalid('SEND DATA query needs complete source field and ancestor policies.');seen.add(ancestor);ancestor=original.parent as ModelName|undefined;}
       }
     }
     return deepFreeze(site) as unknown as ScenarioSourceSendDataSource;
@@ -9688,7 +9737,7 @@ export async function executeScenarioSourceSendData(call:AdmittedCall,store:Stor
         rows[parameter.name]=authority.record;
       }
     },call);
-    const active={call,source,stage,ordinal,sent:false};sourceSendDataExecutions.set(owner,active);
+    const active={call,source,stage,ordinal,sent:false,queries:new Set<string>()};sourceSendDataExecutions.set(owner,active);
     try{
       const result=await input.execute(Object.freeze(rows));ownerHealthy(owner);capture(call,store);
       if(sourceSendDataExecutions.get(owner)!==active||owner.executingCall!==call||owner.busy||owner.stage!==stage||owner.capture.pending!==0
@@ -9696,6 +9745,37 @@ export async function executeScenarioSourceSendData(call:AdmittedCall,store:Stor
       if(await store.readRevision()!==call.revision)throw new StateError('conflict','SEND DATA moved beyond its original source checkpoint.');
       return result;
     }finally{sourceSendDataExecutions.delete(owner);}
+  }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
+}
+
+/** Read only a reached original projection inside this exact SEND argument
+ * evaluation. Ordinary source grants filter rows before authored order/SELECT. */
+export async function executeScenarioSourceSendQuery(call:AdmittedCall,store:StoragePort,input:{readonly id:string}):Promise<readonly ProjectedRecord[]>{
+  const state=capture(call,store),owner=ownerSessions.get(call);
+  try{
+    const claimed=object(input,['id']),id=text(claimed['id']),active=owner===undefined?undefined:sourceSendDataExecutions.get(owner);
+    const producer=sourceSendDataProducers.get(call.def as GeneratedOperationDef);
+    const query=active?.source.queries?.find(query=>query.id===id);
+    if(owner===undefined||owner.session===null||active?.call!==call||producer===undefined||query===undefined
+        ||owner.executingCall!==call||owner.stage!==active.stage||owner.framework?.ordinal!==active.ordinal||active.sent
+        ||owner.busy||state.pending!==0||active.queries.has(id))return invalid('SEND DATA query lacks its actual original argument execution.');
+    active.queries.add(id);
+    return await ownerOperation(owner,async()=>{
+      const refs=call.recordRefs.filter(ref=>ref.param===query.parameter),ref=refs[0];
+      if(refs.length!==1||ref?.model!==query.parentModel||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('SEND DATA query lost its original versioned parent.');
+      const parent=await owner.session!.views.final.get(ref.model,ref.id);ownerHealthy(owner);
+      if(parent===null||!sameModelLifetime(ref.row,parent)||owner.stage!==active.stage)return invalid('SEND DATA query parent lifetime changed.');
+      const rows=await owner.session!.views.final.query({model:query.model,authority:'owner',parent:{model:ref.model,id:ref.id},archived:'exclude',order:[{field:'id',direction:'asc'}],limit:owner.maxRows});ownerHealthy(owner);
+      const selected:ProjectedRecord[]=[];
+      for(const row of rows){
+        if(row.parent?.model!==ref.model||row.parent.id!==ref.id||row.archivedAt!==null)return invalid('SEND DATA query crossed its genuine contained domain.');
+        const authority=await observeModelQuerySourceAuthority(call,store,owner,state,query.model,row,query.fields.map(field=>field.name),0,undefined,undefined,producer,true);
+        if(authority.record!==null)selected.push(authority.record);
+      }
+      if(await store.readRevision()!==call.revision)throw new StateError('conflict','SEND DATA query moved beyond its original checkpoint.');
+      const model=state.bound.canonicalModels.find(model=>model.name===query.model);if(model===undefined)return invalid('SEND DATA query has no defining model.');
+      return orderSourceReadRecords(Object.freeze(selected),model,query.order.length===0?[{field:'id',direction:'asc'}]:query.order);
+    },call);
   }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
 }
 
