@@ -168,17 +168,24 @@ it('persists real finalized bytes and metadata, preserves observation issuance, 
   const adapter = fileURLToPath(new URL('../../files/dist/src/host/durable-sqlite.js', import.meta.url));
   const finalize = fileURLToPath(new URL('../../files/dist/src/finalize/index.js', import.meta.url));
   const upload = fileURLToPath(new URL('../../files/dist/src/upload/index.js', import.meta.url));
+  const bound = fileURLToPath(new URL('../dist/runtime/bound-files.js', import.meta.url));
+  const staging = fileURLToPath(new URL('../dist/runtime/file-staging.js', import.meta.url));
+  const kernel = fileURLToPath(new URL('../../interfaces/dist/src/uploads/kernel.js', import.meta.url));
   await writeFile(entry, `
 import {createDurableSqliteFileStore,createSqliteFileBindings} from ${JSON.stringify(adapter)};
 import {readFinalizedFileObservation} from ${JSON.stringify(finalize)};
 import {sha256Hex} from ${JSON.stringify(upload)};
+import {createCanonicalFileBinding} from ${JSON.stringify(bound)};
+import {readRetainedCanonicalFile} from ${JSON.stringify(staging)};
+import {createFileJourneyKernel} from ${JSON.stringify(kernel)};
 const receiver={app:'DurableFilesProof',team:'team_1',owner:'team_1',principal:'user_1'};
 const retention={unattachedHorizonMs:86400000,retentionMs:86400000};
 const json=value=>Response.json(value);
 export class FilesProof {
  constructor(ctx){
+  this.ctx=ctx;this.now=Date.now();
   this.store=createDurableSqliteFileStore(ctx.storage);
-  this.files=createSqliteFileBindings(this.store,{clock:{nowMs:()=>Date.now()},intentTtlMs:900000,urlBase:'https://files.test'});
+  this.files=createSqliteFileBindings(this.store,{clock:{nowMs:()=>this.now},intentTtlMs:900000,urlBase:'https://files.test'});
  }
  async fetch(request){
   if(new URL(request.url).pathname==='/maximum'){
@@ -230,7 +237,32 @@ export class FilesProof {
   const copied=readFinalizedFileObservation(JSON.parse(JSON.stringify(observation)));
   const foreign=this.files.readBytes(record.file.id,{...receiver,principal:'other-user'});
   if(facts===null||copied!==null||foreign!==null)throw new Error('Files authority weakened');
-  return json({id:record.file.id,store:this.store.fileStoreId,contentType:record.file.contentType,bytes:new TextDecoder().decode(value),genuine:true,copyRejected:true,foreignRejected:true});
+  if(await this.ctx.storage.get('retained-source-revision')===undefined)await this.ctx.storage.put('retained-source-revision',1);
+  const verify=async()=>{if(await this.ctx.storage.get('retained-source-revision')!==1)throw new Error('source-revoked');};
+  const physical=createFileJourneyKernel(this.files);let revokeDuringRead=false;
+  const originalRead=physical.readCurrentSnapshot.bind(physical);
+  physical.readCurrentSnapshot=async(...args)=>{const result=await originalRead(...args);if(revokeDuringRead)await this.ctx.storage.put('retained-source-revision',2);return result;};
+  const receiving=createCanonicalFileBinding(physical,retention);
+  const read=()=>readRetainedCanonicalFile(receiving,facts,bytes.length,verify);
+  const accepted=await read();
+  if(new TextDecoder().decode(accepted)!=='durable file bytes')throw new Error('Retained bytes were not the genuine finalized snapshot');
+  accepted[0]=0;
+  if(new TextDecoder().decode(await read())!=='durable file bytes')throw new Error('Retained consumer changed the physical bytes');
+  if(await readRetainedCanonicalFile({...receiving},facts,bytes.length,verify)!==null)throw new Error('Copied binding acquired receiving authority');
+  if(await readRetainedCanonicalFile(receiving,facts,bytes.length-1,verify)!==null)throw new Error('Retained read ignored byte bound');
+  if(await readRetainedCanonicalFile(receiving,{...facts,receiver:{...facts.receiver,principal:'other-user'}},bytes.length,verify)!==null)throw new Error('Foreign saved receiver acquired bytes');
+  if(await readRetainedCanonicalFile(receiving,{...facts,bytesDigest:'sha256:'+'0'.repeat(64)},bytes.length,verify)!==null)throw new Error('Changed saved facts acquired bytes');
+  const expectRevoked=async()=>{try{await read();}catch(error){if(error.message==='source-revoked')return;}throw new Error('Revoked source acquired bytes');};
+  await this.ctx.storage.put('retained-source-revision',2);await expectRevoked();
+  await this.ctx.storage.put('retained-source-revision',1);revokeDuringRead=true;await expectRevoked();
+  revokeDuringRead=false;await this.ctx.storage.put('retained-source-revision',1);
+  this.now+=retention.unattachedHorizonMs+1;
+  if(await read()!==null)throw new Error('Expired retained snapshot acquired bytes');
+  this.now-=retention.unattachedHorizonMs+1;
+  physical.readCurrentSnapshot=async()=>null;
+  try{await read();throw new Error('Changed reader acquired bytes');}catch(error){if(error.message!=='Retained File receiving kernel changed.')throw error;}
+
+  return json({id:record.file.id,store:this.store.fileStoreId,contentType:record.file.contentType,bytes:new TextDecoder().decode(value),genuine:true,copyRejected:true,foreignRejected:true,retainedRead:true});
  }
 }
 export default {fetch(request,env){return env.FILES.get(env.FILES.idFromName('one-app')).fetch(request);}};
@@ -259,6 +291,6 @@ export default {fetch(request,env){return env.FILES.get(env.FILES.idFromName('on
     const maximumReopened = await runtime.dispatchFetch('https://files.test/maximum');
     assert.equal(maximumReopened.status, 200, await maximumReopened.clone().text());
     assert.deepEqual(await maximumReopened.json(), maximumResult);
-    assert.deepEqual(initial, { ...initial as object, contentType: 'text/plain', bytes: 'durable file bytes', genuine: true, copyRejected: true, foreignRejected: true });
+    assert.deepEqual(initial, { ...initial as object, contentType: 'text/plain', bytes: 'durable file bytes', genuine: true, copyRejected: true, foreignRejected: true, retainedRead: true });
   } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
 }, 60000);

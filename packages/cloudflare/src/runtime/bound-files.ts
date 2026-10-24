@@ -63,7 +63,7 @@ export function createCanonicalFileBinding(kernel: FileJourneyKernel, retention?
       throw new Error('Committed file attachment requires retry.');
     },
   };
-  const observe = kernel.observeFile, revalidate = kernel.revalidateFile;
+  const observe = kernel.observeFile, revalidate = kernel.revalidateFile, readSnapshot = kernel.readCurrentSnapshot;
   registerRetainedCanonicalFileObserver(files, async (saved, verifySource) => {
     // This callback is private host composition. The caller verifies the actual
     // retained source before the original receiver crosses any kernel seam.
@@ -84,6 +84,27 @@ export function createCanonicalFileBinding(kernel: FileJourneyKernel, retention?
     if (!await revalidate.call(kernel, saved, receiver, policy)) return null;
     await current();
     return observation;
+  }, async (saved, maxBytes, verifySource) => {
+    if (policy === undefined || stableStringify(saved.retention) !== stableStringify(policy) ||
+        saved.sizeBytes > maxBytes) return null;
+    const receiver = Object.freeze({ ...saved.receiver });
+    const current = async (): Promise<void> => {
+      await verifySource();
+      if (kernel.observeFile !== observe || kernel.revalidateFile !== revalidate || kernel.readCurrentSnapshot !== readSnapshot) {
+        throw new Error('Retained File receiving kernel changed.');
+      }
+    };
+    await current();
+    if (!await revalidate.call(kernel, saved, receiver, policy)) return null;
+    await current();
+    const snapshot = await readSnapshot.call(kernel, saved.ref, receiver, policy);
+    await current();
+    if (snapshot === null || stableStringify(snapshot.facts) !== stableStringify(saved) ||
+        snapshot.bytes.byteLength !== saved.sizeBytes || snapshot.bytes.byteLength > maxBytes) return null;
+    const bytes = new Uint8Array(snapshot.bytes);
+    if (!await revalidate.call(kernel, saved, receiver, policy)) return null;
+    await current();
+    return bytes;
   });
   return files;
 }

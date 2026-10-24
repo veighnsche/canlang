@@ -9,7 +9,7 @@ import type {
 
 type CallableDeclarationSource = Extract<FrameworkOpaqueDeclaration['source'], { kind: 'callable' }>;
 import { STATE_FILE_REFERENCE_PRODUCER, bindOpaqueFileDeclarations, prepareFrameworkFilePayloadOrigin, resolveOpaqueFileProjection, validateOpaqueFileOrigin } from '@canlang/state/storage';
-import { observeRetainedCanonicalFile, type CanonicalFileBinding } from './file-staging.js';
+import { observeRetainedCanonicalFile, readRetainedCanonicalFile, type CanonicalFileBinding } from './file-staging.js';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work';
 import { stableStringify } from '@canlang/state/invocation';
 import type { ScenarioReceiptDeliveryOriginFrame, ScenarioReceiptSendGuard } from '@canlang/state/invocation';
@@ -368,6 +368,25 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
       if (observation === null) refuse('retained source File is no longer available under its original receiver');
     }
   };
+  /** Read one exact typed occurrence through the genuine physical receiver.
+   * A raw outbox/File ref or copied header without its current source row is
+   * insufficient. File bytes never replace the source's complete census. */
+  const readSourceFile = async (request: { readonly source: RetainedOpaqueFileSource; readonly revision: Revision;
+    readonly path: readonly (string | number)[]; readonly ref: string; readonly maxBytes: number },
+    files: CanonicalFileBinding | undefined): Promise<Uint8Array | null> => {
+    const captured = captureData(request);
+    const { source, revision, path, ref, maxBytes } = captured;
+    if (files === undefined || typeof ref !== 'string' || ref === '' || !Array.isArray(path) ||
+        path.length > 32 || path.some(part => typeof part === 'string' ? part === '' : !Number.isSafeInteger(part) || part < 0) ||
+        !Number.isSafeInteger(maxBytes) || maxBytes < 1) refuse('source File read requires bounded exact selectors');
+    await checkSource(source, revision);
+    const matches = source.binding.files.filter(item => equal(item.path, path) && item.file.ref === ref);
+    if (matches.length !== 1) refuse('source File read must select its exact typed occurrence');
+    const bytes = await readRetainedCanonicalFile(files, matches[0]!.file, maxBytes,
+      async () => { await checkSource(source, revision); });
+    await checkSource(source, revision);
+    return bytes;
+  };
   const capturePrepareRequest = (request: PrepareFileRequest): PrepareFileRequest => {
     // Pin only persisted metadata; binding/identity and observations keep their actual issuers.
     const captured = captureData({ expectedRevision: request.expectedRevision, model: request.model,
@@ -467,5 +486,5 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     return origin;
   };
   await current();
-  return Object.freeze({ installed, set, bound, event, completion, callable, sendGuard, delivery, occurrences, prepare, prepareControl, revalidateSource, refresh });
+  return Object.freeze({ installed, set, bound, event, completion, callable, sendGuard, delivery, occurrences, prepare, prepareControl, revalidateSource, readSourceFile, refresh });
 }

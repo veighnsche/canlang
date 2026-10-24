@@ -39,25 +39,42 @@ export interface CanonicalFileBinding {
 
 type RetainedFileObserver = (saved: RetainedFinalizedFile, verifySource: () => Promise<void>) =>
   Promise<FinalizedFileObservation | null>;
-const retainedFileObservers = new WeakMap<CanonicalFileBinding, RetainedFileObserver>();
+type RetainedFileReader = (saved: RetainedFinalizedFile, maxBytes: number, verifySource: () => Promise<void>) =>
+  Promise<Uint8Array | null>;
+const retainedFileObservers = new WeakMap<CanonicalFileBinding, {
+  readonly observe: RetainedFileObserver; readonly read?: RetainedFileReader;
+}>();
 
 /** Host composition only. The real factory pins its kernel and explicit policy;
  * copied bindings cannot acquire retained receiving authority. */
-export function registerRetainedCanonicalFileObserver(files: CanonicalFileBinding, observe: RetainedFileObserver): void {
+export function registerRetainedCanonicalFileObserver(files: CanonicalFileBinding, observe: RetainedFileObserver, read?: RetainedFileReader): void {
   if (retainedFileObservers.has(files)) throw new Error('Retained File observer is already installed.');
-  retainedFileObservers.set(files, observe);
+  retainedFileObservers.set(files, Object.freeze({ observe, ...(read === undefined ? {} : { read }) }));
 }
 
 /** Call only after the owning retained source/slot/profile checks. A saved
  * receiver is not a normal actor-null attach or disclosure credential. */
 export async function observeRetainedCanonicalFile(files: CanonicalFileBinding, saved: RetainedFinalizedFile,
   verifySource: () => Promise<void>): Promise<FinalizedFileObservation | null> {
-  const observe = retainedFileObservers.get(files);
+  const observe = retainedFileObservers.get(files)?.observe;
   if (observe === undefined) return null;
   await verifySource();
   const observation = await observe(saved, verifySource);
   await verifySource();
   return observation;
+}
+
+/** Private receiving composition only; the owning opaque-source consumer must
+ * prove its original row/header/typed occurrence before selecting saved facts. */
+export async function readRetainedCanonicalFile(files: CanonicalFileBinding, saved: RetainedFinalizedFile,
+  maxBytes: number, verifySource: () => Promise<void>): Promise<Uint8Array | null> {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || saved.sizeBytes > maxBytes) return null;
+  const read = retainedFileObservers.get(files)?.read;
+  if (read === undefined) return null;
+  await verifySource();
+  const bytes = await read(saved, maxBytes, verifySource);
+  await verifySource();
+  return bytes === null ? null : new Uint8Array(bytes);
 }
 
 export interface FileAttachment {
