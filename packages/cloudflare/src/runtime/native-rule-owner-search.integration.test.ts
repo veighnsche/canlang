@@ -4384,3 +4384,96 @@ it('retains the nullable stored DATA read after an original null guard', { timeo
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+
+it('compiles original Stock and executes its reversal guard with checked actor shorthand', { timeout: 180000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-stock-reverse-original-'));
+  try {
+    const source = join(root, 'draft/apps/CanStock/CanStock.can');
+    const { stdout } = await promisify(execFile)(compiler,
+      ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source,
+        join(root, 'draft/shared/Employees.can'), join(root, 'draft/shared/Locations.can')],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+    const originalArtifact = JSON.parse(stdout) as CompileArtifact;
+    assert.ok(originalArtifact.operations?.find(operation => operation.name === 'stock.reverse')?.result?.disclosure);
+    // Full original assembly is independently blocked by Threshold.location's
+    // unique-field association. Qualify the exact reversal guard/body on the
+    // existing selected Stock ledger recipient without claiming full installation.
+    const original = await readFile(source, 'utf8');
+    const start = original.indexOf('  scenario reverse(');
+    const end = original.indexOf('  # Persist authenticated', start);
+    assert.ok(start >= 0 && end > start);
+    const selected = await readFile(join(root, 'compiler/tests/fixtures/stock-adjust-original.can'), 'utf8');
+    const tail = selected.lastIndexOf(' Then'); assert.ok(tail > 0);
+    const runtimeSource = join(directory, 'StockReverse.can');
+    await writeFile(runtimeSource, selected.slice(0, tail) + original.slice(start, end) + selected.slice(tail));
+    const compiled = await promisify(execFile)(compiler,
+      ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, runtimeSource],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+    const artifact = JSON.parse(compiled.stdout) as CompileArtifact;
+    assert.ok(artifact.operations?.find(operation => operation.name === 'stock.reverse')?.result?.disclosure);
+    const asm = await assembleModules({ artifact, sourcePath: runtimeSource }, { workDir: directory,
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+    for (const mode of ['allowed', 'ordered', 'inactive', 'wrong-location', 'no-role', 'nonmember', 'stale', 'empty-reason', 'commit-race'] as const) {
+      const { now, identities, identity, team, user, membership } = await member(`stock-reverse-${mode}`,
+        mode === 'no-role' ? [] : ['stock.stock_staff']);
+      const scope = { app: 'CanStock', owner: team.team_id, ownerPackage: 'stock' };
+      const authority: FileRetirementAuthority = { app: scope.app, stateOwner: scope.app,
+        stateStoreId: 'stock-state', fileStoreId: 'stock-files',
+        receiver: { app: scope.app, owner: team.team_id, team: team.team_id } };
+      const { store } = createTestMemoryStorage(authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+      await installNativeFileInventory({ artifact, asm, store, authority, scope, now: () => now,
+        verifyOwner: async () => { assert.ok(await identities.findTeamById(team.team_id)); } });
+      const row = (id: string, data: Record<string, unknown>, parent: StoredRow['parent'] = null) =>
+        ({ ...makeRow({ id: asId(id), data }), parent });
+      const movementModel = model('stock', 'Movement');
+      const movement = row('opening', { visible: true, location: { id: 'location' }, quantity: '3', reason: 'Initial count',
+        source: 'opening', transfer: null, reversal: null, order: mode === 'ordered' ? 'purchase-order' : null,
+        actor: null, revision: null, unit: null }, { model: model('stock', 'Item'), id: asId('item') });
+      await store.commit(makeBatch(await store.readRevision(), { writes: [
+        { kind: 'insert', model: model('rent_catalog', 'Location'), row: row('location', {
+          name: 'Original location', active: true }) },
+        { kind: 'insert', model: model('employee', 'Employee'), row: row('worker', {
+          user: { id: user.user_id }, home: { id: mode === 'wrong-location' ? 'other' : 'location' },
+          locations: [], operator_wide: false, active: mode !== 'inactive',
+          role: 'Stock', skills: [], visible: true, user_visible: true }) },
+        { kind: 'insert', model: model('stock', 'Item'), row: row('item', {
+          sku: 'coffee', name: 'Coffee', unit: 'box', reorder: '0', active: true }) },
+        { kind: 'insert', model: movementModel, row: movement },
+      ] }));
+      const commit = store.commit.bind(store); let raced = false;
+      store.commit = async batch => {
+        if (mode === 'commit-race' && !raced && batch.writes.some(write => write.model === movementModel && write.kind === 'insert')) {
+          raced = true;
+          await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'insert', model: movementModel,
+            row: { ...movement, id: asId('competing-reversal'), data: { ...movement.data,
+              quantity: '-3', source: 'competing-reversal', reversal: { id: movement.id }, actor: { id: user.user_id } } } }] }));
+        }
+        return commit(batch);
+      };
+      if (mode === 'nonmember') await identities.removeMembership(membership.membership_id);
+      const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+      const request = { operation: 'stock.reverse', operation_id: operationId(now), inputs: {
+        movement: { id: movement.id, version: mode === 'stale' ? '2' : '1' }, reason: mode === 'empty-reason' ? ' ' : 'Reverse count' } };
+      const outcome = await invoker.invokeMutation(request, identity), success = mode === 'allowed';
+      assert.equal('result' in outcome, success, `${mode}: ${JSON.stringify(outcome)}`);
+      const movements = await store.query({ model: movementModel, authority: 'owner' });
+      const created = movements.filter(value => value.data.source === request.operation_id);
+      assert.equal(created.length, success ? 1 : 0, mode);
+      assert.equal(raced, mode === 'commit-race');
+      assert.equal((await store.outboxPending()).length, 0);
+      if (success) {
+        assert.deepEqual(created[0]!.data.actor, { id: user.user_id });
+        assert.equal(created[0]!.data.quantity, '-3');
+        assert.equal(created[0]!.data.order, null);
+        assert.deepEqual(created[0]!.data.reversal, { id: movement.id });
+        assert.deepEqual(created[0]!.parent, movement.parent);
+        const revision = await store.readRevision();
+        const replay = await invoker.invokeMutation(request, identity);
+        assert.ok('result' in replay && replay.result.status === 'replayed', JSON.stringify(replay));
+        assert.equal(await store.readRevision(), revision);
+        assert.deepEqual(await store.query({ model: movementModel, authority: 'owner' }), movements);
+      }
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});

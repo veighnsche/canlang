@@ -17078,6 +17078,14 @@ impl<'a> Closure<'a> {
         }
     }
 
+    /// Invocation scalars carry no stored-read authority. Both expression
+    /// references and shorthand keys retain their exact checked context type.
+    fn invocation_scalar_binding(binding: Option<&Binding>, ty: Option<&ResolvedType>) -> bool {
+        matches!((binding, ty),
+            (Some(Binding::Context(ContextVar::Actor(_))), Some(ResolvedType::Scalar(Scalar::User)))
+                | (Some(Binding::Context(ContextVar::Now)), Some(ResolvedType::Scalar(Scalar::Datetime))))
+    }
+
     /// A name/path reference: enum cases and lexical bindings resolve
     /// through the environment with their admission checks.
     #[allow(clippy::too_many_arguments)]
@@ -17102,20 +17110,10 @@ impl<'a> Closure<'a> {
                 .iter()
                 .find_map(|n| self.resolve.node_binding.get(&NodeKey::of(n)))
         });
+        if Self::invocation_scalar_binding(binding, Some(ty)) {
+            return Ok(vec![ValuePath::default()]);
+        }
         match binding {
-            // Invocation facts carry no stored-read authority. Preserve
-            // their checked lexical binding and exact scalar identity;
-            // lowering is matched against the same source occurrence.
-            Some(Binding::Context(ContextVar::Actor(_)))
-                if ty == &ResolvedType::Scalar(Scalar::User) =>
-            {
-                Ok(vec![ValuePath::default()])
-            }
-            Some(Binding::Context(ContextVar::Now))
-                if ty == &ResolvedType::Scalar(Scalar::Datetime) =>
-            {
-                Ok(vec![ValuePath::default()])
-            }
             Some(Binding::Symbol(id)) => {
                 self.expr_symbol_binding(key, module, env, calls, ty, *id)
             }
@@ -24713,7 +24711,11 @@ impl<'a> Closure<'a> {
                 {
                     return Ok(vec![ValuePath::default()]);
                 }
-                let local = match self.resolve.node_binding.get(&key) {
+                let binding = self.resolve.node_binding.get(&key);
+                if Self::invocation_scalar_binding(binding, self.types.node_types.get(&key)) {
+                    return Ok(vec![ValuePath::default()]);
+                }
+                let local = match binding {
                     Some(Binding::Symbol(id)) => Local::Symbol(*id),
                     Some(Binding::Let { node }) => Local::Let(*node),
                     Some(Binding::CreateAs { node }) => Local::Create(*node),
