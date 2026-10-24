@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Miniflare } from 'miniflare';
 import { it } from 'vitest';
-import { bootstrapD1Owner, addD1TeamMember } from '../../identity/src/storage/bootstrap.js';
+import { bootstrapD1Owner, bootstrapD1SetupOwner, addD1TeamMember } from '../../identity/src/storage/bootstrap.js';
 import { ensureIdentitySchema, type IdentityD1Database, type IdentityD1BoundStatement } from '../../identity/src/storage/d1.js';
 
 import { createD1IdentityStore, createOpaqueToken, deriveCsrfToken, hashPassword, inviteMember, inviteMemberWithReceipt, acceptInvitation, setMemberRole } from '@canlang/identity';
@@ -47,6 +47,81 @@ it('recovers an actual committed batch after lost acknowledgement and retained-s
     await assert.rejects(bootstrapD1Owner(reopened, { ...credentials, email: 'other@example.invalid' }), /different credentials/);
     await assert.rejects(bootstrapD1Owner(reopened, { ...credentials, timezone: 'UTC' }), /different credentials/);
     assert.deepEqual(await snapshot(reopened), before);
+  } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
+}, 30_000);
+
+/** Include the consumed setup admission in the same durable outcome observation. */
+async function setupSnapshot(db: IdentityD1Database) {
+  return { ...await snapshot(db), identity_setup_claim:
+    (await db.prepare('SELECT * FROM identity_setup_claim').bind().all()).results };
+}
+
+it('recovers a consumed setup admission after a committed batch loses its acknowledgement and D1 reopens', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-owner-setup-ack-'));
+  let runtime = new Miniflare(options(directory));
+  try {
+    const db = await runtime.getD1Database('IDENTITY');
+    const setup = { operation: randomUUID(), tokenHash: 'a'.repeat(64),
+      context: JSON.stringify({ app: 'BootstrapIntegration', origin: 'https://setup.example.invalid' }),
+      expiresAt: Math.floor(Date.now() / 1000) + 300 };
+    let commits = 0;
+    const lost: IdentityD1Database = { prepare: sql => db.prepare(sql), exec: sql => db.exec(sql),
+      batch: async statements => {
+        await db.batch(statements as Parameters<typeof db.batch>[0]);
+        commits++;
+        throw new Error('injected lost setup acknowledgement');
+      } };
+    const result = await bootstrapD1SetupOwner(lost, credentials, setup);
+    assert.equal(commits, 1);
+    assert.equal(Number.isSafeInteger(result.completedAt), true);
+    assert.ok(result.completedAt <= setup.expiresAt);
+    const saved = await setupSnapshot(db);
+    for (const rows of Object.values(saved)) assert.equal((rows as unknown[]).length, 1);
+    assert.deepEqual(saved.identity_setup_claim, [{ slot: 1, operation: setup.operation,
+      token_hash: setup.tokenHash, context: setup.context, completed_at: result.completedAt }]);
+    assert.equal(JSON.stringify(saved).includes(credentials.password), false, 'raw setup credentials are not retained');
+    await runtime.dispose(); runtime = new Miniflare(options(directory));
+    const reopened = await runtime.getD1Database('IDENTITY');
+    assert.deepEqual(await bootstrapD1SetupOwner(reopened, credentials, setup), result);
+    for (const foreign of [{ ...setup, operation: randomUUID() }, { ...setup, tokenHash: 'b'.repeat(64) },
+      { ...setup, context: JSON.stringify({ app: 'OtherApplication', origin: 'https://setup.example.invalid' }) }]) {
+      await assert.rejects(bootstrapD1SetupOwner(reopened, credentials, foreign), /different operation, token or application/);
+    }
+    for (const changed of [{ ...credentials, email: 'foreign-owner@example.invalid' },
+      { ...credentials, password: 'Different synthetic setup password' }, { ...credentials, timezone: 'UTC' }]) {
+      await assert.rejects(bootstrapD1SetupOwner(reopened, changed, setup), /different credentials or configuration/);
+    }
+    await assert.rejects(bootstrapD1SetupOwner(reopened, credentials,
+      { ...setup, expiresAt: Math.floor(Date.now() / 1000) - 30 }), /invalid or expired/);
+    assert.deepEqual(await setupSnapshot(reopened), saved, 'refused recovery cannot change the original owner or consumed admission');
+  } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
+}, 30_000);
+
+it('rolls back the consumed setup claim with all owner facts and refuses expired admission before creating schema', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-owner-setup-rollback-'));
+  const runtime = new Miniflare(options(directory));
+  try {
+    const db = await runtime.getD1Database('IDENTITY');
+    const setup = { operation: randomUUID(), tokenHash: 'c'.repeat(64), context: 'BootstrapIntegration:rollback',
+      expiresAt: Math.floor(Date.now() / 1000) + 300 };
+    await assert.rejects(bootstrapD1SetupOwner(db, credentials,
+      { ...setup, expiresAt: Math.floor(Date.now() / 1000) - 30 }), /invalid or expired/);
+    assert.deepEqual((await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'identity_%'").all()).results, []);
+    const interrupted: IdentityD1Database = { prepare: sql => db.prepare(sql), exec: sql => db.exec(sql),
+      batch: async statements => {
+        // This fails at execution only after the original setup claim has
+        // been inserted, exercising rollback of that claim and every owner row.
+        return db.batch([...(statements as Parameters<typeof db.batch>[0]),
+          db.prepare('INSERT INTO identity_setup_claim (slot,operation,token_hash,context,completed_at) VALUES (1,?,?,?,?)')
+            .bind(setup.operation, setup.tokenHash, setup.context, 0)]);
+      } };
+    await assert.rejects(bootstrapD1SetupOwner(interrupted, credentials, setup), /transaction did not complete/);
+    for (const rows of Object.values(await setupSnapshot(db))) assert.deepEqual(rows, []);
+    const retried = await bootstrapD1SetupOwner(db, credentials, setup);
+    const saved = await setupSnapshot(db);
+    for (const rows of Object.values(saved)) assert.equal((rows as unknown[]).length, 1);
+    assert.deepEqual(await bootstrapD1SetupOwner(db, credentials, setup), retried);
+    assert.deepEqual(await setupSnapshot(db), saved);
   } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
 }, 30_000);
 
