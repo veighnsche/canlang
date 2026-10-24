@@ -11287,6 +11287,16 @@ impl<'a> Typer<'a> {
             {
                 self.check_selectors(cx, node, model, sel, "fields=", true);
             }
+            if let ResolvedType::Operation(operation) = ty {
+                let inputs = match self.tables.symbols[operation.0 as usize].kind {
+                    SymbolKind::CrudOp { model, .. } => self.model_fields(model).iter()
+                        .map(|field| (self.tables.symbols[field.0 as usize].name.clone(), self.decl_type(*field)))
+                        .collect(),
+                    _ => self.action_inputs(operation).into_iter()
+                        .filter_map(|input| input.expected.map(|ty| (input.name, ty))).collect(),
+                };
+                self.check_form_text_controls(cx, node, &inputs);
+            }
         }
         if let Some(args) = attribute_value(node, "arguments", cx.text) {
             let _ = self.expr(cx, args, None);
@@ -11295,6 +11305,46 @@ impl<'a> Typer<'a> {
             let _ = self.expr(cx, submit, None);
         }
         self.check_form_display_import(cx, node);
+    }
+
+    /// Explicit text controls consume prepared fields of the owning operation.
+    /// Reject incompatible types before emitting a page that would throw in UI.
+    fn check_form_text_controls(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        owner: &SyntaxNode,
+        inputs: &HashMap<String, ResolvedType>,
+    ) {
+        let mut pending = kids(owner);
+        while let Some(node) = pending.pop() {
+            if matches!(node.kind, SyntaxKind::Form | SyntaxKind::Edit | SyntaxKind::PreferencePanel) {
+                continue;
+            }
+            let word = kids(node).iter().find_map(|part| name_text(part, cx.text)).unwrap_or("");
+            if node.kind == SyntaxKind::CatalogItem && matches!(word, "input" | "textarea") {
+                let headers: Vec<_> = kids(node).into_iter().filter(|part| is_expression(part.kind)).collect();
+                if let [selector] = headers.as_slice()
+                    && let Some(name) = name_or_ref_word(selector, cx.text)
+                    && let Some(ty) = inputs.get(name)
+                {
+                    let base = ty.nullable_inner().unwrap_or(ty);
+                    let accepted = match base {
+                        ResolvedType::Scalar(scalar) => scalar.is_string_like()
+                            || (word == "input" && matches!(scalar,
+                                Scalar::Int | Scalar::Decimal | Scalar::Money | Scalar::Date | Scalar::Datetime)),
+                        ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => true,
+                        _ => false,
+                    };
+                    if !accepted {
+                        self.diags.push(Diagnostic::error("E3001", format!(
+                            "field '{name}': {word} needs a text-like{} input, got {}",
+                            if word == "input" { ", numeric, date or datetime" } else { "" },
+                            ty.display(self.tables, cx.module)), selector.span));
+                    }
+                }
+            }
+            pending.extend(kids(node));
+        }
     }
 
     /// Check a form's `display=`/`import=`/`review=` attributes.

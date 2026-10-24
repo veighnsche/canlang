@@ -129,4 +129,27 @@ fn unsupported_leaf_units_owners_headers_and_suites_keep_refusal() {
         assert!(!artifact["diagnostics"].as_array().unwrap().is_empty(), "{name}: {artifact}");
         assert!(artifact.get("modules").is_none(), "{name}: {artifact}");
     }
+    let enum_form = "app Tasks\nGiven\n Task { title:text, priority:enum(low,normal,high)=normal }\n policy Task read=members\nWhen\n crud Task by=members fields=title,priority\nThen\n page / title=\"Tasks\"\n  form Task.create fields=title,priority display=inline\n   input title\n   select priority\n";
+    for (name, source) in [
+        ("enum-input", enum_form.replace("select priority", "input priority")),
+        ("enum-textarea", enum_form.replace("select priority", "textarea priority")),
+        ("nullable-enum-input", enum_form.replace("enum(low,normal,high)=normal", "enum(low,normal,high)?").replace("select priority", "input priority")),
+        ("scenario-enum-input", "app Tasks\nGiven\nWhen\n scenario save(priority:enum(low,normal,high)) by=members\n  do let accepted=priority\nThen\n page / title=\"Tasks\"\n  form save\n   input priority\n".to_string()),
+        ("update-enum-input", enum_form.replace("  form Task.create fields=title,priority display=inline\n   input title\n   select priority", "  list Task\n   form Task.update arguments={record=row} fields=priority\n    input priority")),
+    ] {
+        let path = scratch.path().join(format!("{name}.can"));
+        let (output, artifact) = compile(&source, &path);
+        assert_eq!(output.status.code(), Some(10), "{name}: {artifact}");
+        assert!(artifact["diagnostics"].as_array().unwrap().iter().any(|diagnostic|
+            diagnostic["code"] == "E3001" && diagnostic["message"].as_str().is_some_and(|message|
+                message.contains("priority") && message.contains("needs a text"))), "{name}: {artifact}");
+        assert!(artifact.get("modules").is_none(), "{name}: {artifact}");
+        let checked = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["check", "--format=json", "--catalog"])
+            .arg(Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().join("packages/values/dist/catalog.json"))
+            .arg(&path).env_remove("CAN_CATALOG").output().unwrap();
+        assert_eq!(checked.status.code(), Some(10), "{name}: {}", String::from_utf8_lossy(&checked.stdout));
+    }
+    let (output, artifact) = compile(enum_form, &scratch.path().join("enum-select.can"));
+    assert!(output.status.success(), "enum select: {artifact}");
 }
