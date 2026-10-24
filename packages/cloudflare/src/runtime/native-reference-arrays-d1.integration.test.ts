@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { test } from 'node:test';
+import { test, describe, before, after } from 'node:test';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { CompileArtifact, MutationEnvelope, ResolvedIdentity, ScenarioReceiptAssociation } from '@canlang/contracts';
@@ -596,4 +596,157 @@ test('original Customer invitation commits its native create, expiry schedule an
         await worker.dispose(); worker = undefined;
       }
     } finally { try { await worker?.dispose(); } finally { await rm(dir, { recursive: true, force: true }); } }
+  });
+
+for (const mode of ['success', 'missing-buyer', 'inactive-employee', 'foreign-location', 'stale-request',
+  'employee-at-commit', 'order-at-commit'] as const) describe(`original Purchase order combines imported work authority and contained COUNT on real D1: ${mode}`,
+  { concurrency: false }, () => {
+    let dir: string | undefined;
+    let worker: Miniflare | undefined;
+    let fixture: Awaited<ReturnType<typeof setup>> | undefined;
+    let committedSnapshot: Tables | undefined;
+    async function setup() {
+      const { STATE_FILE_REFERENCE_PRODUCER } = await import('@canlang/state/storage');
+      const { WORK_FILE_REFERENCE_PRODUCER } = await import('@canlang/work/kernel/file-reference-inventory');
+      const { installNativeFileInventory } = await import('./file-inventory.js');
+      dir = await mkdtemp(join(tmpdir(), 'can-purchase-order-d1-'));
+      const [purchase, employee, location, supplier] = await Promise.all([
+        'draft/apps/CanPurchase/CanPurchase.can', 'draft/shared/Employees.can', 'draft/shared/Locations.can', 'draft/shared/Suppliers.can',
+      ].map(path => readFile(join(root, path), 'utf8')));
+      const select = (text: string) => {
+        const lines = text.split('\n');
+        return { lines, one: (prefix: string) => {
+          const found = lines.filter(line => line.trimStart().startsWith(prefix));
+          assert.equal(found.length, 1, `exact original declaration ${prefix}`); return found[0]!;
+        }, many: (prefix: string) => lines.filter(line => line.trimStart().startsWith(prefix)) };
+      };
+      const p = select(purchase!), e = select(employee!), l = select(location!), s = select(supplier!);
+      const start = p.lines.indexOf(p.one('scenario order('));
+      let end = start + 1;
+      while (end < p.lines.length && (!p.lines[end]!.trim() || /^ {3}/.test(p.lines[end]!))) end++;
+      const orderSource = p.lines.slice(start, end).join('\n');
+      assert.ok(orderSource.includes('require can_work(actor,request.location) and request.state==approved and request.supplier.active and count(request.Order)==0'));
+      const modelStart = p.lines.indexOf(p.one('role approver '));
+      const modelEnd = p.lines.indexOf(p.one('fixture vendor='));
+      assert.ok(modelEnd > modelStart);
+      const source = [p.one('app CanPurchase uses='), l.one('package rent_catalog '), ' Given',
+        l.one('export Location {'), l.one('policy Location read='), l.one('export fixture test_site='), ' When', ' Then',
+        e.one('package employee '), e.one('use rent_catalog {Location,test_site}'), ' Given',
+        e.one('export role hr '), e.one('export Employee {'), e.one('export derive staff('), e.one('export derive can_work('),
+        ...e.many('policy Employee read='), e.one('invariant Employee:'), e.one('export fixture test_worker='), ' When', ' Then',
+        s.one('package supplier '), ...s.many('use '), ' Given', ...s.many('export role '),
+        s.one('export Supplier {'), ...s.many('policy Supplier read='), ' When', ' Then',
+        p.one('package purchase '), p.one('use rent_catalog {Location,test_site}'), p.one('use employee {can_work,test_worker}'),
+        p.one('use supplier {Supplier,buyer,budget_manager}'), ' Given', ...p.many('message '),
+        ...p.lines.slice(modelStart, modelEnd), ' When', orderSource, ' Then', '',
+      ].join('\n');
+      const fixture = join(dir, 'CanPurchase.can'); await writeFile(fixture, source);
+      const { stdout } = await promisify(execFile)(process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can'),
+        ['compile', '--format=json', '--native-scenario-receipts', '--catalog',
+          process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json'), fixture],
+        { cwd: root, timeout: 120000, maxBuffer: 32 * 1024 * 1024 });
+      const artifact = JSON.parse(stdout) as CompileArtifact;
+      const operation = artifact.operations?.find(item => item.name === 'purchase.order');
+      assert.ok(operation?.result?.disclosure, 'original combined ANY helper and contained COUNT has a native receipt');
+      assert.equal(operation.result.type, 'void');
+      const asm = await assembleModules({ artifact, sourcePath: fixture }, { workDir: join(dir, 'modules'),
+        stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'), uiUrl: import.meta.resolve('@canlang/ui') });
+      let sequence = 60000;
+      worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
+        script: 'export default { fetch() { return new Response("ok"); } }',
+        d1Databases: { DB: `purchase-${mode}` }, d1Persist: join(dir, mode) });
+      const database = await worker.getD1Database('DB') as unknown as D1Database; await ensureSchema(database);
+      const memberships = createMemoryIdentityStore();
+      const member = await seedMember(memberships, { isOwner: false, roles: mode === 'missing-buyer' ? [] : ['supplier.buyer'] });
+      const identity = makeIdentity({ membership: member.membership, email: member.user.email });
+      const authority: import('@canlang/contracts').FileRetirementAuthority = { app: 'CanPurchase', stateOwner: 'CanPurchase',
+        stateStoreId: `purchase-${mode}-state`, fileStoreId: `purchase-${mode}-files`,
+        receiver: { app: 'CanPurchase', owner: member.team.team_id, team: member.team.team_id } };
+      const store = createD1Storage(database, authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+      await installNativeFileInventory({ artifact, asm, store, authority,
+        scope: { app: 'CanPurchase', owner: member.team.team_id, ownerPackage: 'purchase' }, now: () => FIXED_NOW,
+        verifyOwner: async () => { assert.ok(await memberships.findTeamById(member.team.team_id)); } });
+      const row = (data: Record<string, unknown>) => ({ ...makeRow({ id: asId(uuidv7(FIXED_NOW, ++sequence)), data }), parent: null });
+      const money = (minor: string) => ({ minor, currency: 'EUR' });
+      const site = row({ name: 'Site', address: 'A', timezone: 'UTC', currency: 'EUR', hours: 'Open', arrival: 'Door', active: true });
+      const other = row({ ...site.data, name: 'Other' });
+      const employeeRow = row({ user: { id: member.user.user_id }, name: 'Buyer', home: { id: site.id }, locations: [],
+        operator_wide: false, active: mode !== 'inactive-employee', start: '2026-01-01', end: null, manager: null,
+        role: 'buyer', skills: [], private_notes: 'PRIVATE-PURCHASE-NOTES', document: null });
+      const target = mode === 'foreign-location' ? other : site;
+      const vendor = row({ name: 'Original supplier', contact: 'vendor@example.test', locations: [{ id: target.id }], active: true });
+      const budget = row({ name: 'Budget', locations: [{ id: target.id }], total: money('10000'), active: true });
+      const request = { ...row({ location: { id: target.id }, supplier: { id: vendor.id }, requester: { id: member.user.user_id },
+        reviewer: { id: member.user.user_id }, purpose: 'Chairs', category: 'Furniture', required_by: '2099-01-01',
+        amount: money('6000'), state: 'approved', decision: 'Reviewed', actual: null, evidence: null }),
+        parent: { model: asModel('purchase.Budget'), id: budget.id } };
+      await store.commit(makeBatch(await store.readRevision(), { writes: [
+        { kind: 'insert', model: asModel('rent_catalog.Location'), row: site }, { kind: 'insert', model: asModel('rent_catalog.Location'), row: other },
+        { kind: 'insert', model: asModel('employee.Employee'), row: employeeRow }, { kind: 'insert', model: asModel('supplier.Supplier'), row: vendor },
+        { kind: 'insert', model: asModel('purchase.Budget'), row: budget }, { kind: 'insert', model: asModel('purchase.Request'), row: request },
+      ] }));
+      let injected = false;
+      const originalCommit = store.commit.bind(store);
+      const competing = { ...row({ reference: `competing-${mode}`, supplier_name: 'Original supplier',
+        supplier_contact: 'vendor@example.test', location: { id: target.id }, state: 'ordered' }),
+        parent: { model: asModel('purchase.Request'), id: request.id } };
+      store.commit = async batch => {
+        if (!injected && mode.endsWith('-at-commit') && batch.writes.some(write => write.model === 'purchase.Order')) {
+          injected = true;
+          await originalCommit(makeBatch(await store.readRevision(), { writes: mode === 'employee-at-commit' ? [{ kind: 'update',
+            model: asModel('employee.Employee'), id: employeeRow.id, expectedVersion: employeeRow.version,
+            row: { ...employeeRow, version: asVersion(2), data: { ...employeeRow.data, active: false } } }] : [{ kind: 'insert',
+            model: asModel('purchase.Order'), row: competing }] }));
+        }
+        return originalCommit(batch);
+      };
+      const invoker = buildInvoker(artifact, asm, store, { memberships, now: () => FIXED_NOW });
+      const envelope: MutationEnvelope = { operation: 'purchase.order', operation_id: asOperationId(uuidv7(FIXED_NOW, ++sequence)),
+        inputs: { request: { id: request.id, version: mode === 'stale-request' ? '2' : '1' }, reference: `PO-${mode}` } };
+      const before = await snapshot(database);
+      return { store, database, invoker, envelope, identity, request, site, competing, before, injected: () => injected, nextId: () => asOperationId(uuidv7(FIXED_NOW, ++sequence)) };
+    }
+    before(async () => { fixture = await setup(); }, { timeout: 180000 });
+    after(async () => {
+      try { await worker?.dispose(); } finally { if (dir !== undefined) await rm(dir, { recursive: true, force: true }); }
+    });
+    test('fresh canonical invocation preserves source decisions and atomic effects', { timeout: 180000 }, async () => {
+      assert.ok(fixture, 'real D1 fixture must be installed before invoking');
+      const { store, database, invoker, envelope, identity, request, site, competing, before, injected } = fixture;
+      const outcome = await invoker.invokeMutation(envelope, identity);
+      assert.equal(JSON.stringify(outcome).includes('PRIVATE-PURCHASE-NOTES'), false);
+      const orders = await store.query({ model: asModel('purchase.Order'), authority: 'owner' });
+      if (mode === 'success') {
+        committed(outcome); assert.equal(orders.length, 1);
+        assert.deepEqual(orders[0]!.parent, { model: asModel('purchase.Request'), id: request.id });
+        assert.deepEqual(orders[0]!.data, { reference: 'PO-success', supplier_name: 'Original supplier', supplier_contact: 'vendor@example.test',
+          location: { id: site.id }, state: 'ordered' });
+        committedSnapshot = await snapshot(database);
+      } else {
+        assert.ok('error' in outcome, `${mode}: ${JSON.stringify(outcome)}`);
+        assert.equal(outcome.error.code, mode === 'missing-buyer' ? 'forbidden' : mode === 'stale-request' ? 'conflict' : 'rule_failed', `${mode}: ${JSON.stringify(outcome)}`);
+        assert.equal(orders.length, mode === 'order-at-commit' ? 1 : 0);
+        if (mode === 'order-at-commit') assert.equal(orders[0]!.id, competing.id, 'only the concurrent original order survives');
+        if (!mode.endsWith('-at-commit')) unchangedExcept(before, await snapshot(database), ['receipts', 'fence', 'fence_log']);
+      }
+      assert.equal(injected(), mode.endsWith('-at-commit'));
+      assert.equal((await store.outboxPending()).length, 0);
+      assert.equal((await store.query({ model: asModel('work.schedule'), authority: 'owner' })).length, 0);
+    });
+    if (mode === 'success') {
+      test('exact native receipt replay preserves the same committed D1 world', { timeout: 180000 }, async () => {
+        assert.ok(fixture && committedSnapshot, 'initial canonical creation must succeed before replay');
+        const { invoker, envelope, identity, database } = fixture;
+        committed(await invoker.invokeMutation(envelope, identity), 'replayed');
+        assert.deepEqual(await snapshot(database), committedSnapshot);
+      });
+      test('new operation identity refuses a duplicate contained order', { timeout: 180000 }, async () => {
+        assert.ok(fixture && committedSnapshot, 'initial canonical creation must succeed before duplicate checking');
+        const { invoker, envelope, identity, store, nextId } = fixture;
+        const duplicate = await invoker.invokeMutation({ ...envelope, operation_id: nextId(),
+          inputs: { ...envelope.inputs, reference: 'SECOND' } }, identity);
+        assert.ok('error' in duplicate); assert.equal(duplicate.error.code, 'rule_failed');
+        assert.equal((await store.query({ model: asModel('purchase.Order'), authority: 'owner' })).length, 1);
+      });
+    }
   });

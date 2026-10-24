@@ -8923,7 +8923,14 @@ impl<'a> Closure<'a> {
             return Some(Vec::new());
         }
         let mut queries = Vec::new();
+        let observers = self.checked_source_helper_count_sites(scenario);
         for site in self.checked_decision_sites(scenario)? {
+            if observers.iter().any(|original| original.statement == site.statement
+                && original.node == site.node && original.source == site.source
+                && self.source_require_helper_count_site(scenario, original))
+            {
+                continue;
+            }
             if !matches!(
                 site.stage,
                 CheckedDecisionStage::LeadingRequire | CheckedDecisionStage::BodyRequire
@@ -11017,6 +11024,9 @@ impl<'a> Closure<'a> {
         }
         let mut queries = Vec::new();
         let mut visited = 0usize;
+        // Only successfully admitted whole sites may replace a native count
+        // fragment. Failed candidates keep the original independent refusal.
+        let observers = self.checked_source_helper_count_sites(scenario);
         let statements=self.count_query_statements(scenario)?;
         let statement_nodes:HashSet<_>=statements.iter().map(|statement|statement.node).collect();
         for statement in statements {
@@ -11042,9 +11052,18 @@ impl<'a> Closure<'a> {
                 let Some(model) = model_step else {
                     continue;
                 };
-                // Preserve an already-supported native count consumer first.
-                // A source observer may own only the otherwise unsupported
-                // exact leading contained occurrence.
+                if observers.iter().any(|site|
+                    site.statement == statement.node
+                        && self.source_require_helper_count_site(scenario, site)
+                        && site.calls.iter().any(|source| source.node == call
+                            && source.chain.is_empty()
+                            && matches!(&source.target, CheckedDecisionCallTarget::Builtin { id, .. } if id == "count")
+                            && self.source_require_observer_count(scenario, source)))
+                {
+                    continue;
+                }
+                // Every other released native count keeps priority; only an
+                // otherwise unsupported exact leading count uses the fallback.
                 if let Some(query)=self.checked_assign_count_query_source(
                     scenario,statement.node,call,supplied,model,
                 ).or_else(||self.checked_count_query_source(scenario,statement.node,call,supplied,model)) {
@@ -15686,23 +15705,78 @@ impl<'a> Closure<'a> {
             &&self.source_require_contained_query(scenario,call,query)
     }
 
-    /// Existing checked native count consumers keep their execution frame.
-    /// The generic contained observer is only a fallback; stealing a released
-    /// count guard would orphan its later count/FIRST decision consumer.
-    fn source_require_has_native_count(&self, scenario:&super::effects::ScenarioData,
-        call:&CheckedDecisionCall) -> bool {
-        let Some((supplied,_))=call.slots.first().copied().flatten().and_then(|slot|call.arguments.get(slot)) else{return false;};
-        let Some(Some(model))=self.count_domain_model(*supplied) else{return false;};
-        scenario.guards.iter().any(|guard|guard.cond.is_some_and(|node|
-            node.file==call.node.file && node.start<=call.node.start && call.node.end<=node.end)
-            && (self.checked_assign_count_query_source(scenario,guard.node,call.node,*supplied,model).is_some()
-                || self.checked_count_query_source(scenario,guard.node,call.node,*supplied,model).is_some()))
+    /// Raw native count correspondence stays independent of observer/query
+    /// inventories, so selecting a whole observer cannot recurse into itself.
+    fn source_require_native_count(
+        &self, scenario: &super::effects::ScenarioData, call: &CheckedDecisionCall,
+    ) -> Option<DisclosureQuery> {
+        let (supplied, _) = call.slots.first().copied().flatten().and_then(|slot| call.arguments.get(slot))?;
+        let model = self.count_domain_model(*supplied)??;
+        scenario.guards.iter().find_map(|guard| {
+            let node = guard.cond?;
+            if node.file != call.node.file || node.start > call.node.start || call.node.end > node.end {
+                return None;
+            }
+            self.checked_assign_count_query_source(scenario, guard.node, call.node, *supplied, model)
+                .or_else(|| self.checked_count_query_source(scenario, guard.node, call.node, *supplied, model))
+        })
+    }
+
+    fn source_require_observer_count(&self, scenario: &super::effects::ScenarioData,
+        call: &CheckedDecisionCall) -> bool {
+        self.source_require_contained_collection(scenario, call, "count")
+            || self.source_require_native_count(scenario, call).is_some_and(|query|
+                query.count.is_some_and(|count| count.contained_parent.is_some()))
+    }
+
+    /// One leading guard may need a helper's Model ANY and a contained
+    /// COUNT together. Prefer its complete observer only after the ordinary
+    /// call, expression and parameter checks admit the entire source site.
+    /// This candidate test never calls the query inventory or grants a query.
+    fn source_require_helper_count_site(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        site: &CheckedDecisionSite,
+    ) -> bool {
+        if site.stage != CheckedDecisionStage::LeadingRequire {
+            return false;
+        }
+        let contained_count = site.calls.iter().any(|call|
+            call.chain.is_empty()
+                && matches!(&call.target, CheckedDecisionCallTarget::Builtin { id, .. } if id == "count")
+                && self.types.node_types.get(&call.node) == Some(&ResolvedType::Scalar(Scalar::Int))
+                && self.source_require_observer_count(scenario, call));
+        contained_count && site.calls.iter().any(|call| {
+            let CheckedDecisionCallTarget::Builtin { id, overload } = &call.target else {
+                return false;
+            };
+            if id != "any" || call.chain.is_empty() {
+                return false;
+            }
+            let mut helper_query = false;
+            let mut supported = true;
+            self.source_require_any_call(scenario, false, call, id, overload,
+                &mut helper_query, &mut supported) == Some(true)
+                && supported && helper_query
+        })
+    }
+
+    fn checked_source_helper_count_sites(&self, scenario: &super::effects::ScenarioData) -> Vec<CheckedDecisionSite> {
+        // Avoid adding observer preparation to unrelated released query paths.
+        if !self.checked_decision_sites(scenario).is_some_and(|sites|
+            sites.iter().any(|site| self.source_require_helper_count_site(scenario, site)))
+        {
+            return Vec::new();
+        }
+        self.checked_source_requires(scenario).unwrap_or_default().into_iter()
+            .filter(|site| self.source_require_helper_count_site(scenario, site)).collect()
     }
 
     fn source_require_call(
         &self,
         scenario: &super::effects::ScenarioData,
         body: bool,
+        whole_count_observer: bool,
         call: &CheckedDecisionCall,
         helper_query: &mut bool,
         supported: &mut bool,
@@ -15815,8 +15889,9 @@ impl<'a> Closure<'a> {
                 *helper_query=true;Some(true)
             }
             CheckedDecisionCallTarget::Builtin { id, .. } if id == "count" && !body => {
-                if self.source_require_has_native_count(scenario,call){*supported=false;return Some(false);}
+                if !whole_count_observer && self.source_require_native_count(scenario,call).is_some(){*supported=false;return Some(false);}
                 if (self.source_require_contained_collection(scenario,call,"count")
+                    || whole_count_observer && self.source_require_observer_count(scenario, call)
                     || call.slots.as_slice() == [Some(0)] && call.arguments.len() == 1
                         && self.source_require_reference_domain(scenario, call, call.arguments[0].0, call.chain.len(), 0))
                     && self.types.node_types.get(&call.node)==Some(&ResolvedType::Scalar(Scalar::Int))
@@ -16125,8 +16200,9 @@ impl<'a> Closure<'a> {
         if site.stage!=CheckedDecisionStage::BodyCondition { self.source_require_site_guard(guard, &site)?; }
         let mut supported = true;
         let mut helper_query = false;
+        let whole_count_observer = self.source_require_helper_count_site(scenario, &site);
         for call in &site.calls {
-            if !self.source_require_call(scenario, body, call, &mut helper_query, &mut supported)? {
+            if !self.source_require_call(scenario, body, whole_count_observer, call, &mut helper_query, &mut supported)? {
                 break;
             }
         }

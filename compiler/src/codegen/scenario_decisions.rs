@@ -827,14 +827,22 @@ impl Consumer<'_> {
     }
     fn visit_query_parts(
         &mut self,
-        query: &IrQuery,
+        expression: &TypedExpr,
         chain: &[CheckedDecisionCallFrame],
         stack: &mut HashSet<crate::analysis::resolve::SymbolId>,
         calls: &[crate::analysis::scenario_disclosure::CheckedDecisionCall],
         matched: &mut HashSet<usize>,
         depth: usize,
     ) -> Option<()> {
-        checked_query(self.program, query)?;
+        let IrExpr::Query(query) = &expression.expr else { return None; };
+        if query.source.is_some() {
+            checked_query(self.program, query)?;
+        } else {
+            // A bare parent.Child domain has no Query syntax. Reuse the
+            // exact containment/type/source proof used by SemanticJoin;
+            // this carries no collection receipt or query authority.
+            checked_contained_query(self.program, self.ir, query, expression.span, &expression.ty)?;
+        }
         if let IrQueryDomain::Value { base, .. } = &query.domain {
             self.expression(base, chain, stack, calls, matched, depth + 1)?;
         }
@@ -971,8 +979,8 @@ impl Consumer<'_> {
                     return None;
                 }
             }
-            IrExpr::Query(query) => {
-                self.visit_query_parts(query, chain, stack, calls, matched, depth)?;
+            IrExpr::Query(_) => {
+                self.visit_query_parts(e, chain, stack, calls, matched, depth)?;
             }
             _ => {
                 if self.visit_compound_expr(e, chain, stack, calls, matched, depth)? {
