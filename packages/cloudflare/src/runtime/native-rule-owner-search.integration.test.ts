@@ -4034,3 +4034,142 @@ it('derives owner bounds from genuine State plans and rejects forged allowances'
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('preserves unread File-array defaults through the checked owner workflow',
+  { timeout: 180000 }, async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'can-owner-file-array-'));
+    try {
+      // Generic carrier qualification of the existing complete helper workflow;
+      // this does not stand in for CanDesk's full original declaration closure.
+      const original = await readFile(fixture('rule-owner-leading-helper-field.can'), 'utf8');
+      const source = join(directory, 'LeadingHelperFieldProbe.can');
+      const adapted = original.replace('Handoff {ticket:Ticket}', 'Handoff {ticket:Ticket,photo:file[] max=1}')
+        .replace('photo:file?=null', 'photo:Handoff.photo=[]')
+        .replace('create Handoff {ticket}', 'create Handoff {ticket,photo}');
+      const scenario = adapted.slice(adapted.indexOf(' scenario handoff('), adapted.indexOf('Then')).trimEnd();
+      const direct = scenario.replace('scenario handoff(', 'scenario handoff_direct(').replace('photo:Handoff.photo=[]', 'photo:file[]=[]');
+      const text = adapted.replace('Then', `${direct}\nThen`);
+      assert.ok(text.includes('require can_work(actor,ticket.location)'));
+      for (const [name, rejectedSource] of [
+        ['require', text.replace('require can_work(actor,ticket.location)',
+          'require can_work(actor,ticket.location) and count(photo)>0')],
+        ['helper', text.replace('When', ' derive photo_present(value:file[]):bool = count(value)>0\nWhen')
+          .replace('require can_work(actor,ticket.location)', 'require can_work(actor,ticket.location) and photo_present(photo)')],
+        ['if', text.replace('  do\n   create Handoff', '  do\n   if count(photo)>0\n    require true\n   create Handoff')],
+      ] as const) {
+        const declined = join(directory, `file-array-read-${name}.can`);
+        await writeFile(declined, rejectedSource);
+        const rejected = spawnSync(compiler,
+          ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, declined],
+          { cwd: root, encoding: 'utf8', timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+        assert.equal(rejected.error, undefined, `${name}: compiler must complete its real refusal`);
+        assert.notEqual(rejected.status, 0, `${name}: observing File input cannot use the unread-input omission`);
+        const report = JSON.parse(rejected.stdout) as { diagnostics?: { code: string }[]; artifact?: unknown; modules?: unknown };
+        assert.ok(report.diagnostics?.some(item => item.code === 'E6008'), `${name}: ${rejected.stdout}`);
+        assert.equal(report.artifact, undefined);
+        assert.equal(report.modules, undefined, `${name}: refusal must not publish a native artifact`);
+      }
+      await writeFile(source, text);
+      const { stdout } = await promisify(execFile)(compiler,
+        ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
+        { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+      const artifact = JSON.parse(stdout) as CompileArtifact;
+      for (const name of ['handoff', 'handoff_direct']) assert.ok(artifact.operations?.find(operation =>
+        operation.name === `LeadingHelperFieldProbe.${name}`)?.result?.disclosure, `${name} stays native`);
+      const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
+        stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+      for (const mode of ['default', 'empty', 'nonempty', 'direct-nonempty', 'oversize', 'foreign-file', 'unissued-file',
+        'missing-producer', 'not-array', 'inactive-helper', 'helper-at-commit'] as const) {
+        const { now, identities, identity, user, team } = await member(`file-array-${mode}`);
+        const app = 'LeadingHelperFieldProbe';
+        const scope = { app, owner: team.team_id, ownerPackage: app };
+        const authority: FileRetirementAuthority = { app, stateOwner: app, stateStoreId: 'array-state', fileStoreId: 'array-files',
+          receiver: { app, owner: team.team_id, team: team.team_id } };
+        const { store } = createTestMemoryStorage(authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({ artifact, asm, store, authority, scope, now: () => now,
+          verifyOwner: async () => { assert.ok(await identities.findTeamById(team.team_id)); } });
+        const row = (id: string, data: Record<string, unknown>) => ({ ...makeRow({ id: asId(id), data }), parent: null });
+        const ticket = row('ticket', { location: { id: 'location' }, done: false });
+        const employee = row('worker', { user: { id: user.user_id }, home: { id: 'location' }, locations: [], operator_wide: false, active: mode !== 'inactive-helper', hidden: true });
+        await store.commit(makeBatch(await store.readRevision(), { writes: [
+          { kind: 'insert', model: model(app, 'Location'), row: row('location', { label: 'Home' }) },
+          { kind: 'insert', model: model(app, 'Employee'), row: employee },
+          { kind: 'insert', model: model(app, 'Ticket'), row: ticket },
+        ] }));
+        const clock = new TestOnlyManualClock(now), blobs = new TestOnlyMemoryBlobStore();
+        const files = new TestOnlyMemoryFinalizedStore(), intents = new TestOnlyMemoryIntentStore();
+        const physical = { clock, blobs, files,
+          upload: { clock, intents, blobs, policy: DEFAULT_FILE_POLICY, intentIds: new TestOnlyCounterIntentIds(),
+            intentTtlMs: 3600000, urlBase: 'https://file-array.test' },
+          finalize: { clock, intents, blobs, files, fileIds: new TestOnlyCounterFileIds() } };
+        const retention = { unattachedHorizonMs: 3600000, retentionMs: 86400000 };
+        const observation = { policy: physical.upload.policy, retention };
+        const kernel = createFileJourneyKernel({ maxBytes: physical.upload.policy.maxBytes,
+          createIntent: input => createUploadIntent(physical.upload, input),
+          append: (id, caller, bytes, offset) => appendUploadContentAtOffset(physical.upload, id, caller, bytes, offset),
+          complete: (id, caller) => completeUploadContent(physical.upload, id, caller),
+          finalize: input => finalizeUpload(physical.finalize, input),
+          authorizeAttach: (ref, caller) => authorizeAttach(physical.finalize, ref, caller),
+          readProvenance: (ref, caller) => readFinalizedFile(physical.finalize, ref, caller),
+          recordAttachment: (ref, record, caller) => recordAttachment(physical.finalize, ref, record, caller),
+          readBytes: (ref, caller) => readFinalizedBytes(physical.finalize, ref, caller),
+          readCurrentBytes: (ref, caller, policy) => readCurrentFinalizedBytes(physical.finalize, ref, caller, { ...observation, retention: policy }),
+          readCurrentSnapshot: (ref, caller, policy) => readCurrentFinalizedSnapshot(physical.finalize, ref, caller, { ...observation, retention: policy }),
+          observeFile: (ref, caller, policy) => observeFinalizedFile(physical.finalize, ref, caller, { ...observation, retention: policy }),
+          revalidateFile: (saved, caller, policy) => revalidateRetainedFinalizedFile(physical.finalize, saved, caller, { ...observation, retention: policy }),
+        } satisfies FileJourneyBindings);
+        const receiver = { app, owner: team.team_id, team: team.team_id, principal: mode === 'foreign-file' ? 'foreign-principal' : user.user_id };
+        const bytes = new TextEncoder().encode('Private attachment content must not enter a guard result');
+        const created = createUploadIntent(physical.upload, { receiver,
+          binding: { adapter: 'deployment.web', deliveryId: 'attachment', resultPath: 'photo' },
+          request: { upload_id: 'attachment', operation: `${app}.handoff`, field: '/photo/0', arguments: {},
+            name: 'note.txt', type: 'text/plain', size: String(bytes.length) } });
+        assert.ok(created.status === 'granted');
+        assert.equal(appendUploadContentAtOffset(physical.upload, created.intentId, receiver, bytes, 0).status, 'appended');
+        assert.equal(completeUploadContent(physical.upload, created.intentId, receiver).status, 'completed');
+        const finalized = finalizeUpload(physical.finalize, { intentId: created.intentId, retryId: 'attachment', bytesDigest: sha256Hex(bytes), caller: receiver });
+        assert.ok(finalized.status === 'finalized');
+        let raced = false;
+        const commit = store.commit.bind(store);
+        store.commit = async batch => {
+          if (mode === 'helper-at-commit' && !raced && batch.writes.some(write => write.model === `${app}.Handoff`)) {
+            raced = true;
+            await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'update', model: model(app, 'Employee'),
+              id: employee.id, expectedVersion: employee.version,
+              row: { ...employee, version: asVersion(employee.version + 1), data: { ...employee.data, active: false } } }] }));
+          }
+          return commit(batch);
+        };
+        const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now,
+          ...(mode === 'missing-producer' ? {} : { files: createCanonicalFileBinding(kernel, retention) }) });
+        const photo = mode === 'unissued-file' ? [{ id: 'unissued' }] : mode === 'not-array' ? { id: finalized.result.file } :
+          mode === 'empty' ? [] : mode === 'oversize' ? [{ id: finalized.result.file }, { id: finalized.result.file }] : [{ id: finalized.result.file }];
+        const request = { operation: `${app}.${mode === 'direct-nonempty' ? 'handoff_direct' : 'handoff'}`, operation_id: operationId(now),
+          inputs: { ticket: { id: 'ticket', version: '1' },
+            ...(mode === 'default' ? {} : { photo }) } };
+        const result = await invoker.invokeMutation(request, identity);
+        const success = ['default', 'empty', 'nonempty', 'direct-nonempty'].includes(mode);
+        assert.equal('result' in result, success, `${mode}: ${JSON.stringify(result)}`);
+        assert.equal(JSON.stringify(result).includes(new TextDecoder().decode(bytes)), false);
+        const repairs = await store.query({ model: model(app, 'Handoff'), authority: 'owner' });
+        assert.equal(repairs.length, success ? 1 : 0, mode);
+        const current = await store.load(model(app, 'Ticket'), ticket.id); assert.ok(current);
+        if (success) {
+          assert.deepEqual(repairs[0]!.data.photo, mode.endsWith('nonempty') ? [{ id: finalized.result.file }] : []);
+          assert.equal(current.data.done, true);
+          assert.deepEqual(repairs[0]!.data.ticket, { id: ticket.id });
+          const revision = await store.readRevision();
+          const replay = await invoker.invokeMutation(request, identity);
+          assert.ok('result' in replay && replay.result.status === 'replayed', `${mode}: ${JSON.stringify(replay)}`);
+          assert.equal(await store.readRevision(), revision);
+          assert.deepEqual(await store.query({ model: model(app, 'Handoff'), authority: 'owner' }), repairs);
+        } else {
+          assert.deepEqual(current, ticket, `${mode}: no partial parent mutation`);
+          assert.ok('error' in result);
+          if (mode === 'inactive-helper' || mode === 'helper-at-commit') assert.equal(result.error.code, 'rule_failed');
+          if (mode === 'oversize' || mode === 'not-array') assert.equal(result.error.code, 'validation');
+        }
+        assert.equal(raced, mode === 'helper-at-commit');
+      }
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });

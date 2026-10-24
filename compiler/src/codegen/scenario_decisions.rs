@@ -2120,6 +2120,22 @@ fn serialize_require_params(
         else {
             return None;
         };
+        // Consume the original analysis proof once; never infer unreadness
+        // from absence in a lowered body or a user-supplied wire flag.
+        let unread_file = facts.unread_file_parameters.contains(id);
+        if unread_file { sources.same_scenario(ir, owner)?; }
+        let exact_unread_file_array = unread_file
+            && matches!(ty, ResolvedType::Array { element, ordered: true, nonempty: false }
+                if element.as_ref() == &ResolvedType::Scalar(Scalar::File))
+            && default_copy_source.is_none()
+            && match (default, default_node, checked.default) {
+                (None, None, None) => true,
+                (Some(IrDefault::Literal(value)), Some(node), Some(original_node)) =>
+                    *node == original_node && value.ty == *ty
+                        && matches!(&value.expr, IrExpr::Array(elements) if elements.is_empty())
+                        && value.span == Span::new(node.file, node.start, node.end),
+                _ => false,
+            };
         let exact_null_default = matches!(ty,
             ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::File)
                 || matches!(inner.as_ref(),ResolvedType::Record{symbol,stored:true}
@@ -2156,17 +2172,10 @@ fn serialize_require_params(
             || *declared_owner != owner.id
             || *declared_index != index
             || *ty != checked.ty
-            || !(default.is_none() && checked.default.is_none() || exact_null_default || exact_empty_text_array || source_value_default)
+            || !(default.is_none() && checked.default.is_none() || exact_null_default || exact_empty_text_array || source_value_default || exact_unread_file_array)
         {
             return None;
         }
-        let unread_file = matches!(ty, ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::File))
-            && checked.constraints.is_none() && default_copy_source.is_none()
-            && sources.resolved().node_binding.iter().all(|(key, binding)|
-                !matches!(binding, crate::analysis::resolve::Binding::Symbol(parameter) if *parameter == *id)
-                    || !facts.decision_sites.as_deref().unwrap_or(&[]).iter().any(|site|
-                        matches!(site.stage, Stage::LeadingRequire | Stage::BodyRequire)
-                            && key.file == site.node.file && site.node.start <= key.start && key.end <= site.node.end));
         let mut parameter = serde_json::json!({"name":item.name,"typeId":serial_type(ty,original,ir,0)?});
         if unread_file { parameter["unread"] = serde_json::json!(true); }
         parameters.push(parameter);

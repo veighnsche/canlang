@@ -4858,10 +4858,17 @@ function nativeScenarioScalarInput(loaded: LoadedCanonicalDescriptors,
 }
 function nativeScenarioStoredFileInput(def: GeneratedOperationDef,
   field: CanonicalOperationDescriptor['inputs'][number], names: ReadonlySet<string>): boolean {
-  return names.has(field.name) && field.kind === 'file' && field.valueType === 'file[]' &&
+  return names.has(field.name) && nativeScenarioFileArrayInput(def, field) &&
+    field.required === false && field.default !== undefined;
+}
+/** File arrays retain their canonical intake constraints. Source observers
+ * may omit an unread slot; they never receive its File values or authority. */
+function nativeScenarioFileArrayInput(def: GeneratedOperationDef,
+  field: CanonicalOperationDescriptor['inputs'][number]): boolean {
+  return field.kind === 'file' && field.valueType === 'file[]' &&
     def.inputArrays[field.name]?.required === false && !Object.hasOwn(def.inputNullableRefs ?? {}, field.name) &&
-    field.required === false && field.default?.kind === 'literal' &&
-    Array.isArray(field.default.value) && nativeCallArray(field.default.value, 0).length === 0;
+    (field.default === undefined || field.required === false && field.default.kind === 'literal' &&
+      Array.isArray(field.default.value) && nativeCallArray(field.default.value, 0).length === 0);
 }
 /** An authored child call supplies this exact nullable File slot explicitly.
  * State admits null alone; a non-null File still needs source-backed staging. */
@@ -13178,17 +13185,19 @@ async function runScenarioExecution(
             field.valueType ?? (field.kind === 'enum' && field.enumValues !== undefined ? `enum(${field.enumValues.join(',')})` : field.kind);
           const parsed = parseTypeId(parameter.typeId);
           if (parameter.unread) {
-            if (field.name !== parameter.name || parameter.typeId !== 'file?' ||
-                field.kind !== 'file' || field.valueType !== 'file?' || field.required !== false ||
-                field.default !== undefined && (field.default.kind !== 'literal' || field.default.value !== null) ||
-                Object.hasOwn(scenarioDef.inputArrays, field.name)) {
-              throw new AssemblyCorrespondenceError('Unread Require parameter differs from its original nullable File declaration.');
+            const array = parameter.typeId === 'file[]' && nativeScenarioFileArrayInput(scenarioDef, field);
+            if (field.name !== parameter.name || !(array ||
+                parameter.typeId === 'file?' && nativeScenarioNullableFileInput(scenarioDef, field))) {
+              throw new AssemblyCorrespondenceError('Unread Require parameter differs from its original File declaration.');
             }
             // Omitting this slot from the observer does not authenticate a
-            // supplied File. Non-null inputs still need the separately bound
+            // supplied File. Actual File values still need the separately bound
             // owning File producer; their actual uses retain its checks.
             const value = admittedParameter(parameter.name);
-            if (value !== undefined && value !== null &&
+            if (array && !Array.isArray(value)) {
+              throw new AssemblyCorrespondenceError('Unread File array requires its genuine admitted array value.');
+            }
+            if ((array ? (value as readonly unknown[]).length !== 0 : value !== undefined && value !== null) &&
                 (opts.files === undefined || nativeScenarioFiles.get(scenarioDef)?.files !== opts.files)) {
               throw new StateError('validation', 'Unread File input requires its installed owning File producer.');
             }

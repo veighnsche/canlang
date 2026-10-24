@@ -523,6 +523,9 @@ pub struct CheckedScenarioSource {
     pub unproved_helper_contained_requires: bool,
     /// Original full leading Require conditions owned by the scenario observer.
     pub(crate) source_requires: Option<Vec<CheckedDecisionSite>>,
+    /// Original File inputs omitted from every observer decision, never grants
+    /// to read/copy their values. Canonical File admission owns their uses.
+    pub(crate) unread_file_parameters: Vec<SymbolId>,
     /// Original supported query occurrences; this inventory grants no closure.
     /// Unhandled query uses still decline the executable scenario independently.
     pub queries: Option<Vec<DisclosureQuery>>,
@@ -3975,6 +3978,8 @@ impl<'a> Closure<'a> {
             decision_sites,
             unproved_helper_contained_requires,
             source_requires: self.checked_source_requires(scenario),
+            unread_file_parameters: scenario.params.iter().enumerate().filter_map(|(index, parameter)|
+                self.source_require_unread_file_input(scenario, parameter, index).then_some(parameter.param)).collect(),
             queries: self.checked_query_sources(scenario),
             transcripts: self.checked_transcript_sources(scenario),
             inline_selections: self.checked_inline_selection_sources(scenario),
@@ -14333,11 +14338,10 @@ impl<'a> Closure<'a> {
             )
     }
 
-    /// An unrelated original nullable File input remains with its File
-    /// assignment path. Check every Require expression for a binding to that
-    /// parameter so the observer can omit it entirely, without reading or
-    /// copying either a supplied File or its implicit/literal null default.
-    fn source_require_unread_nullable_file_input(
+    /// An unread original nullable File or ordered File array stays with its
+    /// canonical File assignment path. Its exact declaration/default remains
+    /// checked, but no observer receives or copies the File values.
+    fn source_require_unread_file_input(
         &self,
         scenario: &super::effects::ScenarioData,
         parameter: &super::effects::ParamData,
@@ -14349,35 +14353,67 @@ impl<'a> Closure<'a> {
         let SymbolKind::Param { owner, index: declared, type_node } = symbol.kind else {
             return false;
         };
-        let Some(ResolvedType::Nullable(inner)) = self.types.symbol_types.get(&parameter.param) else {
-            return false;
-        };
-        if owner != scenario.scenario || symbol.module != scenario.module || declared != index
-            || type_node != parameter.type_node
-            || inner.as_ref() != &ResolvedType::Scalar(Scalar::File)
-            || self.types.value_constraints.contains_key(&parameter.param)
-            || self.types.field_reuse_sources.contains_key(&parameter.param)
+        let Some(resolved) = self.types.symbol_types.get(&parameter.param) else { return false; };
+        let nullable = matches!(resolved, ResolvedType::Nullable(inner)
+            if inner.as_ref() == &ResolvedType::Scalar(Scalar::File));
+        let array = matches!(resolved, ResolvedType::Array { element, ordered: true, nonempty: false }
+            if element.as_ref() == &ResolvedType::Scalar(Scalar::File));
+        if (!nullable && !array) || owner != scenario.scenario || symbol.module != scenario.module
+            || declared != index || type_node != parameter.type_node
         {
             return false;
         }
         let Some(ty) = self.nodes.get(&parameter.type_node) else { return false; };
-        let mut named = ty.children.iter().filter(|child| child.kind == SyntaxKind::NamedType);
-        let Some(named_type) = named.next() else { return false; };
-        if ty.kind != SyntaxKind::NullableType || named.next().is_some()
-            || !self.direct_builtin_parameter_type(NodeKey::of(named_type), Scalar::File) {
-            return false;
+        if nullable {
+            // Preserve the original singular nullable File profile.
+            let mut named = ty.children.iter().filter(|child| child.kind == SyntaxKind::NamedType);
+            let Some(named_type) = named.next() else { return false; };
+            if ty.kind != SyntaxKind::NullableType || named.next().is_some()
+                || !self.direct_builtin_parameter_type(NodeKey::of(named_type), Scalar::File)
+                || self.types.value_constraints.contains_key(&parameter.param)
+                || self.types.field_reuse_sources.contains_key(&parameter.param)
+            {
+                return false;
+            }
+        } else if let Some(field) = self.types.field_reuse_sources.get(&parameter.param) {
+            // Reuse retains the declared field's File-array identity and all
+            // inherited bounds. Canonical admission still validates those bounds.
+            let Some(path) = ty.children.iter().find(|child| child.kind == SyntaxKind::Path) else { return false; };
+            if ty.kind != SyntaxKind::NamedType
+                || !matches!(self.resolve.node_typeref.get(&NodeKey::of(path)),
+                    Some(TypeRef::FieldChain { fields, .. }) if fields.as_slice() == [*field])
+                || self.types.symbol_types.get(field) != Some(resolved)
+                || !matches!(self.resolve.symbols.get(field.0 as usize).map(|source| &source.kind),
+                    Some(SymbolKind::Field { .. }))
+            {
+                return false;
+            }
+        } else {
+            let mut named = ty.children.iter().filter(|child| child.kind == SyntaxKind::NamedType);
+            let Some(named_type) = named.next() else { return false; };
+            if ty.kind != SyntaxKind::ArrayType || named.next().is_some()
+                || !self.direct_builtin_parameter_type(NodeKey::of(named_type), Scalar::File)
+            {
+                return false;
+            }
         }
         if let Some(default) = parameter.default {
             let Some(literal) = self.nodes.get(&default) else { return false; };
-            if default.file != scenario.node.file || literal.kind != SyntaxKind::Literal
-                || self.word(literal) != Some("null")
-                || self.types.node_types.get(&default) != Some(&ResolvedType::Null) {
+            if !self.source_anchor(scenario, default) || if nullable {
+                literal.kind != SyntaxKind::Literal || self.word(literal) != Some("null")
+                    || self.types.node_types.get(&default) != Some(&ResolvedType::Null)
+            } else {
+                literal.kind != SyntaxKind::Array
+                    || literal.children.iter().any(|child| expression(child.kind))
+                    || self.types.node_types.get(&default) != Some(resolved)
+            } {
                 return false;
             }
         }
         let Some(sites) = self.checked_decision_sites(scenario) else { return false; };
         let mut pending = sites.into_iter()
-            .filter(|site| matches!(site.stage, CheckedDecisionStage::LeadingRequire | CheckedDecisionStage::BodyRequire))
+            .filter(|site| matches!(site.stage, CheckedDecisionStage::LeadingRequire
+                | CheckedDecisionStage::BodyRequire | CheckedDecisionStage::BodyCondition))
             .map(|site| site.node).collect::<Vec<_>>();
         let mut visited = 0usize;
         while let Some(key) = pending.pop() {
@@ -14456,7 +14492,7 @@ impl<'a> Closure<'a> {
                         && !self.source_require_owned_enum_formal(param)))
                 && !self.source_require_optional_primitive_input(param)
                 && !self.source_require_value_parameter(scenario, param)
-                && !self.source_require_unread_nullable_file_input(scenario, param, index)
+                && !self.source_require_unread_file_input(scenario, param, index)
                 && !self.source_require_null_model_input(scenario, param, index)
 
         }) && scenario
