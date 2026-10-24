@@ -14,7 +14,7 @@ Then
   list Job
    progress row.used max=row.reserved
    loading row.unfinished
-   tooltip "Send <message>"@{nl="Bericht verzenden"}
+   tooltip "Send < message >"@{nl="Bericht verzenden"}
     require row.visible
     form Profile.create
      range amount
@@ -83,7 +83,7 @@ const render=()=>entry.appDefinition.pages[0].render(context,{});
 let html=await render();assert.equal(queries,1);assert.equal(preparations,1);assert.deepEqual(trace,['prepare','amount','graph']);
 assert.equal(reads.filter(name=>name==='used').length,1);assert.equal(reads.filter(name=>name==='reserved').length,1);
 assert(html.includes('<progress')&&html.includes('value="5" max="10"')&&html.includes('50%'));
-assert(html.includes('loading-spinner')&&html.includes('data-tip="Send &lt;message&gt;"')&&html.includes('tabindex="0"'));
+assert(html.includes('loading-spinner')&&html.includes('data-tip="Send &lt; message &gt;"')&&html.includes('tabindex="0"'));
 assert(html.includes('type="range"')&&html.includes('min="1" max="10"')&&html.includes('value="4"'));
 assert(html.includes('type="file"')&&html.includes('name="inputs[graph]"'));
 assert.equal((html.match(/name="inputs\[amount\]"/g)||[]).length,1);assert.equal((html.match(/name="inputs\[graph\]"/g)||[]).length,1);
@@ -118,7 +118,7 @@ fn unsupported_leaf_units_owners_headers_and_suites_keep_refusal() {
         ("progress-body", SOURCE.replace("progress row.used max=row.reserved", "progress row.used max=row.reserved\n    text \"body\"")),
         ("loading-value", SOURCE.replace("loading row.unfinished", "loading row.reserved")),
         ("loading-body", SOURCE.replace("loading row.unfinished", "loading row.unfinished\n    text \"body\"")),
-        ("tooltip-empty", SOURCE.replace("   tooltip \"Send <message>\"@{nl=\"Bericht verzenden\"}\n    require row.visible\n    form Profile.create\n     range amount\n     file_input graph", "   tooltip \"Empty\"")),
+        ("tooltip-empty", SOURCE.replace("   tooltip \"Send < message >\"@{nl=\"Bericht verzenden\"}\n    require row.visible\n    form Profile.create\n     range amount\n     file_input graph", "   tooltip \"Empty\"")),
         ("range-foreign", SOURCE.replace("range amount", "range graph")),
         ("file-foreign", SOURCE.replace("file_input graph", "file_input amount")),
         ("unowned", SOURCE.replace(" page /placeholder title=\"Placeholder\"\n  loading", " page /placeholder title=\"Placeholder\"\n  range amount")),
