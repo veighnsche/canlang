@@ -27,8 +27,8 @@ type RetainedCohortBody = Awaited<ReturnType<typeof createCanonicalDueCohortBody
 const RETAINED_CHILD_QUERY_BUDGET = 200;
 const INSTALLED_SLICE_LIMIT = RETAINED_CHILD_QUERY_BUDGET / 2;
 
-/** One selected team, one bounded slice; no owner discovery or global store. */
-export async function createBoundCohortTick(input: {
+/** One selected team; every driver keeps the same trusted owner boundary. */
+interface OwnerTickInput {
   readonly artifact: CompileArtifact;
   readonly asm: AssembledModules;
   readonly identities: IdentityStore;
@@ -37,7 +37,20 @@ export async function createBoundCohortTick(input: {
   readonly now: () => number;
   readonly deploymentBase?: string;
   readonly files?: CanonicalFileBinding;
-}): Promise<CohortTickBinding> {
+}
+
+/** One selected team, one bounded slice; no owner discovery or global store. */
+export function createBoundCohortTick(input: OwnerTickInput): Promise<CohortTickBinding> {
+  return createBoundOwnerTick(input);
+}
+
+/** Ordinary retained handlers do not acquire scheduled/cohort admission. */
+export function createBoundRetainedHandlerTick(input: OwnerTickInput & { readonly event: string }): Promise<CohortTickBinding> {
+  if (typeof input.event !== 'string' || input.event === '') throw new Error('Retained handler tick requires its selected event.');
+  return createBoundOwnerTick(input, input.event);
+}
+
+async function createBoundOwnerTick(input: OwnerTickInput, retainedEvent?: string): Promise<CohortTickBinding> {
   const { artifact, asm, identities, ownerStorage, files, now: clock } = input;
   const scope = Object.freeze({ ...input.scope });
   const deploymentBase = input.deploymentBase === undefined ? undefined : validateDeploymentBase(input.deploymentBase);
@@ -88,11 +101,14 @@ export async function createBoundCohortTick(input: {
 
   const drainRetainedOccurrences = async (store: TrustedOwnerStore, now: number): Promise<unknown[]> => {
     const outputs: unknown[] = [];
-    const routes = await store.query(handlerOccurrencePendingQuery(scope, { cursor: null, limit: 1 }));
+    const query = handlerOccurrencePendingQuery(scope, { cursor: null, limit: 1 });
+    const routes = await store.query(retainedEvent === undefined ? query : { ...query,
+      where: { op: 'and', args: [...query.where === undefined ? [] : [query.where],
+        { op: 'eq', field: 'event', value: retainedEvent }] } });
     for (const row of routes) {
       const route = readHandlerOccurrenceRow(row);
       outputs.push(await invokeRetainedHandlerOccurrenceCanonical({ artifact, asm, app: scope.app,
-        selector: { sourceOccurrence: route.sourceOccurrence, handler: route.handler, event: route.event, scope,
+        ownerStorage, selector: { sourceOccurrence: route.sourceOccurrence, handler: route.handler, event: route.event, scope,
           ...(route.filePayloadOrigin === undefined ? {} : { filePayloadOrigin: route.filePayloadOrigin }) },
         store, identities, now: () => now, ...(deploymentBase === undefined ? {} : { deploymentBase }),
         ...(files === undefined ? {} : { files }) }));
@@ -132,6 +148,7 @@ export async function createBoundCohortTick(input: {
     const now = clock();
     // This boundary performs actual current Identity resolution before any State read.
     const { store } = await ownerStorage.forTrustedScope(scope, now);
+    if (retainedEvent !== undefined) return drainRetainedOccurrences(store, now);
     const outputs: unknown[] = [
       ...await drainDueSchedules(store, now),
       ...await drainRetainedOccurrences(store, now),

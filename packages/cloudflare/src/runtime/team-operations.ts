@@ -10,7 +10,7 @@ import type { AssembledModules } from './modules.js';
 import { AssemblyCorrespondenceError, importVerifiedAssemblyModule,
   verifyAssemblerModuleCapability } from './assembly-verification.js';
 import { systemTeamRoles } from './mcp-registry.js';
-import { createCanonicalIdentityRemovalSource } from './invoke.js';
+import { createCanonicalIdentityRemovalSource, systemTeamOperationNamespace, SYSTEM_TEAM_SOURCE_ADAPTER } from './invoke.js';
 
 interface TeamContext { readonly resolveCaller: () => Promise<ResolvedIdentity> }
 interface CallerScope { readonly principal: string; readonly team: string }
@@ -166,7 +166,7 @@ export async function createSystemTeamInvoker(opts: TeamOptions) {
       const scope: CallerScope = { principal, team };
       await currentOwner(scope, context);
       const { roles, removalHandlers, assertStable } = await checkedSource();
-      const namespace = JSON.stringify(['system.team/v1', opts.app, team, principal, operation]);
+      const namespace = systemTeamOperationNamespace(opts.app, team, principal, operation);
       const result = (value: unknown, replayed: boolean): MutationResult => ({
         status: replayed ? 'replayed' : 'committed', operation_id: operationId as MutationEnvelope['operation_id'],
         records: [], deliveries: [], result: value,
@@ -237,7 +237,7 @@ export async function createSystemTeamInvoker(opts: TeamOptions) {
         try {
           selectedEntry.source ??= await createCanonicalIdentityRemovalSource({ ...opts,
             ownerStorage: opts.ownerStorage!, scope: { app: opts.app, ownerPackage: opts.app, owner: team },
-            binding: { namespace, team, owner: team, adapter: 'installed-system-team-tools/v1' },
+            binding: { namespace, team, owner: team, adapter: SYSTEM_TEAM_SOURCE_ADAPTER },
             originalRequest: original, resolveCaller: () => {
               if (selectedEntry.resolver === undefined) throw new IdentityError('forbidden', 'Removal command credentials are no longer active.');
               return selectedEntry.resolver();

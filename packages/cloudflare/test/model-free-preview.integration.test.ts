@@ -99,7 +99,7 @@ it('starts a source-current native model-free preview through actual global D1 a
 }, 120000);
 
 
-it('stages the genuine removed-member handler once through canonical HTTP, retry and owner D1 reopen', async () => {
+it('recovers and executes the genuine removed-member handler once across interrupted handoff and owner D1 reopen', async () => {
   const nativeImport = compileFunction('return import(url)', ['url'], {
     importModuleDynamically: constants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
   }) as (url: string) => Promise<unknown>;
@@ -134,7 +134,7 @@ it('stages the genuine removed-member handler once through canonical HTTP, retry
       d1: { binding: 'DB', availability: 'real_local' }, identity: { backingBinding: 'DB', availability: 'real_local' } } }, origin),
       CAN_FORM_BINDING_KEY: randomBytes(32).toString('base64url'),
       CAN_STATE_OWNERS: { version: 1, owners: owners.map(owner => ({ owner: owner.owner, binding: owner.binding, initializeFresh: true })) } };
-    const start = () => hosts.startLocalDev({ workerName, compatibilityDate: '2026-07-15',
+    const start = (resourceRecovery = false) => hosts.startLocalDev({ workerName, resourceRecovery, compatibilityDate: '2026-07-15',
       mainModule: evidence.bundle.mainModule, modules: evidence.bundle.modules, binaryModules: evidence.bundle.binaries,
       d1Databases: [{ binding: 'DB', id: databaseId }, ...owners.map(owner => ({ binding: owner.binding, id: owner.id }))],
       d1Persist: persistence, vars });
@@ -243,11 +243,32 @@ it('stages the genuine removed-member handler once through canonical HTTP, retry
     const repinned = await remove(); expect(repinned.status).toBe(403);
     expect(await snapshot()).toEqual(saved);
     await ownerDb.prepare('UPDATE state_owner_pin SET owner=? WHERE id=1').bind(owner.team_id).run();
-    await worker.dispose(); worker = await start();
+    await worker.dispose(); worker = await start(true);
     identityDb = await worker.getD1Database('DB'); ownerDb = await worker.getD1Database(selected.binding);
+    // The existing installed scheduled entry must restore the genuine source
+    // and execute the retained handler without a user retry installing it first.
+    const deadline = Date.now() + 15_000;
+    let completed: Array<{ data: string }> = [];
+    while (Date.now() < deadline) {
+      completed = (await ownerDb.prepare('SELECT data FROM records WHERE model=?')
+        .bind('NativeIdentityRemoval.Removal').all<{ data: string }>()).results;
+      if (completed.length === 1) break;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    expect(completed).toHaveLength(1);
+    expect(JSON.parse(completed[0]!.data)).toEqual({ subject: { id: target.user_id },
+      team: owner.team_id, membership: target.membership_id });
+    const terminal = await snapshot();
+    expect(terminal.removal).toEqual(saved.removal); expect(terminal.member).toEqual(saved.member);
+    expect(terminal.work.filter(row => row.model === 'work.occurrence' && row.id === original.event_id)).toEqual(
+      saved.work.filter(row => row.model === 'work.occurrence'));
+    expect(terminal.work.filter(row => row.model === 'work.handler_occurrence').map(row => JSON.parse(row.data))).toEqual([
+      expect.objectContaining({ state: 'completed', sourceOccurrence: original.event_id, handler: 'NativeIdentityRemoval.observed' })]);
     const reopened = await remove(); expect(reopened.status, await reopened.clone().text()).toBe(200);
     expect(await reopened.json()).toMatchObject({ status: 'replayed' });
-    expect(await snapshot()).toEqual(saved);
+    expect(await snapshot()).toEqual(terminal);
+    expect((await ownerDb.prepare('SELECT data FROM records WHERE model=?')
+      .bind('NativeIdentityRemoval.Removal').all()).results).toEqual(completed);
     expect(await native.captureIsCurrent(capture)).toBe(true);
   } finally {
     await worker?.dispose(); await provision?.dispose(); await gateway?.close();

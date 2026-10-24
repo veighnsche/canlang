@@ -1015,7 +1015,27 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
     async function loadCohortTickers() {
       const queueHandlers = new Set((staged.artifact.runtimeBindings ?? []).flatMap(binding => binding.kind === 'queue' ? binding.handlers : []));
       const needsTick = cohortRequirement !== undefined || staged.artifact.callables.some(callable => callable.kind === 'handler' && !queueHandlers.has(callable.id));
-      if (!staged.verdict.active || !needsTick || ownerStorage === undefined || scope === undefined) return undefined;
+      if (!staged.verdict.active || !needsTick || ownerStorage === undefined) return undefined;
+      if (deps.stateTeams !== undefined) {
+        // These explicit host routes already passed the team-owner handler
+        // census. Retained work keeps its own original team on every turn.
+        const create = await loadSiblingFn<typeof import('../runtime/cohort-tick.js').createBoundRetainedHandlerTick>(
+          '../runtime/cohort-tick.js', 'runtime/cohort-tick.ts', 'createBoundRetainedHandlerTick');
+        const tickers: CohortTickBinding[] = [];
+        for (const route of deps.stateTeams) {
+          tickers.push(await create({ artifact: staged.artifact, asm: staged.modules, event: 'teams.member_removed',
+            identities: deps.identityStore as IdentityStore, ownerStorage,
+            scope: { app: ownerStorage.app, owner: route.owner, ownerPackage: ownerStorage.app }, now: Date.now,
+            ...(files?.canonical === undefined ? {} : { files: files.canonical }),
+            ...(deploymentBase === undefined ? {} : { deploymentBase }) }));
+        }
+        return Object.freeze({ version: 1 as const, async tick() {
+          const results: unknown[] = [];
+          for (const ticker of tickers) results.push(await ticker.tick());
+          return results;
+        } });
+      }
+      if (scope === undefined) return undefined;
       return (await getCohortTickFactory())({ artifact: staged.artifact, asm: staged.modules,
         identities: deps.identityStore as IdentityStore, ownerStorage, scope, now: Date.now,
         ...(files?.canonical === undefined ? {} : { files: files.canonical }),

@@ -124,7 +124,7 @@ import type {
   UniqueRelease,
   WorkScope,
 } from "@canlang/contracts";
-import { DELIVERY_RESULT_LEAVES } from "@canlang/contracts";
+import { DELIVERY_RESULT_LEAVES, SYSTEM_TEAM_TOOL_NAMES } from "@canlang/contracts";
 import { parse as parseJavaScript } from 'acorn';
 import { receiverFromIdentity } from '@canlang/interfaces';
 import type { AsyncGuardEvaluator, attemptDispatchAsync } from "@canlang/work/dispatch";
@@ -16290,6 +16290,16 @@ const nativeIdentityRemovalCalls = new WeakMap<object, NativeIdentityRemovalSour
 const nativeDeclaredEventCalls = new WeakSet<object>();
 const nativeRetainedGuardedCalls = new WeakSet<object>();
 const nativeStandardCompletionCalls = new WeakMap<object, CheckedStandardCompletion>();
+
+/** Installed local team-command identity, shared by issuance and cold recovery. */
+export function systemTeamOperationNamespace(app: string, team: string, principal: string, operation: string): string {
+  if (![app, team, principal].every(value => typeof value === 'string' && value !== '') ||
+      !(SYSTEM_TEAM_TOOL_NAMES as readonly string[]).includes(operation)) {
+    throw new AssemblyCorrespondenceError('Team command requires its exact installed app, owner, principal and operation.');
+  }
+  return JSON.stringify(['system.team/v1', app, team, principal, operation]);
+}
+export const SYSTEM_TEAM_SOURCE_ADAPTER = 'installed-system-team-tools/v1';
 function nativeIdentityRemovalSource(asm: AssembledModules, artifact: CompileArtifact,
   store: StoragePort, identities: IdentityStore, occurrence: string, scope: import('@canlang/contracts').WorkScope) {
   const source = nativeIdentityRemovalSources.get(asm)?.get(artifact)?.get(store)?.get(occurrence);
@@ -16668,6 +16678,56 @@ export async function createCanonicalIdentityRemovalSource(opts: {
       }
     },
   });
+}
+
+/** Saved JSON selects an original; only Identity's exact reader establishes it.
+ * This local restoration cannot replace a configured signed-ingress verifier. */
+async function restoreNativeIdentityRemovalSource(opts: CanonicalRetainedHandlerOccurrenceOpts): Promise<void> {
+  const { selector, ownerStorage } = opts;
+  if (ownerStorage === undefined || ownerStorage.app !== opts.app ||
+      (await ownerStorage.forTrustedScope(selector.scope, opts.now())).store !== opts.store) {
+    throw new AssemblyCorrespondenceError('Removal recovery requires its actual installed physical owner.');
+  }
+  const tables = await loadProducerModule('@canlang/work/kernel/tables', 'retained removal source recovery');
+  const model = requireProducerString(tables, 'WORK_OCCURRENCE_MODEL', 'retained removal source recovery') as ModelName;
+  const readRow = requireProducerFn(tables, 'readOccurrenceRow', 'retained removal source recovery') as
+    typeof import('@canlang/work/kernel/tables').readOccurrenceRow;
+  const row = await opts.store.load(model, selector.sourceOccurrence as RecordId);
+  if (row === null || row.archivedAt !== null) throw new AssemblyCorrespondenceError('Removal recovery lost its original source receipt.');
+  const receipt = readRow(row), saved = localPolicyObject(receipt.result, ['kind', 'event', 'scope', 'envelope', 'handlers']);
+  if (Object.keys(saved).length !== 5 || receipt.status !== 'completed' || receipt.code !== null || receipt.message !== null ||
+      receipt.occurrenceId !== selector.sourceOccurrence || saved.kind !== 'identity-removal-source' ||
+      saved.event !== 'teams.member_removed' || stableStringify(saved.scope) !== stableStringify(selector.scope)) {
+    throw new AssemblyCorrespondenceError('Removal recovery requires its original local source receipt.');
+  }
+  const envelope = localPolicyObject(saved.envelope);
+  const removal = localPolicyObject(envelope.membershipRemoval);
+  const subject = localPolicyObject(removal.user), remover = localPolicyObject(envelope.removedBy);
+  if (envelope.producerEventId !== selector.sourceOccurrence || envelope.operationKind !== 'teams.member_removed' ||
+      envelope.deliveryId !== null || removal.team_id !== selector.scope.owner || subject.kind !== 'user' || remover.kind !== 'user' ||
+      typeof subject.id !== 'string' || subject.id === '' || typeof remover.id !== 'string' || remover.id === '' ||
+      typeof envelope.operationId !== 'string' || envelope.operationId === '') {
+    throw new AssemblyCorrespondenceError('Removal recovery selectors differ from their installed source.');
+  }
+  const namespace = systemTeamOperationNamespace(opts.app, selector.scope.owner, remover.id, 'system.team.remove');
+  if (envelope.namespace !== namespace) throw new AssemblyCorrespondenceError('Removal recovery namespace differs from its installed local adapter.');
+  const originalRequest = { namespace, operationId: envelope.operationId, team_id: selector.scope.owner,
+    member_user_id: subject.id, removed_by: remover.id };
+  const read = opts.identities.readMemberRemovalOccurrence;
+  if (typeof read !== 'function') throw new AssemblyCorrespondenceError('Removal recovery requires its original SELECT-only Identity reader.');
+  const original = await read.call(opts.identities, originalRequest);
+  if (original === null || stableStringify(original) !== stableStringify(envelope)) {
+    throw new AssemblyCorrespondenceError('Removal recovery has no matching original Identity occurrence.');
+  }
+  const source = await createCanonicalIdentityRemovalSource({ asm: opts.asm, artifact: opts.artifact, app: opts.app,
+    identities: opts.identities, ownerStorage, scope: selector.scope,
+    binding: { namespace, team: selector.scope.owner, owner: selector.scope.owner, adapter: SYSTEM_TEAM_SOURCE_ADAPTER },
+    originalRequest, now: opts.now,
+    resolveCaller: async () => { throw new AssemblyCorrespondenceError('Retained removal recovery cannot issue a command.'); },
+    ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }) });
+  // recover associates the genuine original before reading the already-present
+  // Work source. Its replay branch validates every route without rewriting it.
+  await source.recover();
 }
 
 async function readNativeIdentityRemovalSource(opts: Pick<CanonicalRetainedHandlerOccurrenceOpts, 'asm' | 'artifact' | 'identities'>,
@@ -17765,6 +17825,8 @@ export interface CanonicalRetainedHandlerOccurrenceOpts {
   readonly createRecordAllocator?: (operation: string, operationId: string) => Promise<(model: string, index: number) => string>;
   readonly store: StoragePort;
   readonly identities: IdentityStore;
+  /** Actual installed team boundary, required only to restore a cold local removal source. */
+  readonly ownerStorage?: import('../worker/assembly.js').TeamOwnerStorageBoundary;
   readonly now: () => number;
   readonly files?: CanonicalFileBinding;
 }
@@ -17825,6 +17887,9 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
   const removal = selector.event === 'teams.member_removed';
   const queue = opts.artifact.runtimeBindings?.some(binding => binding.kind === 'queue' && binding.binding === selector.event) === true;
   const sourceKind = removal || queue ? 'ingress' : 'schedule';
+  if (removal && nativeIdentityRemovalSources.get(opts.asm)?.get(opts.artifact)?.get(opts.store)?.get(selector.sourceOccurrence) === undefined) {
+    await restoreNativeIdentityRemovalSource(opts);
+  }
   const originalRemoval = removal ? nativeIdentityRemovalSource(opts.asm, opts.artifact, opts.store,
     opts.identities, selector.sourceOccurrence, selector.scope) : undefined;
   const readConsumed = () => {
