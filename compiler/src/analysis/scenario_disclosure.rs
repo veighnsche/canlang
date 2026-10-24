@@ -15340,144 +15340,28 @@ impl<'a> Closure<'a> {
                 && !self.source_require_contained_collection(scenario, call, "any")
     }
 
-    /// A duplicate veto may be one negative conjunct of the original
-    /// Require. Positive ANY, OR and negated compound forms confer no key
-    /// observation; the whole source guard still preserves short-circuiting.
-    fn source_require_negative_conjunct(&self,condition:NodeKey,call:NodeKey,depth:usize)->bool {
-        if depth>32{return false;}
-        let Some(condition)=self.query_group(condition)else{return false;};
-        if let Some((left,right))=self.query_binary(condition,"and") {
-            return self.source_require_negative_conjunct(left,call,depth+1)
-                ||self.source_require_negative_conjunct(right,call,depth+1);
-        }
-        let Some(node)=self.nodes.get(&condition)else{return false;};
-        node.kind==SyntaxKind::Unary&&node.children.iter().any(|child|self.word(child)==Some("not"))
-            &&node.children.iter().filter(|child|expression(child.kind)).map(NodeKey::of).collect::<Vec<_>>()==[call]
-    }
-
-    /// The authored pre-CREATE duplicate check may inspect one declared
-    /// unique Text or original admitted Model identity key. The following
-    /// CREATE in that same lexical arm must claim this exact key; no sibling
-    /// arm or general global collection receives authority.
-    fn source_require_unique_any(
+    /// A whole source observer may scan the actual declared global Model.
+    /// The existing owner observer retains the complete control domain;
+    /// this proves neither a unique-key lookup nor an ordinary DATA grant.
+    /// Call/query/alias and predicate correspondence remain checked by
+    /// source_require_any_attrs; an equal element type proves no domain.
+    fn source_require_global_model_domain(
         &self,
-        scenario: &super::effects::ScenarioData,
         call: &CheckedDecisionCall,
         query: &super::types::CheckedQuery,
-        alias: &super::types::CheckedQueryClause,
-        predicate: NodeKey,
         model: SymbolId,
-    ) -> Option<()> {
-        if !call.chain.is_empty()
-            || self.resolve.symbols.get(model.0 as usize)?.module != scenario.module
-            || !matches!(self.query_binding(query.domain),Some(Binding::Symbol(actual)) if *actual==model)
-        {
-            return None;
-        }
-        fn guard_tail<'b>(closure:&Closure<'_>,body:&'b [Effect],call:NodeKey,depth:usize)
-            ->Option<(&'b Effect,&'b [Effect])> {
-            if depth>=64{return None;}
-            for (index,effect) in body.iter().enumerate(){
-                if effect.verb==EffectVerb::Require && effect.cond.is_some_and(|condition|
-                    closure.source_require_negative_conjunct(condition,call,0)) {
-                    return Some((effect,&body[index+1..]));
-                }
-                if effect.verb==EffectVerb::If&&effect.match_arms.is_empty(){
-                    // The true arm claims exactly the key whose absence was
-                    // observed. A sibling/else CREATE cannot establish it.
-                    if effect.else_effects.is_empty() && matches!(effect.then_effects.as_slice(),[create] if create.verb==EffectVerb::Create && create.when.is_none()
-                            &&create.then_effects.is_empty()&&create.else_effects.is_empty()&&create.match_arms.is_empty())
-                        && effect.cond.is_some_and(|condition|closure.source_require_negative_conjunct(condition,call,0)) {
-                        return Some((effect,effect.then_effects.as_slice()));
-                    }
-                    if let Some(found)=guard_tail(closure,&effect.then_effects,call,depth+1){return Some(found);}
-                    if let Some(found)=guard_tail(closure,&effect.else_effects,call,depth+1){return Some(found);}
-                }
-            }
-            None
-        }
-        let (guard,tail)=scenario.guards.iter().find(|effect|effect.verb==EffectVerb::Require
-            && effect.cond.is_some_and(|condition|self.source_require_negative_conjunct(condition,call.node,0)))
-            .map(|guard|(guard,scenario.effects.as_slice()))
-            .or_else(||guard_tail(self,&scenario.effects,call.node,0))?;
-        let (left, right) = self.query_binary(predicate, "==")?;
-        let field = self.query_member(left, alias.node, model)?;
-        let declaration = self
-            .effects
-            .models
-            .get(&model)?
-            .fields
-            .iter()
-            .find(|item| item.field == field)?;
-        let field_ty=self.types.symbol_types.get(&field)?;
-        let expected=match field_ty {
-            ResolvedType::Scalar(Scalar::Text)=>field_ty,
-            ResolvedType::Record{stored:true,..}=>field_ty,
-            ResolvedType::Nullable(inner) if matches!(inner.as_ref(),ResolvedType::Record{stored:true,..})=>inner.as_ref(),
-            _=>return None,
-        };
-        if declaration.default.is_some()
-            || declaration.server.is_some()
-            || !declaration
-                .modifiers
-                .iter()
-                .any(|modifier| modifier.name == "unique" && modifier.value.is_none())
-        {
-            return None;
-        }
-        let input = |key: NodeKey| -> Option<(SymbolId, Option<SymbolId>, bool)> {
-            let key = self.query_group(key)?;
-            let (key, trimmed) = if let Some(call) = self.types.selected_calls.get(&key) {
-                if *expected!=ResolvedType::Scalar(Scalar::Text)
-                    || !matches!(&call.target,SelectedCallTarget::Builtin{id,overload:0} if id=="trim")
-                    || call.arguments.len() != 1
-                    || call.slots.as_slice() != [Some(0)]
-                {
-                    return None;
-                }
-                (self.query_group(call.arguments[0])?, true)
-            } else {
-                (key, false)
-            };
-            if *expected==ResolvedType::Scalar(Scalar::Text) && let Some((root,name))=self.count_member(key) {
-                let Binding::Symbol(parameter)=self.query_binding(root)? else{return None;};
-                let parameter_data=scenario.params.iter().find(|input|input.param==*parameter&&input.default.is_none())?;
-                let ResolvedType::Record{symbol:source,stored:true}=self.types.symbol_types.get(&parameter_data.param)? else{return None;};
-                if self.types.node_types.get(&root)!=self.types.symbol_types.get(parameter)
-                    ||self.types.node_types.get(&key)!=Some(expected){return None;}
-                let source_model=self.effects.models.get(source)?;
-                let source_field=source_model.fields.iter().find(|field|
-                    self.resolve.symbols.get(field.field.0 as usize).is_some_and(|field|field.name==name))?;
-                if source_field.server.is_some() || source_field.default.is_some()
-                    ||self.types.symbol_types.get(&source_field.field)!=Some(expected){return None;}
-                return Some((*parameter,Some(source_field.field),trimmed));
-            }
-            let Binding::Symbol(parameter) = self.query_binding(key)? else {
-                return None;
-            };
-            let parameter_data=scenario.params.iter().find(|input|input.param==*parameter)?;
-            let admitted=if let ResolvedType::Record{symbol:target,stored:true}=expected {
-                self.types.node_types.get(&key)==Some(expected) &&
-                    (parameter_data.default.is_none()&&self.types.symbol_types.get(parameter)==Some(expected)
-                        ||self.narrowed_model_input(key,scenario.module)==Some((*parameter,*target)))
-            }else{
-                parameter_data.default.is_none()&&self.types.symbol_types.get(parameter)==Some(expected)
-            };
-            admitted.then_some((*parameter,None,trimmed))
-        };
-        let value = input(right)?;
-        let guarded_end=if guard.verb==EffectVerb::If{guard.cond?.end}else{guard.node.end};
-        let found=tail.iter().any(|effect| {
-                effect.node.file == guard.node.file
-                    && effect.node.start >= guarded_end
-                    && effect.verb == EffectVerb::Create
-                    && matches!(effect.target,Some(EffectTarget::Model(actual)) if actual==model)
-                    && effect.args.iter().any(|argument| {
-                        argument.key == self.resolve.symbols[field.0 as usize].name
-                            && input(argument.value.unwrap_or(argument.key_node)) == Some(value)
-                    })
-            });
-        found.then_some(())
+    ) -> bool {
+        let Some(domain) = self.query_group(query.domain) else { return false; };
+        self.nodes.get(&domain).is_some_and(|node| node.kind == SyntaxKind::NameRef)
+            && matches!(self.query_binding(domain), Some(Binding::Symbol(actual)) if *actual == model)
+            && self.resolve.symbols.get(model.0 as usize)
+                .is_some_and(|symbol| symbol.id == model && matches!(symbol.kind, SymbolKind::Model { .. }))
+            && matches!(&query.domain_type, ResolvedType::Array { element, ordered: true, nonempty: false }
+                if element.as_ref() == &ResolvedType::Record { symbol: model, stored: true })
+            && self.types.node_types.get(&query.domain) == Some(&query.domain_type)
+            && self.types.node_types.get(&domain) == Some(&query.domain_type)
+            && self.source(call.module, query.domain).is_ok()
+            && self.source(call.module, domain).is_ok()
     }
 
     fn source_require_any_call(
@@ -15530,10 +15414,8 @@ impl<'a> Closure<'a> {
             if self
                 .source_require_contained_any(scenario, query, fact.model)
                 .is_none()
+                && !self.source_require_global_model_domain(call, query, fact.model)
                 && !self.source_require_reference_query(scenario, call, query)
-                && self
-                    .source_require_unique_any(scenario, call, query, alias, *predicate, fact.model)
-                    .is_none()
                 && !self.source_require_contained_collection(scenario, call, "any")
             {
                 *supported = false;
@@ -15569,9 +15451,7 @@ impl<'a> Closure<'a> {
                 *supported = false;
                 return Some(false);
             }
-        } else if domain_node.kind != SyntaxKind::NameRef
-            || !matches!(self.query_binding(query.domain), Some(Binding::Symbol(model)) if *model == fact.model)
-        {
+        } else if !self.source_require_global_model_domain(call, query, fact.model) {
             *supported = false;
             return Some(false);
         }

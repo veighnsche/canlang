@@ -7681,7 +7681,7 @@ export async function executeScenarioReceiptRentNoticeDecision(call: AdmittedCal
 /** The private due Invoice may read its own complete balance ledger, despite
  * having no viewer actor. The authored Require and SEND use this one frozen
  * source-stage graph; the committed intent retains the original true Rule. */
-/** Borrow only this complete root predicate domain. Source-policy collections
+/** Borrow only this complete Model predicate domain. Source-policy collections
  * retain id order and exclude archives; final authority sees the actual final
  * owning overlay while the original query guard retains its intermediate rows. */
 function predicateControlDomain(model: ModelName, domain: readonly StoredRow[], maxRows: number,
@@ -7694,7 +7694,7 @@ function predicateControlDomain(model: ModelName, domain: readonly StoredRow[], 
       if (write.kind === 'remove') rows.delete(write.id);
       else rows.set(write.row.id, write.row);
     }
-    const selected = [...rows.values()].filter(row => row.archivedAt === null && row.parent == null);
+    const selected = [...rows.values()].filter(row => row.archivedAt === null);
     if (selected.length > maxRows) throw new StateError('validation', 'Source predicate domain exceeds its owning row bound.');
     selected.sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
     assertHealthy(); return Object.freeze(selected);
@@ -9611,11 +9611,13 @@ async function observeStoredFileAuthority(call: AdmittedCall, store: StoragePort
     teamId = call.context.team?.teamId ?? null;
   const membership = actorUserId === null || teamId === null ? null : await reader.findMembership(teamId, actorUserId); healthy();
   const context: ByContext = { actorUserId, teamId, membership, memberships: reader };
-  const project = async (current: StoredRow, observed: ByContext, load: (model: ModelName, id: RecordId) => Promise<StoredRow | null>, assertHealthy: () => void) => {
+  const policyDomains = ownerPolicyDomains(owner, healthy);
+  const project = async (current: StoredRow, observed: ByContext, load: (model: ModelName, id: RecordId) => Promise<StoredRow | null>,
+    assertHealthy: () => void, policyQuery = policyDomains.capture) => {
     try {
       return await projectInstalledSourceRowAndAncestors({ model: dependency.model, row: current,
         readPolicies: source.readPolicies!, policy: source.policy, context: observed, revision: call.revision,
-        fence: undefined, store, rows: new Map([[`${dependency.model}\0${current.id}`, current]]), ownerRows: { read: load, assertHealthy } });
+        fence: undefined, store, rows: new Map([[`${dependency.model}\0${current.id}`, current]]), ownerRows: { read: load, assertHealthy, policyQuery } });
     } catch (error) {
       if (error instanceof FenceConflictError) throw new StateError('conflict', 'Stored File source moved beyond its checkpoint.');
       throw error;
@@ -9654,7 +9656,8 @@ async function observeStoredFileAuthority(call: AdmittedCall, store: StoragePort
     };
     const current = await load(dependency.model, row.id);
     if (current === null || !sameModelLifetime(row, current)) throw new StateError('forbidden', 'Original stored File row lifetime changed.');
-    const projected = await observeRowGrantAuthority(context, observed => project(current, observed, load, finalHealthy));
+    const projected = await observeRowGrantAuthority(context, observed => project(current, observed, load, finalHealthy,
+      policyDomains.retained(finalHealthy, final.writes)));
     finalHealthy();
     if (!readable(current, projected.value)) throw new StateError('forbidden', 'Original whole stored File authority changed before commit.');
     await projected.revalidate(); await revalidate(); finalHealthy(); return true;

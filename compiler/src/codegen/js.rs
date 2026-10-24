@@ -1726,6 +1726,7 @@ fn emit_program_with_sources(
     if let Some(membership) = decisions.membership {
         emitter.membership_calls = membership.calls(ir).cloned().unwrap_or_default();
         emitter.membership_sites = Some(&membership.sites);
+        emitter.membership_rules = membership.rules(ir).cloned().unwrap_or_default();
         emitter.membership_predicates = membership.predicates(ir).cloned().unwrap_or_default();
     }
     if native_receipts {
@@ -4005,6 +4006,8 @@ pub struct Emitter<'a> {
     query_capture: Option<NativeQuerySource>,
     membership_calls: HashMap<Span, serde_json::Value>,
     membership_sites: Option<&'a BTreeMap<String, serde_json::Value>>,
+    membership_rules: HashMap<String, serde_json::Value>,
+    membership_rule_sites: Option<serde_json::Value>,
     membership_predicates: HashMap<Span, serde_json::Value>,
     /// Checked membership occurrences this lowering bound to the State
     /// producer (exact checked source + selected call closure). Their
@@ -4263,6 +4266,8 @@ impl<'a> Emitter<'a> {
             query_capture: None,
             membership_calls: HashMap::new(),
             membership_sites: None,
+            membership_rules: HashMap::new(),
+            membership_rule_sites: None,
             membership_predicates: HashMap::new(),
             membership_bound: Vec::new(),
             boolean_sources: HashMap::new(),
@@ -9176,16 +9181,23 @@ fn conjunct_dependency_matches<'d>(
         ))
     }
 
+    fn membership_decision_sites(&self) -> Option<&Vec<serde_json::Value>> {
+        if let Some(identity) = &self.source_require_identity {
+            identity["sites"].as_array()
+        } else {
+            self.membership_rule_sites.as_ref()?.as_array()
+        }
+    }
+
     /// Each source-Require invocation keeps its original helper call chain.
     /// Sharing an emitted helper function would lose which of two calls owns
     /// the same physical active_member node in that guard.
     fn lower_source_require_derive(&mut self,canonical:&str,parts:&[String],span:Span,await_result:bool)->Option<String> {
         // Dedicated owner interpreters retain their existing checked helper
         // variants and domain markers. This is the generic observer route.
-        if !self.generic_boolean_body {return None;}
-        let identity=self.source_require_identity.as_ref()?;
-        let calls=identity["sites"].as_array()?.first()?["calls"].as_array()?;
-        let mut matching=calls.iter().filter(|call|call["target"]["kind"]=="derive"
+        if !self.generic_boolean_body && self.membership_rule_sites.is_none() {return None;}
+        let sites=self.membership_decision_sites()?;
+        let mut matching=sites.iter().filter_map(|site|site["calls"].as_array()).flatten().filter(|call|call["target"]["kind"]=="derive"
             && call["target"]["name"]==canonical && call["node"]["start"].as_u64()==Some(span.start as u64)
             && call["node"]["end"].as_u64()==Some(span.end as u64)
             && call["chain"].as_array()==Some(&self.source_require_calls));
@@ -9210,14 +9222,16 @@ fn conjunct_dependency_matches<'d>(
         at: Span,
         physical: &serde_json::Value,
     ) -> Result<Option<serde_json::Value>, ()> {
-        if let Some(identity)=&self.source_require_identity {
-            let calls=identity["sites"].as_array().and_then(|sites|sites.first()).and_then(|site|site["calls"].as_array()).ok_or(())?;
-            let mut matching=calls.iter().enumerate().filter(|(_,call)|call["target"]["kind"]=="builtin"
+        if self.source_require_identity.is_some() || self.membership_rule_sites.is_some() {
+            let sites=self.membership_decision_sites().ok_or(())?;
+            let mut matching=sites.iter().enumerate().filter_map(|(site_index,site)|site["calls"].as_array().map(|calls|(site_index,calls)))
+                .flat_map(|(site_index,calls)|calls.iter().enumerate().map(move |(call_index,call)|(site_index,call_index,call)))
+                .filter(|(_,_,call)|call["target"]["kind"]=="builtin"
                 && call["target"]["id"]=="active_member" && call["source"]==physical["source"] && call["node"]==physical["node"]
                 && call["chain"].as_array()==Some(&self.source_require_calls));
-            let (index,_)=matching.next().ok_or(())?;
+            let (site_index,index,_)=matching.next().ok_or(())?;
             if matching.next().is_some() {return Err(());}
-            let mut marker=physical.clone();marker["sourceCall"]=serde_json::json!({"siteIndex":0,"callIndex":index});
+            let mut marker=physical.clone();marker["sourceCall"]=serde_json::json!({"siteIndex":site_index,"callIndex":index});
             return Ok(Some(marker));
         }
         let Some(capture) = &self.query_capture else {
@@ -19752,7 +19766,16 @@ impl<'a> Emitter<'a> {
                             )
                             .is_some()
                         });
+                // A policy keeps its ordinary read lifetime and query mode;
+                // only helper membership occurrences borrow its sealed census.
+                let previous_sites = self.membership_rule_sites.take();
+                if matches!(member, "read" | "callbackRead") {
+                    self.membership_rule_sites = self.membership_rules.get(&rule.id).cloned();
+                }
+                let previous_calls = std::mem::take(&mut self.source_require_calls);
                 let body = self.lower_rule_fn(&rule.pred);
+                self.source_require_calls = previous_calls;
+                self.membership_rule_sites = previous_sites;
                 self.boolean_body = false;
                 format!("{}:{}", js_string(&rule.id), body)
             })

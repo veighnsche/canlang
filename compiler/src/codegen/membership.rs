@@ -15,6 +15,7 @@ use super::ir::IrProgram;
 pub(super) struct MembershipSources {
     calls: HashMap<Span, serde_json::Value>,
     predicates: HashMap<Span, serde_json::Value>,
+    rules: HashMap<String, serde_json::Value>,
     pub sites: BTreeMap<String, serde_json::Value>,
     closure: String,
 }
@@ -35,6 +36,9 @@ fn closure(ir: &IrProgram) -> String {
 }
 
 impl MembershipSources {
+    pub fn rules(&self, ir: &IrProgram) -> Option<&HashMap<String, serde_json::Value>> {
+        (self.closure == closure(ir)).then_some(&self.rules)
+    }
     pub fn calls(&self, ir: &IrProgram) -> Option<&HashMap<Span, serde_json::Value>> {
         (self.closure == closure(ir)).then_some(&self.calls)
     }
@@ -165,6 +169,7 @@ fn collect_membership_sites(
     context: &super::source_context::FreshSourceContext<'_>,
     ir: &IrProgram,
     program: &CheckedProgram,
+    rules: &mut HashMap<String, serde_json::Value>,
 ) -> Option<BTreeMap<String, serde_json::Value>> {
     let mut sites = BTreeMap::new();
     for item in &ir.items {
@@ -228,7 +233,11 @@ fn collect_membership_sites(
                     if id == "active_member")
             })) {
                 let owner = source.first()?.owner.clone();
-                if sites.insert(owner, serde_json::to_value(source).ok()?).is_some() {
+                let source = serde_json::to_value(source).ok()?;
+                if rules.insert(rule.id.clone(), source.clone()).is_some() {
+                    return None;
+                }
+                if sites.insert(owner, source).is_some() {
                     return None;
                 }
         }
@@ -317,7 +326,8 @@ pub(super) fn prepare_with_context(
     if membership_diagnostics_overlap(context, &calls) {
         return None;
     }
-    let mut sites = collect_membership_sites(context, ir, program)?;
+    let mut rules = HashMap::new();
+    let mut sites = collect_membership_sites(context, ir, program, &mut rules)?;
     let (predicates, extra) = collect_membership_predicates(context, db)?;
     for (owner, source) in extra {
         if sites.insert(owner, source).is_some() {
@@ -327,6 +337,7 @@ pub(super) fn prepare_with_context(
     Some(MembershipSources {
         calls,
         predicates,
+        rules,
         sites,
         closure: closure(ir),
     })

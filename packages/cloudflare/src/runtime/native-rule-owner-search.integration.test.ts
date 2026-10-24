@@ -4828,3 +4828,146 @@ it('executes original Success review and reassign item Work with exact revisions
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+/** Selected original bodies: no application guard or policy is rewritten. */
+async function globalAnyFixture(kind: 'Customer' | 'Expense', directory: string) {
+  const original = await readFile(join(root, `draft/apps/Can${kind}/Can${kind}.can`), 'utf8');
+  const one = (prefix: string) => { const values = original.split('\n').filter(line => line.startsWith('  ' + prefix));
+    assert.equal(values.length, 1, prefix); return values[0]!; };
+  const operation = (name: string) => { const start = original.indexOf(`  ${kind === 'Customer' ? 'export ' : ''}scenario ${name}(`);
+    assert.ok(start >= 0); return original.slice(start, original.indexOf('   examples', start)).trimEnd(); };
+  let text: string;
+  if (kind === 'Customer') text = ['app CanCustomer uses=[customer]', 'package customer', ' use rent_catalog {Location}',
+    ' use employee {can_work}', ' Given', one('role customer_manager '), one('message label_Alias_to_customer ='),
+    '  export Customer {name:text,kind:enum(individual,company),locations:Location[],active:bool=true}', one('export Alias {'),
+    one('derive customer_staff('), one('policy Customer read=customer_manager'), one('policy Alias read='), one('invariant Alias:'), one('lock Alias '),
+    ' When', operation('alias'), ' Then', ''].join('\n');
+  else { const base = await readFile(join(root, 'compiler/tests/fixtures/expense-submit-original.can'), 'utf8');
+    text = base.slice(0, base.indexOf('\n When')) + '\n' + [one('Reimbursement in '), one('policy Reimbursement read='),
+      one('lock Reimbursement '), ' When', operation('correct'), operation('reimburse'), ' Then', ''].join('\n'); }
+  const source = join(directory, `${kind}.can`); await writeFile(source, text);
+  const { stdout } = await promisify(execFile)(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog,
+    source, join(root, 'draft/shared/Employees.can'), join(root, 'draft/shared/Locations.can')],
+    { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+  const artifact = JSON.parse(stdout) as CompileArtifact;
+  const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: join(directory, 'modules'),
+    stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+  return { artifact, asm };
+}
+const globalAnyRow = (id: string, data: Record<string, unknown>, parent: StoredRow['parent'] = null): StoredRow => ({ ...makeRow({ id: asId(id), data }), parent });
+const globalAnyEmployee = (user: string, home = 'site') => ({ user: { id: user }, home: { id: home }, locations: [],
+  active: true, operator_wide: false, start: '2026-01-01', end: null, role: 'Operator', skills: [], name: null, manager: null, private_notes: null, document: null });
+const globalAnySite = (id: string) => globalAnyRow(id, { name: id, address: 'Example', timezone: 'UTC', currency: 'EUR', hours: 'Open', arrival: 'Door', active: true });
+
+it('qualifies the original customer Alias global ANY against hidden rows and commit contention', { timeout: 240000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-alias-global-any-'));
+  try {
+    const { artifact, asm } = await globalAnyFixture('Customer', directory);
+    for (const mode of ['allowed', 'unrelated', 'hidden-alias', 'stale', 'nonmember', 'missing-role', 'foreign-location', 'competing-insert']) {
+      const { now, identities, team, user, membership, identity } = await member(`alias-any-${mode}`, mode === 'missing-role' ? [] : ['customer.customer_manager']);
+      const store = createMemoryStorage();
+      const source = globalAnyRow('source', { name: 'Source', kind: 'company', locations: [{ id: 'site' }], active: true });
+      const target = globalAnyRow('target', { ...source.data, name: 'Target', locations: [{ id: mode === 'foreign-location' ? 'other' : 'site' }] });
+      const hidden = globalAnyRow('hidden', { ...source.data, locations: [{ id: 'other' }] });
+      const unrelated = globalAnyRow('unrelated', { ...source.data });
+      const alias = globalAnyRow('existing', { from_customer: { id: mode === 'unrelated' ? unrelated.id : source.id },
+        to_customer: { id: hidden.id }, reason: 'PRIVATE-ALIAS-REASON', approved_by: { id: user.user_id } });
+      await store.commit(makeBatch(await store.readRevision(), { writes: [
+        ...['site', 'other'].map(id => ({ kind: 'insert' as const, model: asModel('rent_catalog.Location'), row: globalAnySite(id) })),
+        { kind: 'insert', model: asModel('employee.Employee'), row: globalAnyRow('worker', globalAnyEmployee(user.user_id)) },
+        ...[source, target, hidden, unrelated].map(row => ({ kind: 'insert' as const, model: asModel('customer.Customer'), row })),
+        ...(['hidden-alias', 'unrelated'].includes(mode) ? [{ kind: 'insert' as const, model: asModel('customer.Alias'), row: alias }] : []),
+      ] }));
+      if (mode === 'nonmember') await identities.removeMembership(membership.membership_id);
+      const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+      if (mode === 'hidden-alias') { const read = await invoker.invokeRead({ operation: 'customer.Alias.read', inputs: {} }, identity);
+        assert.ok('result' in read, mode + ': ' + JSON.stringify(read)); assert.equal((read.result as { records: unknown[] }).records.length, 0); }
+      const commit = store.commit.bind(store); let injected = false;
+      if (mode === 'competing-insert') store.commit = async batch => {
+        if (!injected && batch.writes.some(write => write.model === 'customer.Alias')) { injected = true;
+          await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'insert', model: asModel('customer.Alias'), row: alias }] })); }
+        return commit(batch);
+      };
+      const request = { operation: 'customer.alias', operation_id: operationId(now), inputs: {
+        source: { id: source.id, version: mode === 'stale' ? '2' : '1' }, target: { id: target.id, version: '1' }, reason: 'Reviewed alias' } };
+      const outcome = await invoker.invokeMutation(request, identity);
+      assert.equal(JSON.stringify(outcome).includes('PRIVATE-ALIAS-REASON'), false);
+      const rows = await store.query({ model: asModel('customer.Alias'), authority: 'owner' });
+      if (mode === 'allowed' || mode === 'unrelated') {
+        assert.ok('result' in outcome, mode + ': ' + JSON.stringify(outcome)); assert.equal(outcome.result.status, 'committed');
+        const created = rows.find(row => row.id !== alias.id)!; assert.ok(created);
+        assert.deepEqual(created.data, { from_customer: { id: source.id }, to_customer: { id: target.id }, reason: 'Reviewed alias', approved_by: { id: user.user_id } });
+        const before = structuredClone(rows);
+        const replay = await invoker.invokeMutation(request, identity); assert.ok('result' in replay); assert.equal(replay.result.status, 'replayed');
+        assert.deepEqual(await store.query({ model: asModel('customer.Alias'), authority: 'owner' }), before);
+      } else { assert.ok('error' in outcome, mode + ': ' + JSON.stringify(outcome));
+        assert.equal(rows.length, ['hidden-alias', 'competing-insert'].includes(mode) ? 1 : 0, mode);
+        if (mode === 'competing-insert') { assert.equal(injected, true); assert.equal(rows[0]!.id, alias.id); } }
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+it('qualifies original Expense correction and reimbursement global ANY with finalized receipt preservation', { timeout: 240000 }, async () => {
+ const directory=await mkdtemp(join(tmpdir(),'can-expense-global-any-'));
+ try{
+  const {artifact,asm}=await globalAnyFixture('Expense',directory);
+  for(const mode of ['correct-allowed','correct-existing','correct-competing','reimburse-allowed','reimburse-hidden-reference','reimburse-unrelated','reimburse-missing-role']){
+   const correct=mode.startsWith('correct'),name=correct?'correct':'reimburse';
+   const {now,identities,team,user,identity}=await member('expense-any-'+mode,mode==='reimburse-missing-role'?[]:['expense.finance']);
+   const otherUser=await identities.createUser({email:'other-'+mode+'@expense.test',password_hash:'unused',email_verified:true});
+   await identities.createMembership({team_id:team.team_id,user_id:otherUser.user_id,is_owner:false,roles:[]});
+   const scope={app:'CanExpense',owner:team.team_id,ownerPackage:'expense'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'expense-any-state',fileStoreId:'expense-any-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+   const {store,probe}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+   await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+   const clock=new TestOnlyManualClock(now),blobs=new TestOnlyMemoryBlobStore(),files=new TestOnlyMemoryFinalizedStore(),intents=new TestOnlyMemoryIntentStore();
+   const physical={clock,blobs,files,upload:{clock,intents,blobs,policy:DEFAULT_FILE_POLICY,intentIds:new TestOnlyCounterIntentIds(),intentTtlMs:3600000,urlBase:'https://expense.test'},finalize:{clock,intents,blobs,files,fileIds:new TestOnlyCounterFileIds()}};
+   const retention={unattachedHorizonMs:3600000,retentionMs:86400000},observation={policy:physical.upload.policy,retention};
+   const kernel=createFileJourneyKernel({maxBytes:physical.upload.policy.maxBytes,createIntent:input=>createUploadIntent(physical.upload,input),append:(id,caller,bytes,offset)=>appendUploadContentAtOffset(physical.upload,id,caller,bytes,offset),complete:(id,caller)=>completeUploadContent(physical.upload,id,caller),finalize:input=>finalizeUpload(physical.finalize,input),authorizeAttach:(ref,caller)=>authorizeAttach(physical.finalize,ref,caller),readProvenance:(ref,caller)=>readFinalizedFile(physical.finalize,ref,caller),recordAttachment:(ref,record,caller)=>recordAttachment(physical.finalize,ref,record,caller),readBytes:(ref,caller)=>readFinalizedBytes(physical.finalize,ref,caller),readCurrentBytes:(ref,caller,policy)=>readCurrentFinalizedBytes(physical.finalize,ref,caller,{...observation,retention:policy}),readCurrentSnapshot:(ref,caller,policy)=>readCurrentFinalizedSnapshot(physical.finalize,ref,caller,{...observation,retention:policy}),observeFile:(ref,caller,policy)=>observeFinalizedFile(physical.finalize,ref,caller,{...observation,retention:policy}),revalidateFile:(saved,caller,policy)=>revalidateRetainedFinalizedFile(physical.finalize,saved,caller,{...observation,retention:policy})} satisfies FileJourneyBindings);
+   const receiver={app:scope.app,owner:team.team_id,team:team.team_id,principal:user.user_id},bytes=new TextEncoder().encode('Exact original receipt');
+   const intent=createUploadIntent(physical.upload,{receiver,binding:{adapter:'deployment.web',deliveryId:'receipt',resultPath:'receipt'},request:{upload_id:'receipt',operation:'expense.correct',field:'/receipt',arguments:{},name:'receipt.txt',type:'text/plain',size:String(bytes.length)}});assert.ok(intent.status==='granted');
+   assert.equal(appendUploadContentAtOffset(physical.upload,intent.intentId,receiver,bytes,0).status,'appended');assert.equal(completeUploadContent(physical.upload,intent.intentId,receiver).status,'completed');
+   const finalized=finalizeUpload(physical.finalize,{intentId:intent.intentId,retryId:'receipt',bytesDigest:sha256Hex(bytes),caller:receiver});assert.ok(finalized.status==='finalized');
+
+   const amount={minor:'2500',currency:'EUR'},claimant=globalAnyRow('claimant',globalAnyEmployee(user.user_id)),otherEmployee=globalAnyRow('other-worker',globalAnyEmployee(otherUser.user_id,'other'));
+   const expense=globalAnyRow('expense',{location:{id:'site'},corrects:null,authorization:'Approved travel',purpose:'Travel',category:'Travel',amount,business_date:'2026-10-01',receipt:{id:finalized.result.file},reviewer:{id:otherUser.user_id},status:correct?'rejected':'approved',submission:'1',withdrawal:null,decision:'Original decision',decided_by:{id:otherUser.user_id},decided_at:new Date(now-1000).toISOString()},{model:asModel('employee.Employee'),id:claimant.id});
+   const foreign=globalAnyRow('foreign-expense',{...expense.data,location:{id:'other'},status:'approved'},{model:asModel('employee.Employee'),id:otherEmployee.id});
+   const replacement=globalAnyRow('existing-correction',{...expense.data,corrects:{id:expense.id},status:'draft',decision:null,decided_by:null,decided_at:null},expense.parent);
+   const payment=globalAnyRow('existing-payment',{amount,reference:mode==='reimburse-unrelated'?'other-reference':'bank-new',paid:'2026-10-01',reason:'PRIVATE-PAYMENT-EVIDENCE',recorded_by:{id:otherUser.user_id}},{model:asModel('expense.Expense'),id:foreign.id});
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    ...['site','other'].map(id=>({kind:'insert' as const,model:asModel('rent_catalog.Location'),row:globalAnySite(id)})),
+    ...[claimant,otherEmployee].map(row=>({kind:'insert' as const,model:asModel('employee.Employee'),row})),
+    ...[expense,foreign,...(mode==='correct-existing'?[replacement]:[])].map(row=>({kind:'insert' as const,model:asModel('expense.Expense'),row})),
+    ...(['reimburse-hidden-reference','reimburse-unrelated'].includes(mode)?[{kind:'insert' as const,model:asModel('expense.Reimbursement'),row:payment}]:[])
+   ]}));
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now,files:createCanonicalFileBinding(kernel,retention)});
+   if(mode==='reimburse-hidden-reference'){
+    const read=await invoker.invokeRead({operation:'expense.Reimbursement.read',inputs:{}},identity);assert.ok('result'in read,mode+': '+JSON.stringify(read));assert.equal((read.result as {records:unknown[]}).records.length,0);
+   }
+   const snapshot=async()=>({expenses:await store.query({model:asModel('expense.Expense'),authority:'owner',order:[{field:'id',direction:'asc'}]}),payments:await store.query({model:asModel('expense.Reimbursement'),authority:'owner',order:[{field:'id',direction:'asc'}]}),outbox:probe.outboxAll()});
+   const before=await snapshot(),commit=store.commit.bind(store);let injected=false;
+   if(mode==='correct-competing')store.commit=async batch=>{
+    if(!injected&&batch.writes.some(write=>write.kind==='insert'&&write.model==='expense.Expense')){injected=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:asModel('expense.Expense'),row:replacement}]}));}
+    return commit(batch);
+   };
+   const request={operation:'expense.'+name,operation_id:operationId(now),inputs:{expense:{id:expense.id,version:'1'},...(correct?{}:{amount,reference:' bank-new ',paid:new Date(now).toISOString().slice(0,10),reason:'Statement evidence'})}};
+   const result=await invoker.invokeMutation(request,identity),allowed=mode.endsWith('-allowed')||mode==='reimburse-unrelated';
+   assert.equal('result'in result,allowed,mode+': '+JSON.stringify(result));assert.equal(JSON.stringify(result).includes('PRIVATE-PAYMENT-EVIDENCE'),false);
+   if(allowed){
+    assert.ok('result'in result);assert.equal(result.result.status,'committed');
+    const after=await snapshot();
+    if(correct){
+     assert.deepEqual(await store.load(asModel('expense.Expense'),expense.id),expense,'correction never edits the original rejected claim');
+     const created=after.expenses.find(row=>row.id!==expense.id&&row.id!==foreign.id)!;assert.ok(created);
+     assert.deepEqual(created.data.receipt,expense.data.receipt);assert.deepEqual(created.data.corrects,{id:expense.id});assert.equal(created.data.status,'draft');assert.equal(created.data.submission,'1');assert.deepEqual(created.data.amount,amount);
+     const retained=await readCurrentFinalizedBytes(physical.finalize,finalized.result.file,receiver,observation);assert.ok(retained,'actual finalized receipt remains accessible after clone');assert.deepEqual(retained,bytes);
+    }else{
+     assert.equal((await store.load(asModel('expense.Expense'),expense.id))?.data.status,'reimbursed');
+     const created=after.payments.find(row=>row.id!==payment.id)!;assert.ok(created);assert.deepEqual(created.parent,{model:asModel('expense.Expense'),id:expense.id});assert.equal(created.data.reference,'bank-new');assert.deepEqual(created.data.recorded_by,{id:user.user_id});
+    }
+    const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');assert.deepEqual(await snapshot(),after);
+   }else if(mode==='correct-competing'){
+    assert.equal(injected,true);assert.deepEqual(await store.load(asModel('expense.Expense'),expense.id),expense);assert.equal((await snapshot()).expenses.length,before.expenses.length+1);assert.ok(await store.load(asModel('expense.Expense'),replacement.id));
+   }else assert.deepEqual(await snapshot(),before,mode+': original guards reject without mutation');
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});
