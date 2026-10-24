@@ -1,4 +1,4 @@
-/** Model-free only: actual native artifact, installed producer, D1 and HTTP consumer. */
+/** Actual native artifacts, installed producers, D1 and HTTP/MCP consumers. */
 import { resolve, join } from 'node:path';
 import { compileFunction, constants } from 'node:vm';
 import { randomBytes, randomUUID } from 'node:crypto';
@@ -6,7 +6,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { expect, it } from 'vitest';
-import { deriveCsrfToken } from '@canlang/identity';
+import { createD1IdentityStore, ensureIdentitySchema, hashPassword, deriveCsrfToken } from '@canlang/identity';
+import type { D1Database } from '@cloudflare/workers-types';
 import { distribution as valuesDistribution } from '@canlang/values/distribution';
 import { prepareLocalPreviewCapture } from '../src/runtime/native-dev.test-support.js';
 import { captureIsCurrent, captureSingleFileSource } from '../src/runtime/native-dev.test-support.js';
@@ -99,7 +100,49 @@ it('starts a source-current native model-free preview through actual global D1 a
 }, 120000);
 
 
-it('recovers and executes the genuine removed-member handler once across interrupted handoff and owner D1 reopen', async () => {
+function operationIdAt(ms: number): string {
+  const time = ms.toString(16).padStart(12, '0'), random = randomBytes(10).toString('hex');
+  return `${time.slice(0,8)}-${time.slice(8)}-7${random.slice(0,3)}-8${random.slice(4,7)}-${random.slice(7,19)}`;
+}
+
+/** Genuine historical records/receipts, with current transport authentication. */
+async function historicalTeam(db: D1Database) {
+  await ensureIdentitySchema(db);
+  const at = Date.now() - 8 * 24 * 3600_000;
+  const store = createD1IdentityStore(db, { clock: { nowMs: () => at } });
+  const password = 'Historical team integration password';
+  const password_hash = await hashPassword(password);
+  const [ava, ben, eve, rae, cal] = await Promise.all(['ava', 'ben', 'eve', 'rae', 'cal'].map(name =>
+    store.createUser({ email: `${name}@historical.example`, password_hash, email_verified: true })));
+  const cedar = await store.createTeam({ timezone: 'UTC' }), oak = await store.createTeam({ timezone: 'UTC' });
+  for (const [user, team, owner] of [[ava!, cedar, true], [eve!, cedar, true], [ben!, cedar, false],
+    [rae!, cedar, false], [cal!, oak, true]] as const) {
+    await store.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: owner, roles: [] });
+  }
+  const namespace = (operation: string) => JSON.stringify(['system.team/v1', 'NativeIdentityRemoval', cedar.team_id, ava!.user_id, operation]);
+  const role = { namespace: namespace('system.team.role'), operationId: operationIdAt(at),
+    team_id: cedar.team_id, member_user_id: rae!.user_id, granted_by: ava!.user_id, role: 'owner' };
+  const originalRole = await store.changeMemberRoleWithReceipt!(role);
+  await store.changeMemberRoleWithReceipt!({ ...role, operationId: operationIdAt(at), role: '-owner' });
+  const invitations = [];
+  for (const state of ['pending', 'unknown'] as const) {
+    const input = { namespace: namespace('system.team.invite'), operationId: operationIdAt(at), team_id: cedar.team_id,
+      email: `${state}@historical.example`, role: 'owner', invited_by: ava!.user_id };
+    const receipt = await store.createInvitationWithReceipt!(input, { inviteBaseUrl: 'https://historical.example/auth/invite' });
+    if (state === 'unknown') await store.claimInvitationMail!(input);
+    invitations.push({ input, receipt, state });
+  }
+  const removal = { namespace: namespace('system.team.remove'), operationId: operationIdAt(at),
+    team_id: cedar.team_id, member_user_id: ben!.user_id, removed_by: ava!.user_id };
+  await store.removeMemberWithOccurrence!(removal);
+  return { actors: [{ label: 'Ava', email: ava!.email, password }],
+    owners: [{ owner: cedar.team_id, binding: 'CEDAR' }, { owner: oak.team_id, binding: 'OAK' }],
+    role, originalRole, invitations, removal, coOwner: eve!.user_id, at };
+}
+
+for (const retained of [false, true]) it(retained
+  ? 'replays genuine expired team receipts through HTTP and MCP and recovers their original removal handoff'
+  : 'recovers and executes the genuine removed-member handler once across interrupted handoff and owner D1 reopen', async () => {
   const nativeImport = compileFunction('return import(url)', ['url'], {
     importModuleDynamically: constants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
   }) as (url: string) => Promise<unknown>;
@@ -125,7 +168,8 @@ it('recovers and executes the genuine removed-member handler once across interru
     provision = await hosts.startLocalDev({ workerName: `${workerName}-seed`, compatibilityDate: '2026-07-15',
       mainModule: 'seed.js', modules: { 'seed.js': 'export default {fetch(){return new Response(null,{status:404})}};' },
       d1Databases: [{ binding: 'DB', id: databaseId }], d1Persist: persistence });
-    const seeded = await hosts.seedLocalPreviewActors(await provision.getD1Database('DB'));
+    const historical = retained ? await historicalTeam(await provision.getD1Database('DB')) : undefined;
+    const seeded = historical ?? await hosts.seedLocalPreviewActors(await provision.getD1Database('DB'));
     await provision.dispose(); provision = undefined;
     const owners = seeded.owners.map(owner => ({ ...owner, id: `removal-owner-${randomUUID()}` }));
     gateway = await hosts.startNativeGateway();
@@ -150,8 +194,11 @@ it('recovers and executes the genuine removed-member handler once across interru
     expect(owner).toBeDefined();
     if (owner === undefined) throw new Error('Real seeded owner is unavailable.');
     const credentials = seeded.actors.find(actor => actor.email === owner.email)!;
-    const target = await identityDb.prepare("SELECT membership_id,user_id FROM identity_memberships WHERE team_id=? AND user_id<>? AND status='active' AND is_owner=0 ORDER BY user_id LIMIT 1")
-      .bind(owner.team_id, owner.user_id).first<{ membership_id: string; user_id: string }>();
+    const target = historical === undefined
+      ? await identityDb.prepare("SELECT membership_id,user_id FROM identity_memberships WHERE team_id=? AND user_id<>? AND status='active' AND is_owner=0 ORDER BY user_id LIMIT 1")
+        .bind(owner.team_id, owner.user_id).first<{ membership_id: string; user_id: string }>()
+      : await identityDb.prepare('SELECT membership_id,user_id FROM identity_memberships WHERE team_id=? AND user_id=?')
+        .bind(owner.team_id, historical.removal.member_user_id).first<{ membership_id: string; user_id: string }>();
     expect(target).not.toBeNull();
     if (target === null) throw new Error('Real seeded team member is unavailable.');
     const selected = owners.find(item => item.owner === owner.team_id); expect(selected).toBeDefined();
@@ -192,8 +239,77 @@ it('recovers and executes the genuine removed-member handler once across interru
     const session = cookies.get('can_session'); expect(session).toBeDefined();
     const csrf = await deriveCsrfToken(decodeURIComponent(session!));
     expect((await request('/auth/select-team', { team: owner.team_id, _csrf: csrf }, csrf)).status).toBe(200);
-    const now = Date.now().toString(16).padStart(12, '0'), random = randomBytes(10).toString('hex');
-    const operationId = `${now.slice(0,8)}-${now.slice(8)}-7${random.slice(0,3)}-8${random.slice(4,7)}-${random.slice(7,19)}`;
+    let retainedMcp: ((operation: string, id: string, inputs: Record<string, unknown>) => Promise<{
+      error?: unknown; result?: { isError?: boolean; structuredContent?: unknown };
+    }>) | undefined;
+    if (historical !== undefined) {
+      const grantResponse = await request('/mcp/grants', { client_id: 'expired-team-consumer' }, csrf);
+      expect(grantResponse.status).toBe(200);
+      const grant = await grantResponse.json() as { token: string };
+      const http = (operation: string, id: string, inputs: Record<string, unknown>) =>
+        request(`/api/operations/system.team.${operation}`, { operation_id: id, inputs }, csrf);
+      const mcp = async (operation: string, id: string, inputs: Record<string, unknown>) => {
+        const response = await worker!.dispatchUrl(new URL('/mcp', origin).href, { method: 'POST',
+          headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${grant.token}` },
+          body: JSON.stringify({ jsonrpc: '2.0', id: randomUUID(), method: 'tools/call',
+            params: { name: `system.team.${operation}`, arguments: { operation_id: id, ...inputs } } }) });
+        expect(response.status).toBe(200);
+        return await response.json() as { error?: unknown; result?: { isError?: boolean; structuredContent?: unknown } };
+      };
+      retainedMcp = mcp;
+      const identityTables = ['identity_users', 'identity_memberships', 'identity_invitations', 'identity_sessions',
+        'identity_mcp_grants', 'identity_member_removals', 'identity_team_mutations', 'identity_invitation_mail'];
+      const stateTables = ['records', 'fence', 'fence_log', 'receipts', 'history', 'outbox', 'schedules'];
+      const unchanged = async () => ({
+        identity: await Promise.all(identityTables.map(table => identityDb.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all().then(rows => rows.results))),
+        state: await Promise.all(stateTables.map(table => ownerDb.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all().then(rows => rows.results))),
+      });
+      const before = await unchanged();
+      const inputs = { member: { id: historical.role.member_user_id }, role: 'owner' };
+      const replay = await http('role', historical.role.operationId, inputs);
+      expect(replay.status, await replay.clone().text()).toBe(200);
+      expect(await replay.json()).toMatchObject({ status: 'replayed', result: historical.originalRole.membership });
+      const roleMcp = await mcp('role', historical.role.operationId, inputs);
+      expect(roleMcp.error).toBeUndefined(); expect(roleMcp.result?.isError).not.toBe(true);
+      expect(roleMcp.result?.structuredContent).toMatchObject({ status: 'replayed', result: historical.originalRole.membership });
+      expect(await identityDb.prepare('SELECT is_owner FROM identity_memberships WHERE team_id=? AND user_id=?')
+        .bind(owner.team_id, historical.role.member_user_id).first('is_owner')).toBe(0);
+      for (const offer of historical.invitations) {
+        const invitationInputs = { email: offer.input.email, role: 'owner' };
+        const read = await http('invite', offer.input.operationId, invitationInputs);
+        expect(read.status, await read.clone().text()).toBe(200);
+        const expected = { status: 'replayed', result: { invitation_id: offer.receipt.invitation.invitation_id, mail: offer.state } };
+        expect(await read.json()).toMatchObject(expected);
+        const readMcp = await mcp('invite', offer.input.operationId, invitationInputs);
+        expect(readMcp.error).toBeUndefined(); expect(readMcp.result?.isError).not.toBe(true);
+        expect(readMcp.result?.structuredContent).toMatchObject(expected);
+        expect((await identityDb.prepare('SELECT expires_at FROM identity_invitations WHERE invitation_id=?')
+          .bind(offer.receipt.invitation.invitation_id).first<{ expires_at: string }>())!.expires_at < new Date().toISOString()).toBe(true);
+      }
+      for (const [operation, id, originalInputs, skew] of [
+        ['role', historical.role.operationId, inputs, { ...inputs, role: '-owner' }],
+        ['invite', historical.invitations[0]!.input.operationId, { email: historical.invitations[0]!.input.email, role: 'owner' },
+          { email: 'changed@historical.example', role: 'owner' }],
+        ['remove', historical.removal.operationId, { member: { id: target.user_id } }, { member: { id: historical.role.member_user_id } }],
+      ] as const) {
+        expect((await http(operation, id, skew)).status).toBe(409);
+        expect((await mcp(operation, id, skew)).result?.isError).toBe(true);
+        expect((await http(operation, operationIdAt(historical.at), originalInputs)).status).toBe(400);
+        const absent = await mcp(operation, operationIdAt(historical.at), originalInputs);
+        expect(absent.error !== undefined || absent.result?.isError === true).toBe(true);
+      }
+      expect(await unchanged()).toEqual(before);
+      const control = createD1IdentityStore(identityDb);
+      const authority = { namespace: 'historical-fixture-control', team_id: owner.team_id, member_user_id: owner.user_id,
+        granted_by: historical.coOwner };
+      await control.changeMemberRoleWithReceipt!({ ...authority, operationId: operationIdAt(Date.now()), role: '-owner' });
+      const deniedBefore = await unchanged();
+      expect((await http('role', historical.role.operationId, inputs)).status).toBe(403);
+      expect((await mcp('role', historical.role.operationId, inputs)).result?.isError).toBe(true);
+      expect(await unchanged()).toEqual(deniedBefore);
+      await control.changeMemberRoleWithReceipt!({ ...authority, operationId: operationIdAt(Date.now()), role: 'owner' });
+    }
+    const operationId = historical?.removal.operationId ?? operationIdAt(Date.now());
     const envelope = { operation_id: operationId, inputs: { member: { id: target.user_id } } };
     const remove = () => request('/api/operations/system.team.remove', envelope, csrf);
     // Interrupt the real cross-owner handoff after Identity has sealed its
@@ -237,6 +353,12 @@ it('recovers and executes the genuine removed-member handler once across interru
     const retry = await remove(); expect(retry.status, await retry.clone().text()).toBe(200);
     expect(await retry.json()).toMatchObject({ status: 'replayed' });
     expect(await snapshot()).toEqual(saved);
+    if (retainedMcp !== undefined) {
+      const replay = await retainedMcp('remove', operationId, { member: { id: target.user_id } });
+      expect(replay.error).toBeUndefined(); expect(replay.result?.isError).not.toBe(true);
+      expect(replay.result?.structuredContent).toMatchObject({ status: 'replayed', result: { removed: true } });
+      expect(await snapshot()).toEqual(saved);
+    }
     // Retaining the original adapter must never cache its physical-owner grant.
     const foreign = owners.find(candidate => candidate.owner !== owner.team_id)!;
     await ownerDb.prepare('UPDATE state_owner_pin SET owner=? WHERE id=1').bind(foreign.owner).run();
