@@ -8412,10 +8412,12 @@ interface LocalOwnerPolicyControl {
 }
 const localOwnerPolicyControls = new WeakMap<LoadedCanonicalDescriptors, LocalOwnerPolicyControl>();
 
-/** Host scope selection only; genuine checked hooks execute in their owner mutation. */
-export async function nativeHandlersUseOwnerMutationScope(asm: AssembledModules, artifact: CompileArtifact): Promise<boolean> {
+/** Host scope selection: checked hooks, queues and Identity removal route to
+ * their selected team owner without a deployment-wide scheduled scope. */
+export async function nativeHandlersUseTeamOwnerScope(asm: AssembledModules, artifact: CompileArtifact): Promise<boolean> {
   const loaded = await loadCanonicalDescriptors(asm, artifact);
   const control = localOwnerPolicyControls.get(loaded);
+  const removalHandlers = await checkedIdentityRemovalOwnerHandlers(asm, artifact, loaded);
   const queueHandlers = new Set<string>();
   if (artifact.runtimeBindings?.some(binding => binding.kind === 'queue' && binding.handlers.length > 0)) {
     const entry = artifact.modules[0];
@@ -8445,8 +8447,49 @@ export async function nativeHandlersUseOwnerMutationScope(asm: AssembledModules,
   if (control !== undefined) await control.verifyAssembly(asm, artifact);
   return artifact.callables.filter(callable => callable.kind === 'handler').every(callable => {
     const key = JSON.stringify([callable.module, callable.id, callable.member]);
-    return queueHandlers.has(key) || control?.hookCallables.has(key) === true;
+    return queueHandlers.has(key) || removalHandlers.has(key) || control?.hookCallables.has(key) === true;
   });
+}
+
+/** The same genuine ordinary event/private invocation census used by source
+ * installation. This classifies routing only; it issues no event or scope. */
+async function checkedIdentityRemovalOwnerHandlers(asm: AssembledModules, artifact: CompileArtifact,
+  loaded: LoadedCanonicalDescriptors): Promise<ReadonlySet<string>> {
+  const handlers = new Set<string>();
+  for (const callable of artifact.callables) {
+    if (callable.kind !== 'handler') continue;
+    const imported = await importVerifiedAssemblyModule(asm, callable.module, artifact);
+    const definition = localPolicyObject(privateSourceMember(imported, 'appDefinition'));
+    const operation = privateSourceMember(privateSourceMember(definition, 'operations'), callable.id);
+    // CRUD hooks belong to modelPolicies, not ordinary operation entries.
+    if (operation === undefined) continue;
+    const emitted = localPolicyObject(operation);
+    if (privateSourceMember(emitted, 'event') !== 'teams.member_removed') continue;
+    const invocation = localPolicyObject(privateSourceMember(emitted, 'invocation'));
+    const inputs = localPolicyObject(privateSourceMember(privateSourceMember(privateSourceMember(definition, 'events'), 'teams.member_removed'), 'inputs'));
+    const fields = nativeCallArray(privateSourceMember(privateSourceMember(invocation, 'inputs'), 'fields'), 3);
+    const cohorts = privateSourceMember(definition, 'cohorts');
+    if (callable.member.length !== 1 || callable.member[0] !== callable.id ||
+        privateSourceMember(emitted, 'handler') !== callable.id || privateSourceMember(emitted, 'read') !== false ||
+        invocation.name !== callable.id || invocation.kind !== 'scenario' ||
+        isUnknownRecord(cohorts) && Object.hasOwn(cohorts, callable.id) || fields.length !== 3 || Object.keys(inputs).length !== 3) {
+      throw new AssemblyCorrespondenceError('Identity removal requires its exact ordinary private handler.');
+    }
+    for (const [name, type, kind] of [['team_id', 'text', 'string'], ['membership_id', 'text', 'string'], ['user', 'user', 'user']]) {
+      const field = fields.find(value => privateSourceMember(value, 'name') === name);
+      if (privateSourceMember(field, 'valueType') !== type || privateSourceMember(privateSourceMember(field, 'field'), 'kind') !== kind ||
+          privateSourceMember(field, 'required') !== true || privateSourceMember(privateSourceMember(inputs, name!), 'type') !== type) {
+        throw new AssemblyCorrespondenceError('Identity removal private inputs differ from their original event.');
+      }
+    }
+    loaded.producers.registry.loadArtifactDescriptors({ ...artifact, operations: [invocation] }, { by: () => 'owner' });
+    const registry = await importPolicyRegistry(asm, callable.module, callable.id, artifact);
+    if (typeof privateSourceMember(registry, callable.id) !== 'function') {
+      throw new AssemblyCorrespondenceError('Identity removal lost its genuine assembled handler.');
+    }
+    handlers.add(JSON.stringify([callable.module, callable.id, callable.member]));
+  }
+  return handlers;
 }
 
 function localPolicyObject(value: unknown, keys?: readonly string[]): Record<string, unknown> {
@@ -16324,6 +16367,7 @@ export async function createCanonicalIdentityRemovalSource(opts: {
   assertCanonicalStore(store, event);
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, store);
   await verifyCheckedAssembly(opts.asm, opts.artifact);
+  await checkedIdentityRemovalOwnerHandlers(opts.asm, opts.artifact, loaded);
   const routes = await checkedPrivateSourceRoutes(opts, loaded, event, scope);
   if (routes.some(route => route.cohort || privateSourceMember(route.definition, 'id') !== opts.app)) {
     throw new AssemblyCorrespondenceError('This removal source join requires ordinary checked handlers of its original app.');

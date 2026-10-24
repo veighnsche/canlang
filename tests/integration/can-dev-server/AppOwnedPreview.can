@@ -1,6 +1,7 @@
 ## App-owned local preview consumer fixture; not Office whole-app qualification.
 app AppOwnedPreview
 Given
+ role auditor label="Audit reviewer"
  Setting in app { name:text, enabled:bool=true }
  policy Setting read=public
 When

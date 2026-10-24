@@ -16,6 +16,8 @@ const nativeImport = compileFunction('return import(url)', ['url'], {
 
 type RecordView = { id: string; version: string; data: { name: string; enabled: boolean } };
 type Mutation = { status: string; records: RecordView[] };
+type TeamMutation = { status: string; result: { is_owner: boolean; roles: Array<{ role: string; granted_at: string; granted_by: string }> } };
+type RpcReply = { result?: { isError?: boolean; structuredContent?: unknown; tools?: Array<{ name: string; inputSchema: unknown }> }; error?: { code: number; message: string } };
 function operationId(): string {
   const time = Date.now().toString(16).padStart(12, '0');
   const bytes = randomBytes(10).toString('hex');
@@ -46,7 +48,7 @@ it('serves one app-owned CRUD model with shared app reads and saved-outcome repl
   expect(compiled.artifact.sources).toEqual([{ path: capture.compilerOperand, sha256: capture.sourceSha256 }]);
   const preview = await openNativePreview(compiled.artifact, capture, compiled.artifactBytes);
   try {
-    const login = async (label: string) => {
+    const login = async (label: string, exerciseConsent = true) => {
       const issueOpenUrl = preview.issueOpenUrl;
       if (typeof issueOpenUrl !== 'function') throw new Error('installed preview has no protected-open producer');
       const opened = await issueOpenUrl();
@@ -93,65 +95,83 @@ it('serves one app-owned CRUD model with shared app reads and saved-outcome repl
       const granted = await request('/mcp/grants', { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': csrf },
         body: JSON.stringify({ client_id: 'app-owned-preview-consumer' }) });
       expect(granted.status).toBe(200);
-      const directGrant = await granted.json() as { token: string }; expect(typeof directGrant.token).toBe('string');
-      // Actual generated Worker delivery: discovery -> consent -> public PKCE -> MCP.
-      const metadata = await request('/.well-known/oauth-authorization-server');
-      expect(metadata.status).toBe(200);
-      const discoveredOAuth = await metadata.json() as { issuer: string; authorization_endpoint: string; token_endpoint: string };
-      expect(discoveredOAuth.issuer).toBe(origin);
-      expect(discoveredOAuth.authorization_endpoint).toBe(origin + '/oauth/authorize');
-      expect(discoveredOAuth.token_endpoint).toBe(origin + '/oauth/token');
-      const redirectUri = 'http://127.0.0.1:47183/callback';
-      const registered = await request('/oauth/register', { method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ redirect_uris: [redirectUri], client_name: 'Generated transport consumer' }) });
-      expect(registered.status).toBe(201);
-      const client = await registered.json() as { client_id: string };
-      const verifier = randomBytes(32).toString('base64url');
-      const challenge = createHash('sha256').update(verifier).digest('base64url');
-      const consentFields = { client_id: client.client_id, redirect_uri: redirectUri, code_challenge: challenge,
-        code_challenge_method: 'S256', response_type: 'code', team, state: 'generated-consent-state' };
-      const consentPath = '/oauth/authorize?' + new URLSearchParams(consentFields);
-      const consent = await request(consentPath, { headers: { accept: 'text/html' } });
-      expect(consent.status).toBe(200);
-      const consentHtml = await consent.text();
-      expect(consentHtml).toContain('Generated transport consumer');
-      expect(consentHtml).toContain('AppOwnedPreview');
-      expect(consentHtml).toContain('name="_csrf"');
-      expect(consentHtml).toContain('value="' + team + '"');
-      const submitConsent = (fields: Record<string, string>) => request('/oauth/authorize', { method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(fields) });
-      expect((await submitConsent(consentFields)).status).toBe(403);
-      const cancelled = await submitConsent({ ...consentFields, _csrf: csrf, decision: 'deny' });
-      expect(cancelled.status).toBe(302);
-      const cancellation = new URL(cancelled.headers.get('location')!);
-      expect(cancellation.searchParams.get('error')).toBe('access_denied');
-      expect(cancellation.searchParams.has('code')).toBe(false);
-      const authorized = await submitConsent({ ...consentFields, _csrf: csrf, decision: 'approve' });
-      expect(authorized.status).toBe(302);
-      const callback = new URL(authorized.headers.get('location')!);
-      expect(callback.origin + callback.pathname).toBe(redirectUri);
-      expect(callback.searchParams.get('state')).toBe(consentFields.state);
-      const tokenFields = { grant_type: 'authorization_code', code: callback.searchParams.get('code')!,
-        client_id: client.client_id, redirect_uri: redirectUri, code_verifier: verifier };
-      const exchange = () => request('/oauth/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams(tokenFields) });
-      const exchanged = await exchange(); expect(exchanged.status).toBe(200);
-      const oauth = await exchanged.json() as { access_token: string; token_type: string };
-      expect(oauth.token_type).toBe('Bearer'); expect(typeof oauth.access_token).toBe('string');
-      expect((await exchange()).status).toBe(400);
-      const invitation = await request('/auth/invite?invitation_id=00000000-0000-4000-8000-000000000000', { headers: { accept: 'text/html' } });
-      expect(invitation.status).toBe(200); expect(await invitation.text()).toContain('Accept invitation');
-      const grant = { token: oauth.access_token };
-      const mcp = async (operation: string, args: Record<string, unknown>) => {
+      const directGrant = await granted.json() as { token: string; user_id: string }; expect(typeof directGrant.token).toBe('string');
+      expect(typeof directGrant.user_id).toBe('string');
+      let grantToken = directGrant.token;
+      if (exerciseConsent) {
+        // Actual generated Worker delivery: discovery -> consent -> public PKCE -> MCP.
+        const metadata = await request('/.well-known/oauth-authorization-server');
+        expect(metadata.status).toBe(200);
+        const discoveredOAuth = await metadata.json() as { issuer: string; authorization_endpoint: string; token_endpoint: string };
+        expect(discoveredOAuth.issuer).toBe(origin);
+        expect(discoveredOAuth.authorization_endpoint).toBe(origin + '/oauth/authorize');
+        expect(discoveredOAuth.token_endpoint).toBe(origin + '/oauth/token');
+        const redirectUri = 'http://127.0.0.1:47183/callback';
+        const registered = await request('/oauth/register', { method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ redirect_uris: [redirectUri], client_name: 'Generated transport consumer' }) });
+        expect(registered.status).toBe(201);
+        const client = await registered.json() as { client_id: string };
+        const verifier = randomBytes(32).toString('base64url');
+        const challenge = createHash('sha256').update(verifier).digest('base64url');
+        const consentFields = { client_id: client.client_id, redirect_uri: redirectUri, code_challenge: challenge,
+          code_challenge_method: 'S256', response_type: 'code', team, state: 'generated-consent-state' };
+        const consentPath = '/oauth/authorize?' + new URLSearchParams(consentFields);
+        const consent = await request(consentPath, { headers: { accept: 'text/html' } });
+        expect(consent.status).toBe(200);
+        const consentHtml = await consent.text();
+        expect(consentHtml).toContain('Generated transport consumer');
+        expect(consentHtml).toContain('AppOwnedPreview');
+        expect(consentHtml).toContain('name="_csrf"');
+        expect(consentHtml).toContain('value="' + team + '"');
+        const submitConsent = (fields: Record<string, string>) => request('/oauth/authorize', { method: 'POST',
+          headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(fields) });
+        expect((await submitConsent(consentFields)).status).toBe(403);
+        const cancelled = await submitConsent({ ...consentFields, _csrf: csrf, decision: 'deny' });
+        expect(cancelled.status).toBe(302);
+        const cancellation = new URL(cancelled.headers.get('location')!);
+        expect(cancellation.searchParams.get('error')).toBe('access_denied');
+        expect(cancellation.searchParams.has('code')).toBe(false);
+        const authorized = await submitConsent({ ...consentFields, _csrf: csrf, decision: 'approve' });
+        expect(authorized.status).toBe(302);
+        const callback = new URL(authorized.headers.get('location')!);
+        expect(callback.origin + callback.pathname).toBe(redirectUri);
+        expect(callback.searchParams.get('state')).toBe(consentFields.state);
+        const tokenFields = { grant_type: 'authorization_code', code: callback.searchParams.get('code')!,
+          client_id: client.client_id, redirect_uri: redirectUri, code_verifier: verifier };
+        const exchange = () => request('/oauth/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams(tokenFields) });
+        const exchanged = await exchange(); expect(exchanged.status).toBe(200);
+        const oauth = await exchanged.json() as { access_token: string; token_type: string };
+        expect(oauth.token_type).toBe('Bearer'); expect(typeof oauth.access_token).toBe('string');
+        expect((await exchange()).status).toBe(400);
+        const invitation = await request('/auth/invite?invitation_id=00000000-0000-4000-8000-000000000000', { headers: { accept: 'text/html' } });
+        expect(invitation.status).toBe(200); expect(await invitation.text()).toContain('Accept invitation');
+        grantToken = oauth.access_token;
+      }
+      const grant = { token: grantToken };
+      const rpc = async (method: string, params: Record<string, unknown> = {}) => {
         const response = await request('/mcp', { method: 'POST',
           headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${grant.token}` },
-          body: JSON.stringify({ jsonrpc: '2.0', id: operationId(), method: 'tools/call',
-            params: { name: `AppOwnedPreview.Setting.${operation}`, arguments: args } }) });
+          body: JSON.stringify({ jsonrpc: '2.0', id: operationId(), method, params }) });
         expect(response.status).toBe(200);
-        const body = await response.json() as { result: { isError?: boolean; structuredContent?: unknown }; error?: unknown };
-        expect(body.error).toBeUndefined(); expect(body.result.isError).not.toBe(true);
-        expect(body.result.structuredContent).toBeDefined();
-        return body.result.structuredContent;
+        return await response.json() as RpcReply;
+      };
+      const call = (name: string, args: Record<string, unknown>) => rpc('tools/call', { name, arguments: args });
+      const mcp = async (operation: string, args: Record<string, unknown>) => {
+        const body = await call(`AppOwnedPreview.Setting.${operation}`, args);
+        expect(body.error).toBeUndefined(); expect(body.result?.isError).not.toBe(true);
+        expect(body.result?.structuredContent).toBeDefined();
+        return body.result!.structuredContent;
+      };
+      const teamHttp = (operation: string, inputs: Record<string, unknown>, id = operationId()) =>
+        request(`/api/operations/system.team.${operation}`, { method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-csrf-token': csrf }, body: JSON.stringify({ operation_id: id, inputs }) });
+      const teamMcp = (operation: string, inputs: Record<string, unknown>, id = operationId()) =>
+        call(`system.team.${operation}`, { ...inputs, operation_id: id });
+      const teamTools = async () => {
+        const response = await rpc('tools/list');
+        expect(response.error).toBeUndefined();
+        return response.result!.tools!.filter(tool => tool.name.startsWith('system.team.'));
       };
       const read = async () => {
         const result = await mcp('read', {}) as { records: RecordView[] };
@@ -162,9 +182,10 @@ it('serves one app-owned CRUD model with shared app reads and saved-outcome repl
           headers: { 'content-type': 'application/json', 'x-csrf-token': csrf }, body: JSON.stringify({ operation_id: id, inputs }) });
         expect(response.status).toBe(200); return await response.json() as Mutation;
       };
-      return { team, request, read, http, mcp };
+      return { team, userId: directGrant.user_id, request, read, http, mcp, teamHttp, teamMcp, teamTools, grantToken };
     };
-    const ava = await login('Ava'); const cal = await login('Cal');
+    const ava = await login('Ava'); const ben = await login('Ben', false); const cal = await login('Cal');
+    expect(ben.team).toBe(ava.team);
     expect(ava.team).not.toBe(cal.team);
     expect(await ava.read()).toEqual([]); expect(await cal.read()).toEqual([]);
     const createId = operationId();
@@ -188,6 +209,86 @@ it('serves one app-owned CRUD model with shared app reads and saved-outcome repl
     expect(await ava.read()).toEqual([]); expect(await cal.read()).toEqual([]);
     const empty = await cal.request('/'); expect(empty.status).toBe(200);
     expect(await empty.text()).toContain('No app settings');
+    // The generated registry exposes closed fixed commands only to current owners.
+    const role = 'AppOwnedPreview.auditor';
+    const member = { id: ben.userId };
+    const userSchema = { type: 'object', properties: { id: { type: 'string', minLength: 1 } },
+      required: ['id'], additionalProperties: false };
+    const closedSchema = (properties: Record<string, unknown>, required: string[]) => ({ type: 'object',
+      properties: { ...properties, operation_id: { type: 'string' } }, required: [...required, 'operation_id'], additionalProperties: false });
+    const ownerTools = await ava.teamTools();
+    expect(ownerTools.map(tool => tool.name).sort()).toEqual(['system.team.invite', 'system.team.remove', 'system.team.role']);
+    expect(ownerTools.find(tool => tool.name === 'system.team.invite')!.inputSchema).toEqual(
+      closedSchema({ email: { type: 'string' }, role: { type: 'string', enum: ['owner', role] } }, ['email', 'role']));
+    expect(ownerTools.find(tool => tool.name === 'system.team.remove')!.inputSchema).toEqual(closedSchema({ member: userSchema }, ['member']));
+    expect(ownerTools.find(tool => tool.name === 'system.team.role')!.inputSchema).toEqual(
+      closedSchema({ member: userSchema, role: { type: 'string', enum: ['owner', role, '-owner', '-' + role] } }, ['member', 'role']));
+    expect(await ben.teamTools()).toEqual([]);
+    const roleHttp = async (actor: typeof ava, inputs: Record<string, unknown>, id = operationId()) => {
+      const response = await actor.teamHttp('role', inputs, id);
+      expect(response.status, await response.clone().text()).toBe(200);
+      return await response.json() as TeamMutation;
+    };
+    const roleMcp = async (actor: typeof ava, inputs: Record<string, unknown>, id = operationId()) => {
+      const response = await actor.teamMcp('role', inputs, id);
+      expect(response.error).toBeUndefined(); expect(response.result?.isError).not.toBe(true);
+      return response.result!.structuredContent as TeamMutation;
+    };
+    // Establish absence through a real durable mutation, independently of local seed roles.
+    await roleHttp(ava, { member, role: '-' + role });
+    const grantId = operationId();
+    const original = await roleHttp(ava, { member, role }, grantId);
+    expect(original.status).toBe('committed');
+    expect(original.result.roles.some(grant => grant.role === role)).toBe(true);
+    const replayRole = await roleMcp(ava, { member, role }, grantId);
+    expect(replayRole.status).toBe('replayed'); expect(replayRole.result).toEqual(original.result);
+    const skew = await ava.teamHttp('role', { member, role: '-' + role }, grantId);
+    expect(skew.status).toBe(409);
+    const revoked = await roleMcp(ava, { member, role: '-' + role });
+    expect(revoked.result.roles.some(grant => grant.role === role)).toBe(false);
+    const historic = await roleHttp(ava, { member, role }, grantId);
+    expect(historic.status).toBe('replayed'); expect(historic.result).toEqual(original.result);
+    const stillAbsent = await roleHttp(ava, { member, role: '-' + role });
+    expect(stillAbsent.result.roles.some(grant => grant.role === role)).toBe(false);
+    const unknownRole = { member, role: 'AppOwnedPreview.undeclared' };
+    expect((await ava.teamHttp('role', unknownRole)).status).toBe(400);
+    expect((await ava.teamMcp('role', unknownRole)).error?.code).toBe(-32602);
+    // Last-owner refusal is enforced by the real transactional Identity store.
+    expect((await ava.teamHttp('role', { member: { id: ava.userId }, role: '-owner' })).status).toBe(403);
+    const noMail = await ava.teamHttp('invite', { email: 'not-sent@example.test', role });
+    expect(noMail.status).toBe(400); expect(await noMail.text()).toContain('Trusted invitation mail is not configured.');
+    const expired = '00000000-0000-7000-8000-000000000000';
+    const future = operationId().replace(/^.{8}-.{4}/, 'ffffffff-ffff');
+    for (const id of ['malformed', future, expired]) {
+      expect((await ava.teamHttp('role', { member, role }, id)).status).toBe(400);
+      const denied = await ava.teamMcp('role', { member, role }, id);
+      expect(denied.error !== undefined || denied.result?.isError === true).toBe(true);
+    }
+    expect((await roleHttp(ava, { member, role: '-' + role })).result.roles.some(grant => grant.role === role)).toBe(false);
+    // Existing OAuth grants re-resolve membership; historical receipts do not confer ownership.
+    await roleHttp(ava, { member, role: 'owner' });
+    expect(await ben.teamTools()).toHaveLength(3);
+    await roleMcp(ben, { member: { id: ava.userId }, role: '-owner' });
+    expect(await ava.teamTools()).toEqual([]);
+    expect((await ava.teamHttp('role', { member, role }, grantId)).status).toBe(403);
+    const deniedReplay = await ava.teamMcp('role', { member, role }, grantId);
+    expect(deniedReplay.result?.isError).toBe(true);
+    await roleMcp(ben, { member: { id: ava.userId }, role: 'owner' });
+    expect(await ava.teamTools()).toHaveLength(3);
+    // This source has no removal handler: Identity commits its durable occurrence directly.
+    const removalId = operationId();
+    const removal = await ava.teamHttp('remove', { member }, removalId);
+    expect(removal.status).toBe(200);
+    expect(await removal.json()).toMatchObject({ status: 'committed', result: { removed: true } });
+    const removalReplay = await ava.teamMcp('remove', { member }, removalId);
+    expect(removalReplay.error).toBeUndefined(); expect(removalReplay.result?.isError).not.toBe(true);
+    expect(removalReplay.result?.structuredContent).toMatchObject({ status: 'replayed', result: { removed: true } });
+    const removedSession = await ben.teamHttp('role', { member, role });
+    expect(removedSession.status).toBe(403);
+    const removedGrant = await ben.request('/mcp', { method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${ben.grantToken}` },
+      body: JSON.stringify({ jsonrpc: '2.0', id: operationId(), method: 'tools/list' }) });
+    expect(removedGrant.status).toBe(401);
     expect(await captureIsCurrent(capture)).toBe(true);
   } finally { await preview.dispose(); }
   expect(() => preview.issueLocalActors()).toThrow(/disposal/);

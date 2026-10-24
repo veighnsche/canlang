@@ -164,8 +164,8 @@ fn exact_artifact_json(artifact: &Value, artifact_bytes: &[u8]) -> Result<String
 }
 
 fn validate_selected_callables(artifact: &Value, plan: &bindings::Plan) -> Result<()> {
-    // Native model-policy hooks are compiler-checked with sealed bindings,
-    // so their handler callables are admitted without queue selection.
+    // Native model-policy hooks are compiler-checked with sealed bindings;
+    // other handlers require their selected fixed-source admission below.
     let hooks: BTreeSet<&str> = artifact["modelPolicies"]
         .as_array()
         .map(Vec::as_slice)
@@ -188,13 +188,13 @@ fn validate_selected_callables(artifact: &Value, plan: &bindings::Plan) -> Resul
         if callable["kind"] == "migration"
             || callable["kind"] == "handler"
                 && !plan
-                    .queue_handlers
+                    .admitted_handlers
                     .iter()
                     .any(|h| callable["id"] == h.as_str())
                 && !callable["id"].as_str().is_some_and(|id| hooks.contains(id))
         {
             return Err(
-                "PROFILE_UNSUPPORTED: only checked selected queue handlers are admitted".into(),
+                "PROFILE_UNSUPPORTED: only checked selected queue and Identity removal handlers are admitted".into(),
             );
         }
     }
@@ -543,7 +543,7 @@ fn provision_identity(
     let empty = bindings::Plan {
         app: None,
         bindings: vec![],
-        queue_handlers: vec![],
+        admitted_handlers: vec![],
         no_model_storage_mode: None,
     };
     let (options, _) = runtime::options(
@@ -1469,7 +1469,7 @@ pub fn isolated_options(
     let empty = bindings::Plan {
         app: None,
         bindings: vec![],
-        queue_handlers: vec![],
+        admitted_handlers: vec![],
         no_model_storage_mode: None,
     };
     runtime::options(handle, worker_name, options, &empty, None, false)
@@ -1832,7 +1832,7 @@ fn test_worker_options(input: &Value) -> Result<Value> {
     let plan = bindings::Plan {
         app: None,
         bindings: vec![],
-        queue_handlers: vec![],
+        admitted_handlers: vec![],
         no_model_storage_mode: None,
     };
     let (mut payload, _) = runtime::options(&handle, name, main, &plan, None, false)?;

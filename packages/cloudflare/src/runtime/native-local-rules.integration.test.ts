@@ -19,7 +19,7 @@ import { captureIsCurrent, captureSingleFileSource } from './native-dev.test-sup
 import { compileCapturedSingleFile } from './native-dev.test-support.js';
 import { assembleModules, type AssembledModules } from './modules.js';
 import { buildInvoker } from '../worker/assembly.js';
-import { loadCanonicalDescriptors } from './invoke.js';
+import { loadCanonicalDescriptors, nativeHandlersUseTeamOwnerScope } from './invoke.js';
 
 const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
 const require = createRequire(join(root, 'package.json'));
@@ -235,6 +235,8 @@ it('executes the unchanged native HookOrder candidate sequence and rolls back it
       stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href});
     const loaded = await loadCanonicalDescriptors(assembly, emitted);
     assert.equal(loaded.unsupportedHookOperations.has('HookOrder.Entry.update'),false);
+    assert.equal(await nativeHandlersUseTeamOwnerScope(assembly, emitted), true,
+      'the generated CRUD hook keeps its owner route without an ordinary operation entry');
     const f = await fixture(assembly, emitted, owningModel), id = operationId(f.now);
     assert.ok(f.identity.actor && f.identity.team);
     const receipt = async (kind:string,operation_id:OperationId) => {

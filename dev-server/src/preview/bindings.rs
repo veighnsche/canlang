@@ -122,7 +122,7 @@ fn inventory(value: &Value) -> Result<Vec<Value>> {
 pub struct Plan {
     pub app: Option<String>,
     pub bindings: Vec<Value>,
-    pub queue_handlers: Vec<String>,
+    pub admitted_handlers: Vec<String>,
     pub no_model_storage_mode: Option<String>,
 }
 impl Plan {
@@ -150,12 +150,18 @@ pub fn plan(artifact: &Value, ast: Option<&Value>) -> Result<Plan> {
     let app = definition_app(&definition)?;
     let owners = definition_owners(&definition, &app)?;
     let bindings = select_bindings(full, &owners)?;
-    let queue_handlers = checked_queue_handlers(artifact, &bindings, &exports, &definition)?;
+    let mut admitted_handlers = checked_queue_handlers(artifact, &bindings, &exports, &definition)?;
+    admitted_handlers.extend(checked_identity_removal_handlers(
+        artifact,
+        &owners,
+        &exports,
+        &definition,
+    )?);
     let no_model_storage_mode = model_free_storage_mode(artifact, &bindings, &owners, &definition)?;
     Ok(Plan {
         app: Some(app),
         bindings,
-        queue_handlers,
+        admitted_handlers,
         no_model_storage_mode,
     })
 }
@@ -164,7 +170,7 @@ fn absent_inventory(artifact: &Value, why: &str) -> Result<Plan> {
         Ok(Plan {
             app: None,
             bindings: vec![],
-            queue_handlers: vec![],
+            admitted_handlers: vec![],
             no_model_storage_mode: None,
         })
     } else {
@@ -276,14 +282,103 @@ fn checked_queue_handlers(
     let mut queue_handlers = vec![];
     for queue in bindings.iter().filter(|b| b["kind"] == "queue") {
         for handler in queue["handlers"].as_array().unwrap() {
-            validate_queue_callable(artifact, handler, exports)?;
+            validate_handler_callable(artifact, handler, exports)?;
             validate_queue_invocation(queue, handler, definition)?;
             queue_handlers.push(handler.as_str().unwrap().into());
         }
     }
     Ok(queue_handlers)
 }
-fn validate_queue_callable(
+/// Admit one genuine ordinary Identity lifecycle source. Its fixed private
+/// invocation and event schema must agree with the compiled selected entry;
+/// source spelling alone never admits an arbitrary trusted handler.
+fn checked_identity_removal_handlers(
+    artifact: &Value,
+    owners: &Value,
+    exports: &BTreeMap<String, Value>,
+    definition: &BTreeMap<String, Value>,
+) -> Result<Vec<String>> {
+    let operations = properties(
+        definition
+            .get("operations")
+            .ok_or("operation metadata missing")?,
+    )?;
+    let cohorts = definition
+        .get("cohorts")
+        .map(properties)
+        .transpose()?
+        .unwrap_or_default();
+    let mut handlers = vec![];
+    for (id, declaration) in operations {
+        let metadata = properties(&declaration)?;
+        let event = metadata.get("event").map(literal).transpose()?;
+        if event.as_ref() != Some(&json!("teams.member_removed")) {
+            continue;
+        }
+        let Some((owner, _)) = id.rsplit_once('.') else {
+            return invalid("removal handler lacks its source owner");
+        };
+        if !owners.as_array().unwrap().contains(&json!(owner)) {
+            continue;
+        }
+        let handler = json!(id);
+        validate_handler_callable(artifact, &handler, exports)?;
+        let invocation = literal(
+            metadata
+                .get("invocation")
+                .ok_or("removal invocation missing")?,
+        )?;
+        let fields = invocation["inputs"]["fields"]
+            .as_array()
+            .ok_or("removal inputs missing")?;
+        if metadata.get("handler").map(literal).transpose()?.as_ref() != Some(&handler)
+            || metadata.get("read").map(literal).transpose()? != Some(json!(false))
+            || invocation["name"] != handler
+            || invocation["kind"] != "scenario"
+            || fields.len() != 3
+            || cohorts.contains_key(&id)
+            || artifact["operations"].as_array().is_some_and(|operations| {
+                operations
+                    .iter()
+                    .any(|operation| operation["name"] == handler)
+            })
+        {
+            return invalid("removal handler differs from its private ordinary source");
+        }
+        for (field, (name, ty, kind)) in fields.iter().zip([
+            ("team_id", "text", "string"),
+            ("membership_id", "text", "string"),
+            ("user", "user", "user"),
+        ]) {
+            if field["name"] != name
+                || field["valueType"] != ty
+                || field["field"] != json!({"kind":kind})
+                || field["required"] != true
+                || field["nullable"] == true
+                || field.get("array").is_some()
+                || field.get("default").is_some()
+                || field["computedDefault"] == true
+            {
+                return invalid("removal handler inputs differ from the fixed Identity payload");
+            }
+        }
+        let events = properties(definition.get("events").ok_or("removal event missing")?)?;
+        let event = properties(
+            events
+                .get("teams.member_removed")
+                .ok_or("removal event missing")?,
+        )?;
+        if literal(event.get("inputs").ok_or("removal event inputs missing")?)?
+            != json!({"team_id":{"type":"text"},"membership_id":{"type":"text"},"user":{"type":"user"}})
+        {
+            return invalid("removal event differs from the fixed Identity payload");
+        }
+        handlers.push(id);
+    }
+    Ok(handlers)
+}
+
+fn validate_handler_callable(
     artifact: &Value,
     handler: &Value,
     exports: &BTreeMap<String, Value>,
@@ -296,7 +391,7 @@ fn validate_queue_callable(
         .filter(|c| c["id"] == *handler)
         .collect();
     if references.len() != 1 {
-        return invalid("queue handler has no unique callable reference");
+        return invalid("handler has no unique callable reference");
     }
     let c = references[0];
     if c["kind"] != "handler"
@@ -309,7 +404,7 @@ fn validate_queue_callable(
             .as_ref()
             != Some(handler)
     {
-        return invalid("queue handler callable disagrees with entry");
+        return invalid("handler callable disagrees with entry");
     }
     Ok(())
 }

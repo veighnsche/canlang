@@ -176,6 +176,7 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "opaque-file-staging.js",
   "sourcemap.js",
   "mcp-registry.js",
+  "team-operations.js",
   "prepared-validation.js",
   "env-assembly.js",
   "export-downloads.js",
@@ -1475,6 +1476,7 @@ function httpBundleEntrySource(lifetime?: LocalCommandLifetime): string {
   );
   const toPosixAbsolute = (path: string): string => path.split(sep).join(posix.sep);
   return `export { handleOperationRequest, createSourceFormBindings, catalogFromArtifactOperations, createSourceValidationCatalog, encodeServingLiteral, INPUT_CHOICES_VERSION } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n` +
+    `export { validateOperationId } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "envelope", "validate.js")))};\n` +
     `export { handleCsvRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "csv.js")))};\n` +
     `export { handleExportRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "export.js")))};\n` +
     `export { canonicalJson } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "canonical-json.js")))};\n` +

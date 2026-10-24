@@ -3,6 +3,7 @@ import type { D1Database } from '@cloudflare/workers-types';
 import type { FileReferenceStoragePort, FileRetirementAuthority,
   FrameworkFileReferenceProducer, StoragePort } from '@canlang/contracts';
 import { createD1Storage, ensureSchema } from './d1.js';
+import { checkedFileAuthority, fileGuardCopy, fileGuardEqual } from './file-retirement.js';
 
 /** Selected only after canonical Identity/Work admission resolves the owner. */
 export interface D1OwnerScope {
@@ -177,8 +178,26 @@ type OwnerRouter<Port extends StoragePort> = {
   readonly ownerScopedStoragePort: (scope: D1OwnerScope) => Promise<Port>;
 };
 
+/** Detach declaration data but retain the actual owning receiver/functions. */
+function producerConfiguration(producers: readonly FrameworkFileReferenceProducer[] | undefined) {
+  if (producers === undefined) return [];
+  if (!Array.isArray(producers) || producers.length > 200) throw new Error('owner-storage: bounded framework producers required');
+  return [...producers].map(producer => {
+    const models = Object.getOwnPropertyDescriptor(producer, 'models');
+    const validate = Object.getOwnPropertyDescriptor(producer, 'validateRow');
+    const resolve = Object.getOwnPropertyDescriptor(producer, 'resolveOpaqueField');
+    if (models === undefined || !('value' in models) || validate === undefined || !('value' in validate) ||
+        typeof validate.value !== 'function' || resolve !== undefined && (!('value' in resolve) || typeof resolve.value !== 'function') ||
+        resolve === undefined && 'resolveOpaqueField' in producer) throw new Error('owner-storage: actual own framework export required');
+    return { producer, models: fileGuardCopy(models.value), validate: validate.value as unknown,
+      resolve: resolve?.value as unknown };
+  });
+}
+
 /**
- * No global fallback, allocation, repinning, provider switch or route cache.
+ * No global fallback, allocation, repinning or cached route authorization.
+ * Adapter identity is retained only for the same physical handle/scope and
+ * captured File configuration; routing and persisted pin checks run every time.
  * The host must retain the exact binding; raw/global adapter access to routed
  * databases is privileged and cannot be exposed as another tenant's route.
  * Returned ports preserve the existing adapter's rows, receipts and errors.
@@ -188,6 +207,10 @@ export function createD1OwnerRouter(input: RouterInput<TrustedD1OwnerBinding & {
 }>): OwnerRouter<FileReferenceStoragePort>;
 export function createD1OwnerRouter(input: RouterInput<TrustedD1OwnerBinding>): OwnerRouter<StoragePort>;
 export function createD1OwnerRouter(input: RouterInput<TrustedD1OwnerBinding>): OwnerRouter<StoragePort> {
+  type Producers = ReturnType<typeof producerConfiguration>;
+  const adapters = new WeakMap<D1Database, Map<string, {
+    authority: FileRetirementAuthority | undefined; producers: Producers; store: StoragePort;
+  }>>();
   return Object.freeze({
     async ownerScopedStoragePort(requested: D1OwnerScope): Promise<StoragePort> {
       const scope = checkedScope(requested);
@@ -204,9 +227,25 @@ export function createD1OwnerRouter(input: RouterInput<TrustedD1OwnerBinding>): 
       }
       // Copy the route before awaiting: configuration mutation cannot repin it.
       const binding = { db: route.db, ...(route.initializeFresh === true ? { initializeFresh: true as const } : {}) };
-      const store = boundStore(binding.db, scope, authority?.value as FileRetirementAuthority | undefined,
-        producers?.value as readonly FrameworkFileReferenceProducer[] | undefined);
-      return openBinding(binding, scope, store);
+      const configuredAuthority = authority?.value === undefined ? undefined : checkedFileAuthority(authority.value as FileRetirementAuthority);
+      const configuredProducers = producers?.value as readonly FrameworkFileReferenceProducer[] | undefined;
+      const capturedProducers = producerConfiguration(configuredProducers);
+      let ports = adapters.get(binding.db);
+      if (ports === undefined) { ports = new Map(); adapters.set(binding.db, ports); }
+      const key = JSON.stringify([scope.app, scope.owner]);
+      let retained = ports.get(key);
+      if (retained === undefined || !fileGuardEqual(retained.authority ?? null, configuredAuthority ?? null) ||
+          retained.producers.length !== capturedProducers.length || capturedProducers.some((producer, index) => {
+            const previous = retained!.producers[index]!;
+            return previous.producer !== producer.producer || previous.validate !== producer.validate ||
+              previous.resolve !== producer.resolve || !fileGuardEqual(previous.models, producer.models);
+          })) {
+        retained = { authority: configuredAuthority, producers: capturedProducers,
+          store: boundStore(binding.db, scope, configuredAuthority, capturedProducers.map(producer => producer.producer)) };
+        // Synchronous publication precedes inspection, including concurrent opens.
+        ports.set(key, retained);
+      }
+      return openBinding(binding, scope, retained.store);
     },
   });
 }

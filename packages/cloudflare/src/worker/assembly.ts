@@ -165,14 +165,17 @@ export type ReadOutcome = { result: ReadResult } | { error: BusinessError };
  * Mirror of `OperationInvoker` (`packages/interfaces/src/ports.ts:85`).
  * Replaced by the real import at the interfaces join.
  */
+export interface InvocationContext {
+  readonly resolveCaller: () => Promise<ResolvedIdentity>;
+}
 export interface OperationInvoker {
-  invokeMutation(envelope: MutationEnvelope, identity: ResolvedIdentity): Promise<MutationOutcome>;
+  invokeMutation(envelope: MutationEnvelope, identity: ResolvedIdentity, context?: InvocationContext): Promise<MutationOutcome>;
   invokeRead(envelope: ReadEnvelope, identity: ResolvedIdentity): Promise<ReadOutcome>;
 }
 
 /** Host-owned restoration consumer, separate from ordinary transport dispatch. */
 export interface RetainedOperationInvoker extends OperationInvoker {
-  invokeRetainedMutation(envelope: MutationEnvelope, identity: ResolvedIdentity): Promise<MutationOutcome>;
+  invokeRetainedMutation(envelope: MutationEnvelope, identity: ResolvedIdentity, context?: InvocationContext): Promise<MutationOutcome>;
 }
 
 /**
@@ -1070,7 +1073,10 @@ export async function createTeamOwnerStorageBoundary<TStore extends StoragePort 
   });
 }
 
+type SystemTeamInvoker = Awaited<ReturnType<typeof import('../runtime/team-operations.js').createSystemTeamInvoker>>;
+
 export interface CanonicalInvokerOpts {
+  readonly team?: SystemTeamInvoker;
   readonly rootBoundary?: RootOperationBoundary;
   readonly allocateRecordId?: (model: string, index: number) => string;
   readonly runtimeBindings?: 1;
@@ -1133,7 +1139,7 @@ export function buildInvoker(
   store: StoragePort,
   opts: CanonicalInvokerOpts = {},
 ): RetainedOperationInvoker {
-  const mutate = async (envelope: MutationEnvelope, identity: ResolvedIdentity, receiptOnly: boolean): Promise<MutationOutcome> => {
+  const mutate = async (envelope: MutationEnvelope, identity: ResolvedIdentity, receiptOnly: boolean, context?: InvocationContext): Promise<MutationOutcome> => {
       const isGeneratedArtifact = await loadSiblingFn<IsGeneratedArtifact>(
         "../runtime/invoke.js",
         "runtime/invoke.ts",
@@ -1146,6 +1152,10 @@ export function buildInvoker(
       }
       let rejectedReceipt = false;
       try {
+        if (envelope.operation.startsWith('system.team.')) {
+          if (opts.team === undefined) throw new Error('Team operations are not configured.');
+          return { result: await opts.team.invoke(envelope, identity, context, receiptOnly) };
+        }
         const routed = await opts.rootBoundary?.mutation(envelope, identity);
         if (routed != null) return routed;
         const invokeCanonical = await loadSiblingFn<InvokeMutationCanonical>(
@@ -1193,8 +1203,8 @@ export function buildInvoker(
       }
     };
   return {
-    invokeMutation: (envelope, identity) => mutate(envelope, identity, false),
-    invokeRetainedMutation: (envelope, identity) => mutate(envelope, identity, true),
+    invokeMutation: (envelope, identity, context) => mutate(envelope, identity, false, context),
+    invokeRetainedMutation: (envelope, identity, context) => mutate(envelope, identity, true, context),
     invokeRead: async (envelope, identity): Promise<ReadOutcome> => {
       const isGeneratedArtifact = await loadSiblingFn<IsGeneratedArtifact>(
         "../runtime/invoke.js",
@@ -1411,6 +1421,41 @@ interface InterimDispatchContext {
   readonly pageHandler?: (request: Request) => Promise<Response>;
 }
 
+/** Installed lifecycle owner: HTTP and MCP reuse the same removal associations. */
+const teamInvokers = new WeakMap<InterimDispatchContext, Promise<SystemTeamInvoker>>();
+async function systemTeamInvoker(ctx: InterimDispatchContext): Promise<SystemTeamInvoker> {
+  let pending = teamInvokers.get(ctx);
+  if (pending === undefined) {
+    pending = (async () => {
+      const create = await loadSiblingFn<typeof import('../runtime/team-operations.js').createSystemTeamInvoker>(
+        '../runtime/team-operations.js', 'runtime/team-operations.ts', 'createSystemTeamInvoker');
+      const config = ctx.http?.auth;
+      return create({ artifact: ctx.artifact, asm: ctx.asm, app: ctx.app.appId,
+        identities: ctx.identityStore as IdentityStore, now: ctx.now,
+        ...(ctx.ownerStorage === undefined ? {} : { ownerStorage: ctx.ownerStorage }),
+        ...(ctx.deploymentBase === undefined ? {} : { deploymentBase: ctx.deploymentBase }),
+        ...(config?.mail === undefined ? {} : { mail: config.mail, inviteBaseUrl: new URL('/auth/invite', trustedAuthOrigin(ctx)).href }) });
+    })();
+    teamInvokers.set(ctx, pending);
+    void pending.catch(() => { if (teamInvokers.get(ctx) === pending) teamInvokers.delete(ctx); });
+  }
+  return pending;
+}
+
+async function systemTeamRoles(ctx: InterimDispatchContext): Promise<readonly string[]> {
+  const roles = await loadSiblingFn<typeof import('../runtime/mcp-registry.js').systemTeamRoles>(
+    '../runtime/mcp-registry.js', 'runtime/mcp-registry.ts', 'systemTeamRoles');
+  const verifiedImport = await loadSiblingFn<typeof import('../runtime/assembly-verification.js').importVerifiedAssemblyModule>(
+    '../runtime/assembly-verification.js', 'runtime/assembly-verification.ts', 'importVerifiedAssemblyModule');
+  const entry = ctx.artifact.modules[0];
+  if (entry === undefined) throw new Error('assembly: team operations require the selected app entry');
+  const namespace = await verifiedImport(ctx.asm, entry.path, ctx.artifact);
+  if (!isRecord(namespace)) throw new Error('assembly: team entry namespace is unavailable');
+  const definition = Object.getOwnPropertyDescriptor(namespace, 'appDefinition');
+  if (definition === undefined || !('value' in definition)) throw new Error('assembly: team entry definition is unavailable');
+  return roles(definition.value, ctx.app.appId);
+}
+
 /** Same-origin upload-intents path advertised in the MCP `_meta` block. */
 const INTERIM_MCP_INTENTS_URL = "/files/intents";
 
@@ -1433,6 +1478,7 @@ async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Prom
   let registry: OperationRegistry;
   let catalog: SchemaCatalog;
   let permissions: McpPermissions;
+  let team: SystemTeamInvoker;
   try {
     const createArtifactRegistry = await loadSiblingFn<CreateArtifactRegistry>(
       "../runtime/mcp-registry.js",
@@ -1444,8 +1490,14 @@ async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Prom
       "runtime/mcp-registry.ts",
       "createArtifactCatalog",
     );
-    registry = createArtifactRegistry(ctx.artifact);
-    catalog = createArtifactCatalog(ctx.artifact, ctx.mcp?.derivedInputs);
+    team = await systemTeamInvoker(ctx);
+    const roles = await systemTeamRoles(ctx);
+    const composeRegistry = await loadSiblingFn<typeof import('../runtime/mcp-registry.js').composeSystemTeamRegistry>(
+      '../runtime/mcp-registry.js', 'runtime/mcp-registry.ts', 'composeSystemTeamRegistry');
+    const composeCatalog = await loadSiblingFn<typeof import('../runtime/mcp-registry.js').composeSystemTeamCatalog>(
+      '../runtime/mcp-registry.js', 'runtime/mcp-registry.ts', 'composeSystemTeamCatalog');
+    registry = composeRegistry(createArtifactRegistry(ctx.artifact), roles);
+    catalog = composeCatalog(createArtifactCatalog(ctx.artifact, ctx.mcp?.derivedInputs), roles);
     if (ctx.mcp?.permissions !== undefined) {
       permissions = ctx.mcp.permissions;
     } else {
@@ -1471,6 +1523,7 @@ async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Prom
     // identity store, the source label, the worker clock). T17b: the
     // interim direct path is retired — descriptor-less artifacts refuse.
     invoker: buildInvoker(ctx.artifact, ctx.asm, ctx.store, {
+      team,
       ...(ctx.deploymentBase === undefined ? {} : { deploymentBase: ctx.deploymentBase }),
       memberships: ctx.identityStore as CanonicalMembershipReader,
       source: "mcp",
@@ -1553,8 +1606,10 @@ async function buildHttpTransportDeps(ctx: InterimDispatchContext): Promise<Http
   const createPreparedCatalog = await loadSiblingFn<typeof import('../runtime/prepared-validation.js').createPreparedValidationCatalog>(
     '../runtime/prepared-validation.js', 'runtime/prepared-validation.ts', 'createPreparedValidationCatalog',
   );
+  const composeCatalog = await loadSiblingFn<typeof import('../runtime/mcp-registry.js').composeSystemTeamCatalog>(
+    '../runtime/mcp-registry.js', 'runtime/mcp-registry.ts', 'composeSystemTeamCatalog');
   const catalog = await createPreparedCatalog(ctx.artifact, ctx.asm,
-    createArtifactCatalog(ctx.artifact, ctx.http?.derivedInputs), ctx.app.appId);
+    composeCatalog(createArtifactCatalog(ctx.artifact, ctx.http?.derivedInputs), await systemTeamRoles(ctx)), ctx.app.appId);
   const now = ctx.now;
   const unjoined = (family: string): never => {
     throw new Error(`assembly: ${family} is unbound until its join lands (unreachable on the operation/CSV routes)`);
@@ -1576,6 +1631,7 @@ async function buildHttpTransportDeps(ctx: InterimDispatchContext): Promise<Http
     app: ctx.app,
     pages: { descriptors: (): readonly PageDescriptor[] => [] },
     invoker: buildInvoker(ctx.artifact, ctx.asm, ctx.store, {
+      team: await systemTeamInvoker(ctx),
       ...(ctx.deploymentBase === undefined ? {} : { deploymentBase: ctx.deploymentBase }),
       memberships: ctx.identityStore as CanonicalMembershipReader,
       source: "http",
@@ -1685,6 +1741,22 @@ async function handleHttpExportRequest(req: Request, ctx: InterimDispatchContext
   return factory(deps)(req);
 }
 
+/** Validate the same explicit origin for account routes and invitation mail. */
+function trustedAuthOrigin(ctx: InterimDispatchContext): URL {
+  const config = ctx.http?.auth;
+  const join = ctx.http?.authHandler;
+  if (config === undefined || join === undefined || typeof config.limiter?.check !== 'function') {
+    throw new Error('assembly: missing trusted authentication configuration');
+  }
+  const origin = new URL(config.origin);
+  if (origin.origin !== config.origin || !['https:', 'http:'].includes(origin.protocol) ||
+      typeof config.secureCookies !== 'boolean' || (origin.protocol === 'https:' && !config.secureCookies) ||
+      !Number.isSafeInteger(join.sessionExpiresMs) || join.sessionExpiresMs <= 0) {
+    throw new Error('assembly: invalid trusted authentication configuration');
+  }
+  return origin;
+}
+
 /** One trusted origin/session configuration for both account and OAuth delivery. */
 async function handleAuthTransport(req: Request, ctx: InterimDispatchContext, oauth: boolean): Promise<Response> {
   const config = ctx.http?.auth;
@@ -1697,13 +1769,8 @@ async function handleAuthTransport(req: Request, ctx: InterimDispatchContext, oa
       message: 'Authentication requires CAN_AUTH_ORIGIN or explicit trusted host auth configuration.' }, 500);
   }
   let origin: URL;
-  try { origin = new URL(config.origin); }
+  try { origin = trustedAuthOrigin(ctx); }
   catch { return jsonResponse({ code: 'auth-configuration', message: 'Invalid host authentication configuration.' }, 500); }
-  if (origin.origin !== config.origin || !['https:', 'http:'].includes(origin.protocol) ||
-      typeof config.secureCookies !== 'boolean' || (origin.protocol === 'https:' && !config.secureCookies) ||
-      !Number.isSafeInteger(join.sessionExpiresMs) || join.sessionExpiresMs <= 0) {
-    return jsonResponse({ code: 'auth-configuration', message: 'Invalid host authentication configuration.' }, 500);
-  }
   const deps: AuthHttpDeps = {
     identity: { store: ctx.identityStore, clock: { nowMs: ctx.now },
       ...(config.mail === undefined ? {} : { mail: config.mail }),

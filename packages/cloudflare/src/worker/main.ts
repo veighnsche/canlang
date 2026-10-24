@@ -833,10 +833,10 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
         }
         const handlers = staged.artifact.callables.filter(callable => callable.kind === 'handler');
         if (handlers.length > 0) {
-          // Checked CRUD hooks run inside the selected original owner mutation.
-          // They do not require a separately selected scheduled/cohort scope.
-          const check = await loadSiblingFn<typeof import('../runtime/invoke.js').nativeHandlersUseOwnerMutationScope>(
-            '../runtime/invoke.js', 'runtime/invoke.ts', 'nativeHandlersUseOwnerMutationScope');
+          // Checked hooks, queues and ordinary Identity removal handlers use
+          // their original selected team owner, without a scheduled scope.
+          const check = await loadSiblingFn<typeof import('../runtime/invoke.js').nativeHandlersUseTeamOwnerScope>(
+            '../runtime/invoke.js', 'runtime/invoke.ts', 'nativeHandlersUseTeamOwnerScope');
           const ownerHooks = await check(staged.modules, staged.artifact);
           if (!ownerHooks) throw new Error('deploy main: multi-owner State does not support cohort or scheduled handler scope');
         }
