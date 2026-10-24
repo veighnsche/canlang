@@ -7781,7 +7781,11 @@ function sourceEffectGrantSlot(owner:ReceiptOwnerSession,producer:ScenarioReceip
       if(ids.size>1)return false;
       const id=[...ids][0],loop=id===undefined?undefined:loops.find(loop=>loop.id===id);
       if(id!==undefined&&loop===undefined)return false;
-      maximum+=(loop?.maximum??1)*(site.parameters.reduce((total,parameter)=>total+sourceEffectParameterGuardMaximum(parameter),0)+(site.queries?.length??0)*owner.maxRows);
+      maximum+=(loop?.maximum??1)*(site.parameters.reduce((total,parameter)=>{
+        const value=parameter.array===true?admittedInputWire((owner.executingCall??owner.call).inputs,parameter.name):undefined;
+        if(parameter.array===true&&(!Array.isArray(value)||value.length>MAX_ITEMS))return invalid('SEND identity array exceeds its admitted bound.');
+        return total+sourceEffectParameterGuardMaximum(parameter)*(parameter.array===true?(value as readonly unknown[]).length:1);
+      },0)+(site.queries?.length??0)*owner.maxRows);
     }
   }else return owner.callGuards.length<MAX_ITEMS;
   let counts=sourceEffectGrantCounts.get(owner);
@@ -7967,7 +7971,7 @@ export interface ScenarioSourceSendQuerySource {
 export interface ScenarioSourceSendDataSource {
   readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
   readonly node:{readonly start:number;readonly end:number};readonly operation:string;readonly binding:string;
-  readonly parameters:readonly {readonly name:string;readonly model:ModelName;
+  readonly parameters:readonly {readonly name:string;readonly model:ModelName;readonly array?:true;
     readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identityPaths?:readonly {readonly path:readonly {readonly field:string;readonly model:ModelName;readonly nullable?:true}[];readonly leaf:'id'}[];readonly dataPaths?:readonly{readonly path:NonNullable<ScenarioSourceSendDataSource['parameters'][number]['identityPaths']>[number]['path'];readonly field:string;readonly type:CanTypeId}[];readonly parent?:{readonly model:ModelName;readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[]};readonly derived?:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identity?:readonly ('id'|'version')[];readonly loop?:string;readonly created?:ScenarioSourceCreatedRoot}[];
   readonly queries?:readonly ScenarioSourceSendQuerySource[];
 }
@@ -8180,9 +8184,9 @@ function checkSourceEffectQueries(bound:BoundPlan,readPolicies:ReadonlyMap<Model
   for(const value of queries){
     const query=object(value,['id','source','node','parameter','model','parentModel','fields','order']);origin(query['source']);
     const id=text(query['id']),parameter=text(query['parameter']),model=text(query['model']) as ModelName,parentModel=text(query['parentModel']) as ModelName;
-    const root=parameters.find(value=>(value as {name:string}).name===parameter) as {model:ModelName}|undefined;
+    const root=parameters.find(value=>(value as {name:string}).name===parameter) as {model:ModelName;array?:true}|undefined;
     const node=object(query['node'],['file','start','end']);
-    if(!/^[a-f0-9]{64}$/.test(id)||ids.has(id)||root?.model!==parentModel||bound.artifactModels.get(model)?.parent!==parentModel
+    if(!/^[a-f0-9]{64}$/.test(id)||ids.has(id)||root?.model!==parentModel||root.array===true||bound.artifactModels.get(model)?.parent!==parentModel
         ||!Number.isSafeInteger(node['file'])||Number(node['file'])<0||!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])
         ||Number(node['start'])<0||Number(node['end'])<=Number(node['start']))return invalid(`${label} query lacks its original direct contained owner.`);
     ids.add(id);const fields=list(query['fields']),selected=new Set<string>();
@@ -8222,11 +8226,16 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
     const parameters=list(site['parameters']);if(parameters.length===0)return invalid('SEND DATA needs its actual source root census.');
     const names=new Set<string>();
     for(const value of parameters){
-      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[]),...(Object.hasOwn(value as object,'created')?['created']:[]),...(Object.hasOwn(value as object,'derived')?['derived']:[]),...(Object.hasOwn(value as object,'parent')?['parent']:[]),...(Object.hasOwn(value as object,'identityPaths')?['identityPaths']:[]),...(Object.hasOwn(value as object,'dataPaths')?['dataPaths']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
+      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[]),...(Object.hasOwn(value as object,'array')?['array']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[]),...(Object.hasOwn(value as object,'created')?['created']:[]),...(Object.hasOwn(value as object,'derived')?['derived']:[]),...(Object.hasOwn(value as object,'parent')?['parent']:[]),...(Object.hasOwn(value as object,'identityPaths')?['identityPaths']:[]),...(Object.hasOwn(value as object,'dataPaths')?['dataPaths']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
       const input=bound.inputs.find(input=>input.name===name),declaration=bound.models.get(model);
+      const array=Object.hasOwn(parameter,'array');
+      if(array&&(parameter['array']!==true||Object.keys(parameter).length!==5||list(parameter['fields']).length!==0
+          ||stableStringify(parameter['identity'])!==stableStringify(['id'])||input?.kind!=='ref'||input.model!==model
+          ||input.nullable===true||input.required!==false||input.default!==undefined||input.computedDefault===true
+          ||def.inputArrays[name]?.required!==false))return invalid('SEND identity array differs from its original admitted Model array.');
       const loop=Object.hasOwn(parameter,'loop')?sourceBodyLoopProducers.get(def)?.loops.find(loop=>loop.id===parameter['loop']):undefined;
       const created=Object.hasOwn(parameter,'created')?object(parameter['created'],['id','node','stage','binding','model','parentParameter','parentModel']):undefined;
-      if(names.has(name)||declaration===undefined||(created!==undefined?(created['binding']!==name||created['model']!==model||Object.hasOwn(parameter,'identity')||Object.hasOwn(parameter,'loop')||Number(object(created['node'],['start','end'])['end'])>Number(node['start'])):Object.hasOwn(parameter,'loop')?loop?.item!==name||loop.model!==model||Object.hasOwn(parameter,'identity'):input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,name))){
+      if(names.has(name)||declaration===undefined||(created!==undefined?(created['binding']!==name||created['model']!==model||Object.hasOwn(parameter,'identity')||Object.hasOwn(parameter,'loop')||Number(object(created['node'],['start','end'])['end'])>Number(node['start'])):Object.hasOwn(parameter,'loop')?loop?.item!==name||loop.model!==model||Object.hasOwn(parameter,'identity'):input?.kind!=='ref'||input.model!==model||input.nullable===true||!array&&Object.hasOwn(def.inputArrays,name))){
         return invalid('SEND DATA needs an exact required singular original model parameter.');
       }
       names.add(name);
@@ -8245,11 +8254,11 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
  * one SEND. Its original field grants survive the Work stage and final commit. */
 async function projectSourceEffectParameter(call:AdmittedCall,store:StoragePort,owner:ReceiptOwnerSession,state:Capture,
   parameter:ScenarioSourceEmitDataSource['parameters'][number],row:StoredRow,producer:ScenarioReceiptReferenceProducer,
-  rows:Record<string,ProjectedRecord>):Promise<void>{
+  rows:Record<string,ProjectedRecord>,key=parameter.name):Promise<void>{
   const computed=new Set((parameter.derived??[]).map(field=>field.name));
   const authority=await observeModelQuerySourceAuthority(call,store,owner,state,parameter.model,row,
     [...parameter.fields.map(field=>field.name),...computed,...(parameter.parent===undefined?[]:['parent'])],0,undefined,undefined,producer,false,computed);
-  rows[parameter.name]=authority.record;
+  rows[key]=authority.record;
   await observeSourceEffectIdentityPaths(call,store,owner,state,parameter,row,producer,rows);
   if(parameter.parent!==undefined)rows[`${parameter.name}.parent`]=await observeSourceEffectParent(call,store,owner,state,parameter.model,row,parameter.parent,producer);
 }
@@ -8273,6 +8282,22 @@ export async function executeScenarioSourceSendData(call:AdmittedCall,store:Stor
     for(const parameter of source.parameters)if(parameter.created!==undefined)createdRows.set(parameter.name,await readScenarioSourceCreatedRoot(call,store,{id:parameter.created.id}));
     await ownerOperation(owner,async()=>{
       for(const parameter of source.parameters){
+        if(parameter.array===true){
+          const values=admittedInputWire(call.inputs,parameter.name);
+          if(!Array.isArray(values)||values.length>MAX_ITEMS)return invalid('SEND identity array lost its admitted ordered value.');
+          const references=call.recordRefs.filter(ref=>ref.param.startsWith(`${parameter.name}/`));
+          if(references.length!==values.length)return invalid('SEND identity array lost its complete admitted reference census.');
+          for(const [index,value] of values.entries()){
+            const refs=references.filter(ref=>ref.param===`${parameter.name}/${index}`),ref=refs[0];
+            if(refs.length!==1||ref?.model!==parameter.model||typeof value!=='object'||value===null
+                ||!('id'in value)||value.id!==ref.id||ref.expectedVersion!==null&&ref.expectedVersion!==ref.row.version)
+              return invalid('SEND identity array differs from its exact admitted slot.');
+            const row=await owner.session!.views.final.get(parameter.model,ref.id);ownerHealthy(owner);
+            if(row===null||!sameModelLifetime(ref.row,row)||owner.stage!==stage)return invalid('SEND identity array source lifetime changed.');
+            await projectSourceEffectParameter(call,store,owner,state,parameter,row,producer,rows,`${parameter.name}/${index}`);
+          }
+          continue;
+        }
         const item=parameter.loop===undefined?undefined:sourceBodyLoopItems.get(owner);
         const refs=call.recordRefs.filter(ref=>ref.param===parameter.name),ref=refs[0];
         const original=parameter.created!==undefined?createdRows.get(parameter.name):parameter.loop===undefined?ref?.row:item?.row;

@@ -12867,10 +12867,37 @@ async function runScenarioExecution(
   }
   // Decode only fields independently granted by State. SEND and EMIT
   // retain the same parent/path/identity projection semantics.
+  const sourceDataArrayRefs=(parameter:SourceSendDataSource['parameters'][number],actual:AdmittedCall,root:unknown)=>{
+    const def=generatedScenarioDef(actual),field=def?.descriptor.inputs.find(field=>field.name===parameter.name);
+    if(parameter.array!==true||field?.kind!=='ref'||field.model!==parameter.model||field.nullable===true||
+        def===undefined||!Object.hasOwn(def.inputArrays,field.name)||parameter.fields.length!==0||
+        stableStringify(parameter.identity)!==stableStringify(['id'])||parameter.parent!==undefined||parameter.identityPaths!==undefined||
+        parameter.dataPaths!==undefined||parameter.derived!==undefined||parameter.loop!==undefined||parameter.created!==undefined)
+      return refuseRecordBinding('SEND identity array differs from its exact admitted Model-array declaration.');
+    const values=nativeCallArray(root,200),prefix=`${parameter.name}/`,refs=actual.recordRefs.filter(ref=>ref.param.startsWith(prefix));
+    if(refs.length!==values.length)return refuseRecordBinding('SEND identity array lost its complete admitted slots.');
+    for(const [index,value]of values.entries()){
+      const ref=refs[index],binding=isUnknownRecord(value)?recordBindings.get(value):undefined;
+      if(ref?.param!==`${prefix}${index}`||ref.model!==parameter.model||ref.expectedVersion!==null&&ref.expectedVersion!==ref.row.version||
+          binding?.model!==ref.model||binding.id!==ref.id||binding.version!==ref.row.version)
+        return refuseRecordBinding('SEND identity array changed its original ordered versioned slot.');
+    }
+    return refs;
+  };
   const projectSourceData=(descriptors:SourceSendDataSource['parameters'],rows:Readonly<Record<string,ProjectedRecord>>,
     actual:AdmittedCall,label:'SEND DATA'|'EMIT DATA'):Record<string,unknown>=>{
     const projected:Record<string,unknown>=Object.create(null);
     for(const parameter of descriptors){
+      if(parameter.array===true){
+        if(label!=='SEND DATA')return refuseRecordBinding('Identity array projection requires its original SEND.');
+        const refs=sourceDataArrayRefs(parameter,actual,localPolicyObject(argument)[parameter.name]);
+        projected[parameter.name]=Object.freeze(refs.map((ref,index)=>{
+          const row=rows[`${parameter.name}/${index}`];
+          if(row===undefined||row.id!==ref.id||row.version<ref.row.version)return refuseRecordBinding('SEND identity array lacks its actual projected source row.');
+          return Object.freeze({id:ref.id});
+        }));
+        continue;
+      }
       const record=rows[parameter.name];if(record===undefined)return refuseRecordBinding(`${label} omitted its independently projected source row.`);
       const fields:Record<string,unknown>=Object.create(null);
       for(const field of parameter.fields){
@@ -13077,6 +13104,10 @@ async function runScenarioExecution(
           const roots=localPolicyObject(supplied,source.parameters.map(parameter=>parameter.name));
           if(Object.keys(roots).length!==source.parameters.length)return refuseRecordBinding('SEND DATA changed its genuine original parameter graph.');
           for(const parameter of source.parameters){
+            if(parameter.array===true){
+              if(roots[parameter.name]!==parameters[parameter.name])return refuseRecordBinding('SEND identity array changed its genuine original array.');
+              sourceDataArrayRefs(parameter,actual,roots[parameter.name]);continue;
+            }
             if(parameter.created!==undefined){
               const read=loaded.producers.invoke.readScenarioSourceCreatedRoot,root=roots[parameter.name];
               if(read===undefined||!isUnknownRecord(root))return refuseRecordBinding('SEND DATA created root lacks its actual native binding.');

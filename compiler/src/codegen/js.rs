@@ -717,7 +717,7 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
         if send_value(ir,value,values,0){return true;}
         let child=|value:&TypedExpr|constructor_data(ir,value,loans,values,records,depth+1);
         match &value.expr{
-            IrExpr::Name(name)=>values.contains(name)
+            IrExpr::Name(name)=>values.contains(name)||records.get(name)==Some(&value.ty)
                 ||matches!(value.ty.nullable_inner().unwrap_or(&value.ty),ResolvedType::Record{stored:true,..}|ResolvedType::StdDelivery{..}|ResolvedType::Delivery{..})
                 ||matches!(&value.ty,ResolvedType::Enum{cases,..}if cases.contains(name))
                 ||name=="c"&&value.ty==ResolvedType::Unknown,
@@ -777,8 +777,13 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
     let mut records=params.iter().filter_map(|id|{
         let param=ir.items.get(id.0 as usize)?;
         let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};
-        matches!(ty,ResolvedType::Record{symbol,stored:true}
-            if ir.items.get(symbol.0 as usize).is_some_and(|item|matches!(item.kind,IrItemKind::Model{..})))
+        let model=match ty{
+            ResolvedType::Record{symbol,stored:true}=>Some(symbol),
+            ResolvedType::Array{element,ordered:true,nonempty:false}=>match element.as_ref(){
+                ResolvedType::Record{symbol,stored:true}=>Some(symbol),_=>None},
+            _=>None,
+        };
+        model.is_some_and(|symbol|ir.items.get(symbol.0 as usize).is_some_and(|item|matches!(item.kind,IrItemKind::Model{..})))
             .then(||(param.name.clone(),ty.clone()))
     }).collect();
     statements(ir,owner,guards,0,&mut values,&mut records,&consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context)

@@ -26510,6 +26510,57 @@ impl<'a> Closure<'a> {
                 Ok(values)
             }
 
+            /// A SEND may copy only the admitted identities of one original
+            /// Model-array input. This is not a stored query or a field DATA
+            /// loan: the original ordered input owns every selected identity.
+            fn send_input_model_id_domain(
+                &self,
+                key: NodeKey,
+                effect: &Effect,
+                module: ModuleId,
+                env: &Env,
+                calls: &[NodeKey],
+            ) -> Option<NodeKey> {
+                if !calls.is_empty() || self.loop_node.is_some() { return None; }
+                let query = self.types.checked_queries.get(&key)?;
+                let node = self.nodes.get(&key)?;
+                let source = self.db.get(key.file)?;
+                let [alias, select] = query.clauses.as_slice() else { return None; };
+                let [selected] = select.expressions.as_slice() else { return None; };
+                let ResolvedType::Array { element, ordered: true, nonempty: false } = &query.domain_type else { return None; };
+                let ResolvedType::Record { symbol: model, stored: true } = element.as_ref() else { return None; };
+                let Some(Binding::Symbol(parameter)) = self.query_binding(query.domain) else { return None; };
+                let declaration = self.resolve.symbols.get(parameter.0 as usize)?;
+                let SymbolKind::Param { owner, index, type_node } = declaration.kind else { return None; };
+                let scenario = self.effects.scenarios.get(&owner)?;
+                let input = scenario.params.get(index)?;
+                let result = ResolvedType::Array {
+                    element: Box::new(ResolvedType::Scalar(Scalar::Text)), ordered: true, nonempty: false,
+                };
+                if scenario.module != module || declaration.module != module || scenario.read || scenario.on.is_some()
+                    || input.param != *parameter || input.type_node != type_node || input.default.is_some()
+                    || !self.source_anchor(scenario, effect.node) || !self.source_anchor(scenario, key)
+                    || !self.source_anchor(scenario, input.type_node)
+                    || !effect.args.iter().any(|argument| argument.value == Some(key))
+                    || !self.original_reference_parameter(query.domain, *parameter)
+                    || !env.contains_key(&Local::Symbol(*parameter))
+                    || self.types.symbol_types.get(parameter) != Some(&query.domain_type)
+                    || self.types.node_types.get(&query.domain) != Some(&query.domain_type)
+                    || !self.checked_created_field_type(type_node, module, &query.domain_type, 0)
+                    || !matches!(self.resolve.symbols.get(model.0 as usize)?.kind, SymbolKind::Model { .. })
+                    || !self.effects.models.contains_key(model)
+                    || !query.matches_source(node, &source.text, expression)
+                    || !matches!(alias.kind, CheckedQueryClauseKind::As { .. }) || !alias.expressions.is_empty()
+                    || select.kind != CheckedQueryClauseKind::Select || query.projection.is_some()
+                    || self.query_member_name(*selected, alias.node, *model) != Some("id")
+                    || self.types.node_types.get(selected) != Some(&ResolvedType::Scalar(Scalar::Text))
+                    || query.result != result || self.types.node_types.get(&key) != Some(&result)
+                {
+                    return None;
+                }
+                Some(query.domain)
+            }
+
             /// A send's checked input paths: complete slots, no duplicates, no
             /// opaque delivery/record values.
             /// (This was the required-inputs computation plus the argument product
@@ -26570,7 +26621,11 @@ impl<'a> Closure<'a> {
                         {
                             self.created_file_array_send_operand(value, module, env, calls)?
                         }
-                        Some(value) => self.expr(value, module, env, calls)?,
+                        Some(value) => {
+                            let source = self.send_input_model_id_domain(value, effect, module, env, calls)
+                                .unwrap_or(value);
+                            self.expr(source, module, env, calls)?
+                        }
                         None => self.lexical(arg.key_node, module, env, calls)?,
                     };
                     if values

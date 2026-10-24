@@ -5478,3 +5478,100 @@ it('qualifies original historical Expense retention with optional finalized rece
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+
+async function originalReportRefreshSource(directory: string) {
+  const original = await readFile(join(root, 'draft/apps/CanReport/CanReport.can'), 'utf8');
+  const givenEnd = original.indexOf('  fixture utilization='), start = original.indexOf('  scenario refresh('), end = original.indexOf('  scenario result ', start);
+  assert.ok(givenEnd > 0 && start > givenEnd && end > start);
+  const source = join(directory, 'Report.can');
+  await writeFile(source, original.slice(0, givenEnd) + ' When\n' + original.slice(start, end).trimEnd() + '\n Then\n');
+  return source;
+}
+
+it('qualifies original report refresh with ordered model-array SEND and atomic Run creation', { timeout: 240000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-report-refresh-original-'));
+  try {
+    const source = await originalReportRefreshSource(directory);
+    const { stdout } = await promisify(execFile)(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog,
+      source, join(root, 'draft/shared/Employees.can'), join(root, 'draft/shared/Locations.can')],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+    const artifact = JSON.parse(stdout) as CompileArtifact;
+    const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: join(directory, 'modules'),
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+    for (const mode of ['ordered', 'finance', 'finance-only-denied', 'cash-denied', 'empty', 'reversed', 'disabled', 'foreign-location',
+      'missing-role', 'stale-definition', 'stale-location', 'archived-location', 'employee-race', 'definition-race', 'location-race', 'membership-revoked', 'commit-failure']) {
+      const roles = mode === 'missing-role' ? [] : ['report.manager', ...(mode === 'finance' ? ['report.finance'] : [])];
+      const { now, identities, team, user, membership, identity } = await member('report-refresh-' + mode, roles);
+      const scope = { app: 'CanReport', owner: team.team_id, ownerPackage: 'report' };
+      const authority: FileRetirementAuthority = { app: scope.app, stateOwner: scope.app, stateStoreId: 'report-state', fileStoreId: 'report-files',
+        receiver: { app: scope.app, owner: team.team_id, team: team.team_id } };
+      const { store, probe } = createTestMemoryStorage(authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+      await installNativeFileInventory({ artifact, asm, store, authority, scope, now: () => now,
+        verifyOwner: async () => { assert.ok(await identities.findTeamById(team.team_id)); } });
+      const definition = globalAnyRow('definition', { name: 'Utilization', metric: mode === 'finance' || mode === 'cash-denied' ? 'cash' : 'booked_minutes',
+        unit: 'room-minute', finance_only: mode === 'finance' || mode === 'finance-only-denied', inclusion: 'Confirmed minutes / saleable minutes', display_timezone: 'UTC', enabled: mode !== 'disabled' });
+      const worker = globalAnyRow('worker', { ...globalAnyEmployee(user.user_id), locations: mode === 'foreign-location' ? [] : [{ id: 'other' }] });
+      const site = globalAnySite('site'), other = { ...globalAnySite('other'), archivedAt: mode === 'archived-location' ? now - 1000 : null };
+      await store.commit(makeBatch(await store.readRevision(), { writes: [
+        { kind: 'insert', model: asModel('report.Definition'), row: definition },
+        { kind: 'insert', model: asModel('employee.Employee'), row: worker },
+        ...[site, other].map(row => ({ kind: 'insert' as const, model: asModel('rent_catalog.Location'), row })),
+      ] }));
+      const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+      const commit = store.commit.bind(store), load = store.load.bind(store); let injected = false;
+      if (mode === 'membership-revoked') store.load = async (modelName, id) => {
+        const row = await load(modelName, id);
+        if (!injected && modelName === 'work.dispatch') { injected = true; await identities.removeMembership(membership.membership_id); }
+        return row;
+      };
+      if (['employee-race', 'definition-race', 'location-race', 'commit-failure'].includes(mode)) store.commit = async batch => {
+        if (!injected && batch.writes.some(write => write.kind === 'insert' && write.model === 'report.Run')) {
+          injected = true;
+          assert.ok(batch.writes.some(write => write.model === 'work.dispatch'), 'actual SEND is staged in the same final transaction as Run');
+          assert.equal(batch.outbox?.length, 1, 'actual configured report intent joins the Run transaction');
+          if (mode === 'commit-failure') throw new Error('Injected report transaction refusal.');
+          const row = mode === 'employee-race' ? worker : mode === 'definition-race' ? definition : other;
+          const modelName = asModel(mode === 'employee-race' ? 'employee.Employee' : mode === 'definition-race' ? 'report.Definition' : 'rent_catalog.Location');
+          await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'update', model: modelName, id: row.id, expectedVersion: row.version,
+            row: { ...row, version: asVersion(row.version + 1), ...(mode === 'location-race' ? { archivedAt: now } : {}),
+              data: mode === 'employee-race' ? { ...row.data, active: false } : mode === 'definition-race' ? { ...row.data, enabled: false } : row.data } }] }));
+        }
+        return commit(batch);
+      };
+      const ids = mode === 'empty' ? [] : ['other', 'site', 'other'];
+      const from = new Date(now - 86400000).toISOString(), until = new Date(now).toISOString();
+      const request = { operation: 'report.refresh', operation_id: operationId(now), inputs: {
+        definition: { id: definition.id, version: mode === 'stale-definition' ? '2' : '1' },
+        locations: ids.map(id => ({ id, version: mode === 'stale-location' && id === 'other' ? '2' : '1' })),
+        from, until: mode === 'reversed' ? from : until, currency: mode === 'finance' ? 'EUR' : null } };
+      const outcome = await invoker.invokeMutation(request, identity); store.commit = commit; store.load = load;
+      const allowed = mode === 'ordered' || mode === 'finance';
+      assert.equal('result' in outcome, allowed, mode + ': ' + JSON.stringify(outcome));
+      const snapshot = async () => ({ runs: await store.query({ model: asModel('report.Run'), authority: 'owner' }),
+        dispatches: await store.query({ model: asModel('work.dispatch'), authority: 'owner' }), outbox: probe.outboxAll() });
+      const state = await snapshot();
+      assert.equal(state.runs.length, allowed ? 1 : 0, mode); assert.equal(state.dispatches.length, allowed ? 1 : 0, mode); assert.equal(state.outbox.length, allowed ? 1 : 0, mode);
+      if (allowed) {
+        assert.ok('result' in outcome); assert.equal(outcome.result.status, 'committed');
+        const run = state.runs[0]!, dispatch = state.dispatches[0]!, intent = state.outbox[0]!;
+        assert.deepEqual(run.parent, { model: asModel('report.Definition'), id: definition.id });
+        assert.deepEqual(run.data, { account: { id: user.user_id }, locations: ids.map(id => ({ id })), from, until, currency: request.inputs.currency,
+          requested: new Date(now).toISOString(), delivery: dispatch.id, checkpoint: null, rows: [], state: 'unavailable', pending: true });
+        assert.equal(intent.intentId, dispatch.id); assert.equal(intent.target, 'report.ReportsV1.reports');
+        assert.deepEqual(intent.arguments, { binding: 'report.Reports', from: 'deployment.reports', arguments: { locations: ids, from, until } },
+          'original model-array SELECT preserves ordered duplicate IDs in the actual SEND');
+        const read = await invoker.invokeRead({ operation: 'report.Run.read', inputs: {} }, identity); assert.ok('result' in read, JSON.stringify(read));
+        assert.equal((read.result as { records: unknown[] }).records.length, 1, 'original Run policy admits its current requesting manager');
+        const replay = await invoker.invokeMutation(request, identity); assert.ok('result' in replay, JSON.stringify(replay)); assert.equal(replay.result.status, 'replayed');
+        assert.deepEqual(await snapshot(), state, 'exact replay creates neither another Run nor another report intent');
+      } else {
+        if (['empty', 'reversed', 'disabled', 'foreign-location'].includes(mode)) {
+          assert.ok('error' in outcome); assert.equal(outcome.error.code, 'rule_failed', mode + ': ' + JSON.stringify(outcome));
+        }
+        if (['employee-race', 'definition-race', 'location-race', 'membership-revoked', 'commit-failure'].includes(mode)) assert.equal(injected, true, mode);
+      }
+      if (mode !== 'definition-race') assert.deepEqual(await store.load(asModel('report.Definition'), definition.id), definition);
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
