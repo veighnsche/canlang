@@ -4971,3 +4971,142 @@ it('qualifies original Expense correction and reimbursement global ANY with fina
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+
+async function originalDeskFixtureSource(directory: string) {
+  const original = await readFile(join(root, 'draft/apps/CanRent/CanRent.can'), 'utf8');
+  const lines = original.split('\n');
+  const one = (prefix: string) => { const matches = lines.filter(line => line.startsWith('  ' + prefix));
+    assert.equal(matches.length, 1, prefix); return matches[0]!; };
+  const start = original.indexOf('  export scenario assign_desk(');
+  const end = original.indexOf('\n  ', original.indexOf('   do create Assignment ', start));
+  assert.ok(start >= 0 && end > start);
+  const text = ['app CanRent uses=[rent_reservations]', 'package customer', ' Given',
+    '  export Customer {name:text}', ' When', ' Then', 'package rent_reservations',
+    ' use rent_catalog {Location,catalog_owner}', ' use employee {can_work}', ' use customer {Customer}', ' Given',
+    one('export role reservation_manager '), one('export role reception '), one('role billing '),
+    one('message label_RoomRequest_terms ='), one('export Resource {'),
+    one('contract BookingInterval {'),
+    // Keep every field consumed by the original policies, busy helper and invariants.
+    '  export Booking in Resource {customer:Customer,account:user,email:email,from:datetime,until:datetime,quantity:int=1 min=1,attendees:int=1 min=1,status:enum(held,pending,confirmed,occupied,completed,cancelled,expired,review,no_show)=held,payment:enum(unpaid,pending,unknown,paid,refunded,free,on_account)=unpaid,allowance:enum(not_required,pending,reserved,consumed,released,failed)=not_required,checked_in:datetime?,checked_out:datetime?,overdue:bool=false,source:text unique,expires:datetime,departure_buffer:duration=0m,reserved_from:datetime,reserved_until:datetime,total:money,subtotal:money,discount:money,tax:money,refund_amount:money,intervals:BookingInterval[]}',
+    one('Desk in Resource {'), one('Assignment in Booking {'), one('derive busy('),
+    ...lines.filter(line => line.startsWith('  policy Resource read=')),
+    one('export derive can_read_booking_details('), ...lines.filter(line => line.startsWith('  policy Booking read=')),
+    one('policy Desk read='), ...lines.filter(line => line.startsWith('  policy Assignment read=')),
+    ...lines.filter(line => line.startsWith('  invariant Resource:')), one('invariant Booking:'), one('invariant Assignment:'),
+    ' When', original.slice(start, end), ' Then', ''].join('\n');
+  const source = join(directory, 'Rent.can'); await writeFile(source, text); return source;
+}
+
+it('qualifies original Rent desk assignment with private occupancy control and atomic admission', { timeout: 240000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-rent-desk-original-'));
+  try {
+    const source = await originalDeskFixtureSource(directory);
+    const { stdout } = await promisify(execFile)(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog,
+      source, join(root, 'draft/shared/Employees.can'), join(root, 'draft/shared/Locations.can')],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+    const artifact = JSON.parse(stdout) as CompileArtifact;
+    const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: join(directory, 'modules'),
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+    for (const mode of ['allowed', 'adjacent', 'held-live', 'held-expired', 'occupied', 'checked-in', 'departure-buffer', 'buffer-ended',
+      'quantity', 'quantity-spare', 'invalid-interval', 'stale', 'missing-role', 'foreign-location', 'inactive-worker', 'inactive-desk', 'wrong-resource', 'nonpooled', 'target-held',
+      'employee-revoked', 'membership-revoked', 'competing-assignment']) {
+      const { now, identities, team, user, membership, identity } = await member('rent-desk-' + mode, mode === 'missing-role' ? [] : ['rent_reservations.reception']);
+      const guest = await identities.createUser({ email: 'guest-' + mode + '@desk.test', password_hash: 'unused', email_verified: true });
+      const scope = { app: 'CanRent', owner: team.team_id, ownerPackage: 'rent_reservations' };
+      const authority: FileRetirementAuthority = { app: scope.app, stateOwner: scope.app, stateStoreId: 'rent-desk-state', fileStoreId: 'rent-desk-files',
+        receiver: { app: scope.app, owner: team.team_id, team: team.team_id } };
+      const { store, probe } = createTestMemoryStorage(authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+      await installNativeFileInventory({ artifact, asm, store, authority, scope, now: () => now,
+        verifyOwner: async () => { assert.ok(await identities.findTeamById(team.team_id)); } });
+      const instant = (offset: number) => new Date(now + offset).toISOString();
+      const resourceData = { location: { id: mode === 'foreign-location' ? 'other' : 'site' }, name: 'Pool', pooled: mode !== 'nonpooled', capacity: mode === 'nonpooled' ? '1' : '4',
+        party_limit: '4', kind: 'desk', hold_for: '900000', active: true, timezone: 'UTC', currency: 'EUR', tax_rate: '0', discount_rate: '0',
+        cancellation_fee: null, hourly: { minor: '1000', currency: 'EUR' }, daily: null, price_unit: 'hour', increment: '3600000', minimum: '3600000', terms: 'Terms',
+        refund_notice: '0', buffer_before: '0', buffer_after: '0', amenities: [], accessibility: 'Level' };
+      const resource = globalAnyRow('pool', resourceData), otherResource = globalAnyRow('other-pool', { ...resourceData, name: 'Other pool' });
+      const worker = globalAnyRow('worker', { ...globalAnyEmployee(user.user_id), active: mode !== 'inactive-worker' });
+      const desk = globalAnyRow('desk', { name: 'Desk', active: mode !== 'inactive-desk' }, { model: asModel('rent_reservations.Resource'), id: mode === 'wrong-resource' ? otherResource.id : resource.id });
+      const otherDesk = globalAnyRow('other-desk', { name: 'Other desk', active: true }, { model: asModel('rent_reservations.Resource'), id: resource.id });
+      const money = { minor: '1000', currency: 'EUR' }, zero = { minor: '0', currency: 'EUR' };
+      const bookingData = { customer: { id: 'customer' }, account: { id: guest.user_id }, email: guest.email, from: instant(-3600000), until: instant(7200000),
+        quantity: mode === 'quantity-spare' ? '2' : '1', attendees: '1', status: 'confirmed', payment: 'paid', allowance: 'not_required', checked_in: null, checked_out: null, overdue: false,
+        source: 'target', expires: instant(60000), departure_buffer: '60000', reserved_from: instant(-3600000), reserved_until: instant(7200000),
+        total: money, subtotal: money, discount: zero, tax: zero, refund_amount: money, intervals: [] };
+      const booking = globalAnyRow('booking', { ...bookingData, status: mode === 'target-held' ? 'held' : 'confirmed' }, { model: asModel('rent_reservations.Resource'), id: resource.id });
+      const competitor = globalAnyRow('competitor', { ...bookingData, source: 'competitor', status: ['allowed', 'adjacent', 'competing-assignment'].includes(mode) ? 'confirmed' : mode === 'occupied' ? 'occupied' : ['held-live', 'held-expired'].includes(mode) ? 'held' : 'completed',
+        expires: instant(mode === 'held-expired' ? 0 : 60000), checked_in: ['checked-in', 'departure-buffer', 'buffer-ended'].includes(mode) ? instant(-3600000) : null,
+        checked_out: ['departure-buffer', 'buffer-ended'].includes(mode) ? instant(mode === 'buffer-ended' ? -60000 : -30000) : null }, booking.parent);
+      const existing = globalAnyRow('existing', { desk: { id: ['quantity', 'quantity-spare', 'allowed'].includes(mode) ? otherDesk.id : desk.id },
+        from: instant(mode === 'adjacent' ? -1800000 : 0), until: instant(mode === 'adjacent' ? 0 : 1800000) },
+        { model: asModel('rent_reservations.Booking'), id: ['quantity', 'quantity-spare'].includes(mode) ? booking.id : competitor.id });
+      const hasExisting = ['allowed', 'adjacent', 'held-live', 'held-expired', 'occupied', 'checked-in', 'departure-buffer', 'buffer-ended', 'quantity', 'quantity-spare'].includes(mode);
+      await store.commit(makeBatch(await store.readRevision(), { writes: [
+        ...['site', 'other'].map(id => ({ kind: 'insert' as const, model: asModel('rent_catalog.Location'), row: globalAnySite(id) })),
+        { kind: 'insert', model: asModel('employee.Employee'), row: worker },
+        ...[resource, otherResource].map(row => ({ kind: 'insert' as const, model: asModel('rent_reservations.Resource'), row })),
+        { kind: 'insert', model: asModel('customer.Customer'), row: globalAnyRow('customer', { name: 'Customer' }) },
+        ...[booking, competitor].map(row => ({ kind: 'insert' as const, model: asModel('rent_reservations.Booking'), row })),
+        ...[desk, otherDesk].map(row => ({ kind: 'insert' as const, model: asModel('rent_reservations.Desk'), row })),
+        ...(hasExisting ? [{ kind: 'insert' as const, model: asModel('rent_reservations.Assignment'), row: existing }] : []),
+      ] }));
+      const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+      if (mode === 'held-live' || mode === 'departure-buffer') {
+        const read = await invoker.invokeRead({ operation: 'rent_reservations.Booking.read', inputs: {} }, identity);
+        assert.ok('result' in read, mode + ': ' + JSON.stringify(read));
+        const records = (read.result as { records: { id: string; data: Record<string, unknown> }[] }).records;
+        const visible = records.find(row => row.id === competitor.id); assert.ok(visible, 'reception sees the competing booking');
+        assert.equal(Object.hasOwn(visible.data, 'expires'), false); assert.equal(Object.hasOwn(visible.data, 'departure_buffer'), false);
+        const assignments = await invoker.invokeRead({ operation: 'rent_reservations.Assignment.read', inputs: {} }, identity);
+        assert.ok('result' in assignments, JSON.stringify(assignments));
+        assert.equal((assignments.result as { records: unknown[] }).records.length, 1, 'same-resource Assignment has its original reception read grant');
+      }
+      const commit = store.commit.bind(store), query = store.query.bind(store); let injected = false;
+      // Identity revocation is observable before final admission, rather than promising
+      // cross-store atomicity after State has admitted its physical commit.
+      if (mode === 'membership-revoked') store.query = async request => {
+        const rows = await query(request);
+        if (!injected && request.model === 'rent_reservations.Assignment') {
+          injected = true; await identities.removeMembership(membership.membership_id);
+        }
+        return rows;
+      };
+      if (['employee-revoked', 'competing-assignment'].includes(mode)) store.commit = async batch => {
+        if (!injected && batch.writes.some(write => write.model === 'rent_reservations.Assignment')) {
+          injected = true;
+          if (mode === 'employee-revoked') await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'update', model: asModel('employee.Employee'), id: worker.id, expectedVersion: worker.version, row: { ...worker, version: asVersion(2), data: { ...worker.data, active: false } } }] }));
+          else await commit(makeBatch(await store.readRevision(), { writes: [
+            { kind: 'insert', model: asModel('rent_reservations.Assignment'), row: existing },
+          ] }));
+        }
+        return commit(batch);
+      };
+      const request = { operation: 'rent_reservations.assign_desk', operation_id: operationId(now), inputs: {
+        booking: { id: booking.id, version: mode === 'stale' ? '2' : '1' }, desk: { id: desk.id, version: '1' },
+        from: instant(0), until: instant(mode === 'invalid-interval' ? 10800000 : 1800000) } };
+      const outcome = await invoker.invokeMutation(request, identity); store.commit = commit; store.query = query;
+      const allowed = ['allowed', 'adjacent', 'held-expired', 'buffer-ended', 'quantity-spare'].includes(mode);
+      assert.equal('result' in outcome, allowed, mode + ': ' + JSON.stringify(outcome));
+      const rows = await store.query({ model: asModel('rent_reservations.Assignment'), authority: 'owner', order: [{ field: 'id', direction: 'asc' }] });
+      assert.deepEqual(await store.load(asModel('rent_reservations.Booking'), booking.id), booking, 'source creates Assignment without changing Booking');
+      assert.deepEqual(await store.load(asModel('rent_reservations.Resource'), resource.id), resource);
+      assert.deepEqual(probe.outboxAll(), [], 'original assignment body emits no Work or other outbox effects');
+      assert.equal((await store.query({ model: asModel('work.schedule'), authority: 'owner' })).length, 0);
+      if (allowed) {
+        assert.ok('result' in outcome); assert.equal(outcome.result.status, 'committed');
+        const created = rows.find(row => row.id !== existing.id); assert.ok(created);
+        assert.deepEqual(created.parent, { model: asModel('rent_reservations.Booking'), id: booking.id });
+        assert.deepEqual(created.data, { desk: { id: desk.id }, from: request.inputs.from, until: request.inputs.until });
+        const replay = await invoker.invokeMutation(request, identity); assert.ok('result' in replay, JSON.stringify(replay)); assert.equal(replay.result.status, 'replayed');
+        assert.deepEqual(await store.query({ model: asModel('rent_reservations.Assignment'), authority: 'owner', order: [{ field: 'id', direction: 'asc' }] }), rows);
+      } else {
+        if (['held-live', 'occupied', 'checked-in', 'departure-buffer', 'quantity', 'invalid-interval', 'foreign-location',
+          'inactive-worker', 'inactive-desk', 'wrong-resource', 'nonpooled', 'target-held'].includes(mode)) {
+          assert.ok('error' in outcome); assert.equal(outcome.error.code, 'rule_failed', mode + ': ' + JSON.stringify(outcome));
+        }
+        assert.equal(rows.length, hasExisting || mode === 'competing-assignment' ? 1 : 0, mode + ': no orphan Assignment');
+        if (['employee-revoked', 'membership-revoked', 'competing-assignment'].includes(mode)) assert.equal(injected, true);
+      }
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
