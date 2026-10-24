@@ -2179,6 +2179,8 @@ fn serialize_require_params(
                     && sources.same_scenario(ir,owner).is_some(),
             _ => false,
         };
+        let exact_stored_scalar_default = super::scenario_receipts::checked_stored_scalar_parameter_default(
+            sources, ir, owner, *id).is_some();
         let source_value_default = plain_source_value(ir,ty,0) && checked.constraints.is_none()
             && checked.default.is_some() && *default_node == checked.default
             && sources.same_scenario(ir, owner).is_some()
@@ -2197,7 +2199,7 @@ fn serialize_require_params(
             || *declared_owner != owner.id
             || *declared_index != index
             || *ty != checked.ty
-            || !(default.is_none() && checked.default.is_none() || exact_null_default || exact_empty_text_array || source_value_default || exact_unread_file_array || exact_owned_enum_default)
+            || !(default.is_none() && checked.default.is_none() || exact_null_default || exact_empty_text_array || source_value_default || exact_unread_file_array || exact_owned_enum_default || exact_stored_scalar_default)
         {
             return None;
         }

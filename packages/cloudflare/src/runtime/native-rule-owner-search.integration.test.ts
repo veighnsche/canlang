@@ -5718,21 +5718,24 @@ it('executes the original agreement snapshot and calendar Work schedules with fi
 });
 
 
-async function originalDeskOpenSource(directory: string) {
+async function originalDeskSource(directory: string, operation: 'open_request' | 'triage' = 'open_request') {
   const original = await readFile(join(root, 'draft/apps/CanDesk/CanDesk.can'), 'utf8');
   const customer = await readFile(join(root, 'draft/apps/CanCustomer/CanCustomer.can'), 'utf8');
   const invoice = await readFile(join(root, 'draft/apps/CanInvoice/CanInvoice.can'), 'utf8');
-  const start = original.indexOf('  export scenario open_request('), end = original.indexOf('   examples', start);
+  const declaration = original.indexOf('scenario ' + operation + '(');
+  const start = original.lastIndexOf('\n', declaration) + 1;
+  const end = operation === 'triage' ? original.indexOf('  # Escalate', start) : original.indexOf('   examples', start);
   assert.ok(start > 0 && end > start);
-  const text = ['app CanDesk uses=[desk]', 'package desk', ' use customer {Customer,owns,has_role}', ' use rent_catalog {Location}',
-    ' use employee {can_work,staff}', ' use rent_reservations {Booking}', ' use member_terms {Membership}', ' use invoice {Invoice}', ' use maintain {Repair}',
+  const text = ['app CanDesk uses=[desk]', 'package desk', ' use customer {Customer,owns,has_role}', ' use rent_catalog {Location' + (operation === 'triage' ? ',test_site' : '') + '}',
+    ' use employee {can_work,staff' + (operation === 'triage' ? ',test_worker' : '') + '}', ' use rent_reservations {Booking}', ' use member_terms {Membership}', ' use invoice {Invoice}', ' use maintain {Repair}',
     ' use std {DeliveryResult}', ' use std {EmailV1 as Mail} from=deployment.mail', ' use desk {InboxV1 as Inbox} from=deployment.support_inbox',
     original.slice(original.indexOf(' Given\n'), original.indexOf('  fixture conversation=')),
+    ...(operation === 'triage' ? original.split('\n').filter(line => ['conversation', 'document', 'received_message', 'unmatched'].some(name => line.startsWith('  fixture ' + name + '='))) : []),
     ...original.split('\n').filter(line => line.startsWith('  message ')), ' When', original.slice(start, end).trimEnd(), ' Then',
     'package customer', ' use rent_catalog {Location}', ' use employee {can_work}', ' use invoice {finance}', ' use std {EmailV1 as Mail} from=deployment.mail',
     customer.slice(customer.indexOf(' Given\n'), customer.indexOf('  export fixture test_directory_manager=')),
     ...customer.split('\n').filter(line => line.startsWith('  message ')), ' When', ' Then',
-    // These nullable reference targets are never traversed or populated by open_request.
+    // These nullable reference targets remain unpopulated in both selected intake workflows.
     'package invoice', ' Given', invoice.split('\n').find(line => line.startsWith('  export role finance '))!, '  export Invoice {source:text}', ' When', ' Then',
     ...[['rent_reservations', 'Booking'], ['member_terms', 'Membership'], ['maintain', 'Repair']].flatMap(([owner, name]) =>
       ['package ' + owner, ' Given', '  export ' + name + ' {source:text}', ' When', ' Then']), ''].join('\n');
@@ -5742,7 +5745,7 @@ async function originalDeskOpenSource(directory: string) {
 it('opens the original customer support request with scoped membership and archived spam control', { timeout: 240000 }, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'can-desk-open-original-'));
   try {
-    const source = await originalDeskOpenSource(directory);
+    const source = await originalDeskSource(directory);
     const { stdout } = await promisify(execFile)(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog,
       source, join(root, 'draft/shared/Employees.can'), join(root, 'draft/shared/Locations.can')],
       { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
@@ -5863,6 +5866,131 @@ it('opens the original customer support request with scoped membership and archi
           assert.ok('error' in outcome); assert.equal(outcome.error.code, 'rule_failed', mode + ': ' + JSON.stringify(outcome));
         }
         if (['client-race', 'grant-race', 'spam-race', 'membership-revoked', 'commit-failure'].includes(mode)) assert.equal(injected, true, mode);
+      }
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+
+it('triages the original unmatched mail atomically with its stored default and finalized attachments', { timeout: 240000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-desk-triage-original-'));
+  try {
+    const source = await originalDeskSource(directory, 'triage');
+    const { stdout } = await promisify(execFile)(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog,
+      source, join(root, 'draft/shared/Employees.can'), join(root, 'draft/shared/Locations.can')],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+    const artifact = JSON.parse(stdout) as CompileArtifact;
+    const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: join(directory, 'modules'),
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+    for (const mode of ['default-subject', 'explicit-subject', 'empty-attachments', 'other-message', 'duplicate', 'archived-duplicate', 'resolved',
+      'no-role', 'inactive-worker', 'outside-location', 'inactive-location', 'stale-input', 'blank-category', 'blank-queue', 'blank-default',
+      'oversize-subject', 'missing-file-producer', 'file-race', 'membership-race', 'worker-race', 'incoming-race', 'duplicate-race', 'commit-failure']) {
+      const { now, identities, team, user, membership, identity } = await member('desk-triage-' + mode, mode === 'no-role' ? [] : ['desk.support']);
+      const scope = { app: 'CanDesk', owner: team.team_id, ownerPackage: 'desk' };
+      const authority: FileRetirementAuthority = { app: scope.app, stateOwner: scope.app, stateStoreId: 'desk-triage-state', fileStoreId: 'desk-triage-files',
+        receiver: { app: scope.app, owner: team.team_id, team: team.team_id } };
+      const { store, probe } = createTestMemoryStorage(authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+      await installNativeFileInventory({ artifact, asm, store, authority, scope, now: () => now,
+        verifyOwner: async () => { assert.ok(await identities.findTeamById(team.team_id)); } });
+      const clock = new TestOnlyManualClock(now), blobs = new TestOnlyMemoryBlobStore(), files = new TestOnlyMemoryFinalizedStore(), intents = new TestOnlyMemoryIntentStore();
+      const physical = { clock, blobs, files, upload: { clock, intents, blobs, policy: DEFAULT_FILE_POLICY, intentIds: new TestOnlyCounterIntentIds(), intentTtlMs: 3600000, urlBase: 'https://invoice.test' },
+        finalize: { clock, intents, blobs, files, fileIds: new TestOnlyCounterFileIds() } };
+      const retention = { unattachedHorizonMs: 3600000, retentionMs: 86400000 }, observation = { policy: physical.upload.policy, retention };
+      const kernel = createFileJourneyKernel({ maxBytes: physical.upload.policy.maxBytes, createIntent: input => createUploadIntent(physical.upload, input),
+        append: (id, caller, bytes, offset) => appendUploadContentAtOffset(physical.upload, id, caller, bytes, offset), complete: (id, caller) => completeUploadContent(physical.upload, id, caller),
+        finalize: input => finalizeUpload(physical.finalize, input), authorizeAttach: (ref, caller) => authorizeAttach(physical.finalize, ref, caller),
+        readProvenance: (ref, caller) => readFinalizedFile(physical.finalize, ref, caller), recordAttachment: (ref, record, caller) => recordAttachment(physical.finalize, ref, record, caller),
+        readBytes: (ref, caller) => readFinalizedBytes(physical.finalize, ref, caller), readCurrentBytes: (ref, caller, policy) => readCurrentFinalizedBytes(physical.finalize, ref, caller, { ...observation, retention: policy }),
+        readCurrentSnapshot: (ref, caller, policy) => readCurrentFinalizedSnapshot(physical.finalize, ref, caller, { ...observation, retention: policy }),
+        observeFile: (ref, caller, policy) => observeFinalizedFile(physical.finalize, ref, caller, { ...observation, retention: policy }),
+        revalidateFile: (saved, caller, policy) => revalidateRetainedFinalizedFile(physical.finalize, saved, caller, { ...observation, retention: policy }) } satisfies FileJourneyBindings);
+      const receiver = { app: scope.app, owner: team.team_id, team: team.team_id, principal: user.user_id };
+      const bytes = new TextEncoder().encode('Original unmatched mail evidence');
+      const upload = createUploadIntent(physical.upload, { receiver, binding: { adapter: 'deployment.support_inbox', deliveryId: 'incoming', resultPath: 'attachments' },
+        request: { upload_id: 'incoming', operation: 'desk.triage', field: '/attachments/0', arguments: {}, name: 'incoming.txt', type: 'text/plain', size: String(bytes.length) } });
+      assert.ok(upload.status === 'granted'); assert.equal(appendUploadContentAtOffset(physical.upload, upload.intentId, receiver, bytes, 0).status, 'appended');
+      assert.equal(completeUploadContent(physical.upload, upload.intentId, receiver).status, 'completed');
+      const finalized = finalizeUpload(physical.finalize, { intentId: upload.intentId, retryId: 'incoming', bytesDigest: sha256Hex(bytes), caller: receiver }); assert.ok(finalized.status === 'finalized');
+      const attachments = mode === 'empty-attachments' ? [] : [{ id: finalized.result.file }];
+      const site = globalAnyRow('site', { ...globalAnySite('site').data, active: mode !== 'inactive-location' });
+      const worker = globalAnyRow('worker', { ...globalAnyEmployee(user.user_id), active: mode !== 'inactive-worker', home: { id: mode === 'outside-location' ? 'other' : site.id }, locations: [] });
+      const oldTicket = globalAnyRow('older-ticket', { location: { id: 'other' }, customer: null, subject: 'Older request', email: 'other@desk.test', thread: 'older-thread',
+        category: 'Other', priority: 'normal', assignee: null, queue: 'Other', state: 'open', due: null, escalation: null, escalated_by: null, escalated_at: null,
+        booking: null, membership: null, invoice: null, repair: null });
+      const priorMessage = (id: string, externalId = 'inbound-id') => globalAnyRow(id, { external_id: externalId, kind: 'customer', body: 'Existing message', sender: 'sender@desk.test',
+        recipient: 'support@desk.test', author: null, attachments: [], delivery: null }, { model: asModel('desk.Ticket'), id: oldTicket.id });
+      const incoming = globalAnyRow('incoming', { external_id: 'inbound-id', sender: 'sender@desk.test', recipient: 'support@desk.test',
+        subject: ['explicit-subject', 'blank-default'].includes(mode) ? '' : ' Incoming Wi-Fi ', body: ' Original mail body ', thread: 'untrusted-thread', attachments,
+        state: mode === 'resolved' ? 'resolved' : 'pending', ticket: mode === 'resolved' ? { id: oldTicket.id } : null,
+        resolved_by: mode === 'resolved' ? { id: user.user_id } : null, resolved_at: mode === 'resolved' ? new Date(now).toISOString() : null, received: new Date(now).toISOString() });
+      const duplicate = ['duplicate', 'archived-duplicate', 'other-message'].includes(mode)
+        ? { ...priorMessage('prior-message', mode === 'other-message' ? 'other-external-id' : 'inbound-id'), archivedAt: mode === 'archived-duplicate' ? now - 1 : null } : undefined;
+      await store.commit(makeBatch(await store.readRevision(), { writes: [
+        { kind: 'insert', model: asModel('rent_catalog.Location'), row: site }, { kind: 'insert', model: asModel('rent_catalog.Location'), row: globalAnySite('other') },
+        { kind: 'insert', model: asModel('employee.Employee'), row: worker }, { kind: 'insert', model: asModel('desk.Ticket'), row: oldTicket },
+        { kind: 'insert', model: asModel('desk.Unmatched'), row: incoming }, ...(duplicate ? [{ kind: 'insert' as const, model: asModel('desk.Message'), row: duplicate }] : []),
+      ] }));
+      const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now, ...(mode === 'missing-file-producer' ? {} : { files: createCanonicalFileBinding(kernel, retention) }) });
+      const snapshot = async () => ({ tickets: await store.query({ model: asModel('desk.Ticket'), authority: 'owner', archived: 'include', order: [{ field: 'id', direction: 'asc' }] }),
+        messages: await store.query({ model: asModel('desk.Message'), authority: 'owner', archived: 'include', order: [{ field: 'id', direction: 'asc' }] }),
+        incoming: await store.load(asModel('desk.Unmatched'), incoming.id), outbox: probe.outboxAll() });
+      const before = await snapshot(), beforeFiles = structuredClone(files.listAll()), commit = store.commit.bind(store), query = store.query.bind(store); let injected = false;
+      if (['membership-race', 'file-race'].includes(mode)) store.query = async request => {
+        const rows = await query(request);
+        if (!injected && request.model === 'desk.Message') { injected = true;
+          if (mode === 'file-race') blobs.remove(blobKeyForFile(finalized.result.file));
+          else await identities.removeMembership(membership.membership_id);
+        }
+        return rows;
+      };
+      if (['worker-race', 'incoming-race', 'duplicate-race', 'commit-failure'].includes(mode)) store.commit = async batch => {
+        if (!injected && batch.writes.some(write => write.kind === 'insert' && write.model === 'desk.Ticket')) {
+          injected = true; assert.ok(batch.writes.some(write => write.kind === 'insert' && write.model === 'desk.Message'));
+          assert.ok(batch.writes.some(write => write.kind === 'update' && write.model === 'desk.Unmatched'), 'triage stages its original incoming audit in the same transaction');
+          if (mode === 'commit-failure') throw new Error('Injected triage transaction refusal.');
+          if (mode === 'duplicate-race') await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'insert', model: asModel('desk.Message'), row: { ...priorMessage('concurrent-message'), archivedAt: now - 1 } }] }));
+          else {
+            const row = mode === 'worker-race' ? worker : incoming;
+            await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'update', model: asModel(mode === 'worker-race' ? 'employee.Employee' : 'desk.Unmatched'),
+              id: row.id, expectedVersion: row.version, row: { ...row, version: asVersion(row.version + 1), data: mode === 'worker-race' ? { ...row.data, active: false }
+                : { ...row.data, state: 'resolved', ticket: { id: oldTicket.id }, resolved_by: { id: user.user_id }, resolved_at: new Date(now).toISOString() } } }] }));
+          }
+        }
+        return commit(batch);
+      };
+      const subject = mode === 'explicit-subject' ? { subject: ' Replacement subject ' } : mode === 'oversize-subject' ? { subject: 'x'.repeat(301) } : {};
+      const request = { operation: 'desk.triage', operation_id: operationId(now), inputs: { incoming: { id: incoming.id, version: mode === 'stale-input' ? '2' : '1' },
+        location: { id: site.id, version: '1' }, category: mode === 'blank-category' ? ' ' : ' Connectivity ', queue: mode === 'blank-queue' ? ' ' : ' Reception ', ...subject } };
+      const outcome = await invoker.invokeMutation(request, identity); store.commit = commit; store.query = query;
+      // The original triage guard checks can_work; it does not require location.active.
+      const allowed = ['default-subject', 'explicit-subject', 'empty-attachments', 'other-message', 'inactive-location'].includes(mode);
+      assert.equal('result' in outcome, allowed, mode + ': ' + JSON.stringify(outcome)); const after = await snapshot();
+      assert.deepEqual(after.outbox, [], 'triage sends no mail');
+      if (allowed) {
+        assert.ok('result' in outcome); assert.equal(outcome.result.status, 'committed');
+        const ticket = after.tickets.find(row => row.data.thread === request.operation_id); assert.ok(ticket); assert.equal(after.tickets.length, 2);
+        assert.deepEqual(ticket.data, { ...oldTicket.data, location: { id: site.id }, subject: mode === 'explicit-subject' ? 'Replacement subject' : 'Incoming Wi-Fi',
+          email: incoming.data.sender, thread: request.operation_id, category: ' Connectivity ', queue: ' Reception ' });
+        const message = after.messages.find(row => row.parent?.id === ticket.id); assert.ok(message); assert.equal(after.messages.length, (duplicate ? 1 : 0) + 1);
+        assert.deepEqual(message.data, { external_id: incoming.data.external_id, kind: 'customer', body: incoming.data.body, sender: incoming.data.sender,
+          recipient: incoming.data.recipient, author: null, attachments, delivery: null, state: null });
+        assert.deepEqual(after.incoming?.data, { ...incoming.data, state: 'resolved', ticket: { id: ticket.id }, resolved_by: { id: user.user_id }, resolved_at: new Date(now).toISOString() });
+        assert.deepEqual(outcome.result.result, { id: ticket.id }); assert.deepEqual(await store.load(asModel('desk.Ticket'), oldTicket.id), oldTicket);
+        if (attachments.length) { assert.deepEqual(await readCurrentFinalizedBytes(physical.finalize, finalized.result.file, receiver, observation), bytes); assert.equal(files.get(finalized.result.file)?.state, 'attached'); }
+        const attached = structuredClone(files.listAll()), replay = await invoker.invokeMutation(request, identity);
+        assert.ok('result' in replay, JSON.stringify(replay)); assert.equal(replay.result.status, 'replayed'); assert.deepEqual(await snapshot(), after); assert.deepEqual(files.listAll(), attached);
+      } else {
+        assert.deepEqual(after.tickets, before.tickets, mode + ': no partial Ticket');
+        if (mode === 'duplicate-race') { assert.equal(after.messages.length, 1); assert.equal(after.messages[0]!.id, 'concurrent-message'); }
+        else assert.deepEqual(after.messages, before.messages, mode + ': no partial Message');
+        if (mode === 'incoming-race') { assert.equal(after.incoming?.version, incoming.version + 1); assert.deepEqual(after.incoming?.data.ticket, { id: oldTicket.id }); }
+        else assert.deepEqual(after.incoming, before.incoming, mode + ': no partial triage audit');
+        assert.deepEqual(files.listAll(), beforeFiles, mode + ': refusal attaches no File');
+        if (['duplicate', 'archived-duplicate', 'resolved', 'inactive-worker', 'outside-location', 'blank-category', 'blank-queue'].includes(mode)) {
+          assert.ok('error' in outcome); assert.equal(outcome.error.code, 'rule_failed', mode + ': ' + JSON.stringify(outcome));
+        }
+        if (['blank-default', 'oversize-subject'].includes(mode)) { assert.ok('error' in outcome); assert.equal(outcome.error.code, 'validation', JSON.stringify(outcome)); }
+        if (['file-race', 'membership-race', 'worker-race', 'incoming-race', 'duplicate-race', 'commit-failure'].includes(mode)) assert.equal(injected, true, mode);
       }
     }
   } finally { await rm(directory, { recursive: true, force: true }); }

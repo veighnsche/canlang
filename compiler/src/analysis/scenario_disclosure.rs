@@ -8651,6 +8651,11 @@ impl<'a> Closure<'a> {
             if visits > 16384 {
                 return None;
             }
+            // Examples describe verification cases, not executable query
+            // occurrences of this owner. Match the other body/count censuses.
+            if node.kind == SyntaxKind::Examples {
+                continue;
+            }
             if node.kind == SyntaxKind::Query {
                 query_nodes.push(NodeKey::of(node));
             }
@@ -14272,8 +14277,50 @@ impl<'a> Closure<'a> {
         }
     }
 
+    /// A scalar default may read one exact field of an earlier admitted
+    /// required Model input. Original default evaluation still owns the DATA
+    /// read; this declaration proof only lets its admitted scalar cross a
+    /// later guard observer, retaining all target constraints.
+    fn source_require_stored_scalar_default(&self, scenario: &super::effects::ScenarioData,
+        parameter: &super::effects::ParamData) -> bool {
+        let Some(default) = parameter.default else { return false; };
+        let Some(ty) = self.types.symbol_types.get(&parameter.param) else { return false; };
+        let Some(declaration) = self.resolve.symbols.get(parameter.param.0 as usize) else { return false; };
+        let SymbolKind::Param { owner, index, type_node } = declaration.kind else { return false; };
+        let Some(original) = scenario.params.get(index) else { return false; };
+        let Some((base, name)) = self.count_member(default) else { return false; };
+        let Some(Binding::Symbol(seed)) = self.query_binding(base) else { return false; };
+        let Some(source) = self.resolve.symbols.get(seed.0 as usize) else { return false; };
+        let SymbolKind::Param { owner: source_owner, index: source_index, type_node: source_type } = source.kind else { return false; };
+        let Some(input) = scenario.params.get(source_index) else { return false; };
+        let Some(ResolvedType::Record { symbol: model, stored: true }) = self.types.symbol_types.get(seed) else { return false; };
+        if !primitive_type(ty) || owner != scenario.scenario || declaration.module != scenario.module
+            || original.param != parameter.param || original.node != parameter.node || original.default != Some(default)
+            || type_node != parameter.type_node || !self.source_anchor(scenario, parameter.node)
+            || !self.source_anchor(scenario, parameter.type_node) || !self.source_anchor(scenario, default)
+            || !self.checked_created_field_type(type_node, scenario.module, ty, 0)
+            || self.types.node_types.get(&default) != Some(ty)
+            || source_owner != scenario.scenario || source.module != scenario.module || source_index >= index
+            || input.param != *seed || input.type_node != source_type || input.default.is_some()
+            || !self.source_anchor(scenario, input.node) || !self.source_anchor(scenario, source_type)
+            || !self.original_reference_parameter(base, *seed)
+            || self.types.node_types.get(&base) != self.types.symbol_types.get(seed)
+            || !self.checked_created_field_type(source_type, scenario.module,
+                &ResolvedType::Record { symbol: *model, stored: true }, 0)
+            || !matches!(self.resolve.symbols.get(model.0 as usize).map(|model| &model.kind), Some(SymbolKind::Model { .. }))
+            || self.types.param_default_copy_sources.contains_key(&parameter.param)
+        { return false; }
+        self.effects.models.get(model).is_some_and(|model| model.fields.iter().any(|field|
+            self.resolve.symbols.get(field.field.0 as usize).is_some_and(|declaration|
+                declaration.name == name && matches!(declaration.kind, SymbolKind::Field { owner, .. } if owner == model.model)
+                    && self.types.symbol_types.get(&field.field) == Some(ty)
+                    && self.stored_contract_field_checked_data(model.model, &field.field, declaration.module,
+                        name, ty, false).is_some())))
+    }
+
     fn source_require_value_parameter(&self, scenario: &super::effects::ScenarioData,
         parameter: &super::effects::ParamData) -> bool {
+        if self.source_require_stored_scalar_default(scenario, parameter) { return true; }
         let Some(ty) = self.types.symbol_types.get(&parameter.param) else { return false; };
         if !self.source_require_plain_value(ty, 0) || self.types.value_constraints.contains_key(&parameter.param) { return false; }
         let Some(default) = parameter.default else { return true; };
@@ -24717,32 +24764,41 @@ impl<'a> Closure<'a> {
                         (Some(expected), Some(actual)) if expected == actual)
             }
 
-            /// CALL-only stored File[] observation. No ordinary expression/result or
-            /// File intrinsic gains admission from this source-backed input leaf.
-            fn call_file_array_operand(
-                &self,
-                key: NodeKey,
-                statement: NodeKey,
-                module: ModuleId,
-                calls: &[NodeKey],
-            ) -> Result<Vec<ValuePath>, DisclosureDecline> {
-                let fail = || {
-                    self.fail(
-                        key,
-                        "File[] call input needs original stored parameter member",
-                    )
-                };
+            /// Only CALL's existing bounded File-array profile uses this
+            /// wrapper. CREATE shares source/dependency checks below while its
+            /// own canonical receiving declaration retains its actual bounds.
+            fn call_file_array_operand(&self, key: NodeKey, statement: NodeKey,
+                module: ModuleId, calls: &[NodeKey]) -> Result<Vec<ValuePath>, DisclosureDecline> {
+                let (field, owner) = self.stored_file_array_source(key, statement, module, calls)?;
+                if field.reuse.is_some() || field.min.is_some()
+                    || field.max.as_ref().map(|(_, max, _)| *max) != Some(8) {
+                    return Err(self.fail(key, "File[] call input needs original stored parameter member"));
+                }
+                self.stored_file_array_value(key, module, calls, &field, owner)
+            }
+
+            /// An exact stored File-array operand remains tied to its original
+            /// required Model input, source field schema and declaration.
+            fn stored_file_array_source(&self, key: NodeKey, statement: NodeKey,
+                module: ModuleId, calls: &[NodeKey])
+                -> Result<(CheckedStoredContractField, String), DisclosureDecline> {
+                let fail = || self.fail(key, "File[] input needs original stored parameter member");
                 let node = self.nodes.get(&key).ok_or_else(fail)?;
                 if node.kind != SyntaxKind::Member || !calls.is_empty() || self.loop_node.is_some() {
                     return Err(fail());
                 }
                 let (base, name) = self.file_array_member_shape(key, node)?;
-                let (parameter, model) = self
-                    .original_call_model_parameter(base, statement, module)
-                    .ok_or_else(fail)?;
-                let (field_id, owner_canonical, ty) =
-                    self.file_array_field_original(key, model, &name, parameter)?;
-                self.file_array_declaration_ok(key, model, field_id)?;
+                let (parameter, model) = self.original_call_model_parameter(base, statement, module).ok_or_else(fail)?;
+                let (field, owner) = self.file_array_field_original(key, model, &name, parameter)?;
+                self.file_array_declaration_ok(key, model, field.id)?;
+                Ok((field, owner))
+            }
+
+            /// This is a whole-field DATA observation, never a File byte grant.
+            /// Actual provenance/current authority remains with the owning File
+            /// producer and the independently checked receiving declaration.
+            fn stored_file_array_value(&self, key: NodeKey, module: ModuleId, calls: &[NodeKey],
+                field: &CheckedStoredContractField, owner: String) -> Result<Vec<ValuePath>, DisclosureDecline> {
                 Ok(vec![ValuePath {
                     reads: vec![DisclosureDependency {
                         query_id: None,
@@ -24751,11 +24807,11 @@ impl<'a> Closure<'a> {
                         node: key,
                         calls: calls.to_vec(),
                         role: DependencyRole::Data,
-                        model,
-                        field: field_id,
-                        model_name: owner_canonical,
-                        field_name: name,
-                        ty: ty.clone(),
+                        model: field.owner,
+                        field: field.id,
+                        model_name: owner,
+                        field_name: field.name.clone(),
+                        ty: field.ty.clone(),
                         type_id: "file[]".into(),
                     }],
                     observed: vec![(key, calls.to_vec())],
@@ -24798,7 +24854,7 @@ impl<'a> Closure<'a> {
                 model: SymbolId,
                 name: &str,
                 parameter: SymbolId,
-            ) -> Result<(SymbolId, String, ResolvedType), DisclosureDecline> {
+            ) -> Result<(CheckedStoredContractField, String), DisclosureDecline> {
                 let fail = || {
                     self.fail(
                         key,
@@ -24844,15 +24900,12 @@ impl<'a> Closure<'a> {
                     || original.name != name
                     || !ordinary_file_array(&original.ty)
                     || original.required_array
-                    || original.reuse.is_some()
-                    || original.min.is_some()
-                    || original.max.as_ref().map(|(_, max, _)| *max) != Some(8)
                     || self.types.node_types.get(&key) != Some(&original.ty)
                     || self.types.symbol_types.get(&field.id) != Some(&original.ty)
                 {
                     return Err(fail());
                 }
-                Ok((field.id, owner.canonical.clone(), original.ty.clone()))
+                Ok((original.clone(), owner.canonical.clone()))
             }
 
             /// A `File[]` operand's declaration carries no default, server
@@ -25409,6 +25462,13 @@ impl<'a> Closure<'a> {
                 // scenario context. It is not a stored-field observation or grant.
                 let alternatives = if self.admitted_actor_default(input.value_node, &input.ty) {
                     vec![ValuePath::default()]
+                } else if ordinary_file_array(&input.ty)
+                    && self.nodes.get(&input.value_node).is_some_and(|node| node.kind == SyntaxKind::Member)
+                    && input.field.is_some_and(|field| self.types.symbol_types.get(&field) == Some(&input.ty)
+                        && matches!(self.resolve.symbols.get(field.0 as usize).map(|field| &field.kind),
+                            Some(SymbolKind::Field { owner, .. }) if *owner == model)) {
+                    let (field, owner) = self.stored_file_array_source(input.value_node, node, module, calls)?;
+                    self.stored_file_array_value(input.value_node, module, calls, &field, owner)?
                 } else if input.value_node == input.key_node {
                     self.lexical(input.key_node, module, env, calls)?
                 } else {
@@ -25643,10 +25703,10 @@ impl<'a> Closure<'a> {
                             if actual == model && self.preceding_set_call(effect, module, key, node)))
             }
 
-            /// A conditional constructor may populate a reference only in
-            /// its own original arm, immediately after that constructor.
+            /// A constructor may populate a reference in its original arm
+            /// immediately, or after its one proven contained child CREATE.
             /// Branch dominance comes from the current flow's CreateAs value;
-            /// this syntax join also excludes copies and intervening effects.
+            /// this syntax join excludes copies and unrelated effects.
             fn preceding_set_create(&self, effect: &Effect, module: ModuleId,
                 key: NodeKey, model: SymbolId, created: NodeKey) -> bool {
                 let Some(node) = self.nodes.get(&key) else { return false; };
@@ -25665,8 +25725,20 @@ impl<'a> Closure<'a> {
                     if let Some(position) = statements.iter().position(|statement| statement.node == effect.node) {
                         let Some(previous) = position.checked_sub(1).and_then(|index| statements.get(index)) else { return false; };
                         let Some(original) = self.checked_create_source(previous, module) else { return false; };
-                        return previous.verb == EffectVerb::Create && previous.node == created
-                            && original.model == model && self.word(node) == Some(original.binding.as_str());
+                        if previous.verb == EffectVerb::Create && previous.node == created
+                            && original.model == model && self.word(node) == Some(original.binding.as_str())
+                        { return true; }
+                        // One exactly proven contained child construction may
+                        // intervene. The live CreateAs still owns the parent;
+                        // no other effect, copied reference or branch crosses
+                        // this original parent/child/SET sequence.
+                        let Some(parent) = position.checked_sub(2).and_then(|index| statements.get(index)) else { return false; };
+                        let Some(parent_source) = self.checked_create_source(parent, module) else { return false; };
+                        return parent.verb == EffectVerb::Create && parent.node == created && parent_source.model == model
+                            && previous.verb == EffectVerb::Create
+                            && original.definition.declaration.owner == ModelOwner::ChildOf(model)
+                            && self.word(node) == Some(parent_source.binding.as_str())
+                            && self.checked_created_pair(statements, module, parent);
                     }
                     for statement in statements {
                         if statement.verb == EffectVerb::If {

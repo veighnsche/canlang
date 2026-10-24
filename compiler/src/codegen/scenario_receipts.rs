@@ -3008,6 +3008,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                             .find(|field| field.id == dependency.field)?
                     } else {
                         stored_file_array_operand(ir, item, expression, db?)
+                            .or_else(||checked_stored_file_array_create_operand(source_context?,ir,item,expression,db?))
                             .or_else(||checked_created_file_array_send_operand(ir,item,expression,db?,sealed_created_tail))?
                     };
                     if original.id != stored.id
@@ -12279,11 +12280,12 @@ fn file_array_schema_field<'a>(
     Some(original)
 }
 
-pub(super) fn stored_file_array_operand<'a>(
+fn stored_file_array_parameter_operand<'a>(
     ir: &'a IrProgram,
     owner: &IrItem,
     value: &TypedExpr,
     db: &SourceDb,
+    call_bounds: bool,
 ) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
     let source = super::scenario_calls::checked_source(ir, owner, db)?;
     let (name, field, symbol, base) = file_array_receiver(value)?;
@@ -12300,7 +12302,39 @@ pub(super) fn stored_file_array_operand<'a>(
         return None;
     }
     file_array_authored_matches(ir, owner, source, value, base, field, text, db)?;
-    file_array_schema_field(ir, owner, source, symbol, field, value, db, true)
+    file_array_schema_field(ir, owner, source, symbol, field, value, db, call_bounds)
+}
+
+pub(super) fn stored_file_array_operand<'a>(
+    ir: &'a IrProgram, owner: &IrItem, value: &TypedExpr, db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
+    stored_file_array_parameter_operand(ir, owner, value, db, true)
+}
+
+/// The original required input's File array may be copied only into this
+/// exact CREATE field. The receiving schema and live File checks still own it.
+fn checked_stored_file_array_create_operand<'a>(
+    context: &super::source_context::FreshSourceContext<'_>,
+    ir: &'a IrProgram, owner: &IrItem, value: &TypedExpr, db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
+    context.same_scenario(ir, owner)?;
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else { return None; };
+    let mut matches = facts.creates.as_deref()?.iter().filter(|created| {
+        effects.iter().any(|statement| {
+            let IrStmt::Create {input, span, ..} = statement else { return false; };
+            let IrExpr::Object(entries) = &input.expr else { return false; };
+            *span == node_span(created.node) && entries.iter().any(|(name, argument)|
+                std::ptr::eq(argument, value) && created.inputs.iter().any(|input|
+                    input.name == *name && input.field.is_some() && input.ty == value.ty
+                        && node_span(input.value_node) == value.span
+                        && created.definition.fields.iter().any(|field|
+                            Some(field.field) == input.field && field.ty == value.ty)))
+        })
+    });
+    matches.next()?;
+    if matches.next().is_some() { return None; }
+    stored_file_array_parameter_operand(ir, owner, value, db, false)
 }
 
 /// A newly created File-array member is data only at its exact checked
@@ -15788,7 +15822,7 @@ fn scenario_create_entries(
     source_context: Option<&super::source_context::FreshSourceContext<'_>>,
     purchase_all: bool,
 ) -> Option<()> {
-    if !purchase_all && checked_created_statements(ir, owner, checked, original, db).is_none()
+    if !purchase_all && checked_created_statements(ir, owner, checked, original, db, source_context).is_none()
         && source_context.and_then(|context| conditional_parameter_create_link(context, owner, original)
             .or_else(|| source_owned_after_call_create(context, owner, original))
             .or_else(|| source_owned_void_create(context, owner, original))
@@ -15899,12 +15933,69 @@ fn checked_required_model_parameter_value(ir: &IrProgram, owner: &IrItem, record
     created_record_name_matches(record, &parameter.ty, name, statement, db)
 }
 
+/// Admit the declaration of one original stored scalar default. Evaluation
+/// and its DATA observation remain with the normal omitted-input producer.
+pub(super) fn checked_stored_scalar_parameter_default(
+    context: &super::source_context::FreshSourceContext<'_>,
+    ir: &IrProgram,
+    owner: &IrItem,
+    parameter: crate::analysis::SymbolId,
+) -> Option<()> {
+    context.same_scenario(ir, owner)?;
+    let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
+    let checked = facts.parameters.iter().find(|value| value.parameter == parameter)?;
+    let item = ir.items.get(parameter.0 as usize)?;
+    let IrItemKind::Param { owner: declared_owner, index, ty: IrType::Known(ty),
+        default: Some(IrDefault::Computed {expr, ..}), default_node: Some(node),
+        default_copy_source: None, .. } = &item.kind else { return None; };
+    let IrItemKind::Scenario {params, ..} = &owner.kind else { return None; };
+    if *declared_owner != owner.id || params.get(*index) != Some(&parameter)
+        || checked.default != Some(*node) || node.kind != SyntaxKind::Member as u8
+        || checked.ty != *ty || !crate::analysis::scenario_disclosure::primitive_type(ty)
+        || expr.ty != *ty || expr.span != node_span(*node)
+        || ir.value_constraints.get(&parameter) != checked.constraints.as_ref()
+        || context.original().types.param_default_copy_sources.contains_key(&parameter)
+    { return None; }
+    let IrExpr::Member {base, field} = &expr.expr else { return None; };
+    let IrExpr::Name(seed_name) = &base.expr else { return None; };
+    let mut seeds = params[..*index].iter().filter_map(|id| ir.items.get(id.0 as usize))
+        .filter(|item| item.name == *seed_name);
+    let seed = seeds.next()?;
+    if seeds.next().is_some() { return None; }
+    let IrItemKind::Param {owner: seed_owner, index: seed_index,
+        ty: IrType::Known(ResolvedType::Record {symbol: model, stored: true}),
+        default: None, default_node: None, default_copy_source: None, ..} = &seed.kind else { return None; };
+    if *seed_owner != owner.id || seed_index >= index || seed.module != owner.module
+        || base.ty != (ResolvedType::Record {symbol: *model, stored: true})
+        || context.original().types.node_types.get(node) != Some(ty)
+    { return None; }
+    let target = ir.items.get(model.0 as usize)?;
+    let IrItemKind::Model {fields, ..} = &target.kind else { return None; };
+    let mut matching = fields.iter().filter_map(|id| ir.items.get(id.0 as usize))
+        .filter(|item| item.name == *field);
+    let member = matching.next()?;
+    if matching.next().is_some()
+        || !matches!(&member.kind, IrItemKind::Field {owner,ty:IrType::Known(actual),..}
+            if owner == model && actual == ty)
+        || member.module != target.module
+        || member.canonical != format!("{}.{}", target.canonical, field)
+        || context.original().types.symbol_types.get(&member.id) != Some(ty)
+        || format!("{member:?}") != format!("{:?}", context.fresh().items.get(member.id.0 as usize)?)
+        || format!("{item:?}") != format!("{:?}", context.fresh().items.get(item.id.0 as usize)?)
+    { return None; }
+    let fresh_owner = context.fresh().items.get(owner.id.0 as usize)?;
+    let IrItemKind::Scenario {params: fresh_params, ..} = &fresh_owner.kind else { return None; };
+    if fresh_params.get(*index) != Some(&parameter) { return None; }
+    Some(())
+}
+
 fn checked_created_statements(
     ir: &IrProgram,
     owner: &IrItem,
     checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
     original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
     db: &SourceDb,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<()> {
     use crate::analysis::NodeKey;
     let facts = checked.source_facts.as_deref()?;
@@ -15974,6 +16065,9 @@ fn checked_created_statements(
                 super::scenario_create_sources::checked_create_expression(
                     ir, original, value, node, db,
                 )?;
+            }
+            (Some(IrDefault::Computed {..}), Some(_)) => {
+                checked_stored_scalar_parameter_default(source_context?, ir, owner, *id)?;
             }
             _ => return None,
         }
