@@ -1,6 +1,6 @@
 {
   "name": "canlang",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "private": true,
   "description": "CanLang: AI-native SaaS DSL on workerd.",
@@ -78,6 +78,12 @@
     "@canlang/stdlib": "workspace:*",
     "turbo": "^2.11.7",
     "acorn": "^8.18.0",
-    "miniflare": "^4.20260730.0"
+    "miniflare": "^4.20260730.0",
+    "esbuild": "0.28.1",
+    "workerd": "1.20260730.1",
+    "undici": "7.28.0"
+  },
+  "optionalDependencies": {
+    "@cloudflare/workerd-linux-64": "1.20260730.1"
   }
 }

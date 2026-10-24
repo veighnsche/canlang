@@ -1,6 +1,6 @@
 {
   "name": "@canlang/work-kernel",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "description": "CanLang work/state transition kernel: pure decision mechanisms with swappable TS/wasm backends (W02 foundation; semantic modules arrive W02.2-W02.4).",
   "type": "module",
