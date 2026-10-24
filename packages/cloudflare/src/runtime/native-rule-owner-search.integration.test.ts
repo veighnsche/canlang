@@ -5112,11 +5112,11 @@ it('qualifies original Rent desk assignment with private occupancy control and a
 });
 
 
-async function originalLegacyLinkSource(directory: string) {
+async function originalLegacyLinkSource(directory: string, operation: 'link_legacy' | 'retain_legacy' = 'link_legacy') {
   const original = await readFile(join(root, 'draft/apps/CanExpense/CanExpense.can'), 'utf8'), lines = original.split('\n');
   const one = (prefix: string) => { const matches = lines.filter(line => line.startsWith('  ' + prefix));
     assert.equal(matches.length, 1, prefix); return matches[0]!; };
-  const start = original.indexOf('  scenario link_legacy('), end = original.indexOf('   examples', start);
+  const start = original.indexOf('  scenario ' + operation + '('), end = original.indexOf('   examples', start);
   assert.ok(start >= 0 && end > start);
   const source = join(directory, 'Expense.can');
   await writeFile(source, ['app CanExpense uses=[expense]', 'package expense', ' use rent_catalog {Location}', ' use employee {Employee,can_work}',
@@ -5343,6 +5343,137 @@ it('qualifies original invoice booking-link retention with archived child capaci
         }
         assert.equal(rows.length, hasExisting || ['count-phantom', 'duplicate-phantom'].includes(mode) ? 1 : 0, mode + ': no partial new booking link');
         if (['count-phantom', 'duplicate-phantom', 'membership-revoked'].includes(mode)) assert.equal(injected, true, mode);
+      }
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+
+it('qualifies original historical Expense retention with optional finalized receipt and atomic File effects', { timeout: 240000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-expense-retain-original-'));
+  try {
+    const source = await originalLegacyLinkSource(directory, 'retain_legacy');
+    const original = await readFile(source, 'utf8');
+    const firstGuard = 'require can_work(actor,location) and trim(source)!=""';
+    assert.ok(original.includes(firstGuard));
+    for (const [name, text] of [
+      ['guard', original.replace(firstGuard, firstGuard + ' and claim.status!="Unread"')],
+      ['helper', original.replace(' When', '  derive claim_present(value:LegacyClaim):bool = value.status!=null\n When')
+        .replace(firstGuard, firstGuard + ' and claim_present(claim)')],
+      ['if', original.replace('    create LegacyExpense', '    if claim.status!=null\n     require true\n    create LegacyExpense')],
+    ] as const) {
+      const declined = join(directory, 'read-claim-' + name + '.can');
+      await writeFile(declined, text);
+      const result = spawnSync(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog,
+        declined, join(root, 'draft/shared/Employees.can'), join(root, 'draft/shared/Locations.can')],
+        { cwd: root, encoding: 'utf8', timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+      assert.equal(result.error, undefined, name);
+      assert.notEqual(result.status, 0, name + ': a read Contract must not be omitted');
+      const report = JSON.parse(result.stdout) as { diagnostics?: { code: string }[]; artifact?: unknown; modules?: unknown };
+      assert.ok(report.diagnostics?.some(item => item.code === 'E6008'), result.stdout);
+      assert.equal(report.artifact, undefined); assert.equal(report.modules, undefined);
+    }
+    const { stdout } = await promisify(execFile)(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog,
+      source, join(root, 'draft/shared/Employees.can'), join(root, 'draft/shared/Locations.can')],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+    const artifact = JSON.parse(stdout) as CompileArtifact;
+    const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: join(directory, 'modules'),
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+    for (const mode of ['receipt', 'receipt-absent', 'archived-duplicate', 'current-duplicate', 'missing-receipt-issue', 'receipt-and-issue',
+      'blank-source', 'blank-attestation', 'invalid-money', 'foreign-receipt', 'missing-role', 'foreign-location', 'membership-revoked', 'duplicate-phantom', 'commit-failure']) {
+      const { now, identities, team, user, membership, identity } = await member('expense-retain-' + mode, mode === 'missing-role' ? [] : ['expense.finance']);
+      const foreign = await identities.createUser({ email: 'foreign-' + mode + '@retain.test', password_hash: 'unused', email_verified: true });
+      const scope = { app: 'CanExpense', owner: team.team_id, ownerPackage: 'expense' };
+      const authority: FileRetirementAuthority = { app: scope.app, stateOwner: scope.app, stateStoreId: 'expense-retain-state', fileStoreId: 'expense-retain-files',
+        receiver: { app: scope.app, owner: team.team_id, team: team.team_id } };
+      const { store, probe } = createTestMemoryStorage(authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+      await installNativeFileInventory({ artifact, asm, store, authority, scope, now: () => now,
+        verifyOwner: async () => { assert.ok(await identities.findTeamById(team.team_id)); } });
+      const clock = new TestOnlyManualClock(now), blobs = new TestOnlyMemoryBlobStore(), files = new TestOnlyMemoryFinalizedStore(), intents = new TestOnlyMemoryIntentStore();
+      const physical = { clock, blobs, files, upload: { clock, intents, blobs, policy: DEFAULT_FILE_POLICY, intentIds: new TestOnlyCounterIntentIds(), intentTtlMs: 3600000, urlBase: 'https://invoice.test' },
+        finalize: { clock, intents, blobs, files, fileIds: new TestOnlyCounterFileIds() } };
+      const retention = { unattachedHorizonMs: 3600000, retentionMs: 86400000 }, observation = { policy: physical.upload.policy, retention };
+      const kernel = createFileJourneyKernel({ maxBytes: physical.upload.policy.maxBytes, createIntent: input => createUploadIntent(physical.upload, input),
+        append: (id, caller, bytes, offset) => appendUploadContentAtOffset(physical.upload, id, caller, bytes, offset), complete: (id, caller) => completeUploadContent(physical.upload, id, caller),
+        finalize: input => finalizeUpload(physical.finalize, input), authorizeAttach: (ref, caller) => authorizeAttach(physical.finalize, ref, caller),
+        readProvenance: (ref, caller) => readFinalizedFile(physical.finalize, ref, caller), recordAttachment: (ref, record, caller) => recordAttachment(physical.finalize, ref, record, caller),
+        readBytes: (ref, caller) => readFinalizedBytes(physical.finalize, ref, caller), readCurrentBytes: (ref, caller, policy) => readCurrentFinalizedBytes(physical.finalize, ref, caller, { ...observation, retention: policy }),
+        readCurrentSnapshot: (ref, caller, policy) => readCurrentFinalizedSnapshot(physical.finalize, ref, caller, { ...observation, retention: policy }),
+        observeFile: (ref, caller, policy) => observeFinalizedFile(physical.finalize, ref, caller, { ...observation, retention: policy }),
+        revalidateFile: (saved, caller, policy) => revalidateRetainedFinalizedFile(physical.finalize, saved, caller, { ...observation, retention: policy }) } satisfies FileJourneyBindings);
+
+      const receiver = { app: scope.app, owner: team.team_id, team: team.team_id, principal: user.user_id };
+      const upload = (name: string, field: string, owner = receiver) => {
+        const bytes = new TextEncoder().encode('Original ' + name + ' evidence');
+        const intent = createUploadIntent(physical.upload, { receiver: owner, binding: { adapter: 'deployment.web', deliveryId: name, resultPath: field },
+          request: { upload_id: name, operation: 'expense.retain_legacy', field, arguments: {}, name: name + '.txt', type: 'text/plain', size: String(bytes.length) } });
+        assert.ok(intent.status === 'granted'); assert.equal(appendUploadContentAtOffset(physical.upload, intent.intentId, owner, bytes, 0).status, 'appended');
+        assert.equal(completeUploadContent(physical.upload, intent.intentId, owner).status, 'completed');
+        const result = finalizeUpload(physical.finalize, { intentId: intent.intentId, retryId: name, bytesDigest: sha256Hex(bytes), caller: owner }); assert.ok(result.status === 'finalized');
+        return { ref: result.result.file, bytes };
+      };
+      const sourceFile = upload('source', '/source_evidence');
+      const receiptFile = upload('receipt', '/claim/receipt', mode === 'foreign-receipt' ? { ...receiver, principal: foreign.user_id } : receiver);
+      const nullReceipt = mode === 'receipt-absent' || mode === 'missing-receipt-issue';
+      const claim = { actor: 'Former employee 41', reviewer: 'Reviewer 8', decision_time_original: '2021-05-12 09:00', decided_at: '2021-05-12T09:00:00.000Z', paid: '2021-05-20',
+        status: 'Paid', purpose: 'Historical travel', amount: { minor: mode === 'invalid-money' ? 'invalid' : '2500', currency: 'EUR' },
+        receipt: nullReceipt ? null : { id: receiptFile.ref }, receipt_issue: mode === 'receipt-absent' ? 'Original receipt absent from source export' : mode === 'receipt-and-issue' ? 'Conflicting receipt issue' : null };
+      const existing = { ...globalAnyRow('historical', { source: 'vendor-a', external_id: 'old-18', location: { id: 'site' }, claim: { ...claim, amount: { minor: '2500', currency: 'EUR' } },
+        source_evidence: { id: sourceFile.ref }, attestation: 'Previously retained original', claimant: null, access_reason: null,
+        imported_by: { id: user.user_id }, imported_at: new Date(now - 10000).toISOString() }), archivedAt: mode === 'current-duplicate' ? null : now - 1000 };
+      const seededDuplicate = mode === 'archived-duplicate' || mode === 'current-duplicate';
+      await store.commit(makeBatch(await store.readRevision(), { writes: [
+        ...['site', 'other'].map(id => ({ kind: 'insert' as const, model: asModel('rent_catalog.Location'), row: globalAnySite(id) })),
+        { kind: 'insert', model: asModel('employee.Employee'), row: globalAnyRow('worker', globalAnyEmployee(user.user_id, mode === 'foreign-location' ? 'other' : 'site')) },
+        ...(seededDuplicate ? [{ kind: 'insert' as const, model: asModel('expense.LegacyExpense'), row: existing }] : []),
+      ] }));
+      const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now, files: createCanonicalFileBinding(kernel, retention) });
+      if (mode === 'archived-duplicate') {
+        const read = await invoker.invokeRead({ operation: 'expense.LegacyExpense.read', inputs: {} }, identity); assert.ok('result' in read, JSON.stringify(read));
+        assert.equal((read.result as { records: unknown[] }).records.length, 0, 'ordinary history read excludes the archived duplicate');
+      }
+      const beforeFiles = structuredClone(files.listAll()), commit = store.commit.bind(store), query = store.query.bind(store); let injected = false;
+      if (mode === 'membership-revoked') store.query = async request => {
+        const rows = await query(request);
+        if (!injected && request.model === 'expense.LegacyExpense') { injected = true; await identities.removeMembership(membership.membership_id); }
+        return rows;
+      };
+      if (mode === 'duplicate-phantom' || mode === 'commit-failure') store.commit = async batch => {
+        if (!injected && batch.writes.some(write => write.kind === 'insert' && write.model === 'expense.LegacyExpense')) {
+          injected = true;
+          if (mode === 'commit-failure') throw new Error('Injected actual final transaction refusal.');
+          await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'insert', model: asModel('expense.LegacyExpense'), row: existing }] }));
+        }
+        return commit(batch);
+      };
+      const request = { operation: 'expense.retain_legacy', operation_id: operationId(now), inputs: {
+        source: mode === 'blank-source' ? '   ' : ' vendor-a ', external_id: 'old-18', location: { id: 'site', version: '1' }, claim,
+        source_evidence: { id: sourceFile.ref }, attestation: mode === 'blank-attestation' ? '   ' : ' Transcribed from retained export ' } };
+      const outcome = await invoker.invokeMutation(request, identity); store.commit = commit; store.query = query;
+      const allowed = mode === 'receipt' || mode === 'receipt-absent';
+      assert.equal('result' in outcome, allowed, mode + ': ' + JSON.stringify(outcome));
+      const rows = await store.query({ model: asModel('expense.LegacyExpense'), authority: 'owner', archived: 'include', order: [{ field: 'id', direction: 'asc' }] });
+      assert.deepEqual(probe.outboxAll(), [], 'historical retention never recreates approval, payment or Work');
+      if (allowed) {
+        assert.ok('result' in outcome); assert.equal(outcome.result.status, 'committed'); assert.equal(rows.length, 1); const created = rows[0]!;
+        assert.deepEqual(created.data, { source: 'vendor-a', external_id: 'old-18', location: { id: 'site' }, claim, source_evidence: { id: sourceFile.ref },
+          attestation: 'Transcribed from retained export', claimant: null, access_reason: null, imported_by: { id: user.user_id }, imported_at: new Date(now).toISOString() });
+        for (const file of [sourceFile, ...(nullReceipt ? [] : [receiptFile])]) {
+          const bytes = await readCurrentFinalizedBytes(physical.finalize, file.ref, receiver, observation); assert.ok(bytes); assert.deepEqual(bytes, file.bytes);
+          assert.equal(files.get(file.ref)?.state, 'attached', 'successful original CREATE records the actual attachment');
+        }
+        if (nullReceipt) assert.equal(files.get(receiptFile.ref)?.state, 'finalized', 'unused optional receipt is not attached');
+        const attachments = structuredClone(files.listAll());
+        const replay = await invoker.invokeMutation(request, identity); assert.ok('result' in replay, JSON.stringify(replay)); assert.equal(replay.result.status, 'replayed');
+        assert.deepEqual(await store.query({ model: asModel('expense.LegacyExpense'), authority: 'owner', archived: 'include', order: [{ field: 'id', direction: 'asc' }] }), rows);
+        assert.deepEqual(files.listAll(), attachments, 'exact replay neither renews nor duplicates attachments');
+      } else {
+        assert.equal(rows.length, seededDuplicate || mode === 'duplicate-phantom' ? 1 : 0, mode + ': failed retention leaves no newly created historical claim');
+        assert.deepEqual(files.listAll(), beforeFiles, mode + ': refusal records no physical attachment');
+        if (['archived-duplicate', 'current-duplicate', 'blank-source', 'blank-attestation', 'foreign-location'].includes(mode)) {
+          assert.ok('error' in outcome); assert.equal(outcome.error.code, 'rule_failed', mode + ': ' + JSON.stringify(outcome));
+        }
+        if (['membership-revoked', 'duplicate-phantom', 'commit-failure'].includes(mode)) assert.equal(injected, true, mode);
       }
     }
   } finally { await rm(directory, { recursive: true, force: true }); }

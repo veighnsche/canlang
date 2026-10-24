@@ -4554,12 +4554,14 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
         nominalAssignments.some(locator => !source.readPolicies!.has(locator.model))) return invalid('nominal assignments require their actual owner and whole source grants.');
     const store = owner.store, memberships = scenarioReceiptMemberships(call, store);
     const actorUserId = call.context.actor?.userId ?? null, teamId = call.context.team?.teamId ?? null;
-    const writes = snapshot['writes'] as readonly DomainWrite[];
     const fileProducer = fileProducers.get(call.def as GeneratedOperationDef)!;
     const receiver = fileReceiver(fileProducer.app, actorUserId, teamId);
     nominalGuard = Object.freeze({
       name: 'nominal File assignment source', evaluate: async () => {
-        const healthy = () => { if (captures.get(call)?.poisoned) return invalid('nominal assignment capture is poisoned.'); };
+        const final = owner.finalized;
+        if (final === null) return invalid('nominal assignment needs actual finalized owner effects.');
+        const writes = final.writes;
+        const healthy = () => { if (captures.get(call)?.poisoned || owner.finalized !== final) return invalid('nominal assignment capture is poisoned.'); };
         if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Nominal assignment authority moved beyond its checkpoint.');
         // The complete captured physical conjunction precedes the final
         // coherent source/ancestor observation, including retained rechecks.
@@ -4572,6 +4574,7 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
           const row = write === undefined ? await store.cohortLoad({ model, id, expectedRevision: call.revision }) : write.kind === 'remove' ? null : write.row;
           healthy(); return row;
         };
+        const domains = ownerPolicyDomains(owner, healthy, writes);
         const membership = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId);
         const authority = await observeRowGrantAuthority({ actorUserId, teamId, membership, memberships }, async context => {
           for (const locator of nominalAssignments) {
@@ -4579,7 +4582,7 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
             if (row === null || row.archivedAt !== null) return false;
             const projected = await projectInstalledSourceRowAndAncestors({ model: locator.model, row,
               readPolicies: source.readPolicies!, policy: source.policy, context, revision: call.revision,
-              fence: undefined, store, rows: new Map([[`${locator.model}\0${row.id}`, row]]), ownerRows: { read, assertHealthy: healthy } });
+              fence: undefined, store, rows: new Map([[`${locator.model}\0${row.id}`, row]]), ownerRows: { read, assertHealthy: healthy, policyQuery: domains.capture } });
             // These are authentic owner-session assignment effects, not field
             // disclosure. Private writes still require current row/ancestor
             // authority; saved exposure separately requires the field grant.
@@ -4842,18 +4845,49 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
 /** Capture only reached installed-policy collections from this actual owner
  * stage. Original query checks retain their stage rows; final grants use the
  * same domains with actual owner effects, without broadening query certificates. */
-function ownerPolicyDomains(owner: ReceiptOwnerSession, healthy: () => void) {
+function ownerPolicyDomains(owner: ReceiptOwnerSession, healthy: () => void, finalWrites?: readonly DomainWrite[]) {
   type Parent = Readonly<{model: ModelName; id: RecordId}>;
   const domains = new Map<string, {model: ModelName; parent: Parent | undefined; rows: readonly StoredRow[]}>();
   const keyOf = (model: ModelName, parent: Parent | undefined, archived: 'exclude' | 'include') =>
     stableStringify([model, parent ?? null, archived]);
+  const select = (domain: readonly StoredRow[], model: ModelName, parent: Parent | undefined,
+    archived: 'exclude' | 'include', writes: readonly DomainWrite[] = []): readonly StoredRow[] => {
+    const rows = new Map(domain.map(row => [row.id, row]));
+    for (const write of writes) if (write.model === model) {
+      if (write.kind === 'remove') rows.delete(write.id);
+      else rows.set(write.row.id, write.row);
+    }
+    const parentRows = [...rows.values()].filter(row =>
+      parent === undefined || row.parent?.model === parent.model && row.parent.id === parent.id);
+    // A fresh final capture obeys the live owner reader's complete-domain cap
+    // before archive exclusion; retained stage grants keep their prior bound.
+    if (finalWrites !== undefined && parentRows.length > owner.maxRows) return invalid('policy collection exceeds its owning row bound.');
+    const current = parentRows.filter(row => archived === 'include' || row.archivedAt === null);
+    if (current.length > owner.maxRows) return invalid('policy collection exceeds its owning row bound.');
+    current.sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+    return Object.freeze(current);
+  };
   const capture = async (model: ModelName, parent?: Parent, archived: 'exclude' | 'include' = 'exclude'): Promise<readonly StoredRow[]> => {
     healthy();
     const key = keyOf(model, parent, archived), cached = domains.get(key);
     if (cached !== undefined) return cached.rows;
     if (domains.size >= MAX_ITEMS || owner.session === null) return invalid('policy collection exceeds its owning stage.');
-    const rows = await owner.session.views.final.query({model, authority: 'owner', archived,
-      order: [{field: 'id', direction: 'asc'}], limit: owner.maxRows, ...(parent === undefined ? {} : {parent})});
+    // Final-only assignment grants have no live session to query. Capture
+    // their complete fenced base and overlay the actual finalized writes;
+    // source-stage observers continue to use their original staged view.
+    if (finalWrites !== undefined && await owner.store.readRevision() !== owner.call.revision) {
+      throw new StateError('conflict', 'Final policy collection moved beyond its original revision.');
+    }
+    const base = finalWrites === undefined
+      ? await owner.session.views.final.query({model, authority: 'owner', archived,
+        order: [{field: 'id', direction: 'asc'}], limit: owner.maxRows, ...(parent === undefined ? {} : {parent})})
+      : await owner.store.query({model, authority: 'owner', archived: 'include',
+        order: [{field: 'id', direction: 'asc'}], limit: owner.maxRows + 1, ...(parent === undefined ? {} : {parent})});
+    if (finalWrites !== undefined && await owner.store.readRevision() !== owner.call.revision) {
+      throw new StateError('conflict', 'Final policy collection moved beyond its original revision.');
+    }
+    if (base.length > owner.maxRows) return invalid('policy collection exceeds its owning row bound.');
+    const rows = finalWrites === undefined ? base : select(base, model, parent, archived, finalWrites);
     if (owner.capture.bound.leaveDecideDecision !== undefined && rows.length > 4_000) {
       return invalid('leave decision source Require exceeds its complete owner domain bound.');
     }
@@ -4867,15 +4901,7 @@ function ownerPolicyDomains(owner: ReceiptOwnerSession, healthy: () => void) {
       assertHealthy();
       const domain = domains.get(keyOf(model, parent, archived));
       if (domain === undefined) throw new StateError('forbidden', 'Policy collection requires its original observed owner domain.');
-      const rows = new Map(domain.rows.map(row => [row.id, row]));
-      for (const write of writes) if (write.model === model) {
-        if (write.kind === 'remove') rows.delete(write.id);
-        else rows.set(write.row.id, write.row);
-      }
-      const current = [...rows.values()].filter(row => (archived === 'include' || row.archivedAt === null) &&
-        (parent === undefined || row.parent?.model === parent.model && row.parent.id === parent.id));
-      if (current.length > owner.maxRows) return invalid('policy collection exceeds its owning row bound.');
-      current.sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+      const current = select(domain.rows, model, parent, archived, writes);
       assertHealthy(); return Object.freeze(current);
     };
   return {capture, retained};

@@ -2131,9 +2131,9 @@ fn serialize_require_params(
         };
         // Consume the original analysis proof once; never infer unreadness
         // from absence in a lowered body or a user-supplied wire flag.
-        let unread_file = facts.unread_file_parameters.contains(id);
-        if unread_file { sources.same_scenario(ir, owner)?; }
-        let exact_unread_file_array = unread_file
+        let unread = facts.unread_parameters.contains(id);
+        if unread { sources.same_scenario(ir, owner)?; }
+        let exact_unread_file_array = unread
             && matches!(ty, ResolvedType::Array { element, ordered: true, nonempty: false }
                 if element.as_ref() == &ResolvedType::Scalar(Scalar::File))
             && default_copy_source.is_none()
@@ -2186,7 +2186,7 @@ fn serialize_require_params(
             return None;
         }
         let mut parameter = serde_json::json!({"name":item.name,"typeId":serial_type(ty,original,ir,0)?});
-        if unread_file { parameter["unread"] = serde_json::json!(true); }
+        if unread { parameter["unread"] = serde_json::json!(true); }
         parameters.push(parameter);
     }
     Some(parameters)

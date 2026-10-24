@@ -525,9 +525,9 @@ pub struct CheckedScenarioSource {
     pub(crate) source_requires: Option<Vec<CheckedDecisionSite>>,
     /// Original finite child Work bodies; no per-item DATA is granted here.
     pub(crate) member_work_loops: Option<Vec<CheckedScenarioMemberWorkLoop>>,
-    /// Original File inputs omitted from every observer decision, never grants
-    /// to read/copy their values. Canonical File admission owns their uses.
-    pub(crate) unread_file_parameters: Vec<SymbolId>,
+    /// Original File-bearing inputs omitted from every observer decision, never
+    /// grants to read/copy their values. Canonical File admission owns their uses.
+    pub(crate) unread_parameters: Vec<SymbolId>,
     /// Original supported query occurrences; this inventory grants no closure.
     /// Unhandled query uses still decline the executable scenario independently.
     pub queries: Option<Vec<DisclosureQuery>>,
@@ -4005,8 +4005,8 @@ impl<'a> Closure<'a> {
             source_requires: self.checked_source_requires(scenario),
             member_work_loops: Some(scenario.effects.iter().filter_map(|effect|
                 self.checked_member_work_loop(scenario, effect)).collect()),
-            unread_file_parameters: scenario.params.iter().enumerate().filter_map(|(index, parameter)|
-                self.source_require_unread_file_input(scenario, parameter, index).then_some(parameter.param)).collect(),
+            unread_parameters: scenario.params.iter().enumerate().filter_map(|(index, parameter)|
+                self.source_require_unread_input(scenario, parameter, index).then_some(parameter.param)).collect(),
             queries: self.checked_query_sources(scenario),
             transcripts: self.checked_transcript_sources(scenario),
             inline_selections: self.checked_inline_selection_sources(scenario),
@@ -14361,10 +14361,10 @@ impl<'a> Closure<'a> {
             )
     }
 
-    /// An unread original nullable File or ordered File array stays with its
-    /// canonical File assignment path. Its exact declaration/default remains
-    /// checked, but no observer receives or copies the File values.
-    fn source_require_unread_file_input(
+    /// File-bearing inputs remain with canonical admission and assignment.
+    /// Only parameters absent from every original guard/condition may be
+    /// omitted; observers receive neither their values nor File authority.
+    fn source_require_unread_input(
         &self,
         scenario: &super::effects::ScenarioData,
         parameter: &super::effects::ParamData,
@@ -14381,12 +14381,26 @@ impl<'a> Closure<'a> {
             if inner.as_ref() == &ResolvedType::Scalar(Scalar::File));
         let array = matches!(resolved, ResolvedType::Array { element, ordered: true, nonempty: false }
             if element.as_ref() == &ResolvedType::Scalar(Scalar::File));
-        if (!nullable && !array) || owner != scenario.scenario || symbol.module != scenario.module
+        if owner != scenario.scenario || symbol.module != scenario.module
             || declared != index || type_node != parameter.type_node
         {
             return false;
         }
         let Some(ty) = self.nodes.get(&parameter.type_node) else { return false; };
+        if !nullable && !array {
+            let ResolvedType::Record { symbol: contract, stored: true } = resolved else { return false; };
+            let Some(path) = ty.children.iter().find(|child| child.kind == SyntaxKind::Path) else { return false; };
+            // The exact nominal declaration is retained, rather than exposing
+            // a File-bearing Contract as an observer's plain immutable value.
+            return parameter.default.is_none()
+                && !self.types.value_constraints.contains_key(&parameter.param)
+                && !self.types.field_reuse_sources.contains_key(&parameter.param)
+                && ty.kind == SyntaxKind::NamedType
+                && matches!(self.resolve.node_typeref.get(&NodeKey::of(path)),
+                    Some(TypeRef::Symbol(id)) if id == contract)
+                && self.source_require_file_contract_shape(resolved, 0, &mut 0) == Some(true)
+                && self.source_require_parameter_unread(scenario, parameter.param);
+        }
         if nullable {
             // Preserve the original singular nullable File profile.
             let mut named = ty.children.iter().filter(|child| child.kind == SyntaxKind::NamedType);
@@ -14433,6 +14447,48 @@ impl<'a> Closure<'a> {
                 return false;
             }
         }
+        self.source_require_parameter_unread(scenario, parameter.param)
+    }
+
+    /// Complete bounded closed Contract schema. The boolean records whether
+    /// at least one File leaf needs its separate canonical producer; no Model,
+    /// delivery or opaque leaf gains observer admission through this proof.
+    fn source_require_file_contract_shape(&self, ty: &ResolvedType, depth: usize, visited: &mut usize) -> Option<bool> {
+        *visited += 1;
+        if depth >= 16 || *visited > 16384 { return None; }
+        match ty {
+            ResolvedType::Scalar(Scalar::File) => Some(true),
+            ResolvedType::Scalar(scalar)
+                if !matches!(scalar, Scalar::Secret | Scalar::Member | Scalar::Json | Scalar::Bytes) => Some(false),
+            ResolvedType::Nullable(inner) => self.source_require_file_contract_shape(inner, depth + 1, visited),
+            ResolvedType::Array { element, ordered: true, nonempty: false } =>
+                self.source_require_file_contract_shape(element, depth + 1, visited),
+            ResolvedType::Record { symbol, stored: true } => {
+                let contract = self.resolve.symbols.get(symbol.0 as usize)?;
+                let SymbolKind::Contract { fields, .. } = &contract.kind else { return None; };
+                if fields.is_empty() || fields.len() > 200 { return None; }
+                let mut file = false;
+                for field in fields {
+                    let declaration = self.resolve.symbols.get(field.0 as usize)?;
+                    let SymbolKind::Field { owner, type_node } = declaration.kind else { return None; };
+                    let field_type = self.types.symbol_types.get(field)?;
+                    if owner != *symbol || declaration.module != contract.module
+                        || !self.checked_created_field_type(type_node, contract.module, field_type, 0)
+                    {
+                        return None;
+                    }
+                    file |= self.source_require_file_contract_shape(field_type, depth + 1, visited)?;
+                }
+                Some(file)
+            }
+            _ => None,
+        }
+    }
+
+    /// Passing the parameter to a helper is a use too: inspect the original
+    /// expression trees, including all body IFs, before omitting its slot.
+    fn source_require_parameter_unread(&self, scenario: &super::effects::ScenarioData,
+        parameter: SymbolId) -> bool {
         let Some(sites) = self.checked_decision_sites(scenario) else { return false; };
         let mut pending = sites.into_iter()
             .filter(|site| matches!(site.stage, CheckedDecisionStage::LeadingRequire
@@ -14442,7 +14498,7 @@ impl<'a> Closure<'a> {
         while let Some(key) = pending.pop() {
             visited += 1;
             if visited > 16384 || matches!(self.query_binding(key),
-                Some(Binding::Symbol(id)) if *id == parameter.param) {
+                Some(Binding::Symbol(id)) if *id == parameter) {
                 return false;
             }
             let Some(node) = self.nodes.get(&key) else { return false; };
@@ -14515,7 +14571,7 @@ impl<'a> Closure<'a> {
                         && !self.source_require_owned_enum_formal(param)))
                 && !self.source_require_optional_primitive_input(param)
                 && !self.source_require_value_parameter(scenario, param)
-                && !self.source_require_unread_file_input(scenario, param, index)
+                && !self.source_require_unread_input(scenario, param, index)
                 && !self.source_require_null_model_input(scenario, param, index)
 
         }) && scenario

@@ -4822,22 +4822,23 @@ const NATIVE_CALL_SCALARS = new Set(['text', 'bool', 'int', 'decimal', 'money', 
 /** Values-only containers retain their full original nominal schema. No
  * model, File, delivery, secret or opaque leaf can issue authority here. */
 function nativeScenarioPlainValueType(loaded: LoadedCanonicalDescriptors, typeId: string,
-  depth = 0, active: ReadonlySet<string> = new Set()): boolean {
+  depth = 0, active: ReadonlySet<string> = new Set(), fileLeaves = false): boolean {
   if (depth >= 16) return false;
   const type = parseTypeId(typeId), base = type.base;
   if (type.requiredArray) return false;
+  if (base.kind === 'file') return fileLeaves;
   if (base.kind === 'scalar' || base.kind === 'stringlike' || base.kind === 'user') return true;
   if (base.kind !== 'nominal' || active.has(base.path)) return false;
   const schema = loaded.valueSchema;
   if (schema === undefined) return false;
   const next = new Set(active); next.add(base.path);
   if (schema.aliases !== undefined && Object.hasOwn(schema.aliases, base.path)) {
-    return nativeScenarioPlainValueType(loaded, printTypeId(schema.aliases[base.path]!.type), depth + 1, next);
+    return nativeScenarioPlainValueType(loaded, printTypeId(schema.aliases[base.path]!.type), depth + 1, next, fileLeaves);
   }
   if (!Object.hasOwn(schema.contracts, base.path)) return false;
   const fields = Object.values(schema.contracts[base.path]!.fields);
   return fields.length > 0 && fields.length <= 200 && fields.every(field =>
-    nativeScenarioPlainValueType(loaded, printTypeId(field.type), depth + 1, next));
+    nativeScenarioPlainValueType(loaded, printTypeId(field.type), depth + 1, next, fileLeaves));
 }
 function nativeScenarioPlainValueInput(loaded: LoadedCanonicalDescriptors,
   field: CanonicalOperationDescriptor['inputs'][number]): boolean {
@@ -4881,6 +4882,27 @@ function nativeScenarioNullableFileInput(def: GeneratedOperationDef,
     field.required === false && !Object.hasOwn(def.inputArrays, field.name) &&
     !Object.hasOwn(def.inputNullableRefs ?? {}, field.name) &&
     (field.default === undefined || field.default.kind === 'literal' && field.default.value === null);
+}
+/** Omission carries no File authority. The owning declaration still selects
+ * the complete Values/File census for the already-admitted Contract value. */
+async function nativeScenarioUnreadContractFiles(loaded: LoadedCanonicalDescriptors,
+  artifact: CompileArtifact, def: GeneratedOperationDef, field: CanonicalOperationDescriptor['inputs'][number], typeId: string,
+  value: unknown): Promise<readonly import('@canlang/state/ports/file-reference-profile').FileReferenceOccurrence[] | undefined> {
+  const type = parseTypeId(typeId), schema = loaded.valueSchema;
+  if (field.kind !== 'nominal' || field.valueType !== typeId || field.required !== true || field.default !== undefined ||
+      Object.hasOwn(def.inputArrays, field.name) || type.nullable || type.array || type.requiredArray ||
+      type.base.kind !== 'nominal' || schema === undefined || !Object.hasOwn(schema.contracts, type.base.path) ||
+      !nativeScenarioPlainValueType(loaded, typeId, 0, new Set(), true)) return undefined;
+  const state = await loadProducerModule('@canlang/state/ports/file-reference-profile', 'unread Contract File census');
+  const bind = requireProducerFn(state, 'bindDeclaredFileReferenceProfile', 'unread Contract File census') as
+    typeof import('@canlang/state/ports/file-reference-profile').bindDeclaredFileReferenceProfile;
+  const occurrences = requireProducerFn(state, 'fileReferenceOccurrences', 'unread Contract File census') as
+    typeof import('@canlang/state/ports/file-reference-profile').fileReferenceOccurrences;
+  const profile = bind({ canonicalModels: loaded.models,
+    artifactModels: new Map((artifact.models ?? []).map(model => [model.name as ModelName, model])), valueSchema: schema,
+    ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }) }, typeId);
+  if (!profile.fileBearing || profile.array || profile.nullable) return undefined;
+  return occurrences(profile, encodeValue(typeId, value as CanValue, undefined, schema));
 }
 /** A read target is a query only with its complete contract-array disclosure plan. */
 function isNativeScenarioQueryContractArray(loaded: LoadedCanonicalDescriptors, def: GeneratedOperationDef): boolean {
@@ -13228,18 +13250,20 @@ async function runScenarioExecution(
           const parsed = parseTypeId(parameter.typeId);
           if (parameter.unread) {
             const array = parameter.typeId === 'file[]' && nativeScenarioFileArrayInput(scenarioDef, field);
+            const value = admittedParameter(parameter.name);
+            const contractFiles = await nativeScenarioUnreadContractFiles(loaded, opts.artifact, scenarioDef, field, parameter.typeId, value);
+            assertRequireCall(actualCall, receiptStore);
             if (field.name !== parameter.name || !(array ||
-                parameter.typeId === 'file?' && nativeScenarioNullableFileInput(scenarioDef, field))) {
+                parameter.typeId === 'file?' && nativeScenarioNullableFileInput(scenarioDef, field) || contractFiles !== undefined)) {
               throw new AssemblyCorrespondenceError('Unread Require parameter differs from its original File declaration.');
             }
             // Omitting this slot from the observer does not authenticate a
             // supplied File. Actual File values still need the separately bound
             // owning File producer; their actual uses retain its checks.
-            const value = admittedParameter(parameter.name);
             if (array && !Array.isArray(value)) {
               throw new AssemblyCorrespondenceError('Unread File array requires its genuine admitted array value.');
             }
-            if ((array ? (value as readonly unknown[]).length !== 0 : value !== undefined && value !== null) &&
+            if ((contractFiles !== undefined ? contractFiles.length !== 0 : array ? (value as readonly unknown[]).length !== 0 : value !== undefined && value !== null) &&
                 (opts.files === undefined || nativeScenarioFiles.get(scenarioDef)?.files !== opts.files)) {
               throw new StateError('validation', 'Unread File input requires its installed owning File producer.');
             }
