@@ -15827,9 +15827,12 @@ impl<'a> Closure<'a> {
         // All model-backed arguments still pass the source observer's field
         // readers; only the dates allocation has an additional finite bound.
         if let CheckedDecisionCallTarget::Builtin{id,..}=&call.target {
-            if matches!(id.as_str(),"dates"|"local_date"|"local_instant"|"add_days"|"weekday"|"overlaps")
+            if self.checked_scalar_calendar_call(call.node, id,
+                &call.arguments.iter().map(|(node, _)| *node).collect::<Vec<_>>(), &call.slots)
+            {return Some(true);}
+            if id == "dates"
                 && self.catalog.and_then(|catalog|catalog.effects(id))==Some(super::catalog::Effects::Pure)
-                && (id!="dates" || self.source_require_dates_call(call.node))
+                && self.source_require_dates_call(call.node)
                 && call.arguments.iter().all(|(_,ty)|self.source_require_plain_value(ty,0)
                     || matches!(ty,ResolvedType::Enum{cases,..} if !cases.is_empty()))
                 && self.types.node_types.get(&call.node).is_some_and(|ty|self.source_require_plain_value(ty,0))
@@ -20957,13 +20960,60 @@ impl<'a> Closure<'a> {
         (message || plain).then_some(())
     }
 
-    fn settled_scalar_call(&self, id: &str, arguments: &[NodeKey], slots: &[Option<usize>]) -> bool {
+    /// Closed, nonallocating calendar scalars consume their original checked
+    /// arguments in source order. Slots select formal positions without
+    /// inventing defaults or granting authority to any operand.
+    fn checked_scalar_calendar_call(&self, key: NodeKey, id: &str,
+        arguments: &[NodeKey], slots: &[Option<usize>]) -> bool {
+        use Scalar::{Bool, Date, Datetime, Int, Text, Timezone};
+        let Some(catalog) = self.catalog else { return false; };
+        if catalog.effects(id) != Some(Effects::Pure) { return false; }
+        let Some(selected) = self.types.selected_calls.get(&key) else { return false; };
+        let SelectedCallTarget::Builtin { id: original, overload } = &selected.target else { return false; };
+        let Some(signature) = catalog.overloads(id).and_then(|overloads| overloads.get(*overload)) else { return false; };
+        if original != id
+            || selected.arguments.as_slice() != arguments || selected.slots.as_slice() != slots
+            || arguments.len() != slots.len() || slots.iter().any(Option::is_none)
+            || slots.iter().flatten().any(|index| *index >= arguments.len())
+            || slots.iter().flatten().collect::<HashSet<_>>().len() != slots.len()
+            || signature.params.len() != slots.len()
+            || signature.params.iter().any(|parameter| parameter.alias.is_some() || parameter.in_scope.is_some())
+        { return false; }
+        let argument_type = |slot: usize| {
+            let index = slots.get(slot).copied().flatten()?;
+            self.types.node_types.get(arguments.get(index)?)
+        };
+        let (inputs, result, fold): (&[Scalar], Scalar, bool) = match id {
+            "local_date" => (&[Datetime, Timezone], Date, false),
+            "local_instant" => (&[Date, Text, Timezone], Datetime, true),
+            "add_days" | "add_months" => (&[Date, Int], Date, false),
+            "weekday" => (&[Date], Int, false),
+            "overlaps" => match argument_type(0) {
+                Some(ResolvedType::Scalar(Date)) => (&[Date, Date, Date, Date], Bool, false),
+                Some(ResolvedType::Scalar(Datetime)) => (&[Datetime, Datetime, Datetime, Datetime], Bool, false),
+                _ => return false,
+            },
+            _ => return false,
+        };
+        arguments.len() == inputs.len() + usize::from(fold)
+            && inputs.iter().enumerate().all(|(slot, scalar)|
+                argument_type(slot) == Some(&ResolvedType::Scalar(*scalar))
+                    && matches!(&signature.params[slot].ty, super::catalog::SigType::Named(name)
+                        if name == scalar.as_str()))
+            && (!fold || matches!(argument_type(inputs.len()), Some(ResolvedType::Enum { cases, .. })
+                if cases.len() == 2 && cases.iter().any(|case| case == "earlier")
+                    && cases.iter().any(|case| case == "later"))
+                && matches!(&signature.params[inputs.len()].ty, super::catalog::SigType::EnumCases(cases)
+                    if cases.len() == 2 && cases.iter().any(|case| case == "earlier")
+                        && cases.iter().any(|case| case == "later")))
+            && matches!(&signature.result, super::catalog::SigType::Named(name) if name == result.as_str())
+            && self.types.node_types.get(&key) == Some(&ResolvedType::Scalar(result))
+    }
+
+    fn settled_scalar_call(&self, key: NodeKey, id: &str, arguments: &[NodeKey], slots: &[Option<usize>]) -> bool {
         (matches!(id, "date" | "datetime" | "money" | "abs" | "round" | "min" | "max" | "trim" | "starts_with")
             || id == "format" && self.literal_format_arguments(arguments, slots).is_some()
-            || id == "local_date" && self.catalog.and_then(|catalog| catalog.effects(id)) == Some(Effects::Pure)
-                && slots == [Some(0), Some(1)] && arguments.len() == 2
-                && self.types.node_types.get(&arguments[0]) == Some(&ResolvedType::Scalar(Scalar::Datetime))
-                && self.types.node_types.get(&arguments[1]) == Some(&ResolvedType::Scalar(Scalar::Timezone)))
+            || self.checked_scalar_calendar_call(key, id, arguments, slots))
             && slots.iter().all(Option::is_some)
     }
 
@@ -22004,7 +22054,7 @@ impl<'a> Closure<'a> {
                 }
                 // These settled scalar constructors/math functions consume all
                 // explicit operands. Catalog defaults are not source defaults.
-                if !self.settled_scalar_call(&id, &selected.arguments, &selected.slots)
+                if !self.settled_scalar_call(key, &id, &selected.arguments, &selected.slots)
                 {
                     return Err(self.fail(key, "unsupported builtin closure"));
                 }

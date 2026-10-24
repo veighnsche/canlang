@@ -4477,3 +4477,88 @@ it('compiles original Stock and executes its reversal guard with checked actor s
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+
+it('retains calendar DATA and Values failures through native receipt execution', { timeout: 180000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-calendar-receipt-'));
+  try {
+    const original = await readFile(fixture('rule-owner-leading-helper-field.can'), 'utf8');
+    const text = original.replace('Ticket {location:Location,done:bool=false}',
+      'Ticket {location:Location,done:bool=false,anchor:date,months:int,zone:timezone,wall:text,calendar_visible:bool=true}')
+      .replace('Handoff {ticket:Ticket}', 'Handoff {ticket:Ticket,due:datetime,shifted:date,day:int,overlap:bool,local:date}')
+      .replace('policy Ticket read=members',
+        'policy Ticket read=members fields=location,done,calendar_visible\n policy Ticket read=members where=row.calendar_visible fields=anchor,months,zone,wall')
+      .replace('photo:file?=null', 'fold:enum(earlier,later)')
+      .replace('require can_work(actor,ticket.location)', 'require not ticket.done')
+      .replace('create Handoff {ticket}',
+        'create Handoff {ticket,due=local_instant(zone=ticket.zone,time=ticket.wall,date=add_months(ticket.anchor,ticket.months),fold=fold),shifted=add_days(ticket.anchor,1),day=weekday(ticket.anchor),overlap=overlaps(ticket.anchor,add_days(ticket.anchor,2),ticket.anchor,add_days(ticket.anchor,1)),local=local_date(zone=ticket.zone,value=now)}');
+    const source = join(directory, 'CalendarReceipt.can'); await writeFile(source, text);
+    const { stdout } = await promisify(execFile)(compiler,
+      ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+    const artifact = JSON.parse(stdout) as CompileArtifact;
+    const disclosure = artifact.operations?.find(operation => operation.name === 'LeadingHelperFieldProbe.handoff')?.result?.disclosure;
+    assert.ok(disclosure, 'calendar values retain the complete owner receipt');
+    for (const field of ['anchor', 'months', 'zone', 'wall']) assert.ok(disclosure.returns.some(returned =>
+      returned.dependencies.some(dependency => dependency.model === 'LeadingHelperFieldProbe.Ticket' &&
+        dependency.field === field && dependency.role === 'data')), field);
+    const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+    for (const mode of ['month-end', 'fold-earlier', 'fold-later', 'gap', 'withheld', 'done', 'nonmember', 'commit-race'] as const) {
+      const { now, identities, identity, membership, user } = await member(`calendar-receipt-${mode}`);
+      const { store } = createTestMemoryStorage(); const app = 'LeadingHelperFieldProbe';
+      const ticketModel = model(app, 'Ticket'), handoffModel = model(app, 'Handoff');
+      const row = (id: string, data: Record<string, unknown>) => ({ ...makeRow({ id: asId(id), data }), parent: null });
+      const anchor = mode.startsWith('fold-') ? '2026-09-25' : mode === 'gap' ? '2026-01-29' : '2026-01-31';
+      const ticket = row('ticket', { location: { id: 'location' }, done: mode === 'done',
+        anchor, months: mode === 'gap' ? '2' : '1', zone: mode.startsWith('fold-') || mode === 'gap' ? 'Europe/Amsterdam' : 'UTC',
+        wall: mode.startsWith('fold-') || mode === 'gap' ? '02:30' : '12:00', calendar_visible: mode !== 'withheld' });
+      await store.commit(makeBatch(await store.readRevision(), { writes: [
+        { kind: 'insert', model: model(app, 'Location'), row: row('location', { label: 'Home' }) },
+        { kind: 'insert', model: model(app, 'Employee'), row: row('worker', { user: { id: user.user_id }, home: { id: 'location' },
+          locations: [], operator_wide: false, active: true, hidden: true }) },
+        { kind: 'insert', model: ticketModel, row: ticket },
+      ] }));
+      const commit = store.commit.bind(store); let raced = false;
+      store.commit = async batch => {
+        if (mode === 'commit-race' && !raced && batch.writes.some(write => write.model === handoffModel)) {
+          raced = true;
+          await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'update', model: ticketModel,
+            id: ticket.id, expectedVersion: ticket.version, row: { ...ticket, version: asVersion(ticket.version + 1),
+              data: { ...ticket.data, calendar_visible: false } } }] }));
+        }
+        return commit(batch);
+      };
+      if (mode === 'nonmember') await identities.removeMembership(membership.membership_id);
+      const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+      const request = { operation: `${app}.handoff`, operation_id: operationId(now), inputs: {
+        ticket: { id: ticket.id, version: '1' }, fold: mode === 'fold-later' ? 'later' : 'earlier' } };
+      const result = await invoker.invokeMutation(request, identity);
+      if (mode === 'gap') {
+        assert.ok('error' in result);
+        assert.equal(result.error.code, 'rule_failed');
+        assert.match(result.error.message, /DST gap/);
+      }
+      const success = ['month-end', 'fold-earlier', 'fold-later'].includes(mode);
+      assert.equal('result' in result, success, `${mode}: ${JSON.stringify(result)}`);
+      const copies = await store.query({ model: handoffModel, authority: 'owner' });
+      assert.equal(copies.length, success ? 1 : 0, mode);
+      assert.equal((await store.load(ticketModel, ticket.id))?.data.done, success || mode === 'done');
+      assert.equal(raced, mode === 'commit-race');
+      assert.equal((await store.outboxPending()).length, 0);
+      if (success) {
+        assert.equal(copies[0]!.data.due, mode === 'month-end' ? '2026-02-28T12:00:00.000Z' :
+          mode === 'fold-earlier' ? '2026-10-25T00:30:00.000Z' : '2026-10-25T01:30:00.000Z');
+        assert.equal(copies[0]!.data.shifted, mode === 'month-end' ? '2026-02-01' : '2026-09-26');
+        assert.equal(copies[0]!.data.day, mode === 'month-end' ? '6' : '5');
+        assert.equal(copies[0]!.data.overlap, true);
+        if (mode === 'month-end') assert.equal(copies[0]!.data.local, new Date(now).toISOString().slice(0, 10));
+        const revision = await store.readRevision();
+        const replay = await invoker.invokeMutation(request, identity);
+        assert.ok('result' in replay && replay.result.status === 'replayed', JSON.stringify(replay));
+        assert.equal(await store.readRevision(), revision);
+        assert.deepEqual(await store.query({ model: handoffModel, authority: 'owner' }), copies);
+      }
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
