@@ -1585,9 +1585,9 @@ function bindScenarioPlan(def: GeneratedOperationDef, models: readonly ArtifactM
       idDependencies.set(dep.id, dep);
     } else if (scalar) {
       if (inventory.get(dep.model)?.fields.get(dep.field) !== (narrowedDependencies.get(dep.id)?.declarationType ?? dep.type)) return invalid('dependency disagrees with declared model field/type inventory.');
-    } else if (dep.type === 'file[]') {
+    } else if (dep.type === 'file' || dep.type === 'file?' || dep.type === 'file[]') {
       const profile = scenarioFileField({ artifactModels, canonicalModels }, dep.model, dep.field);
-      if (profile.type !== dep.type || !profile.array || profile.nullable) return invalid('stored File dependency disagrees with its owning ordinary array declaration.');
+      if (profile.type !== dep.type || profile.array !== (dep.type === 'file[]') || profile.nullable !== (dep.type === 'file?')) return invalid('stored File dependency disagrees with its exact owning declaration.');
       if (!fileDependencies.has(dep.id)) fileDependencies.set(dep.id, Object.freeze({ dependency: dep, profile }));
     } else if (dep.field === 'parent' || artifactModels.get(dep.model)?.fields.some(field => field.name === dep.field && field.field.kind === 'ref')) {
       if (!referenceDependencies.has(dep.id)) referenceDependencies.set(dep.id, Object.freeze({ dependency: dep,
@@ -11516,7 +11516,7 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     call.scenario === undefined ? [] : [{ def: input.registry.get(call.target) as GeneratedOperationDef, association: call.scenario }])]
     .flatMap(saved => saved.association.observations.filter(entry =>
       saved.association.plan.returns.find(returned => returned.id === saved.association.returnId)!.dependencies.some(dep =>
-        dep.id === entry.dependencyId && (dep.type === 'file[]' ||
+        dep.id === entry.dependencyId && (boundPlans.get(saved.def)?.fileDependencies.has(dep.id) === true ||
           boundPlans.get(saved.def)?.nominalDependencies.get(dep.id)?.profile.hasFiles === true))).map(observation => ({
           def: saved.def, dependency: saved.association.plan.returns.find(returned => returned.id === saved.association.returnId)!.dependencies.find(dep => dep.id === observation.dependencyId)!,
           observation: observation as DependencyObservation,

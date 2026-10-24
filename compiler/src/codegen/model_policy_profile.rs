@@ -178,6 +178,12 @@ impl HookProfile<'_> {
             // Candidate cloning carries already checked scalar wire values.
             // This does not admit their arithmetic, comparison or member reads.
             ResolvedType::Scalar(Scalar::File | Scalar::Currency | Scalar::Decimal | Scalar::Money) => true,
+            // Candidate snapshots carry the original opaque delivery identity.
+            // This admits no envelope/result observation or non-null assignment;
+            // declared nullable fields may still be cleared by the literal-null
+            // path below, under the normal field and State mutation checks.
+            ResolvedType::StdDelivery { capability, op } =>
+                crate::analysis::catalog::std_operation(capability, op.name) == Some(*op),
             ResolvedType::Nullable(inner) => self.supported_field_type(inner),
             ResolvedType::Array { element, .. } => self.supported_field_type(element),
             ResolvedType::Record { symbol, stored: false } => self
@@ -2168,6 +2174,20 @@ fn join_template_presence<'r>(
     Some((presence, *revision, current, same_parent, published_read))
 }
 
+/// Only these two getters occur in the exact current-present OR arm above.
+/// The checker may retain the declared nullable reference or narrow that same
+/// reference to its required inner type. Neither form admits another receiver.
+fn join_template_current_read(
+    model: SymbolId,
+    presence: &TypedExpr,
+    selected: &TypedExpr,
+) -> Option<()> {
+    if selected.ty != presence.ty
+        && !matches!(&presence.ty, ResolvedType::Nullable(inner) if inner.as_ref() == &selected.ty)
+    { return None; }
+    policy_row_member(selected, model, "current", &selected.ty)
+}
+
 fn join_template_parent(
     program: &IrProgram,
     model: &super::ir::IrItem,
@@ -2186,11 +2206,7 @@ fn join_template_parent(
     if field != "parent" || parent.ty != owning_row.ty {
         return None;
     }
-    // The owning checker retains the nullable declaration type on
-    // these two original getter occurrences. The exact OR false arm
-    // permits required parent/published results; do not invent a
-    // different receiver type or admit general nullable traversal.
-    policy_row_member(selected, model.id, "current", &presence.ty)
+    join_template_current_read(model.id, presence, selected)
 }
 
 fn join_template_published(
@@ -2216,7 +2232,7 @@ fn join_template_published(
     if field != "published" || published_read.ty != ResolvedType::Scalar(Scalar::Bool) {
         return None;
     }
-    policy_row_member(selected, model.id, "current", &presence.ty)?;
+    join_template_current_read(model.id, presence, selected)?;
     Some(published)
 }
 
@@ -2391,82 +2407,6 @@ fn chat_role_type(ty: &ResolvedType) -> bool {
         .and_then(|(_, declared)| crate::analysis::types::std_schema_type(declared))
         .as_ref()
         == Some(ty)
-}
-
-fn chat_model_reference(
-    program: &IrProgram,
-    owner: SymbolId,
-    ty: &ResolvedType,
-    target_name: &str,
-) -> bool {
-    let ResolvedType::Record {
-        symbol,
-        stored: true,
-    } = ty
-    else {
-        return false;
-    };
-    let Some(owner) = policy_model(program, owner) else {
-        return false;
-    };
-    let Some(target) = policy_model(program, *symbol) else {
-        return false;
-    };
-    target.module == owner.module && target.name == target_name
-}
-
-/// A lock compares the original StoredRow.data value in State; it does not
-/// execute equality over decoded references, Files, nominal objects or receipts.
-/// These additional owning fields qualify only under the complete source seal,
-/// never through local_stored_field_type or a generic structural value fallback.
-pub(crate) fn checked_chat_lock_target(
-    program: &IrProgram,
-    model: SymbolId,
-    field: SymbolId,
-    name: &str,
-    ty: &ResolvedType,
-) -> bool {
-    let Some(owner) = policy_model(program, model) else {
-        return false;
-    };
-    if policy_field(program, model, name, ty) != Some(field) {
-        return false;
-    }
-    match (owner.name.as_str(), name, ty) {
-        ("Branch", "profile", _) => chat_model_reference(program, model, ty, "Profile"),
-        (
-            "Branch",
-            "prefix",
-            ResolvedType::Array {
-                element,
-                ordered: true,
-                nonempty: false,
-            },
-        ) => crate::analysis::types::checked_standard_nominal_name(element) == Some("TextMessage"),
-        ("Branch", "origin", ResolvedType::Nullable(inner)) => {
-            chat_model_reference(program, model, inner, "Turn")
-        }
-        ("Turn", "role", _) => chat_role_type(ty),
-        (
-            "Turn",
-            "attachments",
-            ResolvedType::Array {
-                element,
-                ordered: true,
-                nonempty: false,
-            },
-        ) => element.as_ref() == &ResolvedType::Scalar(Scalar::File),
-        ("Turn", "run", _) => chat_model_reference(program, model, ty, "Run"),
-        ("Run", "allowance", _) => chat_model_reference(program, model, ty, "Allowance"),
-        ("Run", "request_value", _) => {
-            crate::analysis::types::checked_standard_nominal_name(ty) == Some("TextRequest")
-        }
-        ("Run", "request", ResolvedType::Nullable(inner)) => {
-            matches!(inner.as_ref(), ResolvedType::StdDelivery { capability: "std.TextGenerationV1", op }
-                if crate::analysis::catalog::std_operation("std.TextGenerationV1", "generate") == Some(*op))
-        }
-        _ => false,
-    }
 }
 
 fn contains_span(parent: crate::source::Span, child: crate::source::Span) -> bool {
@@ -2652,10 +2592,9 @@ pub(crate) fn checked_required_record_lock_target(
         )
 }
 
-/// Canonical scalar lock values use the existing stored-wire comparator;
-/// source-sealed nullable Model references use its existing typed identity path.
-/// Singular File locks compare the original persisted wire value through the
-/// existing State lock comparator; no decoded File equality is evaluated.
+/// Source-sealed stored lock values use State's existing schema-aware comparator.
+/// Model and File leaves compare canonical reference identity. Classification
+/// grants neither ordinary expression equality nor observation/byte authority.
 pub(crate) fn checked_stored_lock_target(
     program: &IrProgram,
     model: SymbolId,
@@ -2694,21 +2633,24 @@ pub(crate) fn checked_stored_lock_target(
         // the complete source join seals the field and its target model.
         return policy_field_with_flags(program, model, name, ty, true, true) == Some(field);
     }
-    // Contracts and their ordered arrays already use State's typed stored
-    // comparator. Admit their value-only schema after the caller's complete
-    // source/fresh schema join; never decode a File into ordinary equality.
-    fn contract_value(program: &IrProgram, ty: &ResolvedType, depth: usize) -> bool {
+    // Canonical stored values use State's schema-aware lock comparator.
+    // Files remain opaque identity leaves; this grants no byte read, ordinary
+    // expression equality, scalar result or disclosure/observation capability.
+    fn lock_value(program: &IrProgram, ty: &ResolvedType, depth: usize) -> bool {
         if depth > 16 { return false; }
         match ty {
-            ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => contract_value(program, inner, depth + 1),
-            ResolvedType::Scalar(scalar) => *scalar != Scalar::File &&
-                (super::js::checked_value_profile(ty).is_some() || *scalar == Scalar::Timezone),
+            ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => lock_value(program, inner, depth + 1),
+            ResolvedType::Scalar(scalar) => *scalar == Scalar::File ||
+                super::js::checked_value_profile(ty).is_some() || *scalar == Scalar::Timezone,
             ResolvedType::Enum { cases, .. } => !cases.is_empty(),
+            ResolvedType::StdNominal { fields, .. } =>
+                crate::analysis::types::checked_standard_nominal_name(ty).is_some()
+                    && fields.iter().all(|(_, value)| lock_value(program, value, depth + 1)),
             ResolvedType::Record { symbol, stored: true } => program.items.get(symbol.0 as usize).is_some_and(|item| {
                 item.id == *symbol && match &item.kind {
                     IrItemKind::Contract { fields, .. } => fields.iter().all(|id| program.items.get(id.0 as usize).is_some_and(|field| {
                         field.id == *id && matches!(&field.kind, IrItemKind::Field { owner, ty: IrType::Known(value), .. }
-                            if *owner == *symbol && contract_value(program, value, depth + 1))
+                            if *owner == *symbol && lock_value(program, value, depth + 1))
                     })),
                     _ => false,
                 }
@@ -2717,9 +2659,9 @@ pub(crate) fn checked_stored_lock_target(
         }
     }
     let element = match base { ResolvedType::Array { element, .. } => element.as_ref(), value => value };
-    if (matches!(base, ResolvedType::Array { .. }) || matches!(element, ResolvedType::Record { symbol, stored: true }
+    if (matches!(base, ResolvedType::Array { .. } | ResolvedType::StdNominal { .. }) || matches!(element, ResolvedType::Record { symbol, stored: true }
         if program.items.get(symbol.0 as usize).is_some_and(|item| matches!(item.kind, IrItemKind::Contract { .. }))))
-        && contract_value(program, ty, 0)
+        && lock_value(program, ty, 0)
     {
         return policy_field_with_flags(program, model, name, ty, true, true) == Some(field);
     }

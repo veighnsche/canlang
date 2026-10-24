@@ -7938,8 +7938,37 @@ impl<'a> Emitter<'a> {
                 // members are projected locally, never new receipt selectors.
                 let error_projection =
                     props.first().is_some_and(|prop| prop == "error") && props.len() > 1;
+                // Other closed results may project locally only when every
+                // declared value already has its native wire representation.
+                // Whole-result permission is deliberately stronger than a leaf
+                // grant; never manufacture a new public receipt selector.
+                let result_projection = props.first().is_some_and(|prop| prop == "result")
+                    && props.len() > 1 && match record.ty.nullable_inner().unwrap_or(&record.ty) {
+                        ResolvedType::Record { symbol, stored: true } => self.ir.items.get(symbol.0 as usize)
+                            .filter(|model| model.id == *symbol).and_then(|model| {
+                                let IrItemKind::Model { fields, .. } = &model.kind else { return None; };
+                                let mut declarations = fields.iter().filter_map(|id| self.ir.items.get(id.0 as usize))
+                                    .filter(|declaration| declaration.name == *field &&
+                                        matches!(&declaration.kind, IrItemKind::Field { owner, .. } if *owner == *symbol));
+                                let declaration = declarations.next()?;
+                                if declarations.next().is_some() { return None; }
+                                let IrItemKind::Field { ty: IrType::Known(ty), .. } = &declaration.kind else { return None; };
+                                let ResolvedType::StdDelivery { capability, op } = ty.nullable_inner().unwrap_or(ty) else { return None; };
+                                if crate::analysis::catalog::std_operation(capability, op.name) != Some(*op) || op.result == "TextRun" {
+                                    return None;
+                                }
+                                crate::analysis::catalog::nominal_schema(op.result)
+                            }).is_some_and(|schema| schema.fields.iter().all(|(_, declared)| {
+                                crate::analysis::types::std_schema_type(declared).is_some_and(|ty|
+                                    matches!(ty.nullable_inner().unwrap_or(&ty),
+                                        ResolvedType::Scalar(Scalar::Bool | Scalar::Text)))
+                            })),
+                        _ => false,
+                    };
                 let selected = js_string(&if error_projection {
                     "error".to_string()
+                } else if result_projection {
+                    "result".to_string()
                 } else {
                     props.join(".")
                 });
@@ -7953,7 +7982,7 @@ impl<'a> Emitter<'a> {
                 } else {
                     format!("{observed}[{selected}]")
                 };
-                if error_projection {
+                if error_projection || result_projection {
                     for field in &props[1..] {
                         projected.push_str(&format!(
                             "{}[{}]",

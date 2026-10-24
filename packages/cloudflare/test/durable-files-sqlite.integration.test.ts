@@ -11,7 +11,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { Miniflare } from 'miniflare';
 import { it } from 'vitest';
 import { createSqliteFileStore } from '../../files/src/host/sqlite.js';
-import type { CompileArtifact } from '@canlang/contracts';
+import type { CompileArtifact, StoredRow } from '@canlang/contracts';
 import { deriveCsrfToken, sha256HexText } from '@canlang/identity';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { createMemoryStorage } from '@canlang/state/storage/memory';
@@ -131,7 +131,7 @@ it('admits native Worker upload intents through current canonical context before
   } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
 }, 120000);
 
-it('retains an unconditional native Images inspect SEND and reads only its genuine finalized graph bytes', async () => {
+it('executes original CanCreative graph review and generated publication', async () => {
   const root = fileURLToPath(new URL('../../../', import.meta.url));
   const directory = await mkdtemp(join(tmpdir(), 'can-native-inspect-files-'));
   const runtime = new Miniflare({ modules: true, compatibilityDate: '2026-07-15',
@@ -194,40 +194,57 @@ it('retains an unconditional native Images inspect SEND and reads only its genui
       7: { classType: 'CLIPTextEncode', inputs: { text: text('Negative prompt'), clip: link('4', 1) } },
       9: { classType: 'SaveImage', inputs: { images: link('3'), filename_prefix: literal('reviewed-output') } },
     } };
-    const fixture = await readFile(join(root, 'packages/cloudflare/test/fixtures/typed-file-journey.can'), 'utf8');
-    const source = join(directory, 'inspect-files.can');
-    await writeFile(source, fixture
-      .replace('app TypedFileJourney', 'app TypedFileJourney\nuse std {WorkflowDefinition,WorkflowInput}\nuse std {ImagesV1 as Images} from=deployment.comfyui')
-      .replace('attachment:file? }', 'attachment:file?, inspection:delivery(Images.inspect)?, validation:delivery(Images.validate)? }')
-      .replace('Then', ' scenario inspect(entry:Entry,graph:file) by=owner\n  do\n   send Images.inspect {graph} as inspection\n   set entry {inspection}\n scenario validate(entry:Entry,graph:file) by=owner\n  do\n   let workflow=WorkflowDefinition {graph,prompt=WorkflowInput {node="6",key="text"},negative=WorkflowInput {node="7",key="text"},width=WorkflowInput {node="5",key="width"},height=WorkflowInput {node="5",key="height"}}\n   send Images.validate {value=workflow} as validation\n   set entry {validation}\nThen'));
+    // This dependency selection supplements the full draft compilation. Keep
+    // authored declarations and action bodies verbatim, including their guards.
+    const creative = await readFile(join(root, 'draft/apps/CanCreative/CanCreative.can'), 'utf8');
+    const chat = await readFile(join(root, 'draft/apps/CanChat/CanChat.can'), 'utf8');
+    const declaration = (text: string, heading: string) => {
+      const lines = text.split('\n'), matches = lines.flatMap((line, index) => line.startsWith(heading) ? [index] : []);
+      assert.equal(matches.length, 1, `One exact original declaration required for ${heading}`);
+      const start = matches[0]!;
+      let end = start + 1;
+      while (end < lines.length && (lines[end] === '' || lines[end]!.startsWith('   '))) end++;
+      return lines.slice(start, end).join('\n') + '\n';
+    };
+    const transcript = chat.split('\n').filter(line => line.startsWith('  export derive transcript('));
+    assert.equal(transcript.length, 1, 'only the unreferenced transcript helper is excluded');
+    const chatGiven = chat.slice(chat.indexOf('package chat'), chat.indexOf('\n When'))
+      .split('\n').filter(line => line !== transcript[0]).join('\n');
+    const creativeGiven = creative.slice(creative.indexOf('package creative'), creative.indexOf('\n When'));
+    const selected = ['  crud Template ', '  scenario template_edited ', '  scenario inspect(',
+      '  scenario validate(', '  scenario publish('].map(heading => declaration(creative, heading));
+    const source = join(directory, 'CanCreative.can');
+    await writeFile(source, creative.slice(0, creative.indexOf('package creative')) +
+      chatGiven + '\n When\n Then\n' + creativeGiven + '\n When\n' + selected.join('') + ' Then\n');
     const artifact = JSON.parse(execFileSync(process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can'),
       ['compile', '--format=json', '--native-scenario-receipts', '--catalog',
         process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json'), source],
       { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024, encoding: 'utf8' })) as CompileArtifact;
+    for (const name of ['creative.inspect', 'creative.validate']) {
+      const operation = artifact.operations?.find(candidate => candidate.name === name);
+      assert.ok(operation?.result?.disclosure, `${name} must have a native checked receipt; legacy fallback is insufficient`);
+    }
     const assemblyOptions = { workDir: directory, stdlibUrl: new URL('../dist/runtime/stdlib.js', import.meta.url).href,
       uiUrl: pathToFileURL(requireNative.resolve('@canlang/ui')).href };
     const asm = await assembleModules({ artifact, sourcePath: source }, assemblyOptions);
     const now = Date.now(), clock = createFrozenClock(now), identities = createMemoryIdentityStore({ clock });
     const team = await identities.createTeam({ timezone: 'UTC' });
     const user = await identities.createUser({ email: 'native-inspect@example.test', password_hash: 'unused', email_verified: true });
-    const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: [] });
+    const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: false, roles: [{ role: 'creative.creative_manager',
+      granted_at: new Date(now).toISOString(), granted_by: user.user_id }] });
     const token = 'native-inspect-files-session';
     await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
       last_team_id: team.team_id, expires_at: new Date(now + 3600000).toISOString() });
     const identity = await resolveIdentity(identities, { session_token: token }, { clock });
     const db = await runtime.getD1Database('DB'), bucket = await runtime.getR2Bucket('FILES');
-    const fileStoreId = await resolveR2FileStoreIdentity({ db, bucket: bucket as unknown as Parameters<typeof resolveR2FileStoreIdentity>[0]['bucket'], namespace: 'TypedFileJourney/FILES' });
-    const scope = { app: 'TypedFileJourney', owner: team.team_id, ownerPackage: 'TypedFileJourney' };
+    const fileStoreId = await resolveR2FileStoreIdentity({ db, bucket: bucket as unknown as Parameters<typeof resolveR2FileStoreIdentity>[0]['bucket'], namespace: 'CanCreative/FILES' });
+    const scope = { app: 'CanCreative', owner: team.team_id, ownerPackage: 'creative' };
     const authority = { app: scope.app, stateOwner: scope.ownerPackage, stateStoreId: 'native-inspect-state', fileStoreId,
       receiver: { app: scope.app, team: scope.owner, owner: scope.owner } };
     const { store, probe, reopen } = createTestMemoryStorage(authority,
       [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
     const verifyOwner = async () => { assert.ok(await identities.findTeamById(team.team_id)); };
     await installNativeFileInventory({ artifact, asm, store, authority, scope, now: () => now, verifyOwner });
-    const row = { ...makeRow({ id: asId('inspect-entry'), data: { label: 'Inspect', attachment: null, inspection: null, validation: null } }), parent: null };
-    await store.commit(makeBatch(await store.readRevision(), { writes: [
-      { kind: 'insert', model: asModel('TypedFileJourney.Entry'), row },
-    ] }));
     const filesOptions = { artifact, asm, store, identities, clock, env: { DB: db, FILES: bucket }, origin: 'https://files.test',
       retention: { unattachedHorizonMs: 86400000, retentionMs: 86400000 }, intentTtlMs: 900000 };
     const files = await createWorkerFiles(filesOptions);
@@ -235,10 +252,10 @@ it('retains an unconditional native Images inspect SEND and reads only its genui
     assert.equal(files.fileStoreId, fileStoreId);
     const headers = { 'content-type': 'application/json', cookie: `can_session=${token}`,
       'x-csrf-token': await deriveCsrfToken(token) };
-    const operation = 'TypedFileJourney.inspect';
+    const operation = 'creative.inspect';
     const grantResponse = await files.fetch(new Request(files.intentsUrl!, { method: 'POST', headers,
-      body: JSON.stringify({ upload_id: 'inspect-graph', operation, field: '/graph',
-        arguments: { entry: { id: row.id, version: String(row.version) } }, name: 'graph.txt', type: 'text/plain',
+      body: JSON.stringify({ upload_id: 'inspect-graph', operation: 'creative.Template.create', field: '/graph',
+        arguments: { name: 'Reviewed original workflow' }, name: 'graph.txt', type: 'text/plain',
         size: String(bytes.length) }) }));
     assert.equal(grantResponse.status, 200, await grantResponse.clone().text());
     const grant = await grantResponse.json() as { content: string; finalize: string };
@@ -250,11 +267,40 @@ it('retains an unconditional native Images inspect SEND and reads only its genui
     assert.equal(finalized.status, 200, await finalized.clone().text());
     const { file: graph } = await finalized.json() as { file: string };
     assert.equal(typeof graph, 'string');
+    let sequence = 1;
+    const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now, files: files.canonical });
+    const createId = uuidv7(now, ++sequence);
+    const created = await invoker.invokeMutation({ operation: 'creative.Template.create', operation_id: createId,
+      inputs: { name: 'Reviewed original workflow', graph: { id: graph } } }, identity);
+    assert.equal('result' in created ? created.result.status : created.error.code, 'committed', JSON.stringify(created));
+    const row = await store.load(asModel('creative.Template'), asId(createId));
+    assert.ok(row, 'the Template is created by native CRUD, never seeded around its owner rule');
+    assert.deepEqual(row.data['owner'], { id: user.user_id });
+    // These are real current identities: neither a manager owning another
+    // person's Template nor an ordinary member may run the authored action.
+    const deniedIdentities = [];
+    for (const [label, manager] of [['ordinary-member', false], ['other-manager', true]] as const) {
+      const deniedUser = await identities.createUser({ email: `${label}@example.test`, password_hash: 'unused', email_verified: true });
+      await identities.createMembership({ team_id: team.team_id, user_id: deniedUser.user_id, is_owner: false,
+        roles: manager ? [{ role: 'creative.creative_manager', granted_at: new Date(now).toISOString(), granted_by: user.user_id }] : [] });
+      const deniedToken = `creative-${label}`;
+      await identities.createSession({ user_id: deniedUser.user_id, token_sha256: await sha256HexText(deniedToken),
+        last_team_id: team.team_id, expires_at: new Date(now + 3600000).toISOString() });
+      deniedIdentities.push(await resolveIdentity(identities, { session_token: deniedToken }, { clock }));
+    }
+    for (const deniedIdentity of deniedIdentities) {
+      const beforeDenial: StoredRow | null = structuredClone(await store.load(asModel('creative.Template'), row.id));
+      const beforeDeniedSend = probe.outboxAll().length;
+      const denied = await invoker.invokeMutation({ operation, operation_id: uuidv7(now, ++sequence),
+        inputs: { template: { id: row.id, version: String(row.version) } } }, deniedIdentity);
+      assert.ok(!('result' in denied) || denied.result.status !== 'committed', JSON.stringify(denied));
+      assert.deepEqual(await store.load(asModel('creative.Template'), row.id), beforeDenial, 'role and owner denial leave the source unchanged');
+      assert.equal(probe.outboxAll().length, beforeDeniedSend, 'denied actions stage no SEND');
+    }
     const before = await store.readRevision();
-    const operationId = `${now.toString(16).padStart(12, '0').slice(0, 8)}-${now.toString(16).padStart(12, '0').slice(8)}-7000-8000-000000000001`;
-    const invoked = await buildInvoker(artifact, asm, store, { memberships: identities, now: () => now, files: files.canonical })
-      .invokeMutation({ operation, operation_id: operationId,
-        inputs: { entry: { id: row.id, version: String(row.version) }, graph: { id: graph } } }, identity);
+    const operationId = uuidv7(now, ++sequence);
+    const invoked = await invoker.invokeMutation({ operation, operation_id: operationId,
+      inputs: { template: { id: row.id, version: String(row.version) } } }, identity);
     assert.equal('result' in invoked ? invoked.result.status : invoked.error.code, 'committed', JSON.stringify(invoked));
     const [intent] = probe.outboxAll();
     assert.ok(intent);
@@ -272,14 +318,14 @@ it('retains an unconditional native Images inspect SEND and reads only its genui
     assert.deepEqual(binding.scope, scope);
     assert.equal(binding.origin.kind, 'send-input');
     assert.deepEqual(binding.files.map(item => ({ path: item.path, ref: item.file.ref })), [{ path: ['graph'], ref: graph }]);
-    assert.deepEqual((await store.load(asModel('TypedFileJourney.Entry'), row.id))?.data['inspection'], { id: intent.intentId, operation: intent.target });
+    assert.deepEqual((await store.load(asModel('creative.Template'), row.id))?.data['inspection'], { id: intent.intentId, operation: intent.target });
 
     const openReader = async (readerAsm: typeof asm, readerStore: typeof store, readerArtifact = artifact) => {
       const loaded = await loadCanonicalDescriptors(readerAsm, readerArtifact);
       assert.ok(loaded.valueTypes);
       const operations = new Map<string, { canonical: import('@canlang/contracts').CanonicalOperationDescriptor;
         artifact: NonNullable<CompileArtifact['operations']>[number] }>();
-      for (const name of [operation, 'TypedFileJourney.validate']) {
+      for (const name of [operation, 'creative.validate', 'creative.publish']) {
         const definition = loaded.registry.get(name) as { descriptor: import('@canlang/contracts').CanonicalOperationDescriptor } | undefined;
         const declaration = readerArtifact.operations?.find(candidate => candidate.name === name);
         assert.ok(definition?.descriptor && declaration);
@@ -320,7 +366,7 @@ it('retains an unconditional native Images inspect SEND and reads only its genui
 
     // The installed adapter receives the graph through the retained Work source,
     // not a provider URL or an arbitrary File ref supplied by the dispatcher.
-    const providerBinding = { capability: 'std.ImagesV1', capabilityVersion: 1, account: 'reviewed-local-comfy', deployment: 'deployment.comfyui' };
+    const providerBinding = { capability: 'std.ImagesV1', capabilityVersion: 1, account: 'reviewed-local-comfy', deployment: 'deployment.images' };
     const mapping = { workflow: graph, graphDigest: digestGraph(apiGraph), inputs: {
       prompt: { node: '6', key: 'text' }, negative: { node: '7', key: 'text' },
       width: { node: '5', key: 'width' }, height: { node: '5', key: 'height' }, seed: { node: '3', key: 'seed' },
@@ -336,7 +382,7 @@ it('retains an unconditional native Images inspect SEND and reads only its genui
     assert.equal(installed.workflows.matchesGraph(new TextEncoder().encode(JSON.stringify({ ...apiGraph,
       4: { class_type: 'CheckpointLoaderSimple', inputs: { ckpt_name: 'unreviewed.safetensors' } } }))), false);
     const originalModule = await importVerifiedAssemblyModule(reopenedAsm, reopenedArtifact.modules[0]!.path, reopenedArtifact) as { appDefinition: unknown };
-    let graphReads = 0, providerHttpRequests = 0, sequence = 1, dispatchNow = now + 1, interruptGraphRead = false;
+    let graphReads = 0, providerHttpRequests = 0, dispatchNow = now + 1, interruptGraphRead = false;
     const adapter = createBoundImagesAdapter({ appDefinition: originalModule.appDefinition, binding: providerBinding,
       resolveInstalledImages: deployment => deployment === providerBinding.deployment ? installed : null,
       finalizeOutput: async () => { throw new Error('Workflow review must never finalize generated images'); },
@@ -353,7 +399,7 @@ it('retains an unconditional native Images inspect SEND and reads only its genui
     const fenceFor = (_selected: typeof intent) => ({ owner: scope.owner, attemptDispatch: attemptDispatch as unknown as import('../src/runtime/invoke.js').FenceAttemptDispatchFn,
       revalidateAuthority: async () => {
         const current = await identities.findMembership(team.team_id, user.user_id);
-        return current?.status === 'active' && current.is_owner;
+        return current?.status === 'active' && current.roles.some(role => role.role === 'creative.creative_manager');
       } });
     const drive = (dispatcher: Awaited<ReturnType<typeof makeDispatcher>>, selected: typeof intent) => dispatcher.drive({
       intentId: selected.intentId, actor: user.user_id, operation: 'test.files.workflow.dispatch', nowMs: () => dispatchNow,
@@ -397,19 +443,43 @@ it('retains an unconditional native Images inspect SEND and reads only its genui
       const reopenedInvoker = buildInvoker(reopenedArtifact, reopenedAsm, reopened,
         { memberships: identities, now: () => now, files: reopenedFiles.canonical });
       const validate = async () => {
-        const current = await reopened.load(asModel('TypedFileJourney.Entry'), row.id);
+        const current = await reopened.load(asModel('creative.Template'), row.id);
         assert.ok(current);
         const validationOperationId = uuidv7(now, ++sequence);
-        const outcome = await reopenedInvoker.invokeMutation({ operation: 'TypedFileJourney.validate', operation_id: validationOperationId,
-          inputs: { entry: { id: current.id, version: String(current.version) }, graph: { id: graph } } }, identity);
+        const outcome = await reopenedInvoker.invokeMutation({ operation: 'creative.validate', operation_id: validationOperationId,
+          inputs: { template: { id: current.id, version: String(current.version) } } }, identity);
         assert.equal('result' in outcome ? outcome.result.status : outcome.error.code, 'committed', JSON.stringify(outcome));
-        const pending = probe.outboxAll().find(candidate => candidate.operation === 'TypedFileJourney.validate' &&
+        const pending = probe.outboxAll().find(candidate => candidate.operation === 'creative.validate' &&
           candidate.intentId !== intent.intentId && candidate.operationId === validationOperationId);
         // The probe retains the actual original Work intent, including after ack.
         assert.ok(pending);
-        return pending;
+        assert.ok('result' in outcome && outcome.result.result && typeof outcome.result.result === 'object');
+        const returned = outcome.result.result as { id: string; version: string };
+        assert.equal(typeof returned.id, 'string');
+        const revision = await reopened.load(asModel('creative.Revision'), asId(returned.id));
+        assert.ok(revision);
+        assert.deepEqual(revision.parent, { model: 'creative.Template', id: row.id });
+        assert.deepEqual(revision.data['validation'], { id: pending.intentId, operation: pending.target });
+        return { pending, revision };
+
       };
-      const validationIntent = await validate();
+      const { pending: validationIntent, revision: workflowRevision } = await validate();
+      const frozenDefinition = structuredClone(workflowRevision.data['definition']);
+      const publish = async (selected = workflowRevision, actor = identity) => {
+        const current = await reopened.load(asModel('creative.Revision'), selected.id);
+        assert.ok(current);
+        return reopenedInvoker.invokeMutation({ operation: 'creative.publish', operation_id: uuidv7(now, ++sequence),
+          inputs: { revision: { id: current.id, version: String(current.version) } } }, actor);
+      };
+      const assertRefused = (outcome: Awaited<ReturnType<typeof publish>>) => {
+        assert.ok(!('result' in outcome) || outcome.result.status !== 'committed', JSON.stringify(outcome));
+      };
+      for (const deniedIdentity of deniedIdentities) assertRefused(await publish(workflowRevision, deniedIdentity));
+      const beforePendingPublish = structuredClone(await reopened.load(asModel('creative.Revision'), workflowRevision.id));
+      const beforePendingTemplate = structuredClone(await reopened.load(asModel('creative.Template'), row.id));
+      assertRefused(await publish());
+      assert.deepEqual(await reopened.load(asModel('creative.Revision'), workflowRevision.id), beforePendingPublish);
+      assert.deepEqual(await reopened.load(asModel('creative.Template'), row.id), beforePendingTemplate, 'pending validation cannot publish or change current');
       const validated = await drive(dispatcher, validationIntent);
       assert.equal(validated.status, 'recorded', JSON.stringify(validated));
       if (validated.status === 'recorded') assert.equal(validated.state, 'delivered');
@@ -419,11 +489,48 @@ it('retains an unconditional native Images inspect SEND and reads only its genui
       assert.equal(validation.status, 'succeeded');
       assert.deepEqual(validation.result, { valid: true, digest: installed.validation, detail: null });
       assert.ok(graphReads >= 3, 'inspect, reconcile and validate read actual retained source Files');
+      const publishRequest = { operation: 'creative.publish', operation_id: uuidv7(now, ++sequence),
+        inputs: { revision: { id: workflowRevision.id, version: String(workflowRevision.version) } } };
+      const published = await reopenedInvoker.invokeMutation(publishRequest, identity);
+      assert.equal('result' in published ? published.result.status : published.error.code, 'committed', JSON.stringify(published));
+      const publishedRevision = await reopened.load(asModel('creative.Revision'), workflowRevision.id);
+      assert.ok(publishedRevision);
+      assert.equal(publishedRevision.data['published'], true);
+      assert.equal(publishedRevision.data['digest'], installed.validation);
+      assert.deepEqual(publishedRevision.data['definition'], frozenDefinition);
+      const afterPublication = await reopened.readRevision();
+      const replayed = await reopenedInvoker.invokeMutation(publishRequest, identity);
+      assert.ok('result' in replayed);
+      assert.equal(replayed.result.status, 'replayed');
+      assert.equal(replayed.result.result, null);
+      assert.deepEqual(replayed.result.records, []);
+      assert.equal(await reopened.readRevision(), afterPublication, 'publication replay performs no effects');
+      assertRefused(await publish());
+      const currentTemplate = await reopened.load(asModel('creative.Template'), row.id);
+      assert.ok(currentTemplate);
+      assert.equal((currentTemplate.data['current'] as { id: string }).id, workflowRevision.id);
+      const edited = await reopenedInvoker.invokeMutation({ operation: 'creative.Template.update', operation_id: uuidv7(now, ++sequence),
+        inputs: { record: { id: currentTemplate.id, version: String(currentTemplate.version) }, prompt_node: '7' } }, identity);
+      assert.equal('result' in edited ? edited.result.status : edited.error.code, 'committed', JSON.stringify(edited));
+      assert.deepEqual((await reopened.load(asModel('creative.Revision'), workflowRevision.id))?.data['definition'], frozenDefinition,
+        'editing a draft cannot change the frozen revision definition');
+      const { pending: invalidIntent, revision: invalidRevision } = await validate();
+      assert.equal((await drive(dispatcher, invalidIntent)).status, 'recorded');
+      const invalidRow = await reopened.load(asModel(RECEIPT_MODEL), asId(invalidIntent.intentId));
+      assert.ok(invalidRow);
+      assert.equal((readReceiptRow(invalidRow).receipt.result as { valid: boolean }).valid, false);
+      assertRefused(await publish(invalidRevision));
+      const editedTemplate = await reopened.load(asModel('creative.Template'), row.id);
+      assert.ok(editedTemplate);
+      const restored = await reopenedInvoker.invokeMutation({ operation: 'creative.Template.update', operation_id: uuidv7(now, ++sequence),
+        inputs: { record: { id: row.id, version: String(editedTemplate.version) }, prompt_node: '6' } }, identity);
+      assert.equal('result' in restored ? restored.result.status : restored.error.code, 'committed', JSON.stringify(restored));
+
       const currentRevision = await reopened.readRevision();
       await assert.rejects(reopenedReader.readSendInputFile({ intent: { ...validationIntent,
         arguments: { ...validationIntent.arguments, from: 'deployment.other' } }, revision: currentRevision,
         path: ['value', 'graph'], ref: graph, maxBytes: bytes.length }, reopenedFiles.canonical));
-      const interruptedIntent = await validate();
+      const { pending: interruptedIntent } = await validate();
       let interruptCompletion = true;
       const interruptedStore = { ...reopened, commit: async (batch: Parameters<typeof reopened.commit>[0]) => {
         if (interruptCompletion && batch.outboxAck?.includes(interruptedIntent.intentId)) {
@@ -448,19 +555,27 @@ it('retains an unconditional native Images inspect SEND and reads only its genui
       const recoveredRow = await reopened.load(asModel(RECEIPT_MODEL), asId(interruptedIntent.intentId));
       assert.ok(recoveredRow);
       assert.deepEqual(readReceiptRow(recoveredRow).receipt.result, { valid: true, digest: installed.validation, detail: null });
-      const uncertainIntent = await validate();
+      const { pending: uncertainIntent } = await validate();
       interruptGraphRead = true;
       const uncertain = await drive(await makeDispatcher(), uncertainIntent);
       assert.equal(uncertain.status, 'recorded');
       if (uncertain.status === 'recorded') assert.equal(uncertain.state, 'uncertain');
       const reconciledReview = await recover();
       assert.ok(reconciledReview.reconciled.some(item => item.intentId === uncertainIntent.intentId && item.state === 'delivered'), JSON.stringify(reconciledReview));
-      const revoked = await validate();
+      const { pending: revoked } = await validate();
       const readsBeforeRevoke = graphReads;
       await identities.removeMembership(membership.membership_id);
       const refused = await drive(dispatcher, revoked);
       assert.notEqual(refused.status, 'recorded', 'current membership must survive the dispatch fence');
       assert.equal(graphReads, readsBeforeRevoke, 'revoked authority cannot reach graph bytes or the adapter');
+      assertRefused(await publish());
+      const beforeRevokedReplay = await reopened.readRevision();
+      const revokedReplay = await reopenedInvoker.invokeMutation(publishRequest, identity);
+      assert.ok('result' in revokedReplay);
+      assert.equal(revokedReplay.result.status, 'replayed');
+      assert.equal(revokedReplay.result.result, null);
+      assert.deepEqual(revokedReplay.result.records, [], 'exact void replay discloses no saved business data after revocation');
+      assert.equal(await reopened.readRevision(), beforeRevokedReplay);
       assert.equal(providerHttpRequests, 0, 'workflow review never generates or contacts the provider');
     } finally { globalThis.fetch = originalFetch; }
   } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }

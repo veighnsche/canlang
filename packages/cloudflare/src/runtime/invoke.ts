@@ -3566,12 +3566,12 @@ const nativeScenarioStoredFileSlots = new WeakMap<GeneratedOperationDef, Readonl
   readonly target: GeneratedOperationDef;
   readonly fileInputs: NonNullable<ScenarioReceiptCallSite['fileInputs']>;
 }>>();
-// Declared protected nominal fields use State's same-load complete File census.
+// Declared protected File and nominal fields use State's same-load complete File census.
 // This private inventory selects traversal and owning source policies, never reads.
-const nativeScenarioNominalFileProfiles = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, {
+const nativeScenarioStoredFileProfiles = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, {
   readonly model: string; readonly field: string; readonly profile: import('@canlang/state').FileReferenceProfile;
 }>>();
-/** Bind only actual same-loaded nominal/alias stored fields. The profile owns
+/** Bind only actual same-loaded singular File or nominal/alias stored fields. The profile owns
  * whole-value validation; the host still owns finalization and retention. */
 async function bindFileStagingCensus(loaded: LoadedCanonicalDescriptors,
   artifact: CompileArtifact): Promise<FileStagingCensus | undefined> {
@@ -3621,7 +3621,7 @@ async function bindFileStagingCensus(loaded: LoadedCanonicalDescriptors,
   }
   return { fields, occurrences };
 }
-async function bindNativeScenarioNominalFiles(loaded: LoadedCanonicalDescriptors, artifact: CompileArtifact): Promise<void> {
+async function bindNativeScenarioStoredFiles(loaded: LoadedCanonicalDescriptors, artifact: CompileArtifact): Promise<void> {
   let bindProfile: typeof import('@canlang/state').bindFileReferenceProfile | undefined;
   const bound = { canonicalModels: loaded.models,
     artifactModels: new Map((artifact.models ?? []).map(model => [model.name as ModelName, model])),
@@ -3634,8 +3634,10 @@ async function bindNativeScenarioNominalFiles(loaded: LoadedCanonicalDescriptors
       readonly profile: import('@canlang/state').FileReferenceProfile }>();
     for (const returned of plan.returns) for (const dependency of returned.dependencies) {
       const parsed = parseTypeId(dependency.type);
-      if (parsed.base.kind !== 'nominal' || loaded.valueSchema === undefined ||
-          !Object.hasOwn(loaded.valueSchema.contracts, parsed.base.path) || profiles.has(dependency.id)) continue;
+      const singular = dependency.type === 'file' || dependency.type === 'file?';
+      const nominal = parsed.base.kind === 'nominal' && loaded.valueSchema !== undefined &&
+        Object.hasOwn(loaded.valueSchema.contracts, parsed.base.path);
+      if ((!singular && !nominal) || profiles.has(dependency.id)) continue;
       if (bindProfile === undefined) {
         const state = await loadProducerModule('@canlang/state', 'stored nominal File census');
         bindProfile = requireProducerFn(state, 'bindFileReferenceProfile', 'stored nominal File census') as
@@ -3645,7 +3647,7 @@ async function bindNativeScenarioNominalFiles(loaded: LoadedCanonicalDescriptors
       if (profile.type !== dependency.type) throw new AssemblyCorrespondenceError('Stored nominal dependency differs from its complete owning field type.');
       if (profile.fileBearing) profiles.set(dependency.id, Object.freeze({ model: dependency.model, field: dependency.field, profile }));
     }
-    if (profiles.size !== 0) nativeScenarioNominalFileProfiles.set(def, profiles);
+    if (profiles.size !== 0) nativeScenarioStoredFileProfiles.set(def, profiles);
   }
 }
 function nativeScenarioStoredFileNames(parent: GeneratedOperationDef, target: GeneratedOperationDef): ReadonlySet<string> {
@@ -5940,7 +5942,7 @@ function addScenarioReturnConsumers(
       add(dependency.type);
       // Reserved row metadata still consumes its original owning read policy.
       if ((dependency.field === 'id' && dependency.type === 'text') || dependency.type === 'file[]' ||
-          nativeScenarioNominalFileProfiles.get(def)?.has(dependency.id) === true) add(dependency.model, true);
+          nativeScenarioStoredFileProfiles.get(def)?.has(dependency.id) === true) add(dependency.model, true);
     }
   }
 }
@@ -6036,7 +6038,7 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
     if (context === undefined && (def.kind==='scenario' && plan.returns.some(returned=>
         returned.dependencies.some(dependency=>dependency.role==='data'&&dependency.queryId===undefined)) || plan.sourceLoops?.loops.some(loop=>loop.copy!==undefined) || [...(nativeSourceSendGuards.get(def)?.values() ?? [])].some(source =>
         source.guard.inputs.some(input => loaded.models.some(model => model.name === input.type))) ||
-      (nativeScenarioNominalFileProfiles.get(def)?.size ?? 0) !== 0 || plan.returns.some(returned =>
+      (nativeScenarioStoredFileProfiles.get(def)?.size ?? 0) !== 0 || plan.returns.some(returned =>
         returned.dependencies.some(dependency => dependency.type === 'file[]' ||
           dependency.field === 'id' && dependency.type === 'text')) ||
         loaded.models.some(model => model.name === def.descriptor.result?.type) ||
@@ -6638,7 +6640,7 @@ async function loadCanonicalDescriptorsInternal(
   }
   await bindScenarioFrameworkProducers(asm, artifact, canonical);
   await bindNativeScenarioCalls(asm, artifact, canonical);
-  await bindNativeScenarioNominalFiles(canonical, artifact);
+  await bindNativeScenarioStoredFiles(canonical, artifact);
   for (const [owner, sites] of canonical.membershipSources) {
     // Keep each complete original recipe in its defining lifetime. A SEND
     // predicate and a later ordinary require may share one scenario owner.
@@ -8564,27 +8566,23 @@ function localPolicyContextFacts(context: InvocationContext): string {
 /** Decode only the row presently chosen by State. A referenced current row is
  * fetched later, at the original source callback's explicit access point. */
 /** One owner-rule field becomes its loaded value: a native reference, a delivery decode, or a loud refusal. */
-function resolveOwnerRuleFieldValue<
-  Declared extends { readonly valueType?: unknown; readonly nullable?: unknown;
-    readonly delivery?: { readonly kind?: unknown; readonly capability?: unknown; readonly operation?: unknown } },
->(
-  StateError: StateErrorsProducer,
-  native: NativeRecordScope,
-  model: string,
-  field: string,
-  value: unknown,
-  declared: Declared,
-  target: string | undefined,
+function nativeStoredFieldType(declared: { readonly valueType?: string; readonly nullable?: unknown;
+  readonly delivery?: { readonly kind?: unknown; readonly capability?: unknown; readonly operation?: unknown } }): string | undefined {
+  if (declared.valueType !== undefined) return declared.valueType;
+  const delivery = declared.delivery;
+  return delivery?.kind === 'delivery' && typeof delivery.capability === 'string' && typeof delivery.operation === 'string'
+    ? `delivery(${delivery.capability}.${delivery.operation})${declared.nullable === true ? '?' : ''}` : undefined;
+}
+function resolveOwnerRuleFieldValue(
+  StateError: StateErrorsProducer, native: NativeRecordScope, model: string, field: string, value: unknown,
+  declared: Parameters<typeof nativeStoredFieldType>[0], target: string | undefined,
 ): unknown {
-  if (declared.valueType !== undefined || target !== undefined) {
-    return nativeRecordField(native, model, field, value);
+  const type = nativeStoredFieldType(declared);
+  if (type !== undefined) {
+    try { return decodeCanonicalValue(native.valueSchema, type, value); }
+    catch (error) { throw new StateError('validation', message(error)); }
   }
-  if (declared.delivery?.kind === 'delivery' &&
-      typeof declared.delivery.capability === 'string' && typeof declared.delivery.operation === 'string') {
-    try {
-      return decodeValue(`delivery(${declared.delivery.capability}.${declared.delivery.operation})${declared.nullable === true ? '?' : ''}`, value);
-    } catch (error) { throw new StateError('validation', message(error)); }
-  }
+  if (target !== undefined) return nativeRecordField(native, model, field, value);
   throw new StateError('validation', 'Owner rule field lacks an exact loaded type association.');
 }
 
@@ -8737,8 +8735,9 @@ async function loadLocalOwnerPolicyControl(input: {
           const fields = localPolicyObject(value), wire: Record<string, unknown> = Object.create(null);
           for (const name of Object.keys(fields)) {
             const declared = definition.fields[name];
-            if (declared?.valueType === undefined) throw new input.native.producers.errors('validation', 'Hook field lacks its exact loaded type.');
-            wire[name] = encodeCanonicalField(input.native.producers.errors, declared.valueType,
+            const type = declared === undefined ? undefined : nativeStoredFieldType(declared);
+            if (type === undefined) throw new input.native.producers.errors('validation', 'Hook field lacks its exact loaded type.');
+            wire[name] = encodeCanonicalField(input.native.producers.errors, type,
               localPolicyMember(fields, name), input.native.valueSchema);
           }
           return wire;
@@ -8775,10 +8774,10 @@ async function loadLocalOwnerPolicyControl(input: {
               publishMigrationChunk: refuse, flipInstalledSnapshot: refuse, readMigrationOutcomes: refuse,
               recordMigrationFailure: refuse, discardStagedRows: refuse, readMigrationFailure: refuse });
             const fields = (data: unknown): Record<string, unknown> => Object.fromEntries(Object.keys(localPolicyObject(data)).map(name => {
-              if (input.native.models.find(model => model.name === descriptor.model)?.fields[name]?.valueType === undefined) {
-                throw new input.native.producers.errors('validation', 'Hook candidate lacks an exact loaded field type.');
-              }
-              return [name, nativeRecordField(input.native, descriptor.model, name, localPolicyMember(data as object, name))];
+              const declared = input.native.models.find(model => model.name === descriptor.model)?.fields[name];
+              const type = declared === undefined ? undefined : nativeStoredFieldType(declared);
+              if (type === undefined) throw new input.native.producers.errors('validation', 'Hook candidate lacks an exact loaded field type.');
+              return [name, decodeCanonicalValue(input.native.valueSchema, type, localPolicyMember(data as object, name))];
             }));
             const view = (row: StoredRow | null) => row === null ? null : nativeProjectedRecord(input.native, descriptor.model, row);
             const nativeCandidate = fields(candidate);
@@ -10722,13 +10721,42 @@ async function runScenarioExecution(
           return projectDeliveryOutcome(StateError, observed, selected, declaration.field.result,
             'Owner delivery observation is not authorized.');
         }
-        const observed = await invokeSelectedReceiptRead({
+        // Viewer receipt observations use the admitted physical checkpoint,
+        // including framework rows and bounded parent navigation. A staged
+        // domain overlay cannot supply that checkpoint or create a receipt.
+        const receiptReadStore = receiptStore ?? opts.store;
+        let original: { readonly model: string; readonly id: string } | undefined = binding;
+        const ancestors = new Set<string>();
+        while (original !== undefined) {
+          const key = stagedKey(original.model, original.id);
+          if (ancestors.has(key) || ancestors.size >= 32) {
+            throw new StateError('validation', 'Viewer receipt ancestry exceeds its defining bound.');
+          }
+          ancestors.add(key);
+          const sourceRow = await overlay.load(original.model as ModelName, original.id as RecordId);
+          const physicalRow = await receiptReadStore.load(original.model as ModelName, original.id as RecordId);
+          const model = opts.artifact.models?.find(model => model.name === original!.model);
+          if (sourceRow === null || physicalRow === null || model === undefined ||
+              physicalRow.parent?.model !== model.parent || stableStringify(sourceRow) !== stableStringify(physicalRow)) {
+            throw new StateError('validation', 'Viewer receipt reads require their unchanged original owner and ancestor checkpoints.');
+          }
+          original = physicalRow.parent ?? undefined;
+        }
+        const sourceReads = createSourceReadPolicyAdapter({ loaded, opts: { ...opts, store: receiptReadStore },
+          revision: navigationRevision, now: () => call.context.now,
+          ...(opts.preferences === undefined ? {} : { preferences: opts.preferences }) });
+        const read = () => invokeSelectedReceiptRead({
           asm: opts.asm, artifact: opts.artifact, operation: RECEIPT_READ_OPERATION,
           inputs: { recordId: binding.id, field: locator.field, selected: [...selected] },
-          boundModel: binding.model, identity: opts.identity, store: overlay,
+          boundModel: binding.model, identity: opts.identity, store: receiptReadStore,
           memberships: opts.memberships, now: () => call.context.now,
+          sourceReadPolicies: sourceReads.policies(binding.model),
           ...(opts.observer === undefined ? {} : { observer: opts.observer }),
         });
+        const observed = await read();
+        servedReadings.push(observed);
+        seamGuards.push({ name: `${binding.model}.${locator.field}.read`, evaluate: async () =>
+          stableStringify(await read()) === stableStringify(observed) });
         return projectDeliveryOutcome(StateError, observed, selected,
           declaration?.field.kind === 'delivery' ? declaration.field.result : undefined,
           'Delivery observation is not authorized.');
@@ -10895,10 +10923,8 @@ async function runScenarioExecution(
         if (typeof write.id !== "string" || write.id === "") {
           throw new Error(`t17b: stageWrite needs a non-empty string record id (wiring bug).`);
         }
-        const mutation = `${write.model}.${write.op === 'remove' ? 'delete' : write.op}`;
-        if (loaded.unsupportedHookOperations.has(mutation)) {
-          throw new StateError('validation', `Operation ${JSON.stringify(mutation)} requires unsupported canonical hooks.`);
-        }
+        // Scenario effects are model writes, not CRUD invocations. They retain
+        // invariants and locks below; only canonical CRUD runs its own hook.
         if (write.op !== 'remove' && write.data !== undefined) {
           for (const field of opts.artifact.models?.find(model => model.name === write.model)?.fields ?? []) {
             if ((field.field.kind !== 'file' && !assignmentCensus?.fields.get(write.model)?.has(field.name)) ||
@@ -14660,7 +14686,7 @@ async function bindNativeScenarioFileDefinition(loaded: LoadedCanonicalDescripto
   const storedIds = new Set([...(nativeScenarioStoredFileSlots.get(def)?.values() ?? [])]
     .flatMap(site => site.fileInputs.filter((slot): slot is { readonly name: string; readonly dependencyId: string } =>
       'dependencyId' in slot).map(slot => slot.dependencyId)));
-  const nominalProfiles = nativeScenarioNominalFileProfiles.get(def);
+  const nominalProfiles = nativeScenarioStoredFileProfiles.get(def);
   const selectedIds = new Set((nativeScenarioQuerySelections.get(def) ?? []).flatMap(selection =>
     selection.fields.filter(field => field.name === 'attachments').map(field => field.dependencyId)));
   if (storedIds.size === 0 && selectedIds.size === 0 && (nominalProfiles?.size ?? 0) === 0 && !def.descriptor.inputs.some(field => 'valueType' in field && field.valueType !== undefined &&

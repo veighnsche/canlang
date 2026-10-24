@@ -2959,6 +2959,20 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                         return None;
                     }
                     reference_type
+                } else if *ty == ResolvedType::Scalar(Scalar::File)
+                    || matches!(ty, ResolvedType::Nullable(inner) if **inner == ResolvedType::Scalar(Scalar::File))
+                {
+                    // Preserve the exact opaque File dependency. Files/State
+                    // still own receiving/currentness and byte consumption.
+                    let nullable = matches!(ty, ResolvedType::Nullable(_));
+                    let expected = if nullable { "file?" } else { "file" };
+                    let descriptor = declared[0];
+                    if transition.is_some() || dependency.role != DependencyRole::Data
+                        || dependency.type_id != expected || !matches!(descriptor.field, JsModelFieldType::File)
+                        || descriptor.value_type.as_deref() != Some(expected) || descriptor.nullable != nullable
+                        || descriptor.array_required.is_some() || descriptor.machine.is_some()
+                    { return None; }
+                    expected.into()
                 } else if matches!(ty, ResolvedType::Array { element, .. }
                     if **element == ResolvedType::Scalar(Scalar::File))
                 {

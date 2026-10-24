@@ -3588,7 +3588,14 @@ impl<'a> Closure<'a> {
         field: SymbolId,
         ty: &ResolvedType,
     ) -> Result<String, DisclosureDecline> {
-        if !result_type(ty) && *ty != ResolvedType::Scalar(Scalar::Timezone) {
+        // A stored File is an opaque source dependency, never a scalar result
+        // or a byte/disclosure grant. Its actual field schema remains checked.
+        let stored_file = *ty == ResolvedType::Scalar(Scalar::File)
+            || matches!(ty, ResolvedType::Nullable(inner) if **inner == ResolvedType::Scalar(Scalar::File));
+        let field_type_id = || if stored_file {
+            Some(if matches!(ty, ResolvedType::Nullable(_)) { "file?" } else { "file" }.to_string())
+        } else { exact_type_id(ty, self.resolve) };
+        if !result_type(ty) && *ty != ResolvedType::Scalar(Scalar::Timezone) && !stored_file {
             return Err(self.fail(key, "unsupported stored field type"));
         }
         let owner = match self.resolve.symbols.get(field.0 as usize).map(|s| &s.kind) {
@@ -3613,7 +3620,7 @@ impl<'a> Closure<'a> {
             if &original.ty != ty {
                 return Err(self.fail(key, "contributed field type mismatch"));
             }
-            return exact_type_id(ty, self.resolve)
+            return field_type_id()
                 .ok_or_else(|| self.fail(key, "unsupported contributed stored field type"));
         }
         let declaration = self
@@ -3627,6 +3634,9 @@ impl<'a> Closure<'a> {
                     .find(|candidate| candidate.field == field)
             })
             .ok_or_else(|| self.fail(key, "missing checked stored field declaration"))?;
+        if stored_file && self.types.symbol_types.get(&field) != Some(ty) {
+            return Err(self.fail(key, "stored File field type mismatch"));
+        }
         if declaration.required_array {
             return Err(self.fail(key, "required stored array is outside disclosure profile"));
         }
@@ -3636,7 +3646,7 @@ impl<'a> Closure<'a> {
             .get(&field)
             .and_then(|constraints| constraints.alias)
         else {
-            return exact_type_id(ty, self.resolve)
+            return field_type_id()
                 .ok_or_else(|| self.fail(key, "unsupported stored field type"));
         };
         let owner = self

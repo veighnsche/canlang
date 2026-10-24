@@ -33,7 +33,7 @@ function paths(value: unknown): string[] {
 }
 
 export function savedDependencyWire(type: CanTypeId, wire: unknown): void {
-  if (type === 'file[]') { savedFileRefs(type, wire); return; }
+  if (type === 'file' || type === 'file?' || type === 'file[]') { savedFileRefs(type, wire); return; }
   try { scalarType(type); }
   catch { savedNominalWire(type, wire); return; }
   scalarWire(type, wire);
@@ -225,8 +225,9 @@ function readSavedScenarioAssociation(receipt: Receipt,
       (wire === 'system' || wire === 'user' || wire === 'assistant');
     if (!messageRole) savedDependencyWire(dependency.type, wire);
     paths(observation['secretFields']);
-    if (dependency.type === 'file[]' || Object.hasOwn(observation, 'files')) {
-      const refs = dependency.type === 'file[]' ? new Set(savedFileRefs(dependency.type, dependencyObservedWire(dependency, row))) : null;
+    const fileDependency = dependency.type === 'file' || dependency.type === 'file?' || dependency.type === 'file[]';
+    if (fileDependency || Object.hasOwn(observation, 'files')) {
+      const refs = fileDependency ? new Set(savedFileRefs(dependency.type, dependencyObservedWire(dependency, row))) : null;
       if (refs === null) savedNominalWire(dependency.type, dependencyObservedWire(dependency, row));
       const files = list(observation['files']).map(checkRetainedScenarioFile);
       if (new Set(files.map(file => file.ref)).size !== files.length || refs !== null &&

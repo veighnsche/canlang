@@ -70,7 +70,7 @@ export function scalarType(type: unknown): CanTypeId {
 /** Only dependency sites may name an owning stored contract. Results,
  * intrinsics, query influence and changed-record inventories stay scalar. */
 function dependencyType(type: unknown): CanTypeId {
-  if (type === 'file[]') return type as CanTypeId;
+  if (type === 'file' || type === 'file?' || type === 'file[]') return type as CanTypeId;
   try { return scalarType(type); }
   catch { return storedNominalType(type); }
 }

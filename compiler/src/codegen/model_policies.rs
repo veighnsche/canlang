@@ -8,7 +8,7 @@ use crate::codegen::ir::{
 };
 use crate::codegen::model_policy_profile::{
     CheckedQueryRuleProfile, CurrentRevisionRuleKind, CurrentRevisionRuleProfile,
-    RequiredModelRuleDependency, checked_chat_invariant_fields, checked_chat_lock_target,
+    RequiredModelRuleDependency, checked_chat_invariant_fields,
     checked_local_rule_fields, checked_query_rule_fields, checked_stored_lock_target,
     current_revision_lock_target, current_revision_rule_profile, local_hook_supported,
     local_rule_fields, local_stored_field_type, required_model_rule_dependencies,
@@ -433,7 +433,6 @@ fn collect_lock_rule(
     owner_package: &str,
     rule: &IrLockFn,
     checked_profiles: Option<&[CurrentRevisionRuleProfile]>,
-    checked_chat_fields: Option<&std::collections::HashSet<SymbolId>>,
     checked_context: Option<(&CheckedProgram, &SourceDb, Option<&Catalog>)>,
     locks: &[String],
     rules: &mut Vec<(u32, ModelRule)>,
@@ -453,8 +452,6 @@ fn collect_lock_rule(
                 && matches!(&item.kind, IrItemKind::Field { owner, ty: IrType::Known(ty), .. } if *owner == model.id &&
                     (local_stored_field_type(ir, model.id, ty) || checked_profiles.is_some_and(|profiles|
                         checked_stored_lock_target(ir, model.id, item.id, field, ty)
-                            || (checked_chat_fields.is_some_and(|checked| checked.contains(&item.id))
-                            && checked_chat_lock_target(ir, model.id, item.id, field, ty))
                             || profiles.iter().any(|profile| profile.origin.model == model.id
                                 && current_revision_lock_target(ir, profile, item.id, field, ty)))))
         })
@@ -546,7 +543,6 @@ fn collect_model_policies(
             &owner_package,
             rule,
             checked_profiles,
-            checked_chat_fields,
             checked_context,
             locks,
             &mut rules,
