@@ -690,7 +690,11 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
                 entries.iter().any(|entry|entry["node"]["start"]==span.start&&entry["node"]["end"]==span.end))
                 &&statements(ir,owner,body,depth+1,&mut values.clone(),&mut records.clone(),consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context),
             IrStmt::Let { name,value,span } => {
-                let pure=send_value(ir,value,values,0)||let_data.contains_key(span);
+                let scalar=matches!(value.ty.nullable_inner().unwrap_or(&value.ty),ResolvedType::Scalar(scalar)
+                    if !matches!(scalar,Scalar::File|Scalar::Secret|Scalar::Member|Scalar::Json|Scalar::Bytes))
+                    ||matches!(value.ty.nullable_inner().unwrap_or(&value.ty),ResolvedType::Enum{..});
+                let pure=send_value(ir,value,values,0)||let_data.contains_key(span)
+                    ||scalar&&expression(ir,value,0)&&constructor_data(ir,value,let_data,values,records,0);
                 values.remove(name);
                 records.remove(name);
                 if pure{values.insert(name.clone());}

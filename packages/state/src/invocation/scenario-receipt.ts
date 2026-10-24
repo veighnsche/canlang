@@ -7815,7 +7815,7 @@ async function observeModelQuerySourceAuthority<AllowAbsent extends boolean = fa
 export interface ScenarioSourceLetDataSource {
   readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
   readonly node:{readonly start:number;readonly end:number};readonly stage:number;readonly binding:string;
-  readonly parameter:string;readonly model:ModelName;readonly parents?:readonly ModelName[];
+  readonly parameter:string;readonly model:ModelName;readonly parents?:readonly ModelName[];readonly path?:SourceEffectPath;
   readonly field:{readonly name:string;readonly type:CanTypeId};readonly valueType:CanTypeId;
 }
 interface SourceLetDataProducer extends ScenarioReceiptReferenceProducer {readonly sites:readonly ScenarioSourceLetDataSource[];}
@@ -7829,12 +7829,13 @@ export function bindScenarioSourceLetDataProducer(def:GeneratedOperationDef,prod
   const policy=captureSourcePolicyTable(bound,producer.policy,'Scalar LET DATA policy differs from its owning model.');
   const readPolicies=captureSourceReadPolicies(producer.readPolicies);
   const sites=list(dataCopy(producer.sites)).map(value=>{
-    const site=object(value,Object.hasOwn(value as object,'parents')?['source','owner','node','stage','binding','parameter','model','parents','field','valueType']:['source','owner','node','stage','binding','parameter','model','field','valueType']);origin(site['source']);
+    const site=object(value,['source','owner','node','stage','binding','parameter','model','field','valueType',...(Object.hasOwn(value as object,'parents')?['parents']:[]),...(Object.hasOwn(value as object,'path')?['path']:[])]);origin(site['source']);
     const node=object(site['node'],['start','end']),parameter=text(site['parameter']),model=text(site['model']) as ModelName;
     const field=object(site['field'],['name','type']),name=text(field['name']),type=text(field['type']),valueType=text(site['valueType']);text(site['binding']);
     const parents=site['parents']===undefined?[]:list(site['parents']).map(value=>text(value)as ModelName);
     if(parents.length>16||site['parents']!==undefined&&parents.length===0)return invalid('Source field DATA requires its finite declared parent path.');
     let fieldModel=model;for(const parent of parents){if(bound.artifactModels.get(fieldModel)?.parent!==parent||storedReferenceField(bound,fieldModel,'parent',parent).target!==parent)return invalid('Source field DATA parent path differs from containment.');fieldModel=parent;}
+    if(Object.hasOwn(site,'path')){if(Object.hasOwn(site,'parents'))return invalid('Source field DATA cannot substitute two original receiver paths.');fieldModel=checkSourceEffectPath(bound,model,site['path']);}
     const input=bound.inputs.find(input=>input.name===parameter),declaration=bound.artifactModels.get(fieldModel)?.fields.find(field=>field.name===name);
     const reference=declaration?.field.kind==='ref'&&declaration.field.model===type&&declaration.nullable!==true&&declaration.array===undefined
       &&storedReferenceField(bound,fieldModel,name,type).target===type;
@@ -7865,6 +7866,11 @@ export async function executeScenarioSourceLetData(call:AdmittedCall,store:Stora
       let row=await owner.session!.views.final.get(site.model,ref.id);ownerHealthy(owner);
       if(row===null||!sameModelLifetime(ref.row,row)||owner.stage!==site.stage)return invalid('Scalar LET DATA root lifetime or original stage changed.');
       let model=site.model;
+      if(site.path!==undefined){
+        const observed=await observeSourceEffectPath(call,store,owner,state,model,row,site.path,producer,`LET:${site.node.start}:${site.node.end}`);
+        model=observed.model;row=observed.row;
+        if(owner.stage!==site.stage)return invalid('Source field DATA path crossed its original stage.');
+      }
       for(const parent of site.parents??[]){
         const authority=await observeModelQuerySourceAuthority(call,store,owner,state,model,row,['parent'],0,undefined,undefined,producer);
         if(authority.record.parent?.model!==parent||row.parent?.model!==parent)return invalid('Source field DATA lost its actual granted parent.');

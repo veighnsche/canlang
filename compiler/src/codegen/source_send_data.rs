@@ -139,6 +139,36 @@ fn path_descriptor(ir:&IrProgram,path:&[(String,u32,bool)])->Vec<serde_json::Val
         edge
     }).collect()
 }
+/// Reuse the original required stored-reference path census for scalar loans.
+pub(super) fn scalar_field_receiver(ir:&IrProgram,value:&TypedExpr,roots:&BTreeMap<String,SymbolId>)
+    ->Option<(String,SymbolId,Vec<(String,SymbolId,bool)>)> {
+    let env=Environment{values:BTreeSet::new(),roots:roots.iter().map(|(name,model)|
+        (name.clone(),Root{parameter:name.clone(),model:*model,query:None})).collect()};
+    let(root,path)=required_identity_path(ir,value,&env,0)?;
+    Some((root.parameter,root.model,path))
+}
+/// Only already-observed scalar leaves can make a compound LET a later pure
+/// lexical value. This recognizes provenance; JavaScript evaluates it in place.
+pub(super) fn observed_scalar_value(ir:&IrProgram,value:&TypedExpr,loans:&HashMap<Span,serde_json::Value>,values:&BTreeSet<String>)->bool {
+    fn scalar(ty:&ResolvedType)->bool{match ty{
+        ResolvedType::Scalar(value)=>!matches!(value,Scalar::File|Scalar::Secret|Scalar::Member|Scalar::Json|Scalar::Bytes),
+        ResolvedType::Enum{cases,..}=>!cases.is_empty(),ResolvedType::Nullable(inner)=>scalar(inner),_=>false,
+    }}
+    fn walk(ir:&IrProgram,value:&TypedExpr,loans:&HashMap<Span,serde_json::Value>,values:&BTreeSet<String>,depth:usize)->bool{
+        if depth>32{return false;}
+        if send_value(ir,value,values,0)||loans.contains_key(&value.span){return true;}
+        let child=|value:&TypedExpr|walk(ir,value,loans,values,depth+1);
+        match &value.expr{
+            IrExpr::Member{base,field}=>field=="now"&&value.ty==ResolvedType::Scalar(Scalar::Datetime)
+                &&base.ty==ResolvedType::Unknown&&matches!(&base.expr,IrExpr::Name(name)if name=="c"),
+            IrExpr::Binary{left,right,..}=>child(left)&&child(right),IrExpr::Unary{operand,..}=>child(operand),
+            IrExpr::Call{target:IrCallTarget::Builtin{awaited:false,..},args}
+            |IrExpr::BoundCall{target:IrCallTarget::Builtin{awaited:false,..},args,..}=>args.iter().all(child),
+            _=>false,
+        }
+    }
+    scalar(&value.ty)&&walk(ir,value,loans,values,0)
+}
 impl Reads {
     fn parameter(&self,ir:&IrProgram,name:&str,model:SymbolId,fields:&BTreeMap<String,String>)->serde_json::Value{
         let mut value=serde_json::json!({"name":name,"model":ir.items[model.0 as usize].canonical,
@@ -378,7 +408,7 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
     fn walk(ir:&IrProgram,context:&super::source_context::FreshSourceContext<'_>,owner:&IrItem,body:&[IrStmt],env:&mut Environment,
         models:&mut BTreeMap<String,SymbolId>,created_roots:&mut BTreeMap<String,serde_json::Value>,creates:&[serde_json::Value],loop_roots:&BTreeMap<String,String>,loops:Option<&serde_json::Value>,let_data:&HashMap<Span,serde_json::Value>,source:&serde_json::Value,module:&str,output:&mut HashMap<Span,serde_json::Value>){
         for statement in body{match statement{
-            IrStmt::Let{name,value,span}=>{let pure=send_value(ir,value,&env.values,0)||let_data.contains_key(span);env.values.remove(name);env.roots.remove(name);models.remove(name);created_roots.remove(name);if pure{env.values.insert(name.clone());}},
+            IrStmt::Let{name,value,span}=>{let pure=send_value(ir,value,&env.values,0)||let_data.contains_key(span)||observed_scalar_value(ir,value,let_data,&env.values);env.values.remove(name);env.roots.remove(name);models.remove(name);created_roots.remove(name);if pure{env.values.insert(name.clone());}},
             IrStmt::Create{binding:Some(name),model,span,..}=>{
                 env.values.remove(name);env.roots.remove(name);models.remove(name);created_roots.remove(name);
                 if let Some(profile)=creates.iter().find(|profile|profile["node"]["start"]==span.start&&profile["node"]["end"]==span.end)

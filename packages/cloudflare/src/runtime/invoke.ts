@@ -5734,11 +5734,13 @@ async function bindNativeSourceData(asm:AssembledModules,artifact:CompileArtifac
     const letData=sourceDataCensus<SourceLetDataSource>(module,def,source,'canScenarioLetDataSources','Scalar LET DATA');
     if(letData!==undefined){
       const sites=letData;
+      if(sites.some(site=>site.path!==undefined&&site.parents!==undefined))throw new AssemblyCorrespondenceError('Scalar LET DATA cannot combine reference and legacy parent paths.');
       nativeSourceLetData.set(def,sites);
       if(context!==undefined){
         const bind=loaded.producers.invoke.bindScenarioSourceLetDataProducer;
         if(bind===undefined)throw new AssemblyCorrespondenceError('Scalar LET DATA lacks its original State producer.');
-        const readPolicies=sourceDataReadPolicies(sourceReads!,sites.map(site=>site.model));
+        const readPolicies=sourceDataReadPolicies(sourceReads!,sites.flatMap(site=>[
+          site.model,...site.parents??[],...(site.path??[]).map(edge=>edge.model)]));
         const app=sourceDataApp(module,'Scalar LET DATA');
         bind(def,{source,app,policy:loaded.policy as Parameters<typeof bind>[1]['policy'],readPolicies,sites});
       }
@@ -12804,6 +12806,56 @@ async function runScenarioExecution(
       } catch (error) {recordEngineFailure(error);throw error;}
     });
   }
+  // Decode only fields independently granted by State. SEND and EMIT
+  // retain the same parent/path/identity projection semantics.
+  const projectSourceData=(descriptors:SourceSendDataSource['parameters'],rows:Readonly<Record<string,ProjectedRecord>>,
+    actual:AdmittedCall,label:'SEND DATA'|'EMIT DATA'):Record<string,unknown>=>{
+    const projected:Record<string,unknown>=Object.create(null);
+    for(const parameter of descriptors){
+      const record=rows[parameter.name];if(record===undefined)return refuseRecordBinding(`${label} omitted its independently projected source row.`);
+      const fields:Record<string,unknown>=Object.create(null);
+      for(const field of parameter.fields){
+        const wire=Object.getOwnPropertyDescriptor(record.data,field.name);
+        if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding(`${label} lacks its actually granted source field.`);
+        fields[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);
+      }
+      if(parameter.parent!==undefined){
+        const parent=rows[`${parameter.name}.parent`];if(parent===undefined)return refuseRecordBinding('Effect parent DATA lacks its actual independently granted row.');
+        const data:Record<string,unknown>=Object.create(null);
+        for(const field of parameter.parent.fields){const wire=Object.getOwnPropertyDescriptor(parent.data,field.name);
+          if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('Effect parent DATA lacks its actually granted field.');
+          data[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);
+        }
+        fields.parent=Object.freeze(data);
+      }
+      for(const [index,profile]of (parameter.dataPaths??[]).entries()){
+        const target=rows[`${parameter.name}.scalar.${index}`],wire=target===undefined?undefined:Object.getOwnPropertyDescriptor(target.data,profile.field);
+        if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('Effect scalar path lacks its actual independently granted leaf.');
+        let current=fields;
+        for(const edge of profile.path){const next=Object.hasOwn(current,edge.field)?current[edge.field]:Object.create(null);
+          if(!isUnknownRecord(next))return refuseRecordBinding('Effect scalar path collides with another original DATA value.');
+          const copy:Record<string,unknown>={...next};current[edge.field]=copy;current=copy;
+        }
+        current[profile.field]=decodeCanonicalValue(loaded.valueSchema,profile.type,wire.value);
+      }
+      for(const [index,profile]of (parameter.identityPaths??[]).entries()){
+        const target=rows[`${parameter.name}.identity.${index}`];if(target===undefined)return refuseRecordBinding('Effect identity lacks its actual granted target.');
+        let current=fields;
+        for(const edge of profile.path){
+          const next=Object.hasOwn(current,edge.field)?current[edge.field]:Object.create(null);if(!isUnknownRecord(next))return refuseRecordBinding('Effect identity collides with a different original DATA value.');
+          const copy:Record<string,unknown>={...next};current[edge.field]=copy;current=copy;
+        }
+        current[profile.leaf]=target.id;
+      }
+      if(parameter.identity!==undefined){
+        const references=actual.recordRefs.filter(ref=>ref.param===parameter.name),reference=references[0];
+        if(references.length!==1||reference?.model!==parameter.model||reference.expectedVersion===null)return refuseRecordBinding(`${label} lost its actual admitted identity.`);
+        for(const field of parameter.identity)fields[field]=field==='id'?reference.id:decodeCanonicalValue(loaded.valueSchema,'int',String(reference.expectedVersion));
+      }
+      projected[parameter.name]=Object.freeze(fields);
+    }
+    return projected;
+  };
   if(sourceRequireAware&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined){
     const sites=nativeSourceLetData.get(scenarioDef),actual=call as AdmittedCall;
     if(sites!==undefined){
@@ -12820,7 +12872,7 @@ async function runScenarioExecution(
           const record=await execute(actual,receiptStore,{source});assertExecution(actual,receiptStore);
           const wire=Object.getOwnPropertyDescriptor(record.data,source.field.name);
           if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('Scalar LET DATA lacks its actually granted source field.');
-          const model=source.parents?.at(-1)??source.model;
+          const model=source.path?.at(-1)?.model??source.parents?.at(-1)??source.model;
           if(loaded.models.some(model=>model.name===source.field.type)){
             if(source.valueType!==source.field.type)return refuseRecordBinding('Source field reference DATA changed its declared target.');
             const value=nativeRecordField(loaded,model,source.field.name,wire.value);
@@ -12935,50 +12987,7 @@ async function runScenarioExecution(
             }else if(parameter.loop===undefined?roots[parameter.name]!==parameters[parameter.name]:activeSourceLoopItem?.id!==parameter.loop||roots[parameter.name]!==activeSourceLoopItem.item)return refuseRecordBinding('SEND DATA changed its genuine original parameter graph.');
           }
           return await execute(actual,receiptStore,{source,execute:async rows=>{
-            const projected:Record<string,unknown>=Object.create(null);
-            for(const parameter of source.parameters){
-              const record=rows[parameter.name];if(record===undefined)return refuseRecordBinding('SEND DATA omitted its independently projected source row.');
-              const fields:Record<string,unknown>=Object.create(null);
-              for(const field of parameter.fields){
-                const wire=Object.getOwnPropertyDescriptor(record.data,field.name);
-                if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('SEND DATA lacks its actually granted source field.');
-                fields[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);
-              }
-              if(parameter.parent!==undefined){
-                const parent=rows[`${parameter.name}.parent`];if(parent===undefined)return refuseRecordBinding('Effect parent DATA lacks its actual independently granted row.');
-                const data:Record<string,unknown>=Object.create(null);
-                for(const field of parameter.parent.fields){const wire=Object.getOwnPropertyDescriptor(parent.data,field.name);
-                  if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('Effect parent DATA lacks its actually granted field.');
-                  data[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);
-                }
-                fields.parent=Object.freeze(data);
-              }
-              for(const [index,profile]of (parameter.dataPaths??[]).entries()){
-                const target=rows[`${parameter.name}.scalar.${index}`],wire=target===undefined?undefined:Object.getOwnPropertyDescriptor(target.data,profile.field);
-                if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('Effect scalar path lacks its actual independently granted leaf.');
-                let current=fields;
-                for(const edge of profile.path){const next=Object.hasOwn(current,edge.field)?current[edge.field]:Object.create(null);
-                  if(!isUnknownRecord(next))return refuseRecordBinding('Effect scalar path collides with another original DATA value.');
-                  const copy:Record<string,unknown>={...next};current[edge.field]=copy;current=copy;
-                }
-                current[profile.field]=decodeCanonicalValue(loaded.valueSchema,profile.type,wire.value);
-              }
-              for(const [index,profile]of (parameter.identityPaths??[]).entries()){
-                const target=rows[`${parameter.name}.identity.${index}`];if(target===undefined)return refuseRecordBinding('Effect identity lacks its actual granted target.');
-                let current=fields;
-                for(const edge of profile.path){
-                  const next=Object.hasOwn(current,edge.field)?current[edge.field]:Object.create(null);if(!isUnknownRecord(next))return refuseRecordBinding('Effect identity collides with a different original DATA value.');
-                  const copy:Record<string,unknown>={...next};current[edge.field]=copy;current=copy;
-                }
-                current[profile.leaf]=target.id;
-              }
-              if(parameter.identity!==undefined){
-                const references=actual.recordRefs.filter(ref=>ref.param===parameter.name),reference=references[0];
-                if(references.length!==1||reference?.model!==parameter.model||reference.expectedVersion===null)return refuseRecordBinding('SEND DATA lost its actual admitted identity.');
-                for(const field of parameter.identity)fields[field]=field==='id'?reference.id:decodeCanonicalValue(loaded.valueSchema,'int',String(reference.expectedVersion));
-              }
-              projected[parameter.name]=Object.freeze(fields);
-            }
+            const projected=projectSourceData(source.parameters,rows,actual,'SEND DATA');
             if(queryExecution!==null)return refuseRecordBinding('SEND DATA query frame cannot nest.');
             const active={source,roots:Object.freeze(projected)};queryExecution=active;
             try{return await body(ctx,active.roots);}finally{if(queryExecution===active)queryExecution=null;}
@@ -13026,50 +13035,7 @@ async function runScenarioExecution(
             if(binding?.model!==reference.model||binding.id!==row.id||binding.version<1||binding.version>row.version)return refuseRecordBinding('EMIT reference differs from its actual original CREATE row.');
           }
           return await execute(actual,receiptStore,{source,execute:async rows=>{
-            const projected:Record<string,unknown>=Object.create(null);
-            for(const parameter of source.parameters){
-              const record=rows[parameter.name];if(record===undefined)return refuseRecordBinding('EMIT DATA omitted its independently projected source row.');
-              const fields:Record<string,unknown>=Object.create(null);
-              for(const field of parameter.fields){
-                const wire=Object.getOwnPropertyDescriptor(record.data,field.name);
-                if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('EMIT DATA lacks its actually granted source field.');
-                fields[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);
-              }
-              if(parameter.parent!==undefined){
-                const parent=rows[`${parameter.name}.parent`];if(parent===undefined)return refuseRecordBinding('Effect parent DATA lacks its actual independently granted row.');
-                const data:Record<string,unknown>=Object.create(null);
-                for(const field of parameter.parent.fields){const wire=Object.getOwnPropertyDescriptor(parent.data,field.name);
-                  if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('Effect parent DATA lacks its actually granted field.');
-                  data[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);
-                }
-                fields.parent=Object.freeze(data);
-              }
-              for(const [index,profile]of (parameter.dataPaths??[]).entries()){
-                const target=rows[`${parameter.name}.scalar.${index}`],wire=target===undefined?undefined:Object.getOwnPropertyDescriptor(target.data,profile.field);
-                if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('Effect scalar path lacks its actual independently granted leaf.');
-                let current=fields;
-                for(const edge of profile.path){const next=Object.hasOwn(current,edge.field)?current[edge.field]:Object.create(null);
-                  if(!isUnknownRecord(next))return refuseRecordBinding('Effect scalar path collides with another original DATA value.');
-                  const copy:Record<string,unknown>={...next};current[edge.field]=copy;current=copy;
-                }
-                current[profile.field]=decodeCanonicalValue(loaded.valueSchema,profile.type,wire.value);
-              }
-              for(const [index,profile]of (parameter.identityPaths??[]).entries()){
-                const target=rows[`${parameter.name}.identity.${index}`];if(target===undefined)return refuseRecordBinding('Effect identity lacks its actual granted target.');
-                let current=fields;
-                for(const edge of profile.path){
-                  const next=Object.hasOwn(current,edge.field)?current[edge.field]:Object.create(null);if(!isUnknownRecord(next))return refuseRecordBinding('Effect identity collides with a different original DATA value.');
-                  const copy:Record<string,unknown>={...next};current[edge.field]=copy;current=copy;
-                }
-                current[profile.leaf]=target.id;
-              }
-              if(parameter.identity!==undefined){
-                const references=actual.recordRefs.filter(ref=>ref.param===parameter.name),reference=references[0];
-                if(references.length!==1||reference?.model!==parameter.model||reference.expectedVersion===null)return refuseRecordBinding('EMIT DATA lost its actual admitted identity.');
-                for(const field of parameter.identity)fields[field]=field==='id'?reference.id:decodeCanonicalValue(loaded.valueSchema,'int',String(reference.expectedVersion));
-              }
-              projected[parameter.name]=Object.freeze(fields);
-            }
+            const projected=projectSourceData(source.parameters,rows,actual,'EMIT DATA');
             if(activeSourceEmitData!==null)return refuseRecordBinding('EMIT DATA cannot nest its original event execution.');
             const references:Record<string,unknown>=Object.create(null);
             const pathReferences=source.references?.some(reference=>reference.path!==undefined)===true;

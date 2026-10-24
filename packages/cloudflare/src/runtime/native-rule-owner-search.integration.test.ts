@@ -4562,3 +4562,120 @@ it('retains calendar DATA and Values failures through native receipt execution',
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+
+it('captures computed scalar DATA at its original LET checkpoint', { timeout: 180000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-computed-let-data-'));
+  try {
+    const scenario = (name: string, prefix: boolean, lazy = false) => `
+  scenario ${name}(root:Root,months:int=1) by=members
+   require allowed(root)
+   do
+${prefix ? '    set root {anchor=date("2026-01-31")}\n' : ''}${lazy ? '    let unused=root.visible or root.label==""\n' : ''}    let due=local_instant(add_months(root.anchor,months),"02:30",root.location.zone,fold=earlier)
+    set root {anchor=date("2026-02-01"),done=true}
+    create Evidence {due} as evidence
+    for child in root.Child as item limit=2
+     set child {done=true}
+    emit Captured {label=${lazy ? '"Original label"' : 'root.label'}}
+    send Port.submit {value=due,label=${lazy ? '"Original label"' : 'root.label'}} as delivery
+`;
+    const text = `app ComputedData uses=[worker]
+package api
+ Given
+  export capability PortV1 version=1
+   submit(value:datetime,label:text) -> text
+ When
+ Then
+package worker
+ use api {PortV1 as Port} from=deployment.port
+ Given
+  Location {zone:timezone,visible:bool=true}
+  Root {anchor:date,location:Location,visible:bool=true,calendar_visible:bool=true,label:text,label_visible:bool=true,done:bool=false}
+  Employee {user:user,home:Location,active:bool=true}
+  Evidence {due:datetime}
+  event Captured {label:text}
+  Child in Root {done:bool=false}
+  policy Child read=members
+  policy Root read=members fields=visible
+  policy Root read=members and row.calendar_visible fields=anchor,location
+  policy Root read=members and row.label_visible fields=label
+  policy Location read=members and row.visible
+  policy Evidence read=members
+  derive allowed(root:Root):bool=root.visible and any(Employee as e,e.user==actor and e.active and e.home==root.location)
+ When
+${scenario('capture', false)}${scenario('prefix', true)}${scenario('lazy', false, true)} Then
+`;
+    const source = join(directory, 'ComputedData.can'); await writeFile(source, text);
+    const { stdout } = await promisify(execFile)(compiler,
+      ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+    const artifact = JSON.parse(stdout) as CompileArtifact;
+    assert.ok(artifact.modules.some(module => module.js.includes('canScenarioLetDataSources')),
+      'execute the new source-bound computation, rather than an ordinary result receipt');
+    for (const issuer of ['canScenarioSendDataSource', 'canScenarioEmitDataSource']) assert.ok(artifact.modules.some(module => module.js.includes(issuer)), issuer);
+    const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+    for (const mode of ['allowed', 'prefix', 'lazy', 'overflow-order', 'withheld', 'label-withheld', 'path-withheld', 'false-prefix', 'inactive', 'nonmember', 'grant-race', 'identity-race', 'gap'] as const) {
+      const { now, identities, identity, membership, user, team } = await member(`computed-let-${mode}`);
+      const scope = { app: 'ComputedData', owner: team.team_id, ownerPackage: 'worker' };
+      const authority: FileRetirementAuthority = { app: scope.app, stateOwner: scope.app, stateStoreId: 'computed-data-state', fileStoreId: 'computed-data-files', receiver: { app: scope.app, owner: scope.owner, team: scope.owner } };
+      const { store } = createTestMemoryStorage(authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+      await installNativeFileInventory({ artifact, asm, store, authority, scope, now: () => now, verifyOwner: async () => { assert.ok(await identities.findTeamById(scope.owner)); } });
+      const rootModel = model('worker', 'Root'), evidenceModel = model('worker', 'Evidence');
+      const row = (id: string, data: Record<string, unknown>) => ({ ...makeRow({ id: asId(id), data }), parent: null });
+      const original = row('root', { anchor: mode === 'prefix' ? '2025-12-31' : mode === 'gap' ? '2026-01-29' : mode === 'overflow-order' ? '9999-12-31' : '2026-01-31',
+        location: { id: 'location' }, visible: mode !== 'false-prefix', calendar_visible: !['withheld', 'false-prefix'].includes(mode), label: 'Original label', label_visible: !['label-withheld', 'lazy'].includes(mode), done: false });
+      // January 29 plus two months reaches Amsterdam's missing March 29 02:30.
+      await store.commit(makeBatch(await store.readRevision(), { writes: [
+        { kind: 'insert', model: model('worker', 'Location'), row: row('location', { zone: mode === 'gap' ? 'Europe/Amsterdam' : 'UTC', visible: !['path-withheld', 'overflow-order'].includes(mode) }) },
+        { kind: 'insert', model: rootModel, row: original },
+        ...['child-1', 'child-2'].map(id => ({ kind: 'insert' as const, model: model('worker', 'Child'),
+          row: { ...row(id, { done: false }), parent: { model: rootModel, id: original.id } } })),
+        { kind: 'insert', model: model('worker', 'Employee'), row: row('worker', { user: { id: user.user_id }, home: { id: 'location' }, active: mode !== 'inactive' }) },
+      ] }));
+      const commit = store.commit.bind(store); let raced = false;
+      store.commit = async batch => {
+        if (mode === 'grant-race' && !raced && batch.writes.some(write => write.model === evidenceModel)) {
+          raced = true;
+          await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'update', model: rootModel,
+            id: original.id, expectedVersion: original.version, row: { ...original, version: asVersion(original.version + 1), data: { ...original.data, calendar_visible: false } } }] }));
+        }
+        return commit(batch);
+      };
+      const load = store.load.bind(store);
+      store.load = async (model, id) => {
+        const value = await load(model, id);
+        if (mode === 'identity-race' && !raced && model === 'work.dispatch') { raced = true; await identities.removeMembership(membership.membership_id); }
+        return value;
+      };
+      if (mode === 'nonmember') await identities.removeMembership(membership.membership_id);
+      const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+      const request = { operation: mode === 'prefix' ? 'worker.prefix' : mode === 'lazy' ? 'worker.lazy' : 'worker.capture', operation_id: operationId(now), inputs: { root: { id: original.id, version: '1' }, months: mode === 'gap' ? '2' : '1' } };
+      const outcome = await invoker.invokeMutation(request, identity), success = mode === 'allowed' || mode === 'prefix' || mode === 'lazy';
+      assert.equal('result' in outcome, success, `${mode}: ${JSON.stringify(outcome)}`);
+      if (mode === 'overflow-order') { assert.ok('error' in outcome); assert.equal(outcome.error.code, 'rule_failed'); assert.match(outcome.error.message, /add_months result outside/); }
+      if (mode === 'gap') { assert.ok('error' in outcome); assert.equal(outcome.error.code, 'rule_failed'); assert.match(outcome.error.message, /DST gap/); }
+      const evidence = await store.query({ model: evidenceModel, authority: 'owner' }), pending = await store.outboxPending();
+      assert.equal(evidence.length, success ? 1 : 0, mode); assert.equal(pending.length, success ? 1 : 0, mode);
+      const sources = await store.query({ model: asModel('work.occurrence'), authority: 'owner' });
+      assert.equal(sources.length, success ? 1 : 0, mode);
+      assert.equal((await store.load(rootModel, original.id))?.data.done, success);
+      for (const child of await store.query({ model: model('worker', 'Child'), authority: 'owner' })) assert.equal(child.data.done, success);
+      assert.equal(raced, mode === 'grant-race' || mode === 'identity-race');
+      if (success) {
+        const due = '2026-02-28T02:30:00.000Z';
+        assert.equal(evidence[0]!.data.due, due);
+        assert.deepEqual((sources[0]!.data.result as {payload:unknown}).payload, { label: 'Original label' });
+        assert.deepEqual(pending[0]!.arguments, { binding: 'worker.Port', from: 'deployment.port', arguments: { value: due, label: 'Original label' } });
+        assert.equal((await store.load(rootModel, original.id))?.data.anchor, '2026-02-01');
+        const revision = await store.readRevision();
+        const replay = await invoker.invokeMutation(request, identity);
+        assert.ok('result' in replay && replay.result.status === 'replayed', JSON.stringify(replay));
+        assert.equal(await store.readRevision(), revision); assert.deepEqual(await store.outboxPending(), pending);
+        assert.deepEqual(await store.query({ model: asModel('work.occurrence'), authority: 'owner' }), sources);
+      } else if (mode === 'false-prefix' || mode === 'inactive') {
+        assert.ok('error' in outcome); assert.equal(outcome.error.code, 'rule_failed');
+      }
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
