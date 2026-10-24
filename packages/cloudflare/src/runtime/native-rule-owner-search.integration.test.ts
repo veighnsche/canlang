@@ -21,6 +21,7 @@ import { invokeDueScheduleCanonical, invokeRetainedHandlerOccurrenceCanonical, l
 import { STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work/kernel/file-reference-inventory';
 import { installNativeFileInventory } from './file-inventory.js';
+import { loadOpaqueFileStaging } from './opaque-file-staging.js';
 
 import { createCanonicalFileBinding } from './bound-files.js';
 import { createFileJourneyKernel, type FileJourneyBindings } from '@canlang/interfaces/uploads/kernel';
@@ -4676,6 +4677,154 @@ ${scenario('capture', false)}${scenario('prefix', true)}${scenario('lazy', false
       } else if (mode === 'false-prefix' || mode === 'inactive') {
         assert.ok('error' in outcome); assert.equal(outcome.error.code, 'rule_failed');
       }
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+it('executes original Success review and reassign item Work with exact revisions and atomic replay', { timeout: 180000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-success-item-work-'));
+  try {
+    const [base, original] = await Promise.all([readFile(fixture('success-renewal-owner-probe.can'), 'utf8'),
+      readFile(join(root, 'draft/apps/CanSuccess/CanSuccess.can'), 'utf8')]);
+    const lines = original.split('\n');
+    const operation = (name: string) => {
+      const start = lines.findIndex(line => line.startsWith(`  scenario ${name}(`)); assert.ok(start >= 0);
+      let end = start + 1;
+      while (end < lines.length && (!lines[end]!.trim() || /^ {3}/.test(lines[end]!)) && !lines[end]!.startsWith('   examples')) end++;
+      return lines.slice(start, end).join('\n');
+    };
+    const source = base
+      .replace('  role account_manager', '  message label_account_manager = "Account manager"@{nl="Klantbeheerder"}\n  role account_manager')
+      .replace('renewal:date?, active:', 'renewal:date?, reviewed_at:datetime?, reviewed_by:user?, active:')
+      .replace('email:email,done:bool=false}', 'email:email,done:bool=false,completed_by:user?,completed_at:datetime?}')
+      .replace('  policy Account read=members', '  policy Account read=account_manager and can_work(actor,row.location)\n  policy FollowUp read=account_manager and can_work(actor,row.parent.location)\n  lock FollowUp fields=title,due,assignee,email,done,completed_by,completed_at when=row.done');
+    const end = source.lastIndexOf('\n Then'); assert.ok(end > 0);
+    const path = join(directory, 'Success.can');
+    await writeFile(path, source.slice(0, end) + '\n' + operation('reassign') + '\n' + operation('review') + source.slice(end));
+    const { stdout } = await promisify(execFile)(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, path],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+    const artifact = JSON.parse(stdout) as CompileArtifact;
+    const asm = await assembleModules({ artifact, sourcePath: path }, { workDir: join(directory, 'modules'),
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+    for (const mode of ['review', 'reassign', 'review-inactive', 'reassign-role-missing', 'reassign-commit-failure']) {
+      const reassign = mode.startsWith('reassign'), name = reassign ? 'reassign' : 'review';
+      const { now, identities, team, user: actor, identity } = await member(`success-item-${mode}`, ['success.account_manager']);
+      const manager = await identities.createUser({ email: `manager-${mode}@success.test`, password_hash: 'unused', email_verified: true });
+      await identities.createMembership({ team_id: team.team_id, user_id: manager.user_id, is_owner: false,
+        roles: mode === 'reassign-role-missing' ? [] : [{ role: 'success.account_manager', granted_at: new Date(now).toISOString(), granted_by: actor.user_id }] });
+      const scope = { app: 'SuccessProbe', owner: team.team_id, ownerPackage: 'success' };
+      const authority: FileRetirementAuthority = { app: scope.app, stateOwner: scope.app,
+        stateStoreId: `success-${mode}`, fileStoreId: `success-${mode}-files`, receiver: { app: scope.app, owner: team.team_id, team: team.team_id } };
+      const { store, probe } = createTestMemoryStorage(authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+      await installNativeFileInventory({ artifact, asm, store, authority, scope, now: () => now,
+        verifyOwner: async () => { assert.ok(await identities.findTeamById(team.team_id)); } });
+      const row = (id: string, data: Record<string, unknown>, parent: StoredRow['parent'] = null): StoredRow => ({
+        ...makeRow({ id: asId(id), data }), parent });
+      const customer = row('customer', { name: 'Customer' });
+      const site = row('site', { name: 'Site', timezone: 'UTC' });
+      const account = row('account', { location: { id: site.id }, manager: { id: actor.user_id }, email: actor.email,
+        renewal: new Date(now + 2 * 86400000).toISOString().slice(0, 10), reviewed_at: null, reviewed_by: null, active: mode !== 'review-inactive' },
+        { model: asModel('customer.Customer'), id: customer.id });
+      const foreign = row('foreign', { ...account.data }, account.parent);
+      const child = (id: string, due: number, done = false, parent = account) => row(id, { title: id, due: new Date(due).toISOString(),
+        assignee: { id: actor.user_id }, email: actor.email, done, completed_by: null, completed_at: null },
+        { model: asModel('success.Account'), id: parent.id });
+      const future = child('future', now + 86400000), past = child('past', now - 1000), done = child('done', now + 86400000, true),
+        other = child('other', now + 86400000, false, foreign);
+      await store.commit(makeBatch(await store.readRevision(), { writes: [
+        { kind: 'insert', model: asModel('customer.Customer'), row: customer },
+        { kind: 'insert', model: asModel('rent_catalog.Location'), row: site },
+        ...[actor, manager].map((user, index) => ({ kind: 'insert' as const, model: asModel('employee.Employee'),
+          row: row(`employee-${index}`, { user: { id: user.user_id }, home: { id: site.id }, locations: [], operator_wide: false, active: true }) })),
+        ...[account, foreign].map(row => ({ kind: 'insert' as const, model: asModel('success.Account'), row })),
+        ...[future, past, done, other].map(row => ({ kind: 'insert' as const, model: asModel('success.FollowUp'), row })),
+      ] }));
+      const scoped = (id: string) => [scope.app, scope.ownerPackage, scope.owner, id].map(encodeURIComponent).join('/');
+      const loaded = await loadCanonicalDescriptors(asm, artifact); assert.ok(loaded.valueTypes);
+      const opaque = await loadOpaqueFileStaging({ store, inventoryOwner: scope.ownerPackage, artifact,
+        canonicalModels: loaded.models, valueTypes: loaded.valueTypes, operations: new Map(), scope,
+        verify: async () => { assert.ok(await identities.findTeamById(team.team_id)); } });
+      assert.ok(opaque);
+      const stageContext = { actor: actor.user_id, now, operation: `success.${name}`,
+        load: (model: Parameters<typeof store.load>[0], id: Parameters<typeof store.load>[1]) => store.load(model, id),
+        query: (query: Parameters<typeof store.query>[0]) => store.query(query) };
+      for (const target of [account, future, past, done, other]) {
+        const isAccount = target === account;
+        const request = { key: target.id, scope, occurrenceId: `old-${target.id}`, at: now + 300000,
+          event: isAccount ? 'success.RenewalDue' : 'success.FollowUpDue', payload: isAccount
+            ? { account: { id: target.id, version: '1' }, revision: '1' }
+            : { followup: { id: target.id, version: '1' }, revision: '1', account_revision: '1' } };
+        const pending = await workSchedulePutCommand.stage(request, stageContext);
+        const row = pending.writes?.find(write => write.kind === 'insert' && write.model === 'work.schedule' && write.row.id === request.occurrenceId);
+        assert.ok(row && row.kind === 'insert');
+        const declaration = opaque.event(request.event);
+        const filePayloadOrigin = await opaque.prepare({ expectedRevision: await store.readRevision(), model: asModel('work.schedule'),
+          row: row.row, field: 'payload', scope, origin: { kind: 'event-input', occurrenceId: request.occurrenceId,
+            sourceOccurrence: request.occurrenceId, declaration,
+            lineage: { kind: 'schedule', key: request.key, replaces: row.row.data.replaces as null }, target: { kind: 'schedule' } },
+          projection: { kind: 'inputs', path: [], declarationId: declaration.inputsDeclarationId }, value: request.payload, identity });
+        const staged = await workSchedulePutCommand.stage({ ...request, filePayloadOrigin }, stageContext);
+        await store.commit(makeBatch(await store.readRevision(), { writes: staged.writes ?? [], schedules: staged.schedules ?? [] }));
+      }
+      const snapshot = async () => ({ records: await Promise.all(['success.Account', 'success.FollowUp', 'work.schedule', 'work.supersession'].map(model =>
+        store.query({ model: asModel(model), authority: 'owner', order: [{ field: 'id', direction: 'asc' }] }))),
+        schedules: [account, future, past, done, other].map(row => probe.scheduleGet(scoped(row.id))), outbox: probe.outboxAll() });
+      const before = await snapshot();
+      const commit = store.commit.bind(store); let injected = false;
+      if (mode === 'reassign-commit-failure') store.commit = async batch => {
+        if (!injected && batch.writes.some(write => write.kind === 'update' && write.model === 'success.FollowUp' && write.id === future.id)) {
+          assert.ok(batch.writes.some(write => write.kind === 'insert' && write.model === 'work.schedule' &&
+            write.row.data.key === future.id && write.row.data.event === 'success.FollowUpDue'),
+          'the final batch contains the actual selected item replacement schedule');
+          if (batch.schedules.length !== 0) {
+            assert.ok(batch.schedules.some(schedule => schedule.op === 'replace' && schedule.key === scoped(future.id)),
+              'the batch replaces the future selected item schedule');
+            assert.ok(batch.schedules.some(schedule => schedule.op === 'cancel' && schedule.key === scoped(past.id)),
+              'the batch cancels the past selected item schedule');
+          }
+          // Refuse the genuine fully staged transaction before publication.
+          // This qualifies final-commit failure, rather than a Work-stage fault.
+          injected = true;
+          throw new Error('injected final Success item Work commit failure');
+        }
+        return commit(batch);
+      };
+      const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+      const envelope = { operation: `success.${name}`, operation_id: operationId(now), inputs: {
+        account: { id: account.id, version: '1' }, ...(reassign ? { manager: { id: manager.user_id }, email: manager.email } : {}) } };
+      const outcome = await invoker.invokeMutation(envelope, identity);
+      store.commit = commit;
+      if (mode !== 'review' && mode !== 'reassign') {
+        assert.ok('error' in outcome, `${mode}: ${JSON.stringify(outcome)}`);
+        if (mode === 'reassign-commit-failure') assert.equal(injected, true, 'failure reaches the actual fully staged final transaction');
+        assert.deepEqual(await snapshot(), before, `${mode}: no staged field, cancellation or schedule survives refusal`);
+        continue;
+      }
+      assert.ok('result' in outcome, `${mode}: ${JSON.stringify(outcome)}`); assert.equal(outcome.result.status, 'committed');
+      const updated = await store.load(asModel('success.Account'), account.id); assert.ok(updated); assert.equal(updated.version, 2);
+      if (reassign) { assert.deepEqual(updated.data.manager, { id: manager.user_id }); assert.equal(updated.data.email, manager.email); }
+      else { assert.equal(updated.data.reviewed_at, new Date(now).toISOString()); assert.deepEqual(updated.data.reviewed_by, { id: actor.user_id }); }
+      for (const source of [future, past]) {
+        const current = await store.load(asModel('success.FollowUp'), source.id); assert.ok(current);
+        assert.equal(current.version, reassign ? 2 : 1);
+        assert.deepEqual(current.data.assignee, { id: reassign ? manager.user_id : actor.user_id });
+      }
+      assert.deepEqual(await store.load(asModel('success.FollowUp'), done.id), done);
+      assert.deepEqual(await store.load(asModel('success.FollowUp'), other.id), other);
+      assert.equal(probe.scheduleGet(scoped(past.id)), null, 'past selected item is cancelled without replacement');
+      assert.deepEqual(probe.scheduleGet(scoped(done.id)), before.schedules[3]);
+      assert.deepEqual(probe.scheduleGet(scoped(other.id)), before.schedules[4]);
+      const scheduled = probe.scheduleGet(scoped(future.id)); assert.ok(scheduled);
+      assert.equal(scheduled.at, now + 86400000);
+      assert.deepEqual(scheduled.payload, { followup: { id: future.id, version: reassign ? '2' : '1' },
+        revision: reassign ? '2' : '1', account_revision: '2' });
+      const renewal = probe.scheduleGet(scoped(account.id)); assert.ok(renewal);
+      assert.equal(renewal.at, Date.parse(String(account.data.renewal) + 'T00:00:00.000Z'));
+      assert.deepEqual(renewal.payload, { account: { id: account.id, version: '2' }, revision: '2' });
+      const after = await snapshot();
+      const replay = await invoker.invokeMutation(envelope, identity);
+      assert.ok('result' in replay, JSON.stringify(replay)); assert.equal(replay.result.status, 'replayed');
+      assert.deepEqual(await snapshot(), after, 'saved replay changes neither fields nor Work lineage');
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

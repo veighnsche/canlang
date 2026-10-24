@@ -286,16 +286,16 @@ export async function nativeScenarioSourceCancel(context:unknown,source:unknown,
 }
 
 
-type SourceSchedule=(source:unknown,root:unknown,at:unknown,payload:unknown,key?:unknown)=>Promise<void>;
+type SourceSchedule=(source:unknown,root:unknown,at:unknown,payload:unknown,key?:unknown,body?:Function)=>Promise<void>;
 const sourceScheduleReaders=new WeakMap<object,SourceSchedule>();
 export function bindNativeScenarioSourceSchedule(context:object,evaluate:SourceSchedule):void{
   if(sourceScheduleReaders.has(context))throw new StateError('validation','Source SCHEDULE reader cannot be rebound.');
   sourceScheduleReaders.set(context,evaluate);
 }
-export async function nativeScenarioSourceSchedule(context:unknown,source:unknown,root:unknown,at:unknown,payload:unknown,key?:unknown):Promise<void>{
+export async function nativeScenarioSourceSchedule(context:unknown,source:unknown,root:unknown,at:unknown,payload:unknown,key?:unknown,body?:Function):Promise<void>{
   const evaluate=typeof context==='object'&&context!==null?sourceScheduleReaders.get(context):undefined;
   if(evaluate===undefined)throw new StateError('validation','Source SCHEDULE needs its actual installed owner execution.');
-  return evaluate(source,root,at,payload,key);
+  return evaluate(source,root,at,payload,key,body);
 }
 
 const sourceSendQueryReaders=new WeakMap<object,(id:string,parent:unknown)=>Promise<readonly Record<string,unknown>[]>>();

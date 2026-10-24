@@ -2051,7 +2051,16 @@ fn join_require_statements<'o>(
         ([CheckedDecisionPosition::Body(index),CheckedDecisionPosition::Loop(child)], CheckedDecisionStage::BodyCondition) => {
             semantic.statements(effects.get(..*index)?,expected_effects.get(..*index)?,0)?;
             let (IrStmt::For{body:a,span:at,..},IrStmt::For{body:b,span:bt,..})=(effects.get(*index)?,expected_effects.get(*index)?)else{return None;};
-            if at!=bt||*child!=0||a.len()!=1||b.len()!=1{return None;}
+            if at!=bt{return None;}
+            if *child!=0||a.len()!=1||b.len()!=1{
+                let work=semantic.program.scenario_disclosures().get(&owner.id)?.source_facts()?.member_work_loops.as_deref()?;
+                if !work.iter().any(|plan|plan.node.file==at.file&&plan.node.start==at.start&&plan.node.end==at.end
+                    &&plan.condition==site.node&&plan.condition_statement==site.statement){return None;}
+                // The independently checked Work shape retains its entire
+                // selection and prefix, including optional SET and CANCEL.
+                semantic.statements(std::slice::from_ref(effects.get(*index)?),
+                    std::slice::from_ref(expected_effects.get(*index)?),0)?;
+            }
             (a.get(*child)?,b.get(*child)?)
         }
         _ => return None,
@@ -2225,7 +2234,11 @@ fn serialize_require_observer(
     if let [crate::analysis::scenario_disclosure::CheckedDecisionPosition::Body(index),crate::analysis::scenario_disclosure::CheckedDecisionPosition::Loop(child)]=site.position.as_slice(){
         let IrItemKind::Scenario{effects,..}=&owner.kind else{return None;};
         let IrStmt::For{item,domain,body,span,..}=effects.get(*index)?else{return None;};
-        if *child!=0||body.len()!=1{return None;}
+        if *child!=0||body.len()!=1{
+            let plans=original.scenario_disclosures().get(&owner.id)?.source_facts()?.member_work_loops.as_deref()?;
+            if !plans.iter().any(|plan|plan.node.file==span.file&&plan.node.start==span.start&&plan.node.end==span.end
+                &&plan.condition==site.node&&plan.condition_statement==site.statement){return None;}
+        }
         let ResolvedType::Array{element,..}=&domain.ty else{return None;};
         let ResolvedType::Record{symbol,stored:true}=element.as_ref() else{return None;};
         let mut ancestor=*symbol;let mut visited=HashSet::new();

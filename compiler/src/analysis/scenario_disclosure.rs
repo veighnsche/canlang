@@ -523,6 +523,8 @@ pub struct CheckedScenarioSource {
     pub unproved_helper_contained_requires: bool,
     /// Original full leading Require conditions owned by the scenario observer.
     pub(crate) source_requires: Option<Vec<CheckedDecisionSite>>,
+    /// Original finite child Work bodies; no per-item DATA is granted here.
+    pub(crate) member_work_loops: Option<Vec<CheckedScenarioMemberWorkLoop>>,
     /// Original File inputs omitted from every observer decision, never grants
     /// to read/copy their values. Canonical File admission owns their uses.
     pub(crate) unread_file_parameters: Vec<SymbolId>,
@@ -536,6 +538,23 @@ pub struct CheckedScenarioSource {
     /// Private owning stored-field/Contract snapshots and two-parent Model
     /// source operands. File declarations here grant no receipt admission.
     pub(crate) stored_contracts: Option<Vec<CheckedStoredContractSchema>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct CheckedScenarioMemberWorkLoop {
+    pub node: NodeKey,
+    pub domain: NodeKey,
+    pub limit: NodeKey,
+    pub maximum: u16,
+    pub item: String,
+    pub parameter: SymbolId,
+    pub model: SymbolId,
+    pub set: Option<NodeKey>,
+    pub cancel: NodeKey,
+    pub condition: NodeKey,
+    pub condition_statement: NodeKey,
+    pub schedule: NodeKey,
+    pub event: SymbolId,
 }
 
 /// This catalog projection is not a local Contract and issues no row/File grant.
@@ -3984,6 +4003,8 @@ impl<'a> Closure<'a> {
             decision_sites,
             unproved_helper_contained_requires,
             source_requires: self.checked_source_requires(scenario),
+            member_work_loops: Some(scenario.effects.iter().filter_map(|effect|
+                self.checked_member_work_loop(scenario, effect)).collect()),
             unread_file_parameters: scenario.params.iter().enumerate().filter_map(|(index, parameter)|
                 self.source_require_unread_file_input(scenario, parameter, index).then_some(parameter.param)).collect(),
             queries: self.checked_query_sources(scenario),
@@ -16191,10 +16212,142 @@ impl<'a> Closure<'a> {
         Some(effect)
     }
 
+    /// A scalar operand in an original child Work loop may read its actual
+    /// item or admitted parent. This proves syntax/schema only; the source
+    /// observer and field-loan producer grant every executed read separately.
+    fn member_work_scalar(&self, key: NodeKey, scenario: &super::effects::ScenarioData,
+        outer: &Effect, parameter: SymbolId, parent: SymbolId, model: SymbolId) -> Option<()> {
+        let scalar = |ty: &ResolvedType| match ty {
+            ResolvedType::Scalar(_) | ResolvedType::Nullable(_) => self.source_require_plain_value(ty, 0),
+            ResolvedType::Enum { cases, .. } => !cases.is_empty(),
+            _ => false,
+        };
+        let mut pending = vec![key]; let mut visits = 0;
+        while let Some(key) = pending.pop() {
+            visits += 1; if visits > 1024 || !self.source_anchor(scenario, key) { return None; }
+            let node = self.nodes.get(&key)?;
+            if !expression(node.kind) && node.kind != SyntaxKind::Name { continue; }
+            match node.kind {
+                SyntaxKind::Literal => { if !scalar(self.types.node_types.get(&key)?)
+                    && self.types.node_types.get(&key) != Some(&ResolvedType::Null) { return None; } },
+                SyntaxKind::NameRef | SyntaxKind::Name => {
+                    if self.types.resolved_cases.contains(&key) { continue; }
+                    if !Self::invocation_scalar_binding(self.query_binding(key), self.types.node_types.get(&key))
+                        && !matches!(self.query_binding(key), Some(Binding::Symbol(id))
+                            if scenario.params.iter().any(|input| input.param == *id)
+                                && scalar(self.types.symbol_types.get(id)?)) { return None; }
+                },
+                SyntaxKind::Member => {
+                    let (base, name) = self.count_member(key)?;
+                    let owner = match self.query_binding(base) {
+                        Some(Binding::ForItem { node }) if *node == outer.node => model,
+                        Some(Binding::Symbol(id)) if *id == parameter => parent,
+                        _ => return None,
+                    };
+                    if self.types.node_types.get(&base) != Some(&ResolvedType::Record { symbol: owner, stored: true }) { return None; }
+                    let ty = self.types.node_types.get(&key)?;
+                    if name == "id" || name == "version" {
+                        if self.model_has_field(owner, name)
+                            || *ty != ResolvedType::Scalar(if name == "id" { Scalar::Text } else { Scalar::Int }) { return None; }
+                    } else {
+                        let field = self.effects.models.get(&owner)?.fields.iter().find(|field|
+                            self.resolve.symbols.get(field.field.0 as usize).is_some_and(|symbol|
+                                symbol.name == name && matches!(symbol.kind, SymbolKind::Field { owner: actual, .. } if actual == owner)))?;
+                        let declared = self.types.symbol_types.get(&field.field)?;
+                        if !scalar(declared) || (declared != ty && !matches!(declared, ResolvedType::Nullable(inner)
+                            if inner.as_ref() == ty || *ty == ResolvedType::Null)) { return None; }
+                    }
+                    continue;
+                },
+                SyntaxKind::Group | SyntaxKind::Unary | SyntaxKind::Binary => {},
+                _ => return None,
+            }
+            pending.extend(node.children.iter().filter(|child| expression(child.kind)).map(NodeKey::of));
+        }
+        Some(())
+    }
+
+    /// The exact original finite child lifecycle, independent of ordinary
+    /// array/row DATA closure. Native consumers must match this same plan.
+    fn checked_member_work_loop(&self, scenario: &super::effects::ScenarioData,
+        outer: &Effect) -> Option<CheckedScenarioMemberWorkLoop> {
+        if scenario.read || scenario.on.is_some() || scenario.cohort.is_some()
+            || scenario.scope_authority || scenario.result.is_some()
+            || !scenario.effects.iter().any(|effect| effect.node == outer.node)
+            || outer.verb != EffectVerb::For || outer.cond.is_some() || outer.when.is_some()
+            || !outer.else_effects.is_empty() || !outer.match_arms.is_empty()
+            || !self.source_anchor(scenario, outer.node) { return None; }
+        let (set, cancel, condition) = match outer.then_effects.as_slice() {
+            [cancel, condition] => (None, cancel, condition),
+            [set, cancel, condition] if set.verb == EffectVerb::Set => (Some(set), cancel, condition),
+            _ => return None,
+        };
+        let clean = |effect: &Effect| effect.then_effects.is_empty() && effect.else_effects.is_empty()
+            && effect.match_arms.is_empty() && effect.when.is_none() && effect.cond.is_none();
+        if cancel.verb != EffectVerb::Cancel || !clean(cancel)
+            || condition.verb != EffectVerb::If || condition.when.is_some()
+            || !condition.else_effects.is_empty() || !condition.match_arms.is_empty() { return None; }
+        let [schedule] = condition.then_effects.as_slice() else { return None; };
+        if schedule.verb != EffectVerb::Schedule || !clean(schedule) { return None; }
+        let domain = outer.domain?; let query = self.types.checked_queries.get(&domain)?;
+        self.bounded_loop_filter(query)?;
+        let (parameter, model) = self.original_loop_member_root(query.domain, outer.node, scenario.module).ok()?;
+        let (base, _) = self.count_member(query.domain)?;
+        if !matches!(self.query_binding(base), Some(Binding::Symbol(id)) if *id == parameter)
+            || !scenario.params.iter().any(|input| input.param == parameter && input.default.is_none()) { return None; }
+        let ResolvedType::Record { symbol: parent, stored: true } = self.types.symbol_types.get(&parameter)? else { return None; };
+        let limit = outer.limit?;
+        let maximum = self.db.get(limit.file)?.text.get(limit.start as usize..limit.end as usize)?.trim().parse::<u16>().ok()?;
+        if !(1..=200).contains(&maximum) || self.nodes.get(&limit)?.kind != SyntaxKind::Literal
+            || self.types.node_types.get(&limit) != Some(&ResolvedType::Scalar(Scalar::Int)) { return None; }
+        let item_identity = |key| self.count_member(key).is_some_and(|(base, field)| field == "id"
+            && matches!(self.query_binding(base), Some(Binding::ForItem { node }) if *node == outer.node)
+            && self.types.node_types.get(&base) == Some(&ResolvedType::Record { symbol: model, stored: true })
+            && self.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Text)));
+        if !item_identity(cancel.value?) || !item_identity(schedule.key?) { return None; }
+        let predicate = condition.cond?;
+        if self.types.node_types.get(&predicate) != Some(&ResolvedType::Scalar(Scalar::Bool))
+            || self.types.node_types.get(&schedule.at?) != Some(&ResolvedType::Scalar(Scalar::Datetime)) { return None; }
+        self.member_work_scalar(predicate, scenario, outer, parameter, *parent, model)?;
+        self.member_work_scalar(schedule.at?, scenario, outer, parameter, *parent, model)?;
+        if let Some(set) = set {
+            if !clean(set) || !matches!(set.target, Some(EffectTarget::Record { model: Some(actual) }) if actual == model) { return None; }
+            let node = self.nodes.get(&set.node)?;
+            let receiver = node.children.iter().find(|child| child.kind == SyntaxKind::Path)?;
+            let binding = self.resolve.node_binding.get(&NodeKey::of(receiver)).or_else(||
+                receiver.children.iter().find_map(|child| self.resolve.node_binding.get(&NodeKey::of(child))));
+            if !matches!(binding, Some(Binding::ForItem { node }) if *node == outer.node) { return None; }
+            for argument in &set.args { self.member_work_scalar(argument.value.unwrap_or(argument.key_node), scenario, outer, parameter, *parent, model)?; }
+        }
+        let Some(EffectTarget::Event(event)) = schedule.target else { return None; };
+        let declaration = self.resolve.symbols.get(event.0 as usize)?;
+        let SymbolKind::Event { fields } = &declaration.kind else { return None; };
+        if declaration.module != scenario.module || fields.len() != schedule.args.len() { return None; }
+        let mut names = HashSet::new();
+        for argument in &schedule.args {
+            if !names.insert(&argument.key) { return None; }
+            let field = fields.iter().filter_map(|id| self.resolve.symbols.get(id.0 as usize))
+                .find(|field| field.name == argument.key)?;
+            let value = argument.value.unwrap_or(argument.key_node);
+            if self.types.node_types.get(&value) != self.types.symbol_types.get(&field.id) { return None; }
+            let row = matches!(self.query_binding(value), Some(Binding::ForItem { node }) if *node == outer.node)
+                && self.types.node_types.get(&value) == Some(&ResolvedType::Record { symbol: model, stored: true })
+                || matches!(self.query_binding(value), Some(Binding::Symbol(id)) if *id == parameter)
+                    && self.types.node_types.get(&value) == Some(&ResolvedType::Record { symbol: *parent, stored: true });
+            if !row { self.member_work_scalar(value, scenario, outer, parameter, *parent, model)?; }
+        }
+        Some(CheckedScenarioMemberWorkLoop { node: outer.node, domain, limit, maximum,
+            item: outer.item.clone()?, parameter, model, set: set.map(|set| set.node), cancel: cancel.node,
+            condition: predicate, condition_statement: condition.node, schedule: schedule.node, event })
+    }
+
     fn source_require_loop_condition<'b>(&self,scenario:&'b super::effects::ScenarioData,site:&CheckedDecisionSite)->Option<(&'b Effect,&'b Effect)> {
         let [CheckedDecisionPosition::Body(index),CheckedDecisionPosition::Loop(child)]=site.position.as_slice() else{return None;};
         let outer=scenario.effects.get(*index)?;
         let condition=outer.then_effects.get(*child)?;
+        if self.checked_member_work_loop(scenario, outer).is_some_and(|plan|
+            plan.condition == site.node && plan.condition_statement == condition.node
+                && plan.condition_statement == site.statement) { return Some((outer, condition)); }
         if outer.verb!=EffectVerb::For||*child!=0||outer.then_effects.len()!=1||outer.cond.is_some()
             ||!outer.else_effects.is_empty()||!outer.match_arms.is_empty()
             ||condition.verb!=EffectVerb::If||condition.cond!=Some(site.node)||condition.node!=site.statement
@@ -16240,7 +16393,8 @@ impl<'a> Closure<'a> {
         };
         if site.stage!=CheckedDecisionStage::BodyCondition { self.source_require_site_guard(guard, &site)?; }
         let mut supported = true;
-        let mut helper_query = false;
+        let mut helper_query = self.source_require_loop_condition(scenario, &site)
+            .is_some_and(|(outer, _)| self.checked_member_work_loop(scenario, outer).is_some());
         let whole_count_observer = self.source_require_helper_count_site(scenario, &site);
         for call in &site.calls {
             if !self.source_require_call(scenario, body, whole_count_observer, call, &mut helper_query, &mut supported)? {
@@ -27544,6 +27698,61 @@ impl<'a> Closure<'a> {
                 Ok(vec![empty,populated])
             }
 
+            /// A checked child Work body keeps its own selected-item lifetime.
+            /// DATA and lazy conditions are executed by the sealed source plan,
+            /// not multiplied or manufactured as one static row observation.
+            fn bounded_member_work_loop(&mut self, effect: &Effect, module: ModuleId,
+                flow: Flow, calls: &[NodeKey], plan: CheckedScenarioMemberWorkLoop)
+                -> Result<Vec<Flow>, DisclosureDecline> {
+                if !calls.is_empty() || self.loop_node.is_some() {
+                    return Err(self.fail(effect.node, "child Work loop needs its original owner scope"));
+                }
+                let observed = self.effects.scenarios.values().any(|scenario|
+                    scenario.module == module && self.checked_source_requires(scenario).is_some_and(|sites|
+                        sites.iter().any(|site| site.statement == plan.condition_statement && site.node == plan.condition)));
+                if !observed { return Err(self.fail(plan.condition, "child Work condition needs its sealed source observer")); }
+                self.loop_node = Some(effect.node);
+                let mut body = ValuePath::default();
+                if let Some(set) = plan.set {
+                    let original = effect.then_effects.iter().find(|child| child.node == set)
+                        .ok_or_else(|| self.fail(set, "missing original child assignment"))?;
+                    let mut env = flow.env.clone();
+                    env.insert(Local::For(effect.node), ValuePath { record: Some(plan.model), ..ValuePath::default() });
+                    let values = self.set(original, module, &env, calls)?;
+                    let [value] = values.as_slice() else { return Err(self.fail(set, "child assignment alternatives unsupported")); };
+                    if !value.reads.is_empty() || !value.decisions.is_empty()
+                        || value.intrinsics.iter().any(|intrinsic| !matches!(intrinsic.kind, DisclosureIntrinsicKind::AdmittedInput { .. })) {
+                        return Err(self.fail(set, "child assignment needs its original scalar input"));
+                    }
+                    body.join(value);
+                }
+                let cancel = effect.then_effects.iter().find(|child| child.node == plan.cancel)
+                    .ok_or_else(|| self.fail(plan.cancel, "missing original child cancellation"))?;
+                let condition = effect.then_effects.iter().find(|child| child.node == plan.condition_statement)
+                    .ok_or_else(|| self.fail(plan.condition_statement, "missing original child condition"))?;
+                let schedule = condition.then_effects.first()
+                    .filter(|child| child.node == plan.schedule)
+                    .ok_or_else(|| self.fail(plan.schedule, "missing original child schedule"))?;
+                self.proof(cancel, module, DisclosureEffectKind::Cancel {})?;
+                self.proof(schedule, module, DisclosureEffectKind::Schedule { event: plan.event })?;
+                self.proof(effect, module, DisclosureEffectKind::ForMember {
+                    domain: plan.domain, limit: plan.limit, maximum: plan.maximum, item: plan.item,
+                    parameter: plan.parameter, model: plan.model,
+                    body: effect.then_effects.iter().map(|child| child.node).collect(),
+                })?;
+                let mut empty = flow.clone();
+                empty.writes.join(&empty.controls);
+                empty.evaluated.push(DisclosureDecision { node: effect.node, calls: Vec::new(), choice: DisclosureChoice::Else });
+                let mut populated = flow;
+                populated.evaluated.push(DisclosureDecision { node: effect.node, calls: Vec::new(), choice: DisclosureChoice::Then });
+                populated.executed_effect = true;
+                populated.writes.join(&populated.controls);
+                populated.writes.join(&populated.effect_guards);
+                populated.writes.join(&body);
+                self.effect_visits += 1;
+                Ok(vec![empty, populated])
+            }
+
             /// One bounded, straight-line loop over the actual admitted reference
             /// array. This is source closure, not an array/query authority claim.
             fn bounded_input_loop(
@@ -28205,7 +28414,11 @@ impl<'a> Closure<'a> {
         next: &mut Vec<Flow>,
     ) -> Result<(), DisclosureDecline> {
         let previous = self.loop_node;
-        let paths = if matches!(effect.then_effects.as_slice(),[created] if created.verb==EffectVerb::Create) {
+        let work = self.effects.scenarios.values().filter(|owner| owner.module == module)
+            .find_map(|owner| self.checked_member_work_loop(owner, effect));
+        let paths = if let Some(plan) = work {
+            self.bounded_member_work_loop(effect, module, flow, calls, plan)
+        } else if matches!(effect.then_effects.as_slice(),[created] if created.verb==EffectVerb::Create) {
             if self.effects.scenarios.values().any(|owner|owner.module==module&&matches!(owner.effects.as_slice(),[called,linked,looped]
                 if called.verb==EffectVerb::Call&&linked.verb==EffectVerb::Set&&looped.node==effect.node)){
                 self.bounded_copy_loop(effect,module,flow,calls)

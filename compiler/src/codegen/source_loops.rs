@@ -115,20 +115,27 @@ pub(super) fn model_corresponds(context:&super::source_context::FreshSourceConte
     }
     Some(())
 }
-fn body_counts(ir:&IrProgram,context:&super::source_context::FreshSourceContext<'_>,body:&[IrStmt],item:&str,model:SymbolId,parameter:&str,parent_model:SymbolId,values:&BTreeSet<String>)->Option<(usize,usize)>{
-    let mut writes=0;let mut sends=0;let mut deliveries=HashMap::new();
+fn body_counts(ir:&IrProgram,context:&super::source_context::FreshSourceContext<'_>,body:&[IrStmt],item:&str,model:SymbolId,parameter:&str,parent_model:SymbolId,values:&BTreeSet<String>)->Option<(usize,usize,Vec<serde_json::Value>)>{
+    let mut writes=0;let mut sends=0;let mut work=Vec::new();let mut deliveries=HashMap::new();
     for statement in body{match statement{
         IrStmt::If{cond,then_branch,else_branch,..}if else_branch.is_empty()
             && context.original().scenario_disclosures().values().filter_map(|checked|checked.source_facts())
                 .any(|facts|facts.source_requires.as_deref().unwrap_or(&[]).iter().any(|site|
                     site.node.file==cond.span.file&&site.node.start==cond.span.start&&site.node.end==cond.span.end
                     &&matches!(site.position.as_slice(),[crate::analysis::scenario_disclosure::CheckedDecisionPosition::Body(_),crate::analysis::scenario_disclosure::CheckedDecisionPosition::Loop(_)])))=>{
-            let (child_writes,child_sends)=body_counts(ir,context,then_branch,item,model,parameter,parent_model,values)?;
-            if child_sends!=0{return None;}writes+=child_writes;
+            let (child_writes,child_sends,child_work)=body_counts(ir,context,then_branch,item,model,parameter,parent_model,values)?;
+            if child_sends!=0||!child_work.is_empty()&&(child_writes!=0||child_work.len()!=1||child_work[0]["kind"]!="schedule"){return None;}
+            for mut site in child_work{site["stage"]=serde_json::json!(writes+site["stage"].as_u64()? as usize);site["conditional"]=serde_json::json!(true);work.push(site);}writes+=child_writes;
         },
         IrStmt::Set{record,changes,when:None,..}if matches!(&record.expr,IrExpr::Name(name)if name==item)
             &&record.ty==(ResolvedType::Record{symbol:model,stored:true})
             &&super::source_send_data::send_value(ir,changes,values,0)=>{writes+=1;},
+        IrStmt::Cancel{key,span,..}|IrStmt::Schedule{key,span,..}=>{
+            if !matches!(&key.expr,IrExpr::Member{base,field}if field=="id"&&matches!(&base.expr,IrExpr::Name(name)if name==item)
+                &&base.ty==(ResolvedType::Record{symbol:model,stored:true}))||key.ty!=ResolvedType::Scalar(Scalar::Text){return None;}
+            let kind=if matches!(statement,IrStmt::Cancel{..}){"cancel"}else{"schedule"};
+            work.push(serde_json::json!({"kind":kind,"node":{"start":span.start,"end":span.end},"stage":writes}));
+        },
         IrStmt::Send{operation,deployment_binding:Some(_),binding,when:None,..}=>{
             sends+=1;if let Some(name)=binding{if deliveries.insert(name,operation).is_some(){return None;}}
         },
@@ -154,7 +161,8 @@ fn body_counts(ir:&IrProgram,context:&super::source_context::FreshSourceContext<
         },
         _=>return None,
     }}
-    (writes>0&&writes<=4&&sends<=2).then_some((writes,sends))
+    ((writes>0||!work.is_empty())&&writes<=4&&sends<=2&&work.len()<=2
+        &&(work.is_empty()||sends==0)).then_some((writes,sends,work))
 }
 pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::source_context::FreshSourceContext<'_>,
     requires:&HashMap<Span,serde_json::Value>,module:&str)->Option<serde_json::Value>{
@@ -211,14 +219,41 @@ fn collect_from_source(ir:&IrProgram,owner:&IrItem,context:&super::source_contex
                 {return None;}
                 for ancestor in &ancestors{model_corresponds(context,*ancestor)?;}
                 model_corresponds(context,parent_model)?;model_corresponds(context,model.id)?;
-                let (writes,sends)=body_counts(ir,context,body,item,model.id,parameter,parent_model,values)?;
+                let (writes,sends,work)=body_counts(ir,context,body,item,model.id,parameter,parent_model,values)?;
+                if !work.is_empty(){
+                    let facts=context.original().scenario_disclosures().get(&owner.id)?.source_facts()?;
+                    let mut plans=facts.member_work_loops.as_deref()?.iter().filter(|plan|
+                        plan.node.file==span.file&&plan.node.start==span.start&&plan.node.end==span.end);
+                    let plan=plans.next()?;
+                    let mut statements=body.iter();
+                    let set=if matches!(body.first(),Some(IrStmt::Set{..})){statements.next()}else{None};
+                    let Some(IrStmt::Cancel{span:cancel,..})=statements.next()else{return None;};
+                    let Some(IrStmt::If{cond,then_branch,else_branch,span:condition})=statements.next()else{return None;};
+                    let [IrStmt::Schedule{event,span:schedule,..}]=then_branch.as_slice()else{return None;};
+                    let matches_node=|node:crate::analysis::NodeKey,span:Span|node.file==span.file&&node.start==span.start&&node.end==span.end;
+                    if plans.next().is_some()||statements.next().is_some()||!else_branch.is_empty()
+                        ||plan.item!=*item||plan.model!=model.id||ir.items.get(plan.parameter.0 as usize)?.name!=parameter
+                        ||i128::from(plan.maximum)!=maximum||!matches_node(plan.domain,domain.span)||!matches_node(plan.limit,limit.span)
+                        ||!matches_node(plan.cancel,*cancel)||!matches_node(plan.condition,cond.span)||!matches_node(plan.condition_statement,*condition)
+                        ||!matches_node(plan.schedule,*schedule)||ir.items.get(plan.event.0 as usize)?.canonical!=*event
+                        ||match(set,plan.set){(None,None)=>false,(Some(IrStmt::Set{span,..}),Some(node))=>!matches_node(node,*span),_=>true}
+                        ||work.len()!=2||work[0]["kind"]!="cancel"||work[1]["kind"]!="schedule"||work[1]["conditional"]!=true{return None;}
+                }
                 let id=crate::source::sha256_hex(format!("source-body-loop/v1:{}:{}:{}:{}:{}",source["path"],source["sha256"],owner.canonical,span.start,span.end).as_bytes());
                 let mut descriptor=serde_json::json!({"id":id,"node":{"start":span.start,"end":span.end},"domain":{"start":domain.span.start,"end":domain.span.end},
                     "maximum":maximum,"parameter":parameter,"parentModel":ir.items[parent_model.0 as usize].canonical,"model":model.canonical,
                     "item":item,"filtered":query.where_pred.is_some(),"writes":writes,"sends":sends});
+                if !work.is_empty(){
+                    if work.iter().filter(|site|site["conditional"]==true).count()>1{return None;}
+                    descriptor["work"]=serde_json::json!(work);
+                    if let Some(IrStmt::If{cond,span:condition,then_branch,else_branch})=body.last(){
+                        if !else_branch.is_empty()||!matches!(then_branch.as_slice(),[IrStmt::Schedule{..}]){return None;}
+                        descriptor["condition"]=serde_json::json!({"node":{"start":cond.span.start,"end":cond.span.end},"statement":{"start":condition.start,"end":condition.end}});
+                    }
+                }
                 if parent_depth>0{descriptor["parentDepth"]=serde_json::json!(parent_depth);}
                 if !ancestors.is_empty(){descriptor["ancestors"]=serde_json::Value::Array(ancestors.iter().map(|id|control_fields(ir,*id)).collect::<Option<Vec<_>>>()?);descriptor["control"]=control_fields(ir,model.id)?;}
-                if let [IrStmt::If{cond,span:condition,then_branch,else_branch}]=body.as_slice(){
+                if work.is_empty()&&let [IrStmt::If{cond,span:condition,then_branch,else_branch}]=body.as_slice(){
                     if !else_branch.is_empty()||!matches!(then_branch.as_slice(),[IrStmt::Set{..}])||writes!=1||sends!=0{return None;}
                     descriptor["condition"]=serde_json::json!({"node":{"start":cond.span.start,"end":cond.span.end},"statement":{"start":condition.start,"end":condition.end}});
                 }
@@ -230,6 +265,9 @@ fn collect_from_source(ir:&IrProgram,owner:&IrItem,context:&super::source_contex
         }}Some(())
     }
     let mut loops=Vec::new();walk(ir,context,owner,effects,&mut roots.clone(),&mut values.clone(),source,&mut loops)?;
-    if loops.is_empty()||loops.iter().filter_map(|loop_|loop_["maximum"].as_u64()).sum::<u64>()>1000||loops.iter().filter_map(|loop_|Some(loop_["maximum"].as_u64()?*loop_["sends"].as_u64()?)).sum::<u64>()>200{return None;}
+    let work=loops.iter().map(|loop_|Some(loop_["maximum"].as_u64()?*(loop_["sends"].as_u64()?
+        +loop_.get("work").and_then(|work|work.as_array()).map_or(0,|work|work.len()) as u64)))
+        .collect::<Option<Vec<_>>>()?.into_iter().sum::<u64>();
+    if loops.is_empty()||loops.iter().filter_map(|loop_|loop_["maximum"].as_u64()).sum::<u64>()>1000||work>200{return None;}
     Some(serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},"owner":owner.canonical,"loops":loops}))
 }

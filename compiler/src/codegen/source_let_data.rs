@@ -5,12 +5,12 @@ use crate::source::Span;
 use std::collections::{BTreeMap,BTreeSet,HashMap};
 
 pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::source_context::FreshSourceContext<'_>,
-    requires:&HashMap<Span,serde_json::Value>,module:&str)->Option<HashMap<Span,serde_json::Value>>{
+    requires:&HashMap<Span,serde_json::Value>,module:&str,loops:Option<&serde_json::Value>)->Option<HashMap<Span,serde_json::Value>>{
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
     let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
     fn relevant(body:&[IrStmt])->bool{body.iter().any(|statement|match statement{
-        IrStmt::Let{..}|IrStmt::Create{..}=>true,
-        IrStmt::If{then_branch,else_branch,..}=>relevant(then_branch)||relevant(else_branch),_=>false})}
+        IrStmt::Let{..}|IrStmt::Create{..}|IrStmt::Schedule{..}=>true,
+        IrStmt::If{then_branch,else_branch,..}=>relevant(then_branch)||relevant(else_branch),IrStmt::For{body,..}=>relevant(body),_=>false})}
     if !relevant(effects){return Some(HashMap::new());}
     context.same_scenario(ir, owner)?;
     let mut roots:BTreeMap<String,SymbolId>=params.iter().filter_map(|id|{let param=ir.items.get(id.0 as usize)?;
@@ -142,6 +142,7 @@ pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::source_context
         match &value.expr{
             IrExpr::Member{base,..}=>child(base),IrExpr::Binary{left,right,..}=>{child(left)?;child(right)},
             IrExpr::Unary{operand,..}=>child(operand),
+            IrExpr::Object(fields)=>{for(_,value)in fields{child(value)?;}Some(())},
             IrExpr::Call{target:IrCallTarget::Builtin{id,awaited:false},args}
             |IrExpr::BoundCall{target:IrCallTarget::Builtin{id,awaited:false},args,..}
                 if context.catalog().and_then(|catalog|catalog.effects(id))==Some(crate::analysis::catalog::Effects::Pure)=>{
@@ -154,7 +155,7 @@ pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::source_context
     }
     fn expressions(ir:&IrProgram,owner:&IrItem,context:&super::source_context::FreshSourceContext<'_>,
         body:&[IrStmt],roots:&mut BTreeMap<String,SymbolId>,values:&mut BTreeSet<String>,source:&serde_json::Value,
-        module:&str,mut stage:usize,loans:&mut HashMap<Span,serde_json::Value>)->Option<usize> {
+        module:&str,mut stage:usize,loans:&mut HashMap<Span,serde_json::Value>,loops:Option<&serde_json::Value>)->Option<usize> {
         for statement in body { match statement {
             IrStmt::Let{name,value,span}=>{
                 if !loans.contains_key(span)&&scalar(&value.ty){
@@ -166,15 +167,36 @@ pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::source_context
                 roots.remove(name);values.remove(name);if pure{values.insert(name.clone());}
             },
             IrStmt::If{then_branch,else_branch,..}=>{
-                let left=expressions(ir,owner,context,then_branch,&mut roots.clone(),&mut values.clone(),source,module,stage,loans);
-                let right=expressions(ir,owner,context,else_branch,&mut roots.clone(),&mut values.clone(),source,module,stage,loans);
+                let left=expressions(ir,owner,context,then_branch,&mut roots.clone(),&mut values.clone(),source,module,stage,loans,loops);
+                let right=expressions(ir,owner,context,else_branch,&mut roots.clone(),&mut values.clone(),source,module,stage,loans,loops);
                 if left!=right{return None;}stage=left?;
+            },
+            IrStmt::Schedule{at,payload,span,..}=>{
+                let mut nested=HashMap::new();
+                if leaves(ir,owner,context,at,roots,source,module,stage,"at",&mut nested,0).is_some()
+                    &&leaves(ir,owner,context,payload,roots,source,module,stage,"payload",&mut nested,0).is_some(){loans.extend(nested);}
+                let _=span;
+            },
+            IrStmt::For{item,domain,body,span,..}=>{
+                let entry=loops?.get("loops")?.as_array()?.iter().find(|entry|entry["node"]["start"]==span.start
+                    &&entry["node"]["end"]==span.end&&entry.get("work").is_some())?;
+                let ResolvedType::Array{element,..}=&domain.ty else{return None;};
+                let ResolvedType::Record{symbol,stored:true}=element.as_ref()else{return None;};
+                if entry["item"]!=*item||entry["model"]!=ir.items[symbol.0 as usize].canonical{return None;}
+                let mut nested_roots=roots.clone();nested_roots.insert(item.clone(),*symbol);
+                let mut nested_values=values.clone();nested_values.remove(item);
+                let mut nested=HashMap::new();
+                expressions(ir,owner,context,body,&mut nested_roots,&mut nested_values,source,module,0,&mut nested,loops)?;
+                for(key,mut loan)in nested.drain(){loan["loop"]=entry["id"].clone();loans.insert(key,loan);}
+                // A dynamic number of child writes cannot establish a later
+                // static stage. Original loop tail execution remains separate.
+                return None;
             },
             IrStmt::Create{binding,..}=>{
                 if let Some(name)=binding{roots.remove(name);values.remove(name);}stage=stage.checked_add(1)?;
             },
             IrStmt::Set{..}|IrStmt::Transition{..}|IrStmt::Delete{..}=>stage=stage.checked_add(1)?,
-            IrStmt::Require{..}|IrStmt::Send{..}|IrStmt::Cancel{..}|IrStmt::Schedule{..}=>{},
+            IrStmt::Require{..}|IrStmt::Send{..}|IrStmt::Cancel{..}=>{},
             _=>return None,
         }if stage>=200{return None;}}
         Some(stage)
@@ -185,6 +207,6 @@ pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::source_context
     let mut values=params.iter().filter_map(|id|{let param=ir.items.get(id.0 as usize)?;
         let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};
         super::source_send_data::plain_value(ir,ty,0).then(||param.name.clone())}).collect();
-    expressions(ir,owner,context,effects,&mut expression_roots,&mut values,&source,module,0,&mut loans);
+    expressions(ir,owner,context,effects,&mut expression_roots,&mut values,&source,module,0,&mut loans,loops);
     Some(loans)
 }
