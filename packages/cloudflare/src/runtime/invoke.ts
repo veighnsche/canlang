@@ -24438,7 +24438,8 @@ function fanoutAdmissionWrites(producers: FanoutStateProducers, cutoff: FanoutCu
   cohort: FanoutCohortKind, members: ReadonlyArray<string>, chunkSize: number, meta: FanoutRowMeta) {
   const fanoutId = producers.tables.fanoutIntentRowId(cutoff.sourceOccurrence, cutoff.handler, cohort);
   const chunksTotal = Math.max(1, Math.ceil(members.length / chunkSize));
-  const cursor = chunksTotal <= 1 ? null : fanoutAdmitCursor(1);
+  const firstChunkCount = Math.min(members.length, chunkSize);
+  const cursor = firstChunkCount === members.length ? null : `admit/v2/${firstChunkCount}`;
   const writes: DomainWrite[] = [
     { kind: 'insert', model: T34F7_FANOUT_INTENT_MODEL,
       row: producers.tables.newFanoutIntentRow({ ...cutoff, cohort, members }, meta) },
@@ -24449,11 +24450,6 @@ function fanoutAdmissionWrites(producers: FanoutStateProducers, cutoff: FanoutCu
         handler: cutoff.handler, recordId }, meta) })),
   ];
   return { fanoutId, writes, chunksTotal, cursor };
-}
-
-/** T34-F7: opaque admission cursor while chunks remain (F5-exact shape). */
-function fanoutAdmitCursor(nextChunkIndex: number): string {
-  return `admit/${nextChunkIndex}`;
 }
 
 /**
@@ -25908,6 +25904,9 @@ async function driveFanoutTurnChild(input: {
         if (await guard.evaluate() !== true) {
           throw new FanoutCommitAuthorityChanged(`Guard ${JSON.stringify(guard.name)} no longer holds.`);
         }
+      }
+      if (commitGuards.length > 0 && await claimFence.revalidateAuthority() !== true) {
+        throw new FanoutCommitAuthorityChanged('The child authority no longer holds.');
       }
     }
     const result = await store.commit(batch);

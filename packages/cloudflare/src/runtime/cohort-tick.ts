@@ -148,6 +148,17 @@ async function createBoundOwnerTick(input: OwnerTickInput, retainedEvent?: strin
     const now = clock();
     // This boundary performs actual current Identity resolution before any State read.
     const { store } = await ownerStorage.forTrustedScope(scope, now);
+    const revalidateOwnerStorage = async () => {
+      try {
+        const current = await ownerStorage.forTrustedScope(scope, now);
+        if (current.store !== store) throw new Error('The retained owner storage binding changed.');
+      } catch (cause) {
+        // Lost physical custody is not a record-level refusal: leave a committed
+        // claim for recovery rather than writing its refusal through the old port.
+        throw new Error('Cohort tick lost its current owner storage binding.', { cause });
+      }
+      return true;
+    };
     if (retainedEvent !== undefined) return drainRetainedOccurrences(store, now);
     const outputs: unknown[] = [
       ...await drainDueSchedules(store, now),
@@ -166,8 +177,9 @@ async function createBoundOwnerTick(input: OwnerTickInput, retainedEvent?: strin
     const checkpoint = await store.load(T34F7_FANOUT_CHECKPOINT_MODEL, intentRow.id);
     if (checkpoint === null) throw new Error('Cohort tick retained intent lost its checkpoint.');
     const admissionStore = { ...store, async commit(batch: Parameters<typeof store.commit>[0]) {
-      await ownerStorage.forTrustedScope(scope, now);
+      await revalidateOwnerStorage();
       await body.verifySource(now);
+      await revalidateOwnerStorage();
       return store.commit(batch);
     } };
     const admission = await admitRetainedFanoutChunk({ store: admissionStore, intentRow, checkpointRow: checkpoint,
@@ -183,8 +195,7 @@ async function createBoundOwnerTick(input: OwnerTickInput, retainedEvent?: strin
       cohort: { model: body.cohort.model, ...(body.cohort.kind === 'anchored-collection' ? { anchor: body.cohort.parent } : {}) },
       guard: { predicate: null, frozenInputs: null }, evaluateGuard: () => true,
       readSnapshot: (_child, row) => row,
-      fenceFor: () => ({ owner: scope.owner, revalidateAuthority: async () =>
-        (await identities.findTeamById(body.identity.team!.team_id)) !== null }),
+      fenceFor: () => ({ owner: scope.owner, revalidateAuthority: revalidateOwnerStorage }),
       body: body.body, producers,
       invoke: { registry: body.registry, memberships: identities, clock: { nowMs: () => now }, identity: body.identity,
         app: scope.app, source: 'schedule', childOperation: intent.handler, refInput: body.refInput,
