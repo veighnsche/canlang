@@ -4043,14 +4043,17 @@ it('preserves unread File-array defaults through the checked owner workflow',
       // this does not stand in for CanDesk's full original declaration closure.
       const original = await readFile(fixture('rule-owner-leading-helper-field.can'), 'utf8');
       const source = join(directory, 'LeadingHelperFieldProbe.can');
-      const adapted = original.replace('Handoff {ticket:Ticket}', 'Handoff {ticket:Ticket,photo:file[] max=1}')
-        .replace('photo:file?=null', 'photo:Handoff.photo=[]')
-        .replace('create Handoff {ticket}', 'create Handoff {ticket,photo}');
+      // Scalar reuse must retain every Contract provider and its narrowed bounds.
+      const adapted = original.replace('Given', 'Given\n contract DeliveryInput {external_id:text min=1 max=1000}\n contract NoteInput {external_id:DeliveryInput.external_id min=2 max=100}')
+        .replace('Handoff {ticket:Ticket}', 'Handoff {ticket:Ticket,photo:file[] max=1,external_id:NoteInput.external_id max=80}')
+        .replace('photo:file?=null', 'external_id:text,photo:Handoff.photo=[]')
+        .replace('create Handoff {ticket}', 'create Handoff {ticket,photo,external_id}');
       const scenario = adapted.slice(adapted.indexOf(' scenario handoff('), adapted.indexOf('Then')).trimEnd();
       const direct = scenario.replace('scenario handoff(', 'scenario handoff_direct(').replace('photo:Handoff.photo=[]', 'photo:file[]=[]');
       const text = adapted.replace('Then', `${direct}\nThen`);
       assert.ok(text.includes('require can_work(actor,ticket.location)'));
       for (const [name, rejectedSource] of [
+        ['weaker-inherited-bound', text.replace('external_id:NoteInput.external_id max=80', 'external_id:NoteInput.external_id max=101')],
         ['require', text.replace('require can_work(actor,ticket.location)',
           'require can_work(actor,ticket.location) and count(photo)>0')],
         ['helper', text.replace('When', ' derive photo_present(value:file[]):bool = count(value)>0\nWhen')
@@ -4063,7 +4066,7 @@ it('preserves unread File-array defaults through the checked owner workflow',
           ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, declined],
           { cwd: root, encoding: 'utf8', timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
         assert.equal(rejected.error, undefined, `${name}: compiler must complete its real refusal`);
-        assert.notEqual(rejected.status, 0, `${name}: observing File input cannot use the unread-input omission`);
+        assert.notEqual(rejected.status, 0, `${name}: checked source and inherited constraints must retain their refusal`);
         const report = JSON.parse(rejected.stdout) as { diagnostics?: { code: string }[]; artifact?: unknown; modules?: unknown };
         assert.ok(report.diagnostics?.some(item => item.code === 'E6008'), `${name}: ${rejected.stdout}`);
         assert.equal(report.artifact, undefined);
@@ -4079,7 +4082,7 @@ it('preserves unread File-array defaults through the checked owner workflow',
       const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
         stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
       for (const mode of ['default', 'empty', 'nonempty', 'direct-nonempty', 'oversize', 'foreign-file', 'unissued-file',
-        'missing-producer', 'not-array', 'inactive-helper', 'helper-at-commit'] as const) {
+        'missing-producer', 'not-array', 'short-id', 'long-id', 'inactive-helper', 'helper-at-commit'] as const) {
         const { now, identities, identity, user, team } = await member(`file-array-${mode}`);
         const app = 'LeadingHelperFieldProbe';
         const scope = { app, owner: team.team_id, ownerPackage: app };
@@ -4146,6 +4149,7 @@ it('preserves unread File-array defaults through the checked owner workflow',
           mode === 'empty' ? [] : mode === 'oversize' ? [{ id: finalized.result.file }, { id: finalized.result.file }] : [{ id: finalized.result.file }];
         const request = { operation: `${app}.${mode === 'direct-nonempty' ? 'handoff_direct' : 'handoff'}`, operation_id: operationId(now),
           inputs: { ticket: { id: 'ticket', version: '1' },
+            external_id: mode === 'short-id' ? 'x' : mode === 'long-id' ? 'x'.repeat(81) : 'note-identity',
             ...(mode === 'default' ? {} : { photo }) } };
         const result = await invoker.invokeMutation(request, identity);
         const success = ['default', 'empty', 'nonempty', 'direct-nonempty'].includes(mode);
@@ -4156,6 +4160,7 @@ it('preserves unread File-array defaults through the checked owner workflow',
         const current = await store.load(model(app, 'Ticket'), ticket.id); assert.ok(current);
         if (success) {
           assert.deepEqual(repairs[0]!.data.photo, mode.endsWith('nonempty') ? [{ id: finalized.result.file }] : []);
+          assert.equal(repairs[0]!.data.external_id, 'note-identity');
           assert.equal(current.data.done, true);
           assert.deepEqual(repairs[0]!.data.ticket, { id: ticket.id });
           const revision = await store.readRevision();
@@ -4167,7 +4172,7 @@ it('preserves unread File-array defaults through the checked owner workflow',
           assert.deepEqual(current, ticket, `${mode}: no partial parent mutation`);
           assert.ok('error' in result);
           if (mode === 'inactive-helper' || mode === 'helper-at-commit') assert.equal(result.error.code, 'rule_failed');
-          if (mode === 'oversize' || mode === 'not-array') assert.equal(result.error.code, 'validation');
+          if (mode === 'oversize' || mode === 'not-array' || mode === 'short-id' || mode === 'long-id') assert.equal(result.error.code, 'validation');
         }
         assert.equal(raced, mode === 'helper-at-commit');
       }

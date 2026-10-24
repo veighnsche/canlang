@@ -7849,22 +7849,18 @@ impl<'a> Closure<'a> {
         pending: &mut Vec<(SymbolId, bool)>,
         fields: &mut Vec<CheckedStoredContractField>,
     ) -> Option<()> {
-        // Reference-array bounds and inherited enum traits retain their
-        // genuine reusable Contract field owner, even when the resolved
-        // scalar enum type points through it to an original Model field.
-        let enum_type = match ty { ResolvedType::Nullable(inner) => inner.as_ref(), value => value };
-        if self.reference_operand_type_id(ty).is_some()
-            || matches!(enum_type, ResolvedType::Enum { cases, .. } if !cases.is_empty())
-        {
-            for reused_field in reused_order {
-                let SymbolKind::Field { owner, .. } =
-                    self.resolve.symbols.get(reused_field.0 as usize)?.kind
-                else {
-                    return None;
-                };
-                if self.is_contract_symbol(owner) {
-                    pending.push((owner, false));
-                }
+        // Every reused field retains its owning Contract declaration, even
+        // when its resolved type is scalar. Construction checks inherited
+        // traits against this exact source census; resolved type alone does
+        // not identify the provider. This inventory grants no row access.
+        for reused_field in reused_order {
+            let SymbolKind::Field { owner, .. } =
+                self.resolve.symbols.get(reused_field.0 as usize)?.kind
+            else {
+                return None;
+            };
+            if self.is_contract_symbol(owner) {
+                pending.push((owner, false));
             }
         }
         let constraints = self.types.value_constraints.get(field).cloned();
