@@ -463,3 +463,137 @@ for (const renamed of [false, true]) test(`${renamed ? 'renamed' : 'original'} a
       try { await worker?.dispose(); } finally { await rm(dir, { recursive: true, force: true }); }
     }
   });
+
+test('original Customer invitation commits its native create, expiry schedule and Mail intent atomically',
+  { timeout: 180000 }, async () => {
+    const { STATE_FILE_REFERENCE_PRODUCER } = await import('@canlang/state/storage');
+    const { WORK_FILE_REFERENCE_PRODUCER } = await import('@canlang/work/kernel/file-reference-inventory');
+    const { readScheduleRow } = await import('@canlang/work/kernel/tables');
+    const { installNativeFileInventory } = await import('./file-inventory.js');
+    const dir = await mkdtemp(join(tmpdir(), 'can-customer-invite-d1-'));
+    let worker: Miniflare | undefined;
+    try {
+      const paths = ['draft/apps/CanCustomer/CanCustomer.can', 'draft/shared/Employees.can',
+        'draft/shared/Locations.can', 'draft/apps/CanInvoice/CanInvoice.can'];
+      const [customer, employee, location, invoice] = await Promise.all(paths.map(path => readFile(join(root, path), 'utf8')));
+      const owner = (text: string) => {
+        const lines = text.split('\n');
+        return { lines, one: (prefix: string) => {
+          const found = lines.filter(line => line.trimStart().startsWith(prefix));
+          assert.equal(found.length, 1, `exact original declaration ${prefix}`); return found[0]!;
+        }, many: (prefix: string) => lines.filter(line => line.trimStart().startsWith(prefix)) };
+      };
+      const c = owner(customer!), e = owner(employee!), l = owner(location!), i = owner(invoice!);
+      const start = c.lines.indexOf(c.one('export scenario invite('));
+      let end = start + 1;
+      while (end < c.lines.length && (!c.lines[end]!.trim() || /^ {3}/.test(c.lines[end]!))) end++;
+      const invitation = c.lines.slice(start, end).join('\n');
+      assert.ok(invitation.includes('has_role(actor,org,administrator)'));
+      assert.ok(invitation.includes('has_location_role(actor,org,administrator,location)'));
+      assert.ok(invitation.includes('schedule invitation.id at=invitation.expires event=InvitationExpiry {invitation}'));
+      const source = [c.one('app CanCustomer uses='), l.one('package rent_catalog '), ' Given',
+        l.one('export Location {'), l.one('policy Location read='), l.one('export fixture test_site='), ' When', ' Then',
+        e.one('package employee '), e.one('use rent_catalog {Location,test_site}'), ' Given',
+        e.one('export role hr '), e.one('export Employee {'), e.one('export derive staff('), e.one('export derive can_work('),
+        ...e.many('policy Employee read='), e.one('invariant Employee:'), e.one('export fixture test_worker='), ' When', ' Then',
+        i.one('package invoice '), ' Given', i.one('export role finance '), ' When', ' Then',
+        c.one('package customer'), c.one('use rent_catalog {Location,test_site}'), c.one('use employee {Employee,can_work,test_worker}'),
+        c.one('use invoice {finance}'), c.one('use std {EmailV1 as Mail}'), ' Given',
+        c.one('role customer_manager '), c.one('export role customer_reader '), c.one('role billing_reader '),
+        c.one('export Customer {'), c.one('export Contact in Customer {'), c.one('export CompanyRole in Customer {'),
+        c.one('export Invitation in Customer {'), c.one('event InvitationExpiry '),
+        c.one('export derive has_role('), c.one('export derive has_location_role('), c.one('export derive owns('), c.one('derive customer_staff('),
+        ...c.many('policy Customer read='), ...c.many('policy Contact read='), ...c.many('policy CompanyRole read='), ...c.many('policy Invitation read='),
+        c.one('invariant CompanyRole:'), c.one('unique CompanyRole '), c.one('lock Invitation '), ...c.many('message '),
+        ' When', invitation, ' Then', '',
+      ].join('\n');
+      const fixture = join(dir, 'CanCustomer.can');
+      await writeFile(fixture, source);
+      const { stdout } = await promisify(execFile)(process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can'),
+        ['compile', '--format=json', '--native-scenario-receipts', '--catalog',
+          process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json'), fixture],
+        { cwd: root, timeout: 120000, maxBuffer: 32 * 1024 * 1024 });
+      const artifact = JSON.parse(stdout) as CompileArtifact;
+      const operation = artifact.operations?.find(item => item.name === 'customer.invite');
+      assert.ok(operation?.result?.disclosure, 'the original CREATE→SCHEDULE→SEND has a native receipt, with no legacy fallback');
+      assert.equal(operation.result.type, 'void');
+      const asm = await assembleModules({ artifact, sourcePath: fixture }, { workDir: join(dir, 'modules'),
+        stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'), uiUrl: import.meta.resolve('@canlang/ui') });
+      let sequence = 40000;
+      for (const mode of ['success', 'missing-role', 'unverified', 'foreign-location', 'grant-at-commit', 'invalid-email'] as const) {
+        worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
+          script: 'export default { fetch() { return new Response("ok"); } }',
+          d1Databases: { DB: `invite-${mode}` }, d1Persist: join(dir, mode) });
+        const database = await worker.getD1Database('DB') as unknown as D1Database;
+        await ensureSchema(database);
+        const memberships = createMemoryIdentityStore();
+        const member = await seedMember(memberships, { isOwner: false });
+        const identity = makeIdentity({ membership: member.membership, email: member.user.email, emailVerified: mode !== 'unverified' });
+        const authority: import('@canlang/contracts').FileRetirementAuthority = { app: 'CanCustomer', stateOwner: 'CanCustomer',
+          stateStoreId: `invite-${mode}-state`, fileStoreId: `invite-${mode}-files`,
+          receiver: { app: 'CanCustomer', owner: member.team.team_id, team: member.team.team_id } };
+        const store = createD1Storage(database, authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({ artifact, asm, store, authority,
+          scope: { app: 'CanCustomer', owner: member.team.team_id, ownerPackage: 'customer' }, now: () => FIXED_NOW,
+          verifyOwner: async () => { assert.ok(await memberships.findTeamById(member.team.team_id)); } });
+        const row = (data: Record<string, unknown>) => ({ ...makeRow({ id: asId(uuidv7(FIXED_NOW, ++sequence)), data }), parent: null });
+        const site = row({ name: 'Site', address: 'A', timezone: 'UTC', currency: 'EUR', hours: 'Open', arrival: 'Door', active: true });
+        const foreign = row({ ...site.data, name: 'Foreign' });
+        const org = row({ name: 'Original company', kind: 'company', locations: [{ id: site.id }], active: true });
+        const grant = { ...row({ account: { id: member.user.user_id }, role: 'administrator', locations: [{ id: site.id }], active: mode !== 'missing-role' }),
+          parent: { model: asModel('customer.Customer'), id: org.id } };
+        await store.commit(makeBatch(await store.readRevision(), { writes: [
+          { kind: 'insert', model: asModel('rent_catalog.Location'), row: site },
+          { kind: 'insert', model: asModel('rent_catalog.Location'), row: foreign },
+          { kind: 'insert', model: asModel('customer.Customer'), row: org },
+          { kind: 'insert', model: asModel('customer.CompanyRole'), row: grant },
+        ] }));
+        let injected = false;
+        const originalCommit = store.commit.bind(store);
+        store.commit = async batch => {
+          if (mode === 'grant-at-commit' && !injected && batch.writes.some(write => write.model === 'customer.Invitation')) {
+            injected = true;
+            await originalCommit(makeBatch(await store.readRevision(), { writes: [{ kind: 'update', model: asModel('customer.CompanyRole'),
+              id: grant.id, expectedVersion: grant.version, row: { ...grant, version: asVersion(2), data: { ...grant.data, active: false } } }] }));
+          }
+          return originalCommit(batch);
+        };
+        const invoker = buildInvoker(artifact, asm, store, { memberships, now: () => FIXED_NOW });
+        const request: MutationEnvelope = { operation: 'customer.invite', operation_id: asOperationId(uuidv7(FIXED_NOW, ++sequence)),
+          inputs: { org: { id: org.id, version: '1' }, email: mode === 'invalid-email' ? 'not-an-email' : 'invited@example.test', role: 'booker',
+            locations: [{ id: mode === 'foreign-location' ? foreign.id : site.id, version: '1' }] } };
+        const before = await snapshot(database);
+        const outcome = await invoker.invokeMutation(request, identity);
+        const invitations = await store.query({ model: asModel('customer.Invitation'), authority: 'owner' });
+        const schedules = await store.query({ model: asModel('work.schedule'), authority: 'owner' });
+        const outbox = await store.outboxPending();
+        if (mode === 'success') {
+          committed(outcome);
+          assert.equal(invitations.length, 1); assert.equal(schedules.length, 1); assert.equal(outbox.length, 1);
+          const saved = invitations[0]!;
+          assert.deepEqual(saved.parent, { model: asModel('customer.Customer'), id: org.id });
+          assert.equal(saved.data.email, 'invited@example.test'); assert.equal(saved.data.role, 'booker');
+          assert.equal(saved.data.status, 'open'); assert.deepEqual(saved.data.invited_by, { id: member.user.user_id });
+          assert.deepEqual(saved.data.locations, [{ id: site.id }]);
+          const schedule = readScheduleRow(schedules[0]!);
+          assert.equal(schedule.key, saved.id); assert.equal(schedule.event, 'customer.InvitationExpiry');
+          assert.equal(schedule.at, FIXED_NOW + 7 * 86400000); assert.ok(schedule.filePayloadOrigin);
+          assert.deepEqual(schedule.payload, { invitation: { id: saved.id, version: '1' } });
+          assert.equal(outbox[0]!.target, 'std.EmailV1.send');
+          assert.equal(outbox[0]!.operation, 'customer.invite'); assert.equal(outbox[0]!.operationId, request.operation_id);
+          const after = await snapshot(database);
+          committed(await invoker.invokeMutation(request, identity), 'replayed');
+          assert.deepEqual(await snapshot(database), after, 'native receipt replay adds no invitation, schedule or Mail intent');
+          assert.ok('error' in await invoker.invokeMutation({ ...request, inputs: { ...request.inputs, email: 'changed@example.test' } }, identity));
+          assert.deepEqual(await snapshot(database), after);
+        } else {
+          assert.ok('error' in outcome, `${mode}: ${JSON.stringify(outcome)}`);
+          assert.equal(outcome.error.code, mode === 'invalid-email' ? 'validation' : 'rule_failed', `${mode}: ${JSON.stringify(outcome)}`);
+          assert.equal(invitations.length, 0); assert.equal(schedules.length, 0); assert.equal(outbox.length, 0);
+          if (mode !== 'grant-at-commit') unchangedExcept(before, await snapshot(database), ['receipts', 'fence', 'fence_log']);
+        }
+        assert.equal(injected, mode === 'grant-at-commit');
+        await worker.dispose(); worker = undefined;
+      }
+    } finally { try { await worker?.dispose(); } finally { await rm(dir, { recursive: true, force: true }); } }
+  });

@@ -1464,8 +1464,15 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
   return deepFreeze(plan as unknown as ScenarioResultDisclosurePlan);
 }
 
-export function primitiveInputType(type: unknown): type is CanTypeId {
-  return typeof type === 'string' && /^(text|bool|int|date|datetime|decimal|money|duration|currency|user)$/.test(type);
+const PRIMITIVE_INPUT_KINDS: Readonly<Record<string, string>> = Object.freeze({
+  text: 'string', email: 'string', date: 'string', currency: 'string',
+  bool: 'boolean', int: 'integer', datetime: 'datetime', decimal: 'decimal',
+  money: 'money', duration: 'duration', user: 'user',
+});
+
+export function primitiveInputType(type: unknown, kind?: string): type is CanTypeId {
+  return typeof type === 'string' && Object.hasOwn(PRIMITIVE_INPUT_KINDS, type)
+    && (kind === undefined || PRIMITIVE_INPUT_KINDS[type] === kind);
 }
 
 interface PurchaseAllPlan {

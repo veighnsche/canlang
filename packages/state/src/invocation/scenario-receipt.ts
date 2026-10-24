@@ -2185,16 +2185,13 @@ function primitiveInput(def: GeneratedOperationDef, dependency: ScenarioReceiptI
   if (input === undefined || input.kind === 'ref' || input.kind === 'nominal' || input.kind === 'delivery' ||
       !input.required || input.default !== undefined || input.computedDefault === true ||
       def.inputArrays[dependency.parameter] !== undefined) return false;
-  const types: Partial<Record<typeof input.kind, string>> = { string: 'text', boolean: 'bool', integer: 'int',
-    datetime: 'datetime', decimal: 'decimal', money: 'money', duration: 'duration', user: 'user' };
   // A collapsed legacy string tag proves neither text nor nullability.
   // Artifact intake derives unambiguous builtin associations, while canonical
   // producers must supply the exact owning checked type for this new claim.
   if (def.name==='events.attendee_notice' && input.name==='kind') return input.kind==='enum' &&
     stableStringify(input.enumValues)===stableStringify(['confirmation','change','cancellation']) && dependency.type==='enum(confirmation,change,cancellation)' && input.valueType===dependency.type;
-  const base = types[input.kind], type = input.valueType;
-  return base !== undefined && primitiveInputType(type) && type === dependency.type &&
-    (type === base || input.kind === 'string' && (type === 'date' || type === 'currency'));
+  const type = input.valueType;
+  return primitiveInputType(type, input.kind) && type === dependency.type;
 }
 
 function versionedReferenceInput(def: GeneratedOperationDef, dependency: ScenarioReceiptIntrinsicDependency,

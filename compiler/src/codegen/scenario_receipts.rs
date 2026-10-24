@@ -3317,7 +3317,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                         return None;
                     }
                     if let ResolvedType::Scalar(scalar) = &intrinsic.ty {
-                        if !matches!(scalar,Scalar::Text|Scalar::Bool|Scalar::Int|Scalar::Date|Scalar::Datetime|Scalar::Decimal|Scalar::Money|Scalar::Duration|Scalar::Currency|Scalar::User)
+                        if !crate::analysis::scenario_disclosure::primitive_type(&intrinsic.ty)
                             || intrinsic.type_id != scalar.as_str() { return None; }
                     } else if event_scalar && parameter_name == "eventKind" {
                         let ResolvedType::Enum {owner:Some(kind),cases} = &intrinsic.ty else {return None;};
@@ -15542,8 +15542,10 @@ pub(super) fn constructor_inputs(
 }
 
 /// A complete public void owner may construct its original rows before a
-/// finite SEND/SET tail. The fresh whole-owner join seals every original
-/// operand and branch; schemas, query authority and effects stay independent.
+/// finite SEND/SET/SCHEDULE tail. The fresh whole-owner join seals every
+/// original operand and branch, including schedule owner, key, instant and
+/// payload. The effect census and declared-event checks remain independent;
+/// this shape proof grants no query, row or scheduling authority.
 fn source_owned_void_create(context: &super::source_context::FreshSourceContext<'_>,
     owner: &IrItem, original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate) -> Option<()> {
     let ir = context.ir();
@@ -15575,7 +15577,8 @@ fn source_owned_void_create(context: &super::source_context::FreshSourceContext<
     fn closed(body:&[IrStmt],depth:usize)->bool {
         depth<64 && body.iter().all(|statement|match statement {
             IrStmt::Let{..}|IrStmt::Require{..}|IrStmt::Set{when:None,..}
-                |IrStmt::Send{binding:Some(_),..}|IrStmt::Emit{..}|IrStmt::Cancel{..}=>true,
+                |IrStmt::Send{binding:Some(_),..}|IrStmt::Emit{..}|IrStmt::Cancel{..}
+                |IrStmt::Schedule{..}=>true,
             IrStmt::If{then_branch,else_branch,..}=>closed(then_branch,depth+1)&&closed(else_branch,depth+1),
             IrStmt::Create{binding:Some(_),when:None,..}=>true,
             _=>false,

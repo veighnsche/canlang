@@ -28610,7 +28610,7 @@ fn ordinary_file_array(ty: &ResolvedType) -> bool {
 /// native dispatch (row 10) must seal record email inputs such as a mail
 /// recipient. Other unlisted scalars keep failing closed; each needs its own
 /// probe before admission.
-fn primitive_type(ty: &ResolvedType) -> bool {
+pub(crate) fn primitive_type(ty: &ResolvedType) -> bool {
     matches!(
         ty,
         ResolvedType::Scalar(
