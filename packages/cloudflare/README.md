@@ -50,6 +50,23 @@ or change the backend. The writer verifies both inventories before writing and
 requires canonical output parents, rejecting existing symlinks. Browser routing
 is still the serving host's responsibility.
 
+## Account invitation mail
+
+Generated Cloudflare hosting accepts an optional trusted `CAN_AUTH_MAIL` service
+binding alongside the canonical `CAN_AUTH_ORIGIN`. Bind a Worker RPC entrypoint
+implementing `sendMail(to: string, subject: string, body_text: string): Promise<void>`.
+The configured service owns sender identity and provider credentials. Requests
+and app source cannot select another service or change the trusted invitation
+origin. Missing mail leaves mail-dependent flows unavailable; malformed binding
+configuration refuses before serving-store initialization.
+
+The service must reject failed or unknown provider outcomes and return no value
+only when it acknowledges the request. This acknowledges the service, not inbox
+delivery. Invitations persist the original offer/message and claim before one
+service call. Lost acknowledgements remain `unknown`; HTTP/MCP retries retain
+that original and do not resend. This port provides no provider reconciliation.
+It is separate from an app's source-declared `std.EmailV1` capability.
+
 ## Explicit native builtin catalog
 
 `@canlang/cloudflare/distribution` exposes `distribution.nativeCatalog`, the

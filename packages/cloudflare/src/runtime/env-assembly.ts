@@ -58,7 +58,7 @@ import type {
   VerifiedTeamsMemberRemovedEnvelope,
 } from "@canlang/contracts";
 import type { D1Database } from '@cloudflare/workers-types';
-import type { HttpAuthConfiguration } from '../worker/assembly.js';
+import type { MailPort, HttpAuthConfiguration } from '../worker/assembly.js';
 import type { PagePreferenceStore, ExportDownloadStore } from '@canlang/interfaces';
 import { app_url } from '@canlang/values';
 import { createD1AuthRateLimiter } from './auth-rate-limiter.js';
@@ -452,12 +452,34 @@ function resolveAuthOrigin(env: Record<string, unknown>): URL | undefined {
   }
 }
 
-async function prepareServingStores(db: D1Binding, origin: URL | undefined): Promise<{ identity: IdentityD1Producer; auth: HttpAuthConfiguration | undefined }> {
+/** An explicitly installed account-mail service, independent of app Mail capabilities.
+ * Fulfilment acknowledges this service only. Lost/rejected acknowledgements
+ * remain unknown under Identity's original durable claim; never resend here. */
+function resolveAuthMail(env: Record<string, unknown>, origin: URL | undefined): MailPort | undefined {
+  const configured = Object.getOwnPropertyDescriptor(env, 'CAN_AUTH_MAIL');
+  if (configured === undefined) return undefined;
+  if (!('value' in configured) || origin === undefined) {
+    throw new Error('auth-configuration: CAN_AUTH_MAIL requires own binding data and CAN_AUTH_ORIGIN');
+  }
+  const service: unknown = configured.value;
+  const method: unknown = typeof service === 'object' && service !== null
+    ? (service as { sendMail?: unknown }).sendMail : undefined;
+  if (typeof method !== 'function') {
+    throw new Error('auth-configuration: CAN_AUTH_MAIL requires an installed sendMail service');
+  }
+  return Object.freeze({ async sendMail(to: string, subject: string, body_text: string): Promise<void> {
+    // RPC callable properties intercept `.bind`/`.call` as remote names.
+    const acknowledgement: unknown = await Reflect.apply(method, service, [to, subject, body_text]);
+    if (acknowledgement !== undefined) throw new Error('Account mail service did not acknowledge the request.');
+  } });
+}
+
+async function prepareServingStores(db: D1Binding, origin: URL | undefined, mail: MailPort | undefined): Promise<{ identity: IdentityD1Producer; auth: HttpAuthConfiguration | undefined }> {
   const identity = await loadIdentityD1();
   await identity.ensureIdentitySchema(db);
   await ensurePagePreferencesSchema(db as D1Database);
   await ensureExportDownloadsSchema(db as D1Database);
-  const auth = origin === undefined ? undefined : { origin: origin.origin, secureCookies: origin.protocol === 'https:',
+  const auth = origin === undefined ? undefined : { origin: origin.origin, secureCookies: origin.protocol === 'https:', ...(mail === undefined ? {} : { mail }),
     limiter: await createD1AuthRateLimiter(db as unknown as D1Database, { scope: origin.origin, clock: { nowMs: Date.now } }) };
   return { identity, auth };
 }
@@ -480,25 +502,26 @@ export async function buildProductionDeps(
   // Validate every host route before any schema or auth limiter writes to DB.
   const stateTeams = trustedStateOwners(env, db);
   const origin = resolveAuthOrigin(env);
+  const mail = resolveAuthMail(env, origin);
   const selectedOwner = env['CAN_STATE_OWNER'];
   if (selectedOwner === undefined && stateTeams === undefined &&
       (env['STATE_DB'] !== undefined || env['CAN_STATE_INITIALIZE_FRESH'] !== undefined)) {
     throw new Error('owner-storage: STATE_DB/fresh assignment requires explicit CAN_STATE_OWNER');
   }
   if (stateTeams !== undefined || composition !== undefined) {
-    const { identity, auth } = await prepareServingStores(db, origin);
+    const { identity, auth } = await prepareServingStores(db, origin, mail);
     return { ...(deploymentBase === undefined ? {} : { deploymentBase }), ...(auth === undefined ? {} : { auth }), store: composition === undefined || composition.store === 'unavailable' ? unavailableGlobalStore() : composition.store,
       identityStore: identity.createD1IdentityStore(db), preferences: createD1PagePreferenceStore(db as D1Database),
       exportDownloads: createD1ExportDownloadStore(db as D1Database),
       ...(stateTeams === undefined ? {} : { stateTeams }) };
   }
   if (selectedOwner !== undefined) {
-    return buildSelectedOwnerDeps(env, db, deploymentBase, origin, selectedOwner);
+    return buildSelectedOwnerDeps(env, db, deploymentBase, origin, selectedOwner, mail);
   }
-  return buildSingleDbDeps(db, deploymentBase, origin);
+  return buildSingleDbDeps(db, deploymentBase, origin, mail);
 }
 
-async function buildSelectedOwnerDeps(env: Record<string, unknown>, db: D1Binding, deploymentBase: string | undefined, origin: URL | undefined, selectedOwner: unknown): Promise<{ store: StoragePort; identityStore: IdentityStore; preferences: PagePreferenceStore; exportDownloads: ExportDownloadStore; stateTeam: StateTeamBinding; auth?: HttpAuthConfiguration; deploymentBase?: string }> {
+async function buildSelectedOwnerDeps(env: Record<string, unknown>, db: D1Binding, deploymentBase: string | undefined, origin: URL | undefined, selectedOwner: unknown, mail: MailPort | undefined): Promise<{ store: StoragePort; identityStore: IdentityStore; preferences: PagePreferenceStore; exportDownloads: ExportDownloadStore; stateTeam: StateTeamBinding; auth?: HttpAuthConfiguration; deploymentBase?: string }> {
   if (typeof selectedOwner !== 'string' || selectedOwner === '' || selectedOwner === 'app') {
     throw new Error('owner-storage: CAN_STATE_OWNER must be a concrete Identity team ID');
   }
@@ -510,7 +533,7 @@ async function buildSelectedOwnerDeps(env: Record<string, unknown>, db: D1Bindin
   if (fresh !== undefined && fresh !== true && fresh !== 'true') {
     throw new Error('owner-storage: CAN_STATE_INITIALIZE_FRESH requires explicit true authorization');
   }
-  const { identity, auth } = await prepareServingStores(db, origin);
+  const { identity, auth } = await prepareServingStores(db, origin, mail);
   return { ...(deploymentBase === undefined ? {} : { deploymentBase }), ...(auth === undefined ? {} : { auth }), store: unavailableGlobalStore(), identityStore: identity.createD1IdentityStore(db),
     preferences: createD1PagePreferenceStore(db as D1Database),
     exportDownloads: createD1ExportDownloadStore(db as D1Database),
@@ -518,10 +541,10 @@ async function buildSelectedOwnerDeps(env: Record<string, unknown>, db: D1Bindin
       ...(fresh === undefined ? {} : { initializeFresh: true }) } };
 }
 
-async function buildSingleDbDeps(db: D1Binding, deploymentBase: string | undefined, origin: URL | undefined): Promise<{ store: StoragePort; identityStore: IdentityStore; preferences: PagePreferenceStore; exportDownloads: ExportDownloadStore; auth?: HttpAuthConfiguration; deploymentBase?: string }> {
+async function buildSingleDbDeps(db: D1Binding, deploymentBase: string | undefined, origin: URL | undefined, mail: MailPort | undefined): Promise<{ store: StoragePort; identityStore: IdentityStore; preferences: PagePreferenceStore; exportDownloads: ExportDownloadStore; auth?: HttpAuthConfiguration; deploymentBase?: string }> {
   const state = await loadStateD1();
   await state.ensureSchema(db);
-  const { identity, auth } = await prepareServingStores(db, origin);
+  const { identity, auth } = await prepareServingStores(db, origin, mail);
   return {
     ...(deploymentBase === undefined ? {} : { deploymentBase }),
     ...(auth === undefined ? {} : { auth }),

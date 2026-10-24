@@ -140,9 +140,12 @@ async function historicalTeam(db: D1Database) {
     role, originalRole, invitations, removal, coOwner: eve!.user_id, at };
 }
 
-for (const retained of [false, true]) it(retained
-  ? 'replays genuine expired team receipts through HTTP and MCP and recovers their original removal handoff'
-  : 'recovers and executes the genuine removed-member handler once across interrupted handoff and owner D1 reopen', async () => {
+const teamJourneys = {
+  'fresh-removal': 'recovers and executes the genuine removed-member handler once across interrupted handoff and owner D1 reopen',
+  'expired-removal': 'replays genuine expired team receipts through HTTP and MCP and recovers their original removal handoff',
+  'invitation-mail': 'acknowledges configured invitation mail through installed hosting and accepts only the addressed account',
+} as const;
+for (const mode of Object.keys(teamJourneys) as Array<keyof typeof teamJourneys>) it(teamJourneys[mode], async () => {
   const nativeImport = compileFunction('return import(url)', ['url'], {
     importModuleDynamically: constants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
   }) as (url: string) => Promise<unknown>;
@@ -168,7 +171,7 @@ for (const retained of [false, true]) it(retained
     provision = await hosts.startLocalDev({ workerName: `${workerName}-seed`, compatibilityDate: '2026-07-15',
       mainModule: 'seed.js', modules: { 'seed.js': 'export default {fetch(){return new Response(null,{status:404})}};' },
       d1Databases: [{ binding: 'DB', id: databaseId }], d1Persist: persistence });
-    const historical = retained ? await historicalTeam(await provision.getD1Database('DB')) : undefined;
+    const historical = mode === 'expired-removal' ? await historicalTeam(await provision.getD1Database('DB')) : undefined;
     const seeded = historical ?? await hosts.seedLocalPreviewActors(await provision.getD1Database('DB'));
     await provision.dispose(); provision = undefined;
     const owners = seeded.owners.map(owner => ({ ...owner, id: `removal-owner-${randomUUID()}` }));
@@ -181,7 +184,22 @@ for (const retained of [false, true]) it(retained
     const start = (resourceRecovery = false) => hosts.startLocalDev({ workerName, resourceRecovery, compatibilityDate: '2026-07-15',
       mainModule: evidence.bundle.mainModule, modules: evidence.bundle.modules, binaryModules: evidence.bundle.binaries,
       d1Databases: [{ binding: 'DB', id: databaseId }, ...owners.map(owner => ({ binding: owner.binding, id: owner.id }))],
-      d1Persist: persistence, vars });
+      d1Persist: persistence, vars,
+      ...(mode !== 'invitation-mail' ? {} : {
+        serviceBindings: { CAN_AUTH_MAIL: { name: `${workerName}-mail`, entrypoint: 'AuthMail' } },
+        companionWorkers: [{ workerName: `${workerName}-mail`, compatibilityDate: '2026-07-15', mainModule: 'mail.js',
+          d1Databases: [{ binding: 'SINK', id: databaseId }], modules: { 'mail.js': `
+            import { WorkerEntrypoint } from 'cloudflare:workers';
+            export class AuthMail extends WorkerEntrypoint {
+              async sendMail(to, subject, body) {
+                await this.env.SINK.prepare('INSERT INTO account_mail_sink (recipient,subject,body) VALUES (?,?,?)').bind(to,subject,body).run();
+                if (to.startsWith('lost-')) throw new Error('Mail service acknowledgement lost');
+                if (to.startsWith('nonvoid-')) return { status: 'unknown' };
+              }
+            }
+            export default { fetch() { return new Response(null, {status:404}); } };
+          ` } }],
+      }) });
     worker = await start();
     await gateway.setBackend(worker.backend);
     let identityDb = await worker.getD1Database('DB');
@@ -239,6 +257,121 @@ for (const retained of [false, true]) it(retained
     const session = cookies.get('can_session'); expect(session).toBeDefined();
     const csrf = await deriveCsrfToken(decodeURIComponent(session!));
     expect((await request('/auth/select-team', { team: owner.team_id, _csrf: csrf }, csrf)).status).toBe(200);
+    if (mode === 'invitation-mail') {
+      await identityDb.exec('CREATE TABLE account_mail_sink (id INTEGER PRIMARY KEY, recipient TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL)');
+      const identities = createD1IdentityStore(identityDb);
+      const invitedPassword = 'Addressed invitation integration password';
+      const password_hash = await hashPassword(invitedPassword);
+      const addressed = await identities.createUser({ email: 'addressed@mail.example', password_hash, email_verified: true });
+      const unverified = await identities.createUser({ email: 'unverified@mail.example', password_hash, email_verified: true });
+      const grantResponse = await request('/mcp/grants', { client_id: 'invitation-mail-consumer' }, csrf);
+      expect(grantResponse.status).toBe(200);
+      const grant = await grantResponse.json() as { token: string };
+      const invite = (id: string, email: string, token = csrf) => request('/api/operations/system.team.invite',
+        { operation_id: id, inputs: { email, role: 'owner' } }, token);
+      const mcpInvite = async (id: string, email: string) => {
+        const response = await worker!.dispatchUrl(new URL('/mcp', origin).href, { method: 'POST', headers: {
+          'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${grant.token}` },
+          body: JSON.stringify({ jsonrpc: '2.0', id: randomUUID(), method: 'tools/call',
+            params: { name: 'system.team.invite', arguments: { operation_id: id, email, role: 'owner' } } }) });
+        expect(response.status).toBe(200);
+        return await response.json() as { error?: unknown; result?: { isError?: boolean; structuredContent?: unknown } };
+      };
+      const stored = async () => ({
+        offers: (await identityDb.prepare('SELECT * FROM identity_invitations ORDER BY invitation_id').all()).results,
+        receipts: (await identityDb.prepare('SELECT * FROM identity_team_mutations ORDER BY operation_id').all()).results,
+        mail: (await identityDb.prepare('SELECT * FROM identity_invitation_mail ORDER BY operation_id').all()).results,
+        sink: (await identityDb.prepare('SELECT * FROM account_mail_sink ORDER BY id').all()).results,
+      });
+      const operationId = operationIdAt(Date.now());
+      const untouched = await stored();
+      expect((await invite(operationId, addressed.email, 'invalid-csrf')).status).toBe(403);
+      expect(await stored()).toEqual(untouched);
+      const created = await invite(operationId, addressed.email);
+      expect(created.status, await created.clone().text()).toBe(200);
+      const outcome = await created.json() as { status: string; result: { invitation_id: string; mail: string } };
+      expect(outcome).toMatchObject({ status: 'committed', result: { mail: 'acknowledged' } });
+      const invitationId = outcome.result.invitation_id;
+      const original = await stored();
+      expect(original.offers).toHaveLength(1); expect(original.receipts).toHaveLength(1);
+      expect(original.mail).toHaveLength(1); expect(original.sink).toHaveLength(1);
+      expect(original.sink[0]).toMatchObject({ recipient: addressed.email, subject: 'You are invited to a team' });
+      const offer = await identities.findInvitationById(invitationId);
+      expect(offer).not.toBeNull();
+      expect(original.sink[0]!.body).toContain(new URL(`/auth/invite?invitation_id=${invitationId}`, origin).href);
+      expect(original.sink[0]!.body).toContain(offer!.expires_at);
+      const replay = await mcpInvite(operationId, addressed.email);
+      expect(replay.error).toBeUndefined(); expect(replay.result?.isError).not.toBe(true);
+      expect(replay.result?.structuredContent).toMatchObject({ status: 'replayed', result: outcome.result });
+      expect((await invite(operationId, 'changed@mail.example')).status).toBe(409);
+      expect(await stored()).toEqual(original);
+      // The owner is authenticated, but is not the addressed account.
+      expect((await request('/auth/invite', { invitation_id: invitationId }, csrf)).status).toBe(403);
+      expect(await identities.findMembership(owner.team_id, addressed.user_id)).toBeNull();
+      const ownerCookies = new Map(cookies);
+      const loginAs = async (email: string) => {
+        cookies.clear();
+        const descriptor = await request('/auth/login');
+        expect(descriptor.status).toBe(200);
+        const input = await descriptor.json() as { preSessionToken: string };
+        const loggedIn = await request('/auth/login', { email, password: invitedPassword, _presession: input.preSessionToken });
+        expect(loggedIn.status).toBe(200);
+        return deriveCsrfToken(decodeURIComponent(cookies.get('can_session')!));
+      };
+      // A matching but unverified account cannot accept its own offer.
+      const unverifiedId = operationIdAt(Date.now());
+      const unverifiedResponse = await invite(unverifiedId, unverified.email);
+      expect(unverifiedResponse.status).toBe(200);
+      const unverifiedOffer = await unverifiedResponse.json() as { result: { invitation_id: string } };
+      const unverifiedCsrf = await loginAs(unverified.email);
+      await identities.setUserEmailVerified(unverified.user_id, false);
+      expect((await request('/auth/invite', { invitation_id: unverifiedOffer.result.invitation_id }, unverifiedCsrf)).status).toBe(403);
+      const addressedCsrf = await loginAs(addressed.email);
+      const descriptor = await request(`/auth/invite?invitation_id=${invitationId}`);
+      expect(descriptor.status).toBe(200);
+      expect(await descriptor.json()).toMatchObject({ inputs: { invitation_id: invitationId }, csrfToken: addressedCsrf });
+      expect((await request('/auth/invite', { invitation_id: invitationId })).status).toBe(403);
+      expect(await identities.findMembership(owner.team_id, addressed.user_id)).toBeNull();
+      const accepted = await request('/auth/invite', { invitation_id: invitationId }, addressedCsrf);
+      expect(accepted.status, await accepted.clone().text()).toBe(200);
+      expect(await identities.findMembership(owner.team_id, addressed.user_id)).toMatchObject({ status: 'active', is_owner: true, roles: [] });
+      expect((await identities.findInvitationById(invitationId))!.accepted_at).not.toBeNull();
+      expect((await request('/auth/invite', { invitation_id: invitationId }, addressedCsrf)).status).toBe(400);
+      cookies.clear(); for (const [key, value] of ownerCookies) cookies.set(key, value);
+      const control = { namespace: 'configured-mail-fixture-control', team_id: owner.team_id,
+        member_user_id: owner.user_id, granted_by: addressed.user_id };
+      await identities.changeMemberRoleWithReceipt!({ ...control, operationId: operationIdAt(Date.now()), role: '-owner' });
+      const denied = await stored();
+      expect((await invite(operationIdAt(Date.now()), 'denied@mail.example')).status).toBe(403);
+      expect((await invite(operationId, addressed.email)).status).toBe(403);
+      expect((await mcpInvite(operationIdAt(Date.now()), 'denied@mail.example')).result?.isError).toBe(true);
+      expect((await mcpInvite(operationId, addressed.email)).result?.isError).toBe(true);
+      expect(await stored()).toEqual(denied);
+      await identities.changeMemberRoleWithReceipt!({ ...control, operationId: operationIdAt(Date.now()), role: 'owner' });
+      // Unknown service outcomes (including a wrongly typed non-void reply)
+      // retain the original claim and never call the service a second time.
+      for (const email of ['lost-ack@mail.example', 'nonvoid-ack@mail.example']) {
+        const id = operationIdAt(Date.now());
+        const response = await invite(id, email);
+        expect(response.status).toBe(200);
+        const unknown = await response.json() as { result: { invitation_id: string; mail: string } };
+        expect(unknown.result.mail).toBe('unknown');
+        const saved = await stored();
+        expect(saved.sink.filter(row => row.recipient === email)).toHaveLength(1);
+        const retry = await mcpInvite(id, email);
+        expect(retry.result?.structuredContent).toMatchObject({ status: 'replayed', result: unknown.result });
+        expect(await stored()).toEqual(saved);
+      }
+      const terminal = await stored();
+      await worker.dispose(); worker = await start();
+      identityDb = await worker.getD1Database('DB');
+      const reopened = await invite(operationId, addressed.email);
+      expect(reopened.status, await reopened.clone().text()).toBe(200);
+      expect(await reopened.json()).toMatchObject({ status: 'replayed', result: outcome.result });
+      expect(await stored()).toEqual(terminal);
+      expect(await native.captureIsCurrent(capture)).toBe(true);
+      return;
+    }
     let retainedMcp: ((operation: string, id: string, inputs: Record<string, unknown>) => Promise<{
       error?: unknown; result?: { isError?: boolean; structuredContent?: unknown };
     }>) | undefined;
