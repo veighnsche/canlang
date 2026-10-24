@@ -22,7 +22,7 @@ import { assembleModules } from './modules.js';
 
 const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
 const source = join(root, 'packages/cloudflare/test/fixtures/native-send-nullable-narrowing.can');
-const compiler = join(root, 'compiler/target/debug/can');
+const compiler = process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can');
 const catalog = join(root, 'packages/cloudflare/dist/native-catalog.json');
 
 it('refuses an event-sourced guard without orphaning a separate valid SEND owner', () => {
@@ -92,6 +92,12 @@ it('commits a guarded SEND only for a present, current nullable recipient',
         assert.equal('result' in outcome ? outcome.result.status : outcome.error.code, status,
           `${state}/${recipient}: ${JSON.stringify(outcome)}`);
         assert.equal(probe.outboxAll().length, outbox, `${state}/${recipient}: outbox`);
+        if (outbox > 0) {
+          const arguments_ = probe.outboxAll()[0]!.arguments['arguments'] as Record<string, unknown>;
+          assert.equal(arguments_['to'], recipient);
+          assert.equal(arguments_['subject'], 'Opnieuw', 'the checked named message retains its selected translation');
+          assert.equal(arguments_['body'], 'Recorded recipient');
+        }
         const actual = await store.load(asModel('NullableSendProbe.Request'), row.id);
         assert.ok(actual);
         assert.equal(actual.data.recipient, recipient);

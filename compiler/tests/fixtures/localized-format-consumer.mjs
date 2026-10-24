@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
-import {existsSync, writeFileSync} from 'node:fs';
-import {registerHooks} from 'node:module';
+import {writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
@@ -8,18 +7,9 @@ import {date, datetime, parseDecimal, money} from '@canlang/stdlib';
 import {createTestMemoryStorage} from '@canlang/state/storage/memory';
 import {FIXED_NOW, asOperationId, createMemoryIdentityStore, makeIdentity, seedMember, uuidv7} from '@canlang/state/testing/invocation/fixtures';
 const [root, can, scratch] = process.argv.slice(2);
-// Native TS loading changes only source-owned extension resolution, never
-// compiler output, runtime bodies or owning package exports.
-registerHooks({resolve(specifier, context, next) {
-  if (specifier.startsWith('.') && specifier.endsWith('.js') && context.parentURL?.endsWith('.ts')) {
-    const candidate = new URL(specifier.slice(0, -3)+'.ts', context.parentURL);
-    if (existsSync(candidate)) return {url:candidate.href, shortCircuit:true};
-  }
-  return next(specifier, context);
-}});
 const load = path => import(pathToFileURL(resolve(root, path)));
-const {loadArtifactFile} = await load('packages/cloudflare/src/runtime/artifact.ts');
-const {assembleModules} = await load('packages/cloudflare/src/runtime/modules.ts');
+const {loadArtifactFile} = await load('packages/cloudflare/dist/runtime/artifact.js');
+const {assembleModules} = await load('packages/cloudflare/dist/runtime/modules.js');
 
 if (process.argv.includes('--presentation')) {
   const source=`app Presented uses=[Shared]
@@ -200,7 +190,7 @@ package Branches source="en"
   process.exit(0);
 }
 
-const {buildInvoker} = await load('packages/cloudflare/src/worker/assembly.ts');
+const {buildInvoker} = await load('packages/cloudflare/dist/worker/assembly.js');
 
 const shared = `package Shared source="fr"
  Given
@@ -279,7 +269,8 @@ for (const [app,locale,expected] of [['Dutch','nl','Hallo'],['German','de','Gute
 }
 
 // The real selected-app reader, invoker and canonical State bridge execute
-// an unchanged emitted handler. Missing explicit legacy scope refuses.
+// an unchanged emitted handler. A matching explicit app keeps that scope;
+// a foreign app cannot acquire its formatting context.
 const memberships=createMemoryIdentityStore();
 const member=await seedMember(memberships,{isOwner:false});
 const identity=makeIdentity({membership:member.membership,email:member.user.email});
@@ -291,10 +282,14 @@ for(const [index,{app,artifact,asm}] of worlds.entries()) {
   assert.ok('result' in outcome,JSON.stringify(outcome));
   assert.equal(outcome.result.status,'committed');
   const legacy=buildInvoker(artifact,asm,store,{appId:app,memberships,now:()=>FIXED_NOW});
-  const refused=await legacy.invokeMutation({...envelope,operation_id:asOperationId(uuidv7(FIXED_NOW,index+100))},identity);
+  const explicit=await legacy.invokeMutation({...envelope,operation_id:asOperationId(uuidv7(FIXED_NOW,index+100))},identity);
+  assert.ok('result' in explicit,JSON.stringify(explicit));
+  assert.equal(explicit.result.status,'committed');
+  const foreign=buildInvoker(artifact,asm,store,{appId:app+'Foreign',memberships,now:()=>FIXED_NOW});
+  const refused=await foreign.invokeMutation({...envelope,operation_id:asOperationId(uuidv7(FIXED_NOW,index+200))},identity);
   assert.ok('error' in refused,JSON.stringify(refused));
 }
-console.log('localized formatter: checked native/schema/source language, runtime locale/order/defaults, missing scope, and actual canonical handler bridge passed');
+console.log('localized formatter: checked native/schema/source language, runtime locale/order/defaults, foreign scope refusal, and actual canonical handler bridge passed');
 
 // A formatted result may be held or returned by a pure presentation derive,
 // but the currently unclassified business sinks must refuse before shipping.

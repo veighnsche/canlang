@@ -1256,11 +1256,21 @@ pub(super) fn reference_name(
     spelling: &str,
     db: &SourceDb,
 ) -> Option<()> {
+    reference_name_in_module(ir, receiving.module, target, spelling, db)
+}
+
+fn reference_name_in_module(
+    ir: &IrProgram,
+    receiving: crate::analysis::ModuleId,
+    target: crate::analysis::SymbolId,
+    spelling: &str,
+    db: &SourceDb,
+) -> Option<()> {
     let item = ir.items.get(target.0 as usize)?;
-    if item.module == receiving.module {
+    if item.module == receiving {
         return (spelling == item.name).then_some(());
     }
-    let module = ir.modules.get(receiving.module.0 as usize)?;
+    let module = ir.modules.get(receiving.0 as usize)?;
     let provider = &ir.modules.get(item.module.0 as usize)?.name;
     let (import_span, provider_span, member_span, import_from) =
         find_import_candidate(module, provider, &item.name, spelling)?;
@@ -2005,6 +2015,93 @@ fn source(ir: &IrProgram, original: &DisclosureSource, at: Span, db: &SourceDb) 
             .count()
             == 1)
         .then_some(())
+}
+
+/// Compare all static presentation bytes and their declaring language. This
+/// carries no argument evaluation or stored-read authority.
+fn static_message_text_matches(
+    message: &super::ir::IrMessage,
+    node: &SyntaxNode,
+    declaration: &SyntaxNode,
+    text: &str,
+) -> Option<()> {
+    let source = node.children.iter().find(|child| child.kind == SyntaxKind::Literal)?;
+    let text_value = source.children.iter().find(|child| child.kind == SyntaxKind::String)?.token()?.string_value.as_ref()?;
+    let source_lang = crate::analysis::attribute_value(declaration, "source", text)
+        .and_then(|value| value.children.iter().find(|child| child.kind == SyntaxKind::String))
+        .and_then(|string| string.token()?.string_value.as_ref()).map(String::as_str).unwrap_or("en");
+    let variants = node.children.iter().filter(|child| child.kind == SyntaxKind::MessageVariant)
+        .map(|variant| {
+            let locale = variant.children.iter().find(|child| child.kind == SyntaxKind::Name)?.token()?.text(text).to_string();
+            let literal = variant.children.iter().find(|child| child.kind == SyntaxKind::Literal)?;
+            let value = match literal.children.iter().find(|child| child.kind == SyntaxKind::String) {
+                Some(string) => Some(string.token()?.string_value.clone()?),
+                None if text.get(literal.span.start as usize..literal.span.end as usize) == Some("null") => None,
+                _ => return None,
+            };
+            Some((locale, value))
+        }).collect::<Option<Vec<_>>>()?;
+    (message.params.is_empty() && message.source == *text_value
+        && message.source_lang == source_lang && message.variants == variants).then_some(())
+}
+
+/// Join a named descriptor to its original zero-argument source declaration.
+/// Callers separately retain the checked type at the reference occurrence.
+pub(super) fn checked_static_named_message(
+    ir: &IrProgram,
+    receiving: crate::analysis::ModuleId,
+    actual: &TypedExpr,
+    db: &SourceDb,
+) -> Option<()> {
+    let ResolvedType::Message(id) = &actual.ty else { return None; };
+    let IrExpr::Message(message) = &actual.expr else { return None; };
+    let item = ir.items.get(id.0 as usize)?;
+    let IrItemKind::Message { params, descriptor: Some(descriptor) } = &item.kind else { return None; };
+    let module = ir.modules.get(item.module.0 as usize)?;
+    let receiver = ir.modules.get(receiving.0 as usize)?;
+    if item.id != *id || !params.is_empty() || !descriptor.params.is_empty()
+        || item.canonical != format!("{}.{}", module.name, item.name)
+        || actual.span.file != receiver.file || actual.span.start < receiver.span.start
+        || actual.span.end > receiver.span.end
+    { return None; }
+    for file in [receiver.file, module.file] {
+        let original = db.get(file)?;
+        if !ir.committed_sources.sources.iter().any(|(source, path, digest)|
+            *source == file && *path == original.path && *digest == original.sha256)
+            || original.sha256 != sha256_hex(original.text.as_bytes())
+        { return None; }
+    }
+    let (references, diagnostics) = crate::syntax::parse(db, actual.span.file);
+    if !diagnostics.is_empty() { return None; }
+    let reference_text = &db.get(actual.span.file)?.text;
+    let mut pending = vec![&references];
+    let mut reference = None;
+    let mut visits = 0usize;
+    while let Some(node) = pending.pop() {
+        visits += 1;
+        if visits > 200000 { return None; }
+        if node.span == actual.span && matches!(node.kind, SyntaxKind::NameRef | SyntaxKind::Name | SyntaxKind::Path) {
+            reference = Some(node);
+            break;
+        }
+        pending.extend(node.children.iter());
+    }
+    reference_name_in_module(ir, receiving, *id, single_name(reference?, reference_text)?, db)?;
+    let (tree, diagnostics) = crate::syntax::parse(db, module.file);
+    if !diagnostics.is_empty() { return None; }
+    let text = &db.get(module.file)?.text;
+    let declaration = tree.children.iter().find(|node|
+        matches!(node.kind, SyntaxKind::App | SyntaxKind::Package) && node.span == module.span)?;
+    let named = declaration.children.iter().filter(|node| node.kind == SyntaxKind::Section)
+        .flat_map(|section| section.children.iter())
+        .find(|node| node.kind == SyntaxKind::Message && node.children.iter().any(|name|
+            name.kind == SyntaxKind::Name && name.span == item.span && name.token().is_some_and(|token| token.text(text) == item.name)))?;
+    if named.children.iter().any(|node| node.kind == SyntaxKind::Parameter) { return None; }
+    let mut values = named.children.iter().filter(|node| node.kind == SyntaxKind::MessageValue);
+    let value = values.next()?;
+    if values.next().is_some() { return None; }
+    static_message_text_matches(descriptor, value, declaration, text)?;
+    static_message_text_matches(message, value, declaration, text)
 }
 
 struct SourceExpressions<'a> {
@@ -6460,11 +6557,11 @@ impl<'a> SourceExpressions<'a> {
 
     fn literal_text_type(&self, actual: &TypedExpr) -> bool {
         actual.ty == ResolvedType::Scalar(Scalar::Text)
-            || self.operands && actual.ty == ResolvedType::Scalar(Scalar::Email)
+            || self.operands && matches!(actual.ty, ResolvedType::Scalar(Scalar::Email | Scalar::Locale))
     }
 
     /// Exact authored scalar literals are shared by schema/default and operand
-    /// correspondence; contextual Email remains operand-only.
+    /// correspondence; contextual Email and Locale remain operand-only.
     fn scalar_literal(&self, actual: &TypedExpr, node: &SyntaxNode) -> Option<bool> {
         let token = |kind| node.children.iter().find(|child| child.kind == kind)
             .and_then(|child| self.text.get(child.span.start as usize..child.span.end as usize));
@@ -6485,7 +6582,7 @@ impl<'a> SourceExpressions<'a> {
                 actual.ty == ResolvedType::Null && token(SyntaxKind::Name)? == "null"
             }
             IrExpr::Text(value) => {
-                // Checked operand literals retain contextual Email identity.
+                // Checked operand literals retain contextual Email/Locale identity.
                 // Schema/default matching keeps its existing Text-only path.
                 self.literal_text_type(actual)
                     && node
@@ -6503,26 +6600,10 @@ impl<'a> SourceExpressions<'a> {
 
     fn literal_message(&self, actual: &TypedExpr, node: &SyntaxNode) -> Option<()> {
         let IrExpr::Message(message) = &actual.expr else { return None; };
-        let source = node.children.iter().find(|child| child.kind == SyntaxKind::Literal)?;
-        let text = source.children.iter().find(|child| child.kind == SyntaxKind::String)?.token()?.string_value.as_ref()?;
         let module = self.ir.modules.iter().find(|module| module.name == self.original.source.module)?;
         let declaration = self.nodes.values().find(|node| matches!(node.kind, SyntaxKind::App | SyntaxKind::Package) && node.span == module.span)?;
-        let source_lang = crate::analysis::attribute_value(declaration, "source", self.text)
-            .and_then(|value| value.children.iter().find(|child| child.kind == SyntaxKind::String))
-            .and_then(|string| string.token()?.string_value.as_ref()).map(String::as_str).unwrap_or("en");
-        let variants = node.children.iter().filter(|child| child.kind == SyntaxKind::MessageVariant)
-            .map(|variant| {
-                let locale = variant.children.iter().find(|child| child.kind == SyntaxKind::Name)?.token()?.text(self.text).to_string();
-                let literal = variant.children.iter().find(|child| child.kind == SyntaxKind::Literal)?;
-                let value = match literal.children.iter().find(|child| child.kind == SyntaxKind::String) {
-                    Some(string) => Some(string.token()?.string_value.clone()?),
-                    None if self.text.get(literal.span.start as usize..literal.span.end as usize) == Some("null") => None,
-                    _ => return None,
-                };
-                Some((locale, value))
-            }).collect::<Option<Vec<_>>>()?;
-        (actual.ty == ResolvedType::InlineMessage && message.params.is_empty()
-            && message.source == *text && message.source_lang == source_lang && message.variants == variants).then_some(())
+        if actual.ty != ResolvedType::InlineMessage { return None; }
+        static_message_text_matches(message, node, declaration, self.text)
     }
 
     /// Localized formatting keeps written argument order and the two checked
@@ -7375,6 +7456,11 @@ impl<'a> SourceExpressions<'a> {
             (IrExpr::Int(_) | IrExpr::Decimal(_) | IrExpr::Bool(_) | IrExpr::Null
                 | IrExpr::Text(_), SyntaxKind::Literal) => {
                 Some(self.scalar_literal(actual, node)?)
+            }
+            (IrExpr::Message(_), SyntaxKind::NameRef | SyntaxKind::Name | SyntaxKind::Path) if self.operands => {
+                let module = self.ir.modules.iter().find(|module| module.name == self.original.source.module)?;
+                checked_static_named_message(self.ir, module.id, actual, self.db)?;
+                Some(true)
             }
             (IrExpr::Message(_), SyntaxKind::MessageValue) if self.operands => {
                 self.literal_message(actual, node)?;

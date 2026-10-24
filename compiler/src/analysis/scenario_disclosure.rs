@@ -16748,6 +16748,46 @@ impl<'a> Closure<'a> {
             })
     }
 
+    /// A named zero-parameter message is immutable presentation data, not an
+    /// environment value. Require its original checked declaration; a lexical
+    /// value with the same spelling must keep its own provenance.
+    fn static_named_message_descriptor(&self, key: NodeKey) -> Option<SymbolId> {
+        let key = self.query_group(key)?;
+        let ResolvedType::Message(id) = self.types.node_types.get(&key)? else {
+            return None;
+        };
+        if !matches!(self.query_binding(key), Some(Binding::Symbol(actual)) if actual == id) {
+            return None;
+        }
+        let symbol = self.resolve.symbols.get(id.0 as usize)?;
+        let SymbolKind::Message { params } = &symbol.kind else {
+            return None;
+        };
+        let message = self.effects.messages.get(id)?;
+        let declaration = self.nodes.get(&message.node)?;
+        if symbol.id != *id || message.message != *id || message.module != symbol.module
+            || !params.is_empty() || !message.params.is_empty()
+            || declaration.kind != SyntaxKind::Message
+            || symbol.span.file != message.node.file
+            || symbol.span.start < message.node.start || symbol.span.end > message.node.end
+            || self.source(symbol.module, message.node).is_err()
+        {
+            return None;
+        }
+        let mut values = declaration.children.iter().filter(|child| child.kind == SyntaxKind::MessageValue);
+        let value = values.next()?;
+        if values.next().is_some()
+            || !value.children.iter().filter(|child| expression(child.kind))
+                .all(|child| child.kind == SyntaxKind::Literal)
+            || !value.children.iter().filter(|child| child.kind == SyntaxKind::MessageVariant)
+                .all(|variant| variant.children.iter().filter(|child| expression(child.kind))
+                    .all(|child| child.kind == SyntaxKind::Literal))
+        {
+            return None;
+        }
+        Some(*id)
+    }
+
     fn literal_value(&self, key: NodeKey) -> Result<Vec<ValuePath>, DisclosureDecline> {
         if self.nodes.get(&key).is_some_and(|node| node.kind == SyntaxKind::Literal)
             || self.literal_message_descriptor(key) {
@@ -17022,6 +17062,11 @@ impl<'a> Closure<'a> {
                 ],
                 "stored model query domain",
             ));
+        }
+        if ty == &ResolvedType::Message(id)
+            && self.static_named_message_descriptor(key) == Some(id)
+        {
+            return Ok(vec![ValuePath::default()]);
         }
         let value = env
             .get(&Local::Symbol(id))
@@ -20750,7 +20795,8 @@ impl<'a> Closure<'a> {
         let descriptor = self.query_group(*arguments.get(slots[0]?)?)?;
         let value = self.query_group(*arguments.get(slots[1]?)?)?;
         let value_ty = self.types.node_types.get(&value)?;
-        let message = self.literal_message_descriptor(descriptor)
+        let message = (self.literal_message_descriptor(descriptor)
+            || self.static_named_message_descriptor(descriptor).is_some())
             && matches!(value_ty, ResolvedType::Null | ResolvedType::Scalar(Scalar::Locale));
         // Both format overloads consume their ordinary checked arguments.
         // A literal template adds no data or reference authority of its own.

@@ -19157,7 +19157,7 @@ impl<'a> Sites<'a> {
                     | IrExpr::DurationMs(_)
                     | IrExpr::Date(_)
                     | IrExpr::Datetime(_)
-                    | IrExpr::Message(_) => checked_receipt_literal(expression)?,
+                    | IrExpr::Message(_) => checked_receipt_literal(ir, owner, expression, db)?,
                     IrExpr::Name(_) => {
                         out.names
                             .entry(context.site(expression.span))
@@ -19177,10 +19177,17 @@ impl<'a> Sites<'a> {
 
 /// Literal descriptors contain no evaluated arguments. Their wording, source
 /// language and variants are joined to the exact source by SourceExpressions.
-fn checked_receipt_literal(expression: &TypedExpr) -> Option<()> {
+fn checked_receipt_literal(ir: &IrProgram, owner: &IrItem, expression: &TypedExpr, db: Option<&SourceDb>) -> Option<()> {
     match &expression.expr {
-        IrExpr::Message(message) => (expression.ty == ResolvedType::InlineMessage
-            && message.params.is_empty()).then_some(()),
+        IrExpr::Message(message) if expression.ty == ResolvedType::InlineMessage =>
+            message.params.is_empty().then_some(()),
+        IrExpr::Message(_) => {
+            let facts = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
+            if !facts.expression_types.as_ref()?.iter().any(|(node, ty)|
+                node_span(*node) == expression.span && ty == &expression.ty)
+            { return None; }
+            super::scenario_create_sources::checked_static_named_message(ir, owner.module, expression, db?)
+        },
         _ => Some(()),
     }
 }

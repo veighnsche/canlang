@@ -1,12 +1,13 @@
 app NullableSendProbe
 use std {EmailV1 as Mail} from=deployment.mail
 Given
+ message retry_notice = "Retry"@{nl="Opnieuw"}
  Request {recipient:email?,state:enum(active,cancelled)=active,attempt:delivery(Mail.send)?}
  policy Request read=owner
 When
  scenario retry(request:Request) by=owner
   require request.state==cancelled and request.recipient!=null
   do
-   send Mail.send {to=request.recipient,subject="Retry",body="Recorded recipient"} when=request.state==cancelled as delivery
+   send Mail.send {to=request.recipient,subject=format(retry_notice,locale="nl"),body="Recorded recipient"} when=request.state==cancelled as delivery
    set request {attempt=delivery}
 Then
