@@ -3634,10 +3634,10 @@ async function bindNativeScenarioStoredFiles(loaded: LoadedCanonicalDescriptors,
       readonly profile: import('@canlang/state').FileReferenceProfile }>();
     for (const returned of plan.returns) for (const dependency of returned.dependencies) {
       const parsed = parseTypeId(dependency.type);
-      const singular = dependency.type === 'file' || dependency.type === 'file?';
+      const directFile = dependency.type === 'file' || dependency.type === 'file?' || dependency.type === 'file[]';
       const nominal = parsed.base.kind === 'nominal' && loaded.valueSchema !== undefined &&
         Object.hasOwn(loaded.valueSchema.contracts, parsed.base.path);
-      if ((!singular && !nominal) || profiles.has(dependency.id)) continue;
+      if ((!directFile && !nominal) || profiles.has(dependency.id)) continue;
       if (bindProfile === undefined) {
         const state = await loadProducerModule('@canlang/state', 'stored nominal File census');
         bindProfile = requireProducerFn(state, 'bindFileReferenceProfile', 'stored nominal File census') as

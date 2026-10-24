@@ -25,7 +25,7 @@ import { installNativeFileInventory } from './file-inventory.js';
 import { createCanonicalFileBinding } from './bound-files.js';
 import { createFileJourneyKernel, type FileJourneyBindings } from '@canlang/interfaces/uploads/kernel';
 import { createUploadIntent, appendUploadContentAtOffset, completeUploadContent, sha256Hex, DEFAULT_FILE_POLICY } from '@canlang/files/upload';
-import { authorizeAttach, finalizeUpload, observeFinalizedFile, readCurrentFinalizedBytes,
+import { authorizeAttach, blobKeyForFile, finalizeUpload, observeFinalizedFile, readCurrentFinalizedBytes,
   readCurrentFinalizedSnapshot, readFinalizedBytes, readFinalizedFile, recordAttachment,
   revalidateRetainedFinalizedFile } from '@canlang/files/finalize';
 import { TestOnlyManualClock, TestOnlyCounterIntentIds, TestOnlyCounterFileIds,
@@ -4044,15 +4044,19 @@ it('preserves unread File-array defaults through the checked owner workflow',
       const original = await readFile(fixture('rule-owner-leading-helper-field.can'), 'utf8');
       const source = join(directory, 'LeadingHelperFieldProbe.can');
       // Scalar reuse must retain every Contract provider and its narrowed bounds.
-      const adapted = original.replace('Given', 'Given\n contract DeliveryInput {external_id:text min=1 max=1000}\n contract NoteInput {external_id:DeliveryInput.external_id min=2 max=100}')
+      const adapted = original.replace('Given', 'use std {EmailV1 as Mail} from=deployment.mail\nGiven\n contract DeliveryInput {external_id:text min=1 max=1000}\n contract NoteInput {external_id:DeliveryInput.external_id min=2 max=100}')
         .replace('Handoff {ticket:Ticket}', 'Handoff {ticket:Ticket,photo:file[] max=1,external_id:NoteInput.external_id max=80}')
+        .replace('policy Handoff read=members', 'policy Handoff read=members fields=ticket,external_id\n policy Handoff read=members where=actor.email_verified fields=photo')
         .replace('photo:file?=null', 'external_id:text,photo:Handoff.photo=[]')
-        .replace('create Handoff {ticket}', 'create Handoff {ticket,photo,external_id}');
+        .replace('create Handoff {ticket}', 'create Handoff {ticket,photo,external_id}')
+        .replace('   return handoff', '   send Mail.send {to=actor.email,subject="Handoff",body="Ready",attachments=handoff.photo} as delivery\n   return handoff');
       const scenario = adapted.slice(adapted.indexOf(' scenario handoff('), adapted.indexOf('Then')).trimEnd();
       const direct = scenario.replace('scenario handoff(', 'scenario handoff_direct(').replace('photo:Handoff.photo=[]', 'photo:file[]=[]');
       const text = adapted.replace('Then', `${direct}\nThen`);
       assert.ok(text.includes('require can_work(actor,ticket.location)'));
       for (const [name, rejectedSource] of [
+        ['copied-created-array', text.replaceAll('   send Mail.send', '   let copied=handoff.photo\n   send Mail.send').replaceAll('attachments=handoff.photo', 'attachments=copied')],
+        ['parameter-array', text.replace('Ticket {location:Location,done:bool=false}', 'Ticket {location:Location,done:bool=false,photo:file[] max=1}').replaceAll('attachments=handoff.photo', 'attachments=ticket.photo')],
         ['weaker-inherited-bound', text.replace('external_id:NoteInput.external_id max=80', 'external_id:NoteInput.external_id max=101')],
         ['require', text.replace('require can_work(actor,ticket.location)',
           'require can_work(actor,ticket.location) and count(photo)>0')],
@@ -4082,8 +4086,8 @@ it('preserves unread File-array defaults through the checked owner workflow',
       const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
         stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
       for (const mode of ['default', 'empty', 'nonempty', 'direct-nonempty', 'oversize', 'foreign-file', 'unissued-file',
-        'missing-producer', 'not-array', 'short-id', 'long-id', 'inactive-helper', 'helper-at-commit'] as const) {
-        const { now, identities, identity, user, team } = await member(`file-array-${mode}`);
+        'missing-producer', 'not-array', 'short-id', 'long-id', 'file-field-denied', 'file-during-send', 'inactive-helper', 'helper-at-commit'] as const) {
+        const { now, identities, identity, user, team } = await member(`file-array-${mode}`, [], mode !== 'file-field-denied');
         const app = 'LeadingHelperFieldProbe';
         const scope = { app, owner: team.team_id, ownerPackage: app };
         const authority: FileRetirementAuthority = { app, stateOwner: app, stateStoreId: 'array-state', fileStoreId: 'array-files',
@@ -4143,6 +4147,15 @@ it('preserves unread File-array defaults through the checked owner workflow',
           }
           return commit(batch);
         };
+        const load = store.load.bind(store);
+        store.load = async (model, id) => {
+          if (mode === 'file-during-send' && !raced && model === 'work.dispatch') {
+            raced = true;
+            assert.ok(blobs.read(blobKeyForFile(finalized.result.file)));
+            blobs.remove(blobKeyForFile(finalized.result.file));
+          }
+          return load(model, id);
+        };
         const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now,
           ...(mode === 'missing-producer' ? {} : { files: createCanonicalFileBinding(kernel, retention) }) });
         const photo = mode === 'unissued-file' ? [{ id: 'unissued' }] : mode === 'not-array' ? { id: finalized.result.file } :
@@ -4158,23 +4171,31 @@ it('preserves unread File-array defaults through the checked owner workflow',
         const repairs = await store.query({ model: model(app, 'Handoff'), authority: 'owner' });
         assert.equal(repairs.length, success ? 1 : 0, mode);
         const current = await store.load(model(app, 'Ticket'), ticket.id); assert.ok(current);
+        const pending = await store.outboxPending();
+        assert.equal(pending.length, success ? 1 : 0, `${mode}: SEND is atomic with its owning CREATE/SET`);
         if (success) {
           assert.deepEqual(repairs[0]!.data.photo, mode.endsWith('nonempty') ? [{ id: finalized.result.file }] : []);
           assert.equal(repairs[0]!.data.external_id, 'note-identity');
+          assert.equal(pending[0]!.target, 'std.EmailV1.send');
+          assert.deepEqual(pending[0]!.arguments, { binding: `${app}.Mail`, from: 'deployment.mail', arguments: {
+            to: user.email, subject: 'Handoff', body: 'Ready', attachments: repairs[0]!.data.photo } });
           assert.equal(current.data.done, true);
           assert.deepEqual(repairs[0]!.data.ticket, { id: ticket.id });
           const revision = await store.readRevision();
           const replay = await invoker.invokeMutation(request, identity);
           assert.ok('result' in replay && replay.result.status === 'replayed', `${mode}: ${JSON.stringify(replay)}`);
           assert.equal(await store.readRevision(), revision);
+          assert.deepEqual(await store.outboxPending(), pending, `${mode}: replay cannot duplicate SEND`);
           assert.deepEqual(await store.query({ model: model(app, 'Handoff'), authority: 'owner' }), repairs);
         } else {
           assert.deepEqual(current, ticket, `${mode}: no partial parent mutation`);
           assert.ok('error' in result);
+          if (mode === 'file-field-denied') assert.equal(result.error.code, 'forbidden');
+          if (mode === 'file-during-send') assert.equal(result.error.code, 'validation', JSON.stringify(result));
           if (mode === 'inactive-helper' || mode === 'helper-at-commit') assert.equal(result.error.code, 'rule_failed');
           if (mode === 'oversize' || mode === 'not-array' || mode === 'short-id' || mode === 'long-id') assert.equal(result.error.code, 'validation');
         }
-        assert.equal(raced, mode === 'helper-at-commit');
+        assert.equal(raced, mode === 'helper-at-commit' || mode === 'file-during-send');
       }
     } finally { await rm(directory, { recursive: true, force: true }); }
   });

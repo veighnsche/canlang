@@ -26184,6 +26184,71 @@ impl<'a> Closure<'a> {
                 }
             }
 
+            /// A created row's File[] field is an opaque SEND input only. The
+            /// owning checked CREATE supplies its actual field schema; the live
+            /// environment must still carry that same dominating CreateAs.
+            fn created_file_array_send_operand(
+                &mut self,
+                key: NodeKey,
+                module: ModuleId,
+                env: &Env,
+                calls: &[NodeKey],
+            ) -> Result<Vec<ValuePath>, DisclosureDecline> {
+                let fail = || self.fail(key, "File[] send input needs original created field");
+                if !calls.is_empty() || self.loop_node.is_some() {
+                    return Err(fail());
+                }
+                let (base, name) = self.count_member(key).ok_or_else(fail)?;
+                let source = self.created_binding_source(base, module).ok_or_else(fail)?;
+                let mut fields = source.definition.fields.iter().filter(|field| field.name == name);
+                let field = fields.next().ok_or_else(fail)?;
+                let owner = self.resolve.symbols.get(source.model.0 as usize).ok_or_else(fail)?;
+                let declaration = self.resolve.symbols.get(field.field.0 as usize).ok_or_else(fail)?;
+                if fields.next().is_some()
+                    || !matches!(owner.kind, SymbolKind::Model { .. })
+                    || !matches!(declaration.kind, SymbolKind::Field { owner, .. } if owner == source.model)
+                    || declaration.module != owner.module
+                    || declaration.name != name
+                    || !ordinary_file_array(&field.ty)
+                    || self.types.node_types.get(&key) != Some(&field.ty)
+                    || self.types.symbol_types.get(&field.field) != Some(&field.ty)
+                {
+                    return Err(fail());
+                }
+                self.file_array_declaration_ok(key, source.model, field.field)?;
+                let dependency = DisclosureDependency {
+                    query_id: None,
+                    id: self.opaque("read-data", key, &self.call_stamp(calls)?)?,
+                    source: self.source(module, key)?,
+                    node: key,
+                    calls: calls.to_vec(),
+                    role: DependencyRole::Data,
+                    model: source.model,
+                    field: field.field,
+                    model_name: owner.canonical.clone(),
+                    field_name: name.to_string(),
+                    ty: field.ty.clone(),
+                    type_id: "file[]".into(),
+                };
+                let mut values = self.expr(base, module, env, calls)?;
+                for value in &mut values {
+                    if value.record != Some(source.model)
+                        || !matches!(value.model_result,
+                            Some(DisclosureModelResult::Create { model, node })
+                                if model == source.model && node == source.node)
+                    {
+                        return Err(self.fail(key, "File[] send input lost original created binding"));
+                    }
+                    value.reads.push(dependency.clone());
+                    value.observed.push((key, calls.to_vec()));
+                    value.record = None;
+                    value.model_result = None;
+                    value.reference = None;
+                    value.reference_origin = None;
+                }
+                Ok(values)
+            }
+
             /// A send's checked input paths: complete slots, no duplicates, no
             /// opaque delivery/record values.
             /// (This was the required-inputs computation plus the argument product
@@ -26236,6 +26301,14 @@ impl<'a> Closure<'a> {
                         return Err(self.fail(arg.key_node, "duplicate send input"));
                     }
                     let values = match arg.value {
+                        Some(value)
+                            if matches!(delivery, ResolvedType::StdDelivery { op, .. }
+                                if op.inputs.iter().any(|(name, declared)| *name == arg.key && *declared == "file[]"))
+                                && self.count_member(value).is_some_and(|(base, _)|
+                                    matches!(self.query_binding(base), Some(Binding::CreateAs { .. }))) =>
+                        {
+                            self.created_file_array_send_operand(value, module, env, calls)?
+                        }
                         Some(value) => self.expr(value, module, env, calls)?,
                         None => self.lexical(arg.key_node, module, env, calls)?,
                     };

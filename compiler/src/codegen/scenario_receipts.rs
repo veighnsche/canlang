@@ -3007,7 +3007,8 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                             .iter()
                             .find(|field| field.id == dependency.field)?
                     } else {
-                        stored_file_array_operand(ir, item, expression, db?)?
+                        stored_file_array_operand(ir, item, expression, db?)
+                            .or_else(||checked_created_file_array_send_operand(ir,item,expression,db?,sealed_created_tail))?
                     };
                     if original.id != stored.id
                         || !stored_file_array_descriptor_matches(ir, original, declared[0])
@@ -12213,6 +12214,7 @@ fn file_array_field_valid(
     value: &TypedExpr,
     schema_id: crate::analysis::SymbolId,
     db: &SourceDb,
+    call_bounds: bool,
 ) -> Option<()> {
     let IrItemKind::Field {
         default: None,
@@ -12229,8 +12231,8 @@ fn file_array_field_valid(
         || original.required_array
         || original.reuse.is_some()
         || original.trim
-        || original.min.is_some()
-        || original.max.as_ref().map(|(_, max, _)| *max) != Some(8)
+        || call_bounds && (original.min.is_some()
+            || original.max.as_ref().map(|(_, max, _)| *max) != Some(8))
         || original
             .constraints
             .as_ref()
@@ -12252,6 +12254,7 @@ fn file_array_schema_field<'a>(
     field: &str,
     value: &TypedExpr,
     db: &SourceDb,
+    call_bounds: bool,
 ) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
     let mut schemas = source
         .stored_contracts
@@ -12272,7 +12275,7 @@ fn file_array_schema_field<'a>(
         return None;
     }
     let declaration = ir.items.get(original.id.0 as usize)?;
-    file_array_field_valid(ir, owner, declaration, original, symbol, value, schema.id, db)?;
+    file_array_field_valid(ir, owner, declaration, original, symbol, value, schema.id, db, call_bounds)?;
     Some(original)
 }
 
@@ -12297,7 +12300,34 @@ pub(super) fn stored_file_array_operand<'a>(
         return None;
     }
     file_array_authored_matches(ir, owner, source, value, base, field, text, db)?;
-    file_array_schema_field(ir, owner, source, symbol, field, value, db)
+    file_array_schema_field(ir, owner, source, symbol, field, value, db, true)
+}
+
+/// A newly created File-array member is data only at its exact checked
+/// standard SEND slot. The complete owner seal retains the original CREATE,
+/// receiver, consumer and order; Files/State still supply all live authority.
+fn checked_created_file_array_send_operand<'a>(
+    ir: &'a IrProgram, owner: &IrItem, value: &TypedExpr, db: &SourceDb, sealed: bool,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
+    if !sealed { return None; }
+    let (_, field, model, base) = file_array_receiver(value)?;
+    checked_created_row_operand(ir,owner,base,model,db,false,true)?;
+    let IrItemKind::Scenario {effects,..} = &owner.kind else {return None;};
+    let mut consumers=effects.iter().filter_map(|statement| {
+        let IrStmt::Send {operation,args,..} = statement else {return None;};
+        let IrExpr::Object(entries)=&args.expr else {return None;};
+        let (capability,operation)=operation.rsplit_once('.')?;
+        let signature=crate::analysis::catalog::std_operation(capability,operation)?;
+        entries.iter().any(|(name,argument)|std::ptr::eq(argument,value)
+            && signature.inputs.iter().any(|(slot,ty)|*slot==name && *ty=="file[]"))
+            .then_some(())
+    });
+    consumers.next()?;
+    if consumers.next().is_some() {return None;}
+    let facts=super::scenario_calls::checked_source(ir,owner,db)?;
+    let text=&db.get(facts.node.file)?.text;
+    file_array_authored_matches(ir,owner,facts,value,base,field,text,db)?;
+    file_array_schema_field(ir,owner,facts,model,field,value,db,false)
 }
 
 pub(super) fn stored_file_array_descriptor_matches(
