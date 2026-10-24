@@ -401,3 +401,127 @@ test('actual PromptLab enforces member note boundaries, rolls back computed keys
     await rm(scratch, { recursive: true, force: true });
   }
 });
+
+test('compiled duration forms preserve exact milliseconds through public HTTP, defaults and updates', { timeout: 120_000 }, async () => {
+  const { deriveCsrfToken } = await import('@canlang/identity');
+  const { writeFile } = await import('node:fs/promises');
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const scratch = await mkdtemp(join(tmpdir(), 'can-duration-forms-'));
+  try {
+    const sourcePath = join(scratch, 'DurationForms.can');
+    await writeFile(sourcePath, `app DurationForms
+Given
+ Entry {label:text,wait:duration,optional:duration?}
+ policy Entry read=members
+When
+ crud Entry by=owner fields=label,wait,optional
+Then
+ page / title="Explicit duration inputs"
+  require members
+  form Entry.create display=inline fields=label,wait,optional
+   input label
+   input wait
+   input optional
+ page /automatic title="Generated duration inputs"
+  require members
+  form Entry.create display=inline fields=label,wait,optional
+ page /edit title="Update duration inputs"
+  require members
+  list Entry
+   form Entry.update arguments={record=row} display=inline fields=label,wait,optional
+    input label
+    input wait
+    input optional
+`);
+    const { stdout } = await promisify(execFile)(process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can'),
+      ['compile', '--format=json', '--native-scenario-receipts', '--catalog',
+        process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json'), sourcePath],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+    const artifact = JSON.parse(stdout) as import('@canlang/contracts').CompileArtifact;
+    assert.equal(artifact.pages.length, 3);
+    const asm = await assembleModules({ artifact, sourcePath }, { workDir: join(scratch, 'assembly'),
+      stdlibUrl: pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href, uiUrl: import.meta.resolve('@canlang/ui') });
+    const now = Date.now(), clock = createFrozenClock(now), identities = createMemoryIdentityStore({ clock });
+    const team = await identities.createTeam({});
+    const account = async (label: string, owner: boolean) => {
+      const user = await identities.createUser({ email: `${label}@duration.test`, password_hash: 'unused', email_verified: true });
+      await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: owner, roles: [] });
+      const token = randomBytes(32).toString('hex');
+      await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
+        expires_at: new Date(now + 3600000).toISOString(), last_team_id: team.team_id });
+      return buildSessionCookie(token, { maxAgeSeconds: 3600 }).split(';')[0]!;
+    };
+    const ownerCookie = await account('owner', true), memberCookie = await account('member', false);
+    const { store } = createTestMemoryStorage();
+    const catalogOperations = catalogFromArtifactOperations(artifact);
+    const derivedInputs = Object.fromEntries(artifact.operations!.map(operation => {
+      const derived = catalogOperations.derivedFor(operation.name); assert.ok(derived); return [operation.name, derived];
+    }));
+    const worker = await assembleWorker(artifact, asm, { store, identityStore: identities, now: () => now,
+      pageReads: { scope: { app: 'DurationForms', ownerPackage: 'DurationForms', owner: team.team_id },
+        sourceIdentity: JSON.stringify(artifact.sources), cursors: await createPageCursorCodec(new Uint8Array(32).fill(73)) },
+      http: { derivedInputs, formBindings: await createSourceFormBindings(new Uint8Array(32).fill(38), JSON.stringify(artifact.sources)),
+        createOperationHandler: deps => (request, operation) => handleOperationRequest(deps as unknown as HttpDeps, request, operation),
+        createPageHandler: deps => request => handlePageRequest(deps as unknown as PageHttpDeps, request) },
+    }, { active: true });
+    const decode = (value: string) => value.replaceAll('&quot;', '"').replaceAll('&#39;', "'")
+      .replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
+    const attrs = (tag: string): Record<string, string> => Object.fromEntries([...tag.matchAll(/([\w-]+)=(?:"([^"]*)"|'([^']*)')/g)]
+      .map(match => [match[1]!, decode(match[2] ?? match[3]!)]));
+    const formAt = async (path: string) => {
+      const response = await worker.fetch(new Request(`http://localhost${path}`, { headers: { cookie: ownerCookie } }));
+      assert.equal(response.status, 200);
+      const html = await response.text(), match = /<form\b([^>]*)>([\s\S]*?)<\/form>/.exec(html); assert.ok(match);
+      const fields = [...match[2]!.matchAll(/<input\b[^>]*>/g)].map(item => attrs(item[0]));
+      const flat: Record<string, string> = {};
+      // Browser FormData omits unchecked null checkboxes, preserving optional omission.
+      for (const field of fields) if (field.name && field.type !== 'checkbox') flat[field.name] = field.value ?? '';
+      for (const name of ['wait', 'optional']) {
+        const input = fields.find(field => field.name === `inputs[${path === '/edit' ? 'changes][' : ''}${name}]`);
+        assert.ok(input, `${path}: duration ${name} input rendered`);
+        assert.equal(input.type, 'text'); assert.equal(input.inputmode, 'numeric');
+        assert.ok(input['aria-describedby']?.split(' ').includes(`${input.id}-unit`));
+      }
+      assert.match(match[2]!, /\bms\b/, 'duration widget exposes its millisecond unit');
+      return { attrs: attrs(match[1]!), flat };
+    };
+    const submit = async (form: Awaited<ReturnType<typeof formAt>>, values: Record<string, string>, cookie = ownerCookie) => {
+      const metadata = JSON.parse(form.attrs['data-can-generated-form']!) as Pick<Parameters<typeof submitGeneratedForm>[0], 'derived' | 'mode' | 'renderedInputs'>;
+      return submitGeneratedForm({ ...metadata, flat: { ...form.flat, ...values }, action: form.attrs.action!, fragment: false, denialFormat: 'json',
+        fetchImpl: (url, init) => worker.fetch(new Request(new URL(url, 'http://localhost'), { ...init, headers: { ...init.headers, cookie } })) });
+    };
+    const rows = () => store.query({ model: 'DurationForms.Entry' as ModelName, authority: 'owner' });
+    for (const [path, label, wait, optional] of [
+      ['/', 'exact-large', '9007199254740993', '-123'], ['/automatic', 'negative', '-9007199254740993', ''],
+    ]) {
+      const form = await formAt(path!);
+      const result = await submit(form, { 'inputs[label]': label!, 'inputs[wait]': wait!, 'inputs[optional]': optional! });
+      assert.equal(result.kind, 'committed', JSON.stringify(result));
+      const saved = (await rows()).find(row => row.data.label === label); assert.ok(saved);
+      assert.equal(saved.data.wait, wait); assert.equal(saved.data.optional ?? null, optional || null);
+      const revision = await store.readRevision();
+      const replay = await submit(form, { 'inputs[label]': label!, 'inputs[wait]': wait!, 'inputs[optional]': optional! });
+      assert.ok(replay.kind === 'committed' && replay.result.status === 'replayed', JSON.stringify(replay));
+      assert.equal(await store.readRevision(), revision);
+    }
+    for (const invalid of ['', '1h', '1.5', '9223372036854775808', '-9223372036854775809']) {
+      const before = await rows(), form = await formAt('/');
+      const result = await submit(form, { 'inputs[label]': 'invalid', 'inputs[wait]': invalid, 'inputs[optional]': '' });
+      assert.equal(result.kind, 'denied', `${invalid}: ${JSON.stringify(result)}`);
+      assert.deepEqual(await rows(), before, `${invalid}: no persisted mutation`);
+    }
+    const edit = await formAt('/edit');
+    const originalLabel = edit.flat['inputs[changes][label]']; assert.ok(originalLabel);
+    assert.equal(edit.flat['inputs[changes][wait]'], (await rows()).find(row => row.data.label === originalLabel)!.data.wait);
+    const updated = await submit(edit, { 'inputs[changes][wait]': '-5000', 'inputs[changes][optional__null]': 'true' });
+    assert.equal(updated.kind, 'committed', JSON.stringify(updated));
+    const saved = (await rows()).find(row => row.data.label === originalLabel); assert.ok(saved);
+    assert.equal(saved.data.wait, '-5000'); assert.equal(saved.data.optional, null);
+    const beforeDenied = await rows(), deniedForm = await formAt('/');
+    const denied = await submit(deniedForm, { 'inputs[label]': 'denied', 'inputs[wait]': '1000', 'inputs[optional]': '',
+      _csrf: await deriveCsrfToken(decodeURIComponent(memberCookie.slice(memberCookie.indexOf('=') + 1))) }, memberCookie);
+    assert.equal(denied.kind, 'denied', JSON.stringify(denied));
+    assert.deepEqual(await rows(), beforeDenied, 'authenticated nonowner cannot submit the duration mutation');
+  } finally { await rm(scratch, { recursive: true, force: true }); }
+});

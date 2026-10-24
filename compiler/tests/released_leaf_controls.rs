@@ -133,6 +133,7 @@ fn unsupported_leaf_units_owners_headers_and_suites_keep_refusal() {
     for (name, source) in [
         ("enum-input", enum_form.replace("select priority", "input priority")),
         ("enum-textarea", enum_form.replace("select priority", "textarea priority")),
+        ("duration-textarea", enum_form.replace("priority:enum(low,normal,high)=normal", "priority:duration").replace("select priority", "textarea priority")),
         ("nullable-enum-input", enum_form.replace("enum(low,normal,high)=normal", "enum(low,normal,high)?").replace("select priority", "input priority")),
         ("scenario-enum-input", "app Tasks\nGiven\nWhen\n scenario save(priority:enum(low,normal,high)) by=members\n  do let accepted=priority\nThen\n page / title=\"Tasks\"\n  form save\n   input priority\n".to_string()),
         ("update-enum-input", enum_form.replace("  form Task.create fields=title,priority display=inline\n   input title\n   select priority", "  list Task\n   form Task.update arguments={record=row} fields=priority\n    input priority")),

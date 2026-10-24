@@ -11331,14 +11331,14 @@ impl<'a> Typer<'a> {
                     let accepted = match base {
                         ResolvedType::Scalar(scalar) => scalar.is_string_like()
                             || (word == "input" && matches!(scalar,
-                                Scalar::Int | Scalar::Decimal | Scalar::Money | Scalar::Date | Scalar::Datetime)),
+                                Scalar::Int | Scalar::Decimal | Scalar::Money | Scalar::Duration | Scalar::Date | Scalar::Datetime)),
                         ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => true,
                         _ => false,
                     };
                     if !accepted {
                         self.diags.push(Diagnostic::error("E3001", format!(
                             "field '{name}': {word} needs a text-like{} input, got {}",
-                            if word == "input" { ", numeric, date or datetime" } else { "" },
+                            if word == "input" { ", numeric, duration, date or datetime" } else { "" },
                             ty.display(self.tables, cx.module)), selector.span));
                     }
                 }

@@ -24,9 +24,7 @@ import { decodeValue, encodeValue, isFileValue, SchemaError } from "@canlang/val
 import {
   isValidDate,
   stringFieldValue,
-  intFieldValue,
-  decimalFieldValue,
-  moneyFieldValue,
+  numericFieldValue,
   boolFieldValue,
   dateFieldValue,
   rawText,
@@ -301,17 +299,14 @@ function textWidget(field: FormFieldDef, attrs: WidgetAttrs): WidgetResult {
   };
 }
 
-function decimalWidget(field: FormFieldDef, attrs: WidgetAttrs): WidgetResult {
-  const value =
-    field.type === "int"
-      ? intFieldValue(field)
-      : field.type === "decimal"
-        ? decimalFieldValue(field)
-        : moneyFieldValue(field);
+function numericWidget(field: FormFieldDef, attrs: WidgetAttrs): WidgetResult {
+  const value = numericFieldValue(field);
+  const duration = field.type === "duration";
   return {
     html:
-      `<input type="text" inputmode="decimal" name="${attrs.nameAttr}" id="${attrs.idAttr}" ` +
-      `value="${escapeAttr(value)}" class="input w-full"${attrs.common}>`,
+      `<input type="text" inputmode="${duration ? "numeric" : "decimal"}" name="${attrs.nameAttr}" id="${attrs.idAttr}" ` +
+      `value="${escapeAttr(value)}" class="input w-full"${attrs.common}>` +
+      (duration ? `<span id="${attrs.idAttr}-unit" class="label">ms</span>` : ""),
     submitValue: value,
   };
 }
@@ -398,8 +393,8 @@ function renderWidget(
   if (TEXT_TYPES.has(type)) {
     return textWidget(field, attrs);
   }
-  if (type === "int" || type === "decimal" || type === "money") {
-    return decimalWidget(field, attrs);
+  if (type === "int" || type === "decimal" || type === "money" || type === "duration") {
+    return numericWidget(field, attrs);
   }
   if (type === "bool") {
     return boolWidget(field, attrs);
@@ -497,8 +492,11 @@ async function renderField(field: FormFieldDef, ctx: FieldRenderContext): Promis
   const id = `${ctx.idPrefix}-${field.path}`;
   const idAttr = escapeAttr(id);
   const fieldErrors = ctx.errorsByName.get(name) ?? [];
-  const describedBy =
-    fieldErrors.length === 0 ? "" : ` aria-describedby="${escapeAttr(`${id}-error`)}"`;
+  const descriptions = [
+    ...(fieldErrors.length === 0 ? [] : [`${id}-error`]),
+    ...(field.type === "duration" ? [`${id}-unit`] : []),
+  ];
+  const describedBy = descriptions.length === 0 ? "" : ` aria-describedby="${escapeAttr(descriptions.join(" "))}"`;
   const invalid = fieldErrors.length === 0 ? "" : ` aria-invalid="true"`;
   const requiredAttr = field.required ? ` aria-required="true"` : "";
   const disabled = field.readonly === true ? " disabled" : "";

@@ -44,7 +44,7 @@ export function intFieldValue(field: FormFieldDef): string {
   if (typeof value === "number") {
     if (!Number.isSafeInteger(value)) {
       throw new TypeError(
-        `field "${field.path}": type int needs a bigint, safe number or canonical int string`,
+        `field "${field.path}": type ${field.type} needs a bigint, safe number or canonical int string`,
       );
     }
     return String(value);
@@ -53,8 +53,15 @@ export function intFieldValue(field: FormFieldDef): string {
     return value;
   }
   throw new TypeError(
-    `field "${field.path}": type int needs a bigint, safe number or canonical int string`,
+    `field "${field.path}": type ${field.type} needs a bigint, safe number or canonical int string`,
   );
+}
+
+/** Numeric form drafts remain exact strings; Duration uses integral milliseconds. */
+export function numericFieldValue(field: FormFieldDef): string {
+  if (field.type === "int" || field.type === "duration") return intFieldValue(field);
+  if (field.type === "decimal") return decimalFieldValue(field);
+  return moneyFieldValue(field);
 }
 
 export function decimalFieldValue(field: FormFieldDef): string {

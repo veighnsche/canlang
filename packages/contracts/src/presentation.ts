@@ -2279,6 +2279,7 @@ export const GENERATED_FORM_TYPE_FOR_KIND = {
   integer: "int",
   decimal: "decimal",
   money: "money",
+  duration: "duration",
   datetime: "datetime",
   boolean: "bool",
   file: "file",

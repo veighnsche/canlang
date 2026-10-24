@@ -44,9 +44,7 @@ import type {
 import {
   isValidDate,
   stringFieldValue,
-  intFieldValue,
-  decimalFieldValue,
-  moneyFieldValue,
+  numericFieldValue,
   boolFieldValue,
   dateFieldValue,
   rawText,
@@ -142,16 +140,6 @@ function hidden(name: string, value: string): string {
 // Draft value extractors (parity with forms.ts; errors name the field)
 // ---------------------------------------------------------------------------
 
-function numericFieldValue(field: FormFieldDef): string {
-  if (field.type === "int") {
-    return intFieldValue(field);
-  }
-  if (field.type === "decimal") {
-    return decimalFieldValue(field);
-  }
-  return moneyFieldValue(field);
-}
-
 function datetimeFieldValue(field: FormFieldDef, timeZone: string): string {
   const value = field.value;
   if (value === undefined || value === null) {
@@ -187,8 +175,11 @@ function unitContext(props: FieldControlProps): UnitContext {
   const name = fieldInputName(props.mode, props.field.path);
   const id = fieldInputId(props.idPrefix, props.field.path);
   const errors = ownErrors(props);
-  const describedBy =
-    errors.length === 0 ? "" : ` aria-describedby="${escapeAttr(fieldErrorOutletId(props.idPrefix, props.field.path))}"`;
+  const descriptions = [
+    ...(errors.length === 0 ? [] : [fieldErrorOutletId(props.idPrefix, props.field.path)]),
+    ...(props.field.type === "duration" ? [`${id}-unit`] : []),
+  ];
+  const describedBy = descriptions.length === 0 ? "" : ` aria-describedby="${escapeAttr(descriptions.join(" "))}"`;
   const invalid = errors.length === 0 ? "" : ` aria-invalid="true"`;
   const requiredAttr = props.field.required ? ` aria-required="true"` : "";
   const disabled = props.field.readonly === true ? " disabled" : "";
@@ -249,7 +240,7 @@ function assertFieldType(field: FormFieldDef): void {
 
 /**
  * Textlike and scalar single-line input: text/email/url/timezone/locale/
- * currency, int/decimal/money, and date/datetime (datetime-local formatted
+ * currency, int/decimal/money, duration in milliseconds, and date/datetime (datetime-local formatted
  * in props.timeZone, UTC default). Other types throw, naming the field.
  */
 export async function input(props: InputProps): Promise<string> {
@@ -270,12 +261,14 @@ export async function input(props: InputProps): Promise<string> {
       value,
     );
   }
-  if (NUMERIC_TYPES.has(field.type)) {
+  if (NUMERIC_TYPES.has(field.type) || field.type === "duration") {
     const value = numericFieldValue(field);
+    const duration = field.type === "duration";
     return unit(
       props,
       unitCtx,
-      `<input type="text" inputmode="decimal" name="${nameAttr}" id="${idAttr}" value="${escapeAttr(value)}" class="${cls}"${unitCtx.common}>`,
+      `<input type="text" inputmode="${duration ? "numeric" : "decimal"}" name="${nameAttr}" id="${idAttr}" value="${escapeAttr(value)}" class="${cls}"${unitCtx.common}>` +
+        (duration ? `<span id="${idAttr}-unit" class="label">ms</span>` : ""),
       value,
     );
   }
@@ -299,7 +292,7 @@ export async function input(props: InputProps): Promise<string> {
     );
   }
   throw new Error(
-    `field "${field.path}": input needs a text, numeric, date or datetime type, got ${JSON.stringify(field.type)}`,
+    `field "${field.path}": input needs a text, numeric, duration, date or datetime type, got ${JSON.stringify(field.type)}`,
   );
 }
 
