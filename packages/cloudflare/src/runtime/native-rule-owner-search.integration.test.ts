@@ -4199,3 +4199,113 @@ it('preserves unread File-array defaults through the checked owner workflow',
       }
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
+
+it('reports exhausted decision inventories at their source site while preserving admitted observers',
+  { timeout: 180000 }, async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'can-decision-inventory-'));
+    try {
+      const original = await readFile(join(root, 'compiler/tests/fixtures/helper-reference-identity.can'), 'utf8');
+      const nested = original.replace('derive allowed(booking:Booking):bool=booking.visible',
+        'derive allow_customer(customer:Customer):bool=customer.active\n  derive allowed(booking:Booking):bool=allow_customer(booking.customer)');
+      const queried = nested.replace('export Customer {active:bool=true}',
+        'export Customer {active:bool=true}\n  export Seat in Customer {active:bool=true}')
+        .replace('policy Customer read=', 'policy Seat read=members\n  policy Customer read=')
+        .replace('derive allow_customer(customer:Customer):bool=customer.active',
+          'derive allow_customer(customer:Customer):bool=customer.active and any(customer.Seat as seat,seat.active)');
+      const balanced = (terms: readonly string[]): string => {
+        if (terms.length === 1) return terms[0]!;
+        const half = Math.floor(terms.length / 2);
+        return `(${balanced(terms.slice(0, half))} and ${balanced(terms.slice(half))})`;
+      };
+      const source = join(directory, 'Helper.can');
+      // 66 nested helper/ANY invocations contribute 198 selected calls; the
+      // three final scalar calls cross the existing 200-call inventory cap.
+      const overflow = queried.replace('require allowed(booking)', `require ${balanced([
+        ...Array<string>(66).fill('allowed(booking)'), ...Array<string>(3).fill('trim("yes")=="yes"'),
+      ])}`);
+      await writeFile(source, overflow);
+      const refused = spawnSync(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
+        { cwd: root, encoding: 'utf8', timeout: 60000 });
+      assert.equal(refused.error, undefined);
+      assert.equal(refused.status, 10);
+      const report = JSON.parse(refused.stdout) as { diagnostics: { code: string; message: string;
+        related: { start?: number; end?: number; message: string }[] }[]; artifact?: unknown; modules?: unknown };
+      const failure = report.diagnostics.find(item => item.code === 'E6008' &&
+        item.message.includes('scenario decision inventory exceeds 200 selected calls'));
+      assert.ok(failure, refused.stdout);
+      const condition = failure.related.find(item => item.message.includes('200 selected calls'));
+      assert.ok(condition?.start !== undefined && condition.end !== undefined);
+      assert.equal(Buffer.from(overflow).subarray(condition.start, condition.end).toString().trim(),
+        overflow.split('   require ')[1]!.split('\n')[0]);
+      assert.equal(report.artifact, undefined); assert.equal(report.modules, undefined);
+
+      const earlierResult = overflow.slice(0, overflow.indexOf('   do\n')) + '   do return attachment\n Then\n';
+      await writeFile(source, earlierResult.replace('scenario prepare(booking:Booking)',
+        'scenario prepare(booking:Booking,attachment:file) -> file'));
+      const earlier = spawnSync(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
+        { cwd: root, encoding: 'utf8', timeout: 60000 });
+      assert.equal(earlier.status, 10);
+      assert.ok(earlier.stdout.includes('unsupported result shape'), earlier.stdout);
+      assert.equal(earlier.stdout.includes('scenario decision inventory exceeds'), false,
+        'an unrelated earlier result refusal keeps its diagnostic precedence');
+
+      // Exhaustion is diagnostic detail on an already-declined closure. A
+      // larger ordinary expression that already emits remains supported.
+      await writeFile(source, nested.replace('require allowed(booking)',
+        `require ${balanced(Array<string>(101).fill('allowed(booking)'))}`));
+      const ordinary = spawnSync(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
+        { cwd: root, encoding: 'utf8', timeout: 60000 });
+      assert.equal(ordinary.status, 0, ordinary.stdout + ordinary.stderr);
+
+      // Exercise the supported nested observer through real State admission,
+      // query execution, revision fencing and receipt replay.
+      const small = queried.slice(0, queried.indexOf('   do\n')) + '   do set booking {checked=true}\n Then\n';
+      await writeFile(source, small);
+      const { stdout } = await promisify(execFile)(compiler,
+        ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
+        { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+      const artifact = JSON.parse(stdout) as CompileArtifact;
+      const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
+        stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+      for (const mode of ['allowed', 'hidden-source', 'nonmember', 'inactive-target', 'missing-seat', 'seat-at-commit'] as const) {
+        const { now, identities, identity, membership } = await member(`inventory-${mode}`);
+        const { store } = createTestMemoryStorage();
+        const bookingModel = asModel('worker.Booking'), seatModel = asModel('api.Seat');
+        const booking = makeRow({ id: asId('booking'), data: { customer: { id: 'customer' }, visible: true,
+          permitted: mode !== 'hidden-source', last: null, checked: false } });
+        const seat = { ...makeRow({ id: asId('seat'), data: { active: true } }), parent: { model: asModel('api.Customer'), id: asId('customer') } };
+        await store.commit(makeBatch(await store.readRevision(), { writes: [
+          { kind: 'insert', model: asModel('api.Customer'), row: makeRow({ id: asId('customer'), data: { active: mode !== 'inactive-target' } }) },
+          { kind: 'insert', model: bookingModel, row: booking },
+          ...(mode === 'missing-seat' ? [] : [{ kind: 'insert' as const, model: seatModel, row: seat }]),
+        ] }));
+        const commit = store.commit.bind(store); let raced = false;
+        store.commit = async batch => {
+          if (mode === 'seat-at-commit' && !raced && batch.writes.some(write => write.model === bookingModel)) {
+            raced = true;
+            await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'update', model: seatModel,
+              id: seat.id, expectedVersion: seat.version, row: { ...seat, version: asVersion(seat.version + 1), data: { active: false } } }] }));
+          }
+          return commit(batch);
+        };
+        if (mode === 'nonmember') await identities.removeMembership(membership.membership_id);
+        const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+        const request = { operation: 'worker.prepare', operation_id: operationId(now), inputs: { booking: { id: booking.id, version: '1' } } };
+        const result = await invoker.invokeMutation(request, identity);
+        const success = mode === 'allowed' || mode === 'hidden-source';
+        assert.equal('result' in result, success, `${mode}: ${JSON.stringify(result)}`);
+        const current = await store.load(bookingModel, booking.id); assert.ok(current);
+        assert.equal(current.data.checked, success);
+        assert.equal((await store.outboxPending()).length, 0);
+        assert.equal(raced, mode === 'seat-at-commit');
+        if (success) {
+          assert.ok('result' in result); assert.deepEqual(result.result.records, []);
+          const revision = await store.readRevision();
+          const replay = await invoker.invokeMutation(request, identity);
+          assert.ok('result' in replay && replay.result.status === 'replayed', JSON.stringify(replay));
+          assert.equal(await store.readRevision(), revision);
+          assert.deepEqual(await store.load(bookingModel, booking.id), current);
+        }
+      }
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });

@@ -765,6 +765,12 @@ pub struct DisclosureDecline {
     pub influences: Vec<DisclosureInfluence>,
 }
 
+/// Diagnostic detail only; ordinary source consumers retain their Option API.
+enum DecisionInventoryFailure {
+    Budget(DisclosureDecline),
+    Unsupported,
+}
+
 #[derive(Debug, Clone)]
 pub enum ScenarioDisclosure {
     Complete(CheckedScenarioDisclosure),
@@ -16324,6 +16330,16 @@ impl<'a> Closure<'a> {
         &self,
         scenario: &super::effects::ScenarioData,
     ) -> Option<Vec<CheckedDecisionSite>> {
+        self.checked_decision_sites_detailed(scenario).ok()
+    }
+
+    /// Preserve the original whole-owner inventory and its shared budgets.
+    /// A lost inventory must not disguise a proven budget refusal as an
+    /// unrelated field/Contract failure during ordinary closure fallback.
+    fn checked_decision_sites_detailed(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Result<Vec<CheckedDecisionSite>, DecisionInventoryFailure> {
         let mut sites = Vec::new();
         let mut steps = 0usize;
         let mut calls = 0usize;
@@ -16336,11 +16352,21 @@ impl<'a> Closure<'a> {
         }
         while let Some((effect, position, leading)) = pending.pop() {
             steps += 1;
-            if steps > 16384 || position.len() > 64 || !self.nodes.contains_key(&effect.node) {
-                return None;
+            if steps > 16384 {
+                return Err(DecisionInventoryFailure::Budget(self.fail(
+                    effect.node, "scenario decision inventory exceeds 16384 traversal steps",
+                )));
+            }
+            if position.len() > 64 {
+                return Err(DecisionInventoryFailure::Budget(self.fail(
+                    effect.node, "scenario decision inventory exceeds 64 nested positions",
+                )));
+            }
+            if !self.nodes.contains_key(&effect.node) {
+                return Err(DecisionInventoryFailure::Unsupported);
             }
             if let Some((node, stage)) = Self::decision_effect_stage(effect, leading) {
-                self.decision_site(
+                if self.decision_site(
                     scenario,
                     node,
                     stage,
@@ -16349,14 +16375,27 @@ impl<'a> Closure<'a> {
                     &mut sites,
                     &mut steps,
                     &mut calls,
-                )?;
+                ).is_none() {
+                    let reason = if calls > 200 {
+                        "scenario decision inventory exceeds 200 selected calls"
+                    } else if steps > 16384 {
+                        "scenario decision inventory exceeds 16384 traversal steps"
+                    } else if sites.len() >= 200 {
+                        "scenario decision inventory exceeds 200 decision sites"
+                    } else {
+                        return Err(DecisionInventoryFailure::Unsupported);
+                    };
+                    return Err(DecisionInventoryFailure::Budget(self.fail(node, reason)));
+                }
             }
             Self::push_nested_effects(&mut pending, effect, &position);
             if pending.len() > 16384 {
-                return None;
+                return Err(DecisionInventoryFailure::Budget(self.fail(
+                    effect.node, "scenario decision inventory exceeds 16384 pending effects",
+                )));
             }
         }
-        Some(sites)
+        Ok(sites)
     }
 
     /// The decision a scenario effect carries: `require`/`if` conditions
@@ -23026,8 +23065,28 @@ impl<'a> Closure<'a> {
             next.push(flow);
             return Ok(());
         }
-        let alternatives =
-            self.authorization_expr(cond, module, &flow.env, calls)?;
+        let alternatives = self.authorization_expr(cond, module, &flow.env, calls)
+            .map_err(|reason| {
+                // Only an original observer-eligible Require can lose its
+                // source observer to the whole-owner inventory budget. Keep
+                // earlier failures and every other expression's error order.
+                if !calls.is_empty() {
+                    return reason;
+                }
+                self.effects.scenarios.values().find(|scenario| {
+                    scenario.module == module
+                        && !scenario.read && scenario.on.is_none()
+                        && scenario.cohort.is_none() && !scenario.scope_authority
+                        && self.source_anchor(scenario, effect.node)
+                        && self.source_anchor(scenario, cond)
+                        && self.source_require_params_ok(scenario)
+                }).and_then(|scenario| {
+                    match self.checked_decision_sites_detailed(scenario) {
+                        Err(DecisionInventoryFailure::Budget(budget)) => Some(budget),
+                        _ => None,
+                    }
+                }).unwrap_or(reason)
+            })?;
         // Preserve independent-return authorization pruning. Required
         // supported intrinsic guard values control successful effects,
         // while stored guard reads retain their existing policy.
