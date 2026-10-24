@@ -57,6 +57,28 @@ its original graph before any JSON conversion. Caller job/delivery retry
 identities remain unchanged. This boundary does not sandbox Proxy traps or
 modified host intrinsics, and does not change File byte-upload semantics.
 
+`installImages` can additionally receive an explicit deployment-owned
+`workflowPolicy` for its one pinned graph. The policy names every node/class
+and every input: exact finite literal allowlists for models/resources/settings,
+exact links, and bounded mapped prompt/dimension/seed slots. Unlisted nodes,
+inputs or outputs refuse installation. The same review checks substituted
+values before HTTP. It is a trusted configured allowlist, not a sandbox for
+arbitrary custom-node implementations.
+
+Such an installation exposes optional `workflows.inspect` and
+`workflows.validate` ports. They return typed completions without contacting the
+provider or queueing generation. Invalid definitions return `valid:false` with
+no digest; unknown inspection graphs fail visibly. The new validation token
+binds the full graph/map, policy revision, exact binding, seed and installation
+ceilings. Submit accepts only that token. Installations without a policy retain
+their existing lifecycle token and expose no workflow review port.
+
+Services checks the configured graph identity. The receiving host must still
+authorize and read the actual finalized graph File, verify byte/config
+correspondence, and persist/replay review completions under current source and
+owner authority. That runtime inspection/validation join remains unfinished;
+these ports do not grant File access or qualify a live Comfy deployment.
+
 ## Scripts
 
 From the repository root, after `bun install --frozen-lockfile`:
@@ -64,7 +86,7 @@ From the repository root, after `bun install --frozen-lockfile`:
 ```sh
 bun run build --filter=@canlang/services
 bun run --filter @canlang/services typecheck
-bun run --filter @canlang/services test
+bun run --filter @canlang/services test:integration
 ```
 
 The filtered root build schedules this package and its declared producer

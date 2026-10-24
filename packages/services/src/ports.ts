@@ -31,6 +31,8 @@ import type {
   ProviderBinding,
   TextRequest,
   WorkflowDefinition,
+  WorkflowInspection,
+  WorkflowValidation,
 } from '@canlang/contracts';
 import { randomUUID } from 'node:crypto';
 import http from 'node:http';
@@ -276,7 +278,14 @@ export interface ImagesPort {
   cancel(input: ImageRequest, options: InstalledImageOptions): Promise<CapabilityCompletion<ImageRun>>;
 }
 
-/** One installed graph/map only; this supplies no arbitrary inspection or publish validation. */
+/** Optional local review of one configured graph, not arbitrary provider graph execution.
+ * The host still owns actual File authority and byte/config correspondence. */
+export interface InstalledWorkflowPort {
+  inspect(graph: WorkflowDefinition['graph'], options: { readonly deliveryId: string }): Promise<CapabilityCompletion<WorkflowInspection>>;
+  validate(value: WorkflowDefinition, options: { readonly deliveryId: string }): Promise<CapabilityCompletion<WorkflowValidation>>;
+}
+
+/** One installed graph/map only; an explicit whole-graph policy enables its review. */
 export interface InstalledImages {
   readonly binding: Readonly<ProviderBinding>;
   readonly workflow: {
@@ -295,6 +304,7 @@ export interface InstalledImages {
     readonly maxOutputBytes: number;
   };
   readonly images: ImagesPort;
+  readonly workflows?: InstalledWorkflowPort;
 }
 
 export type ResolveInstalledImages = (exactDeployment: string) => InstalledImages | null;

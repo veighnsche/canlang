@@ -25,6 +25,8 @@ import type {
   ApiGraph,
   ImageGenerateInput,
   WorkflowNodeMapping,
+  WorkflowField,
+  ProviderBinding,
 } from '@canlang/contracts';
 
 export class MappingValidationError extends Error {
@@ -326,4 +328,102 @@ function substituteField(
   if (usedKeys === undefined) usedDestinations.set(nodeId, new Set([key]));
   else usedKeys.add(key);
   node.inputs[key] = next;
+}
+
+/** Deployment-reviewed whole-graph policy, never inferred from an uploaded graph.
+ * Literal allowlists pin model/resource/settings values; only the five mapped
+ * business inputs may vary. Links pin both their source and output slot. */
+export type WorkflowInputPolicy =
+  | { readonly kind: 'literal'; readonly values: readonly (string | number | boolean | null)[] }
+  | { readonly kind: 'link'; readonly node: string; readonly output: number }
+  | { readonly kind: 'text'; readonly label: string; readonly maxLength: number }
+  | { readonly kind: 'integer'; readonly label: string; readonly min: number; readonly max: number };
+export interface WorkflowGraphPolicy {
+  readonly revision: string;
+  readonly maxGraphBytes: number;
+  readonly maxNodes: number;
+  readonly nodes: Readonly<Record<string, { readonly classType: string; readonly inputs: Readonly<Record<string, WorkflowInputPolicy>> }>>;
+  readonly outputs: readonly string[];
+}
+
+/** One immutable graph review shared by inspect, validate and actual submission.
+ * This checks trusted adapter configuration; receiving File authority belongs
+ * to the host. It performs no filesystem, network or generation operation. */
+export function reviewWorkflowGraph(graph: ApiGraph, mapping: WorkflowNodeMapping,
+  policy: WorkflowGraphPolicy, binding: ProviderBinding,
+  limits: { readonly seed: number; readonly maxOutputs: number; readonly maxDurationMs: number; readonly maxOutputBytes: number; readonly maxObservationDurationMs: number; readonly maxBodyBytes: number }) {
+  graph = snapshotGraph(graph);
+  mapping = snapshotGraph(mapping as unknown as ApiGraph) as unknown as WorkflowNodeMapping;
+  binding = snapshotGraph(binding as unknown as ApiGraph) as unknown as ProviderBinding;
+  const approved = snapshotGraph(policy as unknown as ApiGraph) as unknown as WorkflowGraphPolicy;
+  const exact = (value: unknown, keys: readonly string[]): value is Record<string, unknown> =>
+    isRecord(value) && Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
+  const positive = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) > 0;
+  function refuse(): never { throw new MappingValidationError('Workflow does not satisfy its installed whole-graph policy'); }
+  if (!exact(approved, ['revision', 'maxGraphBytes', 'maxNodes', 'nodes', 'outputs']) ||
+      typeof approved.revision !== 'string' || approved.revision === '' || !positive(approved.maxGraphBytes) ||
+      !positive(approved.maxNodes) || !isRecord(approved.nodes) || !Array.isArray(approved.outputs) ||
+      new Set(approved.outputs).size !== approved.outputs.length ||
+      stableStringify(approved.outputs) !== stableStringify(mapping.outputs)) refuse();
+  const destinations = new Map<string, string>();
+  for (const field of IMAGE_INPUT_FIELDS) {
+    const destination = mapping.inputs[field];
+    if (!destination) refuse();
+    const key = JSON.stringify([destination.node, destination.key]);
+    if (destinations.has(key)) refuse();
+    destinations.set(key, field);
+  }
+  const fields: WorkflowField[] = [];
+  const check = (candidate: ApiGraph): void => {
+    const nodes = Object.keys(candidate);
+    if (nodes.length === 0 || nodes.length > approved.maxNodes || !exact(approved.nodes, nodes) ||
+        new TextEncoder().encode(stableStringify(candidate)).byteLength > approved.maxGraphBytes) refuse();
+    for (const node of nodes) {
+      const actual = candidate[node]!, rule = approved.nodes[node]!;
+      if (!exact(actual, ['class_type', 'inputs']) || !exact(rule, ['classType', 'inputs']) ||
+          actual.class_type !== rule.classType || typeof rule.classType !== 'string' || rule.classType === '' ||
+          !isRecord(actual.inputs) || !exact(rule.inputs, Object.keys(actual.inputs))) refuse();
+      for (const [key, value] of Object.entries(actual.inputs)) {
+        const input = rule.inputs[key]!, field = destinations.get(JSON.stringify([node, key]));
+        if (!isRecord(input)) refuse();
+        if (input.kind === 'literal') {
+          if (field !== undefined || !exact(input, ['kind', 'values']) || !Array.isArray(input.values) ||
+              input.values.length === 0 || input.values.some(value =>
+                value !== null && typeof value !== 'string' && typeof value !== 'boolean' &&
+                !(typeof value === 'number' && Number.isFinite(value))) ||
+              !input.values.some(allowed => allowed === value)) refuse();
+        } else if (input.kind === 'link') {
+          if (field !== undefined || !exact(input, ['kind', 'node', 'output']) ||
+              typeof input.node !== 'string' || !Object.hasOwn(candidate, input.node) ||
+              !Number.isSafeInteger(input.output) || input.output < 0 || !Array.isArray(value) ||
+              value.length !== 2 || value[0] !== input.node || value[1] !== input.output) refuse();
+        } else {
+          if (field === undefined || typeof input.label !== 'string' || input.label === '') refuse();
+          if (field === 'prompt' || field === 'negative') {
+            if (input.kind !== 'text' || !exact(input, ['kind', 'label', 'maxLength']) ||
+                !positive(input.maxLength) || typeof value !== 'string' || value.length > input.maxLength) refuse();
+          } else if (input.kind !== 'integer' || !exact(input, ['kind', 'label', 'min', 'max']) ||
+              !Number.isSafeInteger(input.min) || !Number.isSafeInteger(input.max) || input.min > input.max ||
+              !Number.isSafeInteger(value) || (value as number) < input.min || (value as number) > input.max) refuse();
+        }
+      }
+    }
+    // Every mapped destination must actually have been checked, not just be
+    // present in a separately asserted map.
+    for (const [destination] of destinations) {
+      const [node, key] = JSON.parse(destination) as [string, string];
+      if (!Object.hasOwn(candidate, node) || !Object.hasOwn(candidate[node]!.inputs, key)) refuse();
+    }
+  };
+  check(graph);
+  for (const field of IMAGE_INPUT_FIELDS.filter(field => field !== 'seed')) {
+    const destination = mapping.inputs[field]!;
+    const input = approved.nodes[destination.node]!.inputs[destination.key]!;
+    if (input.kind !== 'text' && input.kind !== 'integer') refuse();
+    fields.push(Object.freeze({ node: destination.node, key: destination.key,
+      kind: input.kind === 'text' ? 'text' : 'int', label: input.label }));
+  }
+  const digest = sha256Hex(stableStringify({ domain: 'std.ImagesV1.workflow/v1', binding,
+    graph, mapping, policy: approved, limits }));
+  return Object.freeze({ fields: Object.freeze(fields), digest, check });
 }

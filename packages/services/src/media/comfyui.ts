@@ -59,6 +59,8 @@ import {
   snapshotGraph,
   stableStringify,
   substituteAndValidate,
+  reviewWorkflowGraph,
+  type WorkflowGraphPolicy,
 } from './mapping.js';
 
 export interface ComfyUINativeConfig {
@@ -92,6 +94,8 @@ export interface ComfyUIImagesInstallation {
   readonly seed: { readonly kind: 'fixed'; readonly value: number };
   /** Finite cancel/reconcile window ceiling; defaults to the transport timeout. */
   readonly maxObservationDurationMs?: number;
+  /** Explicit whole-graph review for this installation; absence exposes no review port. */
+  readonly workflowPolicy?: WorkflowGraphPolicy;
 }
 
 interface ImageBudget {
@@ -620,6 +624,13 @@ export class ComfyUINativeAdapter implements MediaPort {
     }
     const workflow = frozenCopy(config.workflow);
     const seed = frozenCopy(config.seed);
+    const review = config.workflowPolicy === undefined ? undefined : reviewWorkflowGraph(graph, mapping, config.workflowPolicy, binding,
+      { seed: seed.value, maxOutputs: this.maxOutputs, maxDurationMs: this.http.timeoutMs, maxOutputBytes: this.downloadHttp.maxBodyBytes, maxObservationDurationMs, maxBodyBytes: this.http.maxBodyBytes });
+    const validation = review?.digest ?? mapping.graphDigest;
+    if (review !== undefined) review.check(substituteAndValidate(graph, mapping, {
+      prompt: '', negative: '', width: Number(graph[mapping.inputs.width!.node]!.inputs[mapping.inputs.width!.key]),
+      height: Number(graph[mapping.inputs.height!.node]!.inputs[mapping.inputs.height!.key]), seed: seed.value,
+    }).graph);
     const lower = new ComfyUINativeAdapter({
       ...this.http,
       graph,
@@ -646,7 +657,7 @@ export class ComfyUINativeAdapter implements MediaPort {
       ) {
         throw new MappingValidationError('Image request requires source and a safe non-negative revision');
       }
-      if (!definitionMatches(input.workflow) || stableStringify(input.workflow) !== stableStringify(workflow) || input.validation !== mapping.graphDigest) {
+      if (!definitionMatches(input.workflow) || stableStringify(input.workflow) !== stableStringify(workflow) || input.validation !== validation) {
         throw new MappingValidationError('Image request workflow and validation must match the immutable installation');
       }
       if (
@@ -657,6 +668,9 @@ export class ComfyUINativeAdapter implements MediaPort {
         throw new MappingValidationError('Image request requires string prompts and safe positive dimensions');
       }
       assertPrepareBudgets(input);
+      if (review !== undefined) review.check(substituteAndValidate(graph, mapping, {
+        prompt: input.prompt, negative: input.negative, width: input.width, height: input.height, seed: seed.value,
+      }).graph);
     };
     const resolveControlDeadline = (
       observation: InstalledImageOptions['observation'],
@@ -697,7 +711,23 @@ export class ComfyUINativeAdapter implements MediaPort {
       }
       return deadlineMs;
     };
+    const captureReviewedRequest = (input: ImageRequest): ImageRequest => {
+      if (typeof input !== 'object' || input === null || ![Object.prototype, null].includes(Object.getPrototypeOf(input))) {
+        throw new MappingValidationError('Reviewed image requests require closed own data');
+      }
+      const captured: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
+      for (const key of Reflect.ownKeys(input)) {
+        const descriptor = Object.getOwnPropertyDescriptor(input, key);
+        if (typeof key !== 'string' || descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) {
+          throw new MappingValidationError('Reviewed image requests require closed own data');
+        }
+        captured[key] = descriptor.value;
+      }
+      captured.workflow = snapshotGraph(captured.workflow as ApiGraph);
+      return Object.freeze(captured) as unknown as ImageRequest;
+    };
     const prepare = (input: ImageRequest, options: InstalledImageOptions, control = false) => {
+      if (review !== undefined) input = captureReviewedRequest(input);
       const startedAt = performance.now();
       const now = Date.now();
       assertPrepareRequest(input);
@@ -716,8 +746,29 @@ export class ComfyUINativeAdapter implements MediaPort {
     return Object.freeze({
       binding: frozenCopy(binding),
       workflow,
-      validation: mapping.graphDigest,
+      validation,
       policy: Object.freeze({ seed, maxOutputs: lower.maxOutputs, maxDurationMs: lower.http.timeoutMs, maxObservationDurationMs, maxOutputBytes: lower.downloadHttp.maxBodyBytes }),
+      ...(review === undefined ? {} : { workflows: Object.freeze({
+        inspect: async (selected: WorkflowDefinition['graph'], options: { readonly deliveryId: string }) => {
+          if (typeof options.deliveryId !== 'string' || options.deliveryId === '') throw new MappingValidationError('Workflow review requires its original delivery id');
+          if (selected !== workflow.graph) return { delivery_id: options.deliveryId, status: 'failed' as const,
+            result: null, error: deliveryError('workflow_unavailable', 'Workflow is not available in this installation.') };
+          return { delivery_id: options.deliveryId, status: 'succeeded' as const,
+            result: { fields: review.fields.map(field => ({ ...field })) }, error: null };
+        },
+        validate: async (value: WorkflowDefinition, options: { readonly deliveryId: string }) => {
+          if (typeof options.deliveryId !== 'string' || options.deliveryId === '') throw new MappingValidationError('Workflow review requires its original delivery id');
+          let valid = false;
+          try {
+            const captured = snapshotGraph(value as unknown as ApiGraph) as unknown as WorkflowDefinition;
+            valid = definitionMatches(captured) && stableStringify(captured) === stableStringify(workflow);
+          }
+          catch { /* Invalid authored values cannot expose graph/provider details. */ }
+          return { delivery_id: options.deliveryId, status: 'succeeded' as const, error: null,
+            result: valid ? { valid: true, digest: review.digest, detail: null }
+              : { valid: false, digest: null, detail: 'Workflow does not match this reviewed installation.' } };
+        },
+      }) }),
       images: Object.freeze({
         submit: async (input: ImageRequest, options: InstalledImageOptions) => {
           const { budget, original, projected } = prepare(input, options);
