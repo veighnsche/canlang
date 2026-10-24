@@ -18821,12 +18821,14 @@ impl<'a> Closure<'a> {
             .symbol_types
             .get(&field.id)
             .ok_or_else(|| self.fail(key, "missing stored field type"))?;
-        // Flow checking can narrow a nullable field after a successful
-        // `require field != null`. Keep the declared nullable field in the
-        // source dependency below; only its checked non-null occurrence may
-        // use the narrower expression type.
+        // Flow checking narrows a nullable field to its inner type or Null
+        // after a stable-path null test, and invalidates member refinements
+        // after mutations. Reconcile only this checked occurrence; the source
+        // dependency below still observes the declared nullable field.
         let narrowed_nullable =
-            matches!(field_ty, ResolvedType::Nullable(inner) if inner.as_ref() == ty);
+            self.types.node_types.get(&key) == Some(ty)
+                && matches!(field_ty, ResolvedType::Nullable(inner)
+                    if inner.as_ref() == ty || *ty == ResolvedType::Null);
         if (field_ty != ty && !narrowed_nullable) || field.module != owner.module {
             return Err(self.fail(key, "stored field schema identity mismatch"));
         }

@@ -4309,3 +4309,78 @@ it('reports exhausted decision inventories at their source site while preserving
       }
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
+
+it('retains the nullable stored DATA read after an original null guard', { timeout: 180000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-null-guard-copy-'));
+  try {
+    const original = await readFile(fixture('rule-owner-leading-helper-field.can'), 'utf8');
+    const text = original.replace('Ticket {location:Location,done:bool=false}',
+      'Ticket {location:Location,done:bool=false,order:text?,order_visible:bool=true}')
+      .replace('Handoff {ticket:Ticket}', 'Handoff {ticket:Ticket,order:text?}')
+      .replace('policy Ticket read=members',
+        'policy Ticket read=members fields=location,done,order_visible\n policy Ticket read=members where=row.order_visible fields=order')
+      .replace('require can_work(actor,ticket.location)', 'require can_work(actor,ticket.location) and ticket.order==null')
+      .replace('create Handoff {ticket}', 'create Handoff {ticket,order=ticket.order}');
+    const source = join(directory, 'NullGuardCopy.can'); await writeFile(source, text);
+    const { stdout } = await promisify(execFile)(compiler,
+      ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+    const artifact = JSON.parse(stdout) as CompileArtifact;
+    const disclosure = artifact.operations?.find(operation => operation.name === 'LeadingHelperFieldProbe.handoff')?.result?.disclosure;
+    assert.ok(disclosure, 'the complete checked owner retains its native receipt');
+    assert.ok(disclosure.returns.some(returned => returned.dependencies.some(dependency =>
+      dependency.model === 'LeadingHelperFieldProbe.Ticket' && dependency.field === 'order' && dependency.type === 'text?' && dependency.role === 'data')),
+    'known-null use still requires the original declared nullable DATA field');
+    const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+    for (const mode of ['allowed', 'nonnull', 'withheld-field', 'grant-at-commit', 'value-at-commit', 'inactive-helper', 'nonmember', 'stale'] as const) {
+      const { now, identities, identity, membership, user } = await member(`null-copy-${mode}`);
+      const { store } = createTestMemoryStorage(); const app = 'LeadingHelperFieldProbe';
+      const ticketModel = model(app, 'Ticket'), handoffModel = model(app, 'Handoff');
+      const row = (id: string, data: Record<string, unknown>) => ({ ...makeRow({ id: asId(id), data }), parent: null });
+      const ticket = row('ticket', { location: { id: 'location' }, done: false,
+        order: mode === 'nonnull' ? 'purchase-order' : null, order_visible: mode !== 'withheld-field' });
+      await store.commit(makeBatch(await store.readRevision(), { writes: [
+        { kind: 'insert', model: model(app, 'Location'), row: row('location', { label: 'Home' }) },
+        { kind: 'insert', model: model(app, 'Employee'), row: row('worker', { user: { id: user.user_id }, home: { id: 'location' },
+          locations: [], operator_wide: false, active: mode !== 'inactive-helper', hidden: true }) },
+        { kind: 'insert', model: ticketModel, row: ticket },
+      ] }));
+      const commit = store.commit.bind(store); let raced = false;
+      store.commit = async batch => {
+        if ((mode === 'grant-at-commit' || mode === 'value-at-commit') && !raced && batch.writes.some(write => write.model === handoffModel)) {
+          raced = true;
+          await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'update', model: ticketModel,
+            id: ticket.id, expectedVersion: ticket.version, row: { ...ticket, version: asVersion(ticket.version + 1),
+              data: { ...ticket.data, ...(mode === 'grant-at-commit' ? { order_visible: false } : { order: 'competing-order' }) } } }] }));
+        }
+        return commit(batch);
+      };
+      if (mode === 'nonmember') await identities.removeMembership(membership.membership_id);
+      const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+      const request = { operation: `${app}.handoff`, operation_id: operationId(now),
+        inputs: { ticket: { id: ticket.id, version: mode === 'stale' ? '2' : '1' } } };
+      const result = await invoker.invokeMutation(request, identity), success = mode === 'allowed';
+      assert.equal('result' in result, success, `${mode}: ${JSON.stringify(result)}`);
+      const copies = await store.query({ model: handoffModel, authority: 'owner' });
+      assert.equal(copies.length, success ? 1 : 0, mode);
+      const current = await store.load(ticketModel, ticket.id); assert.ok(current);
+      assert.equal(current.data.done, success, `${mode}: failed DATA cannot leave the parent SET`);
+      assert.equal(current.data.order, mode === 'value-at-commit' ? 'competing-order' : ticket.data.order);
+      assert.equal(raced, mode === 'grant-at-commit' || mode === 'value-at-commit');
+      assert.equal((await store.outboxPending()).length, 0);
+      if (success) {
+        assert.equal(copies[0]!.data.order, null);
+        const revision = await store.readRevision();
+        const replay = await invoker.invokeMutation(request, identity);
+        assert.ok('result' in replay && replay.result.status === 'replayed', JSON.stringify(replay));
+        assert.equal(await store.readRevision(), revision);
+        assert.deepEqual(await store.query({ model: handoffModel, authority: 'owner' }), copies);
+      } else {
+        assert.ok('error' in result);
+        if (mode === 'withheld-field') assert.equal(result.error.code, 'forbidden');
+        if (mode === 'nonnull' || mode === 'inactive-helper') assert.equal(result.error.code, 'rule_failed');
+      }
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
