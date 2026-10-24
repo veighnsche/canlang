@@ -26,7 +26,7 @@
  * body (the natural location for a flat HTML form's hidden field); both must
  * still verify against the session token.
  */
-import { ARTIFACT_VERSION } from '@canlang/contracts';
+import { ARTIFACT_VERSION, isGeneratedFormKind } from '@canlang/contracts';
 import type {
   ArtifactOperation,
   BusinessError,
@@ -231,7 +231,7 @@ function nativeFormControls(derived: DerivedOperationInputs) {
 /** Preserve independently valid drafts; a bad sibling never becomes mutation input. */
 function nativeFormDrafts(derived: DerivedOperationInputs | null, form: Record<string, string>): ClosedInputs {
   const drafts = Object.create(null) as ClosedInputs;
-  if (derived === null || !['create', 'update', 'scenario'].includes(derived.kind)) return drafts;
+  if (derived === null || !isGeneratedFormKind(derived.kind)) return drafts;
   const { controls, presence } = nativeFormControls(derived);
   const submitted = new Set<string>();
   for (const name of Object.keys(form)) {
@@ -242,7 +242,7 @@ function nativeFormDrafts(derived: DerivedOperationInputs | null, form: Record<s
     if (!submitted.has(input.name)) continue;
     const one = { ...derived, inputs: [input] };
     try {
-      const projected = projectGeneratedInputs(one, derived.kind as 'create' | 'update' | 'scenario', form, [input.name]);
+      const projected = projectGeneratedInputs(one, derived.kind, form, [input.name]);
       if (checkBoundArguments(one, projected) !== null) continue;
       for (const [name, value] of Object.entries(projected)) {
         Object.defineProperty(drafts, name, { value, enumerable: true, writable: true, configurable: true });
@@ -254,7 +254,7 @@ function nativeFormDrafts(derived: DerivedOperationInputs | null, form: Record<s
 
 /** Validate native control names before the UI-owned typed projection ignores extras. */
 function projectNativeForm(derived: DerivedOperationInputs | null, form: Record<string, string>): ClosedInputs {
-  if (derived === null || !['create', 'update', 'delete', 'scenario'].includes(derived.kind)) {
+  if (derived === null || (!isGeneratedFormKind(derived.kind) && derived.kind !== 'delete')) {
     throw new IdentityError('validation', 'Native forms require a declared mutation operation.');
   }
   const { controls, presence } = nativeFormControls(derived);
@@ -278,7 +278,7 @@ function projectNativeForm(derived: DerivedOperationInputs | null, form: Record<
         ...(Object.hasOwn(form, 'inputs[record][version]') ? { version: form['inputs[record][version]'] } : {}),
       } } : {};
   }
-  try { return projectGeneratedInputs(derived, derived.kind as 'create' | 'update' | 'scenario', form, [...rendered]); }
+  try { return projectGeneratedInputs(derived, derived.kind, form, [...rendered]); }
   catch { throw new IdentityError('validation', 'Invalid native form inputs.'); }
 }
 

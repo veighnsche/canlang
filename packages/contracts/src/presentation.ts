@@ -1095,7 +1095,12 @@ export interface FormFieldOption {
   readonly label: MessageValue;
 }
 
-export type FormMode = "create" | "update" | "scenario";
+export type FormMode = "create" | "update" | "scenario" | "team";
+
+/** Kinds with generated editable controls; delete retains its own card. */
+export function isGeneratedFormKind(kind: unknown): kind is FormMode {
+  return kind === "create" || kind === "update" || kind === "scenario" || kind === "team";
+}
 
 export interface DeliveryReceiptView {
   readonly id: string;

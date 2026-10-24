@@ -385,7 +385,8 @@ test('actual PromptLab enforces member note boundaries, rolls back computed keys
       assert.equal(typeof native.rank, 'bigint');
       assert.deepEqual(native.archived_by, { kind: 'user', id: curator.user.user_id });
       assert.deepEqual(native.archive_recorded_at, { kind: 'datetime', ms: BigInt(now) });
-      assert.deepEqual(Object.keys(native).sort(), [...Object.keys(original.fields), 'id', 'version'].sort());
+      assert.equal(native.archived_at, null, 'authored archive evidence does not archive the engine record');
+      assert.deepEqual(Object.keys(native).sort(), [...Object.keys(original.fields), 'id', 'version', 'archived_at'].sort());
       await assert.rejects(invokeRow({ ...props, row: { ...original, fields: { ...original.fields } } }),
         /original final page query row/);
       original.fields.archived_by = { id: member.user.user_id };

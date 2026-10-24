@@ -8,6 +8,7 @@ import type {
   ClosedInputs,
   MutationRef,
 } from '@canlang/contracts';
+import { isGeneratedFormKind } from '@canlang/contracts';
 import { generatedFields, message } from '@canlang/ui';
 import { encodeValue, makeRecordRef } from '@canlang/values';
 import type { InterfacesClock, SchemaCatalog, SourceFormBindings } from '../ports.js';
@@ -220,7 +221,7 @@ export function createOperationFormPreparer(
     const unavailable = (reason: string) => ({ status: 'unavailable' as const, message: reason });
     const derived = catalog?.derivedFor?.(request.operation);
     if (derived === undefined || derived === null) return unavailable('Operation form is unavailable.');
-    if (derived.kind !== 'create' && derived.kind !== 'scenario' && derived.kind !== 'update') {
+    if (!isGeneratedFormKind(derived.kind)) {
       return unavailable('This operation has no mutation form.');
     }
     const mode: FormMode = derived.kind;

@@ -30,6 +30,14 @@ injected transports own their physical cancellation and eventual settlement.
 An aborted reply can leave an already committed server operation uncertain, so
 the original operation ID and canonical replay remain authoritative.
 
+The fixed team primitive catalog uses `kind: "team"` and generated form mode
+`"team"`. Its editable email, exact role choices and member user references use
+the shared controls and typed projection. Native bracket controls submit to the
+same canonical operation routes as enhanced JSON submissions; current session,
+CSRF, source, team and owner checks remain server-owned. These primitive forms
+do not carry protected record bindings because their schemas contain no
+versioned record inputs.
+
 `action()` can receive the same owning `derived` inputs and optional source
 binding metadata as `form()`. It then uses the existing prepared submitter,
 operation mode, pending guard and direct transport settlement. Interfaces

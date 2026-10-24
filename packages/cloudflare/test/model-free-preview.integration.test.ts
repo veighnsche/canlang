@@ -6,7 +6,11 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { expect, it } from 'vitest';
-import { createD1IdentityStore, ensureIdentitySchema, hashPassword, deriveCsrfToken } from '@canlang/identity';
+import { createD1IdentityStore, ensureIdentitySchema, hashPassword, deriveCsrfToken, resolveIdentity } from '@canlang/identity';
+import { Window } from 'happy-dom';
+import { form as renderForm, submitGeneratedForm } from '@canlang/ui';
+import { buildPresentationContext } from '../../interfaces/src/http/presentation.js';
+import { composeSystemTeamCatalog, createArtifactCatalog, systemTeamRoles } from '../src/runtime/mcp-registry.js';
 import type { D1Database } from '@cloudflare/workers-types';
 import { distribution as valuesDistribution } from '@canlang/values/distribution';
 import { prepareLocalPreviewCapture } from '../src/runtime/native-dev.test-support.js';
@@ -143,6 +147,7 @@ async function historicalTeam(db: D1Database) {
 const teamJourneys = {
   'fresh-removal': 'recovers and executes the genuine removed-member handler once across interrupted handoff and owner D1 reopen',
   'expired-removal': 'replays genuine expired team receipts through HTTP and MCP and recovers their original removal handoff',
+  'native-team-forms': 'submits native and enhanced generated team forms through the installed guarded recipient',
   'invitation-mail': 'acknowledges configured invitation mail through installed hosting and accepts only the addressed account',
 } as const;
 for (const mode of Object.keys(teamJourneys) as Array<keyof typeof teamJourneys>) it(teamJourneys[mode], async () => {
@@ -185,7 +190,7 @@ for (const mode of Object.keys(teamJourneys) as Array<keyof typeof teamJourneys>
       mainModule: evidence.bundle.mainModule, modules: evidence.bundle.modules, binaryModules: evidence.bundle.binaries,
       d1Databases: [{ binding: 'DB', id: databaseId }, ...owners.map(owner => ({ binding: owner.binding, id: owner.id }))],
       d1Persist: persistence, vars,
-      ...(mode !== 'invitation-mail' ? {} : {
+      ...(!['invitation-mail', 'native-team-forms'].includes(mode) ? {} : {
         serviceBindings: { CAN_AUTH_MAIL: { name: `${workerName}-mail`, entrypoint: 'AuthMail' } },
         companionWorkers: [{ workerName: `${workerName}-mail`, compatibilityDate: '2026-07-15', mainModule: 'mail.js',
           d1Databases: [{ binding: 'SINK', id: databaseId }], modules: { 'mail.js': `
@@ -257,6 +262,111 @@ for (const mode of Object.keys(teamJourneys) as Array<keyof typeof teamJourneys>
     const session = cookies.get('can_session'); expect(session).toBeDefined();
     const csrf = await deriveCsrfToken(decodeURIComponent(session!));
     expect((await request('/auth/select-team', { team: owner.team_id, _csrf: csrf }, csrf)).status).toBe(200);
+    if (mode === 'native-team-forms') {
+      await identityDb.exec('CREATE TABLE account_mail_sink (id INTEGER PRIMARY KEY, recipient TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL)');
+      const identities = createD1IdentityStore(identityDb);
+      const principal = await resolveIdentity(identities, { session_token: decodeURIComponent(session!) });
+      const { assembleModules, importVerifiedAssemblyModule } = await nativeImport(
+        new URL('../dist/runtime/modules.js', import.meta.url).href) as typeof import('../src/runtime/modules.js');
+      const asm = await assembleModules({ artifact: compiled.artifact, sourcePath: capture.compilerOperand }, {
+        workDir: join(persistence, 'forms'), stdlibUrl: new URL('../dist/runtime/stdlib.js', import.meta.url).href });
+      const loaded = await importVerifiedAssemblyModule(asm, compiled.artifact.modules[0]!.path, compiled.artifact) as { appDefinition: unknown };
+      const catalog = composeSystemTeamCatalog(createArtifactCatalog(compiled.artifact),
+        systemTeamRoles(loaded.appDefinition, 'NativeIdentityRemoval'));
+      const context = buildPresentationContext({ request: new Request(origin), pathname: '/', isPartial: false,
+        appDefaultLocale: 'en', csrfToken: csrf, principal, catalog, clock: { nowMs: Date.now },
+        query: async () => { throw new Error('Primitive team forms do not read app records.'); } });
+      const window = new Window();
+      const prepare = async (operation: string) => {
+        const prepared = await context.prepareForm!({ operation: `system.team.${operation}`, display: 'inline' });
+        expect(prepared.status).toBe('ready');
+        if (prepared.status !== 'ready') throw new Error('Primitive team form is unavailable.');
+        window.document.body.innerHTML = await renderForm(prepared.props);
+        const element = window.document.querySelector('form')!;
+        const flat: Record<string, string> = {};
+        for (const [name, value] of new window.FormData(element)) {
+          if (typeof value !== 'string') throw new Error('Unexpected binary control in primitive team form.');
+          flat[name] = value;
+        }
+        const metadata = JSON.parse(element.getAttribute('data-can-generated-form')!) as Pick<Parameters<typeof submitGeneratedForm>[0],
+          'derived' | 'mode' | 'renderedInputs'>;
+        expect(metadata.mode).toBe('team'); expect(metadata.derived.kind).toBe('team');
+        expect(flat.form_binding).toBeUndefined();
+        return { action: element.getAttribute('action')!, flat, metadata };
+      };
+      const send = (action: string, flat: Record<string, string> | URLSearchParams) => worker!.dispatchUrl(new URL(action, origin).href, {
+        method: 'POST', headers: { origin, cookie: [...cookies].map(([key, value]) => `${key}=${value}`).join('; '),
+          'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(flat).toString() });
+      const snapshot = async () => ({
+        memberships: (await identityDb.prepare('SELECT * FROM identity_memberships ORDER BY membership_id').all()).results,
+        offers: (await identityDb.prepare('SELECT * FROM identity_invitations ORDER BY invitation_id').all()).results,
+        mutations: (await identityDb.prepare('SELECT * FROM identity_team_mutations ORDER BY operation_id').all()).results,
+        mail: (await identityDb.prepare('SELECT * FROM identity_invitation_mail ORDER BY operation_id').all()).results,
+        removals: (await identityDb.prepare('SELECT * FROM identity_member_removals ORDER BY operation_id').all()).results,
+        sink: (await identityDb.prepare('SELECT * FROM account_mail_sink ORDER BY id').all()).results,
+        state: (await ownerDb.prepare('SELECT * FROM records ORDER BY model,id').all()).results,
+        fence: (await ownerDb.prepare('SELECT * FROM fence_log').all()).results,
+      });
+      try {
+        const untouched = await snapshot();
+        const invitation = await prepare('invite');
+        expect(await snapshot()).toEqual(untouched);
+        const original = { ...invitation.flat, 'inputs[email]': 'native-form@mail.example', 'inputs[role]': 'owner' };
+        expect((await send(invitation.action, { ...original, _csrf: 'wrong' })).status).toBe(403);
+        expect((await send(invitation.action, { ...original, form_binding: 'forged' })).status).toBe(403);
+        for (const extra of [{ 'inputs[unexpected]': 'tampered' },
+          { 'inputs[role]': 'Unknown.owner' }, { 'inputs[email]': 'invalid' }, { inputs: '{}' }]) {
+          expect((await send(invitation.action, { ...original, ...extra })).status).toBe(400);
+        }
+        const duplicate = new URLSearchParams(original); duplicate.append('inputs[email]', 'changed@mail.example');
+        expect((await send(invitation.action, duplicate)).status).toBe(400);
+        expect(await snapshot()).toEqual(untouched);
+        const created = await send(invitation.action, original);
+        expect(created.status, await created.clone().text()).toBe(200);
+        const outcome = await created.json() as { result: { invitation_id: string; mail: string } };
+        expect(outcome.result.mail).toBe('acknowledged');
+        const saved = await snapshot(); expect(saved.offers).toHaveLength(1); expect(saved.sink).toHaveLength(1);
+        expect((await send(invitation.action, original)).status).toBe(200);
+        expect(await snapshot()).toEqual(saved);
+        const role = await prepare('role');
+        expect(role.flat['inputs[member]']).toBe('');
+        const values = { ...role.flat, 'inputs[member]': target.user_id, 'inputs[role]': 'owner' };
+        // The public enhanced client consumes the same emitted metadata and
+        // delegates JSON to the installed operation, without a second schema.
+        const enhanced = await submitGeneratedForm({ ...role.metadata, flat: values, action: role.action,
+          fragment: false, denialFormat: 'json', fetchImpl: async (url, init) => {
+            const headers = new Headers(init?.headers); headers.set('origin', origin);
+            headers.set('cookie', [...cookies].map(([key, value]) => `${key}=${value}`).join('; '));
+            return await worker!.dispatchUrl(new URL(url, origin).href, { ...init, headers: Object.fromEntries(headers) });
+          } });
+        expect(enhanced).toMatchObject({ kind: 'committed' });
+        expect(await identities.findMembership(owner.team_id, target.user_id)).toMatchObject({ is_owner: true });
+        const afterRole = await snapshot();
+        expect((await send(role.action, values)).status).toBe(200);
+        expect(await snapshot()).toEqual(afterRole);
+        // Existing owner authority is re-resolved for both new form calls and
+        // replay, even though the form was prepared under an owner session.
+        const authority = { namespace: 'native-form-control', team_id: owner.team_id, member_user_id: owner.user_id,
+          granted_by: target.user_id };
+        await identities.changeMemberRoleWithReceipt!({ ...authority, operationId: operationIdAt(Date.now()), role: '-owner' });
+        const denied = await snapshot();
+        expect((await send(role.action, values)).status).toBe(403);
+        const removal = await prepare('remove');
+        expect((await send(removal.action, { ...removal.flat, 'inputs[member]': target.user_id })).status).toBe(403);
+        expect(await snapshot()).toEqual(denied);
+        await identities.changeMemberRoleWithReceipt!({ ...authority, operationId: operationIdAt(Date.now()), role: 'owner' });
+        const removed = await send(removal.action, { ...removal.flat, 'inputs[member]': target.user_id });
+        expect(removed.status, await removed.clone().text()).toBe(200);
+        expect(await removed.json()).toMatchObject({ status: 'committed', result: { removed: true } });
+        const terminal = await snapshot();
+        expect(terminal.removals).toHaveLength(1);
+        expect(await identities.findMembership(owner.team_id, target.user_id)).toMatchObject({ status: 'removed' });
+        expect((await send(removal.action, { ...removal.flat, 'inputs[member]': target.user_id })).status).toBe(200);
+        expect(await snapshot()).toEqual(terminal);
+        expect(await native.captureIsCurrent(capture)).toBe(true);
+      } finally { await window.happyDOM.close(); }
+      return;
+    }
     if (mode === 'invitation-mail') {
       await identityDb.exec('CREATE TABLE account_mail_sink (id INTEGER PRIMARY KEY, recipient TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL)');
       const identities = createD1IdentityStore(identityDb);

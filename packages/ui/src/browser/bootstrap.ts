@@ -62,6 +62,7 @@ import { PollRegion, submitFetchPollFetch } from "./polling.js";
 import type { VisibilityLike } from "./polling.js";
 import { GeneratedSubmitError, submitGeneratedForm, submitDeleteForm } from "../client.js";
 import type { DomControlLike, GeneratedSubmitResult, SubmitFetch, SubmitFetchInit } from "../client.js";
+import { isGeneratedFormKind } from "@canlang/contracts";
 import type { DerivedOperationInputs, DerivedWritableInput, FormMode } from "@canlang/contracts";
 import type { GeneratedViewMount, GeneratedViewPresentation, RowView } from "@canlang/contracts";
 import { CSRF_FIELD, SOURCE_FORM_BINDING_FIELD, GENERATED_REF_VERSION_SUFFIX, GENERATED_VIEW_ATTR } from "@canlang/contracts";
@@ -983,7 +984,7 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
     } | null;
     if (deletion === null && (metadata?.derived === undefined || typeof metadata.derived.operation !== 'string' ||
         !Array.isArray(metadata.derived.inputs) ||
-        !['create', 'update', 'scenario'].includes(metadata.mode ?? '') ||
+        !isGeneratedFormKind(metadata.mode) ||
         (metadata.renderedInputs !== undefined && (!Array.isArray(metadata.renderedInputs) ||
           metadata.renderedInputs.some(name => typeof name !== 'string'))))) {
       throw new GeneratedSubmitError('usage', 'Form submit metadata is unavailable.', false);

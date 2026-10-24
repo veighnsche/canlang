@@ -15,6 +15,7 @@ export { pointerToFieldName, formatDatetimeLocal, assertFieldPath, fieldInputNam
 
 import {
   CSRF_FIELD,
+  isGeneratedFormKind,
   SOURCE_FORM_BINDING_FIELD,
   GENERATED_FORM_TYPE_FOR_KIND,
   GENERATED_REF_VERSION_SUFFIX,
@@ -1020,7 +1021,7 @@ function checkActionAssociation(props: ActionProps): { mode: FormMode; renderedI
     throw new Error("action: checked operation inputs are required for a prepared association");
   }
   if (props.operation !== derived.operation) throw new Error("action: operation disagrees with checked inputs");
-  if (derived.kind !== "create" && derived.kind !== "update" && derived.kind !== "scenario") {
+  if (!isGeneratedFormKind(derived.kind)) {
     throw new Error("action: checked operation has no generated mutation form");
   }
   const mode = derived.kind;
