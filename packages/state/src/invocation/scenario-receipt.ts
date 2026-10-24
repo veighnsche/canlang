@@ -7879,12 +7879,12 @@ async function observeModelQuerySourceAuthority<AllowAbsent extends boolean = fa
 /** A source-owned field read observes ordinary DATA at its original LET
  * or constructor field evaluation point. A copied reference grants no target
  * DATA, query, framework write, or saved result. */
-export interface ScenarioSourceLetDataSource {
+export type ScenarioSourceLetDataSource = {
   readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
-  readonly node:{readonly start:number;readonly end:number};readonly stage:number;readonly binding:string;
+  readonly node:{readonly start:number;readonly end:number};readonly binding:string;
   readonly parameter:string;readonly model:ModelName;readonly parents?:readonly ModelName[];readonly path?:SourceEffectPath;readonly loop?:string;
   readonly field:{readonly name:string;readonly type:CanTypeId};readonly valueType:CanTypeId;
-}
+} & ({readonly stage:number;readonly stages?:never}|{readonly stage?:never;readonly stages:readonly number[]});
 interface SourceLetDataProducer extends ScenarioReceiptReferenceProducer {readonly sites:readonly ScenarioSourceLetDataSource[];}
 const sourceLetDataProducers=new WeakMap<GeneratedOperationDef,SourceLetDataProducer>();
 const consumedSourceLetData=new WeakMap<AdmittedCall,Set<string>>();
@@ -7896,7 +7896,13 @@ export function bindScenarioSourceLetDataProducer(def:GeneratedOperationDef,prod
   const policy=captureSourcePolicyTable(bound,producer.policy,'Scalar LET DATA policy differs from its owning model.');
   const readPolicies=captureSourceReadPolicies(producer.readPolicies);
   const sites=list(dataCopy(producer.sites)).map(value=>{
-    const site=object(value,['source','owner','node','stage','binding','parameter','model','field','valueType',...(Object.hasOwn(value as object,'parents')?['parents']:[]),...(Object.hasOwn(value as object,'path')?['path']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[])]);origin(site['source']);
+    const site=object(value,['source','owner','node',Object.hasOwn(value as object,'stages')?'stages':'stage','binding','parameter','model','field','valueType',...(Object.hasOwn(value as object,'parents')?['parents']:[]),...(Object.hasOwn(value as object,'path')?['path']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[])]);origin(site['source']);
+    // Alternatives are the exact finite write counts at an original IF join,
+    // never a range or an unchecked current-stage wildcard.
+    const stages=Object.hasOwn(site,'stages')?list(site['stages']):[site['stage']];
+    if(stages.length<1||stages.length>MAX_ITEMS||Object.hasOwn(site,'stages')&&stages.length<2
+        ||stages.some((stage,index)=>!Number.isSafeInteger(stage)||Number(stage)<0||Number(stage)>=MAX_ITEMS
+          ||index>0&&Number(stages[index-1])>=Number(stage)))return invalid('Scalar LET DATA requires exact ordered reachable stages.');
     const node=object(site['node'],['start','end']),parameter=text(site['parameter']),model=text(site['model']) as ModelName;
     const field=object(site['field'],['name','type']),name=text(field['name']),type=text(field['type']),valueType=text(site['valueType']);text(site['binding']);
     const parents=site['parents']===undefined?[]:list(site['parents']).map(value=>text(value)as ModelName);
@@ -7905,11 +7911,10 @@ export function bindScenarioSourceLetDataProducer(def:GeneratedOperationDef,prod
     if(Object.hasOwn(site,'path')){if(Object.hasOwn(site,'parents'))return invalid('Source field DATA cannot substitute two original receiver paths.');fieldModel=checkSourceEffectPath(bound,model,site['path']);}
     const input=bound.inputs.find(input=>input.name===parameter),declaration=bound.artifactModels.get(fieldModel)?.fields.find(field=>field.name===name);
     const loop=site['loop']===undefined?undefined:sourceBodyLoopProducers.get(def)?.loops.find(loop=>loop.id===text(site['loop']));
-    if(site['loop']!==undefined&&(loop===undefined||parameter===loop.item&&loop.model!==model||parameter!==loop.item&&(input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,parameter))||Number(node['start'])<loop.node.start||Number(node['end'])>loop.node.end||Number(site['stage'])>loop.writes))return invalid('Loop field DATA lacks its exact original selected item and relative stage.');
+    if(site['loop']!==undefined&&(loop===undefined||parameter===loop.item&&loop.model!==model||parameter!==loop.item&&(input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,parameter))||Number(node['start'])<loop.node.start||Number(node['end'])>loop.node.end||stages.some(stage=>Number(stage)>loop.writes)))return invalid('Loop field DATA lacks its exact original selected item and relative stage.');
     const reference=declaration?.field.kind==='ref'&&declaration.field.model===type&&declaration.nullable!==true&&declaration.array===undefined
       &&storedReferenceField(bound,fieldModel,name,type).target===type;
     if(site['owner']!==def.name||stableStringify(site['source'])!==stableStringify(bound.plan.source)
-        ||!Number.isSafeInteger(site['stage'])||Number(site['stage'])<0||Number(site['stage'])>=MAX_ITEMS
         ||!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start'])
         ||loop===undefined&&(input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,parameter))
         ||declaration===undefined||declaration.default?.kind==='derived'||!sourceSendFieldType(bound,fieldModel,name,type)&&!reference
@@ -7926,7 +7931,8 @@ export async function executeScenarioSourceLetData(call:AdmittedCall,store:Stora
     const claimed=object(input,['source']),source=dataCopy(claimed['source']),producer=sourceLetDataProducers.get(call.def as GeneratedOperationDef);
     const sites=producer?.sites.filter(site=>stableStringify(site)===stableStringify(source))??[],site=sites[0];
     const item=owner===undefined||site?.loop===undefined?undefined:sourceBodyLoopItems.get(owner);
-    const stage=site===undefined?undefined:site.loop===undefined?site.stage:item===undefined?undefined:item.stage+site.stage;
+    const stages=site===undefined?[]:site.stages??[site.stage];
+    const stage=owner===undefined?undefined:stages.map(stage=>site?.loop===undefined?stage:item===undefined?undefined:item.stage+stage).find(stage=>stage===owner.stage);
     if(owner===undefined||owner.session===null||!state.bound.sourceRequireOnly||producer===undefined||producer.app!==call.context.app||sites.length!==1||site===undefined
         ||site.loop!==undefined&&(item?.execution.loop.id!==site.loop||site.parameter===item.execution.loop.item&&item.execution.loop.model!==site.model)
         ||owner.executingCall!==call||owner.busy||owner.capture.pending!==0||stage===undefined||owner.stage!==stage)return invalid('Scalar LET DATA lacks its exact current source owner stage.');

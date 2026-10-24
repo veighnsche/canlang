@@ -3623,7 +3623,7 @@ impl<'a> Closure<'a> {
         let field_type_id = || if stored_file {
             Some(if matches!(ty, ResolvedType::Nullable(_)) { "file?" } else { "file" }.to_string())
         } else { exact_type_id(ty, self.resolve) };
-        if !result_type(ty) && *ty != ResolvedType::Scalar(Scalar::Timezone) && !stored_file {
+        if !result_type(ty) && !stored_timezone_type(ty) && !stored_file {
             return Err(self.fail(key, "unsupported stored field type"));
         }
         let owner = match self.resolve.symbols.get(field.0 as usize).map(|s| &s.kind) {
@@ -7685,13 +7685,11 @@ impl<'a> Closure<'a> {
         &self,
         id: SymbolId,
         model: bool,
-        member: &Symbol,
         field: &SymbolId,
         ty: &ResolvedType,
         file_array: bool,
         inline_selections: &[CheckedInlineSelectionSource],
         current_revision: &Option<CurrentRevisionSource>,
-        notice_event: bool,
     ) -> bool {
         model
             && !matches!(ty, ResolvedType::Record { symbol, .. } if self.is_contract_symbol(*symbol))
@@ -7699,20 +7697,15 @@ impl<'a> Closure<'a> {
                 if matches!(element.as_ref(), ResolvedType::Record { symbol, .. }
                     if self.is_contract_symbol(*symbol))
                     && self.source_require_plain_value(ty, 0))
-            && !(notice_event
-                && self.resolve.symbols.get(id.0 as usize)
-                    .is_some_and(|owner| owner.canonical == "agreements.Term")
-                && member.canonical == "agreements.Term.snapshot"
-                && matches!(ty, ResolvedType::Nullable(inner)
-                    if matches!(inner.as_ref(), ResolvedType::Record {symbol,..}
-                        if self.resolve.symbols.get(symbol.0 as usize)
-                            .is_some_and(|contract| contract.canonical == "agreements.ExecutedParties"
-                                && matches!(contract.kind, SymbolKind::Contract { .. })))))
+            && !matches!(ty, ResolvedType::Nullable(inner)
+                if matches!(inner.as_ref(), ResolvedType::Record { symbol, .. }
+                    if self.is_contract_symbol(*symbol))
+                    && self.source_require_plain_value(inner, 0))
             && self.reference_operand_type_id(ty).is_none()
             && !result_type(ty)
             // Timezone has its own stored DATA codec, even though a bare
             // timezone is outside the ordinary scalar result profile.
-            && *ty != ResolvedType::Scalar(Scalar::Timezone)
+            && !stored_timezone_type(ty)
             && !file_array
             && !inline_selections
                 .iter()
@@ -7984,7 +7977,6 @@ impl<'a> Closure<'a> {
         observer_fields: &HashSet<(SymbolId, SymbolId)>,
         inline_selections: &[CheckedInlineSelectionSource],
         current_revision: &Option<CurrentRevisionSource>,
-        notice_event: bool,
     ) -> Option<()> {
         let member = self.resolve.symbols.get(field.0 as usize)?;
         if model
@@ -7999,13 +7991,11 @@ impl<'a> Closure<'a> {
         if self.stored_contract_field_skip(
             id,
             model,
-            member,
             field,
             ty,
             file_array,
             inline_selections,
             current_revision,
-            notice_event,
         ) {
             return Some(());
         }
@@ -8071,7 +8061,6 @@ impl<'a> Closure<'a> {
         observer_fields: &HashSet<(SymbolId, SymbolId)>,
         inline_selections: &[CheckedInlineSelectionSource],
         current_revision: &Option<CurrentRevisionSource>,
-        notice_event: bool,
     ) -> Option<()> {
         let declaration = self.resolve.symbols.get(id.0 as usize)?;
         let (order, node) = match &declaration.kind {
@@ -8108,7 +8097,6 @@ impl<'a> Closure<'a> {
                 observer_fields,
                 inline_selections,
                 current_revision,
-                notice_event,
             )?;
         }
         if !model || !fields.is_empty() || parent.is_some() {
@@ -8202,9 +8190,6 @@ impl<'a> Closure<'a> {
         let mut seen = HashSet::new();
         let mut inventory = Vec::new();
         let mut field_count = 0usize;
-        let notice_event = self.hook_delivery_event(scenario).is_some()
-            && self.resolve.symbols.get(scenario.scenario.0 as usize)
-                .is_some_and(|owner| owner.canonical == "agreements.notice");
         while let Some((id, model)) = pending.pop() {
             if !seen.insert(id) {
                 continue;
@@ -8222,8 +8207,7 @@ impl<'a> Closure<'a> {
                 &observer_fields,
                 &inline_selections,
                 &current_revision,
-                notice_event,
-            )?;
+                )?;
         }
         Some(inventory)
     }
@@ -25589,6 +25573,20 @@ impl<'a> Closure<'a> {
                     | ResolvedType::Scalar(Scalar::File)) && self.set_reference_type(ty, calls).is_none()
             }
 
+            /// Only an original nominal constructor may supply a plain Contract
+            /// SET value. Ordinary object evaluation retains every member's DATA
+            /// dependency; the target's nullable declaration is not erased.
+            fn set_plain_contract_constructor(&self, key: NodeKey, declared: &ResolvedType,
+                calls: &[NodeKey]) -> bool {
+                let base = match declared { ResolvedType::Nullable(inner) => inner.as_ref(), ty => ty };
+                let ResolvedType::Record { symbol, .. } = base else { return false; };
+                calls.is_empty() && self.loop_node.is_none() && self.is_contract_symbol(*symbol)
+                    && self.source_require_plain_value(base, 0)
+                    && self.nodes.get(&key).is_some_and(|node|
+                        matches!(node.kind, SyntaxKind::Object | SyntaxKind::Construct))
+                    && self.types.node_types.get(&key).is_some_and(|ty| ty == base || ty == declared)
+            }
+
             /// A SET consumes exactly one declared carrier family; scalar fields never
             /// inherit row, delivery or object authority from their expression.
             fn set_value_matches(&self, effect: &Effect, module: ModuleId, key: NodeKey,
@@ -25611,6 +25609,9 @@ impl<'a> Closure<'a> {
                     && calls.is_empty() && self.loop_node.is_none()
                     && self.set_nullable_reference_input(effect,module,key,declared,value)
                 { return true; }
+                if self.set_plain_contract_constructor(key, declared, calls) {
+                    return value.members.is_some() && value.record.is_none() && value.delivery.is_none();
+                }
                 if let Some(model) = self.set_reference_type(base, calls) {
                     self.set_reference_value(effect, module, key, model, value)
                 } else if matches!(base, ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. }) {
@@ -25881,7 +25882,8 @@ impl<'a> Closure<'a> {
                                 && self.checked_source_requires(scenario).is_some_and(|sites| !sites.is_empty())),
                         _ => false,
                     });
-                if source_reference_array || admitted_answers {
+                if source_reference_array || admitted_answers
+                    || arg.value.is_some_and(|value| self.set_plain_contract_constructor(value, ty, calls)) {
                     return Ok(());
                 }
                 if matches!(base, ResolvedType::Array { .. }) {
@@ -25913,6 +25915,19 @@ impl<'a> Closure<'a> {
                             self.fail(key, "bound child result lacks its original evaluated call")
                         })?;
                         return Ok(vec![self.input_value(key, module, calls, value)?]);
+                    }
+                    // A nullable Contract target contextualizes its authored
+                    // object with the nullable type. Construct its checked
+                    // nonnull payload using the same closed declared fields;
+                    // the stored target retains its original nullability.
+                    if let Some(value) = arg.value
+                        && let Some(declared) = self.types.symbol_types.get(&field_id)
+                        && self.set_plain_contract_constructor(value, declared, calls)
+                        && let ResolvedType::Nullable(inner) = declared
+                        && let Some(node) = self.nodes.get(&value)
+                        && node.kind == SyntaxKind::Object
+                    {
+                        return self.object((value, *node), inner, module, env, calls, None);
                     }
                     return match arg.value {
                         Some(value) => self.expr(value, module, env, calls),
@@ -29319,8 +29334,16 @@ fn checked_stored_contract_type_id(
     }
 }
 
+/// Stored timezone fields use their existing Values codec at either declared
+/// nullability. This grants no general scalar-result or array admission.
+fn stored_timezone_type(ty: &ResolvedType) -> bool {
+    matches!(ty, ResolvedType::Scalar(Scalar::Timezone))
+        || matches!(ty, ResolvedType::Nullable(inner)
+            if inner.as_ref() == &ResolvedType::Scalar(Scalar::Timezone))
+}
+
 fn exact_type_id(ty: &ResolvedType, resolve: &ResolveTables) -> Option<String> {
-    if !result_type(ty) && *ty != ResolvedType::Scalar(Scalar::Timezone) {
+    if !result_type(ty) && !stored_timezone_type(ty) {
         return None;
     }
     let mut ty = ty;

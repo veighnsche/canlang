@@ -9,7 +9,7 @@ pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::source_context
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
     let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
     fn relevant(body:&[IrStmt])->bool{body.iter().any(|statement|match statement{
-        IrStmt::Let{..}|IrStmt::Create{..}|IrStmt::Schedule{..}=>true,
+        IrStmt::Let{..}|IrStmt::Create{..}|IrStmt::Set{..}|IrStmt::Schedule{..}=>true,
         IrStmt::If{then_branch,else_branch,..}=>relevant(then_branch)||relevant(else_branch),IrStmt::For{body,..}=>relevant(body),_=>false})}
     if !relevant(effects){return Some(HashMap::new());}
     context.same_scenario(ir, owner)?;
@@ -131,14 +131,18 @@ pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::source_context
         ResolvedType::Enum{cases,..}=>!cases.is_empty(),ResolvedType::Nullable(inner)=>scalar(inner),_=>false,
     }}
     fn leaves(ir:&IrProgram,owner:&IrItem,context:&super::source_context::FreshSourceContext<'_>,value:&TypedExpr,
-        roots:&BTreeMap<String,SymbolId>,source:&serde_json::Value,module:&str,stage:usize,name:&str,
+        roots:&BTreeMap<String,SymbolId>,source:&serde_json::Value,module:&str,stages:&BTreeSet<usize>,name:&str,
         loans:&mut HashMap<Span,serde_json::Value>,depth:usize)->Option<()> {
         if depth>32{return None;}
         if matches!(value.expr,IrExpr::Member{..})&&scalar(&value.ty)
-            &&let Some(loan)=scalar_loan(ir,owner,context,roots,source,module,value,value.span,stage,name){
+            &&let Some(mut loan)=scalar_loan(ir,owner,context,roots,source,module,value,value.span,*stages.first()?,name){
+            if stages.len()>1{
+                let fields=loan.as_object_mut()?;fields.remove("stage");
+                fields.insert("stages".into(),serde_json::json!(stages));
+            }
             loans.insert(value.span,loan);return Some(());
         }
-        let mut child=|value:&TypedExpr|leaves(ir,owner,context,value,roots,source,module,stage,name,loans,depth+1);
+        let mut child=|value:&TypedExpr|leaves(ir,owner,context,value,roots,source,module,stages,name,loans,depth+1);
         match &value.expr{
             IrExpr::Member{base,..}=>child(base),IrExpr::Binary{left,right,..}=>{child(left)?;child(right)},
             IrExpr::Unary{operand,..}=>child(operand),
@@ -155,29 +159,36 @@ pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::source_context
     }
     fn expressions(ir:&IrProgram,owner:&IrItem,context:&super::source_context::FreshSourceContext<'_>,
         body:&[IrStmt],roots:&mut BTreeMap<String,SymbolId>,values:&mut BTreeSet<String>,source:&serde_json::Value,
-        module:&str,mut stage:usize,loans:&mut HashMap<Span,serde_json::Value>,loops:Option<&serde_json::Value>)->Option<usize> {
+        module:&str,mut stages:BTreeSet<usize>,loans:&mut HashMap<Span,serde_json::Value>,loops:Option<&serde_json::Value>)->Option<BTreeSet<usize>> {
+        fn advance(stages:&BTreeSet<usize>)->Option<BTreeSet<usize>>{
+            stages.iter().map(|stage|stage.checked_add(1).filter(|stage|*stage<200)).collect()
+        }
+        if stages.is_empty()||stages.len()>200||stages.last().copied()? >=200{return None;}
         for statement in body { match statement {
             IrStmt::Let{name,value,span}=>{
                 if !loans.contains_key(span)&&scalar(&value.ty){
                     let mut nested=HashMap::new();
-                    if leaves(ir,owner,context,value,roots,source,module,stage,name,&mut nested,0).is_some(){loans.extend(nested);}
+                    if leaves(ir,owner,context,value,roots,source,module,&stages,name,&mut nested,0).is_some(){loans.extend(nested);}
                 }
                 let pure=loans.contains_key(span)||super::source_send_data::send_value(ir,value,values,0)
                     ||super::source_send_data::observed_scalar_value(ir,value,loans,values);
                 roots.remove(name);values.remove(name);if pure{values.insert(name.clone());}
             },
             IrStmt::If{then_branch,else_branch,..}=>{
-                let left=expressions(ir,owner,context,then_branch,&mut roots.clone(),&mut values.clone(),source,module,stage,loans,loops);
-                let right=expressions(ir,owner,context,else_branch,&mut roots.clone(),&mut values.clone(),source,module,stage,loans,loops);
-                if left!=right{return None;}stage=left?;
+                let left=expressions(ir,owner,context,then_branch,&mut roots.clone(),&mut values.clone(),source,module,stages.clone(),loans,loops);
+                let right=expressions(ir,owner,context,else_branch,&mut roots.clone(),&mut values.clone(),source,module,stages.clone(),loans,loops);
+                // Both authored branches contribute their exact reachable write counts.
+                // Preserve lazy execution; this is a finite admission set, not a range.
+                stages=left?.union(&right?).copied().collect();
             },
             IrStmt::Schedule{at,payload,span,..}=>{
                 let mut nested=HashMap::new();
-                if leaves(ir,owner,context,at,roots,source,module,stage,"at",&mut nested,0).is_some()
-                    &&leaves(ir,owner,context,payload,roots,source,module,stage,"payload",&mut nested,0).is_some(){loans.extend(nested);}
+                if leaves(ir,owner,context,at,roots,source,module,&stages,"at",&mut nested,0).is_some()
+                    &&leaves(ir,owner,context,payload,roots,source,module,&stages,"payload",&mut nested,0).is_some(){loans.extend(nested);}
                 let _=span;
             },
             IrStmt::For{item,domain,body,span,..}=>{
+                if stages.len()!=1{return None;}
                 let entry=loops?.get("loops")?.as_array()?.iter().find(|entry|entry["node"]["start"]==span.start
                     &&entry["node"]["end"]==span.end&&entry.get("work").is_some())?;
                 let ResolvedType::Array{element,..}=&domain.ty else{return None;};
@@ -186,20 +197,30 @@ pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::source_context
                 let mut nested_roots=roots.clone();nested_roots.insert(item.clone(),*symbol);
                 let mut nested_values=values.clone();nested_values.remove(item);
                 let mut nested=HashMap::new();
-                expressions(ir,owner,context,body,&mut nested_roots,&mut nested_values,source,module,0,&mut nested,loops)?;
+                expressions(ir,owner,context,body,&mut nested_roots,&mut nested_values,source,module,BTreeSet::from([0]),&mut nested,loops)?;
+                if nested.values().any(|loan|loan.get("stages").is_some()){return None;}
                 for(key,mut loan)in nested.drain(){loan["loop"]=entry["id"].clone();loans.insert(key,loan);}
                 // A dynamic number of child writes cannot establish a later
                 // static stage. Original loop tail execution remains separate.
                 return None;
             },
-            IrStmt::Create{binding,..}=>{
-                if let Some(name)=binding{roots.remove(name);values.remove(name);}stage=stage.checked_add(1)?;
+            IrStmt::Create{input,binding,..}=>{
+                let mut nested=HashMap::new();
+                if leaves(ir,owner,context,input,roots,source,module,&stages,"create",&mut nested,0).is_some(){loans.extend(nested);}
+                if let Some(name)=binding{roots.remove(name);values.remove(name);}stages=advance(&stages)?;
             },
-            IrStmt::Set{..}|IrStmt::Transition{..}|IrStmt::Delete{..}=>stage=stage.checked_add(1)?,
+            IrStmt::Set{changes,..}=>{
+                // Nested Object leaves use the same pure expression walker as LET.
+                // Observe each original getter before this SET advances the write stage.
+                let mut nested=HashMap::new();
+                if leaves(ir,owner,context,changes,roots,source,module,&stages,"set",&mut nested,0).is_some(){loans.extend(nested);}
+                stages=advance(&stages)?;
+            },
+            IrStmt::Transition{..}|IrStmt::Delete{..}=>stages=advance(&stages)?,
             IrStmt::Require{..}|IrStmt::Send{..}|IrStmt::Cancel{..}=>{},
             _=>return None,
-        }if stage>=200{return None;}}
-        Some(stage)
+        }if stages.len()>200{return None;}}
+        Some(stages)
     }
     let mut expression_roots=params.iter().filter_map(|id|{let param=ir.items.get(id.0 as usize)?;
         let IrItemKind::Param{ty:IrType::Known(ResolvedType::Record{symbol,stored:true}),..}=&param.kind else{return None;};
@@ -207,6 +228,6 @@ pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::source_context
     let mut values=params.iter().filter_map(|id|{let param=ir.items.get(id.0 as usize)?;
         let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};
         super::source_send_data::plain_value(ir,ty,0).then(||param.name.clone())}).collect();
-    expressions(ir,owner,context,effects,&mut expression_roots,&mut values,&source,module,0,&mut loans,loops);
+    expressions(ir,owner,context,effects,&mut expression_roots,&mut values,&source,module,BTreeSet::from([0]),&mut loans,loops);
     Some(loans)
 }

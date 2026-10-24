@@ -5575,3 +5575,144 @@ it('qualifies original report refresh with ordered model-array SEND and atomic R
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+
+async function originalContractExecuteSource(directory: string) {
+  const original = await readFile(join(root, 'draft/apps/CanContract/CanContract.can'), 'utf8');
+  const customer = await readFile(join(root, 'draft/apps/CanCustomer/CanCustomer.can'), 'utf8');
+  const supplier = await readFile(join(root, 'draft/shared/Suppliers.can'), 'utf8');
+  const start = original.indexOf('  scenario execute('), end = original.indexOf('   examples', start), givenEnd = original.indexOf('  fixture signed_file=');
+  assert.ok(givenEnd > 0 && start > givenEnd && end > start);
+  const source = join(directory, 'Contract.can');
+  await writeFile(source, original.slice(0, givenEnd) + original.split('\n').filter(line => line.startsWith('  message ')).join('\n') +
+    '\n When\n' + original.slice(start, end).trimEnd() + '\n Then\n' +
+    ['package customer', ' use rent_catalog {Location}', ' Given', ...customer.split('\n').filter(line =>
+      line.startsWith('  export Customer {') || line.startsWith('  message label_Customer_kind_company =') || line.startsWith('  message label_Customer_locations =')),
+    ' When', ' Then', ''].join('\n') + supplier.slice(0, supplier.indexOf('\n When')) + '\n When\n Then\n');
+  return source;
+}
+
+it('executes the original agreement snapshot and calendar Work schedules with finalized signed evidence', { timeout: 240000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-contract-execute-original-'));
+  try {
+    const source = await originalContractExecuteSource(directory);
+    const { stdout } = await promisify(execFile)(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog,
+      source, join(root, 'draft/shared/Employees.can'), join(root, 'draft/shared/Locations.can')],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+    const artifact = JSON.parse(stdout) as CompileArtifact;
+    const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: join(directory, 'modules'),
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+    for (const mode of ['future', 'notice-past', 'past', 'dst', 'calendar-gap', 'calendar-overflow', 'inactive-agreement', 'already-executed',
+      'wrong-role', 'foreign-location', 'inactive-worker', 'owner-archived', 'stale', 'employee-race', 'parent-race', 'membership-revoked', 'commit-failure']) {
+      const { now, identities, team, user, membership, identity } = await member('contract-execute-' + mode, mode === 'wrong-role' ? ['agreements.property_manager'] : ['agreements.legal']);
+      const owner = await identities.createUser({ email: 'responsible-' + mode + '@contract.test', password_hash: 'unused', email_verified: true });
+      const scope = { app: 'CanContract', owner: team.team_id, ownerPackage: 'agreements' };
+      const authority: FileRetirementAuthority = { app: scope.app, stateOwner: scope.app, stateStoreId: 'contract-execute-state', fileStoreId: 'contract-execute-files',
+        receiver: { app: scope.app, owner: team.team_id, team: team.team_id } };
+      const { store, probe } = createTestMemoryStorage(authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+      await installNativeFileInventory({ artifact, asm, store, authority, scope, now: () => now,
+        verifyOwner: async () => { assert.ok(await identities.findTeamById(team.team_id)); } });
+      const clock = new TestOnlyManualClock(now), blobs = new TestOnlyMemoryBlobStore(), files = new TestOnlyMemoryFinalizedStore(), intents = new TestOnlyMemoryIntentStore();
+      const physical = { clock, blobs, files, upload: { clock, intents, blobs, policy: DEFAULT_FILE_POLICY, intentIds: new TestOnlyCounterIntentIds(), intentTtlMs: 3600000, urlBase: 'https://invoice.test' },
+        finalize: { clock, intents, blobs, files, fileIds: new TestOnlyCounterFileIds() } };
+      const retention = { unattachedHorizonMs: 3600000, retentionMs: 86400000 }, observation = { policy: physical.upload.policy, retention };
+      const kernel = createFileJourneyKernel({ maxBytes: physical.upload.policy.maxBytes, createIntent: input => createUploadIntent(physical.upload, input),
+        append: (id, caller, bytes, offset) => appendUploadContentAtOffset(physical.upload, id, caller, bytes, offset), complete: (id, caller) => completeUploadContent(physical.upload, id, caller),
+        finalize: input => finalizeUpload(physical.finalize, input), authorizeAttach: (ref, caller) => authorizeAttach(physical.finalize, ref, caller),
+        readProvenance: (ref, caller) => readFinalizedFile(physical.finalize, ref, caller), recordAttachment: (ref, record, caller) => recordAttachment(physical.finalize, ref, record, caller),
+        readBytes: (ref, caller) => readFinalizedBytes(physical.finalize, ref, caller), readCurrentBytes: (ref, caller, policy) => readCurrentFinalizedBytes(physical.finalize, ref, caller, { ...observation, retention: policy }),
+        readCurrentSnapshot: (ref, caller, policy) => readCurrentFinalizedSnapshot(physical.finalize, ref, caller, { ...observation, retention: policy }),
+        observeFile: (ref, caller, policy) => observeFinalizedFile(physical.finalize, ref, caller, { ...observation, retention: policy }),
+        revalidateFile: (saved, caller, policy) => revalidateRetainedFinalizedFile(physical.finalize, saved, caller, { ...observation, retention: policy }) } satisfies FileJourneyBindings);
+
+      const receiver = { app: scope.app, owner: team.team_id, team: team.team_id, principal: user.user_id }, bytes = new TextEncoder().encode('Original signed agreement');
+      const intent = createUploadIntent(physical.upload, { receiver, binding: { adapter: 'deployment.web', deliveryId: 'signed', resultPath: 'file' },
+        request: { upload_id: 'signed', operation: 'agreements.execute', field: '/file', arguments: {}, name: 'signed.txt', type: 'text/plain', size: String(bytes.length) } });
+      assert.ok(intent.status === 'granted'); assert.equal(appendUploadContentAtOffset(physical.upload, intent.intentId, receiver, bytes, 0).status, 'appended');
+      assert.equal(completeUploadContent(physical.upload, intent.intentId, receiver).status, 'completed');
+      const finalized = finalizeUpload(physical.finalize, { intentId: intent.intentId, retryId: 'signed', bytesDigest: sha256Hex(bytes), caller: receiver }); assert.ok(finalized.status === 'finalized');
+      const timezone = mode === 'dst' ? 'Europe/Brussels' : mode === 'calendar-gap' ? 'Pacific/Apia' : 'UTC';
+      const site = globalAnyRow('site', { ...globalAnySite('site').data, timezone, address: 'Original signed address' });
+      const worker = globalAnyRow('worker', { ...globalAnyEmployee(user.user_id, mode === 'foreign-location' ? 'other' : 'site'), active: mode !== 'inactive-worker' });
+      const responsible = { ...globalAnyRow('responsible', globalAnyEmployee(owner.user_id)), archivedAt: mode === 'owner-archived' ? now - 1000 : null };
+      const agreement = globalAnyRow('agreement', { title: 'Workspace lease', category: 'landlord', location: { id: site.id }, customer: null, supplier: null,
+        counterparty: 'Property owner', owner: { id: responsible.id }, email: owner.email, resource: null, active: mode !== 'inactive-agreement' });
+      const today = new Date(now).toISOString().slice(0, 10);
+      const until = mode === 'past' ? new Date(now - 2 * 86400000).toISOString().slice(0, 10) : mode === 'notice-past' ? new Date(now + 86400000).toISOString().slice(0, 10) :
+        mode === 'dst' ? '2099-03-29' : mode === 'calendar-gap' ? '2011-12-29' : '2099-12-31';
+      const oldSnapshot = { title: 'Prior executed title', counterparty: 'Prior party', owner: { id: owner.user_id }, location: site.id, address: 'Prior address' };
+      const term = globalAnyRow('term', { snapshot: mode === 'already-executed' ? oldSnapshot : null, timezone: mode === 'already-executed' ? timezone : null,
+        executed_by: mode === 'already-executed' ? { id: user.user_id } : null, executed_at: mode === 'already-executed' ? new Date(now - 10000).toISOString() : null,
+        expired: false, notice_suppressed: false, file: { id: finalized.result.file }, from: mode === 'calendar-gap' ? '2011-01-01' : mode === 'past' ? '2020-01-01' : today,
+        until, notice_days: mode === 'calendar-overflow' ? '9223372036854775807' : mode === 'dst' ? '1' : '30', pricing: 'EUR 1000 monthly', currency: 'EUR', previous: null,
+        executed: mode === 'already-executed', terminated: false, reason: null }, { model: asModel('agreements.Agreement'), id: agreement.id });
+      await store.commit(makeBatch(await store.readRevision(), { writes: [
+        { kind: 'insert', model: asModel('rent_catalog.Location'), row: site }, { kind: 'insert', model: asModel('rent_catalog.Location'), row: globalAnySite('other') },
+        ...[worker, responsible].map(row => ({ kind: 'insert' as const, model: asModel('employee.Employee'), row })),
+        { kind: 'insert', model: asModel('agreements.Agreement'), row: agreement }, { kind: 'insert', model: asModel('agreements.Term'), row: term },
+      ] }));
+      const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now, files: createCanonicalFileBinding(kernel, retention) });
+      const commit = store.commit.bind(store), query = store.query.bind(store); let injected = false;
+      if (mode === 'membership-revoked') store.query = async request => {
+        const rows = await query(request);
+        if (!injected && request.model === 'employee.Employee') { injected = true; await identities.removeMembership(membership.membership_id); }
+        return rows;
+      };
+      if (['employee-race', 'parent-race', 'commit-failure'].includes(mode)) store.commit = async batch => {
+        if (!injected && batch.writes.some(write => write.model === 'agreements.Term')) {
+          injected = true;
+          if (mode === 'commit-failure') {
+            assert.equal(batch.writes.filter(write => write.model === 'work.schedule').length, 2, 'fault follows both genuine staged calendar schedules');
+            throw new Error('Injected original agreement execution commit failure.');
+          }
+          const row = mode === 'employee-race' ? worker : agreement;
+          await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'update', model: asModel(mode === 'employee-race' ? 'employee.Employee' : 'agreements.Agreement'),
+            id: row.id, expectedVersion: row.version, row: { ...row, version: asVersion(row.version + 1),
+              data: mode === 'employee-race' ? { ...row.data, active: false } : { ...row.data, location: { id: 'other' } } } }] }));
+        }
+        return commit(batch);
+      };
+      const scoped = (key: string) => [scope.app, scope.ownerPackage, scope.owner, key].map(encodeURIComponent).join('/');
+      const snapshot = async () => ({ term: await store.load(asModel('agreements.Term'), term.id),
+        schedules: await store.query({ model: asModel('work.schedule'), authority: 'owner', order: [{ field: 'id', direction: 'asc' }] }),
+        supersessions: await store.query({ model: asModel('work.supersession'), authority: 'owner' }), outbox: probe.outboxAll() });
+      const before = await snapshot(), beforeFiles = structuredClone(files.listAll());
+      const request = { operation: 'agreements.execute', operation_id: operationId(now), inputs: { term: { id: term.id, version: mode === 'stale' ? '2' : '1' } } };
+      const outcome = await invoker.invokeMutation(request, identity); store.commit = commit; store.query = query;
+      const allowed = ['future', 'notice-past', 'past', 'dst'].includes(mode);
+      assert.equal('result' in outcome, allowed, mode + ': ' + JSON.stringify(outcome));
+      if (mode === 'calendar-gap' || mode === 'calendar-overflow') {
+        assert.ok('error' in outcome);
+        assert.equal(outcome.error.code, 'rule_failed');
+        assert.match(outcome.error.message, mode === 'calendar-gap' ? /DST gap/ : /add_days result outside 0001-9999/);
+      }
+      if (allowed) {
+        assert.ok('result' in outcome); assert.equal(outcome.result.status, 'committed');
+        const after = await snapshot(); assert.ok(after.term); assert.equal(after.term.version, term.version + 1);
+        assert.deepEqual(after.term.data, { ...term.data, executed: true, timezone, executed_by: { id: user.user_id }, executed_at: new Date(now).toISOString(),
+          expired: mode === 'past', snapshot: { title: agreement.data.title, counterparty: agreement.data.counterparty, owner: { id: owner.user_id }, location: site.id, address: site.data.address } });
+        const expiry = probe.scheduleGet(scoped('term-expiry-' + term.id)), notice = probe.scheduleGet(scoped(term.id));
+        if (mode === 'past') { assert.equal(expiry, null); assert.equal(notice, null); }
+        else {
+          assert.ok(expiry); assert.equal(expiry.event, 'agreements.Expire');
+          const expectedExpiry = mode === 'dst' ? Date.parse('2099-03-29T22:00:00.000Z') : Date.parse(until + 'T00:00:00.000Z') + 86400000;
+          assert.equal(expiry.at, expectedExpiry);
+          assert.deepEqual(expiry.payload, { term: { id: term.id, version: '2' }, at: new Date(expectedExpiry).toISOString() });
+          if (mode === 'notice-past') assert.equal(notice, null);
+          else { assert.ok(notice); assert.equal(notice.event, 'agreements.Notice');
+            assert.equal(notice.at, mode === 'dst' ? Date.parse('2099-03-27T23:00:00.000Z') : Date.parse(until + 'T00:00:00.000Z') - 30 * 86400000);
+            assert.deepEqual(notice.payload, { term: { id: term.id, version: '2' }, revision: '2' });
+            if (mode === 'dst') assert.equal(expiry.at - notice.at, 47 * 3600000, 'calendar midnight arithmetic crosses the actual DST boundary'); }
+        }
+        assert.equal(after.schedules.length, mode === 'past' ? 0 : mode === 'notice-past' ? 1 : 2);
+        const retained = await readCurrentFinalizedBytes(physical.finalize, finalized.result.file, receiver, observation); assert.ok(retained); assert.deepEqual(retained, bytes);
+        const attachments = structuredClone(files.listAll()), replay = await invoker.invokeMutation(request, identity);
+        assert.ok('result' in replay, JSON.stringify(replay)); assert.equal(replay.result.status, 'replayed'); assert.deepEqual(await snapshot(), after); assert.deepEqual(files.listAll(), attachments);
+      } else {
+        assert.deepEqual(await snapshot(), before, mode + ': no partial execution, snapshot or calendar Work survives refusal');
+        assert.deepEqual(files.listAll(), beforeFiles, mode + ': signed file lifecycle is unchanged');
+        if (['employee-race', 'parent-race', 'membership-revoked', 'commit-failure'].includes(mode)) assert.equal(injected, true, mode);
+      }
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
