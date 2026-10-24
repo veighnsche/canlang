@@ -990,6 +990,38 @@ export async function loadExampleBindings(input: ExampleBindingInput, moduleInde
           : Reflect.get(target, property, receiver);
         },
       });
+      const refuseObservationWrite = async (): Promise<never> => { throw new Error("example runner: observations are read only"); };
+      const readonlyObservation = async (scope: ExampleRowScope, identity: ResolvedIdentity): Promise<CanonicalEffectsScope & Required<Pick<CanonicalEffectsScope, "readRecords">>> => {
+        const store = scope.ownerStorage === undefined ? scope.store : await scope.ownerStorage.forIdentity(identity);
+        const revision = await store.readRevision();
+        const read = async (model: string, query: CanonicalReadQuery) => {
+          if (Object.keys(query).some(key => key !== "where") ||
+              query.where !== undefined && typeof query.where !== "function") {
+            throw new Error("example runner: unsupported observation query shape");
+          }
+          if (await store.readRevision() !== revision) throw new Error("example runner: observation state changed");
+          const served = await invokeReadCanonical({ asm, artifact: moduleArtifact, operation: `${model}.read`,
+            inputs: {} as ClosedInputs, identity, store, memberships: scope.identities, source: "example" });
+          if (!("records" in served) || !Array.isArray(served.records)) throw new Error("example runner: observation read returned no records");
+          if (await store.readRevision() !== revision) throw new Error("example runner: observation state changed");
+          return served.records;
+        };
+        return { operation: test.scope, stageWrite: refuseObservationWrite, readModel: read,
+          readRecords: async (model, query) => {
+            const served = await read(model, query);
+            const views = served.map(record => fixtureView(moduleArtifact, model, record));
+            if (query.where === undefined) return views;
+            const selected: Record<string, unknown>[] = [];
+            for (const view of views) {
+              const admitted: unknown = await (query.where as (record: unknown) => unknown)(view);
+              if (typeof admitted !== "boolean") throw new Error("example runner: observation predicate must return bool");
+              if (admitted) selected.push(view);
+            }
+            if (await store.readRevision() !== revision) throw new Error("example runner: observation state changed");
+            return selected;
+          },
+        };
+      };
       const hooks: RunnerHooks = {
         prepareFixtures: async (scope, fixtures, required) => {
           const nonUser = required.filter(recipe => recipe.kind !== "user");
@@ -1055,8 +1087,22 @@ export async function loadExampleBindings(input: ExampleBindingInput, moduleInde
         invoke: async (scope: ExampleRowScope, caller: ResolvedCaller): Promise<ExampleCallOutcome> => {
           rowCallers.set(scope, caller);
           evaluationScope = scope;
+          if (input.hooks === undefined) {
+            // Sequence bindings/assertions run during invoke, between committed
+            // calls. Keep fixture refs (and their optimistic versions) intact;
+            // each explicit query reads fresh committed state as the current
+            // step caller. Before the first call the sequence caller is self.
+            const currentRead = async () => {
+              const identity = rowIdentities.get(scope) ?? await scope.identityFor("self", caller,
+                checkedFixtureValues(fixtureValuesOf(scope), test.scope));
+              return readonlyObservation(scope, identity);
+            };
+            observationScope = { operation: test.scope, stageWrite: refuseObservationWrite,
+              readModel: async (model, query) => (await currentRead()).readModel(model, query),
+              readRecords: async (model, query) => (await currentRead()).readRecords(model, query) };
+          }
           try { return await evaluate( () => row.invoke(scope, caller)); }
-          finally { evaluationScope = undefined; }
+          finally { observationScope = undefined; evaluationScope = undefined; }
         },
         observe: async (scope: ExampleRowScope): Promise<ReportValue[]> => {
           if (input.hooks !== undefined) {
@@ -1068,36 +1114,7 @@ export async function loadExampleBindings(input: ExampleBindingInput, moduleInde
           if (caller === undefined) throw new Error("example runner: observation caller was not resolved");
           const identity = rowIdentities.get(scope);
           if (identity === undefined) throw new Error("example runner: observation identity was not resolved");
-          const store = scope.ownerStorage === undefined ? scope.store : await scope.ownerStorage.forIdentity(identity);
-          const revision = await store.readRevision();
-          const refuse = async (): Promise<never> => { throw new Error("example runner: observations are read only"); };
-          const read = async (model: string, query: CanonicalReadQuery) => {
-            if (Object.keys(query).some(key => key !== "where") ||
-                query.where !== undefined && typeof query.where !== "function") {
-              throw new Error("example runner: unsupported observation query shape");
-            }
-            if (await store.readRevision() !== revision) throw new Error("example runner: observation state changed");
-            const served = await invokeReadCanonical({ asm, artifact: moduleArtifact, operation: `${model}.read`,
-              inputs: {} as ClosedInputs, identity, store, memberships: scope.identities, source: "example" });
-            if (!("records" in served) || !Array.isArray(served.records)) throw new Error("example runner: observation read returned no records");
-            if (await store.readRevision() !== revision) throw new Error("example runner: observation state changed");
-            return served.records;
-          };
-          observationScope = { operation: test.scope, stageWrite: refuse, readModel: read,
-            readRecords: async (model, query) => {
-              const served = await read(model, query);
-              const views = served.map(record => fixtureView(moduleArtifact, model, record));
-              if (query.where === undefined) return views;
-              const selected: Record<string, unknown>[] = [];
-              for (const view of views) {
-                const admitted: unknown = await (query.where as (record: unknown) => unknown)(view);
-                if (typeof admitted !== "boolean") throw new Error("example runner: observation predicate must return bool");
-                if (admitted) selected.push(view);
-              }
-              if (await store.readRevision() !== revision) throw new Error("example runner: observation state changed");
-              return selected;
-            },
-          };
+          observationScope = await readonlyObservation(scope, identity);
           evaluationScope = scope;
           try { return await evaluate( () => row.observe(scope)); }
           finally { observationScope = undefined; evaluationScope = undefined; }

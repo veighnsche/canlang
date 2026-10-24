@@ -5,7 +5,9 @@ const SOURCE: &str = r#"app ExampleOperation
 Given
  Entry {source:text,request_source:text}
  policy Entry read=members
+ fixture entry=Entry {source="seed",request_source="fixture"}
 When
+ crud Entry by=members fields=source,request_source
  scenario make(reject:bool=false) by=members
   require not reject
   do create Entry {source=operation.id,request_source=operation.source} as created
@@ -15,6 +17,19 @@ When
    members,true -> error(rule_failed)
    public,false -> error(forbidden)
    members,false -> 1,"example"
+ scenario saved() by=members read=true -> Entry[]
+  do return Entry
+  examples seed=[entry]
+   do
+    let initial_entry=first(Entry as saved where saved.id==entry.id)
+    initial_entry!=null -> true
+    initial_entry.source -> "seed"
+    call Entry.update {record=entry,changes={source="changed"}} by=self
+    call Entry.update {record=entry,changes={source="stale"}} by=self -> error(conflict)
+    call saved {} by=self
+    let saved_task=first(Entry as saved where saved.id==entry.id)
+    saved_task!=null -> true
+    saved_task.source,saved_task.request_source -> "changed","fixture"
 Then
 "#;
 
@@ -56,6 +71,16 @@ fn completed_mutation_context_preserves_correlation_and_native_rejections() {
         String::from_utf8_lossy(&unavailable.stdout)
     );
     std::fs::write(scratch.path().join("expected.json"), unavailable.stdout).unwrap();
+    let forbidden = compile(
+        &SOURCE.replace("call saved {} by=self", "call saved {} by=public -> error(forbidden)"),
+        &scratch.path().join("forbidden.can"),
+    );
+    assert!(
+        forbidden.status.success(),
+        "{}",
+        String::from_utf8_lossy(&forbidden.stdout)
+    );
+    std::fs::write(scratch.path().join("forbidden.json"), forbidden.stdout).unwrap();
     let script = r#"
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -73,16 +98,22 @@ const run=file=>runCompiledExamples({
 });
 const result=await run('./artifact.json');
 assert.equal(result.ok,true,JSON.stringify(result.report));
-assert.equal(result.executed,4);
-assert.deepEqual(result.report.summary,{total:4,passed:4,failed:0,setupFailed:0,unsupported:0});
+assert.equal(result.executed,5);
+assert.deepEqual(result.report.summary,{total:5,passed:5,failed:0,setupFailed:0,unsupported:0});
 const rows=result.report.cases.find(c=>c.operation==='ExampleOperation.make').rows;
 assert.deepEqual(rows.map(row=>row.outcome),['passed','passed','passed','passed']);
 assert.deepEqual(rows.slice(1,3).map(row=>row.rejection),[
  {error:'rule_failed',sideEffectsAbsent:true},{error:'forbidden',sideEffectsAbsent:true}]);
 const unavailable=await run('./expected.json');
 assert.equal(unavailable.ok,false);
-assert.deepEqual(unavailable.report.summary,{total:4,passed:2,failed:0,setupFailed:2,unsupported:0});
+assert.deepEqual(unavailable.report.summary,{total:5,passed:3,failed:0,setupFailed:2,unsupported:0});
 assert.match(JSON.stringify(unavailable.report),/no completed mutation operation context in this phase/);
+// A denied public call must not leave the previous member's read authority on
+// the next sequence query. Its update remains committed; its query is refused.
+const forbidden=await run('./forbidden.json');
+assert.equal(forbidden.ok,false);
+assert.deepEqual(forbidden.report.summary,{total:5,passed:4,failed:1,setupFailed:0,unsupported:0});
+assert.equal(forbidden.report.cases.find(c=>c.operation==='ExampleOperation.saved').rows[0].outcome,'failed');
 "#;
     let runner = scratch.path().join("operation.mjs");
     std::fs::write(&runner, script).unwrap();
