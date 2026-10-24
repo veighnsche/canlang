@@ -1238,6 +1238,15 @@ export interface FrameworkOpaqueStandardCompletionOrigin {
   readonly routes: ReadonlyArray<FrameworkOpaqueSourceRoute>;
 }
 
+/** One original bound SEND request, independent of a dispatch predicate. */
+export interface FrameworkOpaqueSendInputOrigin {
+  readonly kind: 'send-input';
+  readonly caller: FrameworkOpaqueCallable;
+  readonly intent: Readonly<Pick<OutboxIntent, 'intentId' | 'operation' | 'operationId' | 'target' | 'occurrenceIndex'>>;
+  readonly request: { readonly binding: string; readonly from: string };
+  readonly inputsDeclarationId: string;
+}
+
 /** Original deferred lexical capture, separate from provider request arguments.
  * The actual owning producer validates the complete sourceGuard envelope against
  * this declaration and its original dispatch/outbox intent, then resolves the
@@ -1336,6 +1345,7 @@ export type FrameworkOpaquePayloadOrigin =
   | FrameworkOpaqueSourceRoutingOrigin
   | FrameworkOpaqueStandardCompletionOrigin
   | FrameworkOpaqueSendGuardOrigin
+  | FrameworkOpaqueSendInputOrigin
   | FrameworkOpaqueSkippedDeliveryOrigin;
 
 /** One original owning row.data.filePayloadOrigin, persisted atomically with

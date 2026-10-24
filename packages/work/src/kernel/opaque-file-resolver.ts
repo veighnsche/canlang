@@ -781,7 +781,7 @@ function resolveStandardCompletion(ctx: OpaqueResolveContext): void {
 
 /** Exact-slot gate for opaque resolution. */
 function assertOpaqueSlot(model: ModelName, field: string): void {
-  if (model === WORK_DISPATCH_MODEL ? field !== 'sourceGuard' && field !== 'queuePayload' : model === WORK_OCCURRENCE_MODEL ? field !== 'result' :
+  if (model === WORK_DISPATCH_MODEL ? field !== 'sourceGuard' && field !== 'queuePayload' && field !== 'sendInputs' : model === WORK_OCCURRENCE_MODEL ? field !== 'result' :
       (model !== WORK_SCHEDULE_MODEL && model !== WORK_HANDLER_OCCURRENCE_MODEL) || field !== 'payload') return refuse('unknown exact opaque slot.');
 }
 
@@ -790,8 +790,8 @@ export const resolveWorkOpaqueField: NonNullable<FrameworkFileReferenceProducer[
   const snapshot = snapshotKernelJsonValue({ row: suppliedRow, context: suppliedContext }, 'Work opaque resolution');
   const row = snapshot.row, context = snapshot.context;
   assertOpaqueSlot(model, field);
-  const binding = readWorkFilePayloadOrigin(row.data, row, model, field as 'result' | 'payload' | 'sourceGuard' | 'queuePayload',
-    field === 'result' ? 'retained-result' : 'deferred-input', field === 'queuePayload' ? 'queuePayloadOrigin' : 'filePayloadOrigin');
+  const binding = readWorkFilePayloadOrigin(row.data, row, model, field as 'result' | 'payload' | 'sourceGuard' | 'queuePayload' | 'sendInputs',
+    field === 'result' ? 'retained-result' : 'deferred-input', field === 'queuePayload' ? 'queuePayloadOrigin' : field === 'sendInputs' ? 'sendInputsOrigin' : 'filePayloadOrigin');
   if (binding === undefined) return refuse('original payload binding required, including empty/null values.');
   same(context.binding, binding, 'supplied persisted binding');
   const sets = context.installed.inventory.opaqueDeclarationSets;
@@ -817,7 +817,21 @@ export const resolveWorkOpaqueField: NonNullable<FrameworkFileReferenceProducer[
   };
   const data = row.data as Data, origin = object(binding.origin), ownerScope = scope(binding.scope);
   const ctx: OpaqueResolveContext = { row, data, origin, ownerScope, set, binding, valueDefaults, valueDefaultKey, values, declaration, projectInputs, projectResult };
-  if (model === WORK_DISPATCH_MODEL && field === 'sourceGuard') {
+  if (model === WORK_DISPATCH_MODEL && field === 'sendInputs') {
+    closed(origin, ['kind', 'caller', 'intent', 'request', 'inputsDeclarationId']);
+    if (origin.kind !== 'send-input') return refuse('original SEND input recipe required.');
+    const intent = closed(origin.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);
+    const caller = callable(origin.caller), request = closed(origin.request, ['binding', 'from']);
+    same(intent.intentId, row.id, 'SEND input intent'); same(intent.intentId, data.intentId, 'SEND dispatch identity');
+    same(intent.operationId, data.operationId, 'SEND input operation'); same(intent.target, data.source, 'SEND input target');
+    same(intent.occurrenceIndex, data.occurrenceIndex, 'SEND input ordinal'); same(intent.operation, caller.callable.id, 'SEND input caller');
+    string(intent.operationId); integer(intent.occurrenceIndex); string(request.binding); string(request.from);
+    const selected = declaration(string(origin.inputsDeclarationId), ['inputs']);
+    if (selected.source.kind !== 'delivery' || selected.source.context.kind !== 'capability') return refuse('original SEND provider inputs required.');
+    same(selected.source.source, caller.source, 'SEND input source');
+    same(intent.target, `${selected.source.context.canonical.capability}.${selected.source.context.canonical.operation}`, 'SEND provider target');
+    projectInputs([], string(origin.inputsDeclarationId));
+  } else if (model === WORK_DISPATCH_MODEL && field === 'sourceGuard') {
     resolveSourceGuard(ctx);
   } else if (model === WORK_DISPATCH_MODEL && field === 'queuePayload') {
     resolveQueuePayload(ctx, model);

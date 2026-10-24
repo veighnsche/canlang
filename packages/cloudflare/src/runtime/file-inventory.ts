@@ -329,6 +329,44 @@ function declareCallableResult(
         artifact: { type: operation.result.type } } });
 }
 
+/** Provider input profiles use the same checked field loader as completion
+ * requests. They belong to this actual callable/source, not a fabricated
+ * scenario signature or a synthetic true SEND guard. */
+function providerInputProfile(artifact: CompileArtifact, loaded: Awaited<ReturnType<typeof loadCanonicalDescriptors>>,
+  target: string, fields: unknown): Extract<FrameworkOpaqueDeclaration['profile'], { kind: 'inputs' }> {
+  if (!Array.isArray(fields)) throw new Error('Provider inputs require complete original catalog fields.');
+  const descriptor: ArtifactOperation = { name: target, kind: 'scenario', description: '',
+    inputs: { fields: fields as ArtifactOperation['inputs']['fields'] } };
+  const request = loaded.producers.registry.loadArtifactDescriptors({ ...artifact, operations: [descriptor] }, { by: () => 'owner' });
+  const canonical = data(request.registry.get(target), 'descriptor') as CanonicalOperationDescriptor;
+  return { kind: 'inputs', canonical: canonical.inputs, artifact: descriptor.inputs.fields };
+}
+function declareProviderSendInputs(artifact: CompileArtifact, captures: readonly ModuleCapture[],
+  loaded: Awaited<ReturnType<typeof loadCanonicalDescriptors>>, callable: CompileArtifact['callables'][number],
+  source: CallableSource, declarations: FrameworkOpaqueDeclaration[]): void {
+  const captured = captures.find(value => value.module === callable.module);
+  if (captured === undefined) throw new Error('Provider inputs require their original callable module.');
+  for (const [capability, declared] of Object.entries(captured.capabilities)) {
+    if (typeof declared !== 'object' || declared === null || Array.isArray(declared)) throw new Error('Provider declaration is invalid.');
+    if (!Object.hasOwn(declared, 'operations')) continue;
+    const operations = data(declared, 'operations');
+    if (typeof operations !== 'object' || operations === null || Array.isArray(operations)) throw new Error('Provider operations are invalid.');
+    for (const [name, operation] of Object.entries(operations)) {
+      // Legacy declarations without released catalog fields do not gain a
+      // new retained input consumer. Retained File reads then refuse.
+      if (typeof operation !== 'object' || operation === null || Array.isArray(operation)) throw new Error('Provider operation is invalid.');
+      if (!Object.hasOwn(operation, 'inputFields') && !Object.hasOwn(operation, 'delivery')) continue;
+      if (!Object.hasOwn(operation, 'inputFields') || !Object.hasOwn(operation, 'delivery')) throw new Error('Provider inputs require their complete original catalog declaration.');
+      const target = `${capability}.${name}`, delivery = data(operation, 'delivery') as ArtifactDeliveryDescriptor;
+      if (delivery.capability !== capability || delivery.operation !== name) throw new Error('Provider input target differs from its catalog.');
+      declarations.push({ id: `${callable.id}:send:${target}:inputs`,
+        source: { kind: 'delivery', source: source.source,
+          context: { kind: 'capability', canonical: delivery, artifact: delivery } },
+        profile: providerInputProfile(artifact, loaded, target, data(operation, 'inputFields')) });
+    }
+  }
+}
+
 function declareCallable(artifact: CompileArtifact, captures: readonly ModuleCapture[],
   loaded: Awaited<ReturnType<typeof loadCanonicalDescriptors>>,
   callable: CompileArtifact['callables'][number], declarations: FrameworkOpaqueDeclaration[],
@@ -338,6 +376,7 @@ function declareCallable(artifact: CompileArtifact, captures: readonly ModuleCap
   declarations.push({ id: `${callable.id}:inputs`, source,
     profile: { kind: 'inputs', canonical: canonical.inputs, artifact: operation.inputs.fields } });
   declareSendGuards(artifact, captures, callable, source, declarations);
+  declareProviderSendInputs(artifact, captures, loaded, callable, source, declarations);
   declarations.push(...nativeCapabilityResultDeclarations(source, loaded.models, models));
   declareCallableResult(callable, source, canonical, operation, declarations,
     legacyVoidResultIds.has(`${callable.id}:result`));
@@ -404,14 +443,11 @@ function declareStandardCompletions(artifact: CompileArtifact, captures: readonl
         delivery.operation !== completion.source.slice(split + 1) || delivery.result.name !== completion.resultType) {
       throw new Error('Completion lacks its original bound catalog request/result descriptor.');
     }
-    const descriptor: ArtifactOperation = { name: completion.source, kind: 'scenario', description: '',
-      inputs: { fields: fields as ArtifactOperation['inputs']['fields'] } };
-    const request = loaded.producers.registry.loadArtifactDescriptors({ ...artifact, operations: [descriptor] }, {by:()=> 'owner'});
-    const canonical = data(request.registry.get(completion.source), 'descriptor') as CanonicalOperationDescriptor;
+    const profile = providerInputProfile(artifact, loaded, completion.source, fields);
     const source: FrameworkOpaqueDeclaration['source'] = { kind: 'delivery', source: event.source.source,
       context: { kind: 'capability', canonical: delivery, artifact: delivery } };
     declarations.push({ id: `${completion.event}:provider-inputs`, source,
-      profile: { kind: 'inputs', canonical: canonical.inputs, artifact: descriptor.inputs.fields } },
+      profile },
     { id: `${completion.event}:provider-result`, source,
       profile: { kind: 'provider-result', canonical: delivery.result, artifact: delivery.result } });
   }

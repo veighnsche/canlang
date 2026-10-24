@@ -18,7 +18,7 @@ import { dispatchGenerationTargetProfile } from '@canlang/work/kernel/tables';
 export interface RetainedOpaqueFileSource {
   readonly model: ModelName;
   readonly row: StoredRow;
-  readonly field: 'payload' | 'result' | 'sourceGuard' | 'queuePayload';
+  readonly field: 'payload' | 'result' | 'sourceGuard' | 'queuePayload' | 'sendInputs';
   readonly binding: FrameworkFilePayloadOrigin;
 }
 
@@ -211,6 +211,15 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     return Object.freeze({ source: source.source, callable: actual, canonical,
       artifact: descriptor, resultDeclarationId: result.id });
   };
+  const sendInputs = (owner: string, target: string): { readonly caller: FrameworkOpaqueCallable; readonly inputsDeclarationId: string } => {
+    const caller = callable(owner);
+    const matches = set.declarations.filter(declaration => declaration.id === `${owner}:send:${target}:inputs` &&
+      declaration.profile.kind === 'inputs' && declaration.source.kind === 'delivery' &&
+      declaration.source.context.kind === 'capability' && equal(declaration.source.source, caller.source) &&
+      `${declaration.source.context.canonical.capability}.${declaration.source.context.canonical.operation}` === target);
+    if (matches.length !== 1) refuse('SEND inputs lack their exact original provider declaration');
+    return Object.freeze({ caller, inputsDeclarationId: matches[0]!.id });
+  };
   const sendGuard = (guard: ScenarioReceiptSendGuard, profile?: Extract<FrameworkOpaqueDeclarationSet['declarations'][number]['profile'], { kind: 'inputs' }>): {
     readonly declaration: FrameworkOpaqueSendGuardDeclaration; readonly inputsDeclarationId: string;
   } => {
@@ -305,7 +314,7 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     return property.value;
   };
   const assertSourceRow = (source: RetainedOpaqueFileSource, row: StoredRow | null): StoredRow => {
-    if (row === null || !equal(row, source.row) || !equal(own(row.data, source.field === 'queuePayload' ? 'queuePayloadOrigin' : 'filePayloadOrigin'), source.binding)) {
+    if (row === null || !equal(row, source.row) || !equal(own(row.data, source.field === 'queuePayload' ? 'queuePayloadOrigin' : source.field === 'sendInputs' ? 'sendInputsOrigin' : 'filePayloadOrigin'), source.binding)) {
       refuse('retained source is not its exact current physical row/header');
     }
     return row;
@@ -486,5 +495,5 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     return origin;
   };
   await current();
-  return Object.freeze({ installed, set, bound, event, completion, callable, sendGuard, delivery, occurrences, prepare, prepareControl, revalidateSource, readSourceFile, refresh });
+  return Object.freeze({ installed, set, bound, event, completion, callable, sendGuard, sendInputs, delivery, occurrences, prepare, prepareControl, revalidateSource, readSourceFile, refresh });
 }

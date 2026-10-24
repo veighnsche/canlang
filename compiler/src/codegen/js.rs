@@ -15862,17 +15862,17 @@ impl<'a> Emitter<'a> {
                                 .collect::<Vec<_>>()
                                 .join(",");
                             let result = self.std_capability_field_schema(op.result, *span);
-                            let terminal = self.standard_completions.as_ref().is_some_and(|sources|
-                                sources.iter().any(|source|source.source == format!("{}.{}",capability.name,op.name)));
-                            let terminal_fields = if terminal {
-                                match (op.inputs.iter().map(|(name,ty)|self.standard_completion_input(name,ty)).collect::<Option<Vec<_>>>(),
-                                    delivery_descriptor(capability.name,op)) {
-                                    (Some(fields),Some(delivery)) => format!(",inputFields:{},delivery:{}",descriptor_json(&fields),delivery.to_json()),
-                                    _ => String::new(),
-                                }
-                            } else { String::new() };
+                            // Retained SEND inputs and completion requests share
+                            // the original catalog declaration. Its availability
+                            // must not depend on an authored completion handler.
+                            let request_fields = match (op.inputs.iter()
+                                .map(|(name,ty)|self.standard_completion_input(name,ty)).collect::<Option<Vec<_>>>(),
+                                self.standard_completion_input("result", op.result), delivery_descriptor(capability.name,op)) {
+                                (Some(fields),Some(_),Some(delivery)) => format!(",inputFields:{},delivery:{}",descriptor_json(&fields),delivery.to_json()),
+                                _ => String::new(),
+                            };
                             format!(
-                                "{}:{{inputs:{{{inputs}}},result:{result}{terminal_fields}}}",
+                                "{}:{{inputs:{{{inputs}}},result:{result}{request_fields}}}",
                                 object_key(op.name)
                             )
                         })

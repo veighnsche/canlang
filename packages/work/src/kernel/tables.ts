@@ -253,6 +253,8 @@ export interface DispatchLifecycleRowData {
 
 /** Complete dispatch data; authoritative reads retain all original metadata checks. */
 export interface DispatchRowData extends DispatchLifecycleRowData, Partial<DispatchImageCorrelation>, Partial<DispatchImageControlPin>, Partial<DispatchMailRecipientPin> {
+  readonly sendInputs?: Readonly<Record<string, unknown>>;
+  readonly sendInputsOrigin?: FrameworkFilePayloadOrigin;
   readonly queuePayload?: Readonly<Record<string, unknown>>;
   readonly queuePayloadOrigin?: FrameworkFilePayloadOrigin;
   readonly sourceGuard?: DispatchSourceGuard;
@@ -501,9 +503,9 @@ export function readWorkFilePayloadOrigin(
   data: Readonly<Record<string, unknown>>,
   row: Pick<StoredRow, 'id' | 'created' | 'createdBy'>,
   model: ModelName,
-  field: 'payload' | 'result' | 'sourceGuard' | 'queuePayload',
+  field: 'payload' | 'result' | 'sourceGuard' | 'queuePayload' | 'sendInputs',
   role: 'retained-result' | 'deferred-input',
-  headerField: 'filePayloadOrigin' | 'queuePayloadOrigin' = 'filePayloadOrigin',
+  headerField: 'filePayloadOrigin' | 'queuePayloadOrigin' | 'sendInputsOrigin' = 'filePayloadOrigin',
 ): FrameworkFilePayloadOrigin | undefined {
   if (!Object.hasOwn(data, headerField)) return undefined;
   const descriptor = Object.getOwnPropertyDescriptor(data, headerField);
@@ -524,7 +526,7 @@ export function readWorkFilePayloadOrigin(
   const scope = closedOriginRecord(origin['scope'], ['app', 'owner', 'ownerPackage'], 'filePayloadOrigin.scope');
   for (const key of ['app', 'owner', 'ownerPackage']) checkString(scope, key, 'filePayloadOrigin.scope');
   const recipe = checkRecord(origin['origin'], 'filePayloadOrigin.origin');
-  if (!['delivery-result', 'event-input', 'handler-result', 'scheduled-handler-result', 'source-routing', 'standard-completion', 'send-guard'].includes(checkString(recipe, 'kind', 'filePayloadOrigin.origin'))) {
+  if (!['delivery-result', 'event-input', 'handler-result', 'scheduled-handler-result', 'source-routing', 'standard-completion', 'send-guard', 'send-input'].includes(checkString(recipe, 'kind', 'filePayloadOrigin.origin'))) {
     throw new KernelTableError('filePayloadOrigin.origin has an unknown kind.');
   }
   checkOriginFiles(origin);
@@ -596,6 +598,17 @@ function guardBindingAgrees(origin: SendGuardOrigin,
     declaration.node.start !== sourceGuard.node.start || declaration.node.end !== sourceGuard.node.end ||
     !Array.isArray(declaration.inputs) || declaration.inputs.length !== Object.keys(sourceGuard.inputs).length ||
     declaration.inputs.some((input, index) => input.name !== Object.keys(sourceGuard.inputs)[index]));
+}
+function checkSendInputOrigin(row: StoredRow, data: Record<string, unknown>, header: FrameworkFilePayloadOrigin): void {
+  const origin = header.origin;
+  if (origin.kind !== 'send-input' || origin.intent.intentId !== row.id || origin.intent.intentId !== data['intentId'] ||
+      origin.intent.operationId !== data['operationId'] || origin.intent.target !== data['source'] ||
+      origin.intent.occurrenceIndex !== data['occurrenceIndex'] || origin.caller.callable.id !== origin.intent.operation ||
+      typeof origin.request.binding !== 'string' || origin.request.binding === '' ||
+      typeof origin.request.from !== 'string' || origin.request.from === '' ||
+      typeof origin.inputsDeclarationId !== 'string' || origin.inputsDeclarationId === '') {
+    throw new KernelTableError('work.dispatch SEND inputs lost their original caller/intent.');
+  }
 }
 function checkQueuePublicationOrigin(row: StoredRow, data: Record<string, unknown>,
   queuePayloadOrigin: FrameworkFilePayloadOrigin): void {
@@ -685,6 +698,10 @@ export function readDispatchRow(row: StoredRow): DispatchRowData {
   if (sourceGuard !== null && filePayloadOrigin !== undefined) {
     checkSourceGuardOrigin(row, data, sourceGuard, filePayloadOrigin);
   }
+  const sendInputsOrigin = readWorkFilePayloadOrigin(data, row, WORK_DISPATCH_MODEL, 'sendInputs', 'deferred-input', 'sendInputsOrigin');
+  const sendInputs = Object.hasOwn(data, 'sendInputs') ? snapshotKernelJsonValue(checkRecord(data['sendInputs'], 'work.dispatch.sendInputs'), 'work.dispatch.sendInputs') : undefined;
+  if ((sendInputs === undefined) !== (sendInputsOrigin === undefined)) throw new KernelTableError('work.dispatch SEND inputs and original header must be present together.');
+  if (sendInputsOrigin !== undefined) checkSendInputOrigin(row, data, sendInputsOrigin);
   const queuePayloadOrigin = readWorkFilePayloadOrigin(data, row, WORK_DISPATCH_MODEL, 'queuePayload', 'deferred-input', 'queuePayloadOrigin');
   const queuePayload = Object.hasOwn(data, 'queuePayload') ? snapshotKernelJsonValue(checkRecord(data['queuePayload'], 'work.dispatch.queuePayload'), 'work.dispatch.queuePayload') : undefined;
   if ((queuePayload === undefined) !== (queuePayloadOrigin === undefined)) throw new KernelTableError('work.dispatch queue payload and original header must be present together.');
@@ -702,6 +719,7 @@ export function readDispatchRow(row: StoredRow): DispatchRowData {
     ...(mailPin ?? {}),
     ...(sourceGuard === null ? {} : { sourceGuard }),
     ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }),
+    ...(sendInputs === undefined ? {} : { sendInputs, sendInputsOrigin: sendInputsOrigin! }),
     ...(queuePayload === undefined ? {} : { queuePayload, queuePayloadOrigin: queuePayloadOrigin! }),
     ...projectDispatchLifecycle(prefix),
   };
@@ -837,7 +855,7 @@ export function newDispatchRow(
   input: Pick<
     DispatchRowData,
     'intentId' | 'operationId' | 'source' | 'occurrenceIndex' | 'originOccurrence'
-  > & Partial<DispatchImageCorrelation> & { readonly sourceGuard?: DispatchSourceGuard; readonly filePayloadOrigin?: FrameworkFilePayloadOrigin; readonly queuePayload?: Readonly<Record<string, unknown>>; readonly queuePayloadOrigin?: FrameworkFilePayloadOrigin },
+  > & Partial<DispatchImageCorrelation> & { readonly sourceGuard?: DispatchSourceGuard; readonly filePayloadOrigin?: FrameworkFilePayloadOrigin; readonly queuePayload?: Readonly<Record<string, unknown>>; readonly queuePayloadOrigin?: FrameworkFilePayloadOrigin; readonly sendInputs?: Readonly<Record<string, unknown>>; readonly sendInputsOrigin?: FrameworkFilePayloadOrigin },
   meta: NewRowMeta,
 ): StoredRow {
   const correlation = readDispatchImageCorrelation(input as unknown as Readonly<Record<string, unknown>>);

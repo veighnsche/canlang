@@ -3514,6 +3514,8 @@ interface NativeScenarioExecution {
   readonly execute: (frame: ScenarioReceiptCallFrame) => Promise<unknown>;
   readonly cancel: (frame: ScenarioReceiptCallFrame, key: string, ownerPackage: string) => Promise<void>;
   readonly evaluateSendGuard: (frame: ScenarioReceiptSendGuardFrame) => Promise<boolean>;
+  readonly prepareSendInputsOrigin: (input: ScenarioReceiptSendProducerInput, row: StoredRow,
+    intent: OutboxIntent) => Promise<FrameworkFilePayloadOrigin | undefined>;
   readonly prepareSourceGuardOrigin: (input: ScenarioReceiptSendProducerInput, row: StoredRow,
     intent: OutboxIntent) => Promise<FrameworkFilePayloadOrigin>;
   readonly prepareQueuePayloadOrigin: (input: ScenarioReceiptSendProducerInput, row: StoredRow,
@@ -5239,7 +5241,6 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
       const active = live(call);
       const queue = resources.some(resource => resource.binding === input.request.binding &&
         resource.sources.includes(input.source) && input.source.endsWith('.publish'));
-      if (input.sourceGuard === undefined && !queue) return work.stageCanonicalSend(input, context);
       if (input.sourceGuard !== undefined) {
         const original = nativeSourceSendCalls.get(input.sourceGuard.inputs);
         if (original === undefined || original.call !== call || original.active !== active) {
@@ -5247,7 +5248,11 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
         }
         nativeSourceSendCalls.delete(input.sourceGuard.inputs);
       }
+      const declaredBinding = own(rawBindings, input.request.binding);
+      const capability = isUnknownRecord(declaredBinding) ? own(declaredBinding, 'capability') : undefined;
       return work.stageCanonicalSend(input, context, {
+        ...(typeof capability === 'string' && !queue ? { prepareSendInputsOrigin:
+          (row: StoredRow, intent: OutboxIntent) => active.prepareSendInputsOrigin(input, row, intent) } : {}),
         ...(input.sourceGuard === undefined ? {} : { prepareSourceGuardOrigin:
           (row: StoredRow, intent: OutboxIntent) => active.prepareSourceGuardOrigin(input, row, intent) }),
         ...(queue ? { prepareQueuePayloadOrigin:
@@ -12015,6 +12020,46 @@ async function runScenarioExecution(
           return accepted;
         } catch (error) { recordEngineFailure(error); throw error; }
         finally { guardOpen = false; membership.close(); }
+      },
+      prepareSendInputsOrigin: async (input: ScenarioReceiptSendProducerInput, row: StoredRow, intent: OutboxIntent) => {
+        currentSend();
+        const selected = nativeSourceSendOwners.get(actualCall.def as GeneratedOperationDef);
+        if (selected === undefined || callable === undefined || input.operationId !== actualCall.context.operationId ||
+            intent.operation !== actualCall.def.name || intent.operationId !== input.operationId ||
+            intent.target !== input.source || intent.occurrenceIndex !== input.occurrenceIndex || row.id !== intent.intentId ||
+            stableStringify(intent.arguments) !== stableStringify(input.request) ||
+            stableStringify(row.data['sendInputs']) !== stableStringify(input.request.arguments)) {
+          return refuseRecordBinding('SEND inputs require their actual Work row/outbox and original live source call.');
+        }
+        const module = await importVerifiedAssemblyModule(opts.asm, callable.module, opts.artifact);
+        const definition = privateSourceMember(module, 'appDefinition');
+        const binding = privateSourceMember(privateSourceMember(definition, 'bindings'), input.request.binding);
+        const capability = privateSourceMember(binding, 'capability');
+        if (typeof capability !== 'string' || privateSourceMember(binding, 'from') !== input.request.from ||
+            !input.source.startsWith(`${capability}.`)) return refuseRecordBinding('SEND inputs require their exact original binding and provider target.');
+        const provider = privateSourceMember(privateSourceMember(definition, 'capabilities'), capability);
+        const operation = privateSourceMember(privateSourceMember(provider, 'operations'), input.source.slice(capability.length + 1));
+        // Old catalog declarations keep their original staging behavior, but
+        // acquire neither persisted input authority nor a retained File reader.
+        // The receiving consumer must require the genuine paired header.
+        if (privateSourceMember(operation, 'inputFields') === undefined && privateSourceMember(operation, 'delivery') === undefined) return undefined;
+        const opaque = await sourceOpaque(selected), declaration = opaque.sendInputs(actualCall.def.name, input.source);
+        const projection = { kind: 'inputs' as const, path: [], declarationId: declaration.inputsDeclarationId };
+        // Keep the existing compact dispatch representation for a request with
+        // no actual File occurrences. No receiver is inferred from the actor.
+        if (opaque.occurrences(projection, input.request.arguments).length === 0) return undefined;
+        const { WORK_DISPATCH_MODEL } = await import('@canlang/work/kernel/tables');
+        currentSend();
+        const origin = await opaque.prepare({ expectedRevision: actualCall.revision as Revision,
+          model: WORK_DISPATCH_MODEL as ModelName, row, field: 'sendInputs',
+          scope: { app: actualCall.context.app, owner: actualCall.checkpoint!.owner, ownerPackage: selected.ownerPackage },
+          origin: { kind: 'send-input', caller: declaration.caller, inputsDeclarationId: declaration.inputsDeclarationId,
+            intent: { intentId: intent.intentId, operation: intent.operation, operationId: intent.operationId,
+              target: intent.target, occurrenceIndex: intent.occurrenceIndex },
+            request: { binding: input.request.binding, from: input.request.from } },
+          projection, value: input.request.arguments, identity: opts.identity,
+          ...(opts.files === undefined ? {} : { files: opts.files }) });
+        currentSend(); return origin;
       },
       prepareQueuePayloadOrigin: async (input: ScenarioReceiptSendProducerInput, row: StoredRow, intent: OutboxIntent) => {
         currentSend();

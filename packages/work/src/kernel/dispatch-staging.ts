@@ -37,6 +37,8 @@ interface ParsedStageIntent {
   correlation: DispatchImageCorrelation | null;
   sourceGuard: DispatchSourceGuard | null;
   filePayloadOrigin: FrameworkFilePayloadOrigin | null;
+  sendInputs: Readonly<Record<string, unknown>> | null;
+  sendInputsOrigin: FrameworkFilePayloadOrigin | null;
   queuePayload: Readonly<Record<string, unknown>> | null;
   queuePayloadOrigin: FrameworkFilePayloadOrigin | null;
 }
@@ -157,6 +159,19 @@ function parseStageIntent(
   if ((sourceGuard === null) !== (filePayloadOrigin === null)) {
     throw new KernelTableError(`${item}: source guard requires its original atomic payload header.`);
   }
+  const sendInputsOrigin = readWorkFilePayloadOrigin(record,
+    { id: intentId as RecordId, created: context.now, createdBy: context.actor }, WORK_DISPATCH_MODEL, 'sendInputs', 'deferred-input', 'sendInputsOrigin') ?? null;
+  const sendInputs = Object.hasOwn(record, 'sendInputs') ? snapshotKernelJsonValue(argRecord(record, 'sendInputs', item), 'SEND inputs') : null;
+  if ((sendInputsOrigin === null) !== (sendInputs === null) || sendInputs !== null && !sameSendData(sendInputs, request['arguments'])) {
+    throw new KernelTableError(`${item}: SEND inputs differ from their original request.`);
+  }
+  if (sendInputsOrigin !== null) {
+    const origin = sendInputsOrigin.origin;
+    if (origin.kind !== 'send-input' || origin.intent.operation !== record['operation'] ||
+        !sameSendData(origin.request, { binding: request['binding'], from: request['from'] })) {
+      throw new KernelTableError(`${item}: SEND inputs differ from their original binding/caller.`);
+    }
+  }
   const queuePayloadOrigin = readWorkFilePayloadOrigin(record,
     { id: intentId as RecordId, created: context.now, createdBy: context.actor }, WORK_DISPATCH_MODEL, 'queuePayload', 'deferred-input', 'queuePayloadOrigin') ?? null;
   const queuePayload = Object.hasOwn(record, 'queuePayload') ? snapshotKernelJsonValue(argRecord(record, 'queuePayload', item), 'queue publication') : null;
@@ -175,7 +190,7 @@ function parseStageIntent(
     fanout: argFanout(record, item),
     correlation: argGenerationCorrelation(record, source, request, item),
     sourceGuard,
-    filePayloadOrigin, queuePayload, queuePayloadOrigin,
+    filePayloadOrigin, sendInputs, sendInputsOrigin, queuePayload, queuePayloadOrigin,
   };
 }
 
@@ -215,6 +230,7 @@ function assertReplayedIntent(data: DispatchRowData, intent: ParsedStageIntent, 
     data.guardVerdict !== intent.guardVerdict ||
     !sameSendData(data.sourceGuard ?? null, intent.sourceGuard) ||
     !sameSendData(data.filePayloadOrigin ?? null, intent.filePayloadOrigin) ||
+    !sameSendData(data.sendInputs ?? null, intent.sendInputs) || !sameSendData(data.sendInputsOrigin ?? null, intent.sendInputsOrigin) ||
     !sameSendData(data.queuePayload ?? null, intent.queuePayload) || !sameSendData(data.queuePayloadOrigin ?? null, intent.queuePayloadOrigin) ||
     DISPATCH_IMAGE_CORRELATION_FIELDS.some(field => data[field] !== intent.correlation?.[field])
   ) {
@@ -240,6 +256,7 @@ function stageFreshIntent(ctx: SystemCommandContext, operationId: string,
       ...(intent.correlation ?? {}),
       ...(intent.sourceGuard === null ? {} : { sourceGuard: intent.sourceGuard }),
       ...(intent.filePayloadOrigin === null ? {} : { filePayloadOrigin: intent.filePayloadOrigin }),
+      ...(intent.sendInputs === null ? {} : { sendInputs: intent.sendInputs, sendInputsOrigin: intent.sendInputsOrigin! }),
       ...(intent.queuePayload === null ? {} : { queuePayload: intent.queuePayload, queuePayloadOrigin: intent.queuePayloadOrigin! }),
     },
     { nowMs: ctx.now, actor: ctx.actor },
@@ -332,6 +349,7 @@ export interface CanonicalSendInput extends StageOutboxIntentInput {
 /** Literal source-verified native adapter; State prepares the actual atomic
  * typed lexical payload header and genuine receiving File observations. */
 export interface CanonicalSendGuardOriginProducer {
+  readonly prepareSendInputsOrigin?: (row: Readonly<StoredRow>, intent: Readonly<OutboxIntent>) => Promise<FrameworkFilePayloadOrigin | undefined>;
   readonly prepareQueuePayloadOrigin?: (row: Readonly<StoredRow>, intent: Readonly<OutboxIntent>) => Promise<FrameworkFilePayloadOrigin>;
   readonly prepareSourceGuardOrigin?: (row: Readonly<StoredRow>,
     intent: Readonly<OutboxIntent>) => Promise<FrameworkFilePayloadOrigin>;
@@ -509,6 +527,7 @@ export function readCanonicalSendStaging(
  * here, and no transport, registry run or separate commit occurs.
  */
 type GuardOriginPrepare = NonNullable<CanonicalSendGuardOriginProducer['prepareSourceGuardOrigin']>;
+type SendInputsOriginPrepare = NonNullable<CanonicalSendGuardOriginProducer['prepareSendInputsOrigin']>;
 type QueueOriginPrepare = NonNullable<CanonicalSendGuardOriginProducer['prepareQueuePayloadOrigin']>;
 type CanonicalStagedItem = StagedOutboxIntent['item'];
 const readCanonicalSendProducers = (input: CanonicalSendInput, guardOrigin: CanonicalSendGuardOriginProducer | undefined) => {
@@ -519,14 +538,17 @@ const readCanonicalSendProducers = (input: CanonicalSendInput, guardOrigin: Cano
       !Object.hasOwn(guardOrigin, 'prepareSourceGuardOrigin'))) {
     throw new KernelTableError('Guarded canonical send requires its installed original payload producer.');
   }
-  if (guardOrigin !== undefined && Reflect.ownKeys(guardOrigin).some(key => key !== 'prepareSourceGuardOrigin' && key !== 'prepareQueuePayloadOrigin')) throw new KernelTableError('Canonical send received an unknown origin producer.');
+  if (guardOrigin !== undefined && Reflect.ownKeys(guardOrigin).some(key => key !== 'prepareSourceGuardOrigin' && key !== 'prepareQueuePayloadOrigin' && key !== 'prepareSendInputsOrigin')) throw new KernelTableError('Canonical send received an unknown origin producer.');
   const queueDescriptor = guardOrigin === undefined ? undefined : Object.getOwnPropertyDescriptor(guardOrigin, 'prepareQueuePayloadOrigin');
   const prepareQueue = queueDescriptor !== undefined && 'value' in queueDescriptor && queueDescriptor.enumerable ? queueDescriptor.value : undefined;
   if (queueDescriptor !== undefined && typeof prepareQueue !== 'function') throw new KernelTableError('Queue publication needs its actual installed origin producer.');
   if (sourceGuard === null && descriptor !== undefined) {
     throw new KernelTableError('Unguarded send cannot acquire an orphan guard origin.');
   }
-  return { sourceGuard, prepare: prepare as GuardOriginPrepare | undefined, prepareQueue: prepareQueue as QueueOriginPrepare | undefined };
+  const inputsDescriptor = guardOrigin === undefined ? undefined : Object.getOwnPropertyDescriptor(guardOrigin, 'prepareSendInputsOrigin');
+  const prepareInputs = inputsDescriptor !== undefined && 'value' in inputsDescriptor && inputsDescriptor.enumerable ? inputsDescriptor.value : undefined;
+  if (inputsDescriptor !== undefined && typeof prepareInputs !== 'function') throw new KernelTableError('SEND inputs need their actual installed origin producer.');
+  return { sourceGuard, prepare: prepare as GuardOriginPrepare | undefined, prepareQueue: prepareQueue as QueueOriginPrepare | undefined, prepareInputs: prepareInputs as SendInputsOriginPrepare | undefined };
 };
 const readSendCorrelation = (input: CanonicalSendInput): DispatchImageCorrelation | undefined => {
   if (input.correlation === undefined) return undefined;
@@ -550,6 +572,28 @@ const prepareGuardedOrigin = async (prepare: GuardOriginPrepare, ctx: SystemComm
   const filePayloadOrigin = await prepare(guarded, intent);
   readDispatchRow({ ...guarded, data: { ...guarded.data, filePayloadOrigin } });
   return filePayloadOrigin;
+};
+const prepareSendInputs = async (prepare: SendInputsOriginPrepare, ctx: SystemCommandContext,
+  item: CanonicalStagedItem, sourceGuard: DispatchSourceGuard | null,
+  filePayloadOrigin: FrameworkFilePayloadOrigin | undefined) => {
+  const sendInputs = snapshotKernelJsonValue(argRecord(item.request, 'arguments', 'SEND inputs'), 'SEND inputs');
+  const row = newDispatchRow({ intentId: item.id as OutboxId, operationId: item.operationId, source: item.source,
+    occurrenceIndex: item.occurrenceIndex, originOccurrence: item.originOccurrence,
+    ...(sourceGuard === null ? {} : { sourceGuard }), ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }) }, { nowMs: ctx.now, actor: ctx.actor });
+  const intent: OutboxIntent = { intentId: item.id as OutboxId, operation: ctx.operation as OperationName,
+    operationId: item.operationId as OperationId, target: item.source, arguments: item.request,
+    occurrenceIndex: item.occurrenceIndex, ...(sourceGuard === null ? {} : { dispatchGuard: sourceGuard.rule }) };
+  const sendInputsOrigin = await prepare({ ...row, data: { ...row.data, sendInputs, ...(sourceGuard === null ? {} : { guardVerdict: true }) } }, intent);
+  if (sendInputsOrigin === undefined) return undefined;
+  const complete = { ...row, data: { ...row.data, sendInputs, sendInputsOrigin, ...(sourceGuard === null ? {} : { guardVerdict: true }) } };
+  readDispatchRow(complete);
+  const origin = sendInputsOrigin.origin;
+  if (origin.kind !== 'send-input' || !sameSendData(origin.intent, { intentId: intent.intentId, operation: intent.operation,
+    operationId: intent.operationId, target: intent.target, occurrenceIndex: intent.occurrenceIndex }) ||
+      !sameSendData(origin.request, { binding: item.request.binding, from: item.request.from })) {
+    throw new KernelTableError('SEND inputs require their exact original intent and binding.');
+  }
+  return { sendInputs, sendInputsOrigin };
 };
 const prepareQueuePublication = async (prepareQueue: QueueOriginPrepare, ctx: SystemCommandContext,
   item: CanonicalStagedItem, sourceGuard: DispatchSourceGuard | null,
@@ -587,7 +631,7 @@ export async function stageCanonicalSend(
   ctx: SystemCommandContext,
   guardOrigin?: CanonicalSendGuardOriginProducer,
 ): Promise<CanonicalSendStaging> {
-  const { sourceGuard, prepare, prepareQueue } = readCanonicalSendProducers(input, guardOrigin);
+  const { sourceGuard, prepare, prepareQueue, prepareInputs } = readCanonicalSendProducers(input, guardOrigin);
   const seal = captureCanonicalSend(input, ctx);
   const stageContext = { ...ctx };
   const correlation = readSendCorrelation(input);
@@ -595,6 +639,8 @@ export async function stageCanonicalSend(
   const item = staged.item;
   const filePayloadOrigin = sourceGuard === null ? undefined
     : await prepareGuardedOrigin(prepare!, ctx, item, sourceGuard, correlation);
+  const inputs = prepareInputs === undefined ? undefined
+    : await prepareSendInputs(prepareInputs, stageContext, item, sourceGuard, filePayloadOrigin);
   const queued = prepareQueue === undefined ? undefined
     : await prepareQueuePublication(prepareQueue, ctx, item, sourceGuard, filePayloadOrigin);
   const effects = await stageCanonicalDispatch({
@@ -612,6 +658,7 @@ export async function stageCanonicalSend(
       ...(sourceGuard === null ? {} : { sourceGuard }),
       ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }),
       ...(queued === undefined ? {} : queued),
+      ...(inputs === undefined ? {} : inputs),
       ...(correlation === undefined ? {} : { correlation }),
     }],
   }, stageContext);

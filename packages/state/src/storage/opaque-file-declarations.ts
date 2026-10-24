@@ -792,7 +792,20 @@ function bounds(value: unknown): void {
   if (Object.values(item).some(value => integer(value) === 0)) return refuse('positive source routing bounds required.');
 }
 function origin(bound: BoundOpaqueDeclarations, value: FrameworkOpaquePayloadOrigin): void {
-  if (value.kind === 'send-guard') {
+  if (value.kind === 'send-input') {
+    record(value, ['kind', 'caller', 'intent', 'request', 'inputsDeclarationId']);
+    callable(bound, value.caller);
+    record(value.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);
+    for (const key of ['intentId', 'operation', 'operationId', 'target'] as const) string(value.intent[key]);
+    integer(value.intent.occurrenceIndex);
+    record(value.request, ['binding', 'from']); string(value.request.binding); string(value.request.from);
+    same(value.intent.operation, value.caller.callable.id);
+    const selected = declaration(bound, value.inputsDeclarationId, 'inputs').declaration;
+    if (selected.source.kind !== 'delivery' || selected.source.context.kind !== 'capability') return refuse('original provider SEND inputs required.');
+    same(selected.source.source, value.caller.source);
+    const context = selected.source.context;
+    if (value.intent.target !== `${context.canonical.capability}.${context.canonical.operation}`) return refuse('original provider SEND target required.');
+  } else if (value.kind === 'send-guard') {
     record(value, ['kind', 'intent', 'declaration', 'inputsDeclarationId']);
     sendGuard(bound.declarationSet, value.declaration);
     record(value.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex', 'dispatchGuard']);

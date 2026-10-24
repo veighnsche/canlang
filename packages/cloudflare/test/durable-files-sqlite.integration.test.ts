@@ -131,6 +131,156 @@ it('admits native Worker upload intents through current canonical context before
   } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
 }, 120000);
 
+it('retains an unconditional native Images inspect SEND and reads only its genuine finalized graph bytes', async () => {
+  const root = fileURLToPath(new URL('../../../', import.meta.url));
+  const directory = await mkdtemp(join(tmpdir(), 'can-native-inspect-files-'));
+  const runtime = new Miniflare({ modules: true, compatibilityDate: '2026-07-15',
+    script: 'export default {fetch(){return new Response("ready")}}',
+    d1Databases: { DB: 'native-inspect-files' }, r2Buckets: { FILES: 'native-inspect-files' } });
+  try {
+    // These native imports preserve the actual assembler and File issuers.
+    const requireNative = createRequire(import.meta.url);
+    const { assembleModules } = requireNative(fileURLToPath(new URL('../dist/runtime/modules.js', import.meta.url))) as
+      typeof import('../src/runtime/modules.js');
+    const { createWorkerFiles } = requireNative(fileURLToPath(new URL('../dist/runtime/worker-files.js', import.meta.url))) as
+      typeof import('../src/runtime/worker-files.js');
+    const { resolveR2FileStoreIdentity } = requireNative(fileURLToPath(new URL('../dist/runtime/r2-files.js', import.meta.url))) as
+      typeof import('../src/runtime/r2-files.js');
+    const { installNativeFileInventory } = requireNative(fileURLToPath(new URL('../dist/runtime/file-inventory.js', import.meta.url))) as
+      typeof import('../src/runtime/file-inventory.js');
+    const { loadCanonicalDescriptors } = requireNative(fileURLToPath(new URL('../dist/runtime/invoke.js', import.meta.url))) as
+      typeof import('../src/runtime/invoke.js');
+    const { loadOpaqueFileStaging } = requireNative(fileURLToPath(new URL('../dist/runtime/opaque-file-staging.js', import.meta.url))) as
+      typeof import('../src/runtime/opaque-file-staging.js');
+    const { buildInvoker } = requireNative(fileURLToPath(new URL('../dist/worker/assembly.js', import.meta.url))) as
+      typeof import('../src/worker/assembly.js');
+    const { createTestMemoryStorage } = requireNative('@canlang/state/storage/memory') as typeof import('@canlang/state/storage/memory');
+    const { STATE_FILE_REFERENCE_PRODUCER } = requireNative('@canlang/state/storage') as typeof import('@canlang/state/storage');
+    const { WORK_FILE_REFERENCE_PRODUCER } = requireNative('@canlang/work/kernel/file-reference-inventory') as
+      typeof import('@canlang/work/kernel/file-reference-inventory');
+    const { resolveIdentity } = requireNative('@canlang/identity') as typeof import('@canlang/identity');
+    const fixture = await readFile(join(root, 'packages/cloudflare/test/fixtures/typed-file-journey.can'), 'utf8');
+    const source = join(directory, 'inspect-files.can');
+    await writeFile(source, fixture
+      .replace('app TypedFileJourney', 'app TypedFileJourney\nuse std {ImagesV1 as Images} from=deployment.comfyui')
+      .replace('attachment:file? }', 'attachment:file?, inspection:delivery(Images.inspect)? }')
+      .replace('Then', ' scenario inspect(entry:Entry,graph:file) by=owner\n  do\n   send Images.inspect {graph} as inspection\n   set entry {inspection}\nThen'));
+    const artifact = JSON.parse(execFileSync(process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can'),
+      ['compile', '--format=json', '--native-scenario-receipts', '--catalog',
+        process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json'), source],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024, encoding: 'utf8' })) as CompileArtifact;
+    const assemblyOptions = { workDir: directory, stdlibUrl: new URL('../dist/runtime/stdlib.js', import.meta.url).href,
+      uiUrl: pathToFileURL(requireNative.resolve('@canlang/ui')).href };
+    const asm = await assembleModules({ artifact, sourcePath: source }, assemblyOptions);
+    const now = Date.now(), clock = createFrozenClock(now), identities = createMemoryIdentityStore({ clock });
+    const team = await identities.createTeam({ timezone: 'UTC' });
+    const user = await identities.createUser({ email: 'native-inspect@example.test', password_hash: 'unused', email_verified: true });
+    await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: [] });
+    const token = 'native-inspect-files-session';
+    await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
+      last_team_id: team.team_id, expires_at: new Date(now + 3600000).toISOString() });
+    const identity = await resolveIdentity(identities, { session_token: token }, { clock });
+    const db = await runtime.getD1Database('DB'), bucket = await runtime.getR2Bucket('FILES');
+    const fileStoreId = await resolveR2FileStoreIdentity({ db, bucket: bucket as unknown as Parameters<typeof resolveR2FileStoreIdentity>[0]['bucket'], namespace: 'TypedFileJourney/FILES' });
+    const scope = { app: 'TypedFileJourney', owner: team.team_id, ownerPackage: 'TypedFileJourney' };
+    const authority = { app: scope.app, stateOwner: scope.ownerPackage, stateStoreId: 'native-inspect-state', fileStoreId,
+      receiver: { app: scope.app, team: scope.owner, owner: scope.owner } };
+    const { store, probe, reopen } = createTestMemoryStorage(authority,
+      [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+    const verifyOwner = async () => { assert.ok(await identities.findTeamById(team.team_id)); };
+    await installNativeFileInventory({ artifact, asm, store, authority, scope, now: () => now, verifyOwner });
+    const row = { ...makeRow({ id: asId('inspect-entry'), data: { label: 'Inspect', attachment: null, inspection: null } }), parent: null };
+    await store.commit(makeBatch(await store.readRevision(), { writes: [
+      { kind: 'insert', model: asModel('TypedFileJourney.Entry'), row },
+    ] }));
+    const filesOptions = { artifact, asm, store, identities, clock, env: { DB: db, FILES: bucket }, origin: 'https://files.test',
+      retention: { unattachedHorizonMs: 86400000, retentionMs: 86400000 }, intentTtlMs: 900000 };
+    const files = await createWorkerFiles(filesOptions);
+    assert.ok(files?.canonical && files.fetch);
+    assert.equal(files.fileStoreId, fileStoreId);
+    const headers = { 'content-type': 'application/json', cookie: `can_session=${token}`,
+      'x-csrf-token': await deriveCsrfToken(token) };
+    const operation = 'TypedFileJourney.inspect';
+    const grantResponse = await files.fetch(new Request(files.intentsUrl!, { method: 'POST', headers,
+      body: JSON.stringify({ upload_id: 'inspect-graph', operation, field: '/graph',
+        arguments: { entry: { id: row.id, version: String(row.version) } }, name: 'graph.txt', type: 'text/plain',
+        size: String(new TextEncoder().encode('{"6":{"class_type":"CLIPTextEncode","inputs":{"text":"original graph"}}}').length) }) }));
+    assert.equal(grantResponse.status, 200, await grantResponse.clone().text());
+    const grant = await grantResponse.json() as { content: string; finalize: string };
+    const bytes = new TextEncoder().encode('{"6":{"class_type":"CLIPTextEncode","inputs":{"text":"original graph"}}}');
+    const uploaded = await files.fetch(new Request(grant.content, { method: 'PUT',
+      headers: { ...headers, 'upload-offset': '0' }, body: bytes }));
+    assert.equal(uploaded.status, 200, await uploaded.clone().text());
+    const finalized = await files.fetch(new Request(grant.finalize, { method: 'POST', headers,
+      body: JSON.stringify({ upload_id: 'inspect-graph', bytes_digest: `sha256:${createHash('sha256').update(bytes).digest('hex')}` }) }));
+    assert.equal(finalized.status, 200, await finalized.clone().text());
+    const { file: graph } = await finalized.json() as { file: string };
+    assert.equal(typeof graph, 'string');
+    const before = await store.readRevision();
+    const operationId = `${now.toString(16).padStart(12, '0').slice(0, 8)}-${now.toString(16).padStart(12, '0').slice(8)}-7000-8000-000000000001`;
+    const invoked = await buildInvoker(artifact, asm, store, { memberships: identities, now: () => now, files: files.canonical })
+      .invokeMutation({ operation, operation_id: operationId,
+        inputs: { entry: { id: row.id, version: String(row.version) }, graph: { id: graph } } }, identity);
+    assert.equal('result' in invoked ? invoked.result.status : invoked.error.code, 'committed', JSON.stringify(invoked));
+    const [intent] = probe.outboxAll();
+    assert.ok(intent);
+    assert.equal(probe.outboxAll().length, 1);
+    assert.equal(intent.target, 'std.ImagesV1.inspect');
+    assert.equal(intent.dispatchGuard, undefined, 'unconditional SEND must not acquire a fabricated dispatch Rule');
+    const dispatch = await store.load(asModel('work.dispatch'), asId(intent.intentId));
+    assert.ok(dispatch);
+    assert.deepEqual(dispatch.data['sendInputs'], { graph: { id: graph } });
+    const binding = dispatch.data['sendInputsOrigin'] as import('@canlang/contracts').FrameworkFilePayloadOrigin;
+    assert.ok(binding);
+    assert.equal(binding.slot.model, 'work.dispatch');
+    assert.equal(binding.slot.id, dispatch.id);
+    assert.equal(binding.slot.field, 'sendInputs');
+    assert.deepEqual(binding.scope, scope);
+    assert.equal(binding.origin.kind, 'send-input');
+    assert.deepEqual(binding.files.map(item => ({ path: item.path, ref: item.file.ref })), [{ path: ['graph'], ref: graph }]);
+    assert.deepEqual((await store.load(asModel('TypedFileJourney.Entry'), row.id))?.data['inspection'], { id: intent.intentId, operation: intent.target });
+
+    const openReader = async (readerAsm: typeof asm, readerStore: typeof store, readerArtifact = artifact) => {
+      const loaded = await loadCanonicalDescriptors(readerAsm, readerArtifact);
+      assert.ok(loaded.valueTypes);
+      const definition = loaded.registry.get(operation) as { descriptor: import('@canlang/contracts').CanonicalOperationDescriptor } | undefined;
+      const declaration = readerArtifact.operations?.find(candidate => candidate.name === operation);
+      assert.ok(definition?.descriptor && declaration);
+      const opaque = await loadOpaqueFileStaging({ store: readerStore, inventoryOwner: scope.ownerPackage,
+        artifact: readerArtifact, canonicalModels: loaded.models, valueTypes: loaded.valueTypes,
+        operations: new Map([[operation, { canonical: definition.descriptor, artifact: declaration }]]), scope, verify: verifyOwner });
+      assert.ok(opaque);
+      const original = opaque.sendInputs(operation, intent.target);
+      assert.equal(binding.origin.kind, 'send-input');
+      if (binding.origin.kind !== 'send-input') throw new Error('missing original SEND input binding');
+      assert.equal(binding.origin.inputsDeclarationId, original.inputsDeclarationId);
+      assert.deepEqual(binding.origin.caller, original.caller);
+      return opaque;
+    };
+    const opaque = await openReader(asm, store), revision = await store.readRevision();
+    const retained = { model: asModel('work.dispatch'), row: dispatch, field: 'sendInputs' as const, binding };
+    const request = { source: retained, revision, path: ['graph'], ref: graph, maxBytes: bytes.length };
+    assert.deepEqual(await opaque.readSourceFile(request, files.canonical), bytes);
+    for (const changed of [
+      { ...request, path: ['not-graph'] },
+      { ...request, ref: `${graph}-foreign` },
+      { ...request, revision: before },
+      { ...request, source: { ...retained, row: { ...dispatch, version: (dispatch.version + 1) as typeof dispatch.version } } },
+      { ...request, source: { ...retained, binding: { ...binding, files: [] } } },
+      { ...request, source: { ...retained, binding: { ...binding, slot: { ...binding.slot, id: asId('other-dispatch') } } } },
+    ]) await assert.rejects(() => opaque.readSourceFile(changed, files.canonical));
+    const reopened = reopen(authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+    const reopenedArtifact = structuredClone(artifact);
+    const reopenedAsm = await assembleModules({ artifact: reopenedArtifact, sourcePath: source }, { ...assemblyOptions, workDir: join(directory, 'reopened') });
+    await installNativeFileInventory({ artifact: reopenedArtifact, asm: reopenedAsm, store: reopened, authority, scope, now: () => now, verifyOwner });
+    const reopenedFiles = await createWorkerFiles({ ...filesOptions, artifact: reopenedArtifact, asm: reopenedAsm, store: reopened });
+    assert.ok(reopenedFiles?.canonical);
+    const reopenedReader = await openReader(reopenedAsm, reopened, reopenedArtifact);
+    assert.deepEqual(await reopenedReader.readSourceFile(request, reopenedFiles.canonical), bytes);
+    assert.deepEqual(await reopened.load(asModel('work.dispatch'), dispatch.id), dispatch);
+  } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
+}, 120000);
+
 it('migrates retained Node blobs without changing store identity or bytes', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'can-legacy-files-'));
   const path = join(directory, 'files.sqlite');
