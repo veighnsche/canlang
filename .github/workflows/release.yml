@@ -27,9 +27,6 @@ jobs:
           - runner: ubuntu-24.04
             name: can-linux-x86_64
             target: x86_64-unknown-linux-gnu
-          - runner: macos-latest
-            name: can-macos-aarch64
-            target: aarch64-apple-darwin
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -128,9 +125,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - runner: macos-latest
-            platform: darwin-arm64
-            compiler: can-macos-aarch64
           - runner: ubuntu-24.04
             platform: linux-x64
             compiler: can-linux-x86_64
@@ -193,10 +187,6 @@ jobs:
           node-version: "24"
       - uses: actions/download-artifact@v4
         with:
-          name: can-install-darwin-arm64
-          path: output/publish-install/darwin-arm64
-      - uses: actions/download-artifact@v4
-        with:
           name: can-install-linux-x64
           path: output/publish-install/linux-x64
       - name: Publish qualified standalone release
@@ -210,15 +200,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-latest
-            platform: darwin-arm64
-            shell: /bin/zsh
           - runner: ubuntu-24.04
             platform: linux-x64
             shell: /bin/bash
     runs-on: ${{ matrix.runner }}
     steps:
-      - name: Verify all five public core assets and streamed installation
+      - name: Verify public Linux core assets and streamed installation
         env:
           RELEASE_TAG: ${{ github.ref_name }}
           INSTALL_SHELL: ${{ matrix.shell }}
@@ -227,7 +214,7 @@ jobs:
           set -euo pipefail
           version=${RELEASE_TAG#v}
           base=https://github.com/veighnsche/canlang/releases/download/$RELEASE_TAG
-          for asset in install.sh can-$version-darwin-arm64.tar.gz can-$version-darwin-arm64.tar.gz.sha256 can-$version-linux-x64.tar.gz can-$version-linux-x64.tar.gz.sha256; do
+          for asset in install.sh can-$version-linux-x64.tar.gz can-$version-linux-x64.tar.gz.sha256; do
             curl --fail --silent --show-error --location --head --proto '=https' --proto-redir '=https' "$base/$asset" > /dev/null
             echo "PASS public asset: $base/$asset"
           done

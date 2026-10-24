@@ -7,7 +7,8 @@ import { lstatSync, readFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const platforms = ['darwin-arm64', 'linux-x64'];
+// macOS publication is deferred until its standalone installer is qualified.
+const platforms = ['linux-x64'];
 const repository = 'veighnsche/canlang';
 const read = path => {
   assert.ok(lstatSync(path).isFile(), `Expected a regular release input: ${path}`);
@@ -68,7 +69,7 @@ export function publishRelease(plan, gh = (args, capture = false) => execFileSyn
   assert.equal(String(existing ?? '').trim(), '', `Release ${plan.tag} already exists; preserve it and recover deliberately`);
   gh(['release', 'create', plan.tag, ...common, '--draft', '--verify-tag', '--target', plan.sha,
     '--title', `Can ${plan.version}`, '--notes',
-    'Standalone Can for macOS arm64 and Linux x64 (glibc). Installer: https://sodaos.dev/CanLang/install.sh . Browser development tools are optional and separate.',
+    'Standalone Can for Linux x64 (glibc). Installer: https://sodaos.dev/CanLang/install.sh . Browser development tools are optional and separate.',
     ...(plan.prerelease ? ['--prerelease'] : [])]);
   gh(['release', 'upload', plan.tag, ...plan.assets, ...common]);
   gh(['release', 'edit', plan.tag, ...common, '--draft=false', '--verify-tag']);
