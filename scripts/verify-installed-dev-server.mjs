@@ -27,7 +27,7 @@ const requireInstalled = createRequire(join(installation, 'package.json'));
 const { deriveCsrfToken } = await import(pathToFileURL(requireInstalled.resolve('@canlang/identity')));
 const report = { kind: 'installed-native-manual', timings: {}, passed: [], ok: false };
 const cookies = new Map();
-let session, origin, csrf, grant, record, initialRecords;
+let session, origin, csrf, grant, record, initialRecords, expectedRecords;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 function require(condition, message) { assert.ok(condition, message); }
 async function control(command, args = [], expected = null) {
@@ -140,18 +140,19 @@ try {
   const mutation = await created.json(); assert.equal(mutation.status, 'committed');
   record = mutation.records[0];
   require(record.data.name === 'Retained manual supply', 'real mutation');
-  assert.deepEqual(await readRecords(), [...initialRecords, record]);
+  expectedRecords = [...initialRecords, record];
+  assert.deepEqual(await readRecords(), expectedRecords);
   report.passed.push('real protected access, Identity login, team selection and D1 mutation');
 
   const examples = (await control('example.run', ['--expected-revision', first.revision])).result;
   require(examples.ok === false && examples.failures_retained > 0 && examples.focus, 'actual failed example retained');
-  assert.deepEqual(await readRecords(), [...initialRecords, record], 'examples cannot mutate serving data');
+  assert.deepEqual(await readRecords(), expectedRecords, 'examples cannot mutate serving data');
   const reference = examples.focus.ref;
   require((await control('failure.lookup', ['--ref', reference])).result.ref === reference, 'retained example failure lookup');
   await control('failure.detail', ['--ref', reference]);
   const rerun = (await control('example.rerun', ['--ref', reference])).result;
   require(rerun.ok === true && rerun.kind === 'isolated_example_rerun', 'exact retained single-row rerun');
-  assert.deepEqual(await readRecords(), [...initialRecords, record], 'rerun cannot mutate serving data');
+  assert.deepEqual(await readRecords(), expectedRecords, 'rerun cannot mutate serving data');
   await control('construct.help', ['--revision', first.revision, '--id', 'can.v1.ui.table']);
   report.passed.push('isolated actual examples, retained failure lookup/detail and exact rerun');
 
@@ -174,7 +175,7 @@ try {
   await control('rank.lookup', ['--revision', invalid.revision, '--ref', '0'.repeat(64)], 'RANK_UNAVAILABLE');
   const foreign = reference.replace(session, 'foreign-session');
   await control('failure.lookup', ['--ref', foreign], 'INVALID_FAILURE_REF');
-  assert.deepEqual(await readRecords(), [...initialRecords, record], 'last good remains authorized and serves retained data');
+  assert.deepEqual(await readRecords(), expectedRecords, 'last good remains authorized and serves retained data');
   report.passed.push('invalid edit, captured diagnostics, safe compiler failures, ranking refusal and last good');
 
   await writeFile(source, saved.replace('Persistent preview', 'Repaired persistent preview'));
@@ -183,7 +184,17 @@ try {
   require(repaired.state === 'valid' && repaired.preview === 'ready' && repaired.revision !== first.revision,
     `repair replaces generation: ${JSON.stringify(repaired)}`);
   await access();
-  assert.deepEqual(await readRecords(), [...initialRecords, record], 'same login/grant/data after replacement');
+  const repairedRecords = await readRecords();
+  // A changed source revision stages its example fixtures once. Previously
+  // stored records must survive byte-for-byte, including the manual mutation.
+  for (const previous of expectedRecords) {
+    assert.deepEqual(repairedRecords.find(row => row.id === previous.id), previous,
+      'same login/grant/data after replacement');
+  }
+  const added = repairedRecords.filter(row => !expectedRecords.some(previous => previous.id === row.id));
+  assert.deepEqual(added.map(row => row.data), [{ name: 'Example fixture', quantity: '4' }],
+    'changed source stages its declared example fixture once');
+  expectedRecords = repairedRecords;
   const historical = (await control('diagnostic.detail', ['--revision', invalid.revision, '--index', '0'])).result;
   require(historical.current === false, 'historical captured detail remains labeled');
   const stale = await request('/api/operations/PreviewPersistence.Supply.update', { method: 'POST', headers: jsonHeaders(),
@@ -199,14 +210,14 @@ try {
   require(refusal, 'serving-generation HTTP refusal retained');
   const detail = (await control('failure.detail', ['--ref', refusal.ref])).result;
   require(!JSON.stringify(detail).includes('Must not mutate'), 'safe refusal omits raw mutation inputs');
-  assert.deepEqual(await readRecords(), [...initialRecords, record]);
+  assert.deepEqual(await readRecords(), expectedRecords);
   report.passed.push('repair retains login/data; real HTTP refusal is safe and discoverable');
   await stop();
   await start();
   const restarted = await check('restartCheckMs');
   require(restarted.state === 'valid' && restarted.preview === 'ready', 'restart ready');
   await access();
-  assert.deepEqual(await readRecords(), [...initialRecords, record], 'same login/grant/data survive stop and restart');
+  assert.deepEqual(await readRecords(), expectedRecords, 'same login/grant/data survive stop and restart');
   await stop();
   report.passed.push('confirmed stop and restart retain application login and data');
   report.ok = true;
