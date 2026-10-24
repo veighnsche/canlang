@@ -5218,3 +5218,132 @@ it('qualifies original historical Expense access with query-local archived emplo
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+
+async function originalInvoiceLegacySource(directory: string) {
+  const original = await readFile(join(root, 'draft/apps/CanInvoice/CanInvoice.can'), 'utf8');
+  const customer = await readFile(join(root, 'draft/apps/CanCustomer/CanCustomer.can'), 'utf8');
+  const one = (text: string, prefix: string) => { const found = text.split('\n').filter(line => line.startsWith('  ' + prefix));
+    assert.equal(found.length, 1, prefix); return found[0]!; };
+  const start = original.indexOf('  scenario retain_legacy_booking('), end = original.indexOf('   examples', start);
+  assert.ok(start >= 0 && end > start);
+  const source = join(directory, 'Invoice.can');
+  await writeFile(source, ['app CanInvoice uses=[invoice]', 'package invoice', ' use rent_catalog {Location}', ' use employee {can_work}',
+    ' use customer {Customer,owns,has_role}', ' use rent_reservations {LegacyBooking}', ' Given', one(original, 'export role finance '),
+    ...['number', 'issuer', 'recipient'].map(name => one(original, 'message label_InvoiceDocument_' + name + ' =')),
+    ...['contract LegacyInvoiceFacts {', 'LegacyInvoice {', 'LegacyInvoiceBooking in ', 'unique LegacyInvoice fields=',
+      'unique LegacyInvoiceBooking fields=', 'lock LegacyInvoice fields=', 'lock LegacyInvoiceBooking fields='].map(prefix => one(original, prefix)),
+    ...original.split('\n').filter(line => line.startsWith('  policy LegacyInvoice read=') || line.startsWith('  policy LegacyInvoiceBooking read=')),
+    one(original, 'invariant LegacyInvoice:'), ' When', original.slice(start, end).trimEnd(), ' Then',
+    'package customer', ' use rent_catalog {Location}', ' Given', ...customer.split('\n').filter(line => line.startsWith('  message ')),
+    ...['export Customer {', 'export Contact in ', 'export CompanyRole in ', 'export derive has_role(', 'export derive owns('].map(prefix => one(customer, prefix)),
+    // Nullable unresolved reference only; this workflow never reads or creates a retained Booking.
+    ' When', ' Then', 'package rent_reservations', ' Given', '  export LegacyBooking {source:text,external_id:text}', ' When', ' Then', ''].join('\n'));
+  return source;
+}
+
+it('qualifies original invoice booking-link retention with archived child capacity and duplicate guards', { timeout: 240000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-invoice-legacy-archived-count-'));
+  try {
+    const source = await originalInvoiceLegacySource(directory);
+    const { stdout } = await promisify(execFile)(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog,
+      source, join(root, 'draft/shared/Employees.can'), join(root, 'draft/shared/Locations.can')],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+    const artifact = JSON.parse(stdout) as CompileArtifact;
+    const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: join(directory, 'modules'),
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+    for (const mode of ['allowed', 'archived-capacity', 'archived-spare', 'null-count', 'scoped-parent', 'distinct-edge',
+      'archived-duplicate', 'current-duplicate', 'zero-count', 'missing-role', 'foreign-location', 'actor-archived', 'stale',
+      'blank-attestation', 'count-phantom', 'duplicate-phantom', 'membership-revoked']) {
+      const { now, identities, team, user, membership, identity } = await member('invoice-legacy-' + mode, mode === 'missing-role' ? [] : ['invoice.finance']);
+      const scope = { app: 'CanInvoice', owner: team.team_id, ownerPackage: 'invoice' };
+      const authority: FileRetirementAuthority = { app: scope.app, stateOwner: scope.app, stateStoreId: 'legacy-invoice-state', fileStoreId: 'legacy-invoice-files',
+        receiver: { app: scope.app, owner: team.team_id, team: team.team_id } };
+      const { store, probe } = createTestMemoryStorage(authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+      await installNativeFileInventory({ artifact, asm, store, authority, scope, now: () => now,
+        verifyOwner: async () => { assert.ok(await identities.findTeamById(team.team_id)); } });
+      const clock = new TestOnlyManualClock(now), blobs = new TestOnlyMemoryBlobStore(), files = new TestOnlyMemoryFinalizedStore(), intents = new TestOnlyMemoryIntentStore();
+      const physical = { clock, blobs, files, upload: { clock, intents, blobs, policy: DEFAULT_FILE_POLICY, intentIds: new TestOnlyCounterIntentIds(), intentTtlMs: 3600000, urlBase: 'https://invoice.test' },
+        finalize: { clock, intents, blobs, files, fileIds: new TestOnlyCounterFileIds() } };
+      const retention = { unattachedHorizonMs: 3600000, retentionMs: 86400000 }, observation = { policy: physical.upload.policy, retention };
+      const kernel = createFileJourneyKernel({ maxBytes: physical.upload.policy.maxBytes, createIntent: input => createUploadIntent(physical.upload, input),
+        append: (id, caller, bytes, offset) => appendUploadContentAtOffset(physical.upload, id, caller, bytes, offset), complete: (id, caller) => completeUploadContent(physical.upload, id, caller),
+        finalize: input => finalizeUpload(physical.finalize, input), authorizeAttach: (ref, caller) => authorizeAttach(physical.finalize, ref, caller),
+        readProvenance: (ref, caller) => readFinalizedFile(physical.finalize, ref, caller), recordAttachment: (ref, record, caller) => recordAttachment(physical.finalize, ref, record, caller),
+        readBytes: (ref, caller) => readFinalizedBytes(physical.finalize, ref, caller), readCurrentBytes: (ref, caller, policy) => readCurrentFinalizedBytes(physical.finalize, ref, caller, { ...observation, retention: policy }),
+        readCurrentSnapshot: (ref, caller, policy) => readCurrentFinalizedSnapshot(physical.finalize, ref, caller, { ...observation, retention: policy }),
+        observeFile: (ref, caller, policy) => observeFinalizedFile(physical.finalize, ref, caller, { ...observation, retention: policy }),
+        revalidateFile: (saved, caller, policy) => revalidateRetainedFinalizedFile(physical.finalize, saved, caller, { ...observation, retention: policy }) } satisfies FileJourneyBindings);
+      const receiver = { app: scope.app, owner: team.team_id, team: team.team_id, principal: user.user_id }, bytes = new TextEncoder().encode('Original invoice source export');
+      const intent = createUploadIntent(physical.upload, { receiver, binding: { adapter: 'deployment.web', deliveryId: 'source', resultPath: 'source_evidence' },
+        request: { upload_id: 'source', operation: 'invoice.retain_legacy_booking', field: '/source_evidence', arguments: {}, name: 'source.txt', type: 'text/plain', size: String(bytes.length) } });
+      assert.ok(intent.status === 'granted'); assert.equal(appendUploadContentAtOffset(physical.upload, intent.intentId, receiver, bytes, 0).status, 'appended');
+      assert.equal(completeUploadContent(physical.upload, intent.intentId, receiver).status, 'completed');
+      const finalized = finalizeUpload(physical.finalize, { intentId: intent.intentId, retryId: 'source', bytesDigest: sha256Hex(bytes), caller: receiver }); assert.ok(finalized.status === 'finalized');
+      const sourceEvidence = { id: finalized.result.file }, imported = new Date(now - 10000).toISOString();
+      const worker = { ...globalAnyRow('worker', globalAnyEmployee(user.user_id, mode === 'foreign-location' ? 'other' : 'site')), archivedAt: mode === 'actor-archived' ? now - 1000 : null };
+      const invoiceData = { source: 'vendor-w', external_id: 'I-8', location: { id: 'site' },
+        facts: { customer_source: null, customer_external_id: null, number: '2021-8', issuer: 'Original operator', recipient: 'Original billed party', issued_original: '2021-05-12 09:00',
+          issued_at: '2021-05-12T09:00:00.000Z', due_original: null, due: null, status: 'Issued', payment: 'Paid', amount: { minor: '1000', currency: 'EUR' },
+          booking_count: ['null-count', 'archived-duplicate', 'current-duplicate', 'duplicate-phantom'].includes(mode) ? null : mode === 'zero-count' ? '0' : ['archived-spare', 'distinct-edge'].includes(mode) ? '2' : '1' },
+        document: null, document_issue: 'Original invoice document not transferred', source_evidence: sourceEvidence, attestation: 'Source export verified', customer: null,
+        mapping_reason: null, imported_by: { id: user.user_id }, imported_at: imported };
+      const entry = globalAnyRow('invoice', invoiceData), other = globalAnyRow('other-invoice', { ...invoiceData, external_id: 'I-9' });
+      const existing = { ...globalAnyRow('old-edge', { booking_source: 'vendor-w', booking_external_id: ['archived-duplicate', 'current-duplicate', 'scoped-parent', 'duplicate-phantom'].includes(mode) ? 'B-18' : 'B-17',
+        source_evidence: sourceEvidence, attestation: 'Original edge retained', booking: null, mapping_reason: 'Booking source record not transferred', imported_by: { id: user.user_id }, imported_at: imported },
+        { model: asModel('invoice.LegacyInvoice'), id: mode === 'scoped-parent' ? other.id : entry.id }),
+        archivedAt: ['current-duplicate', 'distinct-edge'].includes(mode) ? null : now - 1000 };
+      const hasExisting = ['archived-capacity', 'archived-spare', 'null-count', 'scoped-parent', 'distinct-edge', 'archived-duplicate', 'current-duplicate'].includes(mode);
+      await store.commit(makeBatch(await store.readRevision(), { writes: [
+        ...['site', 'other'].map(id => ({ kind: 'insert' as const, model: asModel('rent_catalog.Location'), row: globalAnySite(id) })),
+        { kind: 'insert', model: asModel('employee.Employee'), row: worker },
+        ...[entry, other].map(row => ({ kind: 'insert' as const, model: asModel('invoice.LegacyInvoice'), row })),
+        ...(hasExisting ? [{ kind: 'insert' as const, model: asModel('invoice.LegacyInvoiceBooking'), row: existing }] : []),
+      ] }));
+      const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now, files: createCanonicalFileBinding(kernel, retention) });
+      if (['archived-capacity', 'archived-duplicate'].includes(mode)) {
+        const read = await invoker.invokeRead({ operation: 'invoice.LegacyInvoiceBooking.read', inputs: {} }, identity);
+        assert.ok('result' in read, JSON.stringify(read)); assert.equal((read.result as { records: unknown[] }).records.length, 0,
+          'ordinary child reads exclude archives even when source control includes them');
+      }
+      const commit = store.commit.bind(store), query = store.query.bind(store); let injected = false;
+      if (mode === 'membership-revoked') store.query = async request => {
+        const rows = await query(request);
+        if (!injected && request.model === 'invoice.LegacyInvoiceBooking') { injected = true; await identities.removeMembership(membership.membership_id); }
+        return rows;
+      };
+      if (mode === 'count-phantom' || mode === 'duplicate-phantom') store.commit = async batch => {
+        if (!injected && batch.writes.some(write => write.model === 'invoice.LegacyInvoiceBooking')) {
+          injected = true; await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'insert', model: asModel('invoice.LegacyInvoiceBooking'), row: existing }] }));
+        }
+        return commit(batch);
+      };
+      const request = { operation: 'invoice.retain_legacy_booking', operation_id: operationId(now), inputs: {
+        entry: { id: entry.id, version: mode === 'stale' ? '2' : '1' }, booking_source: 'vendor-w', booking_external_id: 'B-18', source_evidence: sourceEvidence,
+        attestation: mode === 'blank-attestation' ? '   ' : ' Actual edge from source export ', reason: ' Booking source record not yet transferred ' } };
+      const outcome = await invoker.invokeMutation(request, identity); store.commit = commit; store.query = query;
+      const allowed = ['allowed', 'archived-spare', 'null-count', 'scoped-parent', 'distinct-edge'].includes(mode);
+      assert.equal('result' in outcome, allowed, mode + ': ' + JSON.stringify(outcome));
+      const rows = await store.query({ model: asModel('invoice.LegacyInvoiceBooking'), authority: 'owner', archived: 'include', order: [{ field: 'id', direction: 'asc' }] });
+      assert.deepEqual(await store.load(asModel('invoice.LegacyInvoice'), entry.id), entry, 'retention leaves original invoice facts unchanged');
+      assert.deepEqual(await store.load(asModel('invoice.LegacyInvoice'), other.id), other);
+      assert.deepEqual(probe.outboxAll(), [], 'original retention emits no Work or service effect');
+      if (allowed) {
+        assert.ok('result' in outcome); assert.equal(outcome.result.status, 'committed');
+        const created = rows.find(row => row.id !== existing.id); assert.ok(created); assert.equal(rows.length, hasExisting ? 2 : 1);
+        assert.deepEqual(created.parent, { model: asModel('invoice.LegacyInvoice'), id: entry.id });
+        assert.deepEqual(created.data, { booking_source: 'vendor-w', booking_external_id: 'B-18', source_evidence: sourceEvidence,
+          attestation: 'Actual edge from source export', booking: null, mapping_reason: 'Booking source record not yet transferred', imported_by: { id: user.user_id }, imported_at: new Date(now).toISOString() });
+        const retained = await readCurrentFinalizedBytes(physical.finalize, finalized.result.file, receiver, observation); assert.ok(retained); assert.deepEqual(retained, bytes);
+        const replay = await invoker.invokeMutation(request, identity); assert.ok('result' in replay, mode + ': ' + JSON.stringify(replay)); assert.equal(replay.result.status, 'replayed');
+        assert.deepEqual(await store.query({ model: asModel('invoice.LegacyInvoiceBooking'), authority: 'owner', archived: 'include', order: [{ field: 'id', direction: 'asc' }] }), rows);
+      } else {
+        if (['archived-capacity', 'archived-duplicate', 'current-duplicate', 'zero-count', 'foreign-location', 'actor-archived', 'blank-attestation'].includes(mode)) {
+          assert.ok('error' in outcome); assert.equal(outcome.error.code, 'rule_failed', mode + ': ' + JSON.stringify(outcome));
+        }
+        assert.equal(rows.length, hasExisting || ['count-phantom', 'duplicate-phantom'].includes(mode) ? 1 : 0, mode + ': no partial new booking link');
+        if (['count-phantom', 'duplicate-phantom', 'membership-revoked'].includes(mode)) assert.equal(injected, true, mode);
+      }
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});

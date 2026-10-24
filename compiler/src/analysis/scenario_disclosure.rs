@@ -15647,6 +15647,28 @@ impl<'a> Closure<'a> {
             && self.source_require_contained_query(scenario,call,query)
     }
 
+    /// Count the complete explicitly archived child domain inside its whole
+    /// original guard. This creates no ordinary collection/Contract DATA
+    /// operand and does not replace independently admitted native COUNTs.
+    fn source_require_archived_contained_count(&self, scenario: &super::effects::ScenarioData,
+        call: &CheckedDecisionCall) -> bool {
+        let CheckedDecisionCallTarget::Builtin { id, overload } = &call.target else { return false; };
+        if id != "count" || call.slots.as_slice() != [Some(0)] || call.arguments.len() != 1
+            || self.types.node_types.get(&call.node) != Some(&ResolvedType::Scalar(Scalar::Int)) { return false; }
+        let Some(selected) = self.types.selected_calls.get(&call.node) else { return false; };
+        let (argument, ty) = &call.arguments[0];
+        if !matches!(&selected.target, SelectedCallTarget::Builtin { id: original, overload: actual }
+                if original == id && actual == overload)
+            || selected.arguments.as_slice() != [*argument] || selected.slots != call.slots { return false; }
+        let Some(query) = self.query_group(*argument).and_then(|node| self.types.checked_queries.get(&node)) else { return false; };
+        let Some((clauses, true)) = self.source_require_query_clauses(query, call.module) else { return false; };
+        let alias = clauses.is_empty() || matches!(clauses, [alias]
+            if matches!(&alias.kind, CheckedQueryClauseKind::As { name } if !name.is_empty()) && alias.expressions.is_empty());
+        alias && query.projection.is_none() && query.result == query.domain_type && *ty == query.result
+            && self.types.node_types.get(argument) == Some(ty)
+            && self.source_require_contained_domain(scenario, call, query, call.chain.len(), 0)
+    }
+
     /// A leading integer or Money SUM observes one complete original contained
     /// domain. Its checked signature and scalar projection remain exact; every
     /// reached predicate/projection read executes in the source observer.
@@ -15696,6 +15718,7 @@ impl<'a> Closure<'a> {
     fn source_require_observer_count(&self, scenario: &super::effects::ScenarioData,
         call: &CheckedDecisionCall) -> bool {
         self.source_require_contained_collection(scenario, call, "count")
+            || self.source_require_archived_contained_count(scenario, call)
             || self.source_require_native_count(scenario, call).is_some_and(|query|
                 query.count.is_some_and(|count| count.contained_parent.is_some()))
     }
@@ -15865,6 +15888,7 @@ impl<'a> Closure<'a> {
             CheckedDecisionCallTarget::Builtin { id, .. } if id == "count" && !body => {
                 if !whole_count_observer && self.source_require_native_count(scenario,call).is_some(){*supported=false;return Some(false);}
                 if (self.source_require_contained_collection(scenario,call,"count")
+                    || self.source_require_archived_contained_count(scenario,call)
                     || whole_count_observer && self.source_require_observer_count(scenario, call)
                     || call.slots.as_slice() == [Some(0)] && call.arguments.len() == 1
                         && self.source_require_reference_domain(scenario, call, call.arguments[0].0, call.chain.len(), 0))
@@ -16010,7 +16034,9 @@ impl<'a> Closure<'a> {
         { return Some(true); }
         if node.kind == SyntaxKind::Query
             && self.types.checked_queries.get(&key).is_some_and(|query|
-                site.calls.iter().any(|call| self.source_require_contained_query(scenario, call, query)))
+                site.calls.iter().any(|call| self.source_require_contained_query(scenario, call, query)
+                    || self.source_require_archived_contained_count(scenario, call)
+                        && call.arguments.first().is_some_and(|(argument, _)| self.query_group(*argument) == Some(query.node))))
         {
             return Some(true);
         }
