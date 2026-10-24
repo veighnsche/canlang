@@ -159,12 +159,47 @@ it('retains an unconditional native Images inspect SEND and reads only its genui
     const { WORK_FILE_REFERENCE_PRODUCER } = requireNative('@canlang/work/kernel/file-reference-inventory') as
       typeof import('@canlang/work/kernel/file-reference-inventory');
     const { resolveIdentity } = requireNative('@canlang/identity') as typeof import('@canlang/identity');
+    const { ComfyUINativeAdapter, digestGraph } = requireNative('@canlang/services') as typeof import('@canlang/services');
+    const { createBoundImagesAdapter } = requireNative(fileURLToPath(new URL('../dist/runtime/bound-images.js', import.meta.url))) as
+      typeof import('../src/runtime/bound-images.js');
+    const { createBoundImagesDispatcher } = requireNative(fileURLToPath(new URL('../dist/runtime/bound-dispatch.js', import.meta.url))) as
+      typeof import('../src/runtime/bound-dispatch.js');
+    const { importVerifiedAssemblyModule } = requireNative(fileURLToPath(new URL('../dist/runtime/assembly-verification.js', import.meta.url))) as
+      typeof import('../src/runtime/assembly-verification.js');
+    const { WORK_SYSTEM_COMMANDS, WORK_DISPATCH_STAGE_COMMANDS, createWorkDispatchClaimCommand } =
+      requireNative('@canlang/work/kernel/commands') as typeof import('@canlang/work/kernel/commands');
+    const { planRecoveryScan } = requireNative('@canlang/work/recovery') as typeof import('@canlang/work/recovery');
+    const { attemptDispatch } = requireNative('@canlang/work/dispatch') as typeof import('@canlang/work/dispatch');
+    const { classifyFailure } = requireNative('@canlang/work/receipt') as typeof import('@canlang/work/receipt');
+    const { RECEIPT_MODEL, readReceiptRow } = requireNative('@canlang/state/receipt/tables') as typeof import('@canlang/state/receipt/tables');
+    const { uuidv7 } = requireNative('@canlang/state/testing/invocation/fixtures') as typeof import('@canlang/state/testing/invocation/fixtures');
+    const apiGraph: ConstructorParameters<typeof ComfyUINativeAdapter>[0]['graph'] = {
+      3: { class_type: 'KSampler', inputs: { seed: 42, steps: 20, model: ['4', 0], positive: ['6', 0], negative: ['7', 0], latent: ['5', 0] } },
+      4: { class_type: 'CheckpointLoaderSimple', inputs: { ckpt_name: 'approved.safetensors' } },
+      5: { class_type: 'EmptyLatentImage', inputs: { width: 512, height: 512 } },
+      6: { class_type: 'CLIPTextEncode', inputs: { text: '', clip: ['4', 1] } },
+      7: { class_type: 'CLIPTextEncode', inputs: { text: '', clip: ['4', 1] } },
+      9: { class_type: 'SaveImage', inputs: { images: ['3', 0], filename_prefix: 'reviewed-output' } },
+    };
+    const bytes = new TextEncoder().encode(JSON.stringify(apiGraph));
+    const literal = (...values: (string | number)[]) => ({ kind: 'literal' as const, values });
+    const link = (node: string, output = 0) => ({ kind: 'link' as const, node, output });
+    const integer = (label: string, min: number, max: number) => ({ kind: 'integer' as const, label, min, max });
+    const text = (label: string) => ({ kind: 'text' as const, label, maxLength: 8192 });
+    const workflowPolicy = { revision: 'reviewed-native-v1', maxNodes: 6, maxGraphBytes: 16384, outputs: ['9'], nodes: {
+      3: { classType: 'KSampler', inputs: { seed: integer('Seed', 42, 42), steps: literal(20), model: link('4'), positive: link('6'), negative: link('7'), latent: link('5') } },
+      4: { classType: 'CheckpointLoaderSimple', inputs: { ckpt_name: literal('approved.safetensors') } },
+      5: { classType: 'EmptyLatentImage', inputs: { width: integer('Width', 256, 1536), height: integer('Height', 256, 1536) } },
+      6: { classType: 'CLIPTextEncode', inputs: { text: text('Prompt'), clip: link('4', 1) } },
+      7: { classType: 'CLIPTextEncode', inputs: { text: text('Negative prompt'), clip: link('4', 1) } },
+      9: { classType: 'SaveImage', inputs: { images: link('3'), filename_prefix: literal('reviewed-output') } },
+    } };
     const fixture = await readFile(join(root, 'packages/cloudflare/test/fixtures/typed-file-journey.can'), 'utf8');
     const source = join(directory, 'inspect-files.can');
     await writeFile(source, fixture
-      .replace('app TypedFileJourney', 'app TypedFileJourney\nuse std {ImagesV1 as Images} from=deployment.comfyui')
-      .replace('attachment:file? }', 'attachment:file?, inspection:delivery(Images.inspect)? }')
-      .replace('Then', ' scenario inspect(entry:Entry,graph:file) by=owner\n  do\n   send Images.inspect {graph} as inspection\n   set entry {inspection}\nThen'));
+      .replace('app TypedFileJourney', 'app TypedFileJourney\nuse std {WorkflowDefinition,WorkflowInput}\nuse std {ImagesV1 as Images} from=deployment.comfyui')
+      .replace('attachment:file? }', 'attachment:file?, inspection:delivery(Images.inspect)?, validation:delivery(Images.validate)? }')
+      .replace('Then', ' scenario inspect(entry:Entry,graph:file) by=owner\n  do\n   send Images.inspect {graph} as inspection\n   set entry {inspection}\n scenario validate(entry:Entry,graph:file) by=owner\n  do\n   let workflow=WorkflowDefinition {graph,prompt=WorkflowInput {node="6",key="text"},negative=WorkflowInput {node="7",key="text"},width=WorkflowInput {node="5",key="width"},height=WorkflowInput {node="5",key="height"}}\n   send Images.validate {value=workflow} as validation\n   set entry {validation}\nThen'));
     const artifact = JSON.parse(execFileSync(process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can'),
       ['compile', '--format=json', '--native-scenario-receipts', '--catalog',
         process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json'), source],
@@ -175,7 +210,7 @@ it('retains an unconditional native Images inspect SEND and reads only its genui
     const now = Date.now(), clock = createFrozenClock(now), identities = createMemoryIdentityStore({ clock });
     const team = await identities.createTeam({ timezone: 'UTC' });
     const user = await identities.createUser({ email: 'native-inspect@example.test', password_hash: 'unused', email_verified: true });
-    await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: [] });
+    const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: [] });
     const token = 'native-inspect-files-session';
     await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
       last_team_id: team.team_id, expires_at: new Date(now + 3600000).toISOString() });
@@ -189,7 +224,7 @@ it('retains an unconditional native Images inspect SEND and reads only its genui
       [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
     const verifyOwner = async () => { assert.ok(await identities.findTeamById(team.team_id)); };
     await installNativeFileInventory({ artifact, asm, store, authority, scope, now: () => now, verifyOwner });
-    const row = { ...makeRow({ id: asId('inspect-entry'), data: { label: 'Inspect', attachment: null, inspection: null } }), parent: null };
+    const row = { ...makeRow({ id: asId('inspect-entry'), data: { label: 'Inspect', attachment: null, inspection: null, validation: null } }), parent: null };
     await store.commit(makeBatch(await store.readRevision(), { writes: [
       { kind: 'insert', model: asModel('TypedFileJourney.Entry'), row },
     ] }));
@@ -204,10 +239,9 @@ it('retains an unconditional native Images inspect SEND and reads only its genui
     const grantResponse = await files.fetch(new Request(files.intentsUrl!, { method: 'POST', headers,
       body: JSON.stringify({ upload_id: 'inspect-graph', operation, field: '/graph',
         arguments: { entry: { id: row.id, version: String(row.version) } }, name: 'graph.txt', type: 'text/plain',
-        size: String(new TextEncoder().encode('{"6":{"class_type":"CLIPTextEncode","inputs":{"text":"original graph"}}}').length) }) }));
+        size: String(bytes.length) }) }));
     assert.equal(grantResponse.status, 200, await grantResponse.clone().text());
     const grant = await grantResponse.json() as { content: string; finalize: string };
-    const bytes = new TextEncoder().encode('{"6":{"class_type":"CLIPTextEncode","inputs":{"text":"original graph"}}}');
     const uploaded = await files.fetch(new Request(grant.content, { method: 'PUT',
       headers: { ...headers, 'upload-offset': '0' }, body: bytes }));
     assert.equal(uploaded.status, 200, await uploaded.clone().text());
@@ -243,12 +277,17 @@ it('retains an unconditional native Images inspect SEND and reads only its genui
     const openReader = async (readerAsm: typeof asm, readerStore: typeof store, readerArtifact = artifact) => {
       const loaded = await loadCanonicalDescriptors(readerAsm, readerArtifact);
       assert.ok(loaded.valueTypes);
-      const definition = loaded.registry.get(operation) as { descriptor: import('@canlang/contracts').CanonicalOperationDescriptor } | undefined;
-      const declaration = readerArtifact.operations?.find(candidate => candidate.name === operation);
-      assert.ok(definition?.descriptor && declaration);
+      const operations = new Map<string, { canonical: import('@canlang/contracts').CanonicalOperationDescriptor;
+        artifact: NonNullable<CompileArtifact['operations']>[number] }>();
+      for (const name of [operation, 'TypedFileJourney.validate']) {
+        const definition = loaded.registry.get(name) as { descriptor: import('@canlang/contracts').CanonicalOperationDescriptor } | undefined;
+        const declaration = readerArtifact.operations?.find(candidate => candidate.name === name);
+        assert.ok(definition?.descriptor && declaration);
+        operations.set(name, { canonical: definition.descriptor, artifact: declaration });
+      }
       const opaque = await loadOpaqueFileStaging({ store: readerStore, inventoryOwner: scope.ownerPackage,
         artifact: readerArtifact, canonicalModels: loaded.models, valueTypes: loaded.valueTypes,
-        operations: new Map([[operation, { canonical: definition.descriptor, artifact: declaration }]]), scope, verify: verifyOwner });
+        operations, scope, verify: verifyOwner });
       assert.ok(opaque);
       const original = opaque.sendInputs(operation, intent.target);
       assert.equal(binding.origin.kind, 'send-input');
@@ -278,6 +317,152 @@ it('retains an unconditional native Images inspect SEND and reads only its genui
     const reopenedReader = await openReader(reopenedAsm, reopened, reopenedArtifact);
     assert.deepEqual(await reopenedReader.readSourceFile(request, reopenedFiles.canonical), bytes);
     assert.deepEqual(await reopened.load(asModel('work.dispatch'), dispatch.id), dispatch);
+
+    // The installed adapter receives the graph through the retained Work source,
+    // not a provider URL or an arbitrary File ref supplied by the dispatcher.
+    const providerBinding = { capability: 'std.ImagesV1', capabilityVersion: 1, account: 'reviewed-local-comfy', deployment: 'deployment.comfyui' };
+    const mapping = { workflow: graph, graphDigest: digestGraph(apiGraph), inputs: {
+      prompt: { node: '6', key: 'text' }, negative: { node: '7', key: 'text' },
+      width: { node: '5', key: 'width' }, height: { node: '5', key: 'height' }, seed: { node: '3', key: 'seed' },
+    }, outputs: ['9'] };
+    const workflow = { graph, prompt: mapping.inputs.prompt, negative: mapping.inputs.negative,
+      width: mapping.inputs.width, height: mapping.inputs.height };
+    const providerOrigin = 'https://comfy-no-network.invalid';
+    const installed = new ComfyUINativeAdapter({ baseUrl: providerOrigin, timeoutMs: 5000, maxBodyBytes: 65536,
+      graph: apiGraph, mapping, clientId: 'native-workflow-review', maxDownloadBytes: 65536, maxOutputs: 4 })
+      .installImages({ binding: providerBinding, workflow, seed: { kind: 'fixed', value: 42 }, workflowPolicy });
+    assert.ok(installed.workflows);
+    assert.equal(installed.workflows.matchesGraph(bytes), true);
+    assert.equal(installed.workflows.matchesGraph(new TextEncoder().encode(JSON.stringify({ ...apiGraph,
+      4: { class_type: 'CheckpointLoaderSimple', inputs: { ckpt_name: 'unreviewed.safetensors' } } }))), false);
+    const originalModule = await importVerifiedAssemblyModule(reopenedAsm, reopenedArtifact.modules[0]!.path, reopenedArtifact) as { appDefinition: unknown };
+    let graphReads = 0, providerHttpRequests = 0, sequence = 1, dispatchNow = now + 1, interruptGraphRead = false;
+    const adapter = createBoundImagesAdapter({ appDefinition: originalModule.appDefinition, binding: providerBinding,
+      resolveInstalledImages: deployment => deployment === providerBinding.deployment ? installed : null,
+      finalizeOutput: async () => { throw new Error('Workflow review must never finalize generated images'); },
+      readWorkflowGraph: async (selected, ref) => {
+        graphReads++;
+        const bytes = await reopenedReader.readSendInputFile({ intent: selected, revision: await reopened.readRevision(),
+          path: selected.target === 'std.ImagesV1.validate' ? ['value', 'graph'] : ['graph'], ref,
+          maxBytes: installed.workflows!.maxGraphBytes }, reopenedFiles.canonical);
+        if (interruptGraphRead) { interruptGraphRead = false; throw new Error('injected graph-read response loss'); }
+        return bytes;
+      } });
+    const makeDispatcher = (dispatcherStore = reopened) => createBoundImagesDispatcher({ store: dispatcherStore, fileOriginStore: reopened, adapter,
+      workCommands: WORK_SYSTEM_COMMANDS, stageCommands: WORK_DISPATCH_STAGE_COMMANDS, createClaimCommand: createWorkDispatchClaimCommand });
+    const fenceFor = (_selected: typeof intent) => ({ owner: scope.owner, attemptDispatch: attemptDispatch as unknown as import('../src/runtime/invoke.js').FenceAttemptDispatchFn,
+      revalidateAuthority: async () => {
+        const current = await identities.findMembership(team.team_id, user.user_id);
+        return current?.status === 'active' && current.is_owner;
+      } });
+    const drive = (dispatcher: Awaited<ReturnType<typeof makeDispatcher>>, selected: typeof intent) => dispatcher.drive({
+      intentId: selected.intentId, actor: user.user_id, operation: 'test.files.workflow.dispatch', nowMs: () => dispatchNow,
+      nextClaimId: () => `workflow-claim-${++sequence}`, maxClaimAgeMs: 60000,
+      claimOperationId: uuidv7(now + 1, ++sequence), recordOperationId: uuidv7(now + 1, ++sequence), classifyFailure,
+      evaluateGuard: () => { throw new Error('Unconditional workflow SEND must not invent a guard'); },
+      readStateSnapshot: () => null, fence: fenceFor(selected) });
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = ((input, init) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (new URL(url).origin === providerOrigin) {
+        providerHttpRequests++;
+        throw new Error('Workflow inspect/validate must not contact ComfyUI HTTP');
+      }
+      return originalFetch(input, init);
+    }) as typeof fetch;
+    try {
+      const dispatcher = await makeDispatcher();
+      const inspected = await drive(dispatcher, intent);
+      assert.equal(inspected.status, 'recorded', JSON.stringify(inspected));
+      if (inspected.status === 'recorded') assert.equal(inspected.state, 'delivered');
+      const inspectionRow = await reopened.load(asModel(RECEIPT_MODEL), asId(intent.intentId));
+      assert.ok(inspectionRow);
+      const inspection = readReceiptRow(inspectionRow).receipt;
+      assert.equal(inspection.status, 'succeeded');
+      assert.deepEqual((inspection.result as { fields: unknown }).fields, [
+        { node: '6', key: 'text', kind: 'text', label: 'Prompt' },
+        { node: '7', key: 'text', kind: 'text', label: 'Negative prompt' },
+        { node: '5', key: 'width', kind: 'int', label: 'Width' },
+        { node: '5', key: 'height', kind: 'int', label: 'Height' },
+      ]);
+      const receiptBeforeReplay = structuredClone(inspectionRow), readsBeforeReplay = graphReads;
+      assert.equal((await drive(await makeDispatcher(), intent)).status, 'not-pending');
+      assert.equal(graphReads, readsBeforeReplay, 'acknowledged replay does not inspect again');
+      assert.deepEqual(await reopened.load(asModel(RECEIPT_MODEL), asId(intent.intentId)), receiptBeforeReplay);
+      const reconciled = await adapter.reconcile(intent, { stagedAtMs: dispatch.created,
+        onQueued: async () => { throw new Error('Inspection has no generation queue'); },
+        onProgress: async () => { throw new Error('Inspection has no ImageRun progress'); } });
+      assert.equal(reconciled?.kind, 'delivered');
+
+      const reopenedInvoker = buildInvoker(reopenedArtifact, reopenedAsm, reopened,
+        { memberships: identities, now: () => now, files: reopenedFiles.canonical });
+      const validate = async () => {
+        const current = await reopened.load(asModel('TypedFileJourney.Entry'), row.id);
+        assert.ok(current);
+        const validationOperationId = uuidv7(now, ++sequence);
+        const outcome = await reopenedInvoker.invokeMutation({ operation: 'TypedFileJourney.validate', operation_id: validationOperationId,
+          inputs: { entry: { id: current.id, version: String(current.version) }, graph: { id: graph } } }, identity);
+        assert.equal('result' in outcome ? outcome.result.status : outcome.error.code, 'committed', JSON.stringify(outcome));
+        const pending = probe.outboxAll().find(candidate => candidate.operation === 'TypedFileJourney.validate' &&
+          candidate.intentId !== intent.intentId && candidate.operationId === validationOperationId);
+        // The probe retains the actual original Work intent, including after ack.
+        assert.ok(pending);
+        return pending;
+      };
+      const validationIntent = await validate();
+      const validated = await drive(dispatcher, validationIntent);
+      assert.equal(validated.status, 'recorded', JSON.stringify(validated));
+      if (validated.status === 'recorded') assert.equal(validated.state, 'delivered');
+      const validationRow = await reopened.load(asModel(RECEIPT_MODEL), asId(validationIntent.intentId));
+      assert.ok(validationRow);
+      const validation = readReceiptRow(validationRow).receipt;
+      assert.equal(validation.status, 'succeeded');
+      assert.deepEqual(validation.result, { valid: true, digest: installed.validation, detail: null });
+      assert.ok(graphReads >= 3, 'inspect, reconcile and validate read actual retained source Files');
+      const currentRevision = await reopened.readRevision();
+      await assert.rejects(reopenedReader.readSendInputFile({ intent: { ...validationIntent,
+        arguments: { ...validationIntent.arguments, from: 'deployment.other' } }, revision: currentRevision,
+        path: ['value', 'graph'], ref: graph, maxBytes: bytes.length }, reopenedFiles.canonical));
+      const interruptedIntent = await validate();
+      let interruptCompletion = true;
+      const interruptedStore = { ...reopened, commit: async (batch: Parameters<typeof reopened.commit>[0]) => {
+        if (interruptCompletion && batch.outboxAck?.includes(interruptedIntent.intentId)) {
+          interruptCompletion = false;
+          throw new Error('injected workflow completion interruption');
+        }
+        return reopened.commit(batch);
+      } };
+      const interruptedDispatcher = await makeDispatcher(interruptedStore);
+      await assert.rejects(() => drive(interruptedDispatcher, interruptedIntent), /injected workflow completion interruption/);
+      const recovery = await makeDispatcher();
+      const recover = () => recovery.recover({ actor: user.user_id, operation: 'test.workflow.recovery',
+        nowMs: () => now + 60002, maxClaimAgeMs: 60000, limit: 10,
+        policy: { maxAttempts: 3, horizonMs: 3600000 }, planRecoveryScan,
+        operationIdForStep: () => uuidv7(now + 60002, ++sequence),
+        admission: { fence: fenceFor(interruptedIntent), evaluateGuard: () => { throw new Error('No invented workflow guard'); },
+          readStateSnapshot: () => null } });
+      const released = await recover();
+      assert.ok(released.released.includes(interruptedIntent.intentId));
+      dispatchNow = now + 60003;
+      assert.equal((await drive(recovery, interruptedIntent)).status, 'recorded');
+      const recoveredRow = await reopened.load(asModel(RECEIPT_MODEL), asId(interruptedIntent.intentId));
+      assert.ok(recoveredRow);
+      assert.deepEqual(readReceiptRow(recoveredRow).receipt.result, { valid: true, digest: installed.validation, detail: null });
+      const uncertainIntent = await validate();
+      interruptGraphRead = true;
+      const uncertain = await drive(await makeDispatcher(), uncertainIntent);
+      assert.equal(uncertain.status, 'recorded');
+      if (uncertain.status === 'recorded') assert.equal(uncertain.state, 'uncertain');
+      const reconciledReview = await recover();
+      assert.ok(reconciledReview.reconciled.some(item => item.intentId === uncertainIntent.intentId && item.state === 'delivered'), JSON.stringify(reconciledReview));
+      const revoked = await validate();
+      const readsBeforeRevoke = graphReads;
+      await identities.removeMembership(membership.membership_id);
+      const refused = await drive(dispatcher, revoked);
+      assert.notEqual(refused.status, 'recorded', 'current membership must survive the dispatch fence');
+      assert.equal(graphReads, readsBeforeRevoke, 'revoked authority cannot reach graph bytes or the adapter');
+      assert.equal(providerHttpRequests, 0, 'workflow review never generates or contacts the provider');
+    } finally { globalThis.fetch = originalFetch; }
   } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
 }, 120000);
 

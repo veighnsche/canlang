@@ -658,6 +658,87 @@ export function isImageRunReceiptPayload(status: unknown, result: unknown, error
   return status === 'succeeded' && failure === null;
 }
 
+/** Own-data records for the small closed workflow review wire shapes. */
+function workflowReviewRecord(value: unknown, keys: readonly string[]): Record<string, unknown> | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value) ||
+      (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) ||
+      Reflect.ownKeys(value).length !== keys.length) return null;
+  const result: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
+  for (const key of keys) {
+    const property = Object.getOwnPropertyDescriptor(value, key);
+    if (property === undefined || !Object.hasOwn(property, 'value') || !property.enumerable) return null;
+    result[key] = property.value;
+  }
+  return result;
+}
+
+function workflowReviewArray(value: unknown, maximum: number): readonly unknown[] | null {
+  if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype ||
+      value.length > maximum || Reflect.ownKeys(value).length !== value.length + 1) return null;
+  const result: unknown[] = [];
+  for (let index = 0; index < value.length; index++) {
+    const property = Object.getOwnPropertyDescriptor(value, String(index));
+    if (property === undefined || !Object.hasOwn(property, 'value') || !property.enumerable) return null;
+    result.push(property.value);
+  }
+  return result;
+}
+
+/** Only the original canonical review result; generation or Judgment context cannot stand in for it. */
+export function isWorkflowReviewReceiptContext(context: ReceiptResultContext | undefined): boolean {
+  const own = workflowReviewRecord(context, ['source', 'declaredResult']);
+  const name = own?.source === 'std.ImagesV1.inspect' ? 'WorkflowInspection'
+    : own?.source === 'std.ImagesV1.validate' ? 'WorkflowValidation' : undefined;
+  if (name === undefined) return false;
+  const declaration = workflowReviewRecord(own!.declaredResult, ['name', 'fields']);
+  const expected = DELIVERY_RESULT_LEAVES[name]!;
+  const fields = workflowReviewArray(declaration?.fields, expected.length);
+  return declaration?.name === name && fields !== null && fields.length === expected.length &&
+    expected.every((leaf, index) => {
+      const field = workflowReviewRecord(fields[index], ['name', 'type']);
+      return field?.name === leaf.name && field.type === leaf.type;
+    });
+}
+
+/** Closed, File-free review results. Read-only review has no pending run snapshots. */
+export function isWorkflowReviewReceiptPayload(status: unknown, result: unknown, error: unknown,
+  context: ReceiptResultContext | undefined): boolean {
+  try {
+    if (!isWorkflowReviewReceiptContext(context)) return false;
+    const payload = result === undefined ? null : result;
+    const failure = error === undefined ? null : error;
+    if (status !== 'succeeded') {
+      const closedFailure = workflowReviewRecord(failure, ['code', 'message']);
+      const validFailure = closedFailure !== null && typeof closedFailure.code === 'string' && typeof closedFailure.message === 'string';
+      return payload === null && (status === 'failed' ? validFailure
+        : status === 'unknown' ? failure === null || validFailure
+        : (status === 'pending' || status === 'skipped') && failure === null);
+    }
+    if (failure !== null) return false;
+    if (context!.source === 'std.ImagesV1.validate') {
+      const value = workflowReviewRecord(payload, ['valid', 'digest', 'detail']);
+      return value !== null && typeof value.valid === 'boolean' &&
+        (value.valid ? typeof value.digest === 'string' : value.digest === null) &&
+        (value.detail === null || typeof value.detail === 'string');
+    }
+    const value = workflowReviewRecord(payload, ['fields']);
+    const fields = workflowReviewArray(value?.fields, 4096);
+    if (fields === null) return false;
+    let textBytes = 0;
+    for (const field of fields) {
+      const own = workflowReviewRecord(field, ['node', 'key', 'kind', 'label']);
+      if (own === null) return false;
+      for (const key of ['node', 'key', 'kind', 'label']) {
+        const text = own[key];
+        if (typeof text !== 'string') return false;
+        textBytes += new TextEncoder().encode(text).byteLength;
+        if (textBytes > 2_000_000) return false;
+      }
+    }
+    return true;
+  } catch { return false; }
+}
+
 /**
  * Deterministic association row id under owner model + record + field.
  * Components are encoded so `/` separators stay unambiguous (the
@@ -802,6 +883,10 @@ function checkTypedReceiptPayload(
   failure: unknown,
   context: ReceiptResultContext | undefined,
 ): boolean | null {
+  if (context !== undefined && context !== null &&
+      ['std.ImagesV1.inspect', 'std.ImagesV1.validate'].includes(context.source)) {
+    return isWorkflowReviewReceiptPayload(status, payload, failure, context);
+  }
   if (context !== undefined && context !== null && 'judgment' in context) {
     return isJudgmentReceiptPayload(status, payload, failure, context);
   }

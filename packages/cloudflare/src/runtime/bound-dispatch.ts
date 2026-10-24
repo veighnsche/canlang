@@ -12,6 +12,7 @@ import type { SystemCommandDef } from '@canlang/state/ports/system';
 import { dispatchByStateQuery, WORK_DISPATCH_MODEL, readDispatchRow, readDispatchImageCorrelation,
   DISPATCH_IMAGE_CORRELATION_FIELDS, readDispatchImageControlPin, readDispatchMailRecipientPin, dispatchGenerationTargetProfile,
   type DispatchImageCorrelation, type DispatchRowData, type DispatchGenerationTargetProfile } from '@canlang/work/kernel/tables';
+import { readRetainedSendInputs } from '@canlang/work/kernel/dispatch-staging';
 import { deriveOutboxId } from '@canlang/work/intent';
 import { assembleDispatchCommands } from '../worker/assembly.js';
 import type { BoundMailAdapter } from './bound-mail.js';
@@ -229,6 +230,9 @@ export async function createBoundMailDispatcher(
 
 function sameRetainedEvidence(expected: DispatchReconcileEvidence,
   actual: DispatchReconcileEvidence | null, context: ReceiptResultContext, profile: 'text' | 'images'): boolean {
+  if (['std.ImagesV1.inspect', 'std.ImagesV1.validate'].includes(context.source)) {
+    return actual !== null && stableStringify(expected) === stableStringify(actual);
+  }
   return expected.kind === 'failed' && actual?.kind === 'failed'
     ? expected.code === actual.code && expected.message === actual.message
     : expected.kind === 'delivered' && actual?.kind === 'delivered' &&
@@ -253,6 +257,9 @@ interface GenerationControlObservation {
   readonly progress?: RichRunWire;
   readonly failure?: { readonly code: string; readonly message: string };
   readonly stopPending?: boolean;
+}
+function isWorkflowReview(intent: OutboxIntent): boolean {
+  return ['std.ImagesV1.inspect', 'std.ImagesV1.validate'].includes(intent.target);
 }
 function isGenerationControl(intent: OutboxIntent): boolean {
   return dispatchGenerationTargetProfile(intent.target)?.role === 'control';
@@ -295,8 +302,31 @@ const resolveDispatcherProfile = (options: InstalledDispatcherOptions) => {
 async function createInstalledDispatcher(
   options: InstalledDispatcherOptions,
 ): Promise<BoundMailDispatcher> {
-  const { rich, textControls, controlAdapter, typed, progressed, readRetainedReceipt, readRetainedEvidence } =
+  const { rich, textControls, controlAdapter, typed, progressed, readRetainedReceipt: readRunReceipt, readRetainedEvidence: readRunEvidence } =
     resolveDispatcherProfile(options);
+  const usesRichProgress = (intent: OutboxIntent) => rich && !isWorkflowReview(intent);
+  const readRetainedReceipt = async (input: { intent: OutboxIntent; context: ReceiptResultContext }, ctx: SystemCommandContext) => {
+    if (!isWorkflowReview(input.intent)) return readRunReceipt(input, ctx);
+    if (input.context.source !== input.intent.target) throw new Error('Workflow receipt changed its original source.');
+    const retained = await options.store.outboxGet(input.intent.intentId);
+    const dispatch = await ctx.load(WORK_DISPATCH_MODEL, input.intent.intentId as RecordId);
+    if (retained === null || dispatch === null || stableStringify(retained.intent) !== stableStringify(input.intent)) {
+      throw new Error('Workflow receipt lost its exact retained SEND.');
+    }
+    readRetainedSendInputs(dispatch, input.intent);
+    const row = await ctx.load(RECEIPT_MODEL as ModelName, input.intent.intentId as RecordId);
+    if (row === null) return null;
+    const receipt = readReceiptRow(row, input.context).receipt;
+    if (receipt.deliveryId !== input.intent.intentId) throw new Error('Workflow receipt changed its delivery identity.');
+    return receipt;
+  };
+  const readRetainedEvidence = async (input: { intent: OutboxIntent; context: ReceiptResultContext }, ctx: SystemCommandContext): Promise<DispatchReconcileEvidence | null> => {
+    if (!isWorkflowReview(input.intent)) return readRunEvidence(input, ctx);
+    const receipt = await readRetainedReceipt(input, ctx);
+    if (receipt?.status === 'succeeded') return { kind: 'delivered', result: receipt.result };
+    if (receipt?.status === 'failed' && receipt.error !== null) return { kind: 'failed', ...receipt.error };
+    return null;
+  };
   const progressFiles = new Map<string, { readonly json: string;
     readonly files: FrameworkFilePayloadOriginInput['files']; readonly current: () => boolean | Promise<boolean>; consumed: boolean }>();
   const stageRichProgress = async (input: { intent: OutboxIntent; context: ReceiptResultContext; revision: number;
@@ -455,6 +485,7 @@ async function createInstalledDispatcher(
   }
   // The actual call result remains local to its held claim. Work owns all
   // lifecycle admission; this wrapper adds only the receipt writes after it.
+  const reviewAuthorities = new Map<string, () => boolean | Promise<boolean>>();
   const completions = new Map<string, { intent: OutboxIntent; outcome: DispatchProviderOutcome;
     owner: string;
     progressCommitted?: boolean; retainedEvidence?: DispatchReconcileEvidence; control?: GenerationControlObservation }>();
@@ -489,9 +520,12 @@ async function createInstalledDispatcher(
     selected: NonNullable<ReturnType<typeof selectRecordedOutcome>>, ctx: SystemCommandContext,
   ) => {
     const revision = (await options.store.readRevision()) + 1;
-    const receipt = !rich
+    if (isWorkflowReview(completion.intent)) {
+      await readRetainedReceipt({ intent: completion.intent, context: requireResultContext(completion.intent.intentId) }, ctx);
+    }
+    const receipt = !usesRichProgress(completion.intent)
       ? await stageReceiptProgress({ intent: completion.intent, outcome: selected, revision,
-        ...(options.profile === 'judgment' ? { context: requireResultContext(completion.intent.intentId) } : {}) }, ctx)
+        ...(typed ? { context: requireResultContext(completion.intent.intentId) } : {}) }, ctx)
       : await stageRichProgress({ intent: completion.intent,
         context: requireResultContext(completion.intent.intentId), revision,
         ...(progressed === undefined ? {} : { progressed: { producer: progressed, owner: completion.owner } }),
@@ -505,6 +539,11 @@ async function createInstalledDispatcher(
       const completion = completions.get(`${String(args['intentId'])}\0${String(args['claimId'])}`);
       const outcome = args['outcome'];
       if (completion === undefined || typeof outcome !== 'object' || outcome === null) return staged;
+      const reviewCurrent = reviewAuthorities.get(`${String(args['intentId'])}\0${String(args['claimId'])}`);
+      if (isWorkflowReview(completion.intent)) {
+        if (reviewCurrent === undefined || !await reviewCurrent()) throw new Error('Workflow review authority changed before completion.');
+        enrollSystemCommandCommitCheck(ctx, reviewCurrent);
+      }
       if (completion.control !== undefined) {
         return stageControlCompletion(completion, staged, ctx);
       }
@@ -890,6 +929,13 @@ async function createInstalledDispatcher(
             let retainedEvidence: DispatchReconcileEvidence | undefined;
             let answer: DispatchProviderOutcome;
             const context = !rich ? null : requireResultContext(selected.intentId);
+            const originalFence = input.fence, revalidateAuthority = originalFence.revalidateAuthority;
+            const current = (): boolean | Promise<boolean> => input.fence === originalFence &&
+              originalFence.revalidateAuthority === revalidateAuthority ? revalidateAuthority.call(originalFence) : false;
+            if (isWorkflowReview(selected)) {
+              if (!await current()) throw new Error('Workflow review authority was revoked.');
+              reviewAuthorities.set(heldKey, current);
+            }
             const scope = { actor: input.actor, now: input.nowMs(), operation: input.operation,
               load: store.load.bind(store), query: store.query.bind(store) };
             const driveGenerationControl = async (): Promise<DispatchProviderOutcome> => {
@@ -936,9 +982,6 @@ async function createInstalledDispatcher(
             if (settled !== null) {
               answer = settled;
             } else {
-              const originalFence = input.fence, revalidateAuthority = originalFence.revalidateAuthority;
-              const current = (): boolean | Promise<boolean> => input.fence === originalFence &&
-                originalFence.revalidateAuthority === revalidateAuthority ? revalidateAuthority.call(originalFence) : false;
               const commitProgress = async (progress: RichRunWire,
                 files: FrameworkFilePayloadOriginInput['files'] = []): Promise<void> => {
                 if (progressFiles.has(heldKey)) throw new Error('Concurrent Images progress execution refused.');
@@ -990,10 +1033,16 @@ async function createInstalledDispatcher(
                 }
                 const receiptRow = await store.load(RECEIPT_MODEL as ModelName, selected.intentId as RecordId);
                 const originalHeader = receiptRow === null ? undefined : readReceiptRow(receiptRow, context!).filePayloadOrigin;
-                return adapter.callProvider(selected, { stagedAtMs: original.created,
+                if (isWorkflowReview(selected)) {
+                  if (!await current()) throw new Error('Workflow review authority was revoked.');
+                  reviewAuthorities.set(heldKey, current);
+                }
+                const answer = await adapter.callProvider(selected, { stagedAtMs: original.created,
                   ...(originalHeader === undefined ? {} : { originalScope: { app: originalHeader.scope.app,
                     owner: originalHeader.scope.owner, principal: receiptRow!.createdBy } }),
                   onQueued: commitProgress, onProgress: commitProgress });
+                if (isWorkflowReview(selected) && !await current()) throw new Error('Workflow review authority changed during review.');
+                return answer;
               };
               if (options.profile === 'mail' && selected.target === 'std.EmailV1.send_user') {
                 answer = await driveMailTransport(options.adapter);
@@ -1064,7 +1113,7 @@ async function createInstalledDispatcher(
           ? { status: 'unavailable', intentId: intent.intentId, target: intent.target }
           : outcome;
       } finally {
-        for (const key of heldKeys) { completions.delete(key); progressOwners.delete(key); pinAdmissions.delete(key); }
+        for (const key of heldKeys) { completions.delete(key); progressOwners.delete(key); pinAdmissions.delete(key); reviewAuthorities.delete(key); }
         for (const id of originalContexts) releaseControlContext(id);
       }
     },
@@ -1153,7 +1202,11 @@ async function createInstalledDispatcher(
             context: requireResultContext(intent.intentId) }, retainedContext);
         let answer = retained;
         if (answer === null) {
-          if (options.profile !== 'images') answer = await options.adapter.reconcile(intent);
+          if (options.profile === 'images' && isWorkflowReview(intent)) {
+            answer = await options.adapter.reconcile(intent, { stagedAtMs: row.created,
+              onQueued: async () => { throw new Error('Workflow review cannot queue generation.'); },
+              onProgress: async () => { throw new Error('Workflow review cannot report generation progress.'); } });
+          } else if (options.profile !== 'images') answer = await options.adapter.reconcile(intent);
           else {
             const receipt = await readRetainedReceipt({ intent,
               context: requireResultContext(intent.intentId) }, retainedContext);
@@ -1278,6 +1331,9 @@ async function createInstalledDispatcher(
               }
             };
             const { intent, admitted } = await admitReconciledIntent();
+            if (isWorkflowReview(intent)) {
+              await readRetainedReceipt({ intent, context: requireResultContext(intentId) }, context);
+            }
             const control = controlObservations.get(intentId);
             if (control !== undefined) return stageGenerationControl(intent, control, context, revision, true);
             if (rich && isGenerationControl(intent)) {
@@ -1289,7 +1345,7 @@ async function createInstalledDispatcher(
             const outcome = answer.kind === 'delivered'
               ? { kind: 'delivered' as const, result: answer.result }
               : { kind: 'failed' as const, error: { code: answer.code, message: answer.message } };
-            if (progressed !== undefined && admitted === undefined) {
+            if (usesRichProgress(intent) && progressed !== undefined && admitted === undefined) {
               throw new Error('New recovered progress needs the original admitted owner fence before occurrence staging.');
             }
             if (options.profile === 'images' && imageObservations.has(intentId)) {
@@ -1297,9 +1353,11 @@ async function createInstalledDispatcher(
               if (admission === undefined) throw new Error('Images receiving recovery requires its actual current authority fence.');
               enrollSystemCommandCommitCheck(context, () => admission.fence.revalidateAuthority());
             }
-            return (!rich
+            // Review recovery uses revalidateReconciledReceipt, the owning
+            // recovery driver's authority/revision check immediately before commit.
+            return (!usesRichProgress(intent)
               ? await stageReceiptProgress({ intent, outcome, revision,
-                ...(options.profile === 'judgment' ? { context: requireResultContext(intent.intentId) } : {}) }, context)
+                ...(typed ? { context: requireResultContext(intent.intentId) } : {}) }, context)
               : await stageRichProgress({ intent, context: requireResultContext(intent.intentId), revision,
                 ...(progressed === undefined || admitted === undefined ? {} : {
                   progressed: { producer: progressed, owner: admitted.owner },

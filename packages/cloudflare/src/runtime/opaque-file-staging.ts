@@ -4,16 +4,17 @@ import type {
   CompileArtifact, FileReferenceStoragePort, FrameworkFilePayloadOrigin, FrameworkOpaqueCallable,
   FrameworkOpaqueDeclaration, FrameworkOpaqueDeclarationSet, FrameworkOpaqueEventDeclaration, FrameworkOpaqueValueProjection,
   FrameworkOpaqueDeliveryContext, FrameworkOpaqueSendGuardDeclaration,
-  ModelName, ResolvedIdentity, RetainedFinalizedFile, Revision, StoredRow, WorkScope,
+  OutboxIntent, RecordId, ModelName, ResolvedIdentity, RetainedFinalizedFile, Revision, StoredRow, WorkScope,
 } from '@canlang/contracts';
 
 type CallableDeclarationSource = Extract<FrameworkOpaqueDeclaration['source'], { kind: 'callable' }>;
 import { STATE_FILE_REFERENCE_PRODUCER, bindOpaqueFileDeclarations, prepareFrameworkFilePayloadOrigin, resolveOpaqueFileProjection, validateOpaqueFileOrigin } from '@canlang/state/storage';
 import { observeRetainedCanonicalFile, readRetainedCanonicalFile, type CanonicalFileBinding } from './file-staging.js';
+import { readRetainedSendInputs } from '@canlang/work/kernel/dispatch-staging';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work';
 import { stableStringify } from '@canlang/state/invocation';
 import type { ScenarioReceiptDeliveryOriginFrame, ScenarioReceiptSendGuard } from '@canlang/state/invocation';
-import { dispatchGenerationTargetProfile } from '@canlang/work/kernel/tables';
+import { WORK_DISPATCH_MODEL, dispatchGenerationTargetProfile } from '@canlang/work/kernel/tables';
 
 export interface RetainedOpaqueFileSource {
   readonly model: ModelName;
@@ -396,6 +397,27 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     await checkSource(source, revision);
     return bytes;
   };
+  /** Only the original retained outbox request may consume its SEND input File. */
+  const readSendInputFile = async (request: { readonly intent: OutboxIntent; readonly revision: Revision;
+    readonly path: readonly (string | number)[]; readonly ref: string; readonly maxBytes: number },
+    files: CanonicalFileBinding | undefined): Promise<Uint8Array | null> => {
+    const captured = captureData(request);
+    const readOriginal = async (): Promise<RetainedOpaqueFileSource> => {
+      await current(captured.revision);
+      const retained = await store.outboxGet(captured.intent.intentId);
+      const loaded = await store.load(WORK_DISPATCH_MODEL, captured.intent.intentId as RecordId);
+      await current(captured.revision);
+      if (retained === null || !['pending', 'dispatched'].includes(retained.status) ||
+          !equal(retained.intent, captured.intent) || loaded === null || loaded.archivedAt !== null) refuse('SEND File requires its exact retained outbox and current dispatch');
+      const row = captureData(loaded), { binding } = readRetainedSendInputs(row, captured.intent);
+      return { model: WORK_DISPATCH_MODEL, row, field: 'sendInputs', binding };
+    };
+    const source = await readOriginal();
+    const bytes = await readSourceFile({ source, revision: captured.revision, path: captured.path,
+      ref: captured.ref, maxBytes: captured.maxBytes }, files);
+    if (!equal(source, await readOriginal())) refuse('SEND File source changed while reading');
+    return bytes;
+  };
   const capturePrepareRequest = (request: PrepareFileRequest): PrepareFileRequest => {
     // Pin only persisted metadata; binding/identity and observations keep their actual issuers.
     const captured = captureData({ expectedRevision: request.expectedRevision, model: request.model,
@@ -495,5 +517,5 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     return origin;
   };
   await current();
-  return Object.freeze({ installed, set, bound, event, completion, callable, sendGuard, sendInputs, delivery, occurrences, prepare, prepareControl, revalidateSource, readSourceFile, refresh });
+  return Object.freeze({ installed, set, bound, event, completion, callable, sendGuard, sendInputs, delivery, occurrences, prepare, prepareControl, revalidateSource, readSourceFile, readSendInputFile, refresh });
 }

@@ -4,7 +4,7 @@ import { systemCommandStageRevision } from '@canlang/state';
 import {
   RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL, readAssociationRow, readReceiptRow,
   withAssociationRowData, withReceiptRowData, isJudgmentReceiptContext, isJudgmentReceiptPayload,
-  isTextRunReceiptContext, isImageRunReceiptContext,
+  isTextRunReceiptContext, isImageRunReceiptContext, isWorkflowReviewReceiptContext, isWorkflowReviewReceiptPayload,
 } from '@canlang/state/receipt/tables';
 import { applyReceiptProgress } from '@canlang/work/observation/association';
 import { isConsistentCompletion, isTerminalReceiptStatus } from '@canlang/work/receipt';
@@ -45,21 +45,22 @@ function checkReceiptProgressIntent(
   context: ReceiptProgressInput['context'],
   revision: number,
   ctx: SystemCommandContext,
-): { readonly judgment: boolean; readonly skipping: boolean; readonly status: 'succeeded' | 'skipped' | 'failed'; readonly result: unknown; readonly error: ReceiptError | null } {
+): { readonly judgment: boolean; readonly workflow: boolean; readonly skipping: boolean; readonly status: 'succeeded' | 'skipped' | 'failed'; readonly result: unknown; readonly error: ReceiptError | null } {
   const judgment = isJudgmentReceiptContext(context) && context!.source === intent.target;
   const skipping = outcome.kind === 'skipped';
+  const workflow = isWorkflowReviewReceiptContext(context) && context!.source === intent.target;
   // Original empty generation receipts use the adapter's real request context.
   // Run progress and cleanup controls keep their separate owning writers.
   const generation = skipping && context?.source === intent.target && context.request !== undefined &&
     (intent.target === 'std.TextGenerationV1.generate' && isTextRunReceiptContext(context) ||
       intent.target === 'std.ImagesV1.submit' && isImageRunReceiptContext(context));
-  if ((!['std.EmailV1.send', 'std.EmailV1.send_user'].includes(intent.target) && !judgment && !generation) ||
-      (context !== undefined && !judgment && !generation) || typeof intent.intentId !== 'string' || intent.intentId === '') {
+  if ((!['std.EmailV1.send', 'std.EmailV1.send_user'].includes(intent.target) && !judgment && !generation && !workflow) ||
+      (context !== undefined && !judgment && !generation && !workflow) || typeof intent.intentId !== 'string' || intent.intentId === '') {
     throw new Error('Receipt progress requires the verified original Email, Judgment or empty generation intent.');
   }
   checkReceiptProgressRevision(skipping, revision, ctx);
   const { status, result, error } = readReceiptProgressOutcome(outcome, skipping);
-  return { judgment, skipping, status, result, error };
+  return { judgment, workflow, skipping, status, result, error };
 }
 
 type ReceiptProgressGate = ReturnType<typeof checkReceiptProgressIntent>;
@@ -104,12 +105,12 @@ async function stageAssociationProgressRow(
 /** Stage retained receipt progress; callers join these writes to their existing fence. */
 export async function stageReceiptProgress(input: ReceiptProgressInput, ctx: SystemCommandContext): Promise<SystemStaging> {
   const { intent, outcome, revision, context } = input;
-  const { judgment, skipping, status, result, error } = checkReceiptProgressIntent(intent, outcome, context, revision, ctx);
+  const { judgment, workflow, skipping, status, result, error } = checkReceiptProgressIntent(intent, outcome, context, revision, ctx);
   const receiptRow = await ctx.load(RECEIPT_MODEL as ModelName, intent.intentId as RecordId);
   if (receiptRow === null) return {};
   const retained = readReceiptRow(receiptRow, context);
   if (retained.receipt.deliveryId !== intent.intentId) throw new Error('Receipt progress intent identity disagrees.');
-  if (judgment ? !isJudgmentReceiptPayload(status, result, error, context)
+  if (workflow ? !isWorkflowReviewReceiptPayload(status, result, error, context) : judgment ? !isJudgmentReceiptPayload(status, result, error, context)
     : !isConsistentCompletion(status, result, error)) throw new Error('Receipt progress requires a closed decisive completion.');
   if (skipping && (isTerminalReceiptStatus(retained.receipt.status) || retained.receipt.status !== 'pending' ||
       retained.receipt.result !== null || retained.receipt.error !== null || retained.contentRef !== null ||
@@ -135,6 +136,7 @@ export async function stageReceiptProgress(input: ReceiptProgressInput, ctx: Sys
   writes.push({ kind: 'update', model: RECEIPT_MODEL as ModelName, id: receiptRow.id,
     expectedVersion: receiptRow.version, row: withReceiptRowData(receiptRow, {
       ...nextReceipt, contentRef: retained.contentRef, resultExpiresAtMs: retained.resultExpiresAtMs,
+      ...(retained.filePayloadOrigin === undefined ? {} : { filePayloadOrigin: retained.filePayloadOrigin }),
     }, meta, context) });
   return { writes };
 }

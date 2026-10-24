@@ -422,6 +422,23 @@ function copySendData(value: unknown, requireFrozen: boolean): { readonly value:
   return { value: first.target };
 }
 
+/** Exact original SEND correspondence, shared by retained reads and acknowledgement. */
+export function readRetainedSendInputs(row: StoredRow, supplied: OutboxIntent): {
+  readonly inputs: Readonly<Record<string, unknown>>; readonly binding: FrameworkFilePayloadOrigin;
+} {
+  const intent = snapshotKernelJsonValue(supplied, 'retained SEND intent');
+  const data = readDispatchRow(row), binding = data.sendInputsOrigin;
+  if (row.archivedAt !== null || binding === undefined || data.sendInputs === undefined || binding.origin.kind !== 'send-input' ||
+      Object.keys(intent.arguments).length !== 3 ||
+      !sameSendData(data.sendInputs, intent.arguments['arguments']) ||
+      !sameSendData(binding.origin.intent, { intentId: intent.intentId, operation: intent.operation,
+        operationId: intent.operationId, target: intent.target, occurrenceIndex: intent.occurrenceIndex }) ||
+      !sameSendData(binding.origin.request, { binding: intent.arguments['binding'], from: intent.arguments['from'] })) {
+    throw new KernelTableError('Retained SEND requires its exact original atomic inputs, binding and intent.');
+  }
+  return { inputs: data.sendInputs, binding };
+}
+
 function sameSendData(left: unknown, right: unknown): boolean {
   const pending: Array<[unknown, unknown]> = [[left, right]];
   const compared = new Map<object, Set<object>>();

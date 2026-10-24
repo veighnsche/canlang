@@ -1,14 +1,14 @@
 /** Native installed Images composition; Work and Files own durable boundaries. */
 import { STD_IMAGES_V1_VERSION, deliveryResultLeaves } from '@canlang/contracts';
 import type { GeneratedImage, ImageRequest, ImageRun, OutboxIntent, ProviderBinding,
-  ReceiptResultContext, WorkflowDefinition, RetainedFinalizedFile } from '@canlang/contracts';
+  ReceiptResultContext, WorkflowDefinition, RetainedFinalizedFile, CanValue } from '@canlang/contracts';
 import type { InstalledImages, InstalledImageOptions, ResolveInstalledImages } from '@canlang/services';
 import { readFinalizedFileObservation } from '@canlang/files/finalize';
 import type { FrameworkFilePayloadOriginInput } from '@canlang/state/storage';
 import type { ProviderOutputOutcome } from '@canlang/files/finalize';
 import { deriveOutboxId } from '@canlang/work/intent';
 import type { DispatchImageCorrelation } from '@canlang/work/kernel/tables';
-import { decodeValue, encodeValue, normalizeSchema, validateOperationInput } from '@canlang/values';
+import { decodeValue, encodeValue, normalizeSchema, validateOperationInput, validateValue } from '@canlang/values';
 import type { SchemaDescriptor } from '@canlang/values';
 import { stableStringify } from '@canlang/state/invocation';
 import { isImageRunReceiptPayload } from '@canlang/state/receipt/tables';
@@ -36,6 +36,8 @@ export interface BoundImagesOptions {
   readonly appDefinition: unknown;
   readonly binding: ProviderBinding;
   readonly resolveInstalledImages: ResolveInstalledImages;
+  /** Genuine retained SEND-input File consumer; no authority comes from ref alone. */
+  readonly readWorkflowGraph?: (intent: OutboxIntent, ref: string) => Promise<Uint8Array | null>;
   /** Actual owning Files finalization, inside its durable byte/metadata transaction. */
   readonly finalizeOutput: (input: FinalizeOutputInput) => Promise<ProviderOutputOutcome>;
   /** Trusted host pair with finalizeOutput. Uses its SAME actual receiver and
@@ -102,6 +104,8 @@ type FinalizedOutput = Extract<ProviderOutputOutcome, { readonly status: 'finali
 export function createBoundImagesAdapter(options: BoundImagesOptions): BoundImagesAdapter {
   const expected = Object.freeze({ ...options.binding });
   const finalizeOutput = options.finalizeOutput, observeOutput = options.observeOutput, revalidateOutput = options.revalidateOutput;
+  const readWorkflowGraph = options.readWorkflowGraph;
+  const resolveInstalledImages = options.resolveInstalledImages;
   const issued = new WeakSet<object>();
   const originalOutputPorts = (): boolean => options.finalizeOutput === finalizeOutput && options.observeOutput === observeOutput &&
     options.revalidateOutput === revalidateOutput;
@@ -289,6 +293,93 @@ export function createBoundImagesAdapter(options: BoundImagesOptions): BoundImag
         request: Object.freeze({ source: input.source, revision: encodeValue('int', BigInt(input.revision)) as string }) }) };
     } catch { return null; }
   };
+  const resolveReview = (intent: OutboxIntent) => {
+    try {
+      const operationName = intent.target === `${CAPABILITY}.inspect` ? 'inspect'
+        : intent.target === `${CAPABILITY}.validate` ? 'validate' : null;
+      if (operationName === null || readWorkflowGraph === undefined || options.readWorkflowGraph !== readWorkflowGraph ||
+          options.resolveInstalledImages !== resolveInstalledImages || intent.intentId === '' ||
+          !closed(intent.arguments, ['binding', 'from', 'arguments'])) return null;
+      const carrier = intent.arguments;
+      if (typeof carrier.binding !== 'string' || carrier.from !== expected.deployment || !record(carrier.arguments) ||
+          typeof member(options.appDefinition, 'id') !== 'string' || member(options.appDefinition, 'id') === '' ||
+          member(member(options.appDefinition, 'operations'), intent.operation) === undefined ||
+          !checkSubmitBinding(carrier, readSubmitBinding(carrier.binding))) return null;
+      const capability = readSubmitCapability();
+      if (!checkSubmitVersion(capability)) return null;
+      const operation = member(member(capability.capability, 'operations'), operationName);
+      const resultName = operationName === 'inspect' ? 'WorkflowInspection' : 'WorkflowValidation';
+      if (member(member(operation, 'result'), 'type') !== resultName) return null;
+      const inputs = member(operation, 'inputs'), contracts = member(options.appDefinition, 'contracts');
+      const enums = member(options.appDefinition, 'enums') ?? {}, leaves = deliveryResultLeaves(resultName);
+      const fields = member(member(contracts, resultName), 'fields');
+      const inputName = operationName === 'inspect' ? 'graph' : 'value';
+      if (!closed(inputs, [inputName]) || member(inputs[inputName], 'type') !== (operationName === 'inspect' ? 'file' : 'WorkflowDefinition') ||
+          !record(contracts) || !record(enums) || leaves === null || !record(fields) || Object.keys(fields).length !== leaves.length ||
+          !leaves.every(leaf => member(member(fields, leaf.name), 'type') === leaf.type)) return null;
+      const schema = normalizeSchema({ contracts, enums, operations: { [intent.target]: { inputs } } } as SchemaDescriptor);
+      const checked = validateOperationInput(schema, intent.target, carrier.arguments);
+      const definition = operationName === 'validate' ? checked.value : null;
+      const selected = encodeValue('file', (operationName === 'inspect' ? checked.graph : member(definition, 'graph')) as CanValue);
+      if (!closed(selected, ['id']) || typeof selected.id !== 'string' || selected.id === '') return null;
+      let workflow: WorkflowDefinition | null = null;
+      if (operationName === 'validate') {
+        if (!closed(definition, ['graph', 'prompt', 'negative', 'width', 'height'])) return null;
+        const destination = (name: string) => {
+          const value = definition[name];
+          if (!closed(value, ['node', 'key']) || typeof value.node !== 'string' || typeof value.key !== 'string') throw new Error('Invalid workflow destination.');
+          return Object.freeze({ node: value.node, key: value.key });
+        };
+        workflow = Object.freeze({ graph: selected.id, prompt: destination('prompt'), negative: destination('negative'),
+          width: destination('width'), height: destination('height') });
+      }
+      const installed = resolveInstalledImages(expected.deployment), workflows = installed?.workflows;
+      if (installed === null || workflows === undefined || installed.binding.capability !== CAPABILITY ||
+          installed.binding.capabilityVersion !== expected.capabilityVersion || installed.binding.account !== expected.account ||
+          installed.binding.deployment !== expected.deployment || typeof workflows.inspect !== 'function' ||
+          typeof workflows.validate !== 'function' || typeof workflows.matchesGraph !== 'function' ||
+          !Number.isSafeInteger(workflows.maxGraphBytes) || workflows.maxGraphBytes < 1) return null;
+      return { installed, workflows, inspect: workflows.inspect, validate: workflows.validate, matchesGraph: workflows.matchesGraph,
+        maxGraphBytes: workflows.maxGraphBytes, validation: installed.validation, operationName, ref: selected.id, workflow, schema, context: Object.freeze({ source: intent.target,
+          declaredResult: Object.freeze({ name: resultName, fields: leaves }) }) satisfies ReceiptResultContext };
+    } catch { return null; }
+  };
+  const review = async (intent: OutboxIntent): Promise<DispatchReconcileEvidence | null> => {
+    const resolved = resolveReview(intent);
+    if (resolved === null || readWorkflowGraph === undefined) return null;
+    const original = stableStringify(intent);
+    const current = (): boolean => {
+      const next = resolveReview(intent);
+      return stableStringify(intent) === original && next !== null && next.installed === resolved.installed &&
+        next.workflows === resolved.workflows && next.inspect === resolved.inspect && next.validate === resolved.validate &&
+        next.matchesGraph === resolved.matchesGraph && next.maxGraphBytes === resolved.maxGraphBytes &&
+        next.validation === resolved.validation && next.ref === resolved.ref &&
+        stableStringify(next.workflow) === stableStringify(resolved.workflow) &&
+        stableStringify(next.context) === stableStringify(resolved.context) && stableStringify(next.schema) === stableStringify(resolved.schema);
+    };
+    const bytes = await readWorkflowGraph(intent, resolved.ref);
+    if (!current()) return null;
+    if (bytes === null || bytes.byteLength > resolved.maxGraphBytes || !resolved.matchesGraph.call(resolved.workflows, bytes)) return {
+      kind: 'failed', code: 'workflow_unavailable', message: 'Workflow graph is unavailable or differs from its reviewed installation.' };
+    if (!current()) return null;
+    const completion = resolved.operationName === 'inspect'
+      ? await resolved.inspect.call(resolved.workflows, resolved.ref, { deliveryId: intent.intentId })
+      : await resolved.validate.call(resolved.workflows, resolved.workflow!, { deliveryId: intent.intentId });
+    if (!current() || completion.delivery_id !== intent.intentId) return null;
+    if (completion.status === 'failed' && completion.result === null && closed(completion.error, ['code', 'message']) &&
+        typeof completion.error.code === 'string' && typeof completion.error.message === 'string') {
+      return { kind: 'failed', code: completion.error.code, message: completion.error.message };
+    }
+    if (completion.status !== 'succeeded' || completion.error !== null) return null;
+    if (resolved.operationName === 'validate') {
+      const result = completion.result;
+      if (!closed(result, ['valid', 'digest', 'detail']) || typeof result.valid !== 'boolean' ||
+          (result.valid ? result.digest !== resolved.validation : result.digest !== null)) return null;
+    }
+    const wire = encodeValue(resolved.context.declaredResult.name, completion.result as unknown as CanValue, undefined, resolved.schema);
+    validateValue(resolved.schema, resolved.context.declaredResult.name, wire, 'create');
+    return { kind: 'delivered', result: wire };
+  };
   const lifecycle = (intent: OutboxIntent, resolved: Resolved, call: BoundImagesCallOptions,
     retainedObservation?: InstalledImageOptions['observation']): InstalledImageOptions => {
     const duration = safeInt(resolved.input.max_duration, 1);
@@ -422,8 +513,8 @@ export function createBoundImagesAdapter(options: BoundImagesOptions): BoundImag
       const saved = readFinalizedFileObservation(observation);
       return saved !== null && await revalidateOutput(saved) && originalOutputPorts();
     } }),
-    available: intent => resolve(intent) !== null || resolveControl(intent) !== null,
-    resultContext: intent => resolve(intent)?.context ?? resolveControl(intent)?.context ?? null,
+    available: intent => resolveReview(intent) !== null || resolve(intent) !== null || resolveControl(intent) !== null,
+    resultContext: intent => resolveReview(intent)?.context ?? resolve(intent)?.context ?? resolveControl(intent)?.context ?? null,
     controlCorrelation(intent, owner) {
       const control = resolveControl(intent);
       if (control === null || typeof owner !== 'string' || owner === '') return null;
@@ -451,6 +542,13 @@ export function createBoundImagesAdapter(options: BoundImagesOptions): BoundImag
       } catch { return { kind: 'uncertain' }; }
     },
     async callProvider(intent, call) {
+      if (intent.target === `${CAPABILITY}.inspect` || intent.target === `${CAPABILITY}.validate`) {
+        try {
+          const outcome = await review(intent);
+          return outcome?.kind === 'delivered' ? outcome : outcome?.kind === 'failed'
+            ? { kind: 'failed', cause: { kind: 'permanent', code: outcome.code, message: outcome.message } } : { kind: 'uncertain' };
+        } catch { return { kind: 'uncertain' }; }
+      }
       const resolved = resolve(intent);
       if (resolved === null) return { kind: 'uncertain' };
       try {
@@ -465,6 +563,9 @@ export function createBoundImagesAdapter(options: BoundImagesOptions): BoundImag
       } catch { return { kind: 'uncertain' }; }
     },
     async reconcile(intent, call) {
+      if (intent.target === `${CAPABILITY}.inspect` || intent.target === `${CAPABILITY}.validate`) {
+        try { return await review(intent); } catch { return null; }
+      }
       const resolved = resolve(intent);
       if (resolved === null) return null;
       try {

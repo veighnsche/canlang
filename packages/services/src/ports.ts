@@ -281,6 +281,9 @@ export interface ImagesPort {
 /** Optional local review of one configured graph, not arbitrary provider graph execution.
  * The host still owns actual File authority and byte/config correspondence. */
 export interface InstalledWorkflowPort {
+  readonly maxGraphBytes: number;
+  /** Bounded canonical comparison with this immutable installed graph. */
+  matchesGraph(bytes: Uint8Array): boolean;
   inspect(graph: WorkflowDefinition['graph'], options: { readonly deliveryId: string }): Promise<CapabilityCompletion<WorkflowInspection>>;
   validate(value: WorkflowDefinition, options: { readonly deliveryId: string }): Promise<CapabilityCompletion<WorkflowValidation>>;
 }

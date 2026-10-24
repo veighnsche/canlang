@@ -57,6 +57,7 @@ import type { DeliveryIds, InstalledImages, InstalledImageOptions, MediaPort } f
 import {
   MappingValidationError,
   snapshotGraph,
+  digestGraph,
   stableStringify,
   substituteAndValidate,
   reviewWorkflowGraph,
@@ -626,6 +627,7 @@ export class ComfyUINativeAdapter implements MediaPort {
     const seed = frozenCopy(config.seed);
     const review = config.workflowPolicy === undefined ? undefined : reviewWorkflowGraph(graph, mapping, config.workflowPolicy, binding,
       { seed: seed.value, maxOutputs: this.maxOutputs, maxDurationMs: this.http.timeoutMs, maxOutputBytes: this.downloadHttp.maxBodyBytes, maxObservationDurationMs, maxBodyBytes: this.http.maxBodyBytes });
+    const maxGraphBytes = config.workflowPolicy?.maxGraphBytes;
     const validation = review?.digest ?? mapping.graphDigest;
     if (review !== undefined) review.check(substituteAndValidate(graph, mapping, {
       prompt: '', negative: '', width: Number(graph[mapping.inputs.width!.node]!.inputs[mapping.inputs.width!.key]),
@@ -749,6 +751,15 @@ export class ComfyUINativeAdapter implements MediaPort {
       validation,
       policy: Object.freeze({ seed, maxOutputs: lower.maxOutputs, maxDurationMs: lower.http.timeoutMs, maxObservationDurationMs, maxOutputBytes: lower.downloadHttp.maxBodyBytes }),
       ...(review === undefined ? {} : { workflows: Object.freeze({
+        maxGraphBytes: maxGraphBytes!,
+        matchesGraph: (bytes: Uint8Array): boolean => {
+          try {
+            if (!(bytes instanceof Uint8Array) || bytes.byteLength === 0 || bytes.byteLength > maxGraphBytes!) return false;
+            const candidate = snapshotGraph(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) as ApiGraph);
+            review.check(candidate);
+            return digestGraph(candidate) === mapping.graphDigest;
+          } catch { return false; }
+        },
         inspect: async (selected: WorkflowDefinition['graph'], options: { readonly deliveryId: string }) => {
           if (typeof options.deliveryId !== 'string' || options.deliveryId === '') throw new MappingValidationError('Workflow review requires its original delivery id');
           if (selected !== workflow.graph) return { delivery_id: options.deliveryId, status: 'failed' as const,
