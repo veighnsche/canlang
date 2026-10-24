@@ -455,22 +455,26 @@ function declareStandardCompletions(artifact: CompileArtifact, captures: readonl
 
 /** Installs once, or verifies the persisted original closure on reopen. */
 export async function installNativeFileInventory(input: NativeFileInventoryInput) {
-  // Composed source closures share a State store. Install every domain owner
-  // once, while each package keeps its own opaque operation/event lifetimes.
-  const owners = new Set([input.scope.ownerPackage,
-    ...(input.artifact.models ?? []).map(model => model.name.split('.')[0]!).filter(Boolean)]);
+  // Capture physical configuration before the first yield; all composed owners
+  // retain one original source closure and the same literal storage binding.
+  const captured = { ...input, scope: immutable(input.scope), authority: immutable(input.authority) };
+  const prepared = await prepareNativeFileInventory(captured);
+  const owners = new Set([captured.scope.ownerPackage,
+    ...(captured.artifact.models ?? []).map(model => model.name.split('.')[0]!).filter(Boolean)]);
   let selected: Awaited<ReturnType<typeof installNativeFileInventoryForOwner>> | undefined;
   for (const ownerPackage of owners) {
-    const installed = await installNativeFileInventoryForOwner({ ...input, scope: { ...input.scope, ownerPackage } });
-    if (ownerPackage === input.scope.ownerPackage) selected = installed;
+    const installed = await installNativeFileInventoryForOwner({ ...captured, scope: { ...captured.scope, ownerPackage } }, prepared);
+    if (ownerPackage === captured.scope.ownerPackage) selected = installed;
   }
   if (selected === undefined) throw new Error('Original File inventory owner is absent.');
   await selected.verifyCurrent();
   return selected;
 }
 
-async function installNativeFileInventoryForOwner(input: NativeFileInventoryInput) {
-  const { artifact, asm, store, now, verifyOwner } = input;
+/** Pure source declarations are shared only within this installation call.
+ * Storage snapshots, owner admission and revision fences remain per owner. */
+async function prepareNativeFileInventory(input: NativeFileInventoryInput) {
+  const { artifact, asm, store, verifyOwner } = input;
   const scope = immutable(input.scope), authority = immutable(input.authority);
   const artifactJson = JSON.stringify(artifact);
   const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(artifactJson));
@@ -496,8 +500,6 @@ async function installNativeFileInventoryForOwner(input: NativeFileInventoryInpu
   const module = await importVerifiedAssemblyModule(asm, first.path, artifact);
   const definition = data(module, 'appDefinition');
   if (data(definition, 'id') !== scope.app) throw new Error('File retirement declared app differs from the owner.');
-  const packages = data(definition, 'packages');
-  data(packages, scope.ownerPackage);
   const originalContracts = declarationWire(data(definition, 'contracts')) as Readonly<Record<string, WireValue>>;
   const valueDefaults = originalDefaults(originalContracts);
   const captures: ModuleCapture[] = [];
@@ -523,8 +525,35 @@ async function installNativeFileInventoryForOwner(input: NativeFileInventoryInpu
   await verifyCurrent();
   const loaded = await loadCanonicalDescriptors(asm, artifact);
   await verifyCurrent();
-  if (artifact.models === undefined) throw new Error('File retirement requires complete model declarations.');
+  const artifactModels = artifact.models;
+  if (artifactModels === undefined) throw new Error('File retirement requires complete model declarations.');
   const valueTypes = checkedNativeValueTypes(artifact, definition, loaded.valueTypes);
+  const declarationGroups = new Map<string, readonly FrameworkOpaqueDeclaration[]>();
+  const declarationsFor = (legacyVoidResultIds: ReadonlySet<string>): readonly FrameworkOpaqueDeclaration[] => {
+    const key = JSON.stringify([...legacyVoidResultIds].sort());
+    const previous = declarationGroups.get(key);
+    if (previous !== undefined) return previous;
+    const declarations: FrameworkOpaqueDeclaration[] = [];
+    for (const callable of artifact.callables) {
+      declareCallable(artifact, captures, loaded, callable, declarations, artifactModels, legacyVoidResultIds);
+    }
+    declareModuleEvents(artifact, captures, loaded, declarations);
+    declareStandardCompletions(artifact, captures, loaded, declarations);
+    const prepared = immutable(declarations);
+    declarationGroups.set(key, prepared);
+    return prepared;
+  };
+  return Object.freeze({ digest, definition, originalContracts, valueDefaults, loaded, artifactModels, valueTypes, verifyCurrent, declarationsFor });
+}
+
+async function installNativeFileInventoryForOwner(input: NativeFileInventoryInput,
+  prepared: Awaited<ReturnType<typeof prepareNativeFileInventory>>) {
+  const { artifact, store, now } = input;
+  const scope = immutable(input.scope), authority = immutable(input.authority);
+  const { digest, definition, originalContracts, valueDefaults, loaded, artifactModels, valueTypes, verifyCurrent } = prepared;
+  await verifyCurrent();
+  if (data(definition, 'id') !== scope.app) throw new Error('File retirement declared app differs from the owner.');
+  data(data(definition, 'packages'), scope.ownerPackage);
   const inventoryIdentity = Object.freeze({ owner: scope.ownerPackage, snapshotId: `native-file:${digest}`, digest });
   const installed = await store.readFileReferenceInventory(scope.ownerPackage);
   await verifyCurrent();
@@ -532,17 +561,12 @@ async function installNativeFileInventoryForOwner(input: NativeFileInventoryInpu
     set.declarations.filter(declaration => declaration.profile.kind === 'void' &&
       Object.hasOwn(declaration.profile.canonical, 'disclosure') &&
       Object.hasOwn(declaration.profile.artifact, 'disclosure')).map(declaration => declaration.id)) ?? []);
-  const declarations: FrameworkOpaqueDeclaration[] = [];
-  for (const callable of artifact.callables) {
-    declareCallable(artifact, captures, loaded, callable, declarations, artifact.models, legacyVoidResultIds);
-  }
-  declareModuleEvents(artifact, captures, loaded, declarations);
-  declareStandardCompletions(artifact, captures, loaded, declarations);
+  const declarations = prepared.declarationsFor(legacyVoidResultIds);
   const baseInventory = immutable({ ...inventoryIdentity,
     // Register each domain model under its canonical owning package. The
     // declaration set below retains the complete imported schema closure.
     canonicalModels: loaded.models.filter(model => model.name.split('.')[0] === scope.ownerPackage),
-    artifactModels: artifact.models.filter(model => model.name.split('.')[0] === scope.ownerPackage), valueTypes,
+    artifactModels: artifactModels.filter(model => model.name.split('.')[0] === scope.ownerPackage), valueTypes,
     frameworkModels: [...STATE_FILE_REFERENCE_PRODUCER.models, ...WORK_FILE_REFERENCE_PRODUCER.models] });
   const expectedRevision = await store.readRevision();
   await verifyCurrent();
@@ -552,7 +576,7 @@ async function installNativeFileInventoryForOwner(input: NativeFileInventoryInpu
     installedRevision: (expectedRevision + 1) as Revision, installedAt: now() };
   const declarationSet: FrameworkOpaqueDeclarationSet = immutable({ id: `${inventoryIdentity.snapshotId}:declarations`,
     inventory: inventoryIdentity, snapshot, sources: artifact.sources, canonicalModels: loaded.models,
-    artifactModels: artifact.models, valueTypes, originalContracts, valueDefaults, declarations });
+    artifactModels, valueTypes, originalContracts, valueDefaults, declarations });
   if (installed !== null && input.retainUnchangedDeclarations === true) {
     const originals = installed.inventory.opaqueDeclarationSets;
     const storageDeclarations = (set: FrameworkOpaqueDeclarationSet) => ({

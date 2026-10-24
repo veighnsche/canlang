@@ -8155,6 +8155,7 @@ impl<'a> Closure<'a> {
         // original source facts supply no query execution or reference grant.
         // The call chain keeps caller Require occurrences separate from the
         // query and predicate in their defining helper source.
+        let source_requires = self.checked_source_requires(scenario).unwrap_or_default();
         for site in self.checked_decision_sites(scenario)? {
             if !matches!(
                 site.stage,
@@ -8162,7 +8163,18 @@ impl<'a> Closure<'a> {
             ) {
                 continue;
             }
+            let observer_owned = source_requires.contains(&site);
             for call in site.calls {
+                // COUNT has no predicate-style collection-call fact. Its
+                // complete sealed observer owns the same exact global Model
+                // schema; retain it even when no native query fragment exists.
+                if observer_owned && self.source_require_archived_global_count(&call) {
+                    let query = self.source_require_count_query(&call)?;
+                    let ResolvedType::Array { element, .. } = &query.domain_type else { return None; };
+                    let ResolvedType::Record { symbol, stored: true } = element.as_ref() else { return None; };
+                    pending.push((*symbol, true));
+                    continue;
+                }
                 self.stored_contract_decision_call(&call, &mut pending)?;
             }
         }
@@ -8182,7 +8194,6 @@ impl<'a> Closure<'a> {
         // Only actual reference-array Member reads of the full observer guard,
         // its checked helper closure, and its body need this extra census.
         // These original fields carry no borrowed Scope bounds or admission.
-        let source_requires = self.checked_source_requires(scenario).unwrap_or_default();
         let mut observer_fields = HashSet::new();
         if !source_requires.is_empty() {
             self.stored_contract_observer_seed(scenario, &source_requires, &mut observer_fields)?;
@@ -8646,6 +8657,33 @@ impl<'a> Closure<'a> {
             pending.extend(node.children.iter());
         }
         if query_nodes.is_empty() {
+            return Some(Vec::new());
+        }
+        // An empty native-fragment inventory is complete only when every
+        // authored query belongs to a successfully sealed whole leading guard.
+        // Do not turn missing body/query proofs into an empty inventory.
+        if !scenario.read && self.checked_source_requires(scenario).is_some_and(|sites|
+            query_nodes.iter().all(|key| {
+                let Some(query) = self.types.checked_queries.get(key) else { return false; };
+                let Some(node) = self.nodes.get(key) else { return false; };
+                let Some(source) = self.db.get(key.file) else { return false; };
+                query.matches_source(node, &source.text, expression)
+                    && self.source_anchor(scenario, *key)
+                    && sites.iter().any(|site| {
+                        let [CheckedDecisionPosition::Guard(index)] = site.position.as_slice() else { return false; };
+                        let Some(guard) = scenario.guards.get(*index) else { return false; };
+                        site.owner == scenario.scenario && site.stage == CheckedDecisionStage::LeadingRequire
+                            && guard.verb == EffectVerb::Require && guard.node == site.statement
+                            && guard.cond == Some(site.node)
+                            && self.source(scenario.module, site.node).ok().as_ref() == Some(&site.source)
+                            && site.node.file == key.file && site.node.start <= key.start && key.end <= site.node.end
+                            && site.calls.iter().any(|call| call.chain.is_empty() && call.module == scenario.module
+                                && self.source(call.module, call.node).ok().as_ref() == Some(&call.source)
+                                && call.arguments.iter().any(|(argument, _)| argument.file == key.file
+                                    && argument.start <= key.start && key.end <= argument.end))
+                    })
+            }))
+        {
             return Some(Vec::new());
         }
         if !scenario.read
@@ -11083,8 +11121,9 @@ impl<'a> Closure<'a> {
                 }else if !self.checked_source_requires(scenario).is_some_and(|sites|
                     sites.iter().any(|site|site.stage==CheckedDecisionStage::LeadingRequire
                         && site.statement==statement.node && site.calls.iter().any(|source|
-                            source.node==call && matches!(&source.target,CheckedDecisionCallTarget::Builtin{id,..} if id=="count")
-                                && self.source_require_contained_collection(scenario,source,"count"))))
+                            source.node==call && source.chain.is_empty()
+                                && matches!(&source.target,CheckedDecisionCallTarget::Builtin{id,..} if id=="count")
+                                && self.source_require_observer_count(scenario,source))))
                 {return None;}
                 if queries.len() > 200 {
                     return None;
@@ -14307,19 +14346,35 @@ impl<'a> Closure<'a> {
         }
     }
 
-    /// A helper's role parameter may reuse one declared enum field. Keep the
-    /// original field domain and exact checked type: an arbitrary enum alias,
-    /// default, or constrained value is not an owner-decision input here.
+    /// Keep an enum input's original owning field domain. An authored checked
+    /// case may provide its immutable default; computed defaults, arbitrary
+    /// aliases and constrained values remain outside this observer input.
     fn source_require_owned_enum_formal(&self, parameter: &super::effects::ParamData) -> bool {
         let Some(ty @ ResolvedType::Enum { cases, .. }) =
             self.types.symbol_types.get(&parameter.param) else {
             return false;
         };
         if cases.is_empty()
-            || parameter.default.is_some()
             || self.types.value_constraints.contains_key(&parameter.param)
         {
             return false;
+        }
+        if let Some(default) = parameter.default {
+            let Some(declaration) = self.resolve.symbols.get(parameter.param.0 as usize) else { return false; };
+            let SymbolKind::Param { owner, index, type_node } = declaration.kind else { return false; };
+            let Some(scenario) = self.effects.scenarios.get(&owner) else { return false; };
+            let Some(original) = scenario.params.get(index) else { return false; };
+            if declaration.module != scenario.module || type_node != parameter.type_node
+                || original.param != parameter.param || original.node != parameter.node
+                || original.default != Some(default) || !self.source_anchor(scenario, parameter.node)
+                || !self.source_anchor(scenario, parameter.type_node) || !self.source_anchor(scenario, default)
+                || !self.types.resolved_cases.contains(&default)
+                || self.types.node_types.get(&default) != Some(ty)
+                || !self.nodes.get(&default).is_some_and(|node|
+                    matches!(node.kind, SyntaxKind::NameRef | SyntaxKind::Member))
+            {
+                return false;
+            }
         }
         let Some(node) = self.nodes.get(&parameter.type_node) else {
             return false;
@@ -14551,8 +14606,8 @@ impl<'a> Closure<'a> {
         !scenario.params.iter().enumerate().any(|(index, param)| {
             (param.default.is_some()
                 || self.types.symbol_types.get(&param.param)
-                    .is_none_or(|ty| !self.source_require_input(ty)
-                        && !self.source_require_owned_enum_formal(param)))
+                    .is_none_or(|ty| !self.source_require_input(ty)))
+                && !self.source_require_owned_enum_formal(param)
                 && !self.source_require_optional_primitive_input(param)
                 && !self.source_require_value_parameter(scenario, param)
                 && !self.source_require_unread_input(scenario, param, index)
@@ -15687,26 +15742,86 @@ impl<'a> Closure<'a> {
             && self.source_require_contained_query(scenario,call,query)
     }
 
+    /// The selected original COUNT consumes exactly its checked, unprojected
+    /// Model-array query. Domain admission remains with each observer below.
+    fn source_require_count_query<'q>(&'q self, call: &CheckedDecisionCall)
+        -> Option<&'q super::types::CheckedQuery> {
+        let CheckedDecisionCallTarget::Builtin { id, overload } = &call.target else { return None; };
+        if id != "count" || call.slots.as_slice() != [Some(0)] || call.arguments.len() != 1
+            || self.types.node_types.get(&call.node) != Some(&ResolvedType::Scalar(Scalar::Int)) { return None; }
+        let selected = self.types.selected_calls.get(&call.node)?;
+        let (argument, ty) = &call.arguments[0];
+        if !matches!(&selected.target, SelectedCallTarget::Builtin { id: original, overload: actual }
+                if original == id && actual == overload)
+            || selected.arguments.as_slice() != [*argument] || selected.slots != call.slots { return None; }
+        let query = self.types.checked_queries.get(&self.query_group(*argument)?)?;
+        (query.projection.is_none() && query.result == query.domain_type && *ty == query.result
+            && self.types.node_types.get(argument) == Some(ty)).then_some(query)
+    }
+
     /// Count the complete explicitly archived child domain inside its whole
     /// original guard. This creates no ordinary collection/Contract DATA
     /// operand and does not replace independently admitted native COUNTs.
     fn source_require_archived_contained_count(&self, scenario: &super::effects::ScenarioData,
         call: &CheckedDecisionCall) -> bool {
-        let CheckedDecisionCallTarget::Builtin { id, overload } = &call.target else { return false; };
-        if id != "count" || call.slots.as_slice() != [Some(0)] || call.arguments.len() != 1
-            || self.types.node_types.get(&call.node) != Some(&ResolvedType::Scalar(Scalar::Int)) { return false; }
-        let Some(selected) = self.types.selected_calls.get(&call.node) else { return false; };
-        let (argument, ty) = &call.arguments[0];
-        if !matches!(&selected.target, SelectedCallTarget::Builtin { id: original, overload: actual }
-                if original == id && actual == overload)
-            || selected.arguments.as_slice() != [*argument] || selected.slots != call.slots { return false; }
-        let Some(query) = self.query_group(*argument).and_then(|node| self.types.checked_queries.get(&node)) else { return false; };
+        let Some(query) = self.source_require_count_query(call) else { return false; };
         let Some((clauses, true)) = self.source_require_query_clauses(query, call.module) else { return false; };
         let alias = clauses.is_empty() || matches!(clauses, [alias]
             if matches!(&alias.kind, CheckedQueryClauseKind::As { name } if !name.is_empty()) && alias.expressions.is_empty());
-        alias && query.projection.is_none() && query.result == query.domain_type && *ty == query.result
-            && self.types.node_types.get(argument) == Some(ty)
-            && self.source_require_contained_domain(scenario, call, query, call.chain.len(), 0)
+        alias && self.source_require_contained_domain(scenario, call, query, call.chain.len(), 0)
+    }
+
+    /// An archived global COUNT is control over its complete original owner
+    /// domain. Its scalar predicate reads only the selected row or original
+    /// invocation metadata, never another query, helper or Model navigation.
+    fn source_require_archived_global_count(&self, call: &CheckedDecisionCall) -> bool {
+        let Some(query) = self.source_require_count_query(call) else { return false; };
+        let Some((clauses, true)) = self.source_require_query_clauses(query, call.module) else { return false; };
+        let [alias, filter] = clauses else { return false; };
+        let [predicate] = filter.expressions.as_slice() else { return false; };
+        let ResolvedType::Array { element, ordered: true, nonempty: false } = &query.domain_type else { return false; };
+        let ResolvedType::Record { symbol: model, stored: true } = element.as_ref() else { return false; };
+        if !matches!(&alias.kind, CheckedQueryClauseKind::As { name } if !name.is_empty())
+            || !alias.expressions.is_empty() || filter.kind != CheckedQueryClauseKind::Where
+            || self.types.node_types.get(predicate) != Some(&ResolvedType::Scalar(Scalar::Bool))
+            || !self.source_require_global_model_domain(call, query, *model)
+        { return false; }
+        let mut pending = vec![*predicate];
+        let mut steps = 0;
+        while let Some(key) = pending.pop() {
+            steps += 1;
+            if steps > 1024 { return false; }
+            let Some(node) = self.nodes.get(&key) else { return false; };
+            if self.source_require_expression_shape(key).is_none()
+                || matches!(node.kind, SyntaxKind::Call | SyntaxKind::Query)
+                || self.source(call.module, key).is_err() { return false; }
+            if node.kind == SyntaxKind::Member {
+                let scalar_field = self.query_member(key, alias.node, *model).is_some_and(|field|
+                    self.types.symbol_types.get(&field).is_some_and(|ty| {
+                        let base = match ty { ResolvedType::Nullable(inner) => inner.as_ref(), ty => ty };
+                        (primitive_type(base) || matches!(base, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
+                            && self.types.node_types.get(&key) == Some(ty)
+                    }));
+                let row_metadata = matches!((self.query_member_name(key, alias.node, *model), self.types.node_types.get(&key)),
+                    (Some("id"), Some(ResolvedType::Scalar(Scalar::Text)))
+                        | (Some("version"), Some(ResolvedType::Scalar(Scalar::Int)))
+                        | (Some("created"), Some(ResolvedType::Scalar(Scalar::Datetime))));
+                let actor_metadata = self.count_member(key).is_some_and(|(base, name)|
+                    matches!(self.query_binding(base), Some(Binding::Context(ContextVar::Actor(_))))
+                        && self.types.node_types.get(&base) == Some(&ResolvedType::Scalar(Scalar::User))
+                        && matches!((name, self.types.node_types.get(&key)),
+                            ("email", Some(ResolvedType::Scalar(Scalar::Email)))
+                                | ("email_verified", Some(ResolvedType::Scalar(Scalar::Bool)))));
+                if !scalar_field && !row_metadata && !actor_metadata { return false; }
+            }
+            if node.kind == SyntaxKind::NameRef
+                && !self.query_row(key, alias.node, *model)
+                && !Self::invocation_scalar_binding(self.query_binding(key), self.types.node_types.get(&key))
+                && !self.types.resolved_cases.contains(&key)
+            { return false; }
+            pending.extend(node.children.iter().map(NodeKey::of));
+        }
+        true
     }
 
     /// A leading integer or Money SUM observes one complete original contained
@@ -15759,6 +15874,7 @@ impl<'a> Closure<'a> {
         call: &CheckedDecisionCall) -> bool {
         self.source_require_contained_collection(scenario, call, "count")
             || self.source_require_archived_contained_count(scenario, call)
+            || self.source_require_archived_global_count(call)
             || self.source_require_native_count(scenario, call).is_some_and(|query|
                 query.count.is_some_and(|count| count.contained_parent.is_some()))
     }
@@ -15929,6 +16045,7 @@ impl<'a> Closure<'a> {
                 if !whole_count_observer && self.source_require_native_count(scenario,call).is_some(){*supported=false;return Some(false);}
                 if (self.source_require_contained_collection(scenario,call,"count")
                     || self.source_require_archived_contained_count(scenario,call)
+                    || self.source_require_archived_global_count(call)
                     || whole_count_observer && self.source_require_observer_count(scenario, call)
                     || call.slots.as_slice() == [Some(0)] && call.arguments.len() == 1
                         && self.source_require_reference_domain(scenario, call, call.arguments[0].0, call.chain.len(), 0))
@@ -16075,7 +16192,8 @@ impl<'a> Closure<'a> {
         if node.kind == SyntaxKind::Query
             && self.types.checked_queries.get(&key).is_some_and(|query|
                 site.calls.iter().any(|call| self.source_require_contained_query(scenario, call, query)
-                    || self.source_require_archived_contained_count(scenario, call)
+                    || (self.source_require_archived_contained_count(scenario, call)
+                        || self.source_require_archived_global_count(call))
                         && call.arguments.first().is_some_and(|(argument, _)| self.query_group(*argument) == Some(query.node))))
         {
             return Some(true);
@@ -28260,13 +28378,21 @@ impl<'a> Closure<'a> {
                 let Some(result_input) = result_inputs.next() else {
                     return false;
                 };
+                let contained_child = second.definition.declaration.owner == ModelOwner::ChildOf(first.model);
                 if result_inputs.next().is_some()
-                    || result_input.field.is_none()
                     || !matches!(self.query_binding(result_input.value_node),
                         Some(Binding::CreateAs {node}) if *node == first.node)
                 {
                     return false;
                 }
+                // Containment is original parent metadata, not a declared
+                // reference field. Keep its exact created-parent lineage and
+                // let both ordinary CREATE proofs own fields and File inputs.
+                if contained_child {
+                    return result_input.name == "parent" && result_input.field.is_none()
+                        && effects[..index].iter().all(Self::before_direct_create);
+                }
+                if result_input.field.is_none() { return false; }
                 if first.definition.declaration.owner == ModelOwner::Team
                     && second.definition.declaration.owner == ModelOwner::Team
                 {

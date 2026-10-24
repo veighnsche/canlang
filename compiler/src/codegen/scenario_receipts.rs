@@ -17342,6 +17342,7 @@ fn created_pair_field_entry(
 
 fn created_pair_entry<'n>(
     ir: &IrProgram,
+    owner: &IrItem,
     original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
     name: &'n String,
     value: &TypedExpr,
@@ -17369,12 +17370,27 @@ fn created_pair_entry<'n>(
         return None;
     }
     if input.field.is_none() {
-        let (_, parameter, parent_type) = parent_context.as_ref()?;
-        if *parent_found || name != "parent" || &input.ty != parent_type {
-            return None;
+        if *parent_found || name != "parent" { return None; }
+        if original.node == second_node
+            && original.definition.declaration.owner
+                == crate::analysis::resolve::ModelOwner::ChildOf(match result_type {
+                    ResolvedType::Record { symbol, stored: true } => *symbol,
+                    _ => return None,
+                })
+            && input.value_node == reference_value_node && &input.ty == result_type
+        {
+            created_record_name_matches(value, result_type, first_binding, span, db)?;
+        } else if let Some((_, parameter, parent_type)) = parent_context {
+            if &input.ty != parent_type { return None; }
+            created_record_name_matches(value, parent_type, &parameter.name, span, db)?;
+        } else {
+            let crate::analysis::resolve::ModelOwner::ChildOf(parent) = original.definition.declaration.owner else {
+                return None;
+            };
+            if input.ty != (ResolvedType::Record { symbol: parent, stored: true }) { return None; }
+            checked_required_model_parameter_value(ir, owner, value, span, db)?;
         }
         *parent_found = true;
-        created_record_name_matches(value, parent_type, &parameter.name, span, db)?;
         super::scenario_create_sources::checked_create_expression(
             ir,
             original,
@@ -17449,6 +17465,7 @@ fn created_pair_statement(
     for ((name, value), input) in entries.iter().zip(&original.inputs) {
         created_pair_entry(
             ir,
+            owner,
             original,
             name,
             value,
@@ -17464,7 +17481,8 @@ fn created_pair_statement(
             db,
         )?;
     }
-    if parent_found != parent_context.is_some() {
+    if parent_found != matches!(original.definition.declaration.owner,
+        crate::analysis::resolve::ModelOwner::ChildOf(_)) {
         return None;
     }
     Some(())
@@ -17523,10 +17541,15 @@ fn checked_created_pair<'a>(
     else {
         return None;
     };
-    let parent_id = created_pair_parent(
-        first.definition.declaration.owner,
-        second.definition.declaration.owner,
-    )?;
+    let contained_child = second.definition.declaration.owner
+        == crate::analysis::resolve::ModelOwner::ChildOf(first.model);
+    let parent_id = if contained_child {
+        // The new child names the earlier created row, not a sibling's
+        // existing parent or its count context.
+        None
+    } else {
+        created_pair_parent(first.definition.declaration.owner, second.definition.declaration.owner)?
+    };
     if created_pair_header_mismatch(ir, owner, first, second, checked, parent_id) {
         return None;
     }
@@ -17568,7 +17591,10 @@ fn checked_created_pair<'a>(
     };
     let mut reference_inputs = second.inputs.iter().filter(|input| input.ty == result_type);
     let reference = reference_inputs.next()?;
-    if reference_inputs.next().is_some() || reference.field.is_none() {
+    if reference_inputs.next().is_some()
+        || if contained_child { reference.field.is_some() || reference.name != "parent" }
+            else { reference.field.is_none() }
+    {
         return None;
     }
     for (original, statement) in [(first, first_statement), (second, second_statement)] {
@@ -17649,7 +17675,10 @@ pub(super) fn checked_created_reference_operand(
         if !second
             .inputs
             .iter()
-            .any(|input| input.field.is_some() && input.value_node == node && input.ty == actual.ty)
+            .any(|input| input.value_node == node && input.ty == actual.ty
+                && (input.field.is_some()
+                    || input.name == "parent" && second.definition.declaration.owner
+                        == crate::analysis::resolve::ModelOwner::ChildOf(first.model)))
         {
             return None;
         }

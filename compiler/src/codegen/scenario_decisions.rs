@@ -2163,6 +2163,22 @@ fn serialize_require_params(
                         && matches!(&value.expr, IrExpr::Array(elements) if elements.is_empty())
                         && value.span == Span::new(node.file, node.start, node.end))
             && default_copy_source.is_none() && checked.constraints.is_none();
+        // An owning field enum keeps its declared case domain. Only the
+        // original resolved case default crosses this parameter census.
+        let exact_owned_enum_default = match (ty, default, default_node, checked.default,
+            original.types.field_reuse_sources.get(id)) {
+            (ResolvedType::Enum{cases,..}, Some(IrDefault::Literal(value)), Some(node), Some(expected), Some(field)) =>
+                *node == expected && (node.kind == SyntaxKind::NameRef as u8 || node.kind == SyntaxKind::Member as u8)
+                    && original.types.resolved_cases.contains(node)
+                    && original.types.node_types.get(node) == Some(ty)
+                    && original.types.symbol_types.get(field) == Some(ty)
+                    && matches!(ir.items.get(field.0 as usize).map(|item|&item.kind), Some(IrItemKind::Field{ty:IrType::Known(actual),..}) if actual==ty)
+                    && value.ty == *ty && matches!(&value.expr,IrExpr::Text(case) if cases.contains(case))
+                    && value.span == Span::new(node.file,node.start,node.end)
+                    && default_copy_source.is_none() && checked.constraints.is_none()
+                    && sources.same_scenario(ir,owner).is_some(),
+            _ => false,
+        };
         let source_value_default = plain_source_value(ir,ty,0) && checked.constraints.is_none()
             && checked.default.is_some() && *default_node == checked.default
             && sources.same_scenario(ir, owner).is_some()
@@ -2181,7 +2197,7 @@ fn serialize_require_params(
             || *declared_owner != owner.id
             || *declared_index != index
             || *ty != checked.ty
-            || !(default.is_none() && checked.default.is_none() || exact_null_default || exact_empty_text_array || source_value_default || exact_unread_file_array)
+            || !(default.is_none() && checked.default.is_none() || exact_null_default || exact_empty_text_array || source_value_default || exact_unread_file_array || exact_owned_enum_default)
         {
             return None;
         }

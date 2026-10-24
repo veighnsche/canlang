@@ -88,7 +88,6 @@ fn checked_fresh_derived_member(context: &super::source_context::FreshSourceCont
 
 fn check_derived_member(
     ir: &IrProgram,
-    owner: &IrItem,
     model: &IrItem,
     member: &IrItem,
     source_context: Option<&super::source_context::FreshSourceContext<'_>>,
@@ -106,15 +105,6 @@ fn check_derived_member(
     if checked_fresh_derived_member(context, ir, model, member, db).is_none() {
         return None;
     }
-    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
-    let schema = facts
-        .stored_contracts
-        .as_deref()
-        .and_then(|schemas| schemas.iter().find(|schema| schema.model && schema.id == model.id));
-    if schema.is_none() {
-        return None;
-    }
-    super::scenario_receipts::match_stored_contract_schema(ir, schema.unwrap(), db)?;
     if member.canonical != format!("{}.{}", model.canonical, member.name) {
         return None;
     }
@@ -123,7 +113,6 @@ fn check_derived_member(
 
 fn collect_stored_fields(
     ir: &IrProgram,
-    owner: &IrItem,
     model: &IrItem,
     fields: &[SymbolId],
     source_context: Option<&super::source_context::FreshSourceContext<'_>>,
@@ -142,7 +131,7 @@ fn collect_stored_fields(
             IrItemKind::DeriveField {
                 model: field_owner, ..
             } if *field_owner == model.id => {
-                check_derived_member(ir, owner, model, member, source_context, db)?;
+                check_derived_member(ir, model, member, source_context, db)?;
             }
             _ => return None,
         }
@@ -403,6 +392,60 @@ fn check_field_server(
     Some(())
 }
 
+/// Scalar alias modifiers belong to the independently lowered original
+/// field. Reusing its exact source chain does not observe the source Contract.
+fn checked_fresh_scalar_alias_modifiers(
+    context: &super::source_context::FreshSourceContext<'_>,
+    ir: &IrProgram,
+    field: &CheckedScenarioCreatedField,
+    actual: &super::ir::IrModifiers,
+    db: &SourceDb,
+) -> Option<()> {
+    if !std::ptr::eq(context.ir(), ir) || !std::ptr::eq(context.db(), db)
+        || field.reuse.is_none() || field.modifier_sources.is_empty()
+        || field.modifier_sources.len() > 128 { return None; }
+    let mut ty = &field.ty;
+    while let ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } = ty {
+        ty = inner;
+    }
+    if !matches!(ty, ResolvedType::Scalar(scalar)
+        if !matches!(scalar, Scalar::File | Scalar::Secret | Scalar::Member | Scalar::Json | Scalar::Bytes)) {
+        return None;
+    }
+    let mut seen = HashSet::new();
+    for (index, (data, origin, ty, reuse, _)) in field.modifier_sources.iter().enumerate() {
+        if !seen.insert(data.field)
+            || *reuse != field.modifier_sources.get(index + 1).map(|entry| entry.0.field) {
+            return None;
+        }
+        let current = ir.items.get(data.field.0 as usize)?;
+        let fresh = context.fresh().items.get(data.field.0 as usize)?;
+        if format!("{current:?}") != format!("{fresh:?}")
+            || !matches!(&current.kind, IrItemKind::Field {ty: IrType::Known(actual_ty), ..}
+                if actual_ty == ty)
+            || context.original().types.field_reuse_sources.get(&data.field).copied() != *reuse {
+            return None;
+        }
+        source(ir, origin, current.span, db)?;
+        source(ir, origin, span(data.node), db)?;
+        let scope = span(data.node);
+        let overlaps = |candidate: Span| scope.file == candidate.file
+            && scope.start <= candidate.end && candidate.start <= scope.end;
+        if context.ir_diagnostics().iter().any(|diagnostic|
+            diagnostic.severity == crate::diagnostic::Severity::Error
+                && (overlaps(diagnostic.primary)
+                    || diagnostic.related.iter().any(|related| overlaps(related.span)))) {
+            return None;
+        }
+    }
+    let item = ir.items.get(field.field.0 as usize)?;
+    let IrItemKind::Field { modifiers, .. } = &item.kind else { return None; };
+    (field.modifier_sources[0].0.field == field.field
+        && field.modifier_sources[0].3 == field.reuse
+        && item.canonical == field.canonical && item.name == field.name
+        && format!("{modifiers:?}") == format!("{actual:?}")).then_some(())
+}
+
 fn check_field_modifiers(
     ir: &IrProgram,
     matcher: &SourceExpressions<'_>,
@@ -411,6 +454,7 @@ fn check_field_modifiers(
     data: &FieldData,
     modifiers: &super::ir::IrModifiers,
     db: &SourceDb,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<()> {
     let (trim, unique, machine, minimum, maximum) = collect_field_flags(data)?;
     if original_field.modifier_sources.len() > 1 || original_field
@@ -418,7 +462,17 @@ fn check_field_modifiers(
         .iter()
         .any(|(_, _, _, _, given)| !given.is_empty())
     {
-        checked_field_trait_modifiers(ir, original, original_field, modifiers, db)?;
+        let mut base = &original_field.ty;
+        while let ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } = base {
+            base = inner;
+        }
+        let scalar_alias = matches!(base, ResolvedType::Scalar(scalar)
+            if !matches!(scalar, Scalar::File | Scalar::Secret | Scalar::Member | Scalar::Json | Scalar::Bytes));
+        if original_field.reuse.is_some() && scalar_alias {
+            checked_fresh_scalar_alias_modifiers(source_context?, ir, original_field, modifiers, db)?;
+        } else {
+            checked_field_trait_modifiers(ir, original, original_field, modifiers, db)?;
+        }
         if modifiers.unique != unique || modifiers.machine != machine {
             return None;
         }
@@ -446,6 +500,7 @@ fn check_declared_field(
     text: &str,
     nodes: &HashMap<NodeKey, &SyntaxNode>,
     db: &SourceDb,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<()> {
     let field = ir.items.get(data.field.0 as usize)?;
     let IrItemKind::Field {
@@ -479,7 +534,7 @@ fn check_declared_field(
     let checked_default=check_field_default(matcher,default,data.default,original_field,ty,field.span);
     checked_default?;
     check_field_server(matcher, server, data.server, ty)?;
-    check_field_modifiers(ir, matcher, original, original_field, data, modifiers, db)?;
+    check_field_modifiers(ir, matcher, original, original_field, data, modifiers, db, source_context)?;
     Some(())
 }
 
@@ -931,7 +986,7 @@ pub(super) fn checked_created_schema(
         actual_owner,
         expected_owner,
     ) = load_created_model(ir, owner, original, db)?;
-    let stored_fields = collect_stored_fields(ir, owner, model, fields, source_context, db)?;
+    let stored_fields = collect_stored_fields(ir, model, fields, source_context, db)?;
     let _authored = match_authored_fields(definition, &stored_fields, declaration)?;
     check_schema_identity(model, owner, original, definition, declaration, actual_owner, expected_owner, fields, &stored_fields)?;
     let (tree, text) = load_declaration_tree(ir, db, definition, declaration, model)?;
@@ -959,7 +1014,7 @@ pub(super) fn checked_created_schema(
         query_alias: None,
     };
     for (data, original_field) in declaration.fields.iter().zip(&definition.fields) {
-        let field=check_declared_field(&matcher,ir,owner,model,original,definition,data,original_field,text,&nodes,db);
+        let field=check_declared_field(&matcher,ir,owner,model,original,definition,data,original_field,text,&nodes,db,source_context);
         field?;
     }
     for original_field in &definition.contributed {
@@ -7674,6 +7729,18 @@ impl<'a> SourceExpressions<'a> {
             }
             "starts_with" => {
                 self.match_starts_with(actual, node, args, slots, depth)?;
+                Some(true)
+            }
+            "format" if actual.ty == ResolvedType::Scalar(Scalar::Text)
+                && matches!(args, [template, values]
+                    if template.ty == ResolvedType::Scalar(Scalar::Text)
+                        && matches!(&values.ty, ResolvedType::Object(fields)
+                            if fields.iter().all(|(_, ty)| matches!(ty,
+                                ResolvedType::Scalar(scalar) if scalar.is_display())
+                                || matches!(ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())))
+                        && matches!(&values.expr, IrExpr::Object(_))) =>
+            {
+                self.match_scalar_builtin(node, children, id, args, slots, depth)?;
                 Some(true)
             }
             "date" | "datetime" | "money" | "abs" | "round" | "min" | "max" => {

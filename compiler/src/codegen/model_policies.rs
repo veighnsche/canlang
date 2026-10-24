@@ -459,12 +459,19 @@ fn collect_lock_rule(
     {
         return None;
     }
+    let mut checked_local_body = false;
     let lock_profile = if let Some(predicate) = &rule.when {
         let profile = checked_context.and_then(|(program, db, catalog)| {
             checked_query_rule_fields(program, ir, model.id, predicate, db, catalog)
         });
-        if profile.is_none() { local_rule_fields(ir, model.id, predicate)
-            .or_else(|| checked_profiles.and_then(|_| required_model_rule_fields(ir, model.id, predicate)))?; }
+        if profile.is_none() {
+            checked_local_body = checked_context.is_some_and(|(program, db, catalog)|
+                checked_local_rule_fields(program, ir, model.id, predicate, db, catalog).is_some());
+            if !checked_local_body {
+                local_rule_fields(ir, model.id, predicate)
+                    .or_else(|| checked_profiles.and_then(|_| required_model_rule_fields(ir, model.id, predicate)))?;
+            }
+        }
         profile
     } else { None };
     let id = format!("{owner_package}.{}", origin.registry_id);
@@ -482,7 +489,7 @@ fn collect_lock_rule(
         kind: origin.kind,
         predicate: rule.when.clone(),
         current_revision: None,
-        checked_body: lock_profile.is_some() || checked_profiles.is_some() && rule.when.as_ref()
+        checked_body: lock_profile.is_some() || checked_local_body || checked_profiles.is_some() && rule.when.as_ref()
             .is_some_and(|predicate| required_model_rule_fields(ir,model.id,predicate).is_some()),
         query_models: lock_profile.map(|profile| profile.query_models).unwrap_or_default(),
     });

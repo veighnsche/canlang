@@ -5716,3 +5716,154 @@ it('executes the original agreement snapshot and calendar Work schedules with fi
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+
+async function originalDeskOpenSource(directory: string) {
+  const original = await readFile(join(root, 'draft/apps/CanDesk/CanDesk.can'), 'utf8');
+  const customer = await readFile(join(root, 'draft/apps/CanCustomer/CanCustomer.can'), 'utf8');
+  const invoice = await readFile(join(root, 'draft/apps/CanInvoice/CanInvoice.can'), 'utf8');
+  const start = original.indexOf('  export scenario open_request('), end = original.indexOf('   examples', start);
+  assert.ok(start > 0 && end > start);
+  const text = ['app CanDesk uses=[desk]', 'package desk', ' use customer {Customer,owns,has_role}', ' use rent_catalog {Location}',
+    ' use employee {can_work,staff}', ' use rent_reservations {Booking}', ' use member_terms {Membership}', ' use invoice {Invoice}', ' use maintain {Repair}',
+    ' use std {DeliveryResult}', ' use std {EmailV1 as Mail} from=deployment.mail', ' use desk {InboxV1 as Inbox} from=deployment.support_inbox',
+    original.slice(original.indexOf(' Given\n'), original.indexOf('  fixture conversation=')),
+    ...original.split('\n').filter(line => line.startsWith('  message ')), ' When', original.slice(start, end).trimEnd(), ' Then',
+    'package customer', ' use rent_catalog {Location}', ' use employee {can_work}', ' use invoice {finance}', ' use std {EmailV1 as Mail} from=deployment.mail',
+    customer.slice(customer.indexOf(' Given\n'), customer.indexOf('  export fixture test_directory_manager=')),
+    ...customer.split('\n').filter(line => line.startsWith('  message ')), ' When', ' Then',
+    // These nullable reference targets are never traversed or populated by open_request.
+    'package invoice', ' Given', invoice.split('\n').find(line => line.startsWith('  export role finance '))!, '  export Invoice {source:text}', ' When', ' Then',
+    ...[['rent_reservations', 'Booking'], ['member_terms', 'Membership'], ['maintain', 'Repair']].flatMap(([owner, name]) =>
+      ['package ' + owner, ' Given', '  export ' + name + ' {source:text}', ' When', ' Then']), ''].join('\n');
+  const source = join(directory, 'Desk.can'); await writeFile(source, text); return source;
+}
+
+it('opens the original customer support request with scoped membership and archived spam control', { timeout: 240000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-desk-open-original-'));
+  try {
+    const source = await originalDeskOpenSource(directory);
+    const { stdout } = await promisify(execFile)(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog,
+      source, join(root, 'draft/shared/Employees.can'), join(root, 'draft/shared/Locations.can')],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+    const artifact = JSON.parse(stdout) as CompileArtifact;
+    const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: join(directory, 'modules'),
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+    for (const mode of ['null-client', 'default-priority', 'low-priority', 'invalid-priority', 'oversize-subject', 'owned', 'administrator', 'booker', 'support', 'inactive-client', 'outside-client', 'nonowned', 'billing-only',
+      'unverified', 'inactive-location', 'spam19', 'spam20', 'old-boundary', 'other-email', 'no-attachments', 'foreign-attachment', 'blank-body', 'stale-client',
+      'client-race', 'grant-race', 'membership-revoked', 'spam-race', 'commit-failure']) {
+      const { now, identities, team, user, membership, identity } = await member('desk-open-' + mode, mode === 'support' ? ['desk.support'] : [], mode !== 'unverified');
+      const foreign = await identities.createUser({ email: 'other-' + mode + '@desk.test', password_hash: 'unused', email_verified: true });
+      const scope = { app: 'CanDesk', owner: team.team_id, ownerPackage: 'desk' };
+      const authority: FileRetirementAuthority = { app: scope.app, stateOwner: scope.app, stateStoreId: 'desk-open-state', fileStoreId: 'desk-open-files',
+        receiver: { app: scope.app, owner: team.team_id, team: team.team_id } };
+      const { store, probe } = createTestMemoryStorage(authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+      await installNativeFileInventory({ artifact, asm, store, authority, scope, now: () => now,
+        verifyOwner: async () => { assert.ok(await identities.findTeamById(team.team_id)); } });
+      const clock = new TestOnlyManualClock(now), blobs = new TestOnlyMemoryBlobStore(), files = new TestOnlyMemoryFinalizedStore(), intents = new TestOnlyMemoryIntentStore();
+      const physical = { clock, blobs, files, upload: { clock, intents, blobs, policy: DEFAULT_FILE_POLICY, intentIds: new TestOnlyCounterIntentIds(), intentTtlMs: 3600000, urlBase: 'https://invoice.test' },
+        finalize: { clock, intents, blobs, files, fileIds: new TestOnlyCounterFileIds() } };
+      const retention = { unattachedHorizonMs: 3600000, retentionMs: 86400000 }, observation = { policy: physical.upload.policy, retention };
+      const kernel = createFileJourneyKernel({ maxBytes: physical.upload.policy.maxBytes, createIntent: input => createUploadIntent(physical.upload, input),
+        append: (id, caller, bytes, offset) => appendUploadContentAtOffset(physical.upload, id, caller, bytes, offset), complete: (id, caller) => completeUploadContent(physical.upload, id, caller),
+        finalize: input => finalizeUpload(physical.finalize, input), authorizeAttach: (ref, caller) => authorizeAttach(physical.finalize, ref, caller),
+        readProvenance: (ref, caller) => readFinalizedFile(physical.finalize, ref, caller), recordAttachment: (ref, record, caller) => recordAttachment(physical.finalize, ref, record, caller),
+        readBytes: (ref, caller) => readFinalizedBytes(physical.finalize, ref, caller), readCurrentBytes: (ref, caller, policy) => readCurrentFinalizedBytes(physical.finalize, ref, caller, { ...observation, retention: policy }),
+        readCurrentSnapshot: (ref, caller, policy) => readCurrentFinalizedSnapshot(physical.finalize, ref, caller, { ...observation, retention: policy }),
+        observeFile: (ref, caller, policy) => observeFinalizedFile(physical.finalize, ref, caller, { ...observation, retention: policy }),
+        revalidateFile: (saved, caller, policy) => revalidateRetainedFinalizedFile(physical.finalize, saved, caller, { ...observation, retention: policy }) } satisfies FileJourneyBindings);
+
+      const receiver = { app: scope.app, owner: team.team_id, team: team.team_id, principal: user.user_id };
+      const fileOwner = mode === 'foreign-attachment' ? { ...receiver, principal: foreign.user_id } : receiver;
+      const bytes = new TextEncoder().encode('Private connectivity attachment');
+      const upload = createUploadIntent(physical.upload, { receiver: fileOwner, binding: { adapter: 'deployment.web', deliveryId: 'attachment', resultPath: 'attachments' },
+        request: { upload_id: 'attachment', operation: 'desk.open_request', field: '/attachments/0', arguments: {}, name: 'connection.txt', type: 'text/plain', size: String(bytes.length) } });
+      assert.ok(upload.status === 'granted'); assert.equal(appendUploadContentAtOffset(physical.upload, upload.intentId, fileOwner, bytes, 0).status, 'appended');
+      assert.equal(completeUploadContent(physical.upload, upload.intentId, fileOwner).status, 'completed');
+      const finalized = finalizeUpload(physical.finalize, { intentId: upload.intentId, retryId: 'attachment', bytesDigest: sha256Hex(bytes), caller: fileOwner }); assert.ok(finalized.status === 'finalized');
+      const site = globalAnyRow('site', { ...globalAnySite('site').data, active: mode !== 'inactive-location' });
+      const company = ['administrator', 'booker', 'billing-only', 'grant-race'].includes(mode);
+      const client = globalAnyRow('client', { name: 'Customer', kind: company ? 'company' : 'individual', locations: [{ id: mode === 'outside-client' ? 'other' : site.id }], active: mode !== 'inactive-client' });
+      const contact = globalAnyRow('contact', { name: 'Customer', email: user.email, account: { id: mode === 'nonowned' ? foreign.user_id : user.user_id }, verified: true, phone: null, external_id: null },
+        { model: asModel('customer.Customer'), id: client.id });
+      const grant = globalAnyRow('grant', { account: { id: user.user_id }, role: mode === 'billing-only' ? 'billing' : mode === 'administrator' ? 'administrator' : 'booker', locations: [], active: true }, contact.parent);
+      const ticketData = { location: { id: site.id }, customer: null, subject: 'Earlier request', email: user.email, thread: 'prior', category: 'Connectivity', priority: 'normal',
+        assignee: null, queue: 'Private old routing', state: 'open', due: null, escalation: null, escalated_by: null, escalated_at: null, booking: null, membership: null, invoice: null, repair: null };
+      const priorCount = mode === 'spam19' || mode === 'spam-race' ? 19 : ['spam20', 'old-boundary', 'other-email'].includes(mode) ? 20 : 0;
+      const prior = (id: string) => ({ ...globalAnyRow(id, { ...ticketData, thread: id, email: mode === 'other-email' ? foreign.email : user.email }),
+        created: mode === 'old-boundary' ? now - 86400000 : now - 1000, updated: now - 1000, archivedAt: now - 500 });
+      await store.commit(makeBatch(await store.readRevision(), { writes: [
+        { kind: 'insert', model: asModel('rent_catalog.Location'), row: site }, { kind: 'insert', model: asModel('rent_catalog.Location'), row: globalAnySite('other') },
+        { kind: 'insert', model: asModel('employee.Employee'), row: globalAnyRow('worker', globalAnyEmployee(user.user_id)) },
+        { kind: 'insert', model: asModel('customer.Customer'), row: client },
+        company ? { kind: 'insert', model: asModel('customer.CompanyRole'), row: grant } : { kind: 'insert', model: asModel('customer.Contact'), row: contact },
+        ...Array.from({ length: priorCount }, (_, index) => ({ kind: 'insert' as const, model: asModel('desk.Ticket'), row: prior('prior-' + index) })),
+      ] }));
+      const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now, files: createCanonicalFileBinding(kernel, retention) });
+      if (mode === 'spam20') {
+        const read = await invoker.invokeRead({ operation: 'desk.Ticket.read', inputs: {} }, identity); assert.ok('result' in read, JSON.stringify(read));
+        assert.equal((read.result as { records: unknown[] }).records.length, 0, 'all rate-limit history is archived and withheld by default reads');
+      }
+      const snapshot = async () => ({ tickets: await store.query({ model: asModel('desk.Ticket'), authority: 'owner', archived: 'include', order: [{ field: 'id', direction: 'asc' }] }),
+        messages: await store.query({ model: asModel('desk.Message'), authority: 'owner' }), outbox: probe.outboxAll() });
+      const before = await snapshot(), beforeFiles = structuredClone(files.listAll()), commit = store.commit.bind(store), query = store.query.bind(store); let injected = false;
+      if (mode === 'membership-revoked') store.query = async request => {
+        const rows = await query(request);
+        if (!injected && request.model === 'desk.Ticket') { injected = true; await identities.removeMembership(membership.membership_id); }
+        return rows;
+      };
+      if (['client-race', 'grant-race', 'spam-race', 'commit-failure'].includes(mode)) store.commit = async batch => {
+        if (!injected && batch.writes.some(write => write.kind === 'insert' && write.model === 'desk.Ticket')) {
+          injected = true;
+          assert.ok(batch.writes.some(write => write.kind === 'insert' && write.model === 'desk.Message'), 'actual Message and Ticket share final admission');
+          if (mode === 'commit-failure') throw new Error('Injected support request transaction refusal.');
+          if (mode === 'spam-race') await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'insert', model: asModel('desk.Ticket'), row: prior('concurrent') }] }));
+          else {
+            const row = mode === 'client-race' ? client : grant;
+            await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'update', model: asModel(mode === 'client-race' ? 'customer.Customer' : 'customer.CompanyRole'),
+              id: row.id, expectedVersion: row.version, row: { ...row, version: asVersion(row.version + 1), data: mode === 'client-race' ? { ...row.data, locations: [{ id: 'other' }] } : { ...row.data, active: false } } }] }));
+          }
+        }
+        return commit(batch);
+      };
+      const nullClient = ['null-client', 'default-priority', 'low-priority', 'invalid-priority', 'oversize-subject', 'support', 'spam19', 'spam20', 'old-boundary', 'other-email', 'no-attachments', 'foreign-attachment', 'blank-body', 'membership-revoked', 'spam-race', 'commit-failure', 'unverified', 'inactive-location'].includes(mode);
+      const priority = mode === 'default-priority' ? 'normal' : mode === 'low-priority' ? 'low' : mode === 'invalid-priority' ? 'unsupported' : 'urgent';
+      const request = { operation: 'desk.open_request', operation_id: operationId(now), inputs: {
+        location: { id: site.id, version: '1' }, subject: mode === 'oversize-subject' ? 'x'.repeat(301) : ' Wi-Fi ', body: mode === 'blank-body' ? '   ' : ' Cannot connect ', category: ' Connectivity ', ...(mode === 'default-priority' ? {} : { priority }),
+        attachments: mode === 'no-attachments' ? [] : [{ id: finalized.result.file }], client: nullClient ? null : { id: client.id, version: mode === 'stale-client' ? '2' : '1' } } };
+      const outcome = await invoker.invokeMutation(request, identity); store.commit = commit; store.query = query;
+      const allowed = ['null-client', 'default-priority', 'low-priority', 'owned', 'administrator', 'booker', 'support', 'spam19', 'old-boundary', 'other-email', 'no-attachments'].includes(mode);
+      assert.equal('result' in outcome, allowed, mode + ': ' + JSON.stringify(outcome)); const after = await snapshot();
+      assert.deepEqual(after.outbox, [], 'opening a request sends no mail or unrelated business action');
+      if (allowed) {
+        assert.ok('result' in outcome); assert.equal(outcome.result.status, 'committed');
+        const created = after.tickets.find(row => row.data.thread === request.operation_id); assert.ok(created); assert.equal(after.tickets.length, priorCount + 1);
+        assert.deepEqual(created.data, { ...ticketData, subject: 'Wi-Fi', customer: nullClient ? null : { id: client.id }, thread: request.operation_id,
+          category: ' Connectivity ', priority, queue: 'Reception' });
+        assert.equal(after.messages.length, 1); const message = after.messages[0]!;
+        assert.deepEqual(message.parent, { model: asModel('desk.Ticket'), id: created.id });
+        assert.deepEqual(message.data, { external_id: 'web-' + request.operation_id, kind: 'customer', body: ' Cannot connect ', sender: user.email,
+          recipient: null, author: { id: user.user_id }, attachments: request.inputs.attachments, delivery: null, state: null });
+        assert.deepEqual(outcome.result.result, { id: created.id }, 'original model result discloses the admitted Ticket identity');
+        const read = await invoker.invokeRead({ operation: 'desk.Ticket.read', inputs: {} }, identity); assert.ok('result' in read, JSON.stringify(read));
+        const visible = (read.result as { records: { id: string; data: Record<string, unknown> }[] }).records.find(row => row.id === created.id); assert.ok(visible);
+        const disclosed = { subject: 'Wi-Fi', category: ' Connectivity ', priority, state: 'open', email: user.email };
+        if (mode === 'support') assert.equal(visible.data.queue, 'Reception');
+        else { assert.deepEqual(visible.data, disclosed); const changed = (outcome.result.records as { id: string; data: Record<string, unknown> }[]).find(row => row.id === created.id); assert.ok(changed); assert.deepEqual(changed.data, disclosed, 'returned changed records retain the original field-limited policy'); }
+        if (mode !== 'no-attachments') { const retained = await readCurrentFinalizedBytes(physical.finalize, finalized.result.file, receiver, observation); assert.ok(retained); assert.deepEqual(retained, bytes); assert.equal(files.get(finalized.result.file)?.state, 'attached'); }
+        else assert.equal(files.get(finalized.result.file)?.state, 'finalized', 'empty attachment input leaves the unused finalized File unattached');
+        const attached = structuredClone(files.listAll()), replay = await invoker.invokeMutation(request, identity);
+        assert.ok('result' in replay, JSON.stringify(replay)); assert.equal(replay.result.status, 'replayed'); assert.deepEqual(await snapshot(), after); assert.deepEqual(files.listAll(), attached);
+      } else {
+        if (mode === 'spam-race') { assert.equal(after.tickets.length, priorCount + 1); assert.ok(after.tickets.some(row => row.id === 'concurrent')); assert.deepEqual(after.messages, []); }
+        else assert.deepEqual(after, before, mode + ': no partial Ticket/Message survives refusal');
+        assert.deepEqual(files.listAll(), beforeFiles, mode + ': refusal attaches no File');
+        if (mode === 'invalid-priority' || mode === 'oversize-subject') { assert.ok('error' in outcome); assert.equal(outcome.error.code, 'validation', JSON.stringify(outcome)); }
+        if (['inactive-client', 'outside-client', 'billing-only', 'unverified', 'inactive-location', 'blank-body', 'spam20'].includes(mode)) {
+          assert.ok('error' in outcome); assert.equal(outcome.error.code, 'rule_failed', mode + ': ' + JSON.stringify(outcome));
+        }
+        if (['client-race', 'grant-race', 'spam-race', 'membership-revoked', 'commit-failure'].includes(mode)) assert.equal(injected, true, mode);
+      }
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
