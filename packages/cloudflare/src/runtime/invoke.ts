@@ -2981,7 +2981,7 @@ async function joinOwningUnconditionalUniques(
           models.filter(model => model.name === refModel).length === 1;
         const userIdentity = ref?.field.kind === 'user' && declaredRefType === 'user' &&
           firstType === 'user' && association.length === 0;
-        // An original ordered, required int/text pair is a finite Values key.
+        // An original ordered, required int/text or text/text pair is a finite Values key.
         // Its owning module, artifact codecs and canonical field declarations
         // must all agree; this changes no field/read or mutation authority.
         const scalarFirstType = ref?.valueType ?? (ref?.field.kind === 'integer' ? 'int' : undefined);
@@ -2991,10 +2991,11 @@ async function joinOwningUnconditionalUniques(
           isUnknownRecord(packages) && readMetadataMember(packages, owner, where) !== undefined &&
           sourceRef.length === 1 && sourceEnum.length === 1 && association.length === 0 &&
           validField(ref, canonicalRef, scalarFirstType) && validField(role, canonicalEnum, roleValueType) &&
-          ref?.field.kind === 'integer' && role?.field.kind === 'string' &&
+          (ref?.field.kind === 'integer' && scalarFirstType === 'int' ||
+            ref?.field.kind === 'string' && scalarFirstType === 'text') && role?.field.kind === 'string' &&
           ref.serverOnly !== true && role.serverOnly !== true &&
-          scalarFirstType === 'int' && roleValueType === 'text' &&
-          declaredRefType === 'int' && declaredRoleType === 'text' &&
+          roleValueType === 'text' &&
+          declaredRefType === scalarFirstType && declaredRoleType === 'text' &&
           !groups.some(group => stableStringify(group) === stableStringify(fields));
         if (scalarPair) { groups.push(Object.freeze([...fields])); continue; }
         // The original Leave allowance key is a nonnullable year plus its
@@ -7633,8 +7634,10 @@ function createSourceReadPolicyAdapter(input: {
         if (!active || failure !== undefined) throw failure ?? new StateError('validation', 'Source decision is closed.');
         if (await input.opts.store.readRevision() !== currentRevision) throw new StateError('conflict', 'Source read changed its original revision.');
       };
-      const readSource = async (model: string, id?: string, parent?: { model: string; id: string }, admittedVersion?:number) => {
+      const readSource = async (model: string, id?: string, parent?: { model: string; id: string }, admittedVersion?:number,
+        archived:'exclude'|'include'='exclude') => {
         await checkpoint();
+        if(archived!=='exclude'&&!ownerDecision)throw new StateError('validation','Archived source collections require their original owner decision.');
         if (!loaded.models.some(candidate => candidate.name === model)) throw new StateError('validation', 'Source query requires its declared model.');
         const source = await loadProducerModule(STATE_QUERY_SPECIFIER, 'installed source expression query');
         const request = { observation, store: input.opts.store, model: model as ModelName,
@@ -7643,12 +7646,12 @@ function createSourceReadPolicyAdapter(input: {
         };
         const records = ownerDecision
           ? await (requireProducerFn(source, 'readOwnerDecisionRecordsAtSourceObservation', 'installed owner decision query') as
-            typeof import('@canlang/state/query').readOwnerDecisionRecordsAtSourceObservation)(request)
+            typeof import('@canlang/state/query').readOwnerDecisionRecordsAtSourceObservation)({...request,archived})
           : await (requireProducerFn(source, 'readRecordsAtSourceObservation', 'installed source expression query') as
             typeof import('@canlang/state/query').readRecordsAtSourceObservation)({ ...request, readPolicies: policies(model),
               policy: loaded.policy as import('@canlang/state/query').SourceObservationRecordsInput['policy'] });
         if (input.observer?.predicate === installed) {
-          input.observer.reads.query(model, records.map(entry => entry.record), id, parent);
+          input.observer.reads.query(model, records.map(entry => entry.record), id, parent,archived);
         }
         const values: { readonly record: ProjectedRecord; readonly view: Record<string, unknown> }[] = [];
         for (const entry of records) {
@@ -7680,7 +7683,8 @@ function createSourceReadPolicyAdapter(input: {
               !['parent', 'where', 'whereSource', 'order', 'limit', 'archived', 'authority',
                 ...(ownerDecision && input.ownerDecisionQuery !== undefined ? ['ownerDecisionSource'] : [])].includes(key) ||
               !Object.hasOwn(Object.getOwnPropertyDescriptor(query, key)!, 'value')) ||
-              query.authority !== undefined && query.authority !== 'viewer' || query.archived !== undefined && query.archived !== 'exclude') {
+              query.authority !== undefined && query.authority !== 'viewer' ||
+              query.archived !== undefined && query.archived !== 'exclude' && !(ownerDecision&&query.archived==='include')) {
             throw new StateError('validation', 'Source queries require current declared viewer inputs.');
           }
           const parentRef = query.parent === undefined ? undefined : nativeRecordReference(query.parent) ??
@@ -7689,7 +7693,7 @@ function createSourceReadPolicyAdapter(input: {
           if (ownerDecision && input.ownerDecisionQuery !== undefined) {
             input.ownerDecisionQuery(model, query, parentRef);
           }
-          const selected = await readSource(model, undefined, parentRef);
+          const selected = await readSource(model, undefined, parentRef,undefined,query.archived??'exclude');
           const matched: typeof selected = [];
           for (const candidate of selected) {
             let matches: unknown = true;

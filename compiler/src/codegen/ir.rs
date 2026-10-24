@@ -10187,9 +10187,13 @@ impl<'a> Cx<'a> {
                             why: "archived selectors have no array lowering".to_string(),
                         };
                     }
-                    if let Some(single) = self.decode_query_single(scope, &clause_parts) {
-                        archived = Some(single);
-                    }
+                    let Some(selection) = self.collection_archive(node, clause) else {
+                        return IrExpr::Unsupported {
+                            what: "query archived".to_string(),
+                            why: "archive selection lacks its exact checked source clause".to_string(),
+                        };
+                    };
+                    archived = Some(Box::new(selection));
                 }
                 "select" => {
                     let proj_node = clause_parts.iter().find(|n| is_expression(n.kind)).copied();

@@ -5110,3 +5110,111 @@ it('qualifies original Rent desk assignment with private occupancy control and a
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+
+async function originalLegacyLinkSource(directory: string) {
+  const original = await readFile(join(root, 'draft/apps/CanExpense/CanExpense.can'), 'utf8'), lines = original.split('\n');
+  const one = (prefix: string) => { const matches = lines.filter(line => line.startsWith('  ' + prefix));
+    assert.equal(matches.length, 1, prefix); return matches[0]!; };
+  const start = original.indexOf('  scenario link_legacy('), end = original.indexOf('   examples', start);
+  assert.ok(start >= 0 && end > start);
+  const source = join(directory, 'Expense.can');
+  await writeFile(source, ['app CanExpense uses=[expense]', 'package expense', ' use rent_catalog {Location}', ' use employee {Employee,can_work}',
+    ' Given', one('role finance '), one('contract LegacyClaim {'), one('LegacyExpense {'), one('unique LegacyExpense '), one('lock LegacyExpense '),
+    ...lines.filter(line => line.startsWith('  policy LegacyExpense read=')), one('invariant LegacyExpense:'),
+    ' When', original.slice(start, end).trimEnd(), ' Then', ''].join('\n'));
+  return source;
+}
+
+it('qualifies original historical Expense access with query-local archived employee control', { timeout: 240000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-expense-legacy-archived-'));
+  try {
+    const source = await originalLegacyLinkSource(directory);
+    const { stdout } = await promisify(execFile)(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog,
+      source, join(root, 'draft/shared/Employees.can'), join(root, 'draft/shared/Locations.can')],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+    const artifact = JSON.parse(stdout) as CompileArtifact;
+    const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: join(directory, 'modules'),
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+    for (const mode of ['archived-home', 'archived-locations', 'inactive-archived', 'absent', 'foreign-location', 'null-revoke',
+      'actor-only-archived', 'missing-role', 'stale', 'blank-reason', 'restore-race', 'archive-race', 'membership-revoked']) {
+      const { now, identities, team, user, membership, identity } = await member('legacy-archived-' + mode, mode === 'missing-role' ? [] : ['expense.finance']);
+      const claimant = await identities.createUser({ email: 'claimant-' + mode + '@legacy.test', password_hash: 'unused', email_verified: true });
+      const scope = { app: 'CanExpense', owner: team.team_id, ownerPackage: 'expense' };
+      const authority: FileRetirementAuthority = { app: scope.app, stateOwner: scope.app, stateStoreId: 'legacy-state', fileStoreId: 'legacy-files',
+        receiver: { app: scope.app, owner: team.team_id, team: team.team_id } };
+      const { store, probe } = createTestMemoryStorage(authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+      await installNativeFileInventory({ artifact, asm, store, authority, scope, now: () => now,
+        verifyOwner: async () => { assert.ok(await identities.findTeamById(team.team_id)); } });
+   const clock=new TestOnlyManualClock(now),blobs=new TestOnlyMemoryBlobStore(),files=new TestOnlyMemoryFinalizedStore(),intents=new TestOnlyMemoryIntentStore();
+   const physical={clock,blobs,files,upload:{clock,intents,blobs,policy:DEFAULT_FILE_POLICY,intentIds:new TestOnlyCounterIntentIds(),intentTtlMs:3600000,urlBase:'https://expense.test'},finalize:{clock,intents,blobs,files,fileIds:new TestOnlyCounterFileIds()}};
+   const retention={unattachedHorizonMs:3600000,retentionMs:86400000},observation={policy:physical.upload.policy,retention};
+   const kernel=createFileJourneyKernel({maxBytes:physical.upload.policy.maxBytes,createIntent:input=>createUploadIntent(physical.upload,input),append:(id,caller,bytes,offset)=>appendUploadContentAtOffset(physical.upload,id,caller,bytes,offset),complete:(id,caller)=>completeUploadContent(physical.upload,id,caller),finalize:input=>finalizeUpload(physical.finalize,input),authorizeAttach:(ref,caller)=>authorizeAttach(physical.finalize,ref,caller),readProvenance:(ref,caller)=>readFinalizedFile(physical.finalize,ref,caller),recordAttachment:(ref,record,caller)=>recordAttachment(physical.finalize,ref,record,caller),readBytes:(ref,caller)=>readFinalizedBytes(physical.finalize,ref,caller),readCurrentBytes:(ref,caller,policy)=>readCurrentFinalizedBytes(physical.finalize,ref,caller,{...observation,retention:policy}),readCurrentSnapshot:(ref,caller,policy)=>readCurrentFinalizedSnapshot(physical.finalize,ref,caller,{...observation,retention:policy}),observeFile:(ref,caller,policy)=>observeFinalizedFile(physical.finalize,ref,caller,{...observation,retention:policy}),revalidateFile:(saved,caller,policy)=>revalidateRetainedFinalizedFile(physical.finalize,saved,caller,{...observation,retention:policy})} satisfies FileJourneyBindings);
+   const receiver={app:scope.app,owner:team.team_id,team:team.team_id,principal:user.user_id},bytes=new TextEncoder().encode('Original legacy source evidence');
+   const intent=createUploadIntent(physical.upload,{receiver,binding:{adapter:'deployment.web',deliveryId:'receipt',resultPath:'receipt'},request:{upload_id:'receipt',operation:'expense.link_legacy',field:'/source_evidence',arguments:{},name:'receipt.txt',type:'text/plain',size:String(bytes.length)}});assert.ok(intent.status==='granted');
+   assert.equal(appendUploadContentAtOffset(physical.upload,intent.intentId,receiver,bytes,0).status,'appended');assert.equal(completeUploadContent(physical.upload,intent.intentId,receiver).status,'completed');
+   const finalized=finalizeUpload(physical.finalize,{intentId:intent.intentId,retryId:'receipt',bytesDigest:sha256Hex(bytes),caller:receiver});assert.ok(finalized.status==='finalized');
+      const actorWorker = { ...globalAnyRow('actor-worker', globalAnyEmployee(user.user_id)), archivedAt: mode === 'actor-only-archived' ? now - 1000 : null };
+      const oldWorker = { ...globalAnyRow('old-worker', { ...globalAnyEmployee(claimant.user_id, ['foreign-location', 'archived-locations'].includes(mode) ? 'other' : 'site'),
+        active: mode !== 'inactive-archived', locations: mode === 'archived-locations' ? [{ id: 'site' }] : [] }), archivedAt: mode === 'archive-race' ? null : now - 1000 };
+      const entry = globalAnyRow('legacy', { source: 'vendor-a', external_id: 'old-17', location: { id: 'site' },
+        claim: { actor: 'Former employee 41', reviewer: 'Original reviewer', decision_time_original: '2021-05-12 09:00',
+          decided_at: '2021-05-12T09:00:00.000Z', paid: '2021-05-20', status: 'Paid', purpose: 'Travel', amount: { minor: '2500', currency: 'EUR' },
+          receipt: null, receipt_issue: 'Original receipt absent from the historical export' },
+        source_evidence: { id: finalized.result.file }, attestation: 'Source transcribed without live approval',
+        claimant: mode === 'null-revoke' ? { id: claimant.user_id } : null, access_reason: null,
+        imported_by: { id: user.user_id }, imported_at: new Date(now - 10000).toISOString() });
+      await store.commit(makeBatch(await store.readRevision(), { writes: [
+        ...['site', 'other'].map(id => ({ kind: 'insert' as const, model: asModel('rent_catalog.Location'), row: globalAnySite(id) })),
+        { kind: 'insert', model: asModel('employee.Employee'), row: actorWorker },
+        ...(!['absent', 'null-revoke'].includes(mode) ? [{ kind: 'insert' as const, model: asModel('employee.Employee'), row: oldWorker }] : []),
+        { kind: 'insert', model: asModel('expense.LegacyExpense'), row: entry },
+      ] }));
+      const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now, files: createCanonicalFileBinding(kernel, retention) });
+      if (mode === 'archived-home') {
+        const read = await invoker.invokeRead({ operation: 'employee.Employee.read', inputs: {} }, identity);
+        assert.ok('result' in read, JSON.stringify(read));
+        assert.deepEqual((read.result as { records: { id: string }[] }).records.map(row => row.id), [actorWorker.id],
+          'archived claimant control does not widen ordinary Employee read');
+      }
+      const commit = store.commit.bind(store), query = store.query.bind(store); let injected = false;
+      if (mode === 'membership-revoked') store.query = async request => {
+        const rows = await query(request);
+        if (!injected && request.model === 'employee.Employee') { injected = true; await identities.removeMembership(membership.membership_id); }
+        return rows;
+      };
+      if (mode === 'restore-race' || mode === 'archive-race') store.commit = async batch => {
+        if (!injected && batch.writes.some(write => write.model === 'expense.LegacyExpense')) {
+          injected = true;
+          await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'update', model: asModel('employee.Employee'),
+            id: oldWorker.id, expectedVersion: oldWorker.version, row: { ...oldWorker, version: asVersion(oldWorker.version + 1),
+              archivedAt: mode === 'restore-race' ? null : now, data: { ...oldWorker.data, home: { id: 'other' }, locations: [] } } }] }));
+        }
+        return commit(batch);
+      };
+      const request = { operation: 'expense.link_legacy', operation_id: operationId(now), inputs: {
+        entry: { id: entry.id, version: mode === 'stale' ? '2' : '1' }, claimant: mode === 'null-revoke' ? null : { id: claimant.user_id },
+        reason: mode === 'blank-reason' ? '   ' : ' Verified personnel key ' } };
+      const outcome = await invoker.invokeMutation(request, identity); store.commit = commit; store.query = query;
+      const allowed = ['archived-home', 'archived-locations', 'inactive-archived', 'null-revoke'].includes(mode);
+      assert.equal('result' in outcome, allowed, mode + ': ' + JSON.stringify(outcome));
+      const current = await store.load(asModel('expense.LegacyExpense'), entry.id); assert.ok(current);
+      assert.deepEqual(probe.outboxAll(), [], 'access mapping never schedules or emits work');
+      if (allowed) {
+        assert.ok('result' in outcome); assert.equal(outcome.result.status, 'committed');
+        assert.equal(current.version, entry.version + 1);
+        assert.deepEqual(current.data, { ...entry.data, claimant: request.inputs.claimant, access_reason: 'Verified personnel key' });
+        const retained = await readCurrentFinalizedBytes(physical.finalize, finalized.result.file, receiver, observation);
+        assert.ok(retained, 'real original source evidence remains readable'); assert.deepEqual(retained, bytes);
+        const replay = await invoker.invokeMutation(request, identity); assert.ok('result' in replay, mode + ': ' + JSON.stringify(replay));
+        assert.equal(replay.result.status, 'replayed'); assert.deepEqual(await store.load(asModel('expense.LegacyExpense'), entry.id), current);
+      } else {
+        if (['absent', 'foreign-location', 'actor-only-archived', 'blank-reason'].includes(mode)) {
+          assert.ok('error' in outcome); assert.equal(outcome.error.code, 'rule_failed', mode + ': ' + JSON.stringify(outcome));
+        }
+        assert.deepEqual(current, entry, mode + ': historical evidence and access mapping are unchanged on refusal');
+        if (['restore-race', 'archive-race', 'membership-revoked'].includes(mode)) assert.equal(injected, true, mode);
+      }
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});

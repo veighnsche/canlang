@@ -15364,6 +15364,30 @@ impl<'a> Closure<'a> {
             && self.source(call.module, domain).is_ok()
     }
 
+    /// Archive mode belongs to this exact authored query occurrence. Strip
+    /// only its checked leading archived=include clause; no model-wide mode
+    /// is inferred or shared with another helper/query invocation.
+    fn source_require_query_clauses<'q>(&self, query: &'q super::types::CheckedQuery,
+        module: ModuleId) -> Option<(&'q [super::types::CheckedQueryClause], bool)> {
+        let node = self.nodes.get(&query.node)?;
+        let file = self.db.get(query.node.file)?;
+        if self.source(module, query.node).is_err() || !query.matches_source(node, &file.text, expression) { return None; }
+        let (clauses, archived) = match query.clauses.split_first() {
+            Some((clause, rest)) if clause.kind == CheckedQueryClauseKind::Archived => {
+                let authored = self.nodes.get(&clause.node)?;
+                let words = authored.children.iter()
+                    .filter(|part| matches!(part.kind, SyntaxKind::Name | SyntaxKind::Punct))
+                    .map(|part| self.word(part)).collect::<Option<Vec<_>>>()?;
+                if !clause.expressions.is_empty() || self.source(module, clause.node).is_err()
+                    || words != ["archived", "=", "include"] { return None; }
+                (rest, true)
+            },
+            _ => (query.clauses.as_slice(), false),
+        };
+        if clauses.iter().any(|clause| clause.kind == CheckedQueryClauseKind::Archived) { return None; }
+        Some((clauses, archived))
+    }
+
     fn source_require_any_call(
         &self,
         scenario: &super::effects::ScenarioData,
@@ -15382,9 +15406,8 @@ impl<'a> Closure<'a> {
         let (domain, domain_ty) = call.arguments.get(*domain_slot)?;
         let (predicate, predicate_ty) = call.arguments.get(*predicate_slot)?;
         let query = self.types.checked_queries.get(domain)?;
-        let [alias] = query.clauses.as_slice() else {
-            return None;
-        };
+        let (clauses, archived) = self.source_require_query_clauses(query, call.module)?;
+        let [alias] = clauses else { return None; };
         let array = ResolvedType::Array {
             element: Box::new(ResolvedType::Record {
                 symbol: fact.model,
@@ -15417,6 +15440,7 @@ impl<'a> Closure<'a> {
                 && !self.source_require_global_model_domain(call, query, fact.model)
                 && !self.source_require_reference_query(scenario, call, query)
                 && !self.source_require_contained_collection(scenario, call, "any")
+                && !(archived && self.source_require_contained_domain(scenario, call, query, call.chain.len(), 0))
             {
                 *supported = false;
                 return Some(false);
@@ -15447,6 +15471,7 @@ impl<'a> Closure<'a> {
                 && !self.source_require_any_member(query, &array, call).unwrap_or(false)
                 && self.source_require_helper_contained_any(scenario, call, query, fact.model).is_none()
                 && !self.source_require_contained_collection(scenario, call, "any")
+                && !(archived && self.source_require_contained_domain(scenario, call, query, call.chain.len(), 0))
             {
                 *supported = false;
                 return Some(false);
@@ -15573,7 +15598,7 @@ impl<'a> Closure<'a> {
         }
     }
 
-    fn source_require_contained_query_at(
+    fn source_require_contained_domain(
         &self, scenario: &super::effects::ScenarioData, call: &CheckedDecisionCall,
         query: &super::types::CheckedQuery, frames: usize, depth: usize,
     ) -> bool {
@@ -15585,6 +15610,13 @@ impl<'a> Closure<'a> {
         declaration.name == name && matches!(declaration.kind,
             SymbolKind::Model {owner:ModelOwner::ChildOf(owner),..} if owner == parent)
             && self.effects.models.get(child).is_some_and(|model| model.owner == ModelOwner::ChildOf(parent))
+    }
+
+    fn source_require_contained_query_at(
+        &self, scenario: &super::effects::ScenarioData, call: &CheckedDecisionCall,
+        query: &super::types::CheckedQuery, frames: usize, depth: usize,
+    ) -> bool {
+        self.source_require_contained_domain(scenario, call, query, frames, depth)
             && query.clauses.iter().all(|clause| matches!(clause.kind,
                 CheckedQueryClauseKind::As {..} | CheckedQueryClauseKind::Where
                     | CheckedQueryClauseKind::Select | CheckedQueryClauseKind::Order))

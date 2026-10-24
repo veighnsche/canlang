@@ -419,6 +419,7 @@ export type UniqueGroupProfile =
   | ({ readonly fields: readonly [string, string]; readonly cases: readonly string[] } &
     ({ readonly kind: 'ref-enum'; readonly refModel: ModelName } | { readonly kind: 'user-enum' }))
   | { readonly fields: readonly [string, string]; readonly kind: 'int-text' }
+  | { readonly fields: readonly [string, string]; readonly kind: 'text-text' }
   | { readonly fields: readonly [string, string]; readonly kind: 'leave-year-bucket' }
   | { readonly fields: readonly [string, string]; readonly kind: 'refer-settlement-payment-reference' };
 function checkedUniqueGroups(raw: unknown): readonly (readonly string[])[] {
@@ -771,9 +772,9 @@ function checkUniqueGroup(
   checkUniqueGroupFields(refField, enumField);
   if (ctx.def.uniqueWhen?.[key] === undefined && !refFields.has(first) && !refFields.has(second) &&
       !refField.serverOnly && !enumField.serverOnly &&
-      refField.valueType === 'int' && enumField.valueType === 'text') {
+      (refField.valueType === 'int' || refField.valueType === 'text') && enumField.valueType === 'text') {
     groups.set(key, Object.freeze({ fields: Object.freeze([first, second]) as readonly [string, string],
-      kind: 'int-text' as const }));
+      kind: refField.valueType === 'int' ? 'int-text' as const : 'text-text' as const }));
     return;
   }
   const ref = ctx.def.refs.find(ref => ref.field === first), refType = parseTypeId(refField.valueType!);

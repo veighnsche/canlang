@@ -45,18 +45,23 @@ export interface InstalledSourceOwnerRows {
   readonly assertHealthy: () => void;
   /** Exact bounded declared domain supplied by the same owning stage, never a store scan. */
   readonly query?: (model: ModelName, parent?: Readonly<{model: ModelName; id: RecordId}>) => Promise<readonly StoredRow[]>;
+  /** Explicit archived collection support, issued only by the shared source-stage observer. */
+  readonly queryIncludingArchived?: (model: ModelName, parent?: Readonly<{model: ModelName; id: RecordId}>) => Promise<readonly StoredRow[]>;
   /** Reached original installed-policy decision inputs, confined to its bool lifetime. */
   readonly policyQuery?: (model: ModelName, parent?: Readonly<{model: ModelName; id: RecordId}>) => Promise<readonly StoredRow[]>;
 }
 export function captureInstalledSourceOwnerRows(scope: InstalledSourceOwnerRows): InstalledSourceOwnerRows {
   const value = object(scope, ['read', 'assertHealthy', ...(Object.hasOwn(scope, 'query') ? ['query'] : []),
-    ...(Object.hasOwn(scope, 'policyQuery') ? ['policyQuery'] : [])]);
+    ...(Object.hasOwn(scope, 'policyQuery') ? ['policyQuery'] : []),
+    ...(Object.hasOwn(scope, 'queryIncludingArchived') ? ['queryIncludingArchived'] : [])]);
   if (typeof value.read !== 'function' || typeof value.assertHealthy !== 'function' ||
       Object.hasOwn(value, 'query') && typeof value.query !== 'function' ||
-      Object.hasOwn(value, 'policyQuery') && typeof value.policyQuery !== 'function') return fail('owning row closure required.');
+      Object.hasOwn(value, 'policyQuery') && typeof value.policyQuery !== 'function' ||
+      Object.hasOwn(value, 'queryIncludingArchived') && typeof value.queryIncludingArchived !== 'function') return fail('owning row closure required.');
   return Object.freeze({ read: value.read, assertHealthy: value.assertHealthy,
     ...(Object.hasOwn(value, 'query') ? { query: value.query } : {}),
-    ...(Object.hasOwn(value, 'policyQuery') ? { policyQuery: value.policyQuery } : {}) }) as InstalledSourceOwnerRows;
+    ...(Object.hasOwn(value, 'policyQuery') ? { policyQuery: value.policyQuery } : {}),
+    ...(Object.hasOwn(value, 'queryIncludingArchived') ? { queryIncludingArchived: value.queryIncludingArchived } : {}) }) as InstalledSourceOwnerRows;
 }
 interface ReadLifetime {
   readonly ownerRows: InstalledSourceOwnerRows | undefined;
@@ -370,7 +375,8 @@ function checkOwningRead(
   healthyLifetime(parent);
   if (capturedOwnerRows !== undefined && (parent.ownerRows === undefined ||
       capturedOwnerRows.read !== parent.ownerRows.read || capturedOwnerRows.assertHealthy !== parent.ownerRows.assertHealthy ||
-      capturedOwnerRows.query !== parent.ownerRows.query || capturedOwnerRows.policyQuery !== parent.ownerRows.policyQuery)) {
+      capturedOwnerRows.query !== parent.ownerRows.query || capturedOwnerRows.policyQuery !== parent.ownerRows.policyQuery ||
+      capturedOwnerRows.queryIncludingArchived !== parent.ownerRows.queryIncludingArchived)) {
     return fail('child source read cannot replace its owning row closure.');
   }
   if (input.revision !== parent.observation.revision || input.fence !== parent.observation.fence ||

@@ -88,8 +88,8 @@ export function canonicalUniqueRowValue(row: Pick<StoredRow, 'data' | 'parent'>,
     role = compositeFieldValue(row.data, group.fields[1], key, def.model);
   if (group.kind === 'int-text') return intTextUniqueValue(ref, role, group, row, def);
   if (group.kind === 'leave-year-bucket') return leaveYearBucketUniqueValue(ref, role, row, def);
-  if (group.kind === 'refer-settlement-payment-reference') {
-    return referSettlementUniqueValue(ref, role, row, def);
+  if (group.kind === 'text-text' || group.kind === 'refer-settlement-payment-reference') {
+    return textTextUniqueValue(ref, role, group, row, def);
   }
   if (group.kind === 'user-enum') return userEnumUniqueValue(ref, role, group, row, def);
   return refEnumUniqueValue(ref, role, group, row, def);
@@ -122,17 +122,19 @@ function leaveYearBucketUniqueValue(yearWire: unknown, bucketWire: unknown,
   return JSON.stringify(['leave-year-bucket', uniqueParentScope(row, def), year.toString(), bucket]);
 }
 
-function referSettlementUniqueValue(paymentWire: unknown, referenceWire: unknown,
+function textTextUniqueValue(paymentWire: unknown, referenceWire: unknown,
+  group: Extract<UniqueGroupProfile, { kind: 'text-text' | 'refer-settlement-payment-reference' }>,
   row: Pick<StoredRow, 'data' | 'parent'>, def: InterimModelDef): string {
   let payment: string, reference: string;
   try {
     payment = decodeValue('text', paymentWire) as string;
     reference = decodeValue('text', referenceWire) as string;
-  } catch { return throwInvalidCompositeUnique('payment_source,reference', def.model); }
+  } catch { return throwInvalidCompositeUnique(group.fields.join(','), def.model); }
   if (typeof payment !== 'string' || typeof reference !== 'string') {
-    return throwInvalidCompositeUnique('payment_source,reference', def.model);
+    return throwInvalidCompositeUnique(group.fields.join(','), def.model);
   }
-  return JSON.stringify(['refer-settlement-payment-reference', uniqueParentScope(row, def), payment, reference]);
+  const parent = def.containment?.parent === undefined ? null : uniqueParentScope(row, def);
+  return JSON.stringify([group.kind, parent, payment, reference]);
 }
 
 /** Conditions are table-checked local data predicates, never metadata paths. */

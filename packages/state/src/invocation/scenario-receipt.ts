@@ -4845,13 +4845,14 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
 function ownerPolicyDomains(owner: ReceiptOwnerSession, healthy: () => void) {
   type Parent = Readonly<{model: ModelName; id: RecordId}>;
   const domains = new Map<string, {model: ModelName; parent: Parent | undefined; rows: readonly StoredRow[]}>();
-  const keyOf = (model: ModelName, parent?: Parent) => stableStringify([model, parent ?? null]);
-  const capture = async (model: ModelName, parent?: Parent): Promise<readonly StoredRow[]> => {
+  const keyOf = (model: ModelName, parent: Parent | undefined, archived: 'exclude' | 'include') =>
+    stableStringify([model, parent ?? null, archived]);
+  const capture = async (model: ModelName, parent?: Parent, archived: 'exclude' | 'include' = 'exclude'): Promise<readonly StoredRow[]> => {
     healthy();
-    const key = keyOf(model, parent), cached = domains.get(key);
+    const key = keyOf(model, parent, archived), cached = domains.get(key);
     if (cached !== undefined) return cached.rows;
     if (domains.size >= MAX_ITEMS || owner.session === null) return invalid('policy collection exceeds its owning stage.');
-    const rows = await owner.session.views.final.query({model, authority: 'owner', archived: 'exclude',
+    const rows = await owner.session.views.final.query({model, authority: 'owner', archived,
       order: [{field: 'id', direction: 'asc'}], limit: owner.maxRows, ...(parent === undefined ? {} : {parent})});
     if (owner.capture.bound.leaveDecideDecision !== undefined && rows.length > 4_000) {
       return invalid('leave decision source Require exceeds its complete owner domain bound.');
@@ -4862,16 +4863,16 @@ function ownerPolicyDomains(owner: ReceiptOwnerSession, healthy: () => void) {
     return copied;
   };
   const retained = (assertHealthy: () => void, writes: readonly DomainWrite[] = []) =>
-    async (model: ModelName, parent?: Parent): Promise<readonly StoredRow[]> => {
+    async (model: ModelName, parent?: Parent, archived: 'exclude' | 'include' = 'exclude'): Promise<readonly StoredRow[]> => {
       assertHealthy();
-      const domain = domains.get(keyOf(model, parent));
+      const domain = domains.get(keyOf(model, parent, archived));
       if (domain === undefined) throw new StateError('forbidden', 'Policy collection requires its original observed owner domain.');
       const rows = new Map(domain.rows.map(row => [row.id, row]));
       for (const write of writes) if (write.model === model) {
         if (write.kind === 'remove') rows.delete(write.id);
         else rows.set(write.row.id, write.row);
       }
-      const current = [...rows.values()].filter(row => row.archivedAt === null &&
+      const current = [...rows.values()].filter(row => (archived === 'include' || row.archivedAt === null) &&
         (parent === undefined || row.parent?.model === parent.model && row.parent.id === parent.id));
       if (current.length > owner.maxRows) return invalid('policy collection exceeds its owning row bound.');
       current.sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
@@ -4895,7 +4896,7 @@ export interface ScenarioReceiptRequireSource {
 export interface ScenarioReceiptRequireObserver {
   readonly field: (model: string, row: StoredRow | ProjectedRecord, field: string) => void;
   readonly query: (model: string, records: readonly ProjectedRecord[], id?: string,
-    parent?: Readonly<{ model: string; id: string }>) => void;
+    parent?: Readonly<{ model: string; id: string }>, archived?: 'exclude' | 'include') => void;
 }
 const purchaseAllRuns = new WeakSet<Capture>();
 
@@ -5020,13 +5021,14 @@ function sourceStageObservation(call: AdmittedCall, store: StoragePort, state: C
     return row;
   };
   const policyDomains = ownerPolicyDomains(owner, healthy);
-  const query = async (model: ModelName, parent?: Readonly<{model: ModelName; id: RecordId}>): Promise<readonly StoredRow[]> => {
-    const domain = await policyDomains.capture(model, parent);
+  const query = async (model: ModelName, parent?: Readonly<{model: ModelName; id: RecordId}>,
+    archived: 'exclude' | 'include' = 'exclude'): Promise<readonly StoredRow[]> => {
+    const domain = await policyDomains.capture(model, parent, archived);
     for (const row of domain) rows.set(rowKey(model, row.id), row);
     return domain;
   };
   const domains: Array<{ model: ModelName; ids: readonly string[]; id?: RecordId;
-    parent?: Readonly<{ model: ModelName; id: RecordId }> }> = [];
+    parent?: Readonly<{ model: ModelName; id: RecordId }>; archived: 'exclude' | 'include' }> = [];
   const observe = <T>(action: () => T): T => {
     try { healthy(); return action(); }
     catch (error) { state.poisoned = true; owner.capture.poisoned = true; throw error; }
@@ -5044,12 +5046,12 @@ function sourceStageObservation(call: AdmittedCall, store: StoragePort, state: C
       // the decision, while the storage revision fence catches other writers.
     }),
     query: (model: string, records: readonly ProjectedRecord[], id?: string,
-      parent?: Readonly<{ model: string; id: string }>) => observe(() => {
+      parent?: Readonly<{ model: string; id: string }>, archived: 'exclude' | 'include' = 'exclude') => observe(() => {
       if (domains.length >= MAX_ITEMS || !state.bound.artifactModels.has(model as ModelName) ||
           records.some(record => rows.get(rowKey(model, record.id))?.version !== record.version)) {
         return invalid('source query needs its complete genuine owning domain.');
       }
-      domains.push({ model: model as ModelName, ids: Object.freeze(records.map(record => record.id)),
+      domains.push({ model: model as ModelName, archived, ids: Object.freeze(records.map(record => record.id)),
         ...(id === undefined ? {} : { id: id as RecordId }),
         ...(parent === undefined ? {} : { parent: { model: parent.model as ModelName, id: parent.id as RecordId } }) });
     }),
@@ -5065,7 +5067,7 @@ function sourceStageObservation(call: AdmittedCall, store: StoragePort, state: C
       answer = await evaluateInstalledReadPredicate(predicate, ownerRecord(root), {
         context: observed, row: root, revision: call.revision, fence: undefined,
         sourcePresence: Object.freeze(Object.keys(root.data)),
-      }, store, { read, assertHealthy: healthy, query, policyQuery: policyDomains.capture });
+      }, store, { read, assertHealthy: healthy, query, queryIncludingArchived: (model, parent) => query(model, parent, 'include'), policyQuery: policyDomains.capture });
       healthy(); return answer;
     });
   };
@@ -5090,7 +5092,7 @@ function sourceStageObservation(call: AdmittedCall, store: StoragePort, state: C
       };
       const current = await observeRowGrantAuthority(context, async _observed => {
         for (const domain of domains) {
-          const candidates = domain.id === undefined ? await originalDomains(domain.model, domain.parent) :
+          const candidates = domain.id === undefined ? await originalDomains(domain.model, domain.parent, domain.archived) :
             [await originalRead(domain.model, domain.id)].filter((row): row is StoredRow => row !== null);
           const ids = candidates.map(row => row.id);
           if (stableStringify(ids) !== stableStringify(domain.ids)) throw new StateError('forbidden', `${label} owner query domain changed.`);

@@ -385,23 +385,27 @@ export interface SourceObservationRecord {
  * owner-row closure are issued by State's active mutation, never by a source
  * query option. Values remain inside that one bool-returning evaluation. */
 export async function readOwnerDecisionRecordsAtSourceObservation(input: Pick<SourceObservationRecordsInput,
-  'observation' | 'store' | 'model' | 'id' | 'parent'>): Promise<readonly SourceObservationRecord[]> {
+  'observation' | 'store' | 'model' | 'id' | 'parent'> & {readonly archived?: 'exclude' | 'include'}): Promise<readonly SourceObservationRecord[]> {
   const { observation, store } = input;
   const model = text(input.model) as ModelName;
   const id = input.id === undefined ? undefined : text(input.id) as RecordId;
   const parent = input.parent === undefined ? undefined : Object.freeze({
     model: text(input.parent.model) as ModelName, id: text(input.parent.id) as RecordId,
   });
+  const archived = input.archived ?? 'exclude';
+  if (archived !== 'exclude' && archived !== 'include' || archived === 'include' && id !== undefined) invalid();
   return withinInstalledOwnerDecisionQuery(observation, { store, model }, async (checkpoint, ownerRows) => {
     await checkpoint();
-    const rows = id === undefined ? await ownerRows.query!(model, parent) :
+    const query = archived === 'include' ? ownerRows.queryIncludingArchived : ownerRows.query;
+    if (query === undefined) return invalid();
+    const rows = id === undefined ? await query(model, parent) :
       [await ownerRows.read(model, id)].filter((row): row is StoredRow => row !== null);
     await checkpoint();
     const result: SourceObservationRecord[] = [];
     for (const row of rows) {
       ownerRows.assertHealthy();
       if (row.id !== id && id !== undefined) invalid();
-      if (row.archivedAt !== null || parent !== undefined &&
+      if (archived === 'exclude' && row.archivedAt !== null || parent !== undefined &&
           (row.parent?.model !== parent.model || row.parent.id !== parent.id)) continue;
       const record = projectSourceRowFields(row, [{ fields: Object.keys(row.data) }], []);
       result.push(deepFreeze({ record, sourcePresence: Object.keys(row.data) }));
