@@ -884,6 +884,12 @@ Then
         .replace("  do set root {lines=", "  do\n   let lines=")
         .replace("item.price*item.quantity+item.tax-item.discount}}", "item.price*item.quantity*root.multiplier+item.tax-item.discount}")
         .replace("\nThen", "\n   require count(lines)>0 and all(lines as line,line.amount.minor>0)\n   let first_line=at(lines,0)\n   require first_line!=null\n   set root {lines}\nThen");
+    let enum_source = let_source
+        .replace("contract QuotedLine {amount:money}", "contract QuotedLine {amount:money,label:text}")
+        .replace("discount:money,visible:bool=true", "discount:money,visible:bool=true,fold:enum(earlier,later)=earlier")
+        .replace("fields=price,quantity,tax,discount", "fields=price,quantity,tax,discount,fold")
+        .replace("amount=item.price*item.quantity*root.multiplier+item.tax-item.discount}",
+            r#"amount=item.price*item.quantity*root.multiplier+item.tax-item.discount,label=format("{fold}",{fold=item.fold})}"#);
     let empty_source = let_source
         .replace(
             "fields=enabled,currency,total,multiplier",
@@ -911,11 +917,46 @@ Then
             "set root {lines}",
             "create Snapshot {parent=root,total=first_line.amount,lines} as snapshot\n   return snapshot",
         );
+    let mapped_source = created_source
+        .replace("multiplier:int=1}", "multiplier:int=1,adjustment:money}")
+        .replace("fields=enabled,currency,total,multiplier", "fields=enabled,currency,total,multiplier,adjustment")
+        .replace("parent=root,total=first_line.amount,lines}", "parent=root,total=first_line.amount,lines=lines as line select QuotedLine {amount=line.amount+root.adjustment}}");
+    let mapped_empty_source = mapped_source
+        .replace(
+            "fields=enabled,currency,total,multiplier,adjustment",
+            "fields=enabled,currency,total,multiplier",
+        )
+        .replace(
+            "   require count(lines)>0 and all(lines as line,line.amount.minor>0)\n",
+            "",
+        )
+        .replace("   require first_line!=null\n", "")
+        .replace(
+            "parent=root,total=first_line.amount",
+            "parent=root,total=money(0,root.currency)",
+        );
     let scratch = tempfile::tempdir().unwrap();
     for (mode, source) in [
         ("allowed", source.to_owned()),
+        ("let-created-map", mapped_source.clone()),
+        (
+            "let-created-map-withheld",
+            mapped_source.replace(
+                "fields=enabled,currency,total,multiplier,adjustment",
+                "fields=enabled,currency,total,multiplier",
+            ),
+        ),
+        ("let-created-map-empty", mapped_empty_source),
         ("contract", contract_source.clone()),
         ("let-values", let_source.clone()),
+        ("let-enum", enum_source.clone()),
+        (
+            "let-enum-withheld",
+            enum_source.replace(
+                "fields=price,quantity,tax,discount,fold",
+                "fields=price,quantity,tax,discount",
+            ),
+        ),
         ("let-empty", empty_source),
         ("let-created", created_source.clone()),
         (
@@ -1013,7 +1054,12 @@ Then
         );
         if matches!(
             mode,
-            "let-values" | "let-empty" | "let-member" | "let-created"
+            "let-values"
+                | "let-empty"
+                | "let-member"
+                | "let-created"
+                | "let-enum"
+                | "let-enum-withheld"
         ) {
             let artifact: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
             let operation = artifact["operations"]
@@ -1132,9 +1178,9 @@ function alterValueMetadata(artifact,mode){
  const alter=value=>{
   if(value===null||typeof value!=='object')return;
   if(value.receiptQueryId===query.id){
-   if(mode==='forge-pair-swapped'){
-    const price=query.dependencies.find(dependency=>dependency.field==='price'),tax=query.dependencies.find(dependency=>dependency.field==='tax');
-    assert.equal(price.type,tax.type);
+   if(mode==='forge-pair-swapped'||mode==='forge-enum-pair'){
+    const price=query.dependencies.find(dependency=>dependency.field=== (mode==='forge-enum-pair'?'fold':'price')),tax=query.dependencies.find(dependency=>dependency.field==='tax');
+    if(mode!=='forge-enum-pair')assert.equal(price.type,tax.type);
     for(const pair of value.receiptDependencies){if(pair.queryDependencyId===price.id)pair.queryDependencyId=tax.id;else if(pair.queryDependencyId===tax.id)pair.queryDependencyId=price.id;}
    }else if(mode==='forge-pair-duplicate')value.receiptDependencies.push({...value.receiptDependencies[0]});
    else if(mode==='forge-pair-missing')value.receiptDependencies.pop();
@@ -1155,18 +1201,18 @@ function alterValueMetadata(artifact,mode){
  }
  assert.ok(changed>=(mode==='forge-unissued-capture'?1:2),mode+': actual inventory and private callback descriptors both changed');
 }
-for(const mode of ['allowed','projection-withheld','currency-withheld','hidden','finalization-race','contract','contract-withheld','let-values','let-withheld','let-root-withheld','let-race','let-empty','let-member','let-member-withheld','let-created','let-created-withheld','let-created-return-withheld','let-created-result-hidden','let-created-empty','forge-model-cases-swapped','forge-pair-swapped','forge-pair-duplicate','forge-pair-missing','forge-cases-swapped','forge-unissued-capture']){
+for(const mode of ['allowed','projection-withheld','currency-withheld','hidden','finalization-race','contract','contract-withheld','let-values','let-enum','let-enum-withheld','let-withheld','let-root-withheld','let-race','let-empty','let-member','let-member-withheld','let-created','let-created-withheld','let-created-return-withheld','let-created-result-hidden','let-created-empty','let-created-map','let-created-map-withheld','let-created-map-empty','forge-model-cases-swapped','forge-pair-swapped','forge-enum-pair','forge-pair-duplicate','forge-pair-missing','forge-cases-swapped','forge-unissued-capture']){
  const forged=mode.startsWith('forge-'),valuesMode=forged||mode.startsWith('let-');
- const variant=mode==='forge-model-cases-swapped'||mode==='let-created-empty'?'let-created':forged?'let-values':mode==='let-race'?'let-values':mode==='hidden'||mode==='finalization-race'?'allowed':mode;
+ const variant=mode==='forge-enum-pair'?'let-enum':mode==='forge-model-cases-swapped'||mode==='let-created-empty'?'let-created':forged?'let-values':mode==='let-race'?'let-values':mode==='hidden'||mode==='finalization-race'?'allowed':mode;
  const artifact=JSON.parse(readFileSync(resolve(base,variant+'.json'),'utf8'));
  if(forged){globalThis.__unissuedPureCalls=0;alterValueMetadata(artifact,mode);}
  const asm=await assembleModules({artifact,sourcePath:resolve(base,variant+'.can')},{workDir:resolve(base,mode),
   stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href,uiUrl:pathToFileURL(require.resolve('@canlang/ui')).href});
  const {store:backing}=createTestMemoryStorage(),memberships=createMemoryIdentityStore();
  const member=await seedMember(memberships,{isOwner:false}),identity=makeIdentity({membership:member.membership,email:member.user.email});
- const root={...makeRow({id:asId('root'),data:{enabled:true,currency:'EUR',total:{minor:'0',currency:'EUR'},...(valuesMode?{lines:[],multiplier:'1'}:mode.startsWith('contract')?{lines:[]}: {})}}),parent:null};
- const item={...makeRow({id:asId('item'),data:{price:{minor:'100',currency:'EUR'},quantity:'2',tax:{minor:'5',currency:'EUR'},discount:{minor:'3',currency:'EUR'},visible:mode!=='hidden'&&mode!=='let-empty'}}),parent:{model:asModel('ScalarQuery.Root'),id:root.id}};
- await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'insert',model:asModel('ScalarQuery.Root'),row:root},...(mode==='let-created-empty'?[]:[{kind:'insert',model:asModel('ScalarQuery.Item'),row:item},...(valuesMode?[{kind:'insert',model:asModel('ScalarQuery.Item'),row:{...item,id:asId('item-2')}}]:[])])]}));
+ const root={...makeRow({id:asId('root'),data:{enabled:true,currency:'EUR',total:{minor:'0',currency:'EUR'},...(valuesMode?{lines:[],multiplier:'1',...(mode.startsWith('let-created-map')?{adjustment:{minor:'1',currency:'EUR'}}:{})}:mode.startsWith('contract')?{lines:[]}: {})}}),parent:null};
+ const item={...makeRow({id:asId('item'),data:{price:{minor:'100',currency:'EUR'},quantity:'2',tax:{minor:'5',currency:'EUR'},discount:{minor:'3',currency:'EUR'},visible:mode!=='hidden'&&mode!=='let-empty',...(mode==='let-enum'||mode==='let-enum-withheld'||mode==='forge-enum-pair'?{fold:'earlier'}:{})}}),parent:{model:asModel('ScalarQuery.Root'),id:root.id}};
+ await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'insert',model:asModel('ScalarQuery.Root'),row:root},...((mode==='let-created-empty'||mode==='let-created-map-empty')?[]:[{kind:'insert',model:asModel('ScalarQuery.Item'),row:item},...(valuesMode?[{kind:'insert',model:asModel('ScalarQuery.Item'),row:{...item,id:asId('item-2')}}]:[])])]}));
  const history=await backing.historyFor(asModel('ScalarQuery.Root'),root.id);let raced=false;
  const store={...backing,commit:async batch=>{
   if(mode==='finalization-race'&&!raced&&batch.writes.some(write=>write.model==='ScalarQuery.Root')){
@@ -1197,10 +1243,10 @@ for(const mode of ['allowed','projection-withheld','currency-withheld','hidden',
  if(mode.startsWith('let-created')){
   const rows=await backing.query({model:asModel('ScalarQuery.Snapshot'),authority:'owner'});
   const current=await backing.load(asModel('ScalarQuery.Root'),root.id);
-  if(mode==='let-created'||mode==='let-created-return-withheld'){
+  if(mode==='let-created'||mode==='let-created-return-withheld'||mode==='let-created-map'||mode==='let-created-map-empty'){
    assert.ok('result'in outcome,JSON.stringify(outcome));assert.equal(outcome.result.status,'committed');
-   assert.equal(rows.length,1);assert.deepEqual(rows[0].data,{total:{minor:'202',currency:'EUR'},label:'saved',lines:[{amount:{minor:'202',currency:'EUR'}},{amount:{minor:'202',currency:'EUR'}}]});
-   assert.deepEqual(outcome.result.result,{id:rows[0].id});assert.equal(outcome.result.records.length,1);assert.deepEqual(outcome.result.records[0].data,mode==='let-created'?{total:{minor:'202',currency:'EUR'},label:'saved'}:{label:'saved'});assert.equal(Object.hasOwn(outcome.result.records[0].data,'lines'),false);
+   const empty=mode==='let-created-map-empty',mapped=mode==='let-created-map';const expectedTotal={minor:empty?'0':'202',currency:'EUR'};assert.equal(rows.length,1);assert.deepEqual(rows[0].data,{total:expectedTotal,label:'saved',lines:empty?[]:[{amount:{minor:mapped?'203':'202',currency:'EUR'}},{amount:{minor:mapped?'203':'202',currency:'EUR'}}]});
+   assert.deepEqual(outcome.result.result,{id:rows[0].id});assert.equal(outcome.result.records.length,1);assert.deepEqual(outcome.result.records[0].data,mode==='let-created-return-withheld'?{label:'saved'}:{total:expectedTotal,label:'saved'});assert.equal(Object.hasOwn(outcome.result.records[0].data,'lines'),false);
    const replay=await invoker.invokeMutation({operation:'ScalarQuery.summarize',operation_id:uuidv7(FIXED_NOW,1),inputs:{root:{id:root.id,version:String(root.version)}}},identity);
    assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');assert.deepEqual(replay.result.result,outcome.result.result);
    assert.deepEqual(await backing.query({model:asModel('ScalarQuery.Snapshot'),authority:'owner'}),rows);
@@ -1208,9 +1254,9 @@ for(const mode of ['allowed','projection-withheld','currency-withheld','hidden',
   assert.deepEqual(current,root);assert.deepEqual(await backing.historyFor(asModel('ScalarQuery.Root'),root.id),history);assert.deepEqual(await backing.outboxPending(),[]);
   continue;
  }
- const success=mode==='allowed'||mode==='hidden'||mode==='contract'||mode==='finalization-race'||mode==='let-values'||mode==='let-race'||mode==='let-empty'||mode==='let-member',current=await backing.load(asModel('ScalarQuery.Root'),root.id);
+ const success=mode==='allowed'||mode==='hidden'||mode==='contract'||mode==='finalization-race'||mode==='let-values'||mode==='let-enum'||mode==='let-race'||mode==='let-empty'||mode==='let-member',current=await backing.load(asModel('ScalarQuery.Root'),root.id);
  assert.ok(current);assert.equal('result'in outcome,success,mode+': '+JSON.stringify(outcome));
- if(success){assert.equal(outcome.result.status,'committed');if(mode==='let-empty'){assert.deepEqual(current.data.lines,[]);assert.deepEqual(current.data.total,root.data.total);}else if(mode==='let-values'||mode==='let-race'||mode==='let-member'){assert.deepEqual(current.data.lines,[{amount:{minor:mode==='let-race'?'1802':'202',currency:'EUR'}},{amount:{minor:'202',currency:'EUR'}}]);assert.deepEqual(current.data.total,mode==='let-member'?{minor:'202',currency:'EUR'}:root.data.total);}else if(mode==='contract'){assert.deepEqual(current.data.lines,[{amount:{minor:'202',currency:'EUR'}}]);assert.deepEqual(current.data.total,root.data.total);}else assert.deepEqual(current.data.total,{minor:mode==='hidden'?'0':mode==='finalization-race'?'1802':'202',currency:'EUR'});assert.equal(current.version,root.version+1);}
+ if(success){assert.equal(outcome.result.status,'committed');if(mode==='let-empty'){assert.deepEqual(current.data.lines,[]);assert.deepEqual(current.data.total,root.data.total);}else if(mode==='let-values'||mode==='let-enum'||mode==='let-race'||mode==='let-member'){assert.deepEqual(current.data.lines,[{amount:{minor:mode==='let-race'?'1802':'202',currency:'EUR'},...(mode==='let-enum'?{label:'earlier'}:{})},{amount:{minor:'202',currency:'EUR'},...(mode==='let-enum'?{label:'earlier'}:{})}]);assert.deepEqual(current.data.total,mode==='let-member'?{minor:'202',currency:'EUR'}:root.data.total);}else if(mode==='contract'){assert.deepEqual(current.data.lines,[{amount:{minor:'202',currency:'EUR'}}]);assert.deepEqual(current.data.total,root.data.total);}else assert.deepEqual(current.data.total,{minor:mode==='hidden'?'0':mode==='finalization-race'?'1802':'202',currency:'EUR'});assert.equal(current.version,root.version+1);}
  else{assert.equal(outcome.error.code,mode==='finalization-race'?'conflict':'forbidden');assert.deepEqual(current,root);assert.deepEqual(await backing.historyFor(asModel('ScalarQuery.Root'),root.id),history);}
  assert.deepEqual(await backing.outboxPending(),[]);if(mode==='finalization-race'){assert.equal(raced,true);const completed=await backing.historyFor(asModel('ScalarQuery.Root'),root.id);assert.equal(completed.length,history.length+1);assert.deepEqual(completed.at(-1).after.total,{minor:'1802',currency:'EUR'});assert.ok(completed.every(entry=>entry.after?.total?.minor!=='202'),'retry must publish only the fresh aggregate');}
 }

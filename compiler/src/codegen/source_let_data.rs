@@ -1065,6 +1065,55 @@ pub(super) fn collect_query_values(
     Some(output)
 }
 
+/// Query codecs spell enum cases inline; ordinary stored observations retain
+/// their declaring field's nominal identity. Join only those two spellings of
+/// the same original checked field, without changing either published type.
+pub(super) fn same_query_capture_type(
+    context: &super::source_context::FreshSourceContext<'_>,
+    ordinary: &crate::analysis::scenario_disclosure::DisclosureDependency,
+    query: &crate::analysis::scenario_disclosure::DisclosureDependency,
+) -> bool {
+    if ordinary.type_id == query.type_id {
+        return true;
+    }
+    let ResolvedType::Enum {
+        owner: Some(enum_owner),
+        cases,
+    } = &ordinary.ty
+    else {
+        return false;
+    };
+    if ordinary.ty != query.ty
+        || ordinary.field != query.field
+        || ordinary.model != query.model
+        || cases.is_empty()
+        || query.type_id != format!("enum({})", cases.join(","))
+    {
+        return false;
+    }
+    let ir = context.ir();
+    for id in [ordinary.field, *enum_owner] {
+        let Some(actual) = ir.items.get(id.0 as usize) else {
+            return false;
+        };
+        let Some(original) = context.fresh().items.get(id.0 as usize) else {
+            return false;
+        };
+        if actual.id != id
+            || original.id != id
+            || format!("{actual:?}") != format!("{original:?}")
+            || context.original().types.symbol_types.get(&id) != Some(&ordinary.ty)
+            || !matches!(&actual.kind, IrItemKind::Field { ty: IrType::Known(ty), .. } if ty == &ordinary.ty)
+        {
+            return false;
+        }
+    }
+    let field = &ir.items[ordinary.field.0 as usize];
+    let declaration = &ir.items[enum_owner.0 as usize];
+    matches!(&field.kind, IrItemKind::Field { owner, .. } if *owner == ordinary.model)
+        && ordinary.type_id == declaration.canonical
+}
+
 /// Full native receipts retain their query slots. This inventory completes only
 /// the original initial LET, then deterministic Values-only lexical successors.
 pub(super) fn collect_native_query_values(
@@ -1191,7 +1240,7 @@ pub(super) fn collect_native_query_values(
                             && ordinary.model == dependency.model
                             && ordinary.field == dependency.field
                             && ordinary.ty == dependency.ty
-                            && ordinary.type_id == dependency.type_id
+                            && same_query_capture_type(context, ordinary, dependency)
                             && ordinary.role == dependency.role
                     })
                     .map(|ordinary| ordinary.id.clone())

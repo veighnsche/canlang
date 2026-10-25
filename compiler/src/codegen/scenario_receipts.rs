@@ -2516,6 +2516,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         updated_model_owner,
         copy_loop.as_ref(),
         sibling_loop.as_ref(),
+        source_context,
     ) {
         Some(sites) => sites,
         None => {
@@ -3263,7 +3264,11 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                                 && original.role == DependencyRole::Data
                                 && original.field == dependency.field
                                 && original.ty == dependency.ty
-                                && original.type_id == dependency.type_id
+                                && source_context.is_some_and(|context| {
+                                    super::source_let_data::same_query_capture_type(
+                                        context, dependency, original,
+                                    )
+                                })
                         })
                 });
             if let Some(value) = selected_value {
@@ -16460,7 +16465,13 @@ fn stored_contract_declaration<'i>(
         } => (element.as_ref(), true),
         ty => (ty, false),
     };
-    let IrItemKind::Field { required_array: required, .. } = &stored.kind else { return None; };
+    let IrItemKind::Field {
+        required_array: required,
+        ..
+    } = &stored.kind
+    else {
+        return None;
+    };
     let required = *required;
     let ResolvedType::Record { symbol, .. } = ty else {
         return None;
@@ -16626,7 +16637,8 @@ fn stored_contract_inventory_type(
     db: Option<&SourceDb>,
     nullable_notice_snapshot: bool,
 ) -> Option<String> {
-    let (declaration, symbol, nullable, array) = stored_contract_declaration(ir, ty, field, stored)?;
+    let (declaration, symbol, nullable, array) =
+        stored_contract_declaration(ir, ty, field, stored)?;
     if nullable
         && (!nullable_notice_snapshot
             || stored.canonical != "agreements.Term.snapshot"
@@ -22782,6 +22794,103 @@ fn literal_enum_values_query(
     Some((*owner, cases.clone(), base, predicate))
 }
 
+/// Redeem one source-checked map over an already captured plain Values LET.
+/// This visits ordinary projection DATA, never a second stored-row query.
+fn checked_captured_value_map<'a>(
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+    expression: &'a TypedExpr,
+) -> Option<(&'a TypedExpr, &'a TypedExpr)> {
+    let ir = context.ir();
+    context.same_scenario(ir, owner)?;
+    let IrExpr::Query(query) = &expression.expr else {
+        return None;
+    };
+    let source = query.source.as_deref()?;
+    let original = context.original().types.checked_queries.get(&source.node)?;
+    let [binding, selected] = original.clauses.as_slice() else {
+        return None;
+    };
+    let crate::analysis::types::CheckedQueryClauseKind::As { name: alias } = &binding.kind else {
+        return None;
+    };
+    if source != original
+        || selected.kind != crate::analysis::types::CheckedQueryClauseKind::Select
+        || selected.expressions.len() != 1
+        || expression.span != node_span(original.node)
+        || expression.ty != original.result
+        || query.collection_call.is_some()
+        || query.contract_collection_call.is_some()
+        || query.parent.is_some()
+        || query.where_pred.is_some()
+        || !query.order.is_empty()
+        || query.value_order.is_some()
+        || query.limit.is_some()
+        || query.archived.is_some()
+        || query.select_param.as_ref() != Some(alias)
+        || !super::source_let_data::capture_plain_value(ir, &original.domain_type, 0)
+        || !super::source_let_data::capture_plain_value(ir, &original.result, 0)
+    {
+        return None;
+    }
+    let super::ir::IrQueryDomain::Value {
+        base,
+        alias: actual_alias,
+    } = &query.domain
+    else {
+        return None;
+    };
+    let IrExpr::Name(name) = &base.expr else {
+        return None;
+    };
+    let crate::analysis::resolve::Binding::Let { node } =
+        context.resolved().node_binding.get(&original.domain)?
+    else {
+        return None;
+    };
+    let facts = context
+        .original()
+        .scenario_disclosures()
+        .get(&owner.id)?
+        .source_facts()?;
+    let captured = facts.query_values.as_deref()?.iter().find(|value| {
+        value.statement == *node && value.binding == *name && value.ty == original.domain_type
+    })?;
+    let value = query.select.as_deref()?;
+    if actual_alias != alias
+        || base.ty != captured.ty
+        || base.span != node_span(original.domain)
+        || node.file != original.node.file
+        || node.end > original.node.start
+        || value.span != node_span(selected.expressions[0])
+        || context
+            .original()
+            .types
+            .node_types
+            .get(&selected.expressions[0])
+            != Some(&value.ty)
+        || !matches!(
+            &original.domain_type,
+            ResolvedType::Array {
+                ordered: true,
+                nonempty: false,
+                ..
+            }
+        )
+        || !matches!(
+            &original.result,
+            ResolvedType::Array {
+                ordered: true,
+                nonempty: false,
+                ..
+            }
+        )
+    {
+        return None;
+    }
+    Some((base, value))
+}
+
 #[derive(Default)]
 struct Sites<'a> {
     enum_values: HashMap<crate::analysis::SymbolId, Vec<String>>,
@@ -22812,6 +22921,7 @@ impl<'a> Sites<'a> {
         updated_model_owner: bool,
         copy_loop: Option<&serde_json::Value>,
         sibling_loop: Option<&serde_json::Value>,
+        source_context: Option<&super::source_context::FreshSourceContext<'_>>,
     ) -> Option<Self> {
         let IrItemKind::Scenario {
             params,
@@ -23138,6 +23248,11 @@ impl<'a> Sites<'a> {
                         push!(Visit::Expression(constructor_values_order_domain(ir, query)?));
                     }
                     IrExpr::Query(query) => {
+                        if context.calls.is_empty()
+                            && let Some((base,selected))=source_context.and_then(|source|checked_captured_value_map(source,owner,expression)) {
+                            push!(Visit::Expression(base));push!(Visit::Expression(selected));
+                            continue;
+                        }
                         let facts = super::scenario_calls::checked_source(ir, owner, db?)?;
                         if let Some(fact)=facts.query_values.as_deref().and_then(|values|values.iter().find(|value|expression.span==node_span(value.value)&&context.calls.is_empty())) {
                             if query.source.as_ref()?.node!=fact.value || expression.ty!=fact.ty {return None;}

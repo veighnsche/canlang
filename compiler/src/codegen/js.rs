@@ -7344,11 +7344,21 @@ impl<'a> Emitter<'a> {
             && !self.boolean_helper
             && !self.source_data_body
             && self.source_let_data.is_empty()
+            && self.receipt_capture.is_none()
         {
             return false;
         }
         let mut pending = vec![expression];
         while let Some(value) = pending.pop() {
+            // Genuine ordinary receipt DATA and admitted-input observations
+            // await their State checkpoint even when the authored getter is
+            // synchronous. Keep these reads inside the original lazy callback.
+            if self.receipt_capture.as_ref().is_some_and(|recipe| {
+                let site = self.receipt_site(value.span);
+                recipe.dependencies.contains_key(&site) || recipe.intrinsics.contains_key(&site)
+            }) {
+                return true;
+            }
             if matches!(value.expr, IrExpr::Member { .. })
                 && self.source_let_data.contains_key(&value.span)
             {

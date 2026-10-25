@@ -21141,6 +21141,138 @@ impl<'a> Closure<'a> {
         })())
     }
 
+    /// A map over one genuine initial Values capture carries its existing
+    /// DATA and query provenance. It is not another stored-model query.
+    fn captured_value_query(
+        &mut self,
+        key: NodeKey,
+        module: ModuleId,
+        env: &Env,
+        calls: &[NodeKey],
+    ) -> Option<Result<Vec<ValuePath>, DisclosureDecline>> {
+        if !calls.is_empty() || self.authorization || self.loop_node.is_some() {
+            return None;
+        }
+        let query = self.types.checked_queries.get(&key)?.clone();
+        let [alias, select] = query.clauses.as_slice() else {
+            return None;
+        };
+        if !matches!(alias.kind, CheckedQueryClauseKind::As { .. })
+            || select.kind != CheckedQueryClauseKind::Select
+            || select.expressions.len() != 1
+            || !query.matches_source(
+                *self.nodes.get(&key)?,
+                &self.db.get(key.file)?.text,
+                expression,
+            )
+            || !self.computed_plain_value(&query.domain_type)
+            || !self.computed_plain_value(&query.result)
+            || !matches!(
+                &query.domain_type,
+                ResolvedType::Array {
+                    ordered: true,
+                    nonempty: false,
+                    ..
+                }
+            )
+            || !matches!(
+                &query.result,
+                ResolvedType::Array {
+                    ordered: true,
+                    nonempty: false,
+                    ..
+                }
+            )
+        {
+            return None;
+        }
+        let Some(Binding::Let { node: declaration }) = self.query_binding(query.domain) else {
+            return None;
+        };
+        let declaration = *declaration;
+        let captured = env.get(&Local::Let(declaration))?.clone();
+        if !captured.source_values.contains(&declaration)
+            || captured.record.is_some()
+            || captured.reference.is_some()
+            || captured.reference_origin.is_some()
+            || captured.model_result.is_some()
+            || captured.contract_value.is_some()
+        {
+            return None;
+        }
+        let fact = self
+            .effects
+            .scenarios
+            .values()
+            .filter(|scenario| scenario.module == module && self.source_anchor(scenario, key))
+            .find_map(|scenario| {
+                self.checked_query_value_sources(scenario)?
+                    .into_iter()
+                    .find(|fact| fact.statement == declaration && fact.ty == query.domain_type)
+            })?;
+        if declaration.file != key.file || declaration.end > key.start {
+            return None;
+        }
+        // This first map has no filter/order/limit. Its cardinality is exactly
+        // the already completed original capture; no caller-supplied empty bit.
+        let selected = select.expressions[0];
+        let mut pending = vec![selected];
+        while let Some(at) = pending.pop() {
+            let node = self.nodes.get(&at)?;
+            if node.kind == SyntaxKind::Query {
+                return None;
+            }
+            if node.kind == SyntaxKind::Call {
+                let call = self.types.selected_calls.get(&at)?;
+                let SelectedCallTarget::Builtin { id, .. } = &call.target else {
+                    return None;
+                };
+                if self.catalog.and_then(|catalog| catalog.effects(id)) != Some(Effects::Pure) {
+                    return None;
+                }
+            }
+            pending.extend(
+                node.children
+                    .iter()
+                    .filter(|child| {
+                        expression(child.kind)
+                            || matches!(child.kind, SyntaxKind::ObjectEntry | SyntaxKind::Argument)
+                    })
+                    .map(NodeKey::of),
+            );
+        }
+        Some((|| {
+            if captured.decisions.iter().any(|decision| {
+                decision.node == fact.value
+                    && decision.calls.is_empty()
+                    && decision.choice == DisclosureChoice::Else
+            }) {
+                return Ok(vec![captured]);
+            }
+            if !captured.decisions.iter().any(|decision| {
+                decision.node == fact.value
+                    && decision.calls.is_empty()
+                    && decision.choice == DisclosureChoice::Then
+            }) {
+                return Err(self.fail(key, "Values map lost its original completed capture case"));
+            }
+            let mut local = env.clone();
+            local.insert(Local::Query(alias.node), captured.clone());
+            let mut values = self.expr(selected, module, &local, calls)?;
+            for value in &mut values {
+                value.join(&captured);
+                value.members = None;
+                value.schema = None;
+                value.contract_value = None;
+                value.record = None;
+                value.reference = None;
+                value.reference_origin = None;
+                value.model_result = None;
+            }
+            Ok(values)
+        })())
+    }
+
     fn constructor_value_order_query(
         &mut self,
         key: NodeKey,
@@ -21273,6 +21405,9 @@ impl<'a> Closure<'a> {
             }
             SyntaxKind::Query => {
                 if let Some(values) = self.native_query_value(key, module, env, calls) {
+                    return values;
+                }
+                if let Some(values) = self.captured_value_query(key, module, env, calls) {
                     return values;
                 }
                 if let Some(value) = self.constructor_value_order_query(key, module, env, calls) {
