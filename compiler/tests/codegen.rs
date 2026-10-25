@@ -565,11 +565,15 @@ fn golden_teamtasks_structure() {
     assert!(entry.contains("id:\"TeamOffice\""), "app id");
     assert!(entry.contains("compositions:{"), "compositions");
     assert!(
-        entry.contains("\"TeamTasks\":{uses:[],appDefaultLocale:\"en\"}"),
+        entry.contains(
+            "\"TeamTasks\":{uses:[],appDefaultLocale:\"en\",runtimeBindingOwners:[\"TeamTasks\"]}"
+        ),
         "TeamTasks assembly"
     );
     assert!(
-        entry.contains("\"TeamNotes\":{uses:[],appDefaultLocale:\"en\"}"),
+        entry.contains(
+            "\"TeamNotes\":{uses:[],appDefaultLocale:\"en\",runtimeBindingOwners:[\"TeamTasks\",\"TeamNotes\"]}"
+        ),
         "TeamNotes assembly"
     );
     // Bridge per-family report (TeamTasks):
@@ -744,13 +748,11 @@ fn golden_teamtasks_structure() {
         "source fixed ordering"
     );
     assert!(
-        !entry.contains("filter:[\"done\"]")
-            && diags.iter().any(|d| {
-                d.code == "E6008"
-                    && d.message
-                        == "cannot lower list: option filter has no consumed factory profile"
-            }),
-        "unavailable filter option is refused"
+        entry.contains("filter:[{field:\"done\",label:")
+            && entry.contains("type:\"bool\",valueLabels:")
+            && !diags.iter().any(|d| d.code == "E6008"
+                && d.message == "cannot lower list: option filter has no consumed factory profile"),
+        "boolean filter retains its owning typed control and captions"
     );
     assert!(
         entry.contains("renderRow:async($can$l$313a7461736b,$can$l$323a726f7756696577,$can$sr$"),
@@ -863,25 +865,34 @@ fn golden_teamtasks_structure() {
         requires.contains(&("state", 1)),
         "state pin, got {requires:?}"
     );
-    // G10: one suite for the update table; the `task` recipe is claimed
-    // (no orphan shell). Production never imports test artifacts.
-    assert_eq!(artifact.tests.len(), 1, "one suite");
-    assert_eq!(artifact.tests[0].scope, "TeamTasks.Todo.update");
-    assert_eq!(
-        artifact.tests[0].fixtures,
-        vec!["TeamTasks.task".to_string()]
-    );
-    let suite = &artifact.tests[0].module.js;
-    assert!(
-        suite.contains("const $can$f$7461736b={model:\"TeamTasks.Todo\",dependencies:[],value:async(c,s)=>({title:\"Ship prototype\"})};"),
-        "task recipe:\n{suite}"
-    );
+    // The update suite imports its canonical recipe from a separate checked
+    // provider. Production modules never import either test-only module.
+    assert_eq!(artifact.tests.len(), 2);
+    let update = artifact
+        .tests
+        .iter()
+        .find(|test| test.scope == "TeamTasks.Todo.update")
+        .unwrap();
+    let provider = artifact
+        .tests
+        .iter()
+        .find(|test| test.scope == "TeamTasks.task")
+        .unwrap();
+    assert!(update.fixtures.is_empty());
+    assert_eq!(provider.fixtures, vec!["TeamTasks.task".to_string()]);
+    let suite = &update.module.js;
+    assert!(suite.contains(
+        "exampleImports=[{provider:\"TeamTasks\",member:\"task\",alias:\"TeamTasks.task\"}]"
+    ));
+    assert!(provider.module.js.contains(
+        "model:\"TeamTasks.Todo\",dependencies:[],value:async(c,s)=>({title:\"Ship prototype\"})"
+    ));
     assert!(
         suite.contains("operation:\"TeamTasks.Todo.update\""),
         "table operation"
     );
     assert!(
-        suite.contains("inputs:async(c,s)=>({record:s.task})"),
+        suite.contains("inputs:async(c,s)=>({record:s[\"TeamTasks.task\"]})"),
         "common inputs"
     );
     assert!(
@@ -893,7 +904,7 @@ fn golden_teamtasks_structure() {
         "checked caller, changes, and wire-envelope channels:\n{suite}"
     );
     assert!(
-        suite.contains("observations:[async(c,s)=>s.task.done,async(c,s)=>(($can$a$30)=>$can$h$6c6f63616c697a65645f666f726d6174(c,$can$a$30[0],$can$a$30[1],[[\"en\",[[\"n\",\"int\",\"int\"]]]]))"),
+        suite.contains("observations:[async(c,s)=>s[\"TeamTasks.task\"].done,async(c,s)=>(($can$a$30)=>$can$h$6c6f63616c697a65645f666f726d6174(c,$can$a$30[0],$can$a$30[1],[[\"en\",[[\"n\",\"int\",\"int\"]]]]))"),
         "checked localized observation preserves the descriptor signature:\n{suite}"
     );
     assert!(
@@ -969,18 +980,18 @@ fn golden_teamtasks_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        2,
+        0,
         "unsupported count: {diags:?}"
     );
     assert!(
-        entry.contains("open:preferences.show_content"),
-        "collapse carries the owning checked boolean preference without coercion"
+        entry.contains("open:(value=>{if(value===true)return true;if(value===false)return false;if(value===\"true\")return true;if(value===\"false\")return false;throw{code:\"validation\",message:\"Invalid bool preference.\"}})(preferences.show_content)"),
+        "collapse validates the owning boolean preference transport"
     );
     assert!(
         entry.contains("$can$u$746f6f6c746970({") && entry.contains("content:["),
         "tooltip owns its actual scoped content property"
     );
-    for (word, n) in [("tooltip", 0), ("collapse", 0), ("content", 1)] {
+    for (word, n) in [("tooltip", 0), ("collapse", 0), ("content", 0)] {
         assert_eq!(
             diags
                 .iter()
@@ -995,7 +1006,7 @@ fn golden_teamtasks_structure() {
         ("cannot lower pagination:", 0),
         ("cannot lower edit:", 0),
         ("cannot lower list: option search", 0),
-        ("cannot lower list: option filter", 1),
+        ("cannot lower list: option filter", 0),
         ("cannot lower list: option display", 0),
     ] {
         assert_eq!(
@@ -1207,8 +1218,8 @@ fn golden_expenseflow_structure() {
         "read rules"
     );
     assert!(
-        entry.contains("invariants:{\"Expense.require.1\":(c,row)=>row.amount.minor > 0n}"),
-        "invariant rule"
+        entry.contains("invariants:{\"Expense.require.1\":async(c,row)=>(await nativeReadReference(c,row)).amount.minor > 0n}"),
+        "invariant rule:\n{entry}"
     );
     assert!(
         entry.contains("locks:{\"Expense.lock.1\":{fields:[\"purpose\",\"amount\",\"submitted_by\"],when:(c,row)=>row.status !== \"draft\"}"),
@@ -1309,7 +1320,7 @@ fn golden_expenseflow_structure() {
         "approve effect"
     );
     assert!(
-        entry.contains("trim($can$l$363a6e6f7465) !== \"\""),
+        entry.contains("(trim($can$l$363a6e6f7465)) !== \"\""),
         "reject trim guard"
     );
     assert!(
@@ -1398,9 +1409,18 @@ fn golden_expenseflow_structure() {
             "\"can-form-f0-s{approve_start}-\"+encodeURIComponent(JSON.stringify([$can$l$313a726f7756696577.path,\"expenses.approve\",$can$l$303a726f77.id]))"
         )
     );
+    assert!(entry.contains("$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$h$636865636b65645f6d657373616765(\"Approve expense\",{nl:\"Onkost goedkeuren\"},undefined,\"en\")"), "approve modal caption");
     assert!(
-        entry.contains(&"$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$h$636865636b65645f6d657373616765(\"Approve expense\",{nl:\"Onkost goedkeuren\"},undefined,\"en\"),id:\"approve_expense\"+'-o'+JSON.stringify([$can$l$303a726f77.id]).split('').map(value=>value.charCodeAt(0).toString(16).padStart(4,'0')).join(''),externalTrigger:true,content:[await ((($can$f$666f726d)=>{if($can$f$666f726d.status!==\"ready\")return $can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$f$666f726d.message]});return $can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$7465787461726561({...$can$f$666f726d.field(\"note\")})]});})(await $can$l$313a726f7756696577.prepareForm({operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77},display:\"inline\",fields:[\"note\"],labels:{note:$can$h$636865636b65645f6d657373616765(\"Decision note\",{nl:\"Toelichting op het besluit\"},undefined,\"en\")},authoredFields:[\"note\"]})))]})".replace(",labels:", &format!(",occurrence:{approve_occurrence},labels:"))),
-        "approve modal with content slot"
+        entry.contains("content:[await ((hasRole(c,\"expenses.reviewer\")) ? (($can$f$666f726d)=>"),
+        "approve content retains the operation role guard"
+    );
+    assert!(
+        entry.contains(&format!("occurrence:{approve_occurrence},labels:")),
+        "approve content retains original form occurrence"
+    );
+    assert!(
+        entry.contains("$can$u$7465787461726561({...$can$f$666f726d.field(\"note\")})"),
+        "approve content retains note textarea"
     );
     assert!(
         entry.contains("$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$h$636865636b65645f6d657373616765(\"Reject expense\""),
@@ -1430,11 +1450,8 @@ fn golden_expenseflow_structure() {
         "form arguments"
     );
     assert!(
-        !entry.contains("defaults:{status:preferences.status}")
-            && diags.iter().any(|d| d.code == "E6008"
-                && d.message
-                    == "cannot lower list: option defaults has no consumed factory profile"),
-        "list defaults lack an owning factory profile"
+        entry.contains("defaults:{status:(preferences.status ?? null)}"),
+        "list consumes its owning checked preference defaults"
     );
     assert!(
         entry.contains("$can$u$74616273({context:c,id:\"can-tabs-m")
@@ -1498,35 +1515,67 @@ fn golden_expenseflow_structure() {
     let scopes: Vec<&str> = artifact.tests.iter().map(|t| t.scope.as_str()).collect();
     assert_eq!(
         scopes,
-        vec!["expenses.submit", "expenses.approve", "reporting.summarize",]
+        vec![
+            "expenses.submit",
+            "expenses.approve",
+            "reporting.summarize",
+            "expenses.reviewer_one",
+            "expenses.reviewer_two",
+            "expenses.pending",
+            "reporting.mine"
+        ]
     );
     let submit = &artifact.tests[0].module.js;
+    let reviewer = &artifact
+        .tests
+        .iter()
+        .find(|test| test.scope == "expenses.reviewer_one")
+        .unwrap()
+        .module
+        .js;
+    let pending = &artifact
+        .tests
+        .iter()
+        .find(|test| test.scope == "expenses.pending")
+        .unwrap()
+        .module
+        .js;
     assert!(
-        submit.contains("const $can$f$72657669657765725f6f6e65={dependencies:[],user:async(c,s)=>({roles:[\"expenses.reviewer\"]})};"),
-        "reviewer recipe:\n{submit}"
+        reviewer.contains("dependencies:[],user:async(c,s)=>({roles:[\"expenses.reviewer\"]})"),
+        "checked reviewer recipe remains in its canonical provider"
     );
+    assert!(pending.contains("model:\"expenses.Expense\",dependencies:[],value:async(c,s)=>({purpose:\"Travel\",amount:money(25n,\"EUR\"),submitted_by:c.other,status:\"submitted\"})"),
+        "checked pending recipe remains in its canonical provider");
     assert!(
-        submit.contains("const $can$f$70656e64696e67={model:\"expenses.Expense\",dependencies:[],value:async(c,s)=>({purpose:\"Travel\",amount:money(25n,\"EUR\"),submitted_by:c.other,status:\"submitted\"})};"),
-        "pending recipe"
+        artifact.tests[..3]
+            .iter()
+            .all(|test| test.fixtures.is_empty()),
+        "consumers import canonical provider recipes"
     );
     assert!(
         submit.contains("operation:\"expenses.submit\""),
         "submit table"
     );
     assert!(
-        submit.contains("inputs:async(c,s)=>({expense:s.pending})"),
+        submit.contains("inputs:async(c,s)=>({expense:s[\"expenses.pending\"]})"),
         "submit inputs"
     );
     assert!(
-        submit.contains("async(c,s)=>await hasRole(c,\"expenses.reviewer\",s.reviewer_one)"),
+        submit.contains(
+            "async(c,s)=>await hasRole(c,\"expenses.reviewer\",s[\"expenses.reviewer_one\"])"
+        ),
         "checked role observation:\n{submit}"
     );
     assert!(
-        submit.contains("async(c,s)=>!same(s.reviewer_one,s.reviewer_two)"),
+        submit.contains(
+            "async(c,s)=>!same(s[\"expenses.reviewer_one\"],s[\"expenses.reviewer_two\"])"
+        ),
         "fixture inequality"
     );
     assert!(
-        submit.contains("async(c,s)=>!same(s.pending.submitted_by,s.reviewer_one)"),
+        submit.contains(
+            "async(c,s)=>!same(s[\"expenses.pending\"].submitted_by,s[\"expenses.reviewer_one\"])"
+        ),
         "member inequality"
     );
     assert!(
@@ -1570,7 +1619,7 @@ fn golden_expenseflow_structure() {
         "checked sequence tuple metadata"
     );
     assert!(
-        approve.contains("dependencies:[$can$f$72657669657765725f6f6e65,$can$f$72657669657765725f74776f],sequence:["),
+        approve.contains("dependencies:[$can$f$657870656e7365732e72657669657765725f6f6e65,$can$f$657870656e7365732e72657669657765725f74776f],sequence:["),
         "sequence dependencies"
     );
     let summarize = &artifact.tests[2].module.js;
@@ -1636,7 +1685,7 @@ fn golden_expenseflow_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        3,
+        1,
         "owning UI profile refusals: {diags:?}"
     );
     for (profile, count) in [
@@ -1646,8 +1695,8 @@ fn golden_expenseflow_structure() {
         ("cannot lower action:", 0),
         ("cannot lower history:", 0),
         ("cannot lower stat:", 1),
-        ("cannot lower list: option filter", 1),
-        ("cannot lower list: option defaults", 1),
+        ("cannot lower list: option filter", 0),
+        ("cannot lower list: option defaults", 0),
         ("cannot lower list: option display", 0),
     ] {
         assert_eq!(
@@ -3972,7 +4021,7 @@ fn catalog_factories_lower_from_source() {
         "occurrence:\"can-form-f0-s{form_start}-\"+encodeURIComponent(JSON.stringify([$can$l$313a726f7756696577.path,\"shop.Item.update\",$can$l$303a726f77.id]))"
     );
     assert!(
-        entry.contains("$can$l$303a726f77.name !== \"\" ? (($can$f$666f726d)=>")
+        entry.contains("($can$l$303a726f77.name !== \"\") && ((hasRole(c,\"members\"))) ? (($can$f$666f726d)=>")
             && entry.contains(&format!("await $can$l$313a726f7756696577.prepareForm({{operation:\"shop.Item.update\",arguments:{{record:$can$l$303a726f77}},display:\"inline\",fields:[\"name\"],{occurrence},labels:{{name:$can$h$636865636b65645f6d657373616765(\"Item\",{{nl:\"Artikel\"}},undefined,\"en\")}},authoredFields:[\"name\"]}})")),
         "row gate encloses preparation with source request properties in order:\n{entry}"
     );
@@ -4414,8 +4463,15 @@ fn sequence_as_binding_decodes() {
     let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
     let _ = std::fs::remove_file(&catalog_path);
     assert!(diags.is_empty(), "clean lowerings: {diags:?}");
-    assert_eq!(artifact.tests.len(), 1);
-    let suite = &artifact.tests[0].module.js;
+    assert_eq!(artifact.tests.len(), 2);
+    assert!(artifact.tests.iter().any(|test| test.scope == "shop.one"));
+    let suite = &artifact
+        .tests
+        .iter()
+        .find(|test| test.scope == "shop.pick")
+        .unwrap()
+        .module
+        .js;
     assert!(
         suite.contains("inputs:async(c,s,b)=>({name:\"a\"}),bind:\"r\""),
         "as binding:\n{suite}"
@@ -7170,7 +7226,7 @@ fn t31_hook_run_shape() {
     // Live event views: after merges the owner after snapshot with the
     // candidate's fields plus the reserved version; before is frozen.
     assert!(
-        js.contains("const event={before:$hookCtx.before,after:$hookCtx.after===null?null:{...$hookCtx.after,...$candidate,version:$hookCtx.after.version}};"),
+        js.contains("const $hookRow=(row)=>{if(row==null)return null;const {data,...meta}=row;return {...data,...meta};};const event={before:$hookRow($hookCtx.before),after:$hookRow($hookCtx.after)};"),
         "after view:\n{js}"
     );
     assert!(js.contains("let $stagedNext=0;"), "staged counter:\n{js}");
@@ -7193,11 +7249,11 @@ fn t31_hook_run_shape() {
     // distinct updates and distinct hooks create distinct children while
     // one operation's replay restages its same id).
     assert!(
-        js.contains("const $can$l$303a63={id:$hookCtx.triggerId+\"/staged/\"+(($hookCtx.operationId??\"0\"))+\"/\"+\"T.h\"+\"/\"+(($hookCtx.hookOccurrence??0))+($can$n$31===0?\"\":\"/\"+$can$n$31)};"),
+        js.contains("const $can$l$303a63={...$can$n$32,id:$hookCtx.triggerId+\"/staged/\"+(($hookCtx.operationId??\"0\"))+\"/\"+\"T.h\"+\"/\"+(($hookCtx.hookOccurrence??0))+($can$n$31===0?\"\":\"/\"+$can$n$31)};"),
         "staged id:\n{js}"
     );
     assert!(
-        js.contains("$hookCtx.stage({op:\"create\",model:\"T.C\",id:$can$l$303a63.id,parent:{model:\"T.M\",id:event.after.id},data:{m:\"note\"}});"),
+        js.contains("$hookCtx.stage({op:\"create\",model:\"T.C\",id:$can$l$303a63.id,parent:{model:\"T.M\",id:event.after.id},data:$can$n$32});"),
         "staged create:\n{js}"
     );
     // Timers stage through the hook context with the canonical event.
@@ -7210,8 +7266,17 @@ fn t31_hook_run_shape() {
         "staged cancel:\n{js}"
     );
     assert!(js.contains("return $candidate;"), "candidate return:\n{js}");
-    // Hooks are reactive, not operations: the operations member stays empty.
-    assert!(js.contains("operations:{}"), "operations member:\n{js}");
+    // Reactive hooks retain invocation metadata but no public operation.
+    assert!(
+        !artifact
+            .operations
+            .iter()
+            .any(|operation| operation.name == "T.h")
+    );
+    assert!(
+        js.contains("operations:{\"T.h\":{invocation:"),
+        "invocation metadata:\n{js}"
+    );
     // Explicit callable linkage into the hooks registry.
     let callable = artifact
         .callables
