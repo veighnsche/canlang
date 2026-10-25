@@ -7,7 +7,7 @@
  * --audit lists expressions requiring runtime/context review. This is not a
  * general filesystem, shell, YAML, Rust, or generated-module-string analyzer.
  */
-import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { builtinModules } from 'node:module';
@@ -70,9 +70,36 @@ export const checkoutInputs = [
   { consumer: 'packages/work/test/file-retirement-framework.test.ts', target: 'packages/cloudflare/test/fixtures/typed-images-progress.can', reason: 'The opaque retirement framework test compiles the complete owning typed Images fixture to check Work File correspondence.' },
 ];
 
+// Native SDK acceptance runs these deliberately non-shipping test producers.
+// Exact verifier/module pairs keep them out of the public production exports.
+const checkoutTestModules = [
+  ['scripts/verify-native-runtime.mjs', 'packages/cloudflare/dist/runtime/native-preview.test-support'],
+  ['scripts/verify-native-runtime.mjs', 'packages/cloudflare/dist/runtime/native-dev.test-support'],
+  ['scripts/verify-soda-host.mjs', 'packages/cloudflare/dist/runtime/native-preview.test-support'],
+];
+function checkoutTestModule(root, file, destination, production) {
+  if (production) return false;
+  const consumer = path.relative(root, file).split(path.sep).join('/');
+  const target = path.relative(root, destination).split(path.sep).join('/').replace(/(?:\.d)?\.[cm]?[jt]s$/, '');
+  return checkoutTestModules.some(([verifier, module]) => verifier === consumer && module === target);
+}
+
 function inside(file, directory) {
   const relative = path.relative(directory, file);
   return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+}
+
+// Integration tests compile original DSL inputs across owners. These are data
+// files, not JavaScript package APIs. Keep this rule limited to existing .can
+// inputs in the repository's source-corpus and fixture directories; production
+// consumers and every module import still require their owning public entry.
+function checkoutSourceFixture(root, file, target, production) {
+  if (production) return false;
+  const consumer = path.relative(root, file).split(path.sep).join('/');
+  if (!/^(?:packages\/[^/]+\/(?:test\/.*|src\/.*\.integration\.test\.[cm]?[jt]s)|tests\/.*|scripts\/verify-[^/]+\.mjs)$/.test(consumer)) return false;
+  if (!/^(?:compiler\/tests\/fixtures\/|packages\/[^/]+\/test\/fixtures\/|tests\/integration\/|scripts\/fixtures\/|examples\/|draft\/(?:apps\/|shared\/)).+\.can$/.test(target)) return false;
+  const fixture = path.join(root, target);
+  return existsSync(fixture) && statSync(fixture).isFile() && inside(realpathSync(fixture), root) && realpathSync(fixture) === fixture;
 }
 
 function walk(directory) {
@@ -314,7 +341,7 @@ export function checkPackageBoundaries(rootDirectory, { dependenciesOnly = false
       if (specifier.startsWith('@canlang/')) report('unknown-local-package', file, node, `${specifier} names an unknown local package.`);
       if (resolved?.isExternalLibraryImport) return;
       const destination = resolved ? path.resolve(resolved.resolvedFileName) : specifier.startsWith('.') ? path.resolve(path.dirname(file), specifier) : specifier.startsWith('file:') ? fileURLToPath(specifier) : path.isAbsolute(specifier) ? specifier : undefined;
-      if (destination && (!inside(destination, consumer.directory) || owner(destination) !== consumer)) report('cross-package-import', file, node, `${specifier} bypasses the owning package API (${path.relative(root, destination)}).`);
+      if (destination && (!inside(destination, consumer.directory) || owner(destination) !== consumer) && !checkoutTestModule(root, file, destination, production)) report('cross-package-import', file, node, `${specifier} bypasses the owning package API (${path.relative(root, destination)}).`);
     }
     function checkPath(value, node) {
       if (!value || value.kind !== 'path' || value.exported || !inside(value.value, root)) return;
@@ -323,6 +350,8 @@ export function checkPackageBoundaries(rootDirectory, { dependenciesOnly = false
       const target = path.relative(root, value.value).split(path.sep).join('/');
       const registration = checkoutInputs.find(entry => entry.consumer === path.relative(root, file).split(path.sep).join('/') && entry.target === target);
       if (registration) { registered.push(registration); return; }
+      if (checkoutSourceFixture(root, file, target, production)) return;
+      if (checkoutTestModule(root, file, value.value, production)) return;
       // Repository directory locators are context, not source/asset reads.
       if (producer === rootPackage && !path.extname(value.value)) return;
       report('cross-package-path', file, node, `${target} bypasses the owning package API; use an exported asset or distribution locator.`);

@@ -21,14 +21,14 @@ const { startLocalDev, startNativeGateway, seedLocalPreviewActors, localPreviewA
   await import('../packages/cloudflare/dist/runtime/native-preview.test-support.js');
 const { prepareLocalPreviewCapture, captureSingleFileSource, compileCapturedSingleFile } =
   await import('../packages/cloudflare/dist/runtime/native-dev.test-support.js');
-const { PINNED_COMPATIBILITY_DATE } = await import('../packages/cloudflare/dist/cli/artifact-defaults.js');
+const { PINNED_COMPATIBILITY_DATE } = await import('@canlang/cloudflare/cli/artifact-defaults');
 const { deriveCsrfToken } = await import('@canlang/identity');
 const storage = join(state, 'd1');
 const runtimeBase = { workerName: 'can-native-proof', compatibilityDate: PINNED_COMPATIBILITY_DATE,
   d1Databases: [{ binding: 'DB', id: 'can-native-proof-db' }], d1Persist: storage, d1PersistenceRequired: true };
 
 if (process.argv.includes('--child')) {
-  const { superviseWorkerd } = await import('../packages/cloudflare/dist/deploy/soda-lifetime.js');
+  const { superviseWorkerd } = await import('@canlang/cloudflare/deploy/soda-lifetime');
   process.exitCode = await superviseWorkerd(fileURLToPath(import.meta.url), ['--worker', '--state', state]);
 } else if (process.argv.includes('--worker')) {
   const input = JSON.parse(await readFile(join(state, 'input.json'), 'utf8'));
@@ -40,7 +40,7 @@ if (process.argv.includes('--child')) {
     await bridge.close(); await worker?.dispose();
     await writeFile(join(state, 'shutdown.json'), JSON.stringify({ graceful: true }));
   };
-  const { installWorkerdShutdown } = await import('../packages/cloudflare/dist/deploy/soda-lifetime.js');
+  const { installWorkerdShutdown } = await import('@canlang/cloudflare/deploy/soda-lifetime');
   installWorkerdShutdown(shutdown);
   try {
     worker = await startLocalDev({ ...runtimeBase, mainModule: input.bundle.mainModule,
@@ -56,7 +56,7 @@ if (process.argv.includes('--child')) {
   } catch (error) { await bridge.close(); await worker?.dispose(); throw error; }
 } else {
   const { distribution } = await import('@canlang/values/distribution');
-  const { buildDeployBundleWithAssets } = await import('../packages/cloudflare/dist/deploy/bundle.js');
+  const { buildDeployBundleWithAssets } = await import('@canlang/cloudflare/deploy/bundle');
   const fixture = join(repo, 'scripts/fixtures/native-runtime.can');
   const source = await readFile(fixture);
   const capture = await captureSingleFileSource(prepareLocalPreviewCapture({ checkoutRoot: repo, appPath: fixture,

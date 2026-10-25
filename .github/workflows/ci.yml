@@ -19,6 +19,9 @@ defaults:
 
 env:
   CARGO_BUILD_JOBS: "2"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
+  CARGO_INCREMENTAL: "0"
 
 jobs:
   workspace:
@@ -43,6 +46,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
         with:
           toolchain: "stable"
+          targets: wasm32-unknown-unknown
       - name: Install from lock
         run: bun install --frozen-lockfile
       - name: Build workspace packages
@@ -111,6 +115,8 @@ jobs:
           command -v bash
           command -v zsh
           command -v python3
+      # Keep warnings fatal except argument-count/type-size style limits in
+      # the compiler lint command; those do not establish correctness.
       - name: Format and lint compiler
         run: bun run lint:compiler
       - name: Build real package and catalog prerequisites

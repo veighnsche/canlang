@@ -6,7 +6,7 @@ import {once} from 'node:events';
 import {mkdir,mkdtemp,open,readFile} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {startSodaWorker} from '../packages/cloudflare/dist/deploy/soda-workerd.js';
+import {startSodaWorker} from '@canlang/cloudflare/deploy/soda-workerd';
 
 const option=name=>{const index=process.argv.indexOf(name);return index<0?undefined:process.argv[index+1];};
 const root=resolve(option('--state')??'/home/vince/Projects/.canlang-runtime-work/direct');

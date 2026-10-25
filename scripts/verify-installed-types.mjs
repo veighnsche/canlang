@@ -111,7 +111,10 @@ else {
     dependencies[manifest.name] = `file:${file}`;
   }
   assert.ok(Object.keys(dependencies).length > 0, 'No workspace packages found');
-  save(join(consumer, 'package.json'), { name: 'canlang-installed-types-consumer', private: true, type: 'module', dependencies, overrides: dependencies, devDependencies: { typescript: '5.9.3', '@types/node': '24.19.1', '@cloudflare/workers-types': '5.20261004.1' } });
+  // Importing every public type export also exercises the opt-in browser API,
+  // whose declared optional peer must be supplied by this tooling consumer.
+  const browserDriver = json(join(checkout, 'package.json')).devDependencies['@playwright/test'];
+  save(join(consumer, 'package.json'), { name: 'canlang-installed-types-consumer', private: true, type: 'module', dependencies, overrides: dependencies, devDependencies: { '@playwright/test': browserDriver, typescript: '5.9.3', '@types/node': '24.19.1', '@cloudflare/workers-types': '5.20261004.1' } });
   writeFileSync(join(consumer, 'bunfig.toml'), '[install]\nlinker = "isolated"\n');
   execFileSync('bun', ['install', '--ignore-scripts'], { cwd: consumer, env: { ...process.env, TMPDIR: scratch }, stdio: 'inherit' });
   // Bun pm pack rewrites workspace ranges to versions; overrides force every owner to its actual tarball.
