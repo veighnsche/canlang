@@ -1243,7 +1243,14 @@ fn probe_worker(
     }
     let cookie = probe_identity(bridge, backend, origin, seed)?;
     let grant_token = probe_team_grant(bridge, backend, origin, seed, &cookie)?;
-    let has_operations = probe_tools(bridge, backend, origin, artifact, &grant_token)?;
+    let identity = bridge.call(
+        "identity.resolve",
+        json!({"handle":handle,"workerName":worker,"binding":"DB","cookie":cookie}),
+    )?;
+    if identity["team"]["team_id"] != seed["probe"]["teamId"] {
+        return Err("IDENTITY_UNAVAILABLE: probe selected team changed".into());
+    }
+    let has_operations = probe_tools(bridge, backend, origin, artifact, &grant_token, &identity)?;
     probe_assets(bridge, backend, origin, bundle)?;
     probe_page(bridge, backend, origin, artifact, &cookie, has_operations)
 }
@@ -1358,6 +1365,7 @@ fn probe_tools(
     origin: &str,
     artifact: &Value,
     grant_token: &str,
+    identity: &Value,
 ) -> Result<bool> {
     let authorization = format!("Bearer {grant_token}");
     let discovery = probe_post(
@@ -1375,13 +1383,66 @@ fn probe_tools(
     let tools = discovered["result"]["tools"]
         .as_array()
         .ok_or("MCP_UNAVAILABLE: tools response invalid")?;
-    let has_operations = artifact["operations"]
+    let operations = artifact["operations"]
         .as_array()
-        .is_some_and(|v| !v.is_empty());
-    if discovery.status != 200
-        || (has_operations && tools.is_empty())
-        || (!has_operations && !tools.is_empty())
+        .ok_or("MCP_UNAVAILABLE: checked operation inventory missing")?;
+    let mut expected = BTreeSet::new();
+    for operation in operations {
+        let name = operation["name"]
+            .as_str()
+            .filter(|name| !name.is_empty())
+            .ok_or("MCP_UNAVAILABLE: checked operation name missing")?;
+        if !expected.insert(name) {
+            return Err("MCP_UNAVAILABLE: duplicate checked operation".into());
+        }
+    }
+    let actor = identity["actor"]["user_id"]
+        .as_str()
+        .ok_or("IDENTITY_UNAVAILABLE: probe actor missing")?;
+    let team = identity["team"]["team_id"]
+        .as_str()
+        .ok_or("IDENTITY_UNAVAILABLE: probe team missing")?;
+    let membership = &identity["membership"];
+    if membership["user_id"] != actor
+        || membership["team_id"] != team
+        || membership["status"] != "active"
     {
+        return Err(
+            "IDENTITY_UNAVAILABLE: probe membership is not active in its selected team".into(),
+        );
+    }
+    let owner = membership["is_owner"]
+        .as_bool()
+        .ok_or("IDENTITY_UNAVAILABLE: probe owner authority missing")?;
+    // Fixed framework contract: packages/contracts/src/identity.ts
+    // SYSTEM_TEAM_TOOL_NAMES. These compose beside authored operations, and
+    // discovery exposes them only to the actual active selected-team owner.
+    for name in [
+        "system.team.invite",
+        "system.team.remove",
+        "system.team.role",
+    ] {
+        if expected.contains(name) {
+            return Err("MCP_UNAVAILABLE: authored operation shadows a system team tool".into());
+        }
+        if owner {
+            expected.insert(name);
+        }
+    }
+    let mut actual = BTreeSet::new();
+    for tool in tools {
+        let name = tool["name"]
+            .as_str()
+            .filter(|name| !name.is_empty())
+            .ok_or("MCP_UNAVAILABLE: discovered tool name missing")?;
+        if !tool["description"].is_string()
+            || !tool["inputSchema"].is_object()
+            || !actual.insert(name)
+        {
+            return Err("MCP_UNAVAILABLE: malformed or duplicate discovered tool".into());
+        }
+    }
+    if discovery.status != 200 || actual != expected {
         return Err("MCP_UNAVAILABLE: business tools inconsistent with checked inventory".into());
     }
     let anonymous = probe_post(
@@ -1395,7 +1456,7 @@ fn probe_tools(
     if anonymous.status != 401 || !anonymous.content_type("application/json") {
         return Err("MCP_UNAVAILABLE: anonymous business MCP caller was not refused".into());
     }
-    Ok(has_operations)
+    Ok(!operations.is_empty())
 }
 fn probe_assets(
     bridge: &Bridge<'_>,
