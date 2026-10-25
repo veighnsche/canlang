@@ -4896,14 +4896,29 @@ function ownerPolicyDomains(owner: ReceiptOwnerSession, healthy: () => void, fin
     domains.set(key, {model, parent, rows: copied});
     return copied;
   };
-  const retained = (assertHealthy: () => void, writes: readonly DomainWrite[] = []) =>
-    async (model: ModelName, parent?: Parent, archived: 'exclude' | 'include' = 'exclude'): Promise<readonly StoredRow[]> => {
+  const retained = (assertHealthy: () => void, writes?: readonly DomainWrite[]) => {
+    // Only final current-authority checks supply the actual finalized writes.
+    // Original business control replay keeps its strict observed-domain census.
+    if (writes !== undefined && owner.finalized?.writes !== writes) return invalid('final policy domains require actual finalized owner effects.');
+    const finalDomains = writes === undefined ? undefined : ownerPolicyDomains(owner, assertHealthy, writes);
+    const addedFinalDomains = new Set<string>();
+    return async (model: ModelName, parent?: Parent, archived: 'exclude' | 'include' = 'exclude'): Promise<readonly StoredRow[]> => {
       assertHealthy();
-      const domain = domains.get(keyOf(model, parent, archived));
-      if (domain === undefined) throw new StateError('forbidden', 'Policy collection requires its original observed owner domain.');
-      const current = select(domain.rows, model, parent, archived, writes);
+      const key = keyOf(model, parent, archived), domain = domains.get(key);
+      if (domain === undefined) {
+        if (finalDomains === undefined) throw new StateError('forbidden', 'Policy collection requires its original observed owner domain.');
+        if (!addedFinalDomains.has(key)) {
+          if (domains.size + addedFinalDomains.size >= MAX_ITEMS) return invalid('policy collection exceeds its owning stage.');
+          addedFinalDomains.add(key);
+        }
+        // A later own write can reach a different declared policy branch.
+        // Reuse the bounded final reader: same fenced base, exact own writes.
+        return finalDomains.capture(model, parent, archived);
+      }
+      const current = select(domain.rows, model, parent, archived, writes ?? []);
       assertHealthy(); return Object.freeze(current);
     };
+  };
   return {capture, retained};
 }
 

@@ -3928,8 +3928,22 @@ it('accepts the complete original Shift swap through staged ancestor writes and 
     if(mode==='insert-race')await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('shift','Swap'),row:swap('inserted')}]}));
     else{const name=mode==='parent-race'?model('shift','Swap'):model('employee','Employee'),old=await load(name,mode==='parent-race'?proposed.id:asId('original'));assert.ok(old);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:name,id:old.id,expectedVersion:old.version,row:{...old,version:asVersion(old.version+1),...(mode==='parent-race'?{parent:{model:model('shift','Duty'),id:asId('other-duty')}}:{data:{...old.data,user_visible:false}})}}]}));}
    }return commit(batch);};
+   const unchangedSource = async () => ({
+    domains: await Promise.all([...new Set([...(artifact.models??[]).map(model=>model.name),
+     'work.occurrence','work.schedule','work.dispatch','work.receipt','work.receipt_association'])].map(async name=>{
+      const rows=await store.query({model:asModel(name),authority:'owner',archived:'include'});
+      return {name,rows,history:await Promise.all(rows.map(row=>store.historyFor(asModel(name),row.id)))};
+    })), outbox:await store.outboxPending(),
+   });
+   const hiddenAncestorBaseline=mode==='member-grant-after-set'?await unchangedSource():undefined;
    const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'shift.accept',operation_id:operationId(now),inputs:{swap:{id:'proposed',version:mode==='stale'?'2':'1'}}};
-   const result=await invoker.invokeMutation(request,identity),success=['allowed','member-grant-after-set','insert-race'].includes(mode);assert.equal('result'in result,success,mode+': '+JSON.stringify(result));if(mode.endsWith('-race'))assert.ok(raced,mode);
+   const result=await invoker.invokeMutation(request,identity),success=['allowed','insert-race'].includes(mode);assert.equal('result'in result,success,mode+': '+JSON.stringify(result));if(mode.endsWith('-race'))assert.ok(raced,mode);
+   if(mode==='member-grant-after-set'){
+    assert.ok('error'in result);assert.equal(result.error.code,'forbidden');
+    assert.equal(result.error.message,'Original model query source fields are unavailable.');
+    assert.deepEqual(await unchangedSource(),hiddenAncestorBaseline,
+     'stage-zero Swap.parent DATA cannot use a Duty grant that would become true only after a later SET');
+   }
    const events=await store.query({model:asModel('work.occurrence'),authority:'owner'}),current=await load(model('shift','Commitment'),commitment.id),currentDuty=await load(model('shift','Duty'),duty.id),currentSwap=await load(model('shift','Swap'),proposed.id);assert.equal(events.length,success?2:0,mode);assert.ok(current);assert.ok(currentDuty);assert.ok(currentSwap);
    if(success){assert.deepEqual(current.data.employee,{id:'actor'});assert.equal(current.data.revision,'8');assert.equal(current.data.conflict,false);assert.equal(currentSwap.data.state,'accepted');assert.equal(currentDuty.data.published_revision,'8');for(const candidate of [...swaps,...(mode==='insert-race'?[swap('inserted')]:[])])assert.equal((await load(model('shift','Swap'),candidate.id))?.data.state,'obsolete',mode);
     assert.deepEqual(events.map(event=>(event.data.result as {payload:{recipient:{id:string};revision:string;kind:string}}).payload.recipient.id).sort(),[recipient.user_id,user.user_id].sort());assert.ok(events.every(event=>(event.data.result as{payload:{revision:string;kind:string}}).payload.revision==='8'&&(event.data.result as{payload:{kind:string}}).payload.kind==='swap_accepted'));
