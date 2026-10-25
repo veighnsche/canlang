@@ -894,12 +894,51 @@ Then
             "",
         )
         .replace("   require first_line!=null\n", "");
+    let created_source = let_source
+        .replace(
+            " Item in Root",
+            " Snapshot in Root {total:money,label:text=\"saved\",lines:QuotedLine[]}\n Item in Root",
+        )
+        .replace(
+            " policy Item",
+            " policy Snapshot read=members fields=total,label,lines\n policy Item",
+        )
+        .replace(
+            "scenario summarize(root:Root) by=members",
+            "scenario summarize(root:Root) -> Snapshot by=members",
+        )
+        .replace(
+            "set root {lines}",
+            "create Snapshot {parent=root,total=first_line.amount,lines} as snapshot\n   return snapshot",
+        );
     let scratch = tempfile::tempdir().unwrap();
     for (mode, source) in [
         ("allowed", source.to_owned()),
         ("contract", contract_source.clone()),
         ("let-values", let_source.clone()),
         ("let-empty", empty_source),
+        ("let-created", created_source.clone()),
+        (
+            "let-created-withheld",
+            created_source.replace(
+                "fields=price,quantity,tax,discount",
+                "fields=price,quantity,discount",
+            ),
+        ),
+        (
+            "let-created-return-withheld",
+            created_source.replace(
+                "policy Snapshot read=members fields=total,label",
+                "policy Snapshot read=members fields=label",
+            ),
+        ),
+        (
+            "let-created-result-hidden",
+            created_source.replace(
+                "policy Snapshot read=members fields=",
+                "policy Snapshot read=members where=false fields=",
+            ),
+        ),
         (
             "let-member",
             let_source.replace(
@@ -972,7 +1011,10 @@ Then
             String::from_utf8_lossy(&compiled.stdout),
             String::from_utf8_lossy(&compiled.stderr)
         );
-        if matches!(mode, "let-values" | "let-empty" | "let-member") {
+        if matches!(
+            mode,
+            "let-values" | "let-empty" | "let-member" | "let-created"
+        ) {
             let artifact: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
             let operation = artifact["operations"]
                 .as_array()
@@ -1096,7 +1138,7 @@ function alterValueMetadata(artifact,mode){
     for(const pair of value.receiptDependencies){if(pair.queryDependencyId===price.id)pair.queryDependencyId=tax.id;else if(pair.queryDependencyId===tax.id)pair.queryDependencyId=price.id;}
    }else if(mode==='forge-pair-duplicate')value.receiptDependencies.push({...value.receiptDependencies[0]});
    else if(mode==='forge-pair-missing')value.receiptDependencies.pop();
-   else if(mode==='forge-cases-swapped')[value.receiptCases.empty,value.receiptCases.nonempty]=[value.receiptCases.nonempty,value.receiptCases.empty];
+   else if(mode==='forge-cases-swapped'||mode==='forge-model-cases-swapped')[value.receiptCases.empty,value.receiptCases.nonempty]=[value.receiptCases.nonempty,value.receiptCases.empty];
    changed++;
   }
   for(const child of Object.values(value))alter(child);
@@ -1113,9 +1155,9 @@ function alterValueMetadata(artifact,mode){
  }
  assert.ok(changed>=(mode==='forge-unissued-capture'?1:2),mode+': actual inventory and private callback descriptors both changed');
 }
-for(const mode of ['allowed','projection-withheld','currency-withheld','hidden','finalization-race','contract','contract-withheld','let-values','let-withheld','let-root-withheld','let-race','let-empty','let-member','let-member-withheld','forge-pair-swapped','forge-pair-duplicate','forge-pair-missing','forge-cases-swapped','forge-unissued-capture']){
+for(const mode of ['allowed','projection-withheld','currency-withheld','hidden','finalization-race','contract','contract-withheld','let-values','let-withheld','let-root-withheld','let-race','let-empty','let-member','let-member-withheld','let-created','let-created-withheld','let-created-return-withheld','let-created-result-hidden','let-created-empty','forge-model-cases-swapped','forge-pair-swapped','forge-pair-duplicate','forge-pair-missing','forge-cases-swapped','forge-unissued-capture']){
  const forged=mode.startsWith('forge-'),valuesMode=forged||mode.startsWith('let-');
- const variant=forged?'let-values':mode==='let-race'?'let-values':mode==='hidden'||mode==='finalization-race'?'allowed':mode;
+ const variant=mode==='forge-model-cases-swapped'||mode==='let-created-empty'?'let-created':forged?'let-values':mode==='let-race'?'let-values':mode==='hidden'||mode==='finalization-race'?'allowed':mode;
  const artifact=JSON.parse(readFileSync(resolve(base,variant+'.json'),'utf8'));
  if(forged){globalThis.__unissuedPureCalls=0;alterValueMetadata(artifact,mode);}
  const asm=await assembleModules({artifact,sourcePath:resolve(base,variant+'.can')},{workDir:resolve(base,mode),
@@ -1124,7 +1166,7 @@ for(const mode of ['allowed','projection-withheld','currency-withheld','hidden',
  const member=await seedMember(memberships,{isOwner:false}),identity=makeIdentity({membership:member.membership,email:member.user.email});
  const root={...makeRow({id:asId('root'),data:{enabled:true,currency:'EUR',total:{minor:'0',currency:'EUR'},...(valuesMode?{lines:[],multiplier:'1'}:mode.startsWith('contract')?{lines:[]}: {})}}),parent:null};
  const item={...makeRow({id:asId('item'),data:{price:{minor:'100',currency:'EUR'},quantity:'2',tax:{minor:'5',currency:'EUR'},discount:{minor:'3',currency:'EUR'},visible:mode!=='hidden'&&mode!=='let-empty'}}),parent:{model:asModel('ScalarQuery.Root'),id:root.id}};
- await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'insert',model:asModel('ScalarQuery.Root'),row:root},{kind:'insert',model:asModel('ScalarQuery.Item'),row:item},...(valuesMode?[{kind:'insert',model:asModel('ScalarQuery.Item'),row:{...item,id:asId('item-2')}}]:[])]}));
+ await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'insert',model:asModel('ScalarQuery.Root'),row:root},...(mode==='let-created-empty'?[]:[{kind:'insert',model:asModel('ScalarQuery.Item'),row:item},...(valuesMode?[{kind:'insert',model:asModel('ScalarQuery.Item'),row:{...item,id:asId('item-2')}}]:[])])]}));
  const history=await backing.historyFor(asModel('ScalarQuery.Root'),root.id);let raced=false;
  const store={...backing,commit:async batch=>{
   if(mode==='finalization-race'&&!raced&&batch.writes.some(write=>write.model==='ScalarQuery.Root')){
@@ -1134,23 +1176,38 @@ for(const mode of ['allowed','projection-withheld','currency-withheld','hidden',
   if(mode==='let-race'&&!raced&&batch.writes.some(write=>write.model==='ScalarQuery.Root')){raced=true;await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'update',model:asModel('ScalarQuery.Item'),id:item.id,expectedVersion:item.version,row:{...item,version:asVersion(item.version+1),data:{...item.data,price:{minor:'900',currency:'EUR'}}}}]}));}
   return backing.commit(batch);
  }};
- let outcome,failure;
- try{const invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
+ let outcome,failure,invoker;
+ try{invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
   outcome=await invoker.invokeMutation({operation:'ScalarQuery.summarize',operation_id:uuidv7(FIXED_NOW,1),inputs:{root:{id:root.id,version:String(root.version)}}},identity);
  }catch(error){failure=error;}
  if(forged){
   assert.ok(failure!==undefined||outcome?.error!==undefined,mode+': forged source must refuse');
   const message=String(failure?.message??outcome.error.message);
-  assert.match(message,mode==='forge-cases-swapped'?/actual original Values query empty\/nonempty case/:mode==='forge-unissued-capture'?/Local owner policy requires plain owning metadata/:/DATA pair/i,mode+': '+message);
+  assert.match(message,mode==='forge-model-cases-swapped'?/Model query empty return lacks its exact original Values case producer/:mode==='forge-cases-swapped'?/actual original Values query empty\/nonempty case/:mode==='forge-unissued-capture'?/Local owner policy requires plain owning metadata/:/DATA pair/i,mode+': '+message);
   assert.deepEqual(await backing.load(asModel('ScalarQuery.Root'),root.id),root);
   assert.deepEqual(await backing.load(asModel('ScalarQuery.Item'),item.id),item);
   assert.deepEqual(await backing.load(asModel('ScalarQuery.Item'),asId('item-2')),{...item,id:asId('item-2')});
   assert.deepEqual(await backing.historyFor(asModel('ScalarQuery.Root'),root.id),history);
   assert.deepEqual(await backing.outboxPending(),[]);
   assert.equal(globalThis.__unissuedPureCalls,0,'unissued pure closure must never execute');
+  if(mode==='forge-model-cases-swapped')assert.deepEqual(await backing.query({model:asModel('ScalarQuery.Snapshot'),authority:'owner'}),[]);
   continue;
  }
  if(failure!==undefined)throw failure;
+ if(mode.startsWith('let-created')){
+  const rows=await backing.query({model:asModel('ScalarQuery.Snapshot'),authority:'owner'});
+  const current=await backing.load(asModel('ScalarQuery.Root'),root.id);
+  if(mode==='let-created'||mode==='let-created-return-withheld'){
+   assert.ok('result'in outcome,JSON.stringify(outcome));assert.equal(outcome.result.status,'committed');
+   assert.equal(rows.length,1);assert.deepEqual(rows[0].data,{total:{minor:'202',currency:'EUR'},label:'saved',lines:[{amount:{minor:'202',currency:'EUR'}},{amount:{minor:'202',currency:'EUR'}}]});
+   assert.deepEqual(outcome.result.result,{id:rows[0].id});assert.equal(outcome.result.records.length,1);assert.deepEqual(outcome.result.records[0].data,mode==='let-created'?{total:{minor:'202',currency:'EUR'},label:'saved'}:{label:'saved'});assert.equal(Object.hasOwn(outcome.result.records[0].data,'lines'),false);
+   const replay=await invoker.invokeMutation({operation:'ScalarQuery.summarize',operation_id:uuidv7(FIXED_NOW,1),inputs:{root:{id:root.id,version:String(root.version)}}},identity);
+   assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');assert.deepEqual(replay.result.result,outcome.result.result);
+   assert.deepEqual(await backing.query({model:asModel('ScalarQuery.Snapshot'),authority:'owner'}),rows);
+  }else{assert.ok('error'in outcome,JSON.stringify(outcome));assert.equal(outcome.error.code,mode==='let-created-empty'?'rule_failed':'forbidden');assert.deepEqual(rows,[]);if(mode==='let-created-empty')assert.deepEqual(await backing.query({model:asModel('ScalarQuery.Item'),authority:'owner'}),[]);}
+  assert.deepEqual(current,root);assert.deepEqual(await backing.historyFor(asModel('ScalarQuery.Root'),root.id),history);assert.deepEqual(await backing.outboxPending(),[]);
+  continue;
+ }
  const success=mode==='allowed'||mode==='hidden'||mode==='contract'||mode==='finalization-race'||mode==='let-values'||mode==='let-race'||mode==='let-empty'||mode==='let-member',current=await backing.load(asModel('ScalarQuery.Root'),root.id);
  assert.ok(current);assert.equal('result'in outcome,success,mode+': '+JSON.stringify(outcome));
  if(success){assert.equal(outcome.result.status,'committed');if(mode==='let-empty'){assert.deepEqual(current.data.lines,[]);assert.deepEqual(current.data.total,root.data.total);}else if(mode==='let-values'||mode==='let-race'||mode==='let-member'){assert.deepEqual(current.data.lines,[{amount:{minor:mode==='let-race'?'1802':'202',currency:'EUR'}},{amount:{minor:'202',currency:'EUR'}}]);assert.deepEqual(current.data.total,mode==='let-member'?{minor:'202',currency:'EUR'}:root.data.total);}else if(mode==='contract'){assert.deepEqual(current.data.lines,[{amount:{minor:'202',currency:'EUR'}}]);assert.deepEqual(current.data.total,root.data.total);}else assert.deepEqual(current.data.total,{minor:mode==='hidden'?'0':mode==='finalization-race'?'1802':'202',currency:'EUR'});assert.equal(current.version,root.version+1);}

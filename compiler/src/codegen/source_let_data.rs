@@ -1059,7 +1059,7 @@ pub(super) fn collect_native_query_values(
     let IrItemKind::Scenario {
         params,
         effects,
-        result: None,
+        result,
         read: false,
         trusted: false,
         hook: None,
@@ -1068,6 +1068,11 @@ pub(super) fn collect_native_query_values(
     else {
         return None;
     };
+    if result.is_some()
+        && super::scenario_receipts::checked_created_model_result(ir, owner).is_none()
+    {
+        return None;
+    }
     let source = serde_json::to_value(super::scenario_receipts::transport_source(
         &facts.source,
         module,

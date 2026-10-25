@@ -7114,7 +7114,7 @@ fn checked_native_value_query_plan(
     let queries = facts.queries.as_deref()?;
     let IrItemKind::Scenario {
         effects,
-        result: None,
+        result,
         read: false,
         trusted: false,
         hook: None,
@@ -7123,6 +7123,9 @@ fn checked_native_value_query_plan(
     else {
         return None;
     };
+    if result.is_some() && checked_created_model_result(ir, owner).is_none() {
+        return None;
+    }
     if values.is_empty()
         || values.len() > 200
         || checked.returns.iter().any(|returned| {

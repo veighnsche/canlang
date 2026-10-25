@@ -20640,7 +20640,8 @@ impl<'a> Closure<'a> {
             || scenario.on.is_some()
             || scenario.cohort.is_some()
             || scenario.scope_authority
-            || self.types.symbol_results.get(&scenario.scenario)?.is_some()
+            || self.types.symbol_results.get(&scenario.scenario)?.as_ref().is_some_and(|result|
+                !matches!(result,ResolvedType::Record{symbol,stored:true}if self.effects.models.contains_key(symbol)))
         {
             return Some(Vec::new());
         }
