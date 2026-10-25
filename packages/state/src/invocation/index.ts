@@ -61,6 +61,7 @@ export {
 } from './scenario-receipt.js';
 export { checkScenarioReceiptMembershipSites } from './scenario-membership-plan.js';
 export {
+  openTrustedOwnerMembershipObservation,
   MAX_ADMISSION_ATTEMPTS,
   invoke,
   invokeRetainedReceiptOnly,

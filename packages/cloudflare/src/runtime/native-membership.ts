@@ -6,7 +6,7 @@ import { bindScenarioReceiptMembershipProducer, evaluateScenarioReceiptMembershi
   type ScenarioReceiptMembershipSite, type ScenarioReceiptMembershipHandle,
   type ReadPolicyMembershipHandle, type InstalledSourceReadPredicate,
   type InstalledSourceQueryPredicate } from '@canlang/state';
-import { assertScenarioReceiptCallExecution, stableStringify, type AdmittedCall,
+import { openTrustedOwnerMembershipObservation, assertScenarioReceiptCallExecution, stableStringify, type AdmittedCall,
   checkScenarioReceiptMembershipSites,
   bindScenarioReceiptSendMembershipProducer, evaluateScenarioReceiptSendMembership,
   bindScenarioDispatchMembershipProducer, type ScenarioDispatchMembershipPorts,
@@ -53,6 +53,7 @@ interface Frame {
   readonly store?: StoragePort;
   readonly observation?: Observation;
   readonly readScenario?: AdmittedReadScenarioCall;
+  readonly trustedOwner?: ReturnType<typeof openTrustedOwnerMembershipObservation>;
   readonly sourceSend?: { readonly predicate: string; readonly node: string };
   readonly dispatch?: {
     readonly execution: DispatchGuardExecution;
@@ -70,6 +71,7 @@ interface Frame {
   captured: { readonly occurrence: Occurrence; readonly person: UserRef; readonly team: TeamScope } | null;
 }
 const owners = new WeakMap<GeneratedOperationDef, Binding>();
+const trustedOwners = new WeakMap<GeneratedOperationDef, Binding>();
 const readScenarios = new WeakMap<GeneratedOperationDef, Binding>();
 const reads = new WeakMap<Read, ReadonlyMap<string, Binding>>();
 const frames = new WeakMap<HandlerContext, Frame>();
@@ -161,7 +163,8 @@ function checked(c: HandlerContext): Frame {
     if (!frame.active || c.team !== frame.nativeTeam || stableStringify(frame.team) !== frame.teamSnapshot) {
       return refuse('original live native Team/context required.');
     }
-    if (frame.call !== undefined) assertScenarioReceiptCallExecution(frame.call, frame.store!);
+    if (frame.trustedOwner !== undefined) frame.trustedOwner.assertActive();
+    else if (frame.call !== undefined) assertScenarioReceiptCallExecution(frame.call, frame.store!);
     if (frame.sourceSend !== undefined && sourceSendCalls.get(frame.call!) !== frame) {
       return refuse('source SEND requires its exact fresh native frame.');
     }
@@ -254,6 +257,35 @@ export function bindNativeOwnerMembership(def: GeneratedOperationDef, input: {
   const handles = bindScenarioReceiptMembershipProducer(def, { ...input,
     capture: (call, site, index) => capture(calls.get(call), site, index) });
   owners.set(def, binding(input.sites, handles));
+}
+
+/** Only the verified private cohort factory installs this original body inventory. */
+export function bindNativeTrustedOwnerMembership(def: GeneratedOperationDef, input: {
+  readonly source: ScenarioReceiptSourceOrigin; readonly sites: readonly ScenarioReceiptMembershipSite[];
+}): void {
+  if (trustedOwners.has(def) || owners.has(def) || def.descriptor.result?.disclosure !== undefined) return refuse('one receipt-free private owner binding required.');
+  const sites = checkScenarioReceiptMembershipSites(input.sites);
+  if (sites.length === 0 || sites.some(site => site.owner !== def.name ||
+      stableStringify(site.source) !== stableStringify(input.source) ||
+      site.stage !== 'body-condition' && site.stage !== 'leading-require')) return refuse('exact original private body membership sites required.');
+  trustedOwners.set(def, binding(sites));
+}
+
+export function hasNativeTrustedOwnerMembership(def: GeneratedOperationDef): boolean { return trustedOwners.has(def); }
+
+/** Source admission stays in the private cohort factory. State independently
+ * redeems the actual admitted call; a context/Team object cannot activate it. */
+export function openNativeTrustedOwnerMembershipFrame(c: HandlerContext, call: AdmittedCall,
+  store: StoragePort, failure: (error: unknown) => void): NativeMembershipFrame {
+  const installed = trustedOwners.get(call.def as GeneratedOperationDef);
+  if (installed === undefined || calls.has(call) || call.context.team === null || c.team == null ||
+      c.team.id !== call.context.team.teamId || c.team.timezone !== call.context.team.timezone) return refuse('actual installed private owner and original Team required.');
+  const trustedOwner = openTrustedOwnerMembershipObservation(call);
+  const frame: Frame = { binding: installed, nativeTeam: c.team, team: call.context.team,
+    teamSnapshot: stableStringify(call.context.team), call, store, failure, trustedOwner,
+    active: true, pending: false, failed: false, error: undefined, captured: null };
+  const lifecycle = open(c, frame); calls.set(call, frame);
+  return Object.freeze({ assertCompleted: () => lifecycle.assertCompleted(), close: () => { trustedOwner.close(); lifecycle.close(); } });
 }
 
 /** The verified read module supplies the exact active_member occurrence
@@ -544,6 +576,7 @@ async function resolveMemberValue(frame: Frame, matches: Frame['binding']['occur
     }
     return frame.readScenario.activeMember(person.id);
   }
+  if (frame.trustedOwner !== undefined) return frame.trustedOwner.activeMember(person.id);
   if (occurrence.handle === undefined) return refuse('membership lacks its checked State handle.');
   frame.captured = { occurrence, person, team: frame.team! };
   if (frame.call !== undefined) {

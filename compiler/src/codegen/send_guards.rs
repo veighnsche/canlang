@@ -116,6 +116,7 @@ pub(super) fn retained_handler_receipt(
     super::scenario_decisions::owner_handler_queries(context, owner)?;
     let IrItemKind::Scenario {
         event_source: Some(super::ir::IrEventSource::Declared(event)),
+        cohort: None,
         ..
     } = &owner.kind
     else {

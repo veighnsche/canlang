@@ -24064,6 +24064,24 @@ impl<'a> Emitter<'a> {
                     // Their shared derives must not borrow another owner's
                     // invoice collection/issue query markers.
                     self.retained_owner_body = self.owner_handler_body;
+                    let previous_membership_sites = self.membership_rule_sites.take();
+                    if self.owner_handler_body
+                        && matches!(
+                            &item.kind,
+                            IrItemKind::Scenario {
+                                cohort: Some(_),
+                                ..
+                            }
+                        )
+                    {
+                        // The complete private owner join already seals this cohort.
+                        // Inline only exact original derive occurrences so repeated
+                        // membership helpers retain their outer call-chain selectors.
+                        self.membership_rule_sites = self
+                            .membership_sites
+                            .and_then(|sites| sites.get(&item.canonical))
+                            .cloned();
+                    }
                     self.receipt_call_sites = self
                         .native_call_sites
                         .get(&item.id)
@@ -24119,6 +24137,7 @@ impl<'a> Emitter<'a> {
                     }
                     self.owner_handler_body = false;
                     self.retained_owner_body = false;
+                    self.membership_rule_sites = previous_membership_sites;
                     self.viewer_read_body = false;
                     self.receipt_capture = None;
                     self.current_revision_binding = None;
