@@ -134,6 +134,8 @@ jobs:
             echo "Compiler artifact joins did not execute against the real catalog." >&2
             exit 1
           fi
+      - name: Test native development server with real SDK
+        run: cargo test --locked --manifest-path dev-server/Cargo.toml
       - name: Validate portable editor grammar and editing configuration
         run: node editors/vscode/test/language-configuration.cjs
       - name: Compile editor client
