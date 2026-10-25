@@ -3525,6 +3525,18 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                             .any(|query| query.first.is_some() && query.model == dependency.model)
                     })
                     && !optional_selected
+                    && !source_context
+                        .zip(checked.source_facts.as_deref())
+                        .is_some_and(|(context, facts)| {
+                            checked_helper_identity_reference(
+                                context,
+                                item,
+                                dependency,
+                                sites.members[&site][0],
+                                facts,
+                            )
+                            .is_some()
+                        })
                     && checked_created_row_operand(
                         ir,
                         item,
@@ -3686,6 +3698,24 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                         return None;
                     }
                     "file[]".into()
+                } else if let Some(contract) = stored_contract_inventory_type(
+                    ir,
+                    value_types,
+                    ty,
+                    declared[0],
+                    stored,
+                    checked.source_facts.as_deref(),
+                    db,
+                    item.canonical == "agreements.notice"
+                        && dependency.model_name == "agreements.Term"
+                        && dependency.field_name == "snapshot"
+                        && checked_notice_event_row_path(ir, item, base, db?)
+                            == Some(dependency.model),
+                ) {
+                    if transition.is_some() || contract != dependency.type_id {
+                        return None;
+                    }
+                    contract
                 } else if *required_array {
                     return None;
                 } else if let ResolvedType::Enum {
@@ -3775,24 +3805,6 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                         return None;
                     }
                     prefix
-                } else if let Some(contract) = stored_contract_inventory_type(
-                    ir,
-                    value_types,
-                    ty,
-                    declared[0],
-                    stored,
-                    checked.source_facts.as_deref(),
-                    db,
-                    item.canonical == "agreements.notice"
-                        && dependency.model_name == "agreements.Term"
-                        && dependency.field_name == "snapshot"
-                        && checked_notice_event_row_path(ir, item, base, db?)
-                            == Some(dependency.model),
-                ) {
-                    if transition.is_some() || contract != dependency.type_id {
-                        return None;
-                    }
-                    contract
                 } else {
                     if transition.is_some()
                         || !supported_type_id(&dependency.type_id)
@@ -16434,6 +16446,7 @@ fn stored_contract_declaration<'i>(
     ir: &'i IrProgram,
     ty: &ResolvedType,
     field: &JsModelField,
+    stored: &IrItem,
 ) -> Option<(&'i IrItem, crate::analysis::SymbolId, bool, bool)> {
     let (ty, nullable) = match ty {
         ResolvedType::Nullable(inner) => (inner.as_ref(), true),
@@ -16447,6 +16460,8 @@ fn stored_contract_declaration<'i>(
         } => (element.as_ref(), true),
         ty => (ty, false),
     };
+    let IrItemKind::Field { required_array: required, .. } = &stored.kind else { return None; };
+    let required = *required;
     let ResolvedType::Record { symbol, .. } = ty else {
         return None;
     };
@@ -16464,13 +16479,20 @@ fn stored_contract_declaration<'i>(
                 format!(
                     "{}{}{}",
                     declaration.canonical,
-                    if array { "[]" } else { "" },
+                    if required {
+                        "[]!"
+                    } else if array {
+                        "[]"
+                    } else {
+                        ""
+                    },
                     if nullable { "?" } else { "" }
                 )
                 .as_str(),
             )
         || field.nullable != nullable
-        || field.array_required != if array { Some(false) } else { None }
+        || !array && required
+        || field.array_required != if array { Some(required) } else { None }
         || field.machine.is_some()
         || fields.is_empty()
         || fields.len() > 200
@@ -16604,7 +16626,7 @@ fn stored_contract_inventory_type(
     db: Option<&SourceDb>,
     nullable_notice_snapshot: bool,
 ) -> Option<String> {
-    let (declaration, symbol, nullable, array) = stored_contract_declaration(ir, ty, field)?;
+    let (declaration, symbol, nullable, array) = stored_contract_declaration(ir, ty, field, stored)?;
     if nullable
         && (!nullable_notice_snapshot
             || stored.canonical != "agreements.Term.snapshot"
@@ -16642,7 +16664,13 @@ fn stored_contract_inventory_type(
     Some(format!(
         "{}{}{}",
         declaration.canonical,
-        if array { "[]" } else { "" },
+        if array && field.array_required == Some(true) {
+            "[]!"
+        } else if array {
+            "[]"
+        } else {
+            ""
+        },
         if nullable { "?" } else { "" }
     ))
 }

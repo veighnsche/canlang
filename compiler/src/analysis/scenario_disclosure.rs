@@ -4003,6 +4003,51 @@ impl<'a> Closure<'a> {
         None
     }
 
+    /// One original whole stored Contract array, with its declared marker.
+    /// The copied elements remain Values; no Model/File/opaque view is issued.
+    fn stored_plain_contract_array_type(
+        &self,
+        field: SymbolId,
+        ty: &ResolvedType,
+    ) -> Option<(SymbolId, String)> {
+        let ResolvedType::Array {
+            element,
+            ordered: true,
+            nonempty: false,
+        } = ty
+        else {
+            return None;
+        };
+        let ResolvedType::Record {
+            symbol: contract, ..
+        } = element.as_ref()
+        else {
+            return None;
+        };
+        if !self.is_contract_symbol(*contract)
+            || !self.source_require_plain_value(ty, 0)
+            || self.types.symbol_types.get(&field) != Some(ty)
+        {
+            return None;
+        }
+        let SymbolKind::Field { owner, .. } = &self.resolve.symbols.get(field.0 as usize)?.kind
+        else {
+            return None;
+        };
+        let declaration = self
+            .effects
+            .models
+            .get(owner)?
+            .fields
+            .iter()
+            .find(|declaration| declaration.field == field)?;
+        let mut type_id = checked_stored_contract_type_id(ty, None, self.resolve, 0)?;
+        if declaration.required_array {
+            type_id.push('!');
+        }
+        Some((*contract, type_id))
+    }
+
     fn field_type_id(
         &self,
         key: NodeKey,
@@ -7361,7 +7406,9 @@ impl<'a> Closure<'a> {
                     .clone()
             }
             _ => self
-                .reference_operand_type_id(&ty)
+                .stored_plain_contract_array_type(field.id, &ty)
+                .map(|(_, type_id)| type_id)
+                .or_else(|| self.reference_operand_type_id(&ty))
                 .or_else(|| self.field_type_id(node, field.id, &ty).ok())?,
         };
         Some(DisclosureDependency {
@@ -24030,32 +24077,11 @@ impl<'a> Closure<'a> {
             value.first_query = None;
             value.reference_origin = None;
             type_id
-        } else if let ResolvedType::Array {
-            element,
-            ordered: true,
-            nonempty: false,
-        } = field_ty
-            && let ResolvedType::Record {
-                symbol: contract, ..
-            } = element.as_ref()
-            && self.is_contract_symbol(*contract)
-            && self.source_require_plain_value(field_ty, 0)
-            && self.effects.models.get(&model).is_some_and(|model| {
-                model
-                    .fields
-                    .iter()
-                    .any(|declaration| declaration.field == field.id && !declaration.required_array)
-            })
+        } else if let Some((contract, type_id)) =
+            self.stored_plain_contract_array_type(field.id, field_ty)
         {
-            // One ordered whole-value observation. Elements remain canonical
-            // Contract data and cannot issue a Model/File/reference view.
-            value.contract_value = Some(ContractValue::Array(*contract));
-            checked_stored_contract_type_id(field_ty, None, self.resolve, 0).ok_or_else(|| {
-                self.fail(
-                    key,
-                    "stored Contract array needs its exact declared nominal type",
-                )
-            })?
+            value.contract_value = Some(ContractValue::Array(contract));
+            type_id
         } else if matches!(field_ty, ResolvedType::Record { .. })
             || matches!(field_ty, ResolvedType::Nullable(inner)
                 if matches!(inner.as_ref(), ResolvedType::Record { .. }))

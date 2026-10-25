@@ -4874,6 +4874,139 @@ fn original_helper_parent_reference_keeps_containment_and_field_identity() {
             "{mode}"
         );
     }
+    // A created helper receiver copies one whole declared Contract array;
+    // required arrays retain their exact marker rather than element authority.
+    for required in [false, true] {
+        let marker = if required { "[]!" } else { "[]" };
+        let array_source = created_source
+            .replace("  export contract Entitlement {source:text,customer:text,location:text,quantity:int}",
+                &format!("  export contract Interval {{from:datetime,until:datetime}}\n  export contract Entitlement {{source:text,customer:text,location:text,quantity:int,intervals:Interval{marker}}}"))
+            .replace(" use api {Entitlement,", " use api {Interval,Entitlement,")
+            .replace("Movement in Booking {source:text,last:text?}", &format!("Movement in Booking {{source:text,last:text?,intervals:Interval{marker}}}"))
+            .replace("quantity=movement.parent.quantity}", "quantity=movement.parent.quantity,intervals=movement.intervals}")
+            .replace("create Movement {parent=booking,source=operation.id}", "create Movement {parent=booking,source=operation.id,intervals=[Interval {from=datetime(\"2099-01-01T09:00:00Z\"),until=datetime(\"2099-01-01T10:00:00Z\")}]}" );
+        let (array_db, array_program, array_ir, array_catalog) =
+            fixture_source("created-helper-array.can", &array_source);
+        let array_owner = item(&array_ir, "reservations.move");
+        assert!(
+            matches!(
+                &array_ir.scenario_disclosures[&array_owner.id],
+                ScenarioDisclosure::Complete(_)
+            ),
+            "{:?}",
+            array_ir.scenario_disclosures[&array_owner.id]
+        );
+        let (artifact, diagnostics) = prepared_artifact(&array_program, &array_db, &array_catalog);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let operation = artifact["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|operation| operation["name"] == array_owner.canonical)
+            .unwrap();
+        let expected_type = format!("api.Interval{marker}");
+        assert!(
+            operation["result"]["disclosure"]["returns"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(
+                    |returned| returned["dependencies"].as_array().unwrap().iter().any(
+                        |dependency| dependency["model"] == "reservations.Movement"
+                            && dependency["field"] == "intervals"
+                            && dependency["type"] == expected_type
+                    )
+                ),
+            "{operation}"
+        );
+        assert!(
+            serialize_complete_query_receipt(
+                &array_program,
+                &array_ir,
+                array_owner,
+                &array_db,
+                Some(&array_catalog),
+                "$can$m$4372656174656448656c706572.mjs"
+            )
+            .is_some(),
+            "{required}: original whole-array source must serialize before testing mutations"
+        );
+        for mode in [
+            "array-marker",
+            "required-marker",
+            "contract-leaf",
+            "contract-order",
+            "helper-source",
+        ] {
+            let mut changed = array_ir.clone();
+            if mode == "array-marker" {
+                let field = item(&changed, "reservations.Movement.intervals").id;
+                let IrItemKind::Field {
+                    ty: IrType::Known(ResolvedType::Array { nonempty, .. }),
+                    ..
+                } = &mut changed.items[field.0 as usize].kind
+                else {
+                    panic!("array");
+                };
+                *nonempty = !*nonempty;
+            } else if mode == "required-marker" {
+                let field = item(&changed, "reservations.Movement.intervals").id;
+                let IrItemKind::Field { required_array, .. } =
+                    &mut changed.items[field.0 as usize].kind
+                else {
+                    panic!("required marker");
+                };
+                *required_array = !*required_array;
+            } else if mode == "contract-order" {
+                let contract = item(&changed, "api.Interval").id;
+                let IrItemKind::Contract { fields, .. } =
+                    &mut changed.items[contract.0 as usize].kind
+                else {
+                    panic!("contract");
+                };
+                fields.swap(0, 1);
+            } else if mode == "contract-leaf" {
+                let field = item(&changed, "api.Interval.until").id;
+                let IrItemKind::Field { ty, .. } = &mut changed.items[field.0 as usize].kind else {
+                    panic!("leaf");
+                };
+                *ty = IrType::Known(ResolvedType::Scalar(Scalar::File));
+            } else {
+                let helper = item(&changed, "reservations.movement_request").id;
+                let IrItemKind::DeriveFn {
+                    expr: Some(body), ..
+                } = &mut changed.items[helper.0 as usize].kind
+                else {
+                    panic!("helper");
+                };
+                let IrExpr::Object(fields) = &mut body.expr else {
+                    panic!("object");
+                };
+                let IrExpr::Member { base, .. } = &mut fields
+                    .iter_mut()
+                    .find(|(name, _)| name == "intervals")
+                    .unwrap()
+                    .1
+                    .expr
+                else {
+                    panic!("member");
+                };
+                base.expr = IrExpr::Name("other".into());
+            }
+            assert!(
+                serialize_complete_query_receipt(
+                    &array_program,
+                    &changed,
+                    &changed.items[array_owner.id.0 as usize],
+                    &array_db,
+                    Some(&array_catalog),
+                    "$can$m$4372656174656448656c706572.mjs"
+                )
+                .is_none(),
+                "{required}:{mode}"
+            );
+        }
+    }
     for mode in ["helper-parent-receiver", "schema-parent", "location-target"] {
         let mut changed = ir.clone();
         if mode == "schema-parent" {

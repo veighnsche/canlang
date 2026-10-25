@@ -2851,11 +2851,15 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
       return invalid('first guard mark requires its exact checked decision-consumed occurrence.');
     }
     const interval = firstQueryNode(metadata.query), node = firstQueryNode(metadata.node), statement = firstQueryNode(metadata.statement);
-    const containedOrderOnlyTarget = metadata.targetConsumed === true && query?.parent !== undefined &&
-      query.order.length === 1 && bound.plan.queries?.length === 1 &&
+    // An ordinary order-only FIRST observes the genuine viewer domain even
+    // when no candidate field enters its predicate. Decision-only targets keep
+    // their existing separate source-backed checks at execution.
+    const containedOrderOnly = (metadata.targetConsumed === true ||
+      metadata.guardConsumed === undefined && metadata.presenceConsumed === undefined && metadata.targetConsumed === undefined) &&
+      query?.parent !== undefined && query.order.length === 1 && bound.plan.queries?.length === 1 &&
       bound.resultModel === undefined && bound.type === 'void';
     if (query === undefined || !checkedFirstQueryParent(bound, def, query, policy, readPolicies) || query.limit !== null || query.archived !== 'exclude' ||
-        query.dependencies.length === 0 && !containedOrderOnlyTarget ||
+        query.dependencies.length === 0 && !containedOrderOnly ||
         !referenceFirstPredicate(bound, query, metadata as unknown as ScenarioReceiptQueryFirstMetadata) && query.dependencies.some(dependency => dependency.role !== 'control' ||
           (!['bool','int','decimal','text','money','date','datetime','duration','currency','user'].includes(dependency.type) &&
             !(dependency.type.length > 0 && bound.artifactModels.get(query.model)?.fields.some(field => field.name === dependency.field &&

@@ -3424,7 +3424,23 @@ it('observes original helper parent getters at their authored identity reads', {
   const createdArtifact=JSON.parse(createdOutput.stdout) as CompileArtifact;
   assert.ok(createdArtifact.operations?.find(operation=>operation.name==='reservations.move')?.result?.disclosure,'actual native Movement receipt required');
   const createdAsm=await assembleModules({artifact:createdArtifact,sourcePath:createdSource},{workDir:join(directory,'created'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
-  for(const mode of ['allowed','hidden-booking','hidden-resource','hidden-customer','hidden-location','identity-race','reference-race','stale']){
+  const arrayText=(await readFile(createdSource,'utf8'))
+   .replace('  export contract Entitlement {source:text,customer:text,location:text,quantity:int}','  export contract Interval {from:datetime,until:datetime}\n  export contract Entitlement {source:text,customer:text,location:text,quantity:int,intervals:Interval[]!}')
+   .replace(' use api {Entitlement,',' use api {Interval,Entitlement,')
+   .replace('Movement in Booking {source:text,last:text?}','Movement in Booking {source:text,last:text?,intervals:Interval[]!}')
+   .replace('quantity=movement.parent.quantity}','quantity=movement.parent.quantity,intervals=movement.intervals}')
+   .replace('   do\n    create Movement','   do\n    let previous=first(booking.Movement as row order=row.id)\n    require previous==null\n    create Movement')
+   .replace('create Movement {parent=booking,source=operation.id}','create Movement {parent=booking,source=operation.id,intervals=[Interval {from=datetime("2099-01-01T09:00:00Z"),until=datetime("2099-01-01T10:00:00Z")}]}');
+  const arrayVariants=new Map<string,{artifact:CompileArtifact;asm:typeof createdAsm}>();
+  for(const [name,text]of [['array',arrayText],['withheld-array',arrayText.replace('policy Movement read=members','policy Movement read=members fields=source,last,parent')]]){
+   const source=join(directory,name+'.can');await writeFile(source,text!);
+   const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+   const artifact=JSON.parse(stdout)as CompileArtifact;
+   const plan=artifact.operations?.find(operation=>operation.name==='reservations.move')?.result?.disclosure;
+   assert.ok(plan?.returns.some(returned=>returned.dependencies.some(dependency=>dependency.model==='reservations.Movement'&&dependency.field==='intervals'&&dependency.type==='api.Interval[]!')),'whole required Contract array retains its exact native DATA field dependency');
+   arrayVariants.set(name!,{artifact,asm:await assembleModules({artifact,sourcePath:source},{workDir:join(directory,name!+'-modules'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')})});
+  }
+  for(const mode of ['allowed','hidden-booking','hidden-resource','hidden-customer','hidden-location','identity-race','reference-race','stale','required-array','withheld-array','array-identity-race','array-reference-race','array-existing']){
    const {now,identities,identity,membership}=await member('created-helper-'+mode);
    const {store}=createTestMemoryStorage();
    const row=(model:string,id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({kind:'insert' as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
@@ -3435,22 +3451,28 @@ it('observes original helper parent getters at their authored identity reads', {
     row('reservations.Resource','resource',{location:{id:'location'},visible:mode!=='hidden-resource'}),
     row('reservations.Booking','booking',{customer:{id:'customer'},quantity:'3',visible:mode!=='hidden-booking'},{model:asModel('reservations.Resource'),id:asId('resource')})
    ]}));
+   const previous=mode==='array-existing'?row('reservations.Movement','previous',{source:'previous-operation',last:null,intervals:[{from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T10:00:00.000Z'}]},{model:asModel('reservations.Booking'),id:asId('booking')}):undefined;
+   if(previous!==undefined)await store.commit(makeBatch(await store.readRevision(),{writes:[previous]}));
    const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
-   store.load=async(model,id)=>{const value=await load(model,id);if(model==='reservations.Movement'&&mode==='identity-race'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return value;};
-   store.commit=async batch=>{if(mode==='reference-race'&&batch.writes.some(write=>write.kind==='insert'&&write.model==='reservations.Movement')){
+   store.load=async(model,id)=>{const value=await load(model,id);if(model==='reservations.Movement'&&(mode==='identity-race'||mode==='array-identity-race')&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return value;};
+   store.commit=async batch=>{if((mode==='reference-race'||mode==='array-reference-race')&&batch.writes.some(write=>write.kind==='insert'&&write.model==='reservations.Movement')){
     raced=true;const model=asModel('reservations.Booking'),row=await load(model,asId('booking'));assert.ok(row);
     await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model,id:row.id,expectedVersion:row.version,row:{...row,version:asVersion(row.version+1),data:{...row.data,customer:{id:'other'}}}}]}));
    }return commit(batch);};
-   const invoker=buildInvoker(createdArtifact,createdAsm,store,{memberships:identities,now:()=>now});
+   const selected=arrayVariants.get(mode==='withheld-array'?'withheld-array':'array');
+   const arrayMode=mode==='required-array'||mode==='withheld-array'||mode.startsWith('array-');
+   const invoker=buildInvoker(arrayMode?selected!.artifact:createdArtifact,arrayMode?selected!.asm:createdAsm,store,{memberships:identities,now:()=>now});
    const request={operation:'reservations.move',operation_id:operationId(now),inputs:{booking:{id:'booking',version:mode==='stale'?'2':'1'}}};
-   const result=await invoker.invokeMutation(request,identity),success=['allowed','hidden-customer','hidden-location'].includes(mode);
+   const result=await invoker.invokeMutation(request,identity),success=['allowed','hidden-customer','hidden-location','required-array'].includes(mode);
    assert.equal('result'in result,success,mode+': '+JSON.stringify(result));
    if(mode.endsWith('-race'))assert.equal(raced,true,mode);
    const movement=await store.query({model:asModel('reservations.Movement'),authority:'owner'}),pending=await store.outboxPending();
-   assert.equal(movement.length,success?1:0,mode+': actual CREATE rollback');assert.equal(pending.length,success?1:0,mode+': actual SEND rollback');
+   assert.equal(movement.length,success||previous!==undefined?1:0,mode+': actual CREATE rollback');assert.equal(pending.length,success?1:0,mode+': actual SEND rollback');
+   if(previous!==undefined){assert.ok('error'in result);assert.equal(result.error.code,'rule_failed');assert.deepEqual(movement,[previous.row],'original nonempty FIRST refuses before publishing another Movement');}
    const evidence=await store.query({model:asModel('reservations.Evidence'),authority:'owner'});assert.equal(evidence.length,success?1:0,mode+': evidence rollback');
-   if(success){assert.deepEqual(pending[0]!.arguments,{binding:'reservations.Membership',from:'deployment.membership',arguments:{value:{source:request.operation_id,customer:'customer',location:'location',quantity:'3'}}});
+   if(success){assert.deepEqual(pending[0]!.arguments,{binding:'reservations.Membership',from:'deployment.membership',arguments:{value:{source:request.operation_id,customer:'customer',location:'location',quantity:'3',...(arrayMode?{intervals:[{from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T10:00:00.000Z'}]}:{})}}});
     assert.deepEqual(movement[0]!.parent,{model:'reservations.Booking',id:'booking'});
+    if(arrayMode){assert.deepEqual(movement[0]!.data.intervals,[{from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T10:00:00.000Z'}]);assert.deepEqual((evidence[0]!.data.value as {intervals:unknown}).intervals,movement[0]!.data.intervals);}
     const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));
     assert.deepEqual(await store.query({model:asModel('reservations.Movement'),authority:'owner'}),movement);assert.deepEqual(await store.outboxPending(),pending);}
   }
