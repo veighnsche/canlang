@@ -955,6 +955,39 @@ Then
         ("let-created-map-empty", mapped_empty_source),
         ("contract", contract_source.clone()),
         ("let-values", let_source.clone()),
+        (
+            "let-where",
+            let_source.replace(
+                "root.Item as item select",
+                "root.Item as item where item.quantity>0 order=item.quantity select",
+            ),
+        ),
+        (
+            "let-where-withheld",
+            let_source
+                .replace(
+                    "root.Item as item select",
+                    "root.Item as item where item.quantity>0 order=item.quantity select",
+                )
+                .replace(
+                    "fields=price,quantity,tax,discount",
+                    "fields=price,quantity,discount",
+                ),
+        ),
+        (
+            "let-where-unread-filter",
+            let_source.replace(
+                "root.Item as item select",
+                "root.Item as item where item.visible order=item.quantity select",
+            ),
+        ),
+        (
+            "let-filter-empty",
+            empty_source.replace(
+                "root.Item as item select",
+                "root.Item as item where item.quantity<0 order=item.quantity select",
+            ),
+        ),
         ("let-enum", enum_source.clone()),
         (
             "let-enum-withheld",
@@ -1061,6 +1094,8 @@ Then
         if matches!(
             mode,
             "let-values"
+                | "let-where"
+                | "let-filter-empty"
                 | "let-empty"
                 | "let-member"
                 | "let-created"
@@ -1250,7 +1285,7 @@ function alterValueMetadata(artifact,mode){
  }
  assert.ok(changed>=(mode==='forge-unissued-capture'||mode==='forge-created-version-unobserved'?1:2),mode+': actual inventory and private callback descriptors both changed');
 }
-for(const mode of ['let-created-version','let-created-version-set','let-created-version-race','forge-created-version-stage','forge-created-version-unobserved','allowed','projection-withheld','currency-withheld','hidden','finalization-race','contract','contract-withheld','let-values','let-enum','let-enum-withheld','let-withheld','let-root-withheld','let-race','let-empty','let-member','let-member-withheld','let-created','let-created-withheld','let-created-return-withheld','let-created-result-hidden','let-created-empty','let-created-map','let-created-map-withheld','let-created-map-empty','forge-model-cases-swapped','forge-pair-swapped','forge-enum-pair','forge-pair-duplicate','forge-pair-missing','forge-cases-swapped','forge-unissued-capture']){
+for(const mode of ['let-created-version','let-created-version-set','let-created-version-race','forge-created-version-stage','forge-created-version-unobserved','allowed','projection-withheld','currency-withheld','hidden','finalization-race','contract','contract-withheld','let-values','let-where','let-where-withheld','let-where-unread-filter','let-filter-empty','let-enum','let-enum-withheld','let-withheld','let-root-withheld','let-race','let-empty','let-member','let-member-withheld','let-created','let-created-withheld','let-created-return-withheld','let-created-result-hidden','let-created-empty','let-created-map','let-created-map-withheld','let-created-map-empty','forge-model-cases-swapped','forge-pair-swapped','forge-enum-pair','forge-pair-duplicate','forge-pair-missing','forge-cases-swapped','forge-unissued-capture']){
  const forged=mode.startsWith('forge-'),versionMode=mode.startsWith('let-created-version')||mode.startsWith('forge-created-version'),valuesMode=forged||mode.startsWith('let-');
  const variant=versionMode?'let-created-version':mode==='forge-enum-pair'?'let-enum':mode==='forge-model-cases-swapped'||mode==='let-created-empty'?'let-created':forged?'let-values':mode==='let-race'?'let-values':mode==='hidden'||mode==='finalization-race'?'allowed':mode;
  const artifact=JSON.parse(readFileSync(resolve(base,variant+'.json'),'utf8'));
@@ -1311,10 +1346,10 @@ for(const mode of ['let-created-version','let-created-version-set','let-created-
   assert.deepEqual(current,root);assert.deepEqual(await backing.historyFor(asModel('ScalarQuery.Root'),root.id),history);assert.deepEqual(await backing.outboxPending(),[]);
   continue;
  }
- const success=mode==='allowed'||mode==='hidden'||mode==='contract'||mode==='finalization-race'||mode==='let-values'||mode==='let-enum'||mode==='let-race'||mode==='let-empty'||mode==='let-member',current=await backing.load(asModel('ScalarQuery.Root'),root.id);
+ const success=mode==='allowed'||mode==='hidden'||mode==='contract'||mode==='finalization-race'||mode==='let-values'||mode==='let-enum'||mode==='let-race'||mode==='let-empty'||mode==='let-filter-empty'||mode==='let-where'||mode==='let-member',current=await backing.load(asModel('ScalarQuery.Root'),root.id);
  assert.ok(current);assert.equal('result'in outcome,success,mode+': '+JSON.stringify(outcome));
- if(success){assert.equal(outcome.result.status,'committed');if(mode==='let-empty'){assert.deepEqual(current.data.lines,[]);assert.deepEqual(current.data.total,root.data.total);}else if(mode==='let-values'||mode==='let-enum'||mode==='let-race'||mode==='let-member'){assert.deepEqual(current.data.lines,[{amount:{minor:mode==='let-race'?'1802':'202',currency:'EUR'},...(mode==='let-enum'?{label:'earlier'}:{})},{amount:{minor:'202',currency:'EUR'},...(mode==='let-enum'?{label:'earlier'}:{})}]);assert.deepEqual(current.data.total,mode==='let-member'?{minor:'202',currency:'EUR'}:root.data.total);}else if(mode==='contract'){assert.deepEqual(current.data.lines,[{amount:{minor:'202',currency:'EUR'}}]);assert.deepEqual(current.data.total,root.data.total);}else assert.deepEqual(current.data.total,{minor:mode==='hidden'?'0':mode==='finalization-race'?'1802':'202',currency:'EUR'});assert.equal(current.version,root.version+1);}
- else{assert.equal(outcome.error.code,mode==='finalization-race'?'conflict':'forbidden');assert.deepEqual(current,root);assert.deepEqual(await backing.historyFor(asModel('ScalarQuery.Root'),root.id),history);}
+ if(success){assert.equal(outcome.result.status,'committed');if(mode==='let-empty'||mode==='let-filter-empty'){assert.deepEqual(current.data.lines,[]);assert.deepEqual(current.data.total,root.data.total);}else if(mode==='let-values'||mode==='let-where'||mode==='let-enum'||mode==='let-race'||mode==='let-member'){assert.deepEqual(current.data.lines,[{amount:{minor:mode==='let-race'?'1802':'202',currency:'EUR'},...(mode==='let-enum'?{label:'earlier'}:{})},{amount:{minor:'202',currency:'EUR'},...(mode==='let-enum'?{label:'earlier'}:{})}]);assert.deepEqual(current.data.total,mode==='let-member'?{minor:'202',currency:'EUR'}:root.data.total);}else if(mode==='contract'){assert.deepEqual(current.data.lines,[{amount:{minor:'202',currency:'EUR'}}]);assert.deepEqual(current.data.total,root.data.total);}else assert.deepEqual(current.data.total,{minor:mode==='hidden'?'0':mode==='finalization-race'?'1802':'202',currency:'EUR'});assert.equal(current.version,root.version+1);}
+ else{assert.equal(outcome.error.code,mode==='let-where-unread-filter'?'validation':mode==='finalization-race'?'conflict':'forbidden');if(mode==='let-where-unread-filter')assert.match(outcome.error.message,/Query path.*visible.*not granted/);assert.deepEqual(current,root);assert.deepEqual(await backing.historyFor(asModel('ScalarQuery.Root'),root.id),history);}
  assert.deepEqual(await backing.outboxPending(),[]);if(mode==='finalization-race'){assert.equal(raced,true);const completed=await backing.historyFor(asModel('ScalarQuery.Root'),root.id);assert.equal(completed.length,history.length+1);assert.deepEqual(completed.at(-1).after.total,{minor:'1802',currency:'EUR'});assert.ok(completed.every(entry=>entry.after?.total?.minor!=='202'),'retry must publish only the fresh aggregate');}
 }
 "#).unwrap();

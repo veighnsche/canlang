@@ -13514,19 +13514,24 @@ impl<'a> Emitter<'a> {
                 };
                 let parent = self.lower_expr(parent);
                 self.enter_scope();
-                let row = self.bind(parameter);
+                let predicate_row = self.bind(&query.where_param);
                 let predicate = query
                     .where_pred
                     .as_ref()
                     .map(|value| self.lower_expr(value))
                     .unwrap_or_else(|| "true".into());
+                self.exit_scope();
+                // WHERE has its normalized binder; SELECT keeps its original
+                // alias. Neither clause borrows the other's lexical scope.
+                self.enter_scope();
+                let row = self.bind(parameter);
                 let selected = self.lower_expr(selected);
                 self.exit_scope();
                 self.stdlib.insert("executeScenarioReceiptQuery".into());
                 self.stdlib
                     .insert("executeScenarioReceiptQueryValueRow".into());
                 return format!(
-                    "(await (async()=>{{await ({parent});const $selected=await executeScenarioReceiptQuery(c,{},async({row})=>({predicate}));const $values=[];for(const {row} of $selected){{$values.push(await executeScenarioReceiptQueryValueRow(c,{row},async()=>({selected})));}}return $values;}})())",
+                    "(await (async()=>{{await ({parent});const $selected=await executeScenarioReceiptQuery(c,{},async({predicate_row})=>({predicate}));const $values=[];for(const {row} of $selected){{$values.push(await executeScenarioReceiptQueryValueRow(c,{row},async()=>({selected})));}}return $values;}})())",
                     js_string(&value.query.id)
                 );
             }

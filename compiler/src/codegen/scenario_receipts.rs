@@ -7270,6 +7270,29 @@ fn checked_native_value_query_plan(
         let IrExpr::Query(actual) = &expression.expr else {
             return None;
         };
+        // Model predicates use the original lowering's normalized row name;
+        // the authored As alias belongs to SELECT, not necessarily WHERE.
+        // Compare the exact fresh query, alongside the whole-owner join above.
+        let fresh_owner = context.fresh().items.get(owner.id.0 as usize)?;
+        let IrItemKind::Scenario {
+            effects: fresh_effects,
+            ..
+        } = &fresh_owner.kind
+        else {
+            return None;
+        };
+        let fresh_query = fresh_effects.iter().find_map(|statement| match statement {
+            IrStmt::Let {
+                value:
+                    TypedExpr {
+                        expr: IrExpr::Query(query),
+                        ..
+                    },
+                span,
+                ..
+            } if *span == node_span(value.statement) => Some(query),
+            _ => None,
+        })?;
         let alias = context
             .original()
             .types
@@ -7295,7 +7318,7 @@ fn checked_native_value_query_plan(
                     stored: true,
                 })
             || actual.where_pred.as_ref().map(|value| value.span) != query.predicate.map(node_span)
-            || query.predicate.is_some() && actual.where_param != *alias
+            || actual.where_param != fresh_query.where_param
             || actual.value_order.is_some()
             || actual.limit.is_some()
             || actual.archived.is_some()
