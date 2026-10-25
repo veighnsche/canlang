@@ -135,6 +135,7 @@ fn control_fields(ir: &IrProgram, model: SymbolId) -> Option<serde_json::Value> 
 }
 fn predicate(
     ir: &IrProgram,
+    context: &super::source_context::FreshSourceContext<'_>,
     value: &TypedExpr,
     roots: &HashMap<String, SymbolId>,
     values: &BTreeSet<String>,
@@ -161,13 +162,64 @@ fn predicate(
             entries.len() <= 200
                 && entries
                     .iter()
-                    .all(|entry| predicate(ir, entry, roots, values, stack, depth + 1))
+                    .all(|entry| predicate(ir, context, entry, roots, values, stack, depth + 1))
+        }
+        IrExpr::Binary {
+            op: IrBinOp::In,
+            left,
+            right,
+        } if matches!(&right.ty,
+            ResolvedType::Array{element,ordered:true,nonempty:false}if matches!(element.as_ref(),ResolvedType::Record{stored:true,..})) =>
+        {
+            let ResolvedType::Array { element, .. } = &right.ty else {
+                return false;
+            };
+            if left.ty != **element {
+                return false;
+            }
+            let paths = roots
+                .iter()
+                .map(|(name, model)| (name.clone(), *model))
+                .collect::<BTreeMap<_, _>>();
+            let Some((_, root, path)) =
+                super::source_send_data::scalar_field_receiver(ir, left, &paths)
+            else {
+                return false;
+            };
+            if path.iter().any(|(_, _, nullable)| *nullable)
+                || model_corresponds(context, root).is_none()
+                || path
+                    .iter()
+                    .any(|(_, model, _)| model_corresponds(context, *model).is_none())
+            {
+                return false;
+            }
+            let IrExpr::Member { base, field } = &right.expr else {
+                return false;
+            };
+            let Some(model) = record_model(ir, base, roots, 0) else {
+                return false;
+            };
+            if model_corresponds(context, model).is_none() {
+                return false;
+            }
+            let Some(IrItem {
+                kind: IrItemKind::Model { fields, .. },
+                ..
+            }) = ir.items.get(model.0 as usize)
+            else {
+                return false;
+            };
+            fields.iter().filter_map(|id|ir.items.get(id.0 as usize)).any(|item|item.name==*field
+                &&matches!(&item.kind,IrItemKind::Field{owner,ty:IrType::Known(ty),..}if *owner==model && ty==&right.ty))
         }
         IrExpr::Binary { left, right, .. } => {
-            predicate(ir, left, roots, values, stack, depth + 1)
-                && predicate(ir, right, roots, values, stack, depth + 1)
+            predicate(ir, context, left, roots, values, stack, depth + 1)
+                && predicate(ir, context, right, roots, values, stack, depth + 1)
         }
-        IrExpr::Unary { operand, .. } => predicate(ir, operand, roots, values, stack, depth + 1),
+        IrExpr::Unary { operand, .. } => {
+            predicate(ir, context, operand, roots, values, stack, depth + 1)
+        }
         IrExpr::Member { base, field } => {
             if field == "now"
                 && value.ty == ResolvedType::Scalar(Scalar::Datetime)
@@ -193,7 +245,7 @@ fn predicate(
             }
             control_type(&base.ty)
                 && control_type(&value.ty)
-                && predicate(ir, base, roots, values, stack, depth + 1)
+                && predicate(ir, context, base, roots, values, stack, depth + 1)
         }
         IrExpr::Call {
             target: IrCallTarget::DeriveFn(name),
@@ -271,14 +323,16 @@ fn predicate(
                     }
                     callee.insert(param.name.clone(), *symbol);
                     true
-                } else if control_type(ty) && predicate(ir, arg, roots, values, stack, depth + 1) {
+                } else if control_type(ty)
+                    && predicate(ir, context, arg, roots, values, stack, depth + 1)
+                {
                     pure.insert(param.name.clone());
                     true
                 } else {
                     false
                 }
             }) && used.len() == args.len()
-                && predicate(ir, body, &callee, &pure, stack, depth + 1);
+                && predicate(ir, context, body, &callee, &pure, stack, depth + 1);
             stack.remove(&helper.id);
             valid
         }
@@ -439,16 +493,40 @@ fn loop_write_value(
     value: &TypedExpr,
     values: &BTreeSet<String>,
     deliveries: &HashMap<&String, &String>,
+    item: &str,
+    model: SymbolId,
 ) -> bool {
     if super::source_send_data::send_value(ir, value, values, 0) {
         return true;
     }
     match &value.expr {
+        IrExpr::Name(name)
+            if name == item
+                && value.ty
+                    == (ResolvedType::Record {
+                        symbol: model,
+                        stored: true,
+                    }) =>
+        {
+            true
+        }
+        IrExpr::Member { base, field }
+            if field == "version"
+                && value.ty == ResolvedType::Scalar(Scalar::Int)
+                && matches!(&base.expr,IrExpr::Name(name)if name==item)
+                && base.ty
+                    == (ResolvedType::Record {
+                        symbol: model,
+                        stored: true,
+                    }) =>
+        {
+            true
+        }
         IrExpr::Object(fields) => {
             fields.len() <= 200
                 && fields
                     .iter()
-                    .all(|(_, value)| loop_write_value(ir, value, values, deliveries))
+                    .all(|(_, value)| loop_write_value(ir, value, values, deliveries, item, model))
         }
         IrExpr::Member { base, field }
             if field == "id" && value.ty == ResolvedType::Scalar(Scalar::Text) =>
@@ -472,6 +550,7 @@ fn body_counts(
     model: SymbolId,
     parameter: &str,
     parent_model: SymbolId,
+    root_model: SymbolId,
     values: &BTreeSet<String>,
 ) -> Option<(usize, usize, Vec<serde_json::Value>)> {
     // LET phases currently prove only their original straight-line SET body.
@@ -502,13 +581,15 @@ fn body_counts(
                 .any(|facts|facts.source_requires.as_deref().unwrap_or(&[]).iter().any(|site|
                     site.node.file==cond.span.file&&site.node.start==cond.span.start&&site.node.end==cond.span.end
                     &&matches!(site.position.as_slice(),[crate::analysis::scenario_disclosure::CheckedDecisionPosition::Body(_),crate::analysis::scenario_disclosure::CheckedDecisionPosition::Loop(_)])))=>{
-            let (child_writes,child_sends,child_work)=body_counts(ir,context,then_branch,item,model,parameter,parent_model,&values)?;
+            let (child_writes,child_sends,child_work)=body_counts(ir,context,then_branch,item,model,parameter,parent_model,root_model,&values)?;
             if child_sends!=0||!child_work.is_empty()&&(child_writes!=0||child_work.len()!=1||child_work[0]["kind"]!="schedule"){return None;}
             for mut site in child_work{site["stage"]=serde_json::json!(writes+site["stage"].as_u64()? as usize);site["conditional"]=serde_json::json!(true);work.push(site);}writes+=child_writes;
         },
-        IrStmt::Set{record,changes,when:None,..}if matches!(&record.expr,IrExpr::Name(name)if name==item)
+        IrStmt::Set{record,changes,when:None,..}if (matches!(&record.expr,IrExpr::Name(name)if name==item)
             &&record.ty==(ResolvedType::Record{symbol:model,stored:true})
-            &&loop_write_value(ir,changes,&values,&deliveries)=>{writes+=1;},
+            || matches!(&record.expr,IrExpr::Name(name)if name==parameter)
+                &&record.ty==(ResolvedType::Record{symbol:root_model,stored:true}))
+            &&loop_write_value(ir,changes,&values,&deliveries,item,model)=>{writes+=1;},
         IrStmt::Cancel{key,span,..}|IrStmt::Schedule{key,span,..}=>{
             if !matches!(&key.expr,IrExpr::Member{base,field}if field=="id"&&matches!(&base.expr,IrExpr::Name(name)if name==item)
                 &&base.ty==(ResolvedType::Record{symbol:model,stored:true}))||key.ty!=ResolvedType::Scalar(Scalar::Text){return None;}
@@ -788,6 +869,7 @@ fn collect_from_source(
                             value.ty != ResolvedType::Scalar(Scalar::Bool)
                                 || !predicate(
                                     ir,
+                                    context,
                                     value,
                                     &predicate_roots,
                                     values,
@@ -811,6 +893,7 @@ fn collect_from_source(
                         model.id,
                         &parameter,
                         parent_model,
+                        *roots.get(&parameter)?,
                         values,
                     )?;
                     if work.iter().any(|site| site["kind"] == "schedule") {

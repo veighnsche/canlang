@@ -3453,6 +3453,27 @@ fn emit_program_with_sources(
                                 continue;
                             }
                         }
+                        if let Some(loans) = super::source_let_data::collect(
+                            ir,
+                            owner,
+                            context,
+                            &emitter.source_requires,
+                            &module_path(&entry_name),
+                            Some(&loops),
+                            Some(&source),
+                        ) {
+                            if loans.values().any(|loan| loan.get("loop").is_none()) {
+                                emitter.unsupported("native source DATA phase", "native DATA outside its private loop needs its complete authenticated phase", owner.span);
+                            }
+                            emitter.source_let_data.extend(loans);
+                        }
+                        if !super::source_let_data::complete_loop_metadata(
+                            owner,
+                            &loops,
+                            &emitter.source_let_data,
+                        ) {
+                            emitter.unsupported("source loop metadata", "original selected row metadata needs its immediate authorized DATA observer", owner.span);
+                        }
                         if let Some(sends) = source_only_data_sends(
                             ir,
                             owner,
@@ -3522,8 +3543,26 @@ fn emit_program_with_sources(
                 &emitter.source_requires,
                 &module_path(&entry_name),
                 emitter.source_body_loops.get(&owner.canonical),
+                None,
             ) {
                 emitter.source_let_data.extend(loans);
+            }
+            if emitter
+                .source_body_loops
+                .get(&owner.canonical)
+                .is_some_and(|loops| {
+                    !super::source_let_data::complete_loop_metadata(
+                        owner,
+                        loops,
+                        &emitter.source_let_data,
+                    )
+                })
+            {
+                emitter.unsupported(
+                    "source loop metadata",
+                    "original selected row metadata needs its immediate authorized DATA observer",
+                    owner.span,
+                );
             }
             if let Some(values) = super::source_let_data::collect_query_values(
                 ir,

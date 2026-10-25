@@ -11,6 +11,7 @@ pub(super) fn collect(
     requires: &HashMap<Span, serde_json::Value>,
     module: &str,
     loops: Option<&serde_json::Value>,
+    native_source: Option<&serde_json::Value>,
 ) -> Option<HashMap<Span, serde_json::Value>> {
     let IrItemKind::Scenario {
         params,
@@ -23,10 +24,12 @@ pub(super) fn collect(
     else {
         return None;
     };
-    let source = requires
-        .values()
-        .find(|source| source["owner"] == owner.canonical)?["source"]
-        .clone();
+    let source = native_source.cloned().or_else(|| {
+        requires
+            .values()
+            .find(|source| source["owner"] == owner.canonical)
+            .map(|site| site["source"].clone())
+    })?;
     fn relevant(body: &[IrStmt]) -> bool {
         body.iter().any(|statement| match statement {
             IrStmt::Let { .. }
@@ -198,6 +201,26 @@ pub(super) fn collect(
             })
             .or_else(|| super::source_send_data::scalar_field_receiver(ir, base, roots))?;
         let model = &path.last().map(|(_, model, _)| *model).unwrap_or(root);
+        if path.is_empty()
+            && value.ty == ResolvedType::Scalar(crate::analysis::Scalar::Int)
+            && matches!(&value.expr,IrExpr::Member{field,..}if field=="version")
+            && matches!(&owner.kind,IrItemKind::Scenario{result:None,effects,..}if effects.iter().any(|statement|
+                matches!(statement,IrStmt::For{item,span,body,..}if body.iter().all(|statement|matches!(statement,IrStmt::Set{when:None,..})) && item==&parameter && span.file==value.span.file
+                    && span.start<=value.span.start && value.span.end<=span.end)))
+            && let IrItemKind::Model { fields, .. } = &ir.items[model.0 as usize].kind
+            && !fields
+                .iter()
+                .filter_map(|id| ir.items.get(id.0 as usize))
+                .any(|field| field.name == "version")
+        {
+            super::source_loops::model_corresponds(context, *model)?;
+            return Some(
+                serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},
+                "owner":owner.canonical,"node":{"start":span.start,"end":span.end},"stage":stage,"binding":name,
+                "parameter":parameter,"model":ir.items[root.0 as usize].canonical,
+                "field":{"name":"version","type":"int","metadata":true},"valueType":"int"}),
+            );
+        }
         let transport = |ty: &ResolvedType| {
             super::source_send_data::data_type(ir, ty).or_else(|| match ty {
                 ResolvedType::Record {
@@ -744,9 +767,7 @@ pub(super) fn collect(
                         return None;
                     }
                     let entry = loops?.get("loops")?.as_array()?.iter().find(|entry| {
-                        entry["node"]["start"] == span.start
-                            && entry["node"]["end"] == span.end
-                            && entry.get("work").is_some()
+                        entry["node"]["start"] == span.start && entry["node"]["end"] == span.end
                     })?;
                     let ResolvedType::Array { element, .. } = &domain.ty else {
                         return None;
@@ -900,6 +921,110 @@ pub(super) fn collect(
         loops,
     );
     Some(loans)
+}
+
+/// Newly supported selected references and versions need the private immediate
+/// DATA observation path, including domains with a direct admitted parent.
+pub(super) fn needs_selected_observation(owner: &IrItem) -> bool {
+    fn selected(value: &TypedExpr, item: &str) -> bool {
+        match &value.expr {
+            IrExpr::Name(name) => name == item,
+            IrExpr::Member { base, field } if field == "version" => {
+                matches!(&base.expr,IrExpr::Name(name)if name==item)
+            }
+            IrExpr::Object(fields) => fields.iter().any(|(_, value)| selected(value, item)),
+            _ => false,
+        }
+    }
+    matches!(&owner.kind,IrItemKind::Scenario{effects,..}if effects.iter().any(|statement|
+        matches!(statement,IrStmt::For{item,body,..}if body.iter().any(|statement|
+            matches!(statement,IrStmt::Set{changes,..}if selected(changes,item))))))
+}
+
+/// A newly supported item-version read must use its immediate DATA observer;
+/// a missing loan cannot silently fall back to an unobserved record getter.
+pub(super) fn complete_loop_metadata(
+    owner: &IrItem,
+    loops: &serde_json::Value,
+    loans: &HashMap<Span, serde_json::Value>,
+) -> bool {
+    fn value_complete(
+        value: &TypedExpr,
+        item: &str,
+        model: &serde_json::Value,
+        id: &serde_json::Value,
+        owner: &IrItem,
+        selected_authorized: bool,
+        loans: &HashMap<Span, serde_json::Value>,
+    ) -> bool {
+        match &value.expr {
+            IrExpr::Name(name) if name == item => selected_authorized,
+            IrExpr::Member { base, field }
+                if field == "version" && matches!(&base.expr,IrExpr::Name(name)if name==item) =>
+            {
+                loans.get(&value.span).is_some_and(|loan| {
+                    loan["owner"] == owner.canonical
+                        && loan["loop"] == *id
+                        && loan["model"] == *model
+                        && loan["parameter"] == item
+                        && loan["field"]["metadata"] == true
+                        && loan["field"]["name"] == "version"
+                        && loan["field"]["type"] == "int"
+                })
+            }
+            IrExpr::Object(fields) => fields.iter().all(|(_, value)| {
+                value_complete(value, item, model, id, owner, selected_authorized, loans)
+            }),
+            _ => true,
+        }
+    }
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return false;
+    };
+    effects.iter().all(|statement| {
+        let IrStmt::For {
+            item, span, body, ..
+        } = statement
+        else {
+            return true;
+        };
+        let Some(entry) = loops["loops"].as_array().and_then(|entries| {
+            entries.iter().find(|entry| {
+                entry["node"]["start"] == span.start && entry["node"]["end"] == span.end
+            })
+        }) else {
+            return true;
+        };
+        body.iter().all(|statement| match statement {
+            IrStmt::Set { changes, .. } => {
+                // This initial reference form shares the actual same-SET version DATA
+                // observation. A CONTROL-selected reference alone has no DATA grant.
+                let selected_authorized = loans.values().any(|loan| {
+                    loan["owner"] == owner.canonical
+                        && loan["loop"] == entry["id"]
+                        && loan["model"] == entry["model"]
+                        && loan["parameter"] == *item
+                        && loan["field"]["metadata"] == true
+                        && loan["node"]["start"]
+                            .as_u64()
+                            .is_some_and(|start| start >= changes.span.start as u64)
+                        && loan["node"]["end"]
+                            .as_u64()
+                            .is_some_and(|end| end <= changes.span.end as u64)
+                });
+                value_complete(
+                    changes,
+                    item,
+                    &entry["model"],
+                    &entry["id"],
+                    owner,
+                    selected_authorized,
+                    loans,
+                )
+            }
+            _ => true,
+        })
+    })
 }
 
 /// Only original immutable, pre-write LET values may cross a later guard.

@@ -23019,6 +23019,24 @@ impl<'a> Closure<'a> {
             value.model_result = None;
             return Ok(());
         }
+        if calls.is_empty() && self.loop_node.is_some_and(|loop_node| {
+            self.count_member(key).is_some_and(|(base, name)| name=="version"
+                && matches!(self.query_binding(base),Some(Binding::ForItem {node})if *node==loop_node)
+                && self.types.node_types.get(&base)==Some(&ResolvedType::Record {symbol:model,stored:true}))
+                && !self.model_has_field(model,"version")
+                && self.effects.scenarios.values().any(|scenario|scenario.module==module
+                    && !scenario.read && scenario.on.is_none() && scenario.result.is_none()
+                    && scenario.effects.iter().any(|outer|outer.node==loop_node
+                        && outer.node.start<=key.start && key.end<=outer.node.end))
+        }) {
+            // The source-only field observer reads actual metadata from the
+            // private active item; it supplies no saved-result read authority.
+            value.record=None;
+            value.reference=None;
+            value.reference_origin=None;
+            value.model_result=None;
+            return Ok(());
+        }
         let kind = value.reference.clone().ok_or_else(|| {
             self.fail(
                 key,
@@ -30423,7 +30441,6 @@ impl<'a> Closure<'a> {
             return Err(fail());
         };
         if *parent != root
-            || declaration.module != module
             || self.effects.models.get(&model).ok_or_else(fail)?.owner != ModelOwner::ChildOf(root)
             || self.types.node_types.get(&base)
                 != Some(&ResolvedType::Record {
@@ -31551,6 +31568,14 @@ impl<'a> Closure<'a> {
                                 && value.reads.iter().any(|read|read.node==key&&read.model==source_model&&read.field==field
                                     && read.ty==ResolvedType::Record {symbol:model,stored:true}
                                     &&read.calls.is_empty()&&read.query_id.is_none()))
+                || self.loop_node.is_some_and(|loop_node| {
+                    matches!(self.query_binding(key),Some(Binding::ForItem {node}) if *node==loop_node)
+                        && self.effects.scenarios.values().any(|scenario|
+                            scenario.module==module && scenario.result.is_none() && !scenario.read && scenario.on.is_none()
+                            && scenario.effects.iter().any(|outer|outer.node==loop_node
+                                && outer.then_effects.iter().any(|child|child.node==effect.node)
+                                && outer.node.start<=key.start && key.end<=outer.node.end))
+                })
                 || matches!(value.model_result,
                             Some(DisclosureModelResult::Create { model: actual, node })
                             if actual == model && (self.preceding_call_create(effect, module, key, model, node)
@@ -31660,8 +31685,17 @@ impl<'a> Closure<'a> {
         else {
             return None;
         };
-        (calls.is_empty() && self.loop_node.is_none() && self.effects.models.contains_key(symbol))
-            .then_some(*symbol)
+        (calls.is_empty()
+            && self.loop_node.is_none_or(|node| {
+                self.effects.scenarios.values().any(|scenario| {
+                    scenario.result.is_none()
+                        && !scenario.read
+                        && scenario.on.is_none()
+                        && scenario.effects.iter().any(|outer| outer.node == node)
+                })
+            })
+            && self.effects.models.contains_key(symbol))
+        .then_some(*symbol)
     }
 
     fn set_uses_scalar_inventory(&self, ty: &ResolvedType, calls: &[NodeKey]) -> bool {
@@ -34227,6 +34261,70 @@ impl<'a> Closure<'a> {
         Some(*predicate)
     }
 
+    /// A query filter may compare one original required reference with the
+    /// selected candidate's declared reference array. Both remain CONTROL;
+    /// no selected row or array becomes a reusable DATA/query capability.
+    fn bounded_loop_reference_membership(
+        &self,
+        key: NodeKey,
+        model: SymbolId,
+        alias: NodeKey,
+    ) -> Option<()> {
+        let (left, right) = self.query_binary(key, "in")?;
+        let (left, right) = (self.query_group(left)?, self.query_group(right)?);
+        let (base, name) = self.count_member(right)?;
+        if !matches!(self.query_binding(base),Some(Binding::QueryAlias{node})if *node==alias)
+            || self.types.node_types.get(&base)
+                != Some(&ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                })
+        {
+            return None;
+        }
+        let scenario = self.effects.scenarios.values().find(|scenario| {
+            scenario.node.file == key.file
+                && scenario.node.start <= key.start
+                && key.end <= scenario.node.end
+        })?;
+        let (parameter, _, _, _, target, _) =
+            self.checked_required_reference_path(left, scenario.module)?;
+        if !scenario
+            .params
+            .iter()
+            .any(|input| input.param == parameter && input.default.is_none())
+        {
+            return None;
+        }
+        let field = self
+            .effects
+            .models
+            .get(&model)?
+            .fields
+            .iter()
+            .find(|field| {
+                self.resolve
+                    .symbols
+                    .get(field.field.0 as usize)
+                    .is_some_and(|symbol| {
+                        symbol.name == name
+                            && matches!(symbol.kind,SymbolKind::Field{owner,..}if owner==model)
+                    })
+            })?;
+        let expected = ResolvedType::Array {
+            element: Box::new(ResolvedType::Record {
+                symbol: target,
+                stored: true,
+            }),
+            ordered: true,
+            nonempty: false,
+        };
+        (self.types.node_types.get(&right) == Some(&expected)
+            && self.types.symbol_types.get(&field.field) == Some(&expected)
+            && self.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Bool)))
+        .then_some(())
+    }
+
     fn bounded_item_condition(
         &self,
         predicate: NodeKey,
@@ -34250,6 +34348,13 @@ impl<'a> Closure<'a> {
                 return None;
             }
             let node = self.nodes.get(&key)?;
+            if query_alias
+                && self
+                    .bounded_loop_reference_membership(key, model, owner)
+                    .is_some()
+            {
+                continue;
+            }
             if expression(node.kind)
                 && !matches!(
                     node.kind,

@@ -56,6 +56,10 @@ with COUNT also passes Clippy for all targets. `3513cbc1` fixes a separate obsol
 CI expectation for explicit email/URL input codec metadata; all three owning
 operation-result integrations pass. Latest-main CI remains unqualified.
 
+The checked Model-cohort mechanism now passes the full original Shift recipient: 11 assignment cases and nine real D1 review cases, including fresh domain/membership races, hidden/stale rows, source tampering, terminal outcomes and replay. Shared selected-profile reference/version DATA observation also passes both direct and required-reference domains, hidden-row denial, current grants, finite bounds, Identity/reference/profile races and replay. Reference-only and unrelated outer-phase DATA paths refuse during native compilation. The combined source passes all 99 existing Native FIRST/hook integrations, all-target Clippy, all 40 workspace typechecks and the three affected real runtime recipients in 306.99 seconds; the final outer-phase refusal cases pass separately in 17.48 seconds. The generated multi-hop hook temporary-name collision discovered by the original hold intake is repaired. The next full original24 run is pending, so 15 remains the latest completed main-feature count. Original confirm_account advances to the unchanged analysis resource bound; original hold runtime still needs its refreshed complete prepared artifact.
+
+GitHub's `d0248133` run is complete: browser/security passes; compiler fails four unchanged Chat native closures; workspace fails three real runtime timeouts (Event, booking/rescheduling and Mail triage), two Invoice native created-root registrations and the old event-SEND refusal expectation. These are required CI repairs under Z18. Reproduce each against the current coherent candidate, preserve its negative coverage, and distinguish new native admission from a runtime DATA grant. No CI success is claimed.
+
 ## Completion criteria for the zero-diagnostic objective
 
 - [ ] The actual committed main builds from a clean checkout; tests have not merely exercised a different dirty working tree.

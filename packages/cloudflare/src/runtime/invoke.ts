@@ -13327,7 +13327,7 @@ async function runScenarioExecution(
       }catch(error){recordEngineFailure(error);throw error;}
     });
   }
-  if(sourceRequireAware&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined){
+  if(hasExecutionFrame&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined){
     const sites=nativeSourceLetData.get(scenarioDef),actual=call as AdmittedCall;
     if(sites!==undefined){
       const parameters=localPolicyObject(argument);

@@ -2,8 +2,10 @@ app SourceSendData
 use std {EmailV1 as Mail} from=deployment.mail
 Given
  Location {enabled:bool=true,visible:bool=true}
- Root {location:Location,capacity:int=2,checked:bool=false,last:text?,source:text="Readable source",reason:text?,secret:text="Hidden source",visible:bool=true}
+ Root {location:Location,capacity:int=2,checked:bool=false,last:text?,approval:Profile?,approval_version:int?,source:text="Readable source",reason:text?,secret:text="Hidden source",visible:bool=true}
  Link {root:Root,readable:bool=true,visible:bool=true}
+ Profile in Root {on_account:bool=true,approved_locations:Location[]=[],visible:bool=true}
+ Selection {root:Root,location:Location,approval:Profile?,approval_version:int?,visible:bool=true}
  Child in Root {active:bool=true}
  derive Root.remaining:int=row.capacity-count(row.Child as child where child.active)
  derive allowed(root:Root):bool=any(root.Child as child,child.active)
@@ -11,9 +13,21 @@ Given
  policy Root read=members where=row.visible and row.location.enabled fields=source,reason,location
  policy Link read=members where=row.visible fields=visible,readable
  policy Link read=members where=row.visible and row.readable fields=root
+ policy Profile read=members where=row.visible
+ policy Selection read=members fields=root,location,visible
  policy Child read=owner
  invariant Root: row.capacity>=0
 When
+ scenario select_root(root:Root) by=members
+  require root.visible
+  do
+   for approval in root.Profile as profile where profile.on_account and root.location in profile.approved_locations limit=1
+    set root {approval,approval_version=approval.version}
+ scenario select_profile(selection:Selection) by=members
+  require selection.visible
+  do
+   for approval in selection.root.Profile as profile where profile.on_account and selection.location in profile.approved_locations limit=1
+    set selection {approval,approval_version=approval.version}
  scenario notify_link_children(link:Link,to:email) by=members
   require link.visible
   do

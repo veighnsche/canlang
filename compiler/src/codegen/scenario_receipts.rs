@@ -2735,7 +2735,16 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         returns: Vec::new(),
         current_revision,
     };
-    if updated_model_owner || copy_loop.is_some() {
+    // A reference-owned contained domain keeps its existing private body-loop
+    // source/field/path seal. The older result-loop carrier names only a direct
+    // admitted parent and cannot represent this association faithfully.
+    let private_body_loop = super::source_let_data::needs_selected_observation(item)
+        || sibling_loop.as_ref().is_some_and(|plan| {
+            plan["loops"]
+                .as_array()
+                .is_some_and(|loops| loops.iter().any(|entry| entry.get("parentPath").is_some()))
+        });
+    if updated_model_owner && !private_body_loop || copy_loop.is_some() {
         let mut loops = Vec::new();
         for effect in &checked.effects {
             let DisclosureEffectKind::ForMember {

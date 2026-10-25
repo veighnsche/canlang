@@ -2310,6 +2310,19 @@ it('authorizes original SEND scalar DATA with independent current field projecti
           const fields = [['SourceSendData.Root','source','data','text'],['SourceSendData.Root','reason','data','text?'],['SourceSendData.Root','reason','control','text?']] as const;
           assertSourceOnlyReceipt(JSON.parse(result.stdout) as CompileArtifact,'SourceSendData.notify','date',[fields,fields]);
         }
+        await writeFile(refused,original.replace('set selection {approval,approval_version=approval.version}','set selection {approval}'));
+        const uncheckedReference=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,refused],{cwd:root,encoding:'utf8'});
+        assert.equal(uncheckedReference.status,10,uncheckedReference.stdout+uncheckedReference.stderr);
+        assert.ok((JSON.parse(uncheckedReference.stdout) as {diagnostics:{code:string}[]}).diagnostics.some(item=>item.code==='E6008'),'selected CONTROL reference cannot bypass its genuine same-SET DATA observation');
+        for(const prefix of ['let observed=selection.visible','set selection {visible=selection.visible}']){
+          // Keep the genuine selection loop unchanged: its private item grant
+          // cannot authenticate an unrelated outer DATA phase.
+          await writeFile(refused,original.replace('scenario select_profile(selection:Selection) by=members\n  require selection.visible\n  do\n',
+            'scenario select_profile(selection:Selection) by=members\n  require selection.visible\n  do\n   '+prefix+'\n'));
+          const mixedPhase=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,refused],{cwd:root,encoding:'utf8'});
+          assert.equal(mixedPhase.status,10,mixedPhase.stdout+mixedPhase.stderr);
+          assert.ok((JSON.parse(mixedPhase.stdout) as {diagnostics:{code:string;message:string}[]}).diagnostics.some(item=>item.code==='E6008'&&item.message.includes('native source DATA phase')),'outer DATA requires its own authenticated original phase');
+        }
       }finally{await rm(refused,{force:true});}
 
       for(const mode of ['allowed','nonnull','hidden-row','field-withheld','grant-loss','reference-change','identity-during-send','source-at-commit']){
@@ -2413,6 +2426,52 @@ it('authorizes original SEND scalar DATA with independent current field projecti
           const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));
           assert.deepEqual(await store.outboxPending(),pending);
         }
+      }
+      for(const name of ['select_profile','select_root'])assertSourceOnlyReceipt(artifact,`SourceSendData.${name}`,'void',[[],[]]);
+      for(const mode of ['selected','absent','mismatched','hidden','multiple','identity-race','reference-race','profile-race','direct','direct-hidden']){
+        const {now,identities,identity,membership}=await member(`selected-profile-${mode}`);
+        const scope={app:'SourceSendData',owner:membership.team_id,ownerPackage:'SourceSendData'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'selection-state',fileStoreId:'selection-files',receiver:{app:scope.app,owner:scope.owner,team:scope.owner}};
+        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(scope.owner));}});
+        const rootModel=model('SourceSendData','Root'),locationModel=model('SourceSendData','Location'),profileModel=model('SourceSendData','Profile'),selectionModel=model('SourceSendData','Selection');
+        const location={...makeRow({id:asId('location'),data:{enabled:true,visible:true}}),parent:null};
+        const rootRow={...makeRow({id:asId('root'),data:{location:{id:location.id},capacity:'2',checked:false,last:null,approval:null,approval_version:null,source:'Original source',reason:null,secret:'Secret',visible:true}}),parent:null};
+        const selection={...makeRow({id:asId('selection'),data:{root:{id:rootRow.id},location:{id:location.id},approval:null,approval_version:null,visible:true}}),parent:null};
+        const profiles=mode==='absent'?[]:Array.from({length:mode==='multiple'?2:1},(_,index)=>({...makeRow({id:asId(`profile-${index}`),data:{on_account:true,approved_locations:[{id:mode==='mismatched'?'another-location':location.id}],visible:mode!=='hidden'&&mode!=='direct-hidden'}}),parent:{model:rootModel,id:rootRow.id}}));
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:locationModel,row:location},{kind:'insert',model:rootModel,row:rootRow},{kind:'insert',model:selectionModel,row:selection},...profiles.map(row=>({kind:'insert' as const,model:profileModel,row}))]}));
+        let raced=false;
+        const commit=store.commit.bind(store);
+        if(mode==='identity-race'){
+          const query=store.query.bind(store);store.query=async spec=>{
+            const rows=await query(spec);
+            if(!raced&&spec.model===profileModel){raced=true;await identities.removeMembership(membership.membership_id);}
+            return rows;
+          };
+        }
+        store.commit=async batch=>{
+          if(!raced&&mode!=='identity-race'&&mode.endsWith('-race')&&batch.writes.some(write=>write.model===selectionModel)){
+            raced=true;
+            if(mode==='profile-race'){const profile=profiles[0]!;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:profileModel,id:profile.id,expectedVersion:profile.version,row:{...profile,version:asVersion(profile.version+1),data:{...profile.data,visible:false}}}]}));}
+            else await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:selectionModel,id:selection.id,expectedVersion:selection.version,row:{...selection,version:asVersion(selection.version+1),data:{...selection.data,root:{id:'foreign-root'}}}}]}));
+          }
+          return commit(batch);
+        };
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const direct=mode.startsWith('direct');
+        const request={operation:direct?'SourceSendData.select_root':'SourceSendData.select_profile',operation_id:operationId(now),inputs:direct?{root:{id:rootRow.id,version:String(rootRow.version)}}:{selection:{id:selection.id,version:String(selection.version)}}};
+        const result=await invoker.invokeMutation(request,identity),succeeds=['selected','absent','mismatched','direct'].includes(mode);
+        assert.equal('result'in result,succeeds,`${mode}: ${JSON.stringify(result)}`);
+        const targetModel=direct?rootModel:selectionModel,targetId=direct?rootRow.id:selection.id;
+        const current=await store.load(targetModel,targetId);assert.ok(current);
+        if(mode==='selected'||mode==='direct'){
+          assert.deepEqual(current.data.approval,{id:profiles[0]!.id});assert.equal(current.data.approval_version,String(profiles[0]!.version));
+          const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));assert.deepEqual(await store.load(targetModel,targetId),current,'replay cannot repeat the original SET');
+        }else{
+          assert.equal(current.data.approval,null,mode);assert.equal(current.data.approval_version,null,mode);
+        }
+        if(mode.endsWith('-race'))assert.ok(raced,mode);
+        assert.equal((await store.outboxPending()).length,0,'selection does not invent SEND effects');
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
