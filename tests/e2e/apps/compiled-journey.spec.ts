@@ -69,11 +69,15 @@ test.describe("compiled journey", () => {
     expect(compiled.artifact.operations?.map((op) => op.name)).toEqual([
       "Lobby.Notice.read",
       READ,
+      "Store.CurrentView.read",
       CREATE,
       UPDATE,
       DELETE,
+      "Store.CurrentView.create",
+      "Store.CurrentView.update",
+      "Store.CurrentView.delete",
     ]);
-    expect(compiled.artifact.models?.map((model) => model.name)).toEqual(["Lobby.Notice", MODEL]);
+    expect(compiled.artifact.models?.map((model) => model.name)).toEqual(["Lobby.Notice", MODEL, "Store.CurrentView"]);
   });
 
   test("create→read→update→delete with receipt/history verification", async ({ compiled, island }) => {
@@ -230,4 +234,53 @@ test.describe("compiled journey", () => {
       ["archive", 3, deleteOpId],
     ]);
   });
+
+  test("conditional user keys reject duplicate current rows and release inactive claims in D1", async ({ compiled, island }) => {
+    const seed = await seedCompiledMember();
+    const invoker = await createCompiledInvoker(compiled, island.store, {
+      memberships: seed.store,
+      now: () => seed.now,
+    });
+    const model = "Store.CurrentView" as ModelName;
+    const create = (account: unknown, current: boolean) => invoker.invokeMutation({
+      operation: "Store.CurrentView.create" as OperationName,
+      operation_id: freshOperationId(seed.now) as OperationId,
+      inputs: { account, current },
+    }, seed.identity);
+    const first = await create({ id: seed.memberId }, true);
+    if (!("result" in first)) throw new Error(`conditional unique: initial create failed ${JSON.stringify(first)}`);
+    const current = changedRow(first.result);
+    const saved = await island.store.load(model, current.id as RecordId);
+    const history = await island.store.historyFor(model, current.id as RecordId);
+
+    const duplicate = await create({ id: seed.memberId }, true);
+    expect(duplicate).toMatchObject({ error: { code: "conflict" } });
+    // User identity is the canonical opaque wire, not an arbitrary string or
+    // a versioned model reference with the same id.
+    for (const invalid of [seed.memberId, { id: seed.memberId, version: "1" }]) {
+      expect(await create(invalid, false)).toMatchObject({ error: { code: "validation" } });
+    }
+    expect(await island.store.load(model, current.id as RecordId)).toEqual(saved);
+    expect(await island.store.historyFor(model, current.id as RecordId)).toEqual(history);
+
+    const inactive = await create({ id: seed.memberId }, false);
+    if (!("result" in inactive)) throw new Error(`conditional unique: inactive row failed ${JSON.stringify(inactive)}`);
+    expect(inactive.result.status).toBe("committed");
+    const deactivated = await invoker.invokeMutation({
+      operation: "Store.CurrentView.update" as OperationName,
+      operation_id: freshOperationId(seed.now) as OperationId,
+      inputs: { record: { id: current.id, version: String(current.version) }, current: false },
+    }, seed.identity);
+    if (!("result" in deactivated)) throw new Error(`conditional unique: release failed ${JSON.stringify(deactivated)}`);
+    expect(deactivated.result.status).toBe("committed");
+    const replacement = await create({ id: seed.memberId }, true);
+    if (!("result" in replacement)) throw new Error(`conditional unique: replacement failed ${JSON.stringify(replacement)}`);
+    expect(replacement.result.status).toBe("committed");
+
+    const fresh = island.freshStore();
+    expect((await fresh.load(model, current.id as RecordId))?.data["current"]).toBe(false);
+    expect((await fresh.load(model, changedRow(inactive.result).id as RecordId))?.data["current"]).toBe(false);
+    expect((await fresh.load(model, changedRow(replacement.result).id as RecordId))?.data["current"]).toBe(true);
+  });
+
 });

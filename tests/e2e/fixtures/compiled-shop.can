@@ -20,7 +20,11 @@ Then
 app Store
 Given
  Gadget { title:text }
+ CurrentView { account:user, current:bool=true }
+ unique CurrentView fields=account where=row.current
+ policy CurrentView read=members
  policy Gadget read=members
 When
  crud Gadget by=members fields=title
+ crud CurrentView by=members fields=account,current
 Then
