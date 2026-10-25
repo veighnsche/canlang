@@ -1608,7 +1608,7 @@ fn file_array_param_mismatch(
         .as_deref()?
         .iter()
         .find(|(at, _)| at == node)
-        .is_none_or(|(_, ty)| ty != &value.ty);
+        .is_some_and(|(_, ty)| ty == &value.ty);
     Some(
         parent != owner.id
             || index != position

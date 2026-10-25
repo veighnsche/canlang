@@ -545,10 +545,11 @@ fn byte_exact_original_counts_coexist_with_first_and_keep_real_parent_occurrence
         assert!(text(&original.db, fact.statement).contains(&format!("count({operand})+1")));
     }
     assert!(matches!(disclosures[&ask], ScenarioDisclosure::Declined(_)));
-    assert!(matches!(
-        disclosures[&validate],
-        ScenarioDisclosure::Declined(_)
-    ));
+    let ScenarioDisclosure::Complete(validation) = &disclosures[&validate] else {
+        panic!("original contained count now has a complete owning closure");
+    };
+    assert!(!validation.returns.is_empty());
+    assert_eq!(validation.source.module, "creative");
 }
 
 #[test]

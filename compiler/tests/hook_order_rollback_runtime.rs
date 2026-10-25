@@ -172,12 +172,15 @@ async function receipt(){
 }
 const initial=committed(await invoke(`${model}.create`,{state:'initial',accept:true}));
 assert.equal(initial.version,1);assert.deepEqual(initial.data,{state:'initial',accept:true});
-const id=initial.id,stagedId=`${id}/staged/0`;
+const id=initial.id;
 async function snapshot(){
+ const audits=await store.query({model:asModel(auditModel),authority:'owner'});
+ assert.ok(audits.length<=1,'one original staged Audit');
+ const audit=audits[0]??null;
  return {revision:await store.readRevision(),entry:await store.load(asModel(model),asId(id)),
   entryHistory:await store.historyFor(asModel(model),asId(id)),
-  audit:await store.load(asModel(auditModel),asId(stagedId)),
-  auditHistory:await store.historyFor(asModel(auditModel),asId(stagedId))};
+  audit,
+  auditHistory:audit===null?[]:await store.historyFor(asModel(auditModel),asId(audit.id))};
 }
 const before=await snapshot();assert.equal(before.audit,null);assert.deepEqual(before.auditHistory,[]);
 const beforeCase=['before_positive','before_rollback'].includes(process.argv[3]);
@@ -219,6 +222,11 @@ assert.equal(final.revision,before.revision+1,'one fenced positive commit');
 assert.equal(batches.length,positiveBatchCount+1);
 assert.equal(final.entry.id,id);assert.equal(final.entry.version,2);
 assert.deepEqual(final.entry.data,{state:'second',accept:true});
+const auditWrites=batches.at(-1).writes.filter(write=>write.model===auditModel);
+assert.equal(auditWrites.length,1,'one actual staged Audit write');
+const stagedId=auditWrites[0].row.id;
+assert.ok(stagedId.includes(successRequest.operation_id),'staged identity belongs to the live invocation');
+assert.ok(stagedId.includes(hookId),'staged identity belongs to the original hook');
 assert.equal(final.audit.id,stagedId);assert.equal(final.audit.version,1);assert.equal(final.audit.parent,null);
 if(['contextual','contextual_core'].includes(process.argv[3])){
  assert.deepEqual(final.audit.data,{

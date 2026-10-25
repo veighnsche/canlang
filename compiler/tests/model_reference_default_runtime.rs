@@ -156,7 +156,7 @@ async function created(){
 const seed=await created(),other=await created();assert.notEqual(seed.id,other.id);
 const omitted=envelope({seed});
 committed(await invoke(omitted));
-assert.deepEqual(trace,[['admission','members',true],['check',true],['check',true]]);
+assert.deepEqual(trace,[['admission','members',true],['check',true],['check',true],...Array.from({length:4},()=>['admission','public',true])]);
 const saved=await receipt(omitted);assert.ok(saved);
 assert.deepEqual(saved.resolvedDefaults,{copied:seed});
 assert.deepEqual(Object.keys(saved.resolvedDefaults),['copied']);
@@ -164,7 +164,7 @@ assert.deepEqual(Object.keys(saved.resolvedDefaults.copied).sort(),['id','versio
 assert.equal(saved.outcome.status,'committed');assert.equal(saved.outcome.result,'1');
 const override=envelope({seed,copied:seed});
 committed(await invoke(override));
-assert.deepEqual(trace,[['admission','members',true],['check',true],['check',true]]);
+assert.deepEqual(trace,[['admission','members',true],['check',true],['check',true],...Array.from({length:4},()=>['admission','public',true])]);
 const overrideReceipt=await receipt(override);assert.deepEqual(overrideReceipt.resolvedDefaults,{});
 // A supplied distinct admitted binding fails authored equality and publishes no defaults.
 const failure=envelope({seed,copied:other});

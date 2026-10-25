@@ -283,10 +283,12 @@ fn original_parent_member_operands_keep_checked_whole_reads_and_native_child_rec
     assert!(modules.contains(&queries[0].return_id()));
 }
 
+// The full guarded original is qualified above through the public compiler.
+// Raw IR isolates the DATA consumer; it cannot install the source Require frame.
 fn count_source() -> String {
     SOURCE.replace(
         "    call context {location=step.parent.location,targets=step.parent.targets} as fresh\n    require count(fresh)==count(step.parent.targets)\n    return 1",
-        "    require count(step.parent.targets)>0\n    return count(step.parent.targets)",
+        "    return count(step.parent.targets)",
     )
 }
 
@@ -410,13 +412,13 @@ fn stored_parent_reference_schema_refuses_changed_owner_field_bounds_and_source(
         else {
             panic!("parent");
         };
-        let IrStmt::Require { cond, .. } = &mut effects[0] else {
-            panic!("stored count guard");
+        let IrStmt::Return {
+            value: Some(value), ..
+        } = &mut effects[0]
+        else {
+            panic!("original stored count DATA return");
         };
-        let IrExpr::Binary { left, .. } = &mut cond.expr else {
-            panic!("positive count");
-        };
-        let IrExpr::Call { args, .. } = &mut left.expr else {
+        let IrExpr::Call { args, .. } = &mut value.expr else {
             panic!("count");
         };
         let IrExpr::Member { base, field } = &mut args[0].expr else {
@@ -449,7 +451,7 @@ fn stored_parent_reference_schema_refuses_changed_owner_field_bounds_and_source(
 }
 
 #[test]
-fn parent_query_call_refuses_copied_inputs_and_reference_dereference() {
+fn parent_query_call_refuses_copied_inputs_and_preserves_original_reference_field_reads() {
     let cases = [
         SOURCE
             .replace("    call context", "    let copied=step\n    call context")
@@ -480,6 +482,19 @@ fn parent_query_call_refuses_copied_inputs_and_reference_dereference() {
         let (_, program, _, _) = checked(source);
         if index < 4 {
             complete(&program, "workbench.context");
+        }
+        if index == 3 {
+            let value = complete(&program, "workbench.parent");
+            let facts = value.source_facts.as_ref().unwrap();
+            assert_eq!(value.source.sha256, sha256_hex(source.as_bytes()));
+            assert!(
+                facts.decision_sites.as_deref().unwrap().iter().any(|site| {
+                    let bytes = &source[site.node.start as usize..site.node.end as usize];
+                    bytes.contains("step.parent.location.name") && site.source == value.source
+                }),
+                "the stored-reference guard retains its original checked source site"
+            );
+            continue;
         }
         assert!(
             matches!(

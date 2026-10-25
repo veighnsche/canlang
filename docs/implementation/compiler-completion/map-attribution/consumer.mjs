@@ -24,12 +24,15 @@ const {assembleModules} = await import(pathToFileURL(join(runtime, 'modules.ts')
 const loaded = loadArtifactFile(artifactPath);
 if (canonicalMappedOutcome) {
   assert.ok(!process.execArgv.includes('--enable-source-maps'), 'runtime mapper consumes actual generated frames');
-  const artifact = loaded.artifact;
+  const {loadArtifactFile:loadCanonicalArtifact} = await import('@canlang/cloudflare/runtime/artifact');
+  const {assembleModules:assembleCanonicalModules} = await import('@canlang/cloudflare/runtime/modules');
+  const canonicalLoaded = loadCanonicalArtifact(artifactPath);
+  const artifact = canonicalLoaded.artifact;
   assert.equal(artifact.sources[0].path, sourcePath);
   assert.equal(artifact.sources[0].sha256, createHash('sha256').update(readFileSync(sourcePath, 'utf8')).digest('hex'));
   // The generated handler and canonical invoker share their installed
   // runtime owner, including its native record bindings.
-  const assembly = await assembleModules(loaded, {
+  const assembly = await assembleCanonicalModules(canonicalLoaded, {
     workDir, stdlibUrl:import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
   });
   const {invokeMutationCanonical} = await import('@canlang/cloudflare/runtime/invoke');
@@ -62,7 +65,7 @@ if (canonicalMappedOutcome) {
         app:'Attribution', source:'worker', store, memberships, now:()=>FIXED_NOW,
       });
     } catch (error) { failure = error; }
-    assert.ok(failure instanceof StateError);
+    assert.ok(failure instanceof StateError, failure?.stack ?? String(failure));
     assert.equal(failure.code, 'rule_failed');
     assert.equal(failure.message, 'Division by zero');
     assert.deepEqual(failure.details, details);
@@ -80,13 +83,16 @@ if (canonicalMappedOutcome) {
   await rejected(assembly, operationId, {mapped});
   const invoker = buildInvoker(artifact, assembly, store, {memberships, now:()=>FIXED_NOW});
   const publicOutcome = await invoker.invokeMutation({operation, operation_id:operationId, inputs}, identity);
-  assert.deepEqual(publicOutcome, {error:{
+  assert.deepEqual(publicOutcome, {receipt:'rejected',error:{
     code:'rule_failed', message:'Division by zero', operation_id:operationId, retryable:false,
   }});
-  // Removing only map URLs still leaves the mapper's real artifact fallback.
-  // This host has neither staged nor artifact maps; emitted JS is unchanged.
+  // A second genuine assembly has neither staged nor artifact maps.
+  // Its original emitted JS remains unchanged.
   const unmappedArtifact = {...artifact, modules:artifact.modules.map(({map,...module})=>module)};
-  await rejected({...assembly, mapUrls:{}, sourceMaps:{}}, uuidv7(FIXED_NOW, 2), null, unmappedArtifact);
+  const unmappedAssembly = await assembleCanonicalModules({artifact:unmappedArtifact,sourcePath}, {
+    workDir:join(workDir,'unmapped'), stdlibUrl:import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+  });
+  await rejected(unmappedAssembly, uuidv7(FIXED_NOW, 2), null, unmappedArtifact);
   assert.equal(commits.length, 2, 'only the two actual rejected receipts commit');
   for (const batch of commits) {
     assert.deepEqual(batch.writes, []);

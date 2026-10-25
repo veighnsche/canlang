@@ -418,7 +418,7 @@ fn absence_conjunctions_admit_with_control_dependency() {
 }
 
 #[test]
-fn absence_branch_and_predicateless_shapes_stay_refused() {
+fn absence_branch_stays_refused_while_checked_predicateless_query_admits() {
     // Still next scope: absence/presence branches with in-branch creates
     // and predicateless first queries. The compiler keeps the precise
     // correspondence refusal meanwhile.
@@ -440,11 +440,23 @@ fn absence_branch_and_predicateless_shapes_stay_refused() {
     ];
     for (mode, source) in cases {
         let (db, program, _, catalog) = fixture_source("side-effect-refused.can", &source);
-        let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
-        assert!(
-            has_e6008(&diagnostics, "original native query correspondence"),
-            "{mode}: expected loud first-query refusal, got {diagnostics:?}"
-        );
+        let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+        if mode == "predicateless-contained" {
+            assert!(diagnostics.is_empty(), "{mode}: {diagnostics:?}");
+            let disclosure = &operation(&artifact, "SideEffectSources.go")["result"]["disclosure"];
+            let queries = disclosure["queries"].as_array().unwrap();
+            assert_eq!(queries.len(), 1);
+            assert_eq!(queries[0]["model"], "SideEffectSources.C");
+            assert_eq!(
+                disclosure["source"]["sha256"],
+                db.get(program.checked_files()[0]).unwrap().sha256
+            );
+        } else {
+            assert!(
+                has_e6008(&diagnostics, "original native query correspondence"),
+                "{mode}: expected loud first-query refusal, got {diagnostics:?}"
+            );
+        }
         let _ = db;
     }
 }

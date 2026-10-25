@@ -240,7 +240,7 @@ fn checked_scalar_alias_void_and_ir_facts_have_exact_origins() {
 }
 
 #[test]
-fn whole_decline_never_certifies_query_absence_composite_model_or_unsupported_effect() {
+fn whole_decline_preserves_query_absence_and_composite_refusals_with_checked_model_identity() {
     let source = r#"app Refused
 Given
  Item {title:text}
@@ -267,7 +267,7 @@ When
 Then
 "#;
     let (_, program) = checked(&[("refused.can", source)]);
-    for name in ["query", "absent", "composite", "model"] {
+    for name in ["query", "absent", "composite"] {
         assert!(
             matches!(
                 fact(&program, &format!("Refused.{name}")),
@@ -276,6 +276,10 @@ Then
             "{name} must decline the entire closure"
         );
     }
+    let model = complete(&program, "Refused.model");
+    assert_eq!(model.returns.len(), 1);
+    assert_eq!(model.returns[0].dependencies.len(), 1);
+    assert_eq!(model.returns[0].dependencies[0].field_name, "id");
     let called = complete(&program, "Refused.called");
     assert_eq!(called.effects.len(), 1);
     assert!(matches!(&called.effects[0].kind,
@@ -452,7 +456,7 @@ fn erroneous_unresolved_and_recursive_cohorts_publish_no_private_map() {
 }
 
 #[test]
-fn nullable_model_presence_comparisons_decline_but_scalar_presence_is_supported() {
+fn nullable_model_and_scalar_presence_keep_original_reference_and_field_provenance() {
     let source = r#"app Presence
 Given
  Item {optional:text?}
@@ -474,15 +478,20 @@ Then
 "#;
     let (_, program) = checked(&[("presence.can", source)]);
     for name in ["equal", "unequal", "control"] {
-        let ScenarioDisclosure::Declined(value) = fact(&program, &format!("Presence.{name}"))
-        else {
-            panic!("{name} must decline reference-presence influence");
-        };
+        let value = complete(&program, &format!("Presence.{name}"));
+        assert!(!value.returns.is_empty());
+        assert!(value.returns.iter().all(|returned| {
+            returned
+                .dependencies
+                .iter()
+                .all(|read| read.field_name == "id" && read.model_name == "Presence.Item")
+        }));
         assert!(
             value
-                .influences
+                .returns
                 .iter()
-                .any(|i| i.kind == InfluenceKind::AbsentReference)
+                .all(|returned| returned.influences.is_empty()),
+            "admitted nullable identity does not invent query or absent-row influence"
         );
     }
     let value = complete(&program, "Presence.scalar");
@@ -492,7 +501,7 @@ Then
 }
 
 #[test]
-fn unsupported_stored_scalar_types_decline_even_when_the_result_is_boolean() {
+fn stored_email_and_nullable_file_presence_preserve_proof_while_binary_and_secret_reads_decline() {
     let source = r#"app StoredTypes
 Given
  Item {address:email,content:bytes,attachment:file?,private_value:secret? server=random_secret()}
@@ -509,7 +518,20 @@ When
 Then
 "#;
     let (_, program) = checked(&[("stored-types.can", source)]);
-    for name in ["address", "content", "attachment", "private_value"] {
+    let address = complete(&program, "StoredTypes.address");
+    assert_eq!(address.returns.len(), 1);
+    assert_eq!(address.returns[0].dependencies.len(), 1);
+    assert_eq!(address.returns[0].dependencies[0].field_name, "address");
+    assert_eq!(address.returns[0].dependencies[0].type_id, "email");
+    let attachment = complete(&program, "StoredTypes.attachment");
+    assert_eq!(attachment.returns.len(), 1);
+    assert_eq!(attachment.returns[0].dependencies.len(), 1);
+    assert_eq!(
+        attachment.returns[0].dependencies[0].field_name,
+        "attachment"
+    );
+    assert_eq!(attachment.returns[0].dependencies[0].type_id, "file?");
+    for name in ["content", "private_value"] {
         let ScenarioDisclosure::Declined(value) = fact(&program, &format!("StoredTypes.{name}"))
         else {
             panic!("{name} must decline the unsupported stored dependency type");
@@ -618,7 +640,7 @@ fn repeated_analysis_keeps_distinct_lexical_value_provenance() {
 }
 
 #[test]
-fn actor_defaults_are_admitted_inputs_without_admitting_body_context_reads() {
+fn actor_defaults_identity_and_checked_properties_keep_original_context_provenance() {
     let source = r#"app ActorDefaults
 Given
  derive actor_copy(value:user?):user? = value
@@ -657,12 +679,15 @@ Then
         assert!(value.returns[0].decisions.is_empty());
     }
     for name in ["direct", "grouped_body", "derived_default", "body_property"] {
+        let value = complete(&program, &format!("ActorDefaults.{name}"));
+        origins(&db, value);
+        assert!(!value.returns.is_empty());
         assert!(
-            matches!(
-                fact(&program, &format!("ActorDefaults.{name}")),
-                ScenarioDisclosure::Declined(_)
-            ),
-            "{name}"
+            value
+                .returns
+                .iter()
+                .all(|returned| returned.dependencies.is_empty()),
+            "caller actor context is not a persisted model read"
         );
     }
 }
@@ -1829,7 +1854,7 @@ fn original_file_attachment_has_assignment_only_proof_and_native_void_disclosure
 }
 
 #[test]
-fn file_assignment_refuses_nonoriginal_and_unsupported_file_profiles() {
+fn file_assignment_retains_unused_staged_alias_and_refuses_unsupported_file_flows() {
     let original = include_str!("../../packages/cloudflare/test/fixtures/typed-file-journey.can");
     let body = "   set entry {attachment=attachment}\n   require accept";
     let mut cases = vec![
@@ -1846,7 +1871,7 @@ fn file_assignment_refuses_nonoriginal_and_unsupported_file_profiles() {
     ];
     cases.push(original.replace("When\n", "When\n scenario child(attachment:file) by=owner\n  do require true\n")
         .replace(body, "   set entry {attachment=attachment}\n   call child {attachment}\n   require accept"));
-    for source in cases {
+    for (case, source) in cases.into_iter().enumerate() {
         let mut db = SourceDb::new();
         let file = db.add("file-profile-refusal.can".into(), source.clone());
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
@@ -1863,13 +1888,25 @@ fn file_assignment_refuses_nonoriginal_and_unsupported_file_profiles() {
             diagnostics.is_empty(),
             "valid unsupported source {source}\n{diagnostics:?}"
         );
-        assert!(
-            matches!(
-                fact(&program, "TypedFileJourney.attach"),
-                ScenarioDisclosure::Declined(_)
-            ),
-            "unsupported File closure must decline: {source}"
-        );
+        if case == 3 {
+            let value = complete(&program, "TypedFileJourney.attach");
+            assert!(
+                value
+                    .returns
+                    .iter()
+                    .all(|returned| returned.dependencies.is_empty()),
+                "unused staged File alias creates no persisted read or File disclosure"
+            );
+            assert_eq!(value.effects.len(), 1);
+        } else {
+            assert!(
+                matches!(
+                    fact(&program, "TypedFileJourney.attach"),
+                    ScenarioDisclosure::Declined(_)
+                ),
+                "unsupported File flow case {case} must decline"
+            );
+        }
     }
 }
 
@@ -2155,10 +2192,11 @@ fn stored_input_fact_comparison_retains_whole_owner_and_complete_query_child() {
     }
     // Raw IR cannot provide the immutable prepared child receipt used above.
     // Check whole Input schema matching on the independently supported scalar
-    // count consumer, which has no query child and owns its actual recipe.
+    // DATA count consumer, which has no query child or source Require frame.
+    // The original guarded source was qualified through the public emitter above.
     let count_source=source.replace(
         "   call context {location,targets} as fresh\n   require count(fresh)==count(step.input.facts) and all(step.input.facts as old,any(fresh as current,current.task==old.task and current.version==old.version))",
-        "   require count(step.input.facts)>0",
+        "",
     );
     let (count_db, count_program, count_ir) =
         checked_with_ir(&[("stored-input-count.can", &count_source)]);

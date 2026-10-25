@@ -113,17 +113,23 @@ fn nested_any_query_completes_with_sealed_lineage() {
         ),
         "guard-level nullable parameter field against its model parameter completes"
     );
-    let ScenarioDisclosure::Declined(decline) =
+    let ScenarioDisclosure::Complete(proof) =
         disclosure(&program, "probe.try_param_field_unsealed")
     else {
-        panic!("parameter field against a derive result must not complete");
+        panic!("original checked nullable field/derive comparison now completes");
     };
+    assert_eq!(proof.source.module, "probe");
     assert!(
-        decline
-            .reason
-            .contains("nullable reference selection or comparison"),
-        "unsealed parameter-field comparison keeps the refusal, got: {}",
-        decline.reason
+        proof
+            .source_facts
+            .as_ref()
+            .unwrap()
+            .decision_sites
+            .as_ref()
+            .unwrap()
+            .iter()
+            .any(|site| !site.calls.is_empty()),
+        "derive comparison retains selected call source facts"
     );
 }
 

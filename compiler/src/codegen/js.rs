@@ -1029,6 +1029,46 @@ fn source_only_work(
     );
     Some(collector.output)
 }
+// Work identity recipes authorize their exact key/payload linkage, rather than
+// a stored content read. Do not replace that original route with DATA authority
+// merely because the generic receipt can also describe an `id` expression.
+fn work_identity_receipt_data_only(
+    receipt: &super::scenario_receipts::NativeScenarioReceipt,
+    cancels: &HashMap<Span, serde_json::Value>,
+    schedules: &HashMap<Span, serde_json::Value>,
+) -> bool {
+    let data: HashSet<_> = receipt
+        .plan
+        .returns
+        .iter()
+        .flat_map(|value| &value.dependencies)
+        .filter(|dependency| dependency.role == super::scenario_receipts::ReceiptRole::Data)
+        .map(|dependency| dependency.id.as_str())
+        .collect();
+    let mut covered = HashSet::new();
+    for (site, dependencies) in &receipt.dependencies {
+        for dependency in dependencies
+            .iter()
+            .filter(|dependency| data.contains(dependency.id.as_str()))
+        {
+            if !site.calls.is_empty()
+                || dependency.field != "id"
+                || dependency.source_dependency_id.is_some()
+                || !cancels.iter().chain(schedules).any(|(statement, source)| {
+                    statement.file == site.span.file
+                        && statement.start <= site.span.start
+                        && site.span.end <= statement.end
+                        && source["model"] == dependency.model
+                })
+            {
+                return false;
+            }
+            covered.insert(dependency.id.as_str());
+        }
+    }
+    data.is_subset(&covered)
+}
+
 // Independently inspect original public guards when optional observer
 // preparation is unavailable. A missing inventory cannot erase a model scan.
 fn source_require_missing_original_guard(
@@ -2885,18 +2925,79 @@ fn emit_program_with_sources(
     if let Some(context) = decisions.source_context {
         for owner in &ir.items {
             if let Some(receipt) = emitter.native_receipts.get(&owner.id) {
-                if let Some(loops) = super::source_loops::collect_native(
+                let cancels = source_only_work(
                     ir,
                     owner,
                     context,
-                    &serde_json::to_value(&receipt.plan.source).expect("checked source"),
+                    &emitter.source_requires,
                     &module_path(&entry_name),
-                ) {
-                    emitter
-                        .source_body_loops
-                        .insert(owner.canonical.clone(), loops);
+                    SourceWorkKind::Cancel,
+                    &emitter.source_let_data,
+                    None,
+                )
+                .unwrap_or_default();
+                let schedules = source_only_work(
+                    ir,
+                    owner,
+                    context,
+                    &emitter.source_requires,
+                    &module_path(&entry_name),
+                    SourceWorkKind::Schedule,
+                    &emitter.source_let_data,
+                    None,
+                )
+                .unwrap_or_default();
+                let plain_result = matches!(&owner.kind, IrItemKind::Scenario { result, .. }
+                    if result.as_ref().is_none_or(|ty| plain_value(ir, ty, 0)));
+                // Archived query authority still belongs to its full checked
+                // recipe; the source-only query bridge handles active rows.
+                let has_archived_query = ir
+                    .scenario_disclosures
+                    .get(&owner.id)
+                    .and_then(|disclosure| disclosure.source_facts())
+                    .and_then(|facts| facts.queries.as_ref())
+                    .is_some_and(|queries| queries.iter().any(|query| query.archived));
+                let source_work = plain_result
+                    && !has_archived_query
+                    && (!cancels.is_empty() || !schedules.is_empty())
+                    && work_identity_receipt_data_only(receipt, &cancels, &schedules)
+                    && !source_require_missing_original_guard(
+                        ir,
+                        owner,
+                        &emitter.source_requires,
+                        Some(context),
+                    )
+                    && source_require_only_body_supported(
+                        ir,
+                        owner,
+                        &emitter.source_requires,
+                        &emitter.source_data_sends,
+                        &emitter.source_let_data,
+                        &cancels,
+                        &schedules,
+                        &emitter.source_data_emits,
+                        &emitter.source_body_loops,
+                        Some(context),
+                    );
+                if source_work {
+                    emitter.native_receipts.remove(&owner.id);
+                    emitter.prepared_query_receipts.remove(&owner.id);
+                    emitter.source_cancels.extend(cancels);
+                    emitter.source_schedules.extend(schedules);
+                } else {
+                    if let Some(loops) = super::source_loops::collect_native(
+                        ir,
+                        owner,
+                        context,
+                        &serde_json::to_value(&receipt.plan.source).expect("checked source"),
+                        &module_path(&entry_name),
+                    ) {
+                        emitter
+                            .source_body_loops
+                            .insert(owner.canonical.clone(), loops);
+                    }
+                    continue;
                 }
-                continue;
             }
             if let Some(loops) = super::source_loops::collect(
                 ir,

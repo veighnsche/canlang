@@ -35,6 +35,10 @@ Then
 /// Check the complete source unit and its real emitted policy claim together.
 /// The original classification helpers retain their existing assertions.
 fn contextual_hook(source: &str, admitted: bool) -> (IrProgram, SymbolId) {
+    contextual_hook_with_local(source, admitted, admitted)
+}
+
+fn contextual_hook_with_local(source: &str, admitted: bool, local: bool) -> (IrProgram, SymbolId) {
     let mut db = SourceDb::new();
     let file = db.add("model-hook-context.can".into(), source.into());
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -66,6 +70,7 @@ fn contextual_hook(source: &str, admitted: bool) -> (IrProgram, SymbolId) {
         assert!(
             diagnostics
                 .iter()
+                .chain(&output.diagnostics)
                 .any(|diagnostic| diagnostic.code == "E6008"
                     && diagnostic.message.contains("hook contextual binding")),
             "unsupported complete graph retains the context refusal: {diagnostics:?}"
@@ -82,7 +87,7 @@ fn contextual_hook(source: &str, admitted: bool) -> (IrProgram, SymbolId) {
         .find(|item| matches!(item.kind, IrItemKind::Scenario { hook: Some(_), .. }))
         .unwrap()
         .id;
-    assert_eq!(local_hook_supported(&program, scenario), admitted);
+    assert_eq!(local_hook_supported(&program, scenario), local);
     (program, scenario)
 }
 
@@ -251,14 +256,14 @@ Then
 }
 
 #[test]
-fn unsupported_hook_graphs_with_context_retain_refusal_and_no_policy_claim() {
+fn contextual_hook_graphs_keep_pure_support_and_stateful_refusals() {
     let delete = CONTEXT_SOURCE.replace("on=Entry.update", "on=Entry.delete");
     let create_line = delete
         .lines()
         .find(|line| line.trim_start().starts_with("create Audit"))
         .unwrap();
     let delete = delete.replace(create_line, "   let caller=actor\n   let clock=now");
-    for source in [
+    for (case, source) in [
         CONTEXT_SOURCE.replace(
             "  do\n",
             "  do\n   let unsupported=trim(event.after.title)\n",
@@ -269,8 +274,11 @@ fn unsupported_hook_graphs_with_context_retain_refusal_and_no_policy_claim() {
             " policy Entry read=members\n invariant Entry: trim(row.title)!=\"\"",
         ),
         delete,
-    ] {
-        contextual_hook(&source, false);
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        contextual_hook_with_local(&source, false, case == 2);
     }
 }
 
@@ -464,9 +472,9 @@ Then
 }
 
 #[test]
-fn checked_metadata_queries_calls_unknown_leaves_and_delete_hooks_are_refused() {
+fn checked_hooks_admit_pure_helpers_and_refuse_unproved_state_reads() {
     let original = include_str!("fixtures/hook_order_rollback.can");
-    for source in [
+    for (case, source) in [
         original.replace("require event.after.accept", "let created=event.after.created"),
         original.replace("require event.after.accept", "require count(Audit)>0"),
         original.replace(" Audit {note:text}", " Audit {note:text}\n derive accepted(value:bool):bool = value")
@@ -474,9 +482,10 @@ fn checked_metadata_queries_calls_unknown_leaves_and_delete_hooks_are_refused() 
         original.replace(" Entry {state:text,accept:bool}", " Entry {state:text,accept:bool,values:text[]}"),
         original.replace(" scenario adjustEntry on=Entry.update", " scenario adjustEntry on=Entry.delete")
             .replace("   require event.after.state==\"proposed\"\n   set event.after {state=\"first\"}\n   create Audit {note=event.after.state} as audit\n   require event.after.state==\"first\"\n   set event.after {state=\"second\"}\n   require event.after.state==\"second\"\n   require event.after.accept", "   require event.before.accept"),
-    ] {
-        let (program, scenario) = hook(&source, false);
-        assert!(!local_hook_supported(&program, scenario), "{source}");
+    ].into_iter().enumerate() {
+        let admitted=case==2 || case==3;
+        let (program, scenario) = hook(&source, admitted);
+        assert_eq!(local_hook_supported(&program, scenario), admitted, "{source}");
     }
 }
 

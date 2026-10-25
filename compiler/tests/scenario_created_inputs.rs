@@ -346,8 +346,9 @@ fn populated_contained_create_returns_its_direct_origin_without_public_crud() {
             .all(|returned| returned.influences.is_empty())
     );
     assert!(plan.returns.iter().all(|returned| returned.intrinsics.iter().any(|input| matches!(input.kind, canlang_compiler::analysis::scenario_disclosure::DisclosureIntrinsicKind::AdmittedInput {parameter_name: ref name, ..} if name == "title"))));
-    // A copied alias, existing parent or member is not the CreateAs model result.
-    for source in [
+    // Staged scalar reads retain the original constructor provenance, while
+    // copied row carriers and a different returned model remain unproved.
+    for (case, source) in [
         POPULATED.replace("return record", "let copied=record\n   return copied"),
         POPULATED
             .replace("-> Record", "-> Parent")
@@ -355,13 +356,51 @@ fn populated_contained_create_returns_its_direct_origin_without_public_crud() {
         POPULATED
             .replace("-> Record", "-> text")
             .replace("return record", "return record.title"),
-    ] {
+    ]
+    .into_iter()
+    .enumerate()
+    {
         let (db, trees, resolve, types, effects) = raw(&source);
         let plans = analyze_scenario_disclosure(&db, &trees, &resolve, &types, &effects);
-        assert!(matches!(
-            plans[&id(&resolve, "CreatedInputs.make")],
-            ScenarioDisclosure::Declined(_)
-        ));
+        if case != 2 {
+            assert!(
+                matches!(
+                    plans[&id(&resolve, "CreatedInputs.make")],
+                    ScenarioDisclosure::Declined(_)
+                ),
+                "unproved row result case {case}"
+            );
+            continue;
+        }
+        let ScenarioDisclosure::Complete(proof) = &plans[&id(&resolve, "CreatedInputs.make")]
+        else {
+            panic!("original staged constructor scalar must complete");
+        };
+        assert_eq!(
+            proof.source.sha256,
+            canlang_compiler::source::sha256_hex(source.as_bytes())
+        );
+        assert_eq!(proof.returns.len(), 1);
+        assert_eq!(
+            proof
+                .source_facts
+                .as_ref()
+                .unwrap()
+                .creates
+                .as_ref()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert!(
+            proof.returns[0]
+                .dependencies
+                .iter()
+                .any(|read| read.model_name == "CreatedInputs.Record"
+                    && read.field_name == "title"
+                    && read.type_id == "text"),
+            "the returned original field retains its owning DATA obligation"
+        );
     }
 }
 

@@ -956,10 +956,18 @@ fn static_mutation_call_sites_join_real_emitted_interfaces_and_refuse_tampering(
         )
         .unwrap();
     }
-    // Send remains supported for its standalone native receipt, but the
-    // finite nested-call consumer cannot admit a framework-sending child.
+    // Standalone and statically checked nested SEND retain their original
+    // native receipt and exact cross-operation interface.
     let framework_source = "app CallFramework\nuse std {TextGenerationV1 as LLM} from=deployment.llm\nGiven\nWhen\n scenario child() by=members\n  do send LLM.cancel {revision=1,source=\"fixed\"} as stop\n scenario parent() by=members\n  do call child {}\nThen\n";
-    assert_refused("framework-child", framework_source);
+    let nested_framework =
+        compile_with_receipts(cli_dir.path(), "framework-child", framework_source, true);
+    assert!(
+        nested_framework.status.success(),
+        "{}",
+        String::from_utf8_lossy(&nested_framework.stdout)
+    );
+    let nested_framework = decoded(&nested_framework);
+    assert_eq!(nested_framework["operations"].as_array().unwrap().len(), 2);
     let mut framework_db = SourceDb::new();
     let framework_file = framework_db.add("call-framework.can".into(), framework_source.into());
     let (checked, diagnostics) = check_program(&framework_db, &[framework_file], catalog.as_ref());
@@ -989,7 +997,7 @@ fn static_mutation_call_sites_join_real_emitted_interfaces_and_refuse_tampering(
             admitted,
             "standalone versus nested Send profile: {name}"
         );
-        assert_eq!(
+        assert!(
             framework
                 .operations
                 .iter()
@@ -997,16 +1005,14 @@ fn static_mutation_call_sites_join_real_emitted_interfaces_and_refuse_tampering(
                 .unwrap()
                 .disclosure
                 .is_some(),
-            admitted,
-            "Send source preparation: {name}"
+            "source-sealed receipt descriptor: {name}"
         );
     }
-    assert!(framework.diagnostics.iter().any(|diagnostic| {
-        diagnostic.code == "E6008"
-            && diagnostic
-                .message
-                .contains("canonical cross-operation invocation")
-    }));
+    assert!(
+        framework.diagnostics.is_empty(),
+        "{:?}",
+        framework.diagnostics
+    );
     std::fs::write(module_dir.path().join("framework.mjs"), &framework.entry.js).unwrap();
     for package in &framework.packages {
         std::fs::write(module_dir.path().join(&package.path), &package.js).unwrap();
@@ -1064,10 +1070,16 @@ for(const edges of [16,17]){
  }
 }
 const framework=await import('./framework.mjs');
-assert.equal(Object.hasOwn(framework.appDefinition.operations['CallFramework.parent'],'callSites'),false,'framework child cannot publish a parent call site');
-assert.equal(framework.canApp()['CallFramework.parent'].toString().includes('invokeScenarioReceiptCall'),false,'framework child parent retains refusal body');
+const frameworkSites=framework.appDefinition.operations['CallFramework.parent'].callSites;
+assert.equal(frameworkSites.length,1);
+assert.deepEqual(frameworkSites[0].targets,['CallFramework.child']);
+assert.equal(frameworkSites[0].kind,'operation');assert.equal(frameworkSites[0].resultType,'void');
+assert.deepEqual(frameworkSites[0].source,framework.canApp().operations.find(op=>op.name==='CallFramework.parent').result.disclosure.source);
+assert.equal((framework.canApp()['CallFramework.parent'].toString().match(/await invokeScenarioReceiptCall\(c,/g)||[]).length,1,'source-sealed framework child uses one exact invocation site');
 const frameworkOperations=framework.canApp().operations;
-assert.equal(frameworkOperations.find(op=>op.name==='CallFramework.parent').result?.disclosure,undefined);
+const frameworkReturn=frameworkOperations.find(op=>op.name==='CallFramework.parent').result.disclosure;
+assert.equal(frameworkReturn.version,1);assert.equal(frameworkReturn.returns.length,1);
+assert.deepEqual(frameworkReturn.returns[0].dependencies,[],'void parent has no fabricated result DATA');
 assert.ok(frameworkOperations.find(op=>op.name==='CallFramework.child').result.disclosure,'standalone Send receipt is preserved');
 // Refused call handlers are deliberately never invoked.
 "#;
