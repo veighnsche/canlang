@@ -47,7 +47,7 @@
       "outputs": ["dist/native/recovery.wasm", "dist/native/BUILD.json"]
     },
     "@canlang/cloudflare#test:runtime": {
-      "dependsOn": ["build", "@canlang/work-kernel#build:wasm"],
+      "dependsOn": ["build", "@canlang/work-kernel#build:wasm", "@canlang/values#catalog:emit"],
       "cache": false
     },
     "//#typecheck:root": { "dependsOn": ["^build"], "cache": false },
