@@ -8,17 +8,22 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { it } from 'node:test';
+import { Miniflare } from 'miniflare';
+import type { D1Database } from '@cloudflare/workers-types';
+import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { promisify } from 'node:util';
 import type { CompileArtifact, FileRetirementAuthority, ModelName, StoredRow, Receipt, ScenarioReceiptAssociation, ArtifactOperationInput } from '@canlang/contracts';
 import { resolveIdentity, sha256HexText } from '@canlang/identity';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { createMemoryStorage, createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { asId, asModel, asVersion, makeBatch, makeRow } from '@canlang/state/testing/invocation/fixtures';
+import { hashInputs } from '@canlang/state/invocation/replay';
 import { buildInvoker } from '../worker/assembly.js';
 import { assembleModules } from './modules.js';
 
 import { invokeDueScheduleCanonical, invokeRetainedHandlerOccurrenceCanonical, loadCanonicalDescriptors } from './invoke.js';
 import { STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
+import { checkScenarioReceiptMembershipSites } from '@canlang/state/invocation';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work/kernel/file-reference-inventory';
 import { installNativeFileInventory } from './file-inventory.js';
 import { loadOpaqueFileStaging } from './opaque-file-staging.js';
@@ -114,8 +119,8 @@ async function installed(name: string, directory: string) {
     stdlibUrl: new URL('./stdlib.js',import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
   return { artifact, asm };
 }
-async function member(mode: string, roles: readonly string[] = [], emailVerified = true) {
-  const now = Date.now(), identities = createMemoryIdentityStore({ clock: createFrozenClock(now) });
+async function member(mode: string, roles: readonly string[] = [], emailVerified = true, at = Date.now()) {
+  const now = at, identities = createMemoryIdentityStore({ clock: createFrozenClock(now) });
   const team = await identities.createTeam({ timezone: 'UTC' });
   const user = await identities.createUser({ email: `${mode}@owner-search.test`, password_hash: 'unused', email_verified: emailVerified });
   const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: false,
@@ -1178,7 +1183,9 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
   { timeout: 120000 }, async () => {
     const directory = await mkdtemp(join(tmpdir(), 'can-source-only-frame-'));
     try {
-      const source = join(root, 'compiler/tests/fixtures/native-require-missing-owner-frame.can');
+      const source = join(directory,'phase-prefix.can');
+      const original=await readFile(join(root,'compiler/tests/fixtures/native-require-missing-owner-frame.can'),'utf8');
+      await writeFile(source,original.replace('Child in Root {active:bool=true}','Child in Root {active:bool=true,marked:bool=false}').replace('Then\n',' scenario staged(root:Root) by=members\n  do\n   set root {checked=true}\n   for child in root.Child limit=10\n    set child {marked=true}\n   require root.checked and allowed(root)\n   if root.checked and allowed(root)\n    set root {capacity=root.capacity+1}\nThen\n'));
       const { stdout } = await promisify(execFile)(compiler,
         ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
@@ -1186,7 +1193,7 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
       assertSourceOnlyReceipt(artifact, 'GuardOwnerFrame.run');
       const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
         stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
-      for (const mode of ['allowed', 'full', 'inactive', 'other-parent', 'capacity-at-commit', 'membership-during-query']) {
+      for (const mode of ['allowed', 'full', 'inactive', 'other-parent', 'capacity-at-commit', 'membership-during-query','stage-allowed','stage-capacity-at-commit','stage-membership-during-query']) {
         const { now, identities, identity, membership } = await member(`source-only-${mode}`);
         const store = createMemoryStorage(), rootModel = model('GuardOwnerFrame', 'Root');
         const rootRow = { ...makeRow({ id: asId('root-1'), data: { capacity: mode === 'full' ? '1' : '2', checked: false } }), parent: null };
@@ -1200,7 +1207,7 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
         ];
         await store.commit(makeBatch(await store.readRevision(), { writes }));
         let changed = false;
-        if (mode === 'membership-during-query') {
+        if (mode.endsWith('membership-during-query')) {
           const query = store.query.bind(store);
           store.query = async spec => {
             if (!changed && spec.model === model('GuardOwnerFrame', 'Child')) {
@@ -1210,12 +1217,12 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
             return query(spec);
           };
         }
-        if (mode === 'capacity-at-commit') {
+        if (mode.endsWith('capacity-at-commit')) {
           const commit = store.commit.bind(store);
           store.commit = async batch => {
             if (!changed) {
               changed = true;
-              if (mode === 'capacity-at-commit') await commit(makeBatch(await store.readRevision(), { writes: [
+              if (mode.endsWith('capacity-at-commit')) await commit(makeBatch(await store.readRevision(), { writes: [
                 { kind: 'update', model: rootModel, id: rootRow.id, expectedVersion: asVersion(rootRow.version),
                   row: { ...rootRow, version: asVersion(rootRow.version + 1), data: { ...rootRow.data, capacity: '0' } } },
               ] }));
@@ -1224,17 +1231,20 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
           };
         }
         const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
-        const request = { operation: 'GuardOwnerFrame.run', operation_id: operationId(now),
+        const request = { operation:mode.startsWith('stage-')?'GuardOwnerFrame.staged':'GuardOwnerFrame.run', operation_id: operationId(now),
           inputs: { root: { id: rootRow.id, version: String(rootRow.version) } } };
         const outcome = await invoker.invokeMutation(request, identity);
         assert.equal('result' in outcome ? outcome.result.status : outcome.error.code,
-          mode === 'allowed' ? 'committed' : mode === 'capacity-at-commit' ? 'conflict' : mode === 'membership-during-query' ? 'forbidden' : 'rule_failed',
+          mode.endsWith('allowed') ? 'committed' : mode.endsWith('capacity-at-commit') ? 'conflict' : mode.endsWith('membership-during-query') ? 'forbidden' : 'rule_failed',
           `${mode}: ${JSON.stringify(outcome)}`);
-        assert.equal((await store.load(rootModel, rootRow.id))?.data.checked, mode === 'allowed');
-        if (mode === 'allowed') {
-          assert.equal('result' in outcome && outcome.result.result, new Date(now + 86400000).toISOString().slice(0, 10));
+        assert.equal((await store.load(rootModel, rootRow.id))?.data.checked, mode.endsWith('allowed'));
+        if(mode==='stage-allowed')assert.equal((await store.load(rootModel,rootRow.id))?.data.capacity,'3','phase IF reads the actual post-SET checked value');
+        if(mode.startsWith('stage-')&&mode!=='stage-allowed')assert.equal((await store.load(rootModel,rootRow.id))?.data.checked,false,'phase/race refusal rolls back the preceding genuine SET');
+        if (mode.endsWith('allowed')) {
+          assert.equal('result' in outcome && outcome.result.result, mode==='stage-allowed'?null:new Date(now + 86400000).toISOString().slice(0, 10));
           const replay = await invoker.invokeMutation(request, identity);
-          assertDateReplay(replay, new Date(now + 86400000).toISOString().slice(0, 10), ['capacity', 'checked']);
+          if(mode==='stage-allowed'){assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');assert.equal(replay.result.result,null);assert.deepEqual(replay.result.records,[]);}
+          else assertDateReplay(replay, new Date(now + 86400000).toISOString().slice(0, 10), ['capacity', 'checked']);
           const rows = await store.query({model: rootModel, authority: 'owner'});
           await identities.removeMembership(membership.membership_id);
           const denied = await invoker.invokeMutation(request, identity);
@@ -1242,6 +1252,52 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
           assert.deepEqual(await store.query({model: rootModel, authority: 'owner'}), rows);
 
         }
+      }
+      // Exercise the actual admitted State owner API independently of the
+      // generated IF adapter. A probe always aborts before business commit.
+      const state=await import('@canlang/state/invocation');
+      for(const mode of ['valid','forged','stale','wrong-prefix','mutable-write','loop-wrong-fields','loop-extra-when','wrong-source','reused','revision-race']){
+        const {now,identities,identity}=await member('phase-proof-'+mode),store=createMemoryStorage();
+        const loaded=await loadCanonicalDescriptors(asm,artifact,store),target=model('GuardOwnerFrame','Root');
+        const sourceRow={...makeRow({id:asId('root'),data:{capacity:'2',checked:false}}),parent:null};
+        const childModel=model('GuardOwnerFrame','Child'),childRow={...makeRow({id:asId('child'),data:{active:true,marked:false}}),parent:{model:target,id:sourceRow.id}};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:target,row:sourceRow},{kind:'insert',model:childModel,row:childRow}]}));
+        const site=loaded.requireSources.get('GuardOwnerFrame.staged')?.find(site=>site.decision==='if'&&site.mutationPrefix!==undefined);
+        assert.ok(site,'fresh compiler/loader independently bind the actual staged IF prefix');
+        assert.equal(site.mutationPrefix?.length,2);assert.deepEqual(site.mutationPrefix?.[0],{kind:'set',parameter:'root',model:target,parents:[],fields:['checked']});
+        const loopStep=site.mutationPrefix?.[1];assert.ok(loopStep?.kind==='loop');assert.deepEqual(loopStep.fields,[['marked']]);
+        const def=loaded.registry.get('GuardOwnerFrame.staged') as Parameters<typeof state.bindScenarioSourceRequirePhases>[0];
+        const callable=artifact.callables.find(callable=>callable.id===def.name);assert.ok(callable);
+        const module=await import(asm.moduleUrls[callable.module]!);
+        const loopPlan=(module.canScenarioBodyLoopSources() as Record<string,Parameters<typeof state.bindScenarioSourceLoopProducer>[1]>)[def.name]!;
+        assert.equal(loopPlan.loops.length,1);assert.equal(loopPlan.loops[0]!.id,loopStep.id);state.bindScenarioSourceLoopProducer(def,loopPlan);
+        state.bindScenarioSourceRequirePhases(def,{source:def.descriptor.result?.disclosure?.source??{...site.source,module:callable.module},owner:def.name,phases:[{node:site.node,statement:site.statement,prefix:site.mutationPrefix!}]});
+
+        let entered=false,proven=false,phaseRaced=false;
+        await assert.rejects(()=>state.invoke({registry:loaded.registry as Parameters<typeof state.invoke>[0]['registry'],
+          envelope:{operation:'GuardOwnerFrame.staged',operation_id:operationId(now),inputs:{root:{id:'root',version:'1'}}},
+          identity,app:'GuardOwnerFrame',source:'integration',store,memberships:identities,clock:{nowMs:()=>now},execute:async call=>{
+            entered=true;
+            const session=await state.beginScenarioReceiptMutation(call,store,{table:loaded.table as Parameters<typeof state.beginScenarioReceiptMutation>[2]['table'],bounds:state.readScenarioReceiptOwnerBounds(call,store)});
+            const patch:Record<string,unknown>=['wrong-prefix','mutable-write'].includes(mode)?{capacity:'3'}:{checked:true};
+            const staging=session.stage({op:'update',model:target,id:sourceRow.id,data:patch},{cause:'scenario'});
+            if(mode==='mutable-write'){delete patch['capacity'];patch['checked']=true;}await staging;
+            const selected=await state.executeScenarioSourceLoop(call,store,{id:loopStep.id,predicate:null});assert.equal(selected.length,1);
+            for(const row of selected)await state.executeScenarioSourceLoopItem(call,store,{id:loopStep.id,row,execute:()=>session.stage({op:'update',model:childModel,id:row.id,data:mode==='loop-wrong-fields'?{active:false}:{marked:true},...(mode==='loop-extra-when'?{when:{op:'eq' as const,field:'marked',value:true}}:{})},{cause:'scenario'})});
+            if(mode==='forged')await state.consumeScenarioSourceRequirePhase(call,store,site.node,{kind:'source-require-phase'});
+            const token=await state.openScenarioSourceRequirePhase(call,store,mode==='wrong-source'?{start:site.node.start+1,end:site.node.end}:site.node);
+            if(mode==='stale')await session.stage({op:'update',model:target,id:sourceRow.id,data:{checked:false}},{cause:'scenario'});
+            if(mode==='revision-race')await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:target,id:sourceRow.id,expectedVersion:sourceRow.version,row:{...sourceRow,version:asVersion(sourceRow.version+1),data:{...sourceRow.data,capacity:'9'}}}]}));
+            try { await state.consumeScenarioSourceRequirePhase(call,store,site.node,token); }
+            catch(error){if(mode==='revision-race'){assert.equal((error as {code:string}).code,'conflict');assert.match((error as Error).message,/revision changed/);phaseRaced=true;}throw error;}
+            if(mode==='reused')await state.consumeScenarioSourceRequirePhase(call,store,site.node,token);
+            proven=true;throw new Error('phase proof complete; abort probe before business commit');
+          }}),mode==='valid'?/phase proof complete/:['wrong-prefix','mutable-write'].includes(mode)?/complete original SET prefix/:['loop-wrong-fields','loop-extra-when'].includes(mode)?/loop stamp differs/:mode==='wrong-source'?/quiescent original owner/:mode==='revision-race'?(error:unknown)=>{assert.equal((error as {code:string}).code,'conflict');assert.match((error as Error).message,/Stale record version/);return true;}: /forged, stale, foreign or already consumed/);
+        assert.equal(entered,true);assert.equal(proven,mode==='valid');assert.equal(phaseRaced,mode==='revision-race','actual phase rejects the changed revision before canonical retry admission');
+        assert.equal((await store.load(target,sourceRow.id))?.data.checked,false,'proof probing publishes no staged SET');
+        assert.equal((await store.load(target,sourceRow.id))?.data.capacity,mode==='revision-race'?'9':'2');
+        assert.deepEqual(await store.load(childModel,childRow.id),childRow,'phase proof publishes no selected item mutation');
+        assert.deepEqual(await store.outboxPending(),[]);
       }
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
@@ -1498,13 +1554,22 @@ it('authorizes a stored timezone through original parent and required reference 
       const plan=artifact.operations?.find(operation=>operation.name==='ParentTimezone.day')?.result?.disclosure;
       assert.ok(plan,'the date must retain its actual parent DATA dependencies');
       assert.ok(plan.returns.some(returned=>returned.dependencies.some(dependency=>dependency.field==='timezone'&&dependency.type==='timezone')));
+      for(const operation of fixtureName==='native-reference-timezone.can'?['day','snapshot']:['day']){
+      const snapshot=operation==='snapshot';
+      if(snapshot){
+        const captured=artifact.operations?.find(item=>item.name==='ParentTimezone.snapshot')?.result?.disclosure;
+        assert.ok(captured?.returns.some(returned=>returned.dependencies.some(read=>read.field==='location')
+          &&returned.dependencies.some(read=>read.field==='timezone')),'captured getter and original receiver leaf both retain their DATA obligations');
+      }
       for(const mode of ['utc','new-york','hidden','changed-at-commit','hidden-at-commit',...(fixtureName==='native-reference-timezone.can'?['root-hidden']:[])]){
-        const {now,identities,identity}=await member(`${fixtureName}-${mode}`);
+        const {now,identities,identity}=await member(`${fixtureName}-${operation}-${mode}`,[],true,Date.parse('2099-01-01T11:30:00.000Z'));
         const store=createMemoryStorage(),resourceModel=model('ParentTimezone','Resource'),bookingModel=model('ParentTimezone','Booking');
         const zone=mode==='new-york'?'America/New_York':'UTC';
         const resource={...makeRow({id:asId('resource'),data:{timezone:zone,visible:mode!=='hidden'}}),parent:null};
         const booking={...makeRow({id:asId('booking'),data:{active:true,checked:false,...(fixtureName==='native-reference-timezone.can'?{location:{id:resource.id},visible:mode!=='root-hidden'}:{})}}),parent:{model:resourceModel,id:resource.id}};
-        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:resourceModel,row:resource},{kind:'insert',model:bookingModel,row:booking}]}));
+        const other={...resource,id:asId('replacement'),data:{timezone:'Pacific/Kiritimati',visible:true}};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:resourceModel,row:resource},
+          {kind:'insert',model:resourceModel,row:other},{kind:'insert',model:bookingModel,row:booking}]}));
         const updateResource=async(data:Record<string,unknown>)=>{
           const current=await store.load(resourceModel,resource.id);assert.ok(current);
           await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:resourceModel,id:current.id,
@@ -1522,10 +1587,13 @@ it('authorizes a stored timezone through original parent and required reference 
           };
         }
         const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
-        const request={operation:'ParentTimezone.day',operation_id:operationId(now),inputs:{booking:{id:booking.id,version:String(booking.version)}}};
+        const request={operation:`ParentTimezone.${operation}`,operation_id:operationId(now),inputs:{booking:{id:booking.id,version:String(booking.version)},
+          ...(snapshot?{other:{id:other.id,version:String(other.version)}}:{})}};
         const outcome=await invoker.invokeMutation(request,identity),allowed=mode==='utc'||mode==='new-york';
         assert.equal('result'in outcome,allowed,`${mode}: ${JSON.stringify(outcome)}`);
         assert.equal((await store.load(bookingModel,booking.id))?.data.checked,allowed,'denied or stale parent reads roll back the preceding SET');
+        if(snapshot)assert.deepEqual((await store.load(bookingModel,booking.id))?.data.location,{id:allowed?other.id:resource.id},
+          'the captured reference survives a successful reassignment, while denied source/leaf grants roll it back');
         if(allowed){
           assert.ok('result'in outcome);
           const expected=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now));
@@ -1536,6 +1604,7 @@ it('authorizes a stored timezone through original parent and required reference 
           const hidden=await invoker.invokeMutation(request,identity);
           assert.ok('error'in hidden || hidden.result.result===null,'saved date cannot disclose a now-hidden parent timezone');
         }
+      }
       }
       }
     }finally{await rm(directory,{recursive:true,force:true});}
@@ -2199,13 +2268,23 @@ it('formats original scalar DATA with saved result privacy and commit fences',
     }finally{await rm(directory,{recursive:true,force:true});}
   });
 
-it('cancels only the original admitted root schedule through the source-only Work lifecycle',
+it('keeps cancellation result DATA private and cancels only the admitted root through void Work',
   {timeout:180000},async()=>{
     const directory=await mkdtemp(join(tmpdir(),'can-source-only-cancel-'));
     try{
       const {artifact,asm}=await installed('native-source-require-cancel.can',directory);
-      for(const name of ['notify','abort'])assert.equal(artifact.operations?.find(operation=>operation.name===`SourceGuardCancel.${name}`)?.result?.disclosure,undefined);
+      for(const name of ['notify','abort'])assertSourceOnlyReceipt(artifact,`SourceGuardCancel.${name}`,'date',[[['SourceGuardCancel.Root','id','data','text']]]);
       const original=await readFile(fixture('native-source-require-cancel.can'),'utf8'),refused=fixture('.native-source-cancel-refusal.can');
+      // The original date result retains its complete DATA receipt. The
+      // separate void variant isolates Work identity authority from readable
+      // Root DATA while keeping every original guard and cancellation intact.
+      const voidSource=join(directory,'void-cancel.can');
+      await writeFile(voidSource,original.replaceAll(' -> date','').replaceAll('   return add_days(local_date(now,"UTC"),1)\n',''));
+      const voidReport=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,voidSource],{cwd:root,encoding:'utf8'});
+      assert.equal(voidReport.status,0,voidReport.stdout+voidReport.stderr);
+      const voidArtifact=JSON.parse(voidReport.stdout) as CompileArtifact;
+      for(const name of ['notify','abort'])assert.equal(voidArtifact.operations?.find(operation=>operation.name===`SourceGuardCancel.${name}`)?.result?.disclosure,undefined);
+      const voidAsm=await assembleModules({artifact:voidArtifact,sourcePath:voidSource},{workDir:join(directory,'void'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
       try{
         for(const text of [original.replaceAll('cancel root.id','cancel "arbitrary"'),
           original.replaceAll('cancel root.id','let key=root.id\n   cancel key')]){
@@ -2215,8 +2294,16 @@ it('cancels only the original admitted root schedule through the source-only Wor
           assert.equal(artifact.operations?.find(operation=>operation.name==='SourceGuardCancel.notify')?.result?.type,'date');
         }
       }finally{await rm(refused,{force:true});}
-      for(const mode of ['allowed','twins','nonexistent','other-root','full','inactive','late-invariant','identity-during-cancel','schedule-at-commit']){
-        const {now,identities,identity,membership}=await member(`source-cancel-${mode}`);
+      for(const mode of ['allowed','twins','nonexistent','other-root','full','inactive','late-invariant','identity-during-cancel','schedule-at-commit','owner-date']){
+        const cohort=await member(`source-cancel-${mode}`),{now,identities}=cohort;
+        let {identity,membership}=cohort;
+        if(mode==='owner-date'){
+          const owner=await identities.createUser({email:'source-cancel-owner@owner-search.test',password_hash:'unused',email_verified:true});
+          membership=await identities.createMembership({team_id:cohort.team.team_id,user_id:owner.user_id,is_owner:true,roles:[]});
+          const token='source-cancel-owner-'+randomBytes(8).toString('hex');
+          await identities.createSession({user_id:owner.user_id,token_sha256:await sha256HexText(token),last_team_id:cohort.team.team_id,expires_at:new Date(now+3600000).toISOString()});
+          identity=await resolveIdentity(identities,{session_token:token},{clock:createFrozenClock(now)});
+        }
         const store=createMemoryStorage(),rootModel=model('SourceGuardCancel','Root');
         const rootRow={...makeRow({id:asId('root-1'),data:{capacity:mode==='full'?'1':'2',checked:false}}),parent:null};
         const root2={...rootRow,id:asId('root-2'),data:{capacity:'2',checked:false}};
@@ -2234,6 +2321,18 @@ it('cancels only the original admitted root schedule through the source-only Wor
         const foreignRows=await store.query({model:asModel('work.schedule'),authority:'owner'});
         const foreignRow=foreignRows.find(row=>row.data['scopeOwner']===foreign.owner);assert.ok(foreignRow);
         const foreignSlot=await store.scheduleGet(scheduleKey(foreign,rootRow.id));assert.ok(foreignSlot);
+        if(mode==='allowed'){
+          const history=await store.historyFor(rootModel,rootRow.id),slot=await store.scheduleGet(scheduleKey(scope,rootRow.id));
+          const dateInvoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+          const denied=await dateInvoker.invokeMutation({operation:'SourceGuardCancel.notify',operation_id:operationId(now),inputs:{root:{id:rootRow.id,version:String(rootRow.version)}}},identity);
+          assert.ok('error'in denied,JSON.stringify(denied));assert.equal(denied.error.code,'forbidden');
+          assert.match(denied.error.message,/row id source authority/);
+          assert.deepEqual(await store.load(rootModel,rootRow.id),rootRow);
+          assert.deepEqual(await store.historyFor(rootModel,rootRow.id),history);
+          assert.deepEqual(await store.query({model:asModel('work.schedule'),authority:'owner'}),foreignRows);
+          assert.deepEqual(await store.scheduleGet(scheduleKey(scope,rootRow.id)),slot);
+          assert.deepEqual(await store.outboxPending(),[]);
+        }
         let raced=false;
         if(mode==='identity-during-cancel'){
           const query=store.query.bind(store);store.query=async spec=>{
@@ -2252,8 +2351,8 @@ it('cancels only the original admitted root schedule through the source-only Wor
         }
         const selected=mode==='other-root'?root2:rootRow,operation=mode==='late-invariant'?'SourceGuardCancel.abort':'SourceGuardCancel.notify';
         const request={operation,operation_id:operationId(now),inputs:{root:{id:selected.id,version:String(selected.version)}}};
-        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
-        const outcome=await invoker.invokeMutation(request,identity),allowed=['allowed','twins','nonexistent','other-root'].includes(mode);
+        const invoker=buildInvoker(mode==='owner-date'?artifact:voidArtifact,mode==='owner-date'?asm:voidAsm,store,{memberships:identities,now:()=>now});
+        const outcome=await invoker.invokeMutation(request,identity),allowed=['allowed','twins','nonexistent','other-root','owner-date'].includes(mode);
         assert.equal('result'in outcome&&outcome.result.status==='committed',allowed,`${mode}: ${JSON.stringify(outcome)}`);
         if(mode==='identity-during-cancel')assert.equal('error'in outcome&&outcome.error.code,'forbidden');
         if(mode==='schedule-at-commit')assert.equal('error'in outcome&&outcome.error.code,'busy');
@@ -2263,7 +2362,7 @@ it('cancels only the original admitted root schedule through the source-only Wor
         assert.deepEqual(await store.scheduleGet(scheduleKey(foreign,rootRow.id)),foreignSlot);
         const own=(await store.query({model:asModel('work.schedule'),authority:'owner'})).filter(row=>row.data['scopeOwner']===scope.owner);
         assert.equal(own.length,mode==='nonexistent'?0:mode==='twins'?2:1,mode);
-        const cancelled=mode==='allowed'||mode==='twins'||mode==='schedule-at-commit';
+        const cancelled=mode==='allowed'||mode==='twins'||mode==='schedule-at-commit'||mode==='owner-date';
         assert.ok(own.every(row=>row.data['state']===(cancelled?'cancelled':'pending')),mode);
         assert.equal(await store.scheduleGet(scheduleKey(scope,rootRow.id))===null,mode==='nonexistent'||cancelled,mode);
         if(mode==='schedule-at-commit')assert.ok(own.every(row=>row.updatedBy==='external-cancel'));
@@ -2271,12 +2370,15 @@ it('cancels only the original admitted root schedule through the source-only Wor
         assert.deepEqual(await store.outboxPending(),[]);
         if(!allowed)continue;
         const visible=await invoker.invokeRead({operation:'SourceGuardCancel.Root.read',inputs:{}},identity);
-        assert.ok('error'in visible||((visible.result as {records:unknown[]}).records.length===0));
+        if(mode==='owner-date')assert.ok('result'in visible&&((visible.result as {records:unknown[]}).records.length===2));
+        else assert.ok('error'in visible||((visible.result as {records:unknown[]}).records.length===0));
         const saved=await store.readReceipt({app:scope.app,owner:scope.owner,principal:membership.user_id,operation,
-          operationId:request.operation_id} as Parameters<typeof store.readReceipt>[0]);assert.ok(saved);assert.ok(saved.outcome.status==='committed');assert.equal(saved.outcome.scenario,undefined);
+          operationId:request.operation_id} as Parameters<typeof store.readReceipt>[0]);assert.ok(saved);assert.ok(saved.outcome.status==='committed');
+        if(mode==='owner-date')assertSavedSourceReceipt(artifact,saved);else assert.equal(saved.outcome.scenario,undefined);
         const before=await store.query({model:asModel('work.schedule'),authority:'owner'});
         const replay=await invoker.invokeMutation(request,identity);
-        assert.ok('error'in replay&&replay.error.code==='validation',JSON.stringify(replay));
+        if(mode==='owner-date')assertDateReplay(replay,new Date(now+86400000).toISOString().slice(0,10),['capacity','checked']);
+        else assert.deepEqual(replay,{result:{status:'replayed',operation_id:request.operation_id,result:null,records:[]}});
         assert.deepEqual(await store.query({model:asModel('work.schedule'),authority:'owner'}),before);assert.deepEqual(await store.readReceipt(saved.identity),saved);
       }
     }finally{await rm(directory,{recursive:true,force:true});}
@@ -2716,11 +2818,13 @@ it('authorizes original EMIT Contract DATA through its separate declared Work li
     const directory=await mkdtemp(join(tmpdir(),'can-source-emit-data-'));
     try{
       const {artifact,asm}=await installed('native-source-emit-data.can',directory);
-      for(const name of ['notify','lose_grant','change_reference','secret'])assert.equal(artifact.operations?.find(op=>op.name===`SourceEmitData.${name}`)?.result?.disclosure,undefined);
+      for(const name of ['notify','lose_grant','change_reference','secret','mixed','abort'])assert.equal(artifact.operations?.find(op=>op.name===`SourceEmitData.${name}`)?.result?.disclosure,undefined);
       for(const name of ['input','direct'])assertSourceOnlyReceipt(artifact,`SourceEmitData.${name}`,'date',[[['SourceEmitData.Root','source','data','text']]]);
       const original=await readFile(fixture('native-source-emit-data.can'),'utf8'),refused=fixture('.native-source-emit-data-refused.can');
       try{
-        for(const changed of [original.replaceAll('emit Checked {value=snapshot(root,reason)}','let alias=root\n   emit Checked {value=snapshot(alias,reason)}')]){
+        for(const changed of [original.replaceAll('emit Checked {value=snapshot(root,reason)}','let alias=root\n   emit Checked {value=snapshot(alias,reason)}'),
+          original.replace('scenario notify(root:Root,reason:text) by=members','scenario notify(root:Root,reason:text) -> date by=members')
+            .replace(' scenario lose_grant(', '   return add_days(local_date(now,"UTC"),1)\n scenario lose_grant(')]){
           await writeFile(refused,changed);const report=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,refused],{cwd:root,encoding:'utf8'});
           assert.equal(report.status,10,report.stdout+report.stderr);
           assert.ok((JSON.parse(report.stdout) as {diagnostics:{code:string}[]}).diagnostics.some(item=>item.code==='E6008'));
@@ -2798,7 +2902,7 @@ it('authorizes original EMIT Contract DATA through its separate declared Work li
           operation,operationId:request.operation_id} as Parameters<typeof store.readReceipt>[0]);assert.ok(saved);assert.ok(saved.outcome.status==='committed');
         const replay=await invoker.invokeMutation(request,identity);
         if(mode==='input'||mode==='direct'){assertSavedSourceReceipt(artifact,saved);assertDateReplay(replay,new Date(now+86400000).toISOString().slice(0,10));}
-        else{assert.equal(saved.outcome.scenario,undefined);assert.ok('error'in replay&&replay.error.code==='validation',JSON.stringify(replay));}
+        else{assert.equal(saved.outcome.scenario,undefined);assert.deepEqual(replay,{result:{status:'replayed',operation_id:request.operation_id,result:null,records:[]}});}
         assert.deepEqual(await store.query({model:asModel('work.occurrence'),authority:'owner'}),sources);assert.deepEqual(await store.readReceipt(saved.identity),saved);
       }
     }finally{await rm(directory,{recursive:true,force:true});}
@@ -3414,8 +3518,12 @@ it('executes the original refund review with counted evidence and conditional de
  }finally{await rm(directory,{recursive:true,force:true});}
 });
 
-it('executes the original Rent block contained sibling constructors with their complete native prefix', {timeout:300000},async()=>{
+it('executes the original Rent block contained sibling constructors with their complete native prefix', {timeout:600000},async({signal})=>{
  const directory=await mkdtemp(join(tmpdir(),'can-rent-block-loop-'));
+ const databases:Miniflare[]=[];
+ let disposal:Promise<void>|undefined;
+ const dispose=()=>disposal??=Promise.all(databases.map(database=>database.dispose())).then(()=>{});
+ signal.addEventListener('abort',()=>{void dispose().catch(()=>{});},{once:true});
  try{
   const source=join(root,'compiler/tests/fixtures/rent-block-loop-source.can');
   const authored=await readFile(join(root,'draft/apps/CanRent/CanRent.can'),'utf8'),fixtureSource=await readFile(source,'utf8');
@@ -3423,35 +3531,95 @@ it('executes the original Rent block contained sibling constructors with their c
   const end=authored.indexOf(' as conflict',start)+' as conflict'.length;
   assert.ok(start>=0&&fixtureSource.includes(authored.slice(start,end)),'preserves the entire original block body');
   const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
-  const artifact=JSON.parse(stdout) as CompileArtifact;
+  const originalArtifact=JSON.parse(stdout) as CompileArtifact;
+  const artifact=originalArtifact;
   const asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
-  const modes=(process.env['CAN_RENT_BLOCK_CASE']??'base,empty,null-until,large,inactive,hidden,stale,identity-race,role-race,insert-race,overflow,physical-cap').split(',');
+  const conditionalSource=join(directory,'conditional.can');
+  await writeFile(conditionalSource,fixtureSource.replace(
+   '     create Conflict {parent=resource,booking,reason} as conflict',
+   '     if booking.status==confirmed\n      create Conflict {parent=resource,booking,reason} as conflict'));
+  const conditionalCompile=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,conditionalSource],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const conditionalArtifact=JSON.parse(conditionalCompile.stdout) as CompileArtifact;
+  const conditionalAsm=await assembleModules({artifact:conditionalArtifact,sourcePath:conditionalSource},{workDir:join(directory,'conditional'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  const modes=(process.env['CAN_RENT_BLOCK_CASE']??'base,empty,null-until,large,inactive,hidden,stale,identity-race,role-race,insert-race,overflow,physical-cap,d1-conditional-sparse,d1-conditional-false,d1-conditional-budget,d1-conditional-role-race').split(',');
   for(const mode of modes){
+   signal.throwIfAborted();
+   const conditional=mode.startsWith('d1-conditional-');
+   const artifact=conditional?conditionalArtifact:originalArtifact,modules=conditional?conditionalAsm:asm;
    const {now,identities,identity,user:actor,membership}=await member('rent-block-'+mode,['rent_reservations.reservation_manager']);
-   const {store}=createTestMemoryStorage(),parent={model:asModel('rent_reservations.Resource'),id:asId('resource')};
+   let database:D1Database|undefined;
+   if(conditional){
+    const worker=new Miniflare({compatibilityDate:'2026-07-15',modules:true,script:'export default { fetch() { return new Response("ok"); } }',d1Databases:{DB:'rent-block-'+mode},d1Persist:join(directory,mode)});
+    databases.push(worker);database=await worker.getD1Database('DB') as unknown as D1Database;await ensureSchema(database);
+   }
+   const store=database===undefined?createTestMemoryStorage().store:createD1Storage(database),parent={model:asModel('rent_reservations.Resource'),id:asId('resource')};
    const date=(offset:number)=>new Date(now+offset).toISOString();
    const insert=(model:string,id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({kind:'insert' as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
    const booking=(id:string,status='confirmed',owner=parent,extra:Record<string,unknown>={})=>insert('rent_reservations.Booking',id,{hidden:mode==='hidden',status,expires:date(10000),checked_in:null,checked_out:null,departure_buffer:'0',reserved_from:date(-1000),reserved_until:date(10000),...extra},owner);
-   const count=mode==='large'?1000:mode==='overflow'?1001:mode==='physical-cap'?2200:mode==='empty'?0:2;
+   const count=mode==='large'?1000:mode==='overflow'?1001:mode==='physical-cap'?2200:mode==='d1-conditional-budget'?201:mode==='d1-conditional-sparse'?1:mode==='empty'?0:2;
    await store.commit(makeBatch(await store.readRevision(),{writes:[
     insert('rent_catalog.Location','site',{active:true}),
     insert('employee.Employee','operator',{user:{id:actor.user_id},active:mode!=='inactive',operator_wide:false,home:{id:'site'},locations:[]}),
     insert('rent_reservations.Resource','resource',{location:{id:'site'},active:true,capacity:'7',pooled:false,timezone:'UTC'}),
     insert('rent_reservations.Resource','other',{location:{id:'site'},active:true,capacity:'7',pooled:false,timezone:'UTC'}),
-    ...Array.from({length:count},(_,i)=>booking('booking-'+String(i).padStart(4,'0'),mode==='physical-cap'?'completed':'confirmed')),
+    ...Array.from({length:count},(_,i)=>booking('booking-'+String(i).padStart(4,'0'),mode==='physical-cap'?'completed':['d1-conditional-false','d1-conditional-budget'].includes(mode)?'occupied':'confirmed')),
     booking('foreign','confirmed',{model:parent.model,id:asId('other')}),
     booking('completed','completed'),booking('expired','held',parent,{expires:date(-1000)}),booking('outside','occupied',parent,{reserved_from:date(10000),reserved_until:date(20000)})
    ]}));
    const query=store.query.bind(store),commit=store.commit.bind(store);let raced=false;
-   store.query=async spec=>{const rows=await query(spec);if(['identity-race','role-race'].includes(mode)&&!raced&&spec.model==='rent_reservations.Booking'){raced=true;if(mode==='role-race')await identities.setMembershipRoles(membership.membership_id,[]);else await identities.removeMembership(membership.membership_id);}return rows;};
-   store.commit=async batch=>{if(mode==='insert-race'&&!raced&&batch.writes.some(write=>write.model==='rent_reservations.Conflict')){raced=true;await commit(makeBatch(await store.readRevision(),{writes:[booking('raced')]}));}return commit(batch);};
-   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+   store.query=async spec=>{signal.throwIfAborted();const rows=await query(spec);if(['identity-race','role-race','d1-conditional-role-race'].includes(mode)&&!raced&&spec.model==='rent_reservations.Booking'){raced=true;if(mode==='role-race'||mode==='d1-conditional-role-race')await identities.setMembershipRoles(membership.membership_id,[]);else await identities.removeMembership(membership.membership_id);}return rows;};
+   store.commit=async batch=>{signal.throwIfAborted();if(mode==='insert-race'&&!raced&&batch.writes.some(write=>write.model==='rent_reservations.Conflict')){raced=true;await commit(makeBatch(await store.readRevision(),{writes:[booking('raced')]}));}return commit(batch);};
+   const invoker=buildInvoker(artifact,modules,store,{memberships:identities,now:()=>now});
    const request={operation:'rent_reservations.block',operation_id:operationId(now),inputs:{resource:{id:'resource',version:mode==='stale'?'2':'1'},from:date(0),until:mode==='null-until'?null:date(5000),reason:'maintenance'}};
-   const result=await invoker.invokeMutation(request,identity),success=['base','empty','null-until','large','insert-race','hidden'].includes(mode);
+   const snapshot=async()=>{
+    assert.ok(database);const tables=await database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name!='_cf_METADATA' ORDER BY name").all<{name:string}>();assert.equal(tables.success,true);
+    const rows:Record<string,Record<string,unknown>[]>={};for(const {name} of tables.results){const selected:{success:boolean;results:Record<string,unknown>[]} =await database.prepare(`SELECT * FROM "${name.replaceAll('"','""')}"`).all<Record<string,unknown>>();assert.equal(selected.success,true);rows[name]=selected.results.sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));}return rows;
+   };
+   const before=database===undefined?undefined:await snapshot();
+   const result=await invoker.invokeMutation(request,identity),success=['base','empty','null-until','large','insert-race','hidden','d1-conditional-sparse','d1-conditional-false'].includes(mode);
    assert.equal('result'in result,success,mode+': '+JSON.stringify(result));
+   if(mode==='d1-conditional-budget'){
+    assert.ok('error'in result);assert.equal(result.error.code,'validation');
+    assert.match(result.error.message,/source control needs its actual quiescent owner stage/);
+   }
    for(const name of ['Downtime','ResourcePolicy','DowntimeEvidence'])assert.equal((await query({model:asModel('rent_reservations.'+name),authority:'owner'})).length,success?1:0,mode+': atomic '+name);
    const conflicts=await query({model:asModel('rent_reservations.Conflict'),authority:'owner'});
-   assert.equal(conflicts.length,success?count+(['insert-race','null-until'].includes(mode)?1:0):0,mode+': exact selected census');
+   assert.equal(conflicts.length,success?(mode==='d1-conditional-false'?0:count+(['insert-race','null-until'].includes(mode)?1:0)):0,mode+': exact selected census');
+   if(database!==undefined&&!success){
+    assert.ok(before);assert.ok('error'in result);
+    const after=await snapshot();
+    if(mode==='d1-conditional-role-race'){
+     assert.equal(result.error.code,'forbidden');assert.equal(raced,true);
+     assert.deepEqual(after,before,'revoked admission publishes no business effects, receipt, history or fence');
+     assert.equal(after['receipts']!.some(row=>row['operation_id']===request.operation_id),false,'revoked admission has no saved rejection');
+     const denied=await invoker.invokeMutation(request,identity);assert.ok('error'in denied);assert.equal(denied.error.code,'forbidden');
+     assert.deepEqual(await snapshot(),before,'retry of unseen revoked admission remains effect-free');
+    }else{
+    const revision=Number(before['fence']![0]!['revision'])+1;
+    assert.deepEqual(Object.keys(after),Object.keys(before));
+    for(const table of Object.keys(before))if(!['receipts','fence','fence_log'].includes(table))assert.deepEqual(after[table],before[table],mode+': business, history, sequences and side effects roll back '+table);
+    assert.deepEqual(after['fence'],before['fence']!.map(row=>({...row,revision})));
+    assert.equal(after['fence_log']!.length,before['fence_log']!.length+1);
+    assert.deepEqual(after['fence_log']!.filter(row=>row['revision']!==revision),before['fence_log']);
+    assert.deepEqual(after['fence_log']!.find(row=>row['revision']===revision),{revision,operation:request.operation,at:now});
+    assert.equal(after['receipts']!.length,before['receipts']!.length+1);
+    assert.deepEqual(after['receipts']!.filter(row=>row['operation_id']!==request.operation_id),before['receipts']);
+    assert.deepEqual(after['receipts']!.find(row=>row['operation_id']===request.operation_id),{
+     app:'ConstructorCount',owner:identity.team!.team_id,principal:actor.user_id,operation:request.operation,
+     operation_id:request.operation_id,input_hash:await hashInputs(request.inputs),
+     outcome:JSON.stringify({status:'rejected',code:result.error.code,message:result.error.message}),
+     committed_revision:revision,created_at:now,resolved_defaults:'{}'});
+    const replay=await invoker.invokeMutation(request,identity);assert.deepEqual(replay,result,mode+': canonical rejected replay');
+    assert.deepEqual(await snapshot(),after,mode+': replay adds no receipt or fence');
+    if(mode==='d1-conditional-budget'){
+     await identities.setMembershipRoles(membership.membership_id,[]);
+     const revoked=await invoker.invokeMutation(request,identity);assert.deepEqual(revoked,result,'ordinary rejected replay preserves its original deterministic rejection after role loss');
+     assert.deepEqual(await snapshot(),after,'rejected replay changes no audit history');
+     const unseen=await invoker.invokeMutation({...request,operation_id:operationId(now)},identity);assert.ok('error'in unseen);assert.equal(unseen.error.code,'forbidden','a fresh operation still requires current owner authority');
+     assert.deepEqual(await snapshot(),after,'denied fresh admission changes no audit history');
+    }
+    }
+   }
    if(success){
     if(mode==='hidden'){assert.ok('result'in result);assert.ok(!JSON.stringify(result.result.records??[]).includes('"booking":'),'CONTROL selection does not expose unreadable selected references');}
     assert.ok(conflicts.every(row=>row.parent?.id==='resource'&&row.data['reason']==='maintenance'&&row.data['downtime']===null));
@@ -3460,7 +3628,7 @@ it('executes the original Rent block contained sibling constructors with their c
    }
    if(mode.endsWith('-race'))assert.equal(raced,true,mode);
   }
- }finally{await rm(directory,{recursive:true,force:true});}
+ }finally{await dispose();await rm(directory,{recursive:true,force:true});}
 });
 
 it('emits the original Shift request with its genuine created Swap and parent DATA', {timeout:180000},async()=>{
@@ -4350,10 +4518,10 @@ it('reports exhausted decision inventories at their source site while preserving
         return `(${balanced(terms.slice(0, half))} and ${balanced(terms.slice(half))})`;
       };
       const source = join(directory, 'Helper.can');
-      // 66 nested helper/ANY invocations contribute 198 selected calls; the
-      // three final scalar calls cross the existing 200-call inventory cap.
+      // Distinct authored call sites retain the 200-site bound, even when
+      // shared helper bodies are represented once in the source inventory.
       const overflow = queried.replace('require allowed(booking)', `require ${balanced([
-        ...Array<string>(66).fill('allowed(booking)'), ...Array<string>(3).fill('trim("yes")=="yes"'),
+        'allowed(booking)', ...Array<string>(201).fill('trim("yes")=="yes"'),
       ])}`);
       await writeFile(source, overflow);
       const refused = spawnSync(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
@@ -4383,13 +4551,50 @@ it('reports exhausted decision inventories at their source site while preserving
 
       // Exhaustion is diagnostic detail on an already-declined closure. A
       // larger ordinary expression that already emits remains supported.
-      await writeFile(source, nested.replace('require allowed(booking)',
-        `require ${balanced(Array<string>(101).fill('allowed(booking)'))}`));
+      const membershipNested = nested
+        .replace('derive allow_customer(customer:Customer):bool=customer.active',
+          'derive allow_customer(customer:Customer,person:user):bool=customer.active and active_member(person,team)')
+        .replace('derive allowed(booking:Booking):bool=allow_customer(booking.customer)',
+          'derive allowed(booking:Booking,person:user):bool=allow_customer(booking.customer,person)');
+      await writeFile(source, membershipNested.replace('require allowed(booking)',
+        `require ${balanced(Array<string>(101).fill('allowed(booking,actor)'))}`));
       const ordinary = spawnSync(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
         { cwd: root, encoding: 'utf8', timeout: 60000 });
       assert.equal(ordinary.status, 0, ordinary.stdout + ordinary.stderr);
 
-      // Exercise the supported nested observer through real State admission,
+      const ordinaryArtifact = JSON.parse(ordinary.stdout) as CompileArtifact;
+      const compactAsm = await assembleModules({ artifact: ordinaryArtifact, sourcePath: source }, { workDir: join(directory, 'compact'),
+        stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+      // The shared helper retains every ordered expansion and original call
+      // index. Compact metadata shares only immutable definition data.
+      const plans: unknown[] = [];
+      for (const url of Object.values(compactAsm.moduleUrls)) {
+        const emitted = await import(url) as { canMembershipSources?: () => Record<string, unknown> };
+        if (emitted.canMembershipSources) plans.push(...Object.values(emitted.canMembershipSources()));
+      }
+      const compact = plans.find(value => typeof value === 'object' && value !== null &&
+        (value as { version?: number }).version === 2) as {
+          version: number; definitions: { chain: unknown[]; target: { kind: string }; slots: unknown[] }[];
+          frames: [number, number | null][]; sites: { calls: [number, number | null][] }[];
+        } | undefined;
+      assert.ok(compact, 'repeated source helpers use the lossless compact transport');
+      const expanded = checkScenarioReceiptMembershipSites(compact);
+      assert.ok(expanded.reduce((sum, site) => sum + site.calls.length, 0) > 200);
+      assert.equal(checkScenarioReceiptMembershipSites(expanded), expanded, 'only immutable validated plans reuse validation');
+      assert.deepEqual(checkScenarioReceiptMembershipSites(expanded.filter(() => true)), expanded);
+      assert.throws(() => checkScenarioReceiptMembershipSites([expanded[0], expanded[0]]), /Membership recipe:/);
+      assert.ok(Object.isFrozen(expanded) && Object.isFrozen(expanded[0]!.calls));
+      for (const corrupt of [
+        (plan: typeof compact) => { plan!.sites[0]!.calls[0]![0] = plan!.definitions.length; },
+        (plan: typeof compact) => { plan!.frames[0]![1] = 0; },
+        (plan: typeof compact) => { plan!.definitions[0]!.slots = [999]; },
+        (plan: typeof compact) => { plan!.definitions.push(...Array(201).fill(plan!.definitions[0]!)); },
+      ]) {
+        const forged = JSON.parse(JSON.stringify(compact)) as typeof compact;
+        corrupt(forged);
+        assert.throws(() => checkScenarioReceiptMembershipSites(forged), /Membership recipe:/);
+      }
+      // Exercise the nested query observer through real State admission,
       // query execution, revision fencing and receipt replay.
       const small = queried.slice(0, queried.indexOf('   do\n')) + '   do set booking {checked=true}\n Then\n';
       await writeFile(source, small);

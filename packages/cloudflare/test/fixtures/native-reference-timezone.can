@@ -10,4 +10,10 @@ When
   do
    set booking {checked=true}
    return local_date(now,booking.location.timezone)
+ scenario snapshot(booking:Booking,other:Resource) -> date by=members
+  require booking.active
+  do
+   let original=booking.location
+   set booking {checked=true,location=other}
+   return local_date(now,original.timezone)
 Then

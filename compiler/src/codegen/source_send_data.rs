@@ -78,6 +78,24 @@ pub(super) fn send_value(
             && fields.len() <= 200
             && fields.iter().all(|(_, value)| child(value));
     }
+    // Message descriptors are sealed by the whole-owner semantic join.
+    // Only their evaluated operands can consume DATA or invocation Values.
+    match &value.expr {
+        IrExpr::Message(message) => return message.params.iter().all(|param| child(&param.value)),
+        IrExpr::MessageCall {
+            descriptor,
+            args,
+            params,
+        } => {
+            return descriptor.params.is_empty()
+                && args.iter().all(child)
+                && params
+                    .iter()
+                    .filter_map(|param| param.default.as_ref())
+                    .all(|value| send_value(ir, value, &BTreeSet::new(), depth + 1));
+        }
+        _ => {}
+    }
     if !plain_value(ir, &value.ty, 0) {
         return false;
     }
@@ -105,6 +123,7 @@ pub(super) fn send_value(
         IrExpr::Binary { left, right, .. } => child(left) && child(right),
         IrExpr::Unary { operand, .. } => child(operand),
         IrExpr::Array(entries) => entries.iter().all(child),
+        IrExpr::Format { args, .. } => args.iter().all(child),
         IrExpr::Object(fields) => fields.iter().all(|(_, value)| child(value)),
         _ => false,
     }
@@ -703,6 +722,40 @@ impl Reads {
                 args,
                 slots,
             } => self.helper(ir, context, name, args, Some(slots), env, depth),
+            IrExpr::Format { args, .. } => {
+                for value in args {
+                    self.read(ir, context, value, env, depth + 1)?;
+                }
+                Some(())
+            }
+            IrExpr::Message(message) => {
+                for param in &message.params {
+                    self.read(ir, context, &param.value, env, depth + 1)?;
+                }
+                Some(())
+            }
+            IrExpr::MessageCall {
+                descriptor,
+                args,
+                params,
+            } => {
+                // Defaults execute in their defining message scope. Until a
+                // default has its own formal-to-argument DATA join, only
+                // closed pure values may enter here; caller root spellings
+                // must never impersonate defining parameters.
+                if !descriptor.params.is_empty()
+                    || params
+                        .iter()
+                        .filter_map(|param| param.default.as_ref())
+                        .any(|value| !send_value(ir, value, &BTreeSet::new(), depth + 1))
+                {
+                    return None;
+                }
+                for value in args {
+                    self.read(ir, context, value, env, depth + 1)?;
+                }
+                Some(())
+            }
             IrExpr::Query(query) => self.query(ir, context, query, value, env, depth),
             _ => None,
         }

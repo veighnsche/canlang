@@ -126,27 +126,7 @@ fn required_decision_nodes(
     program: &CheckedProgram,
     proofs: &[CheckedDecisionSite],
 ) -> Option<HashSet<NodeKey>> {
-    let mut required = HashSet::new();
-    let mut calls = 0usize;
-    if proofs.len() > 200 {
-        return None;
-    }
-    for site in proofs {
-        required.extend([site.node, site.statement]);
-        for call in &site.calls {
-            calls += 1;
-            if calls > 200 {
-                return None;
-            }
-            required.insert(call.node);
-            required.extend(call.arguments.iter().map(|(node, _)| *node));
-            required.extend(call.defaults.iter().map(|(_, node)| *node));
-            if let CheckedDecisionCallTarget::DeriveFn(id) = call.target {
-                required.insert(program.effects.derives.get(&id)?.expr?);
-            }
-        }
-    }
-    Some(required)
+    required_site_keys(program, proofs)
 }
 
 fn verify_decision_sites(
@@ -227,7 +207,8 @@ fn collect_decision_sources_checked(
         catalog,
         nodes: HashMap::new(),
         steps: 0,
-        count: 0,
+        count: HashSet::new(),
+        templates: HashMap::new(),
     };
     // Only the original consumed anchors need a CST cache. Unrelated source
     // remains in the checked/fresh cohort without spending this owner's budget.
@@ -251,7 +232,11 @@ struct Consumer<'a> {
     catalog: Option<&'a Catalog>,
     nodes: HashMap<NodeKey, (SyntaxKind, Span, Option<NodeKey>)>,
     steps: usize,
-    count: usize,
+    count: HashSet<(ModuleId, NodeKey)>,
+    templates: HashMap<
+        (SymbolId, Vec<(SymbolId, NodeKey)>),
+        Vec<crate::analysis::scenario_disclosure::CheckedDecisionCall>,
+    >,
 }
 
 /// Required page anchors for the read seals: every page the IR sealed.
@@ -388,15 +373,15 @@ fn required_site_keys(
     sites: &[CheckedDecisionSite],
 ) -> Option<HashSet<NodeKey>> {
     let mut required = HashSet::new();
-    let mut calls = 0usize;
+    let mut calls = HashSet::new();
     if sites.len() > 200 {
         return None;
     }
     for site in sites {
         required.extend([site.node, site.statement]);
         for call in &site.calls {
-            calls += 1;
-            if calls > 200 {
+            calls.insert((call.module, call.node));
+            if calls.len() > 200 {
                 return None;
             }
             required.insert(call.node);
@@ -811,13 +796,64 @@ impl Consumer<'_> {
             source: p.source.clone(),
             derive: *id,
         });
+        if frame.len() > 16 {
+            return None;
+        }
         let defaults = self.join_derive_defaults(
             params, declared, &p.slots, *id, stack, calls, matched, &frame,
         )?;
         if defaults != p.defaults {
             return None;
         }
-        self.expression(body, &frame, stack, calls, matched, 0)?;
+        let template_key = (*id, defaults);
+        if let Some(template) = self.templates.get(&template_key).cloned() {
+            for relative in template {
+                if relative
+                    .chain
+                    .iter()
+                    .any(|entry| stack.contains(&entry.derive))
+                    || matches!(relative.target,CheckedDecisionCallTarget::DeriveFn(target)if stack.contains(&target))
+                    || frame.len()
+                        + relative.chain.len()
+                        + usize::from(matches!(
+                            relative.target,
+                            CheckedDecisionCallTarget::DeriveFn(_)
+                        ))
+                        > 16
+                {
+                    return None;
+                }
+                let mut occurrence = relative;
+                occurrence.chain.splice(0..0, frame.iter().cloned());
+                let mut found = calls
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, actual)| **actual == occurrence);
+                let (index, _) = found.next()?;
+                if found.next().is_some() || !matched.insert(index) {
+                    return None;
+                }
+                self.count.insert((occurrence.module, occurrence.node));
+                if self.count.len() > 200 {
+                    return None;
+                }
+            }
+        } else {
+            let before = matched.clone();
+            self.expression(body, &frame, stack, calls, matched, 0)?;
+            let mut indices: Vec<_> = matched.difference(&before).copied().collect();
+            indices.sort_unstable();
+            let mut template = Vec::with_capacity(indices.len());
+            for index in indices {
+                let mut relative = calls[index].clone();
+                if !relative.chain.starts_with(&frame) {
+                    return None;
+                }
+                relative.chain.drain(..frame.len());
+                template.push(relative);
+            }
+            self.templates.insert(template_key, template);
+        }
         stack.remove(id);
         Some(true)
     }
@@ -971,12 +1007,12 @@ impl Consumer<'_> {
                 self.expression(person, chain, stack, calls, matched, depth + 1)?;
                 let index = self.find_consumed_call(e, chain, calls, matched)?;
                 let call = &calls[index];
-                self.count += 1;
+                self.count.insert((call.module, call.node));
                 let CheckedDecisionCallTarget::Role(id) = call.target else {
                     return None;
                 };
                 let selected = self.program.types.selected_calls.get(&call.node)?;
-                if self.count > 200
+                if self.count.len() > 200
                     || !self.origin(&call.source, call.node, call.module)
                     || !matches!(selected.target,SelectedCallTarget::Role(actual)if actual==id)
                     || !matches!(self.program.symbols.get(id.0 as usize),Some(symbol)if symbol.canonical==*role&&matches!(symbol.kind,crate::analysis::resolve::SymbolKind::Role))
@@ -996,8 +1032,8 @@ impl Consumer<'_> {
                 self.visit_call_args(args, e, chain, stack, calls, matched, depth)?;
                 let index = self.find_consumed_call(e, chain, calls, matched)?;
                 let p = &calls[index];
-                self.count += 1;
-                if self.count > 200 || !self.origin(&p.source, p.node, p.module) {
+                self.count.insert((p.module, p.node));
+                if self.count.len() > 200 || !self.origin(&p.source, p.node, p.module) {
                     return None;
                 }
                 let selected = self.program.types.selected_calls.get(&p.node)?;
@@ -1177,6 +1213,134 @@ pub struct SerialDecisionSite {
     pub stage: String,
     pub position: Vec<SerialDecisionPosition>,
     pub calls: Vec<SerialDecisionCall>,
+}
+
+/// Compact only the final wire copy; correspondence and call indexes remain expanded.
+pub(super) fn compact_decision_sites(value: &serde_json::Value) -> Option<serde_json::Value> {
+    use serde_json::{Value, json};
+    let sites = value.as_array()?;
+    let count = sites.iter().try_fold(0usize, |n, site| {
+        n.checked_add(site.get("calls")?.as_array()?.len())
+    })?;
+    if count <= 200 {
+        return Some(value.clone());
+    }
+    if count > 16384 || sites.len() > 200 {
+        return None;
+    }
+    let mut definitions = Vec::new();
+    let mut definition_ids = HashMap::new();
+    let mut derives = HashMap::new();
+    let mut occurrences = Vec::new();
+    let mut weight = 0usize;
+    for site in sites {
+        let mut ids = Vec::new();
+        for call in site.get("calls")?.as_array()? {
+            let chain = call.get("chain")?.as_array()?;
+            if chain.len() > 16 {
+                return None;
+            }
+            weight = weight.checked_add(
+                1 + chain.len()
+                    + call.get("arguments")?.as_array()?.len()
+                    + call.get("slots")?.as_array()?.len()
+                    + call.get("defaults")?.as_array()?.len(),
+            )?;
+            if weight > 20000 {
+                return None;
+            }
+            let mut definition = call.clone();
+            *definition.get_mut("chain")? = json!([]);
+            let key = serde_json::to_string(&definition).ok()?;
+            let id = match definition_ids.get(&key) {
+                Some(id) => *id,
+                None => {
+                    let id = definitions.len();
+                    if id >= 200 {
+                        return None;
+                    }
+                    definitions.push(definition);
+                    definition_ids.insert(key, id);
+                    id
+                }
+            };
+            if call.get("target")?.get("kind")?.as_str()? == "derive" {
+                let key = serde_json::to_string(&json!({"source":call.get("source")?,
+                    "node":call.get("node")?,"derive":call.get("target")?.get("name")?,
+                    "chain":chain}))
+                .ok()?;
+                if derives
+                    .insert(key, id)
+                    .is_some_and(|previous| previous != id)
+                {
+                    return None;
+                }
+            }
+            ids.push(id);
+        }
+        occurrences.push(ids);
+    }
+    let mut frames = Vec::new();
+    let mut frame_ids = HashMap::new();
+    let mut compact_sites = Vec::new();
+    for (site, ids) in sites.iter().zip(occurrences) {
+        let mut calls = Vec::new();
+        for (call, id) in site.get("calls")?.as_array()?.iter().zip(ids) {
+            let mut parent: Option<usize> = None;
+            let mut prefix = Vec::<Value>::new();
+            for frame in call.get("chain")?.as_array()? {
+                let key = serde_json::to_string(&json!({"source":frame.get("source")?,
+                    "node":frame.get("node")?,"derive":frame.get("derive")?,
+                    "chain":prefix}))
+                .ok()?;
+                // A frame must correspond to an actual original derive occurrence.
+                let definition = *derives.get(&key)?;
+                let pair = (definition, parent);
+                let index = match frame_ids.get(&pair) {
+                    Some(index) => *index,
+                    None => {
+                        let index = frames.len();
+                        if index >= 16384 {
+                            return None;
+                        }
+                        frames.push(json!([definition, parent]));
+                        frame_ids.insert(pair, index);
+                        index
+                    }
+                };
+                parent = Some(index);
+                prefix.push(frame.clone());
+            }
+            calls.push(json!([id, parent]));
+        }
+        let mut site = site.clone();
+        *site.get_mut("calls")? = Value::Array(calls);
+        compact_sites.push(site);
+    }
+    let result =
+        json!({"version":2,"definitions":definitions,"frames":frames,"sites":compact_sites});
+    let mut nodes = 0usize;
+    let mut pending = vec![&result];
+    while let Some(value) = pending.pop() {
+        nodes += 1;
+        if nodes > 20000 {
+            return None;
+        }
+        match value {
+            Value::Array(values) => pending.extend(values),
+            Value::Object(values) => pending.extend(values.values()),
+            _ => {}
+        }
+    }
+    Some(result)
+}
+
+pub(super) fn compact_require_identity(value: &serde_json::Value) -> Option<serde_json::Value> {
+    let mut result = value.clone();
+    if let Some(sites) = result.get_mut("sites") {
+        *sites = compact_decision_sites(sites)?;
+    }
+    Some(result)
 }
 
 /// Optional private transport only. No artifact registration or execution capability.
@@ -1438,7 +1602,8 @@ pub(super) fn serialize_read_rule(
         catalog,
         nodes: HashMap::new(),
         steps: 0,
-        count: 0,
+        count: HashSet::new(),
+        templates: HashMap::new(),
     };
     // Only this rule's consumed anchors spend the finite index budget, then
     // the present helper-closure bodies join best-effort. Unrelated source
@@ -1602,7 +1767,8 @@ fn serialize_checked_policy_predicate(
         catalog: sources.catalog(),
         nodes: HashMap::new(),
         steps: 0,
-        count: 0,
+        count: HashSet::new(),
+        templates: HashMap::new(),
     };
     consumer.index_required(sources.trees(), &required_site_keys(original, &sites)?)?;
     index_helper_closure(&mut consumer, sources.trees(), original);
@@ -1750,7 +1916,8 @@ pub(super) fn serialize_read_predicates(
         catalog,
         nodes: HashMap::new(),
         steps: 0,
-        count: 0,
+        count: HashSet::new(),
+        templates: HashMap::new(),
     };
     // Only the sealed pages spend the finite index budget, then the present
     // helper-closure bodies join best-effort. Unrelated Given/When bulk
@@ -1766,7 +1933,7 @@ pub(super) fn serialize_read_predicates(
         stack: HashSet::new(),
     };
     let mut output = Vec::new();
-    let mut call_count = 0usize;
+    let mut call_count = HashSet::new();
     for (module, expected_module) in ir.modules.iter().zip(&fresh.modules) {
         if module_identity_mismatch(module, expected_module) {
             return None;
@@ -1805,8 +1972,8 @@ pub(super) fn serialize_read_predicates(
                     NodeKey::of(query),
                 )?;
                 verify_predicate_site(&mut consumer, &site, body, module.id)?;
-                call_count = call_count.checked_add(site.calls.len())?;
-                if output.len() >= 200 || call_count > 200 {
+                call_count.extend(site.calls.iter().map(|call| (call.module, call.node)));
+                if output.len() >= 200 || call_count.len() > 200 {
                     return None;
                 }
                 {
@@ -2097,7 +2264,10 @@ fn serialize_stateless_observers(
         if matched.len() != collected.calls.len() {
             return None;
         }
-        let mut count = 0usize;
+        if collected.calls.len() > 16384 {
+            return None;
+        }
+        let mut count = HashSet::new();
         let mut values = 0usize;
         let mut calls = Vec::new();
         for call in &collected.calls {
@@ -2143,7 +2313,8 @@ pub(super) fn serialize_read_booleans(
         catalog: sources.catalog(),
         nodes: HashMap::new(),
         steps: 0,
-        count: 0,
+        count: HashSet::new(),
+        templates: HashMap::new(),
     };
     // Only the sealed pages spend the finite index budget, then the present
     // helper-closure bodies join best-effort. Unrelated Given/When bulk
@@ -2175,9 +2346,14 @@ fn serialize_sites(
     owner_override: Option<&str>,
 ) -> Option<Vec<SerialDecisionSite>> {
     let mut output = Vec::new();
-    let mut count = 0usize;
+    let mut count = HashSet::new();
     let mut values = 0usize;
+    let mut occurrences = 0usize;
     for site in &sites {
+        occurrences = occurrences.checked_add(site.calls.len())?;
+        if occurrences > 16384 {
+            return None;
+        }
         let mut calls = Vec::new();
         for call in &site.calls {
             calls.push(serialize_call(
@@ -2241,6 +2417,7 @@ fn collect_require_keys(
         for call in &site.calls {
             required.insert(call.node);
             required.extend(call.arguments.iter().map(|(node, _)| *node));
+            required.extend(call.defaults.iter().map(|(_, node)| *node));
             if let CheckedDecisionCallTarget::DeriveFn(id) = call.target {
                 required.insert(original.effects.derives.get(&id)?.expr?);
             }
@@ -2406,6 +2583,9 @@ fn plain_source_value(ir: &IrProgram, ty: &ResolvedType, depth: usize) -> bool {
     }
     match ty {
         ResolvedType::Scalar(scalar) => *scalar != Scalar::File,
+        // The serializer below independently checks a nominal enum's original
+        // field identity and cases before carrying this immutable value shape.
+        ResolvedType::Enum { cases, .. } => !cases.is_empty() && cases.len() <= 200,
         ResolvedType::Nullable(inner)
         | ResolvedType::Array {
             element: inner,
@@ -2569,6 +2749,190 @@ fn serialize_require_params(
     Some(parameters)
 }
 
+/// A separately source-sealed mutation prefix for an existing staged IF.
+/// This is only a runtime checkpoint proof; it admits no new Require shape.
+fn serialize_require_phase_prefix(
+    sources: &FreshSourceContext<'_>,
+    owner: &IrItem,
+    site: &CheckedDecisionSite,
+) -> Option<serde_json::Value> {
+    if !matches!(site.stage, Stage::BodyCondition | Stage::BodyRequire) {
+        return None;
+    }
+    let [Position::Body(index), nested @ ..] = site.position.as_slice() else {
+        return None;
+    };
+    sources.same_scenario(sources.ir(), owner)?;
+    let IrItemKind::Scenario {
+        params, effects, ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    fn target(
+        ir: &IrProgram,
+        owner: &IrItem,
+        params: &[SymbolId],
+        record: &TypedExpr,
+        depth: usize,
+    ) -> Option<(String, SymbolId, Vec<String>)> {
+        if depth > 16 {
+            return None;
+        }
+        match &record.expr {
+            IrExpr::Name(name) => {
+                let parameter = params
+                    .iter()
+                    .filter_map(|id| ir.items.get(id.0 as usize))
+                    .find(|parameter| parameter.name == *name)?;
+                let IrItemKind::Param {
+                    owner: actual,
+                    ty:
+                        IrType::Known(ResolvedType::Record {
+                            symbol,
+                            stored: true,
+                        }),
+                    default: None,
+                    ..
+                } = &parameter.kind
+                else {
+                    return None;
+                };
+                (*actual == owner.id
+                    && record.ty
+                        == ResolvedType::Record {
+                            symbol: *symbol,
+                            stored: true,
+                        })
+                .then(|| (name.clone(), *symbol, Vec::new()))
+            }
+            IrExpr::Member { base, field } if field == "parent" => {
+                let (parameter, root, mut parents) = target(ir, owner, params, base, depth + 1)?;
+                let (
+                    ResolvedType::Record {
+                        symbol: child,
+                        stored: true,
+                    },
+                    ResolvedType::Record {
+                        symbol: parent,
+                        stored: true,
+                    },
+                ) = (&base.ty, &record.ty)
+                else {
+                    return None;
+                };
+                if !matches!(&ir.items.get(child.0 as usize)?.kind,IrItemKind::Model{owner:IrOwner::ChildOf(actual),fields,..}if actual==parent&&fields.iter().filter_map(|id|ir.items.get(id.0 as usize)).all(|field|field.name!="parent"))
+                {
+                    return None;
+                }
+                parents.push(ir.items.get(parent.0 as usize)?.canonical.clone());
+                Some((parameter, root, parents))
+            }
+            _ => None,
+        }
+    }
+    let ir = sources.ir();
+    let source = serde_json::to_value(serial_source(site.source.clone())).ok()?;
+    let loops = super::source_loops::collect_phase_prefix(ir, owner, sources, &source, "");
+    let mut prefix = Vec::new();
+    let mut append = |body: &[IrStmt]| -> Option<()> {
+        for statement in body {
+            if prefix.len() >= 200 {
+                return None;
+            }
+            match statement {
+                IrStmt::Let { .. } | IrStmt::Require { .. } => {}
+                IrStmt::Set {
+                    record,
+                    changes,
+                    when: None,
+                    ..
+                } => {
+                    let (parameter, model, parents) = target(ir, owner, params, record, 0)?;
+                    let IrExpr::Object(fields) = &changes.expr else {
+                        return None;
+                    };
+                    if fields.is_empty() || fields.len() > 200 {
+                        return None;
+                    }
+                    let mut names: Vec<_> = fields.iter().map(|(name, _)| name.clone()).collect();
+                    names.sort();
+                    if names.windows(2).any(|pair| pair[0] == pair[1]) {
+                        return None;
+                    }
+                    prefix.push(serde_json::json!({"kind":"set","parameter":parameter,"model":ir.items.get(model.0 as usize)?.canonical,"parents":parents,"fields":names}));
+                }
+                IrStmt::For { span, body, .. }
+                    if body
+                        .iter()
+                        .all(|statement| matches!(statement, IrStmt::Set { when: None, .. })) =>
+                {
+                    let matched = loops.as_ref()?["loops"].as_array()?.iter().find(|entry| {
+                        entry["node"]["start"] == span.start && entry["node"]["end"] == span.end
+                    })?;
+                    if matched["sends"] != 0 || matched.get("work").is_some() {
+                        return None;
+                    }
+                    let fields = body
+                        .iter()
+                        .map(|statement| {
+                            let IrStmt::Set {
+                                changes,
+                                when: None,
+                                ..
+                            } = statement
+                            else {
+                                return None;
+                            };
+                            let IrExpr::Object(fields) = &changes.expr else {
+                                return None;
+                            };
+                            if fields.is_empty() || fields.len() > 200 {
+                                return None;
+                            }
+                            let mut names: Vec<_> =
+                                fields.iter().map(|(name, _)| name.clone()).collect();
+                            names.sort();
+                            if names.windows(2).any(|pair| pair[0] == pair[1]) {
+                                return None;
+                            }
+                            Some(names)
+                        })
+                        .collect::<Option<Vec<_>>>()?;
+                    if matched["writes"].as_u64()? != fields.len() as u64 {
+                        return None;
+                    }
+                    prefix.push(
+                        serde_json::json!({"kind":"loop","id":matched["id"],"fields":fields}),
+                    );
+                }
+                _ => return None,
+            }
+        }
+        Some(())
+    };
+    append(effects.get(..*index)?)?;
+    let mut current = effects.get(*index)?;
+    for position in nested {
+        let IrStmt::If {
+            then_branch,
+            else_branch,
+            ..
+        } = current
+        else {
+            return None;
+        };
+        let (branch, index) = match position {
+            Position::Then(index) => (then_branch, *index),
+            Position::Else(index) => (else_branch, *index),
+            _ => return None,
+        };
+        append(branch.get(..index)?)?;
+        current = branch.get(index)?;
+    }
+    (!prefix.is_empty()).then(|| serde_json::json!(prefix))
+}
+
 fn serialize_require_observer(
     sources: &FreshSourceContext<'_>,
     original: &CheckedProgram,
@@ -2608,6 +2972,13 @@ fn serialize_require_observer(
     if site.stage == crate::analysis::scenario_disclosure::CheckedDecisionStage::BodyCondition {
         identity["decision"] = serde_json::json!("if");
     }
+    if let Some(prefix) = serialize_require_phase_prefix(sources, owner, site) {
+        identity["mutationPrefix"] = prefix;
+        if site.stage == Stage::BodyRequire {
+            identity["decision"] = serde_json::json!("require");
+        }
+    }
+
     if let [
         crate::analysis::scenario_disclosure::CheckedDecisionPosition::Body(index),
         crate::analysis::scenario_disclosure::CheckedDecisionPosition::Loop(child),
@@ -2743,7 +3114,8 @@ pub(super) fn serialize_scenario_requires(
             catalog: sources.catalog(),
             nodes: HashMap::new(),
             steps: 0,
-            count: 0,
+            count: HashSet::new(),
+            templates: HashMap::new(),
         };
         let required = collect_require_keys(original, sites)?;
         consumer.index_required(sources.trees(), &required)?;
@@ -2902,14 +3274,14 @@ fn serialize_call(
     ir: &IrProgram,
     db: &SourceDb,
     call: &crate::analysis::scenario_disclosure::CheckedDecisionCall,
-    count: &mut usize,
+    count: &mut HashSet<(ModuleId, NodeKey)>,
     values: &mut usize,
 ) -> Option<SerialDecisionCall> {
-    *count += 1;
+    count.insert((call.module, call.node));
     *values = values.checked_add(
         call.arguments.len() + call.slots.len() + call.defaults.len() + call.chain.len() + 1,
     )?;
-    if *count > 200 || *values > 20000 {
+    if count.len() > 200 || *values > 20000 {
         return None;
     }
     let target = serialize_call_target(program, ir, call)?;

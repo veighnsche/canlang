@@ -17,6 +17,7 @@ import { addMoney, addDuration, add_days, app_url, canonicalLocale, int64, sum, 
 import { StateError } from '../errors.js';
 import { isAuthoredRequireFailure } from '../effects/guards.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
+import { jsonClone } from '../internal/json.js';
 import { buildPolicyTable, evalPredicateForRow, type ByContext, type PolicyTable } from '../policy/grants.js';
 import { evaluateBy, hasRole, type MembershipReader } from '../policy/roles.js';
 import { checkedMembershipFact, checkedAuthoritySnapshot, observeRowGrantAuthority } from '../policy/membership-facts.js';
@@ -386,16 +387,26 @@ const sourceBodyLoopProducers=new WeakMap<GeneratedOperationDef,ScenarioSourceBo
 interface SourceBodyLoopExecution {
   readonly loop:ScenarioSourceBodyLoop;readonly parent:StoredRow;
   readonly rows:Map<RecordId,{readonly row:StoredRow;completed:boolean}>;
+  readonly stage:number;
+  work:number;
 }
 const sourceBodyLoopExecutions=new WeakMap<ReceiptOwnerSession,Map<string,SourceBodyLoopExecution>>();
 interface SourceBodyLoopItem {readonly execution:SourceBodyLoopExecution;readonly row:StoredRow;readonly stage:number;work:number;answer?:boolean;}
 const sourceBodyLoopItems=new WeakMap<ReceiptOwnerSession,SourceBodyLoopItem>();
+/** Static source bounds do not spend commands. Actual reached SEND and loop
+ * Work share the unchanged finite invocation budget, including late refusals. */
+function requireSourceLoopCommandBudget(owner:ReceiptOwnerSession):void{
+  const executions=sourceBodyLoopExecutions.get(owner);
+  if(executions===undefined)return;
+  const work=[...executions.values()].reduce((total,execution)=>total+execution.work,0);
+  if((owner.framework?.ordinal??0)+work>=MAX_ITEMS)return invalid('Source loop command occurrence budget exceeded.');
+}
 export function bindScenarioSourceLoopProducer(def:GeneratedOperationDef,value:ScenarioSourceBodyLoopPlan):void{
   const bound=boundPlans.get(def);
   if(bound===undefined||bound.type!=='void'||invokedPlans.has(def)||sourceBodyLoopProducers.has(def))return invalid('Source loop needs its uninvoked original source-only framework owner.');
   const raw=object(dataCopy(value),['source','owner','loops']);origin(raw['source']);
   if(raw['owner']!==def.name||stableStringify(raw['source'])!==stableStringify(bound.plan.source))return invalid('Source loop differs from its defining owner/source.');
-  const loops=list(raw['loops']),ids=new Set<string>();let maximum=0,sends=0,work=0;
+  const loops=list(raw['loops']),ids=new Set<string>();let maximum=0;
   if(loops.length===0||loops.length>MAX_ITEMS)return invalid('Source loop needs a finite complete original census.');
   for(const value of loops){
     const loop=object(value,['id','node','domain','maximum','parameter','parentModel','model','item','filtered','writes','sends',...(Object.hasOwn(value as object,'parentDepth')?['parentDepth']:[]),...(Object.hasOwn(value as object,'ancestors')?['ancestors','control']:[]),...(Object.hasOwn(value as object,'condition')?['condition']:[]),...(Object.hasOwn(value as object,'work')?['work']:[])]);
@@ -431,7 +442,7 @@ export function bindScenarioSourceLoopProducer(def:GeneratedOperationDef,value:S
     }
     if(Object.hasOwn(loop,'work')){
       const sites=list(loop['work']);let previous=Number(node['start']),previousStage=0;
-      if(sites.length===0||sites.length>2||loop['sends']!==0)return invalid('Source loop Work needs its separate finite original command census.');
+      if(sites.length===0||sites.length>2)return invalid('Source loop Work needs its separate finite original command census.');
       for(const raw of sites){
         const site=object(raw,['kind','node','stage',...(Object.hasOwn(raw as object,'conditional')?['conditional']:[])]),at=object(site['node'],['start','end']);
         if(!['cancel','schedule'].includes(text(site['kind']))||!Number.isSafeInteger(site['stage'])||Number(site['stage'])<previousStage||Number(site['stage'])>Number(loop['writes'])
@@ -444,16 +455,15 @@ export function bindScenarioSourceLoopProducer(def:GeneratedOperationDef,value:S
         previous=Number(at['end']);previousStage=Number(site['stage']);
       }
       if(Object.hasOwn(loop,'condition')&&sites.filter(raw=>(raw as {conditional?:true}).conditional===true).length!==1)return invalid('Source loop Work condition needs its one original scheduled command.');
-      work+=Number(loop['maximum'])*sites.length;
     }
     if(Object.hasOwn(loop,'condition')){
       const condition=object(loop['condition'],['node','statement']);
       for(const raw of [condition['node'],condition['statement']]){const at=object(raw,['start','end']);if(!Number.isSafeInteger(at['start'])||!Number.isSafeInteger(at['end'])||Number(at['start'])<Number(node['start'])||Number(at['end'])>Number(node['end'])||Number(at['start'])>=Number(at['end']))return invalid('Loop condition lost its exact original statement.');}
-      if(loop['sends']!==0||!Object.hasOwn(loop,'work')&&loop['writes']!==1)return invalid('Conditional source loop needs its original SET or Work branch.');
+      if(loop['sends']!==0||!Object.hasOwn(loop,'work')&&loop['writes']!==1)return invalid('Conditional source loop needs its original write or Work branch.');
     }
-    ids.add(id);maximum+=Number(loop['maximum']);sends+=Number(loop['maximum'])*Number(loop['sends']);
+    ids.add(id);maximum+=Number(loop['maximum']);
   }
-  if(maximum>1000||sends+work>MAX_ITEMS)return invalid('Source loop original aggregate exceeds its finite item/Work census.');
+  if(maximum>1000)return invalid('Source loop original aggregate exceeds its finite item census.');
   sourceBodyLoopProducers.set(def,deepFreeze(raw) as unknown as ScenarioSourceBodyLoopPlan);
 }
 function sourceBodyLoopLimits(def:GeneratedOperationDef):{readonly maxRows:number;readonly maxWork:number;readonly maxWrites:number}|undefined{
@@ -510,7 +520,7 @@ export async function executeScenarioSourceLoop(call:AdmittedCall,store:StorageP
         if(typeof matches!=='boolean')return invalid('Source loop original predicate did not return bool.');
         if(matches){selected.set(row.id,{row,completed:false});if(selected.size>loop.maximum)return invalid('Source loop selected domain exceeds its original authored bound.');}
       }
-      executions!.set(loop.id,{loop,parent,rows:selected});
+      executions!.set(loop.id,{loop,parent,rows:selected,stage:owner.stage,work:0});
       if(await store.readRevision()!==call.revision)throw new StateError('conflict','Source loop selection moved beyond its original checkpoint.');
       return Object.freeze([...selected.values()].map(entry=>entry.row));
     },call);
@@ -547,7 +557,7 @@ export function recordScenarioSourceLoopWork(call:AdmittedCall,store:StoragePort
     if(sites===undefined||item.execution.loop.condition!==undefined&&item.answer===undefined&&sites[item.work]?.conditional===true)return invalid('Loop Work preceded its original condition.');
     const expected=sites.filter(site=>site.conditional!==true||item.answer===true)[item.work];
     if(expected===undefined||expected.kind!==input.kind||stableStringify(expected.node)!==stableStringify(dataCopy(input.node))||owner.stage!==item.stage+expected.stage)return invalid('Loop Work changed its original command or write checkpoint.');
-    ownerHealthy(owner);item.work++;
+    ownerHealthy(owner);requireSourceLoopCommandBudget(owner);item.work++;item.execution.work++;
   }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
 }
 function requireSourceBodyLoopsComplete(owner:ReceiptOwnerSession):void{
@@ -945,11 +955,20 @@ const retainedStoredFileChecks = new WeakMap<AdmittedCall, readonly (() => Promi
 
 /** Native adapters bind only this literal live State-issued call. This
  * assertion cannot create a child or reactivate a completed call. */
-export function assertScenarioReceiptCallExecution(call: AdmittedCall, store: StoragePort): void {
+export function assertScenarioReceiptCallExecution(call: AdmittedCall, store: StoragePort, initialStage?: 0): void {
   const child = activeCalls.get(call);
-  if (child === undefined) { assertScenarioReceiptExecution(call, store); return; }
-  ownerHealthy(child.owner);
-  if (child.owner.store !== store || child.owner.executingCall !== call || !Object.isFrozen(call)) return invalid('child capture requires its actual active owner frame.');
+  if (child === undefined) assertScenarioReceiptExecution(call, store);
+  else {
+    ownerHealthy(child.owner);
+    if (child.owner.store !== store || child.owner.executingCall !== call || !Object.isFrozen(call)) return invalid('child capture requires its actual active owner frame.');
+  }
+  if (initialStage !== undefined) {
+    const state=capture(call,store),owner=child?.owner??ownerSessions.get(call);
+    if(initialStage!==0||owner===undefined||!state.bound.sourceRequireOnly||owner.store!==store
+        ||owner.executingCall!==call||owner.stage!==0||owner.busy||state.pending!==0
+        ||(owner.framework?.ordinal??0)!==0) return invalid('initial viewer query requires its actual untouched source-only owner stage.');
+    ownerHealthy(owner);
+  }
 }
 
 function callResultType(def: GeneratedOperationDef): CanTypeId | null {
@@ -1240,8 +1259,9 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
 export function bindScenarioSourceRequireFrame(def: GeneratedOperationDef, models: readonly ArtifactModel[],
   defaults: Parameters<typeof bindScenarioReceiptPlan>[2], source: ScenarioResultDisclosurePlan['source']): void {
   if (def.kind !== 'scenario' || def.descriptor.result?.disclosure !== undefined ||
+      (def.descriptor.result !== undefined && def.descriptor.result.type !== 'void') ||
       boundPlans.has(def) || invokedPlans.has(def) || !defaults.parameterStyle) {
-    return invalid('source Require frame needs its original uninvoked parameter-style scenario.');
+    return invalid('source Require frame needs its original uninvoked void parameter-style scenario.');
   }
   const checked = deepFreeze(dataCopy(source)); origin(checked);
   bindScenarioPlan(def, models, defaults, checked);
@@ -3907,6 +3927,7 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
     if (producer.app !== call.context.app || binding === undefined || target === undefined || request.from !== binding.from ||
         typeof request.arguments !== 'object' || request.arguments === null || Array.isArray(request.arguments)) return invalid('send differs from its owning app/binding/target route.');
     if (ledger.ordinal >= MAX_ITEMS) return invalid('send occurrence budget exceeded.');
+    requireSourceLoopCommandBudget(owner);
     const refund = owner.activeOwnerDecision;
     if (refund?.owner === 'rent_reservations.refund_movement_credit' &&
         (refund.call !== call || owner.stage !== 0 || refund.staged !== 0 || ledger.ordinal !== 0 ||
@@ -4306,6 +4327,9 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
     });
     return Object.freeze<ScenarioReceiptMutationSession>({ views, read: final.get,
       stage: (writes, options) => ownerOperation(owner, async () => {
+        // The engine and phase ledger consume one identical immutable input.
+        // Retain only its shape in the ledger; payload data stays in staging.
+        if(sourceRequirePhaseProducers.has(owner.call.def as GeneratedOperationDef))writes=deepFreeze(jsonClone(writes,'Source phase mutation writes'));
         if (options?.cause !== 'scenario') return invalid('receipt owner staging requires the actual scenario cause.');
         const leave = owner.activeLeaveDecision;
         if (leave !== null) {
@@ -4406,6 +4430,7 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
               ||sourceCreatedRootCaptures.get(owner)?.has(profile.id))return invalid('Created source root differs from its exact actual CREATE stage and admitted parent.');
         }
         await session.stage(writes, options);
+        recordSourceMutationStamp(owner,writes);
         for(const profile of createdSources){
           let captures=sourceCreatedRootCaptures.get(owner);if(captures===undefined){captures=new Map();sourceCreatedRootCaptures.set(owner,captures);}
           const write=Array.isArray(writes)?writes[0]!:writes,row=await owner.session!.views.final.get(profile.model,write.id!);
@@ -4725,9 +4750,13 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
     // never an authored field or nullable-reference scalar projection.
     const targetId = !nullable && scalar !== undefined && scalar.role === 'data' && scalar.field === 'id' &&
       scalar.type === 'text' && state.bound.idDependencies.has(scalar.id);
+    const parentSource = !nullable && reference?.profile.kind === 'parent' &&
+      reference.profile.field === 'parent' && reference.dependency.field === 'parent' &&
+      reference.dependency.role === 'data' && scalar?.role === 'data' &&
+      reference.dependency.type === reference.profile.target;
     if (owner === undefined || owner.session === null || owner.busy || state.pending !== 0 || state.returnId !== null ||
         owner.executingCall !== call || source?.session !== owner || source.stage !== owner.stage ||
-        reference?.profile.kind !== 'field' || reference.profile.array || reference.profile.nullable !== nullable ||
+        reference === undefined || (reference.profile.kind !== 'field' && !parentSource) || reference.profile.array || reference.profile.nullable !== nullable ||
         reference.dependency.queryId !== undefined || scalar === undefined || scalar.queryId !== undefined ||
         scalar.id === reference.dependency.id || scalar.model !== reference.profile.target || !targetId && !singularReferenceLeaf && (
           state.bound.models.get(scalar.model)?.fields.get(scalar.field) !==
@@ -4794,8 +4823,8 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
       const membership = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId); healthy();
       const policyDomains = ownerPolicyDomains(owner, healthy);
       const authority = await observeRowGrantAuthority({ actorUserId, teamId, membership, memberships }, async context => {
-        for (const entry of [{ model: source.model, row: currentSource, field: reference.dependency.field },
-          ...(target === null ? [] : [{ model: scalar.model, row: target, field: scalar.field }])]) {
+        for (const entry of [{ model: source.model, row: currentSource, field: reference.dependency.field, parent: parentSource },
+          ...(target === null ? [] : [{ model: scalar.model, row: target, field: scalar.field, parent: false }])]) {
           const producer = querySourceProducer(call.def as GeneratedOperationDef, entry.model), read = producer?.readPolicies?.get(entry.model);
           if (producer?.app !== call.context.app || producer.readPolicies === undefined || read === undefined || !('grants' in read)) {
             return invalid('stored scalar conjunction requires its installed source and target grants.');
@@ -4814,9 +4843,11 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
             throw error;
           }
           healthy();
-          if (projected.record === null || (targetId && entry.model === scalar.model && entry.field === 'id'
-            ? projected.record.id !== entry.row.id
-            : !projected.grants.some(grant => grant.fields.includes(entry.field)) || !Object.hasOwn(projected.record.data, entry.field))) {
+          if (projected.record === null || (entry.parent
+            ? projected.record.parent?.model !== reference.profile.target || projected.record.parent.id !== entry.row.parent?.id
+            : targetId && entry.model === scalar.model && entry.field === 'id'
+              ? projected.record.id !== entry.row.id
+              : !projected.grants.some(grant => grant.fields.includes(entry.field)) || !Object.hasOwn(projected.record.data, entry.field))) {
             throw new StateError('forbidden', 'Stored scalar source or target authority is unavailable.');
           }
         }
@@ -4935,7 +4966,8 @@ function ownerPolicyDomains(owner: ReceiptOwnerSession, healthy: () => void, fin
 
 export interface ScenarioReceiptRequireSource {
   /** A source-sealed IF observes its current staged snapshot; ordinary Requires remain initial-stage. */
-  readonly decision?: 'if';
+  readonly decision?: 'if' | 'require';
+  readonly mutationPrefix?:ScenarioSourceRequirePhasePlan['phases'][number]['prefix'];
   readonly loop?:{readonly node:{readonly start:number;readonly end:number};readonly item:string;readonly model:ModelName};
   readonly source: ScenarioResultDisclosurePlan['source'];
   readonly owner: string;
@@ -4944,6 +4976,107 @@ export interface ScenarioReceiptRequireSource {
   readonly parameters: readonly { readonly name: string; readonly typeId: CanTypeId; readonly unread?: true }[];
   readonly sites: readonly ScenarioReceiptMembershipSite[];
 }
+/** The membership checker owns immutable recipe capture. Keep its shared call
+ * graph intact while independently copying the closed, bounded guard metadata. */
+function captureRequireSource(value:unknown):ScenarioReceiptRequireSource{
+  const optional=typeof value==='object'&&value!==null?value:{};
+  const source=object(value,['source','owner','node','statement','parameters','sites',
+    ...(Object.hasOwn(optional,'decision')?['decision']:[]),...(Object.hasOwn(optional,'mutationPrefix')?['mutationPrefix']:[]),...(Object.hasOwn(optional,'loop')?['loop']:[])]);
+  const {sites,...metadata}=source;
+  const normalized=checkScenarioReceiptMembershipSites(sites);
+  return Object.freeze({...deepFreeze(dataCopy(metadata)),sites:normalized}) as unknown as ScenarioReceiptRequireSource;
+}
+/** An original-source prefix grants no read/write authority. It proves only
+ * which admitted SETs and completed source loops led to this guard checkpoint. */
+export interface ScenarioSourceRequirePhasePlan {
+ readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
+ readonly phases:readonly {readonly node:{readonly start:number;readonly end:number};readonly statement:{readonly start:number;readonly end:number};
+ readonly prefix:readonly ({readonly kind:'set';readonly parameter:string;readonly model:ModelName;readonly parents:readonly ModelName[];readonly fields:readonly string[]}|{readonly kind:'loop';readonly id:string;readonly fields:readonly (readonly string[])[]})[]}[];
+}
+export interface ScenarioSourceRequirePhase {readonly kind:'source-require-phase';}
+interface SourceMutationStamp {readonly stage:number;readonly call:AdmittedCall;readonly writes:readonly {readonly op:string;readonly model:ModelName;readonly id:RecordId|undefined;readonly fields:readonly string[];readonly plain:boolean}[];readonly loop?:{readonly id:string;readonly item:RecordId};}
+const sourceMutationStamps=new WeakMap<ReceiptOwnerSession,SourceMutationStamp[]>();
+const sourceRequirePhaseProducers=new WeakMap<GeneratedOperationDef,ScenarioSourceRequirePhasePlan>();
+const sourceRequirePhaseTokens=new WeakMap<object,{readonly call:AdmittedCall;readonly store:StoragePort;readonly owner:ReceiptOwnerSession;readonly plan:ScenarioSourceRequirePhasePlan;readonly node:string;readonly stage:number;readonly revision:number;consumed:boolean}>();
+export function bindScenarioSourceRequirePhases(def:GeneratedOperationDef,value:ScenarioSourceRequirePhasePlan):void{
+ const bound=boundPlans.get(def);if(bound===undefined||invokedPlans.has(def)||sourceRequirePhaseProducers.has(def))return invalid('Source phase needs its original uninvoked bound owner.');
+ const raw=object(dataCopy(value),['source','owner','phases']);origin(raw['source']);
+ if(raw['owner']!==def.name||stableStringify(raw['source'])!==stableStringify(bound.plan.source))return invalid('Source phase differs from its original owner/source.');
+ const ids=new Set<string>();for(const value of list(raw['phases'])){
+  const phase=object(value,['node','statement','prefix']);
+  for(const value of [phase['node'],phase['statement']]){const span=object(value,['start','end']);if(!Number.isSafeInteger(span['start'])||!Number.isSafeInteger(span['end'])||Number(span['start'])<0||Number(span['end'])<=Number(span['start']))return invalid('Source phase lost its original guard interval.');}
+  const key=stableStringify(phase['node']);if(ids.has(key))return invalid('Source phase repeats an original guard.');ids.add(key);
+  const prefix=list(phase['prefix']);if(prefix.length===0)return invalid('Source phase requires its complete nonempty mutation prefix.');
+  for(const value of prefix){
+   if(typeof value==='object'&&value!==null&&Object.getOwnPropertyDescriptor(value,'kind')?.value==='loop'){
+    const step=object(value,['kind','id','fields']),loop=sourceBodyLoopProducers.get(def)?.loops.find(loop=>loop.id===text(step['id']));
+    if(loop===undefined||loop.sends!==0||loop.work!==undefined||loop.condition!==undefined)return invalid('Source phase loop differs from its original write-only loop.');
+    const fields=list(step['fields']);if(fields.length!==loop.writes)return invalid('Source phase loop lost its ordered original SET census.');
+    for(const value of fields){const names=list(value).map(text);if(names.length===0||new Set(names).size!==names.length||names.some((name,index)=>index>0&&names[index-1]!>=name||!bound.artifactModels.get(loop.model)?.fields.some(field=>field.name===name&&field.default?.kind!=='derived')))return invalid('Source phase loop SET fields differ from the ordered stored schema.');}
+    continue;
+   }
+   const step=object(value,['kind','parameter','model','parents','fields']);if(step['kind']!=='set')return invalid('Source phase only admits original SET/loop steps.');
+   const input=bound.inputs.find(input=>input.name===text(step['parameter']));let model=text(step['model']) as ModelName;
+   if(input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,input.name))return invalid('Source phase SET lost its required original input.');
+   const parents=list(step['parents']);if(parents.length>16)return invalid('Source phase parent path exceeds its finite bound.');
+   for(const value of parents){const parent=text(value) as ModelName;if(bound.artifactModels.get(model)?.parent!==parent||storedReferenceField(bound,model,'parent',parent).target!==parent)return invalid('Source phase SET parent differs from containment.');model=parent;}
+   const fields=list(step['fields']).map(text);if(fields.length===0||new Set(fields).size!==fields.length||fields.some(name=>!bound.artifactModels.get(model)?.fields.some(field=>field.name===name&&field.default?.kind!=='derived')))return invalid('Source phase SET field census differs from its actual schema.');
+  }
+ }
+ if(ids.size===0)return invalid('Source phase needs an original checked guard census.');sourceRequirePhaseProducers.set(def,deepFreeze(raw) as unknown as ScenarioSourceRequirePhasePlan);
+}
+function recordSourceMutationStamp(owner:ReceiptOwnerSession,writes:Parameters<OwnerMutationSession['stage']>[0]):void{
+ if(!sourceRequirePhaseProducers.has(owner.call.def as GeneratedOperationDef))return;
+ const stamps=sourceMutationStamps.get(owner)??[];sourceMutationStamps.set(owner,stamps);
+ if(stamps.length>=((sourceBodyLoopLimits(owner.call.def as GeneratedOperationDef)?.maxWrites)??MAX_ITEMS))return invalid('Source phase mutation stamp census exceeded its owning budget.');
+ const item=sourceBodyLoopItems.get(owner),actual=Array.isArray(writes)?writes:[writes];
+ stamps.push(Object.freeze({stage:owner.stage,call:owner.executingCall,writes:Object.freeze(actual.map(write=>Object.freeze({op:write.op,model:write.model,id:write.id,fields:Object.freeze(Object.keys(write.data??{}).sort()),plain:write.parent===undefined&&write.transition===undefined&&write.when===undefined}))),...(item===undefined?{}:{loop:Object.freeze({id:item.execution.loop.id,item:item.row.id})})}));
+}
+export async function openScenarioSourceRequirePhase(call:AdmittedCall,store:StoragePort,node:{readonly start:number;readonly end:number}):Promise<ScenarioSourceRequirePhase>{
+ const state=capture(call,store),owner=ownerSessions.get(call),plan=sourceRequirePhaseProducers.get(call.def as GeneratedOperationDef);
+ try{
+  const key=stableStringify(dataCopy(node)),phase=plan?.phases.find(phase=>stableStringify(phase.node)===key);
+  if(owner===undefined||owner.session===null||owner.call!==call||owner.executingCall!==call||owner.busy||state.pending!==0||phase===undefined||plan===undefined)return invalid('Source phase needs its actual quiescent original owner.');
+  return await ownerOperation(owner,async()=>{
+   const stage=owner.stage,healthy=()=>{ownerHealthy(owner);if(owner.stage!==stage||owner.executingCall!==call)return invalid('Source phase crossed its actual original checkpoint.');};
+   if(await store.readRevision()!==call.revision)throw new StateError('conflict','Source phase admission revision changed.');healthy();
+   const stamps=sourceMutationStamps.get(owner)??[];let cursor=0;
+   for(const step of phase.prefix){
+    if(step.kind==='loop'){
+     const execution=sourceBodyLoopExecutions.get(owner)?.get(step.id);
+     if(execution===undefined||execution.stage!==cursor||[...execution.rows.values()].some(row=>!row.completed))return invalid('Source phase loop has not completed its genuine selected domain.');
+     let item:RecordId|undefined,ordinal=0;const completed=new Set<RecordId>();
+     while(stamps[cursor]?.loop?.id===step.id){const stamp=stamps[cursor]!;
+      if(stamp.loop?.item!==item){if(item!==undefined&&(ordinal!==step.fields.length||completed.has(item)))return invalid('Source phase loop omitted or repeated an ordered item SET.');if(item!==undefined)completed.add(item);item=stamp.loop?.item;ordinal=0;}
+      if(stamp.stage!==cursor||stamp.call!==call||stamp.writes.length!==1||stamp.writes[0]?.op!=='update'||stamp.writes[0]?.plain!==true||stableStringify(stamp.writes[0]?.fields)!==stableStringify(step.fields[ordinal++])||stamp.writes[0]?.model!==execution.loop.model||stamp.writes[0]?.id!==stamp.loop?.item||!execution.rows.has(stamp.loop!.item))return invalid('Source phase loop stamp differs from its actual original item.');cursor++;
+     }
+     if(item!==undefined&&(ordinal!==step.fields.length||completed.has(item)))return invalid('Source phase loop omitted or repeated its final ordered item SET.');
+     if(completed.size+(item===undefined?0:1)!==execution.rows.size)return invalid('Source phase loop lost its complete original selected item write census.');
+     continue;
+    }
+    const refs=call.recordRefs.filter(ref=>ref.param===step.parameter),ref=refs[0];
+    if(refs.length!==1||ref?.model!==step.model||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('Source phase SET lost its genuine admitted row.');
+    let model=step.model,row=await owner.session!.views.final.get(model,ref.id);healthy();
+    if(row===null||row.archivedAt!==null||!sameModelLifetime(ref.row,row))return invalid('Source phase SET input lifetime changed.');
+    for(const parent of step.parents){if(row.parent?.model!==parent)return invalid('Source phase SET lost its actual owning parent.');row=await owner.session!.views.final.get(parent,row.parent.id);healthy();if(row===null||row.archivedAt!==null)return invalid('Source phase SET parent lifetime ended.');model=parent;}
+    const stamp=stamps[cursor],write=stamp?.writes[0];
+    if(stamp?.stage!==cursor||stamp.call!==call||stamp.loop!==undefined||stamp.writes.length!==1||write?.op!=='update'||write.plain!==true||write.model!==model||write.id!==row.id||stableStringify(write.fields)!==stableStringify([...step.fields].sort()))return invalid('Source phase differs from its complete original SET prefix.');cursor++;
+   }
+   if(cursor!==stamps.length||cursor!==stage)return invalid('Source phase omitted or reordered an actual owner mutation.');
+   if(await store.readRevision()!==call.revision)throw new StateError('conflict','Source phase snapshot revision changed.');healthy();
+   const token=Object.freeze({kind:'source-require-phase' as const});sourceRequirePhaseTokens.set(token,{call,store,owner,plan,node:key,stage,revision:call.revision,consumed:false});return token;
+  },call);
+ }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
+}
+export async function consumeScenarioSourceRequirePhase(call:AdmittedCall,store:StoragePort,node:{readonly start:number;readonly end:number},token:ScenarioSourceRequirePhase):Promise<void>{
+ const state=capture(call,store),owner=ownerSessions.get(call),issued=typeof token==='object'&&token!==null?sourceRequirePhaseTokens.get(token):undefined;
+ try{
+  if(owner===undefined||owner.session===null||owner.busy||state.pending!==0||issued===undefined||issued.consumed||issued.call!==call||issued.store!==store||issued.owner!==owner||issued.plan!==sourceRequirePhaseProducers.get(call.def as GeneratedOperationDef)||issued.node!==stableStringify(dataCopy(node))||issued.stage!==owner.stage||issued.revision!==call.revision||owner.executingCall!==call)return invalid('Source phase capability is forged, stale, foreign or already consumed.');
+  if(await store.readRevision()!==call.revision)throw new StateError('conflict','Source phase capability revision changed.');ownerHealthy(owner);
+  if(owner.busy||state.pending!==0||owner.executingCall!==call||issued.stage!==owner.stage||issued.consumed)return invalid('Source phase capability crossed its quiescent owner checkpoint.');issued.consumed=true;
+ }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
+}
+
 /** Private literal host tracking; these callbacks issue no row authority. */
 export interface ScenarioReceiptRequireObserver {
   readonly field: (model: string, row: StoredRow | ProjectedRecord, field: string) => void;
@@ -5165,6 +5298,7 @@ function sourceStageObservation(call: AdmittedCall, store: StoragePort, state: C
 export async function executeScenarioReceiptRequire(call: AdmittedCall, store: StoragePort, input: {
   readonly original: ScenarioReceiptRequireSource;
   /** Independently loaded from the verified source-Require inventory. */
+  readonly phase?:ScenarioSourceRequirePhase;
   readonly checked: ScenarioReceiptRequireSource;
   readonly parameter: string;
   readonly capture: (observer: ScenarioReceiptRequireObserver) => InstalledSourceQueryPredicate;
@@ -5172,17 +5306,22 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
   const state = capture(call, store), owner = ownerSessions.get(call);
   let acquired = false;
   try {
-    const staged=input.original.decision==='if';
-    if (input.original.decision!==undefined&&!staged) return invalid('Unknown original source decision.');
+    const original=captureRequireSource(input.original);
+    if(original.mutationPrefix!==undefined){
+      const plan=sourceRequirePhaseProducers.get(call.def as GeneratedOperationDef),phase=plan?.phases.find(phase=>stableStringify(phase.node)===stableStringify(original.node));
+      if(!['if','require'].includes(original.decision??'')||phase===undefined||stableStringify(phase.statement)!==stableStringify(original.statement)||stableStringify(phase.prefix)!==stableStringify(original.mutationPrefix)||input.phase===undefined)return invalid('Staged source decision lacks its independently bound original mutation prefix capability.');
+      await consumeScenarioSourceRequirePhase(call,store,original.node,input.phase);
+    }
+    const staged=original.decision==='if'||original.decision==='require'&&original.mutationPrefix!==undefined;
+    if (original.decision!==undefined&&!staged) return invalid('Unknown original source decision.');
     const stage=owner?.stage;
     if (owner === undefined || owner.session === null || !staged&&owner.stage !== 0 || owner.busy ||
         state.pending !== 0 || state.returnId !== null || owner.executingCall !== call ||
         owner.callGuards.length >= MAX_ITEMS) {
       return invalid('source control needs its actual quiescent owner stage.');
     }
-    const original = deepFreeze(dataCopy(input.original));
-    const sites = checkScenarioReceiptMembershipSites(original.sites);
-    const checked = deepFreeze(dataCopy(input.checked));
+    const sites = original.sites;
+    const checked = captureRequireSource(input.checked);
     const source = checked.source;
     const [site] = sites;
     if (stableStringify(checked) !== stableStringify(original) ||

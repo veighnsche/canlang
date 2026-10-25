@@ -89,8 +89,8 @@ function visitTransportValue(value: unknown, depth: number, budget: TransportBud
 function copy(value: unknown): unknown {
   return visitTransportValue(value, 0, { count: 0, seen: new Set<object>() });
 }
-function list(value: unknown): unknown[] {
-  return Array.isArray(value) && value.length <= 200 ? value : fail('bounded array required.');
+function list(value: unknown, maximum = 200): unknown[] {
+  return Array.isArray(value) && value.length <= maximum ? value : fail('bounded array required.');
 }
 function index(value: unknown): void {
   if (!Number.isSafeInteger(value) || (value as number) < 0) fail('nonnegative source/index integer required.');
@@ -139,7 +139,7 @@ function checkMembershipPosition(site: Record<string, unknown>): void {
 }
 
 /** One site head through its duplicate-identity enrollment; returns its calls. */
-function checkMembershipSiteHead(site: Record<string, unknown>, identities: Set<string>): unknown[] {
+function checkMembershipSiteHead(site: Record<string, unknown>, identities: Set<string>, maximumCalls = 200): unknown[] {
   if (site.version !== 1 || typeof site.stage !== 'string' ||
       !['leading-require', 'body-require', 'body-condition', 'send-dispatch', 'read-policy', 'read-predicate'].includes(site.stage)) fail('closed v1 stage required.');
   source(site.source); text(site.owner); node(site.node); node(site.statement);
@@ -149,7 +149,7 @@ function checkMembershipSiteHead(site: Record<string, unknown>, identities: Set<
   const identity = stableStringify({ source: site.source, owner: site.owner, node: site.node, statement: site.statement,
     stage: site.stage, position: site.position });
   if (identities.has(identity)) fail('duplicate authored decision site.'); identities.add(identity);
-  return list(site.calls);
+  return list(site.calls, maximumCalls);
 }
 
 /** Builtin versus derive target vocabulary for one call. */
@@ -259,8 +259,118 @@ function checkOneMembershipCall(value: unknown, local: Set<string>): void {
   }
 }
 
+/** Only arrays returned here may reuse their completed structural validation. */
+const normalizedSites = new WeakSet<object>();
+const normalizedSiteObjects = new WeakSet<object>();
+type MembershipCall = ScenarioReceiptMembershipSite['calls'][number];
+type MembershipChain = MembershipCall['chain'];
+
+/** Filtering an issued inventory preserves its immutable sites, not its array.
+ * Snapshot only closed own data, then recheck the combined inventory bounds. */
+function issuedSiteSelection(value: unknown): readonly ScenarioReceiptMembershipSite[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const length = Object.getOwnPropertyDescriptor(value, 'length');
+  if (!length || !('value' in length) || !Number.isSafeInteger(length.value) || length.value < 0 || length.value > 200) return undefined;
+  const snapshot: ScenarioReceiptMembershipSite[] = [];
+  const keys = Reflect.ownKeys(value);
+  if (keys.length !== length.value + 1) return undefined;
+  for (let index = 0; index < length.value; index++) {
+    const entry = Object.getOwnPropertyDescriptor(value, String(index));
+    if (!entry || !('value' in entry) || !entry.enumerable || typeof entry.value !== 'object' ||
+        entry.value === null || !normalizedSiteObjects.has(entry.value)) return undefined;
+    snapshot.push(entry.value as ScenarioReceiptMembershipSite);
+  }
+  const identities = new Set<string>(), callsites = new Set<string>();
+  let occurrences = 0, weight = 0;
+  for (const site of snapshot) {
+    checkMembershipSiteHead(site as unknown as Record<string, unknown>, identities, 16384);
+    occurrences += site.calls.length;
+    if (occurrences > 16384) fail('bounded complete selected call inventory required.');
+    for (const call of site.calls) {
+      weight += call.arguments.length + call.slots.length + call.defaults.length + call.chain.length + 1;
+      if (weight > 20000) fail('expanded call inventory budget exceeded.');
+      callsites.add(stableStringify({source:call.source,node:call.node}));
+      if (callsites.size > 200) fail('bounded selected source call sites required.');
+    }
+  }
+  return Object.freeze(snapshot);
+}
+function rememberSites(sites: readonly ScenarioReceiptMembershipSite[]): readonly ScenarioReceiptMembershipSite[] {
+  for (const site of sites) normalizedSiteObjects.add(site);
+  normalizedSites.add(sites);
+  return sites;
+}
+
+/** Compact plans retain every occurrence; sharing only avoids repeated wire templates. */
+function expandMembershipSites(value: unknown): readonly ScenarioReceiptMembershipSite[] {
+  const plan = object(value, ['version', 'definitions', 'frames', 'sites']);
+  if (plan.version !== 2) fail('closed compact version required.');
+  const definitions = list(plan.definitions).map(value => {
+    checkOneMembershipCall(value, new Set<string>());
+    const call = value as unknown as MembershipCall;
+    if (call.chain.length !== 0) fail('compact definitions require empty chains.');
+    return deepFreeze(call);
+  });
+  const frames: MembershipChain[] = [];
+  for (const value of list(plan.frames, 16384)) {
+    const pair = list(value);
+    if (pair.length !== 2) fail('exact compact frame pair required.');
+    const [definition, parent] = pair;
+    index(definition);
+    const call = definitions[definition as number] ?? fail('frame requires its original derive definition.');
+    if (call.target.kind !== 'derive') return fail('frame requires its original derive definition.');
+    const derive = call.target.name;
+    let chain: MembershipChain = [];
+    if (parent !== null) {
+      index(parent);
+      chain = frames[parent as number] ?? fail('frame parent must precede its child.');
+    }
+    if (chain.length >= 16 || chain.some(frame => frame.derive === derive)) fail('bounded nonrecursive frame chain required.');
+    frames.push(Object.freeze([...chain, Object.freeze({source:call.source,node:call.node,derive})]));
+  }
+  const identities = new Set<string>();
+  let occurrences = 0, weight = 0;
+  const sites = list(plan.sites).map(value => {
+    const site = object(value, ['version', 'source', 'owner', 'node', 'statement', 'stage', 'position', 'calls']);
+    const calls = checkMembershipSiteHead(site, identities, 16384);
+    occurrences += calls.length;
+    if (occurrences > 16384) fail('bounded complete compact call inventory required.');
+    const local = new Set<string>();
+    const expanded = calls.map(value => {
+      const pair = list(value);
+      if (pair.length !== 2) fail('exact compact occurrence pair required.');
+      const [definition, frame] = pair;
+      index(definition);
+      const template = definitions[definition as number] ?? fail('known compact call definition required.');
+      let chain: MembershipChain = [];
+      if (frame !== null) {
+        index(frame);
+        chain = frames[frame as number] ?? fail('known compact frame required.');
+      }
+      weight += template.arguments.length + template.slots.length + template.defaults.length + chain.length + 1;
+      if (weight > 20000) fail('expanded call inventory budget exceeded.');
+      const call = {...template,chain};
+      checkMembershipCallChain(call, template.target.kind, template.target, local);
+      return Object.freeze(call);
+    });
+    // Freeze each original head once; call templates/chains already own frozen
+    // nested data, so never rewalk their expanded shared graph.
+    const head = deepFreeze({...site,calls:[]});
+    return Object.freeze({...head,calls:Object.freeze(expanded)}) as unknown as ScenarioReceiptMembershipSite;
+  });
+  return Object.freeze(sites);
+}
+
 export function checkScenarioReceiptMembershipSites(value: unknown): readonly ScenarioReceiptMembershipSite[] {
-  const sites = list(copy(value)); const identities = new Set<string>(); let occurrences = 0;
+  if (typeof value === 'object' && value !== null && normalizedSites.has(value)) return value as readonly ScenarioReceiptMembershipSite[];
+  const selected = issuedSiteSelection(value);
+  if (selected) return rememberSites(selected);
+  const copied = copy(value);
+  if (!Array.isArray(copied)) {
+    const sites = expandMembershipSites(copied);
+    return rememberSites(sites);
+  }
+  const sites = list(copied); const identities = new Set<string>(); let occurrences = 0;
   for (const value of sites) {
     const site = object(value, ['version', 'source', 'owner', 'node', 'statement', 'stage', 'position', 'calls']);
     const calls = checkMembershipSiteHead(site, identities);
@@ -271,5 +381,6 @@ export function checkScenarioReceiptMembershipSites(value: unknown): readonly Sc
       checkOneMembershipCall(value, local);
     }
   }
-  return deepFreeze(sites as unknown as ScenarioReceiptMembershipSite[]);
+  const frozen = deepFreeze(sites as unknown as ScenarioReceiptMembershipSite[]);
+  return rememberSites(frozen);
 }

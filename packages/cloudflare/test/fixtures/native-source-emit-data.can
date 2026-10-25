@@ -19,37 +19,32 @@ Given
  policy Child read=owner
  invariant Root: row.capacity>=0
 When
- scenario notify(root:Root,reason:text) -> date by=members
+ scenario notify(root:Root,reason:text) by=members
   require root.remaining>0
   require allowed(root)
   do
    set root {checked=true}
    emit Checked {value=snapshot(root,reason)}
-   return add_days(local_date(now,"UTC"),1)
- scenario lose_grant(root:Root,reason:text) -> date by=members
+ scenario lose_grant(root:Root,reason:text) by=members
   require allowed(root)
   do
    emit Checked {value=snapshot(root,reason)}
    set root {checked=true,visible=false}
-   return add_days(local_date(now,"UTC"),1)
- scenario change_reference(root:Root,other:Location,reason:text) -> date by=members
+ scenario change_reference(root:Root,other:Location,reason:text) by=members
   require allowed(root)
   do
    emit Checked {value=snapshot(root,reason)}
    set root {checked=true,location=other}
-   return add_days(local_date(now,"UTC"),1)
- scenario secret(root:Root) -> date by=members
+ scenario secret(root:Root) by=members
   require allowed(root)
   do
    set root {checked=true}
    emit Checked {value=Snapshot {title=root.secret,reason="Forbidden source"}}
-   return add_days(local_date(now,"UTC"),1)
- scenario mixed(root:Root,other:Hidden,reason:text) -> date by=members
+ scenario mixed(root:Root,other:Hidden,reason:text) by=members
   require allowed(root)
   do
    set root {checked=true}
    emit Mixed {root,other,value=snapshot(root,reason)}
-   return add_days(local_date(now,"UTC"),1)
  scenario input(root:Root,value:Snapshot) -> date by=members
   require allowed(root)
   do
@@ -62,10 +57,9 @@ When
    set root {checked=true}
    emit TextChecked {message=root.source}
    return add_days(local_date(now,"UTC"),1)
- scenario abort(root:Root,reason:text) -> date by=members
+ scenario abort(root:Root,reason:text) by=members
   require allowed(root)
   do
    emit Checked {value=snapshot(root,reason)}
    set root {capacity=-1}
-   return add_days(local_date(now,"UTC"),1)
 Then

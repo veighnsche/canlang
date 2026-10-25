@@ -147,6 +147,75 @@ fn replay_plan_keeps_text_control_id_order_and_both_returns() {
 }
 
 #[test]
+fn replay_retains_every_original_text_key_and_rejects_a_missing_conjunct() {
+    let source = SOURCE
+        .replace(
+            "source:text unique, accepted",
+            "source:text unique, method:text, accepted",
+        )
+        .replace(
+            "receive(source:text,accepted:int)",
+            "receive(source:text,method:text,accepted:int)",
+        )
+        .replace(
+            "receipt.source==source order=receipt.id",
+            "receipt.source==source and receipt.method==method order=receipt.id",
+        )
+        .replace(
+            "create Receipt {source,accepted}",
+            "create Receipt {source,method,accepted}",
+        );
+    let (db, program, mut ir, catalog) = fixture_source("compound-first-replay.can", &source);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let dependencies = operation(&artifact)["result"]["disclosure"]["queries"][0]["dependencies"]
+        .as_array()
+        .unwrap();
+    assert_eq!(
+        dependencies
+            .iter()
+            .map(|dependency| dependency["field"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        ["source", "method"]
+    );
+    assert!(
+        dependencies
+            .iter()
+            .all(|dependency| dependency["role"] == "control" && dependency["type"] == "text")
+    );
+    let owner = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "WholeSources.receive")
+        .unwrap()
+        .id;
+    let IrItemKind::Scenario { effects, .. } = &mut ir.items[owner.0 as usize].kind else {
+        panic!()
+    };
+    let IrStmt::Let { value, .. } = &mut effects[0] else {
+        panic!()
+    };
+    let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &mut value.expr else {
+        panic!()
+    };
+    let IrExpr::Query(query) = &mut args[0].expr else {
+        panic!()
+    };
+    query.where_pred = None;
+    assert!(
+        serialize_complete_query_receipt(
+            &program,
+            &ir,
+            &ir.items[owner.0 as usize],
+            &db,
+            Some(&catalog),
+            "entry.mjs"
+        )
+        .is_none()
+    );
+}
+
+#[test]
 fn replay_mutants_refuse() {
     let (db, program, ir, catalog) = fixture_source("native-first-replay.can", SOURCE);
     let owner = ir

@@ -419,6 +419,51 @@ pub(super) fn model_corresponds(
     }
     Some(())
 }
+fn delivery_operation_matches(ir: &IrProgram, ty: &ResolvedType, actual: &str) -> bool {
+    match ty {
+        ResolvedType::Delivery { op } => ir
+            .items
+            .get(op.0 as usize)
+            .is_some_and(|owner| owner.canonical == actual),
+        ResolvedType::StdDelivery { capability, op } => {
+            actual == format!("{capability}.{}", op.name)
+        }
+        _ => false,
+    }
+}
+
+// A delivery identity is available only after that exact original SEND.
+// Its payload is never treated as a plain value or a stored-row field grant.
+fn loop_write_value(
+    ir: &IrProgram,
+    value: &TypedExpr,
+    values: &BTreeSet<String>,
+    deliveries: &HashMap<&String, &String>,
+) -> bool {
+    if super::source_send_data::send_value(ir, value, values, 0) {
+        return true;
+    }
+    match &value.expr {
+        IrExpr::Object(fields) => {
+            fields.len() <= 200
+                && fields
+                    .iter()
+                    .all(|(_, value)| loop_write_value(ir, value, values, deliveries))
+        }
+        IrExpr::Member { base, field }
+            if field == "id" && value.ty == ResolvedType::Scalar(Scalar::Text) =>
+        {
+            let IrExpr::Name(name) = &base.expr else {
+                return false;
+            };
+            deliveries
+                .get(name)
+                .is_some_and(|actual| delivery_operation_matches(ir, &base.ty, actual))
+        }
+        _ => false,
+    }
+}
+
 fn body_counts(
     ir: &IrProgram,
     context: &super::source_context::FreshSourceContext<'_>,
@@ -446,7 +491,7 @@ fn body_counts(
         },
         IrStmt::Set{record,changes,when:None,..}if matches!(&record.expr,IrExpr::Name(name)if name==item)
             &&record.ty==(ResolvedType::Record{symbol:model,stored:true})
-            &&super::source_send_data::send_value(ir,changes,values,0)=>{writes+=1;},
+            &&loop_write_value(ir,changes,values,&deliveries)=>{writes+=1;},
         IrStmt::Cancel{key,span,..}|IrStmt::Schedule{key,span,..}=>{
             if !matches!(&key.expr,IrExpr::Member{base,field}if field=="id"&&matches!(&base.expr,IrExpr::Name(name)if name==item)
                 &&base.ty==(ResolvedType::Record{symbol:model,stored:true}))||key.ty!=ResolvedType::Scalar(Scalar::Text){return None;}
@@ -470,8 +515,8 @@ fn body_counts(
                     // The actual selected view remains an opaque reference; ordinary
                     // CREATE reference authorization still owns the target grant.
                 }else if !super::source_send_data::send_value(ir,value,values,0){
-                    let (IrExpr::Name(name),ResolvedType::StdDelivery{capability,op})=(&value.expr,&value.ty)else{return None;};
-                    if deliveries.get(name).map(|op|op.as_str())!=Some(format!("{capability}.{}",op.name).as_str()){return None;}
+                    let IrExpr::Name(name)=&value.expr else{return None;};
+                    if !deliveries.get(name).is_some_and(|actual|delivery_operation_matches(ir,&value.ty,actual)){return None;}
                 }
             }
             writes+=1;
@@ -479,11 +524,7 @@ fn body_counts(
         _=>return None,
     }
     }
-    ((writes > 0 || !work.is_empty())
-        && writes <= 4
-        && sends <= 2
-        && work.len() <= 2
-        && (work.is_empty() || sends == 0))
+    ((writes > 0 || !work.is_empty()) && writes <= 4 && sends <= 2 && work.len() <= 2)
         .then_some((writes, sends, work))
 }
 pub(super) fn collect(
@@ -497,21 +538,13 @@ pub(super) fn collect(
         .values()
         .find(|source| source["owner"] == owner.canonical)?["source"];
     let plan = collect_from_source(ir, owner, context, source, module)?;
-    // Each selected item's original IF retains its own final guard. Keep the
-    // complete authored worst case within State's existing guard census.
+    // The declaration stays finite; only reached per-item branches consume
+    // State's unchanged shared 200-guard execution budget.
     let guards = requires
         .values()
         .filter(|source| source["owner"] == owner.canonical)
-        .count() as u64;
-    let repeated = plan["loops"]
-        .as_array()?
-        .iter()
-        .filter(|loop_| loop_.get("condition").is_some())
-        .map(|loop_| loop_["maximum"].as_u64().map(|maximum| maximum - 1))
-        .collect::<Option<Vec<_>>>()?
-        .into_iter()
-        .sum::<u64>();
-    (guards + repeated <= 200).then_some(plan)
+        .count();
+    (guards <= 200).then_some(plan)
 }
 
 pub(super) fn collect_native(
@@ -534,10 +567,19 @@ pub(super) fn collect_native(
     else {
         return None;
     };
-    let IrStmt::For { body, span, .. } = effects.last()? else {
-        return None;
-    };
-    if !matches!(body.as_slice(), [IrStmt::Create { .. }]) {
+    let mut candidates = effects.iter().filter_map(|statement| {
+        let IrStmt::For { body, span, .. } = statement else { return None; };
+        let constructor = matches!(body.as_slice(), [IrStmt::Create { .. }])
+            || matches!(body.as_slice(), [IrStmt::If { then_branch, else_branch, .. }]
+                if else_branch.is_empty() && matches!(then_branch.as_slice(), [IrStmt::Create { .. }]));
+        let commands = !body.is_empty()
+            && body.iter().all(|statement| matches!(statement,
+                IrStmt::Set { when: None, .. } | IrStmt::Send { when: None, .. } | IrStmt::Cancel { .. }));
+        ((constructor && effects.last().is_some_and(|last| std::ptr::eq(last, statement))) || commands)
+            .then_some((*span, commands))
+    });
+    let (span, commands) = candidates.next()?;
+    if candidates.next().is_some() {
         return None;
     }
     let plan = collect_from_source(ir, owner, context, source, module)?;
@@ -545,8 +587,19 @@ pub(super) fn collect_native(
     (loops.len() == 1
         && loops[0]["node"]["start"] == span.start
         && loops[0]["node"]["end"] == span.end
-        && loops[0]["sends"] == 0)
+        && (commands || loops[0]["sends"] == 0))
         .then_some(plan)
+}
+
+/// Reuse the exact source loop census for a nongrant phase prefix proof.
+pub(super) fn collect_phase_prefix(
+    ir: &IrProgram,
+    owner: &IrItem,
+    context: &super::source_context::FreshSourceContext<'_>,
+    source: &serde_json::Value,
+    module: &str,
+) -> Option<serde_json::Value> {
+    collect_from_source(ir, owner, context, source, module)
 }
 
 fn collect_from_source(
@@ -613,10 +666,12 @@ fn collect_from_source(
         for statement in body {
             match statement {
                 IrStmt::Let { name, value, .. } => {
-                    let pure = super::source_send_data::send_value(ir, value, values, 0);
+                    // This names the original once-only plain DATA value;
+                    // source_let_data independently proves its executed reads.
+                    let plain = super::source_send_data::plain_value(ir, &value.ty, 0);
                     roots.remove(name);
                     values.remove(name);
-                    if pure {
+                    if plain {
                         values.insert(name.clone());
                     }
                 }
@@ -714,7 +769,7 @@ fn collect_from_source(
                         parent_model,
                         values,
                     )?;
-                    if !work.is_empty() {
+                    if work.iter().any(|site| site["kind"] == "schedule") {
                         let facts = context
                             .original()
                             .scenario_disclosures()
@@ -846,7 +901,10 @@ fn collect_from_source(
                         ] = body.as_slice()
                     {
                         if !else_branch.is_empty()
-                            || !matches!(then_branch.as_slice(), [IrStmt::Set { .. }])
+                            || !matches!(
+                                then_branch.as_slice(),
+                                [IrStmt::Set { .. } | IrStmt::Create { .. }]
+                            )
                             || writes != 1
                             || sends != 0
                         {

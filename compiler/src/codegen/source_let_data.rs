@@ -86,16 +86,46 @@ pub(super) fn collect(
             _ => false,
         }
     }
-    fn used_by_send(statements: &[IrStmt], name: &str) -> bool {
+    fn used_by_send_at(statements: &[IrStmt], name: &str, depth: usize) -> bool {
+        if depth >= 64 {
+            return false;
+        }
         for statement in statements {
             match statement {
                 IrStmt::Send { args, .. } if uses(args, name, 0) => return true,
                 IrStmt::Let { name: shadow, .. } if shadow == name => return false,
-                IrStmt::If { .. } | IrStmt::For { .. } | IrStmt::Match { .. } => return false,
+                IrStmt::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } => {
+                    if used_by_send_at(then_branch, name, depth + 1)
+                        || used_by_send_at(else_branch, name, depth + 1)
+                    {
+                        return true;
+                    }
+                }
+                IrStmt::For {
+                    item,
+                    limit: Some(limit),
+                    body,
+                    ..
+                } if item != name
+                    && matches!(limit.expr,IrExpr::Int(maximum)if (1..=1000).contains(&maximum)) =>
+                {
+                    if used_by_send_at(body, name, depth + 1) {
+                        return true;
+                    }
+                }
+                IrStmt::For { .. } => {}
+                IrStmt::Match { .. } => return false,
                 _ => {}
             }
         }
         false
+    }
+    fn used_by_send(statements: &[IrStmt], name: &str) -> bool {
+        used_by_send_at(statements, name, 0)
     }
     fn scalar_loan(
         ir: &IrProgram,
@@ -475,6 +505,80 @@ pub(super) fn collect(
             {
                 for value in args {
                     child(value)?;
+                }
+                Some(())
+            }
+            IrExpr::Query(query) => {
+                // Candidate values come only from the existing current-viewer
+                // reader. External original root fields retain their separate
+                // staged DATA observations; an alias can never borrow a root.
+                if !matches!(
+                    owner.kind,
+                    IrItemKind::Scenario {
+                        trusted: false,
+                        read: false,
+                        ..
+                    }
+                ) || !matches!(query.domain, IrQueryDomain::Model(_))
+                    || query.source.is_none()
+                {
+                    return None;
+                }
+                if let Some(parent) = &query.parent {
+                    leaves(
+                        ir,
+                        owner,
+                        context,
+                        parent,
+                        roots,
+                        source,
+                        module,
+                        stages,
+                        name,
+                        loans,
+                        depth + 1,
+                    )?;
+                }
+                let mut scoped = roots.clone();
+                scoped.remove(&query.where_param);
+                if let Some(alias) = &query.select_param {
+                    scoped.remove(alias);
+                }
+                for value in query
+                    .where_pred
+                    .iter()
+                    .map(|value| value.as_ref())
+                    .chain(query.select.iter().map(|value| value.as_ref()))
+                    .chain(query.value_order.iter().map(|order| order.key.as_ref()))
+                {
+                    leaves(
+                        ir,
+                        owner,
+                        context,
+                        value,
+                        &scoped,
+                        source,
+                        module,
+                        stages,
+                        name,
+                        loans,
+                        depth + 1,
+                    )?;
+                }
+                for value in query.limit.iter().chain(query.archived.iter()) {
+                    leaves(
+                        ir,
+                        owner,
+                        context,
+                        value,
+                        roots,
+                        source,
+                        module,
+                        stages,
+                        name,
+                        loans,
+                        depth + 1,
+                    )?;
                 }
                 Some(())
             }

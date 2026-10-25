@@ -107,3 +107,5 @@ export {
   readGeneratedCrudAssociation, projectGeneratedCrudReceipt,
   type GeneratedCrudReceiptAssociation, type ProjectGeneratedCrudReceiptInput,
 } from './crud-receipt.js';
+
+export { bindScenarioSourceRequirePhases, openScenarioSourceRequirePhase, consumeScenarioSourceRequirePhase, type ScenarioSourceRequirePhasePlan, type ScenarioSourceRequirePhase } from "./scenario-receipt.js";

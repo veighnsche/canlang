@@ -429,14 +429,15 @@ function checkResult(
     /^(int|datetime|text|bool|decimal|money|date|duration|currency|user|file)(\[\])?\??$/.test(type));
   let inlineEnumResult = false;
   let knownModelResult = false;
-  // Ordinary operations may return a nonnullable singular loaded model;
-  // reads alone may return an ordinary array. Spelling alone proves no model.
+  // Reads may return an absent singular model or an ordinary model array.
+  // Mutation results retain their required singular identity.
   if (!scalarOrVoid && typeof type === 'string') {
     try {
       const parsed = parseTypeId(type);
       inlineEnumResult = parsed.base.kind === 'enum' && !parsed.requiredArray && printTypeId(parsed) === type;
       knownModelResult = (kind === 'scenario' || kind === 'read') && parsed.base.kind === 'nominal' && parsed.base.path.includes('.') &&
-        modelNames.has(parsed.base.path) && printTypeId(parsed) === type && !parsed.nullable && !parsed.requiredArray &&
+        modelNames.has(parsed.base.path) && printTypeId(parsed) === type &&
+        (!parsed.nullable || kind === 'read' && !parsed.array) && !parsed.requiredArray &&
         (!parsed.array || kind === 'read');
     } catch {
       // The shared artifact error below covers malformed canonical spellings.

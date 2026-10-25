@@ -346,6 +346,57 @@ fn populated_contained_create_returns_its_direct_origin_without_public_crud() {
             .all(|returned| returned.influences.is_empty())
     );
     assert!(plan.returns.iter().all(|returned| returned.intrinsics.iter().any(|input| matches!(input.kind, canlang_compiler::analysis::scenario_disclosure::DisclosureIntrinsicKind::AdmittedInput {parameter_name: ref name, ..} if name == "title"))));
+    let branched = POPULATED.replace(
+        "   create Record {parent,title=caption,payload,owner} as record",
+        "   if title==\"early\"\n    require true\n    create Record {parent,title=caption,payload,owner} as early\n    return early\n   create Record {parent,title=caption,payload,owner} as record",
+    );
+    let (branch_db, branch_trees, branch_resolve, branch_types, branch_effects) = raw(&branched);
+    let branch_plans = analyze_scenario_disclosure(
+        &branch_db,
+        &branch_trees,
+        &branch_resolve,
+        &branch_types,
+        &branch_effects,
+    );
+    let ScenarioDisclosure::Complete(branch) =
+        &branch_plans[&id(&branch_resolve, "CreatedInputs.make")]
+    else {
+        panic!("exclusive original same-model constructors retain both returned identities");
+    };
+    assert_eq!(branch.returns.len(), 2);
+    assert_eq!(
+        branch
+            .source_facts
+            .as_ref()
+            .unwrap()
+            .creates
+            .as_ref()
+            .unwrap()
+            .len(),
+        2
+    );
+    assert_eq!(
+        branch.source.sha256,
+        canlang_compiler::source::sha256_hex(branched.as_bytes())
+    );
+    let wrong_result = branched
+        .replace("make(parent:Parent", "make(existing:Record,parent:Parent")
+        .replace("return early", "return existing");
+    let (wrong_db, wrong_trees, wrong_resolve, wrong_types, wrong_effects) = raw(&wrong_result);
+    let wrong = analyze_scenario_disclosure(
+        &wrong_db,
+        &wrong_trees,
+        &wrong_resolve,
+        &wrong_types,
+        &wrong_effects,
+    );
+    assert!(
+        matches!(
+            wrong[&id(&wrong_resolve, "CreatedInputs.make")],
+            ScenarioDisclosure::Declined(_)
+        ),
+        "a created branch result cannot substitute a different input row identity"
+    );
     // Staged scalar reads retain the original constructor provenance, while
     // copied row carriers and a different returned model remain unproved.
     for (case, source) in [

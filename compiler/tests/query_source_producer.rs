@@ -769,3 +769,383 @@ fn source_transport_refuses_actual_ir_and_inventory_skew() {
         );
     }
 }
+
+#[test]
+fn source_sealed_first_helper_uses_current_viewer_grants() {
+    let source = r#"app HelperFirst
+Given
+ Slot {at:datetime,label:text,hidden:bool=false}
+ policy Slot read=members where=not row.hidden fields=at,label,hidden
+ export derive closest(cut:datetime):Slot? = first(Slot as item where item.at<=cut order=-item.at)
+When
+ scenario pick(cut:datetime) read=true -> Slot? by=members
+  do return closest(cut)
+Then
+"#;
+    let scratch = tempfile::tempdir().unwrap();
+    let input = scratch.path().join("helper-first.can");
+    let artifact_path = scratch.path().join("artifact.json");
+    std::fs::write(&input, source).unwrap();
+    let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args([
+            "compile",
+            "--format=json",
+            "--native-scenario-receipts",
+            "--catalog",
+        ])
+        .arg(root().join("packages/values/dist/catalog.json"))
+        .arg(&input)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    std::fs::write(&artifact_path, compiled.stdout).unwrap();
+    let runner = scratch.path().join("consumer.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {dirname,resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+const require=createRequire(resolve(process.argv[2],'package.json'));
+const load=specifier=>import(pathToFileURL(require.resolve(specifier)));
+const artifact=JSON.parse(readFileSync(process.argv[3],'utf8'));
+const {assembleModules}=await load('@canlang/cloudflare/runtime/modules');
+const {buildInvoker}=await load('@canlang/cloudflare/worker/assembly');
+const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
+const {FIXED_NOW,createMemoryIdentityStore,seedMember,makeIdentity,asModel,asId,makeRow,makeBatch}=await load('@canlang/state/testing/invocation/fixtures');
+const asm=await assembleModules({artifact,sourcePath:process.argv[4]},{workDir:resolve(dirname(process.argv[3]),'modules'),
+ stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href,uiUrl:pathToFileURL(require.resolve('@canlang/ui')).href});
+const {store}=createTestMemoryStorage(),memberships=createMemoryIdentityStore();
+const member=await seedMember(memberships,{isOwner:false});
+const identity=makeIdentity({membership:member.membership,email:member.user.email});
+const rows=[['older','2031-01-01T00:00:00.000Z',false],['selected','2031-01-02T00:00:00.000Z',false],['hidden','2031-01-03T00:00:00.000Z',true]]
+ .map(([id,at,hidden])=>makeRow({id:asId(id),data:{at,label:id,hidden}}));
+await store.commit(makeBatch(await store.readRevision(),{writes:rows.map(row=>({kind:'insert',model:asModel('HelperFirst.Slot'),row}))}));
+const revision=await store.readRevision(),history=await Promise.all(rows.map(row=>store.historyFor(asModel('HelperFirst.Slot'),row.id)));
+const invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
+const request={operation:'HelperFirst.pick',inputs:{cut:'2031-01-04T00:00:00.000Z'}};
+const actual=await invoker.invokeRead(request,identity);assert.ok('result'in actual,JSON.stringify(actual));
+assert.deepEqual(actual.result,{result:{id:'selected',version:'1'},revision},'FIRST order retains current viewer policy rather than hidden owner rows');
+const absent=await invoker.invokeRead({...request,inputs:{cut:'1900-01-01T00:00:00.000Z'}},identity);
+assert.ok('result'in absent,JSON.stringify(absent));assert.deepEqual(absent.result,{result:null,revision});
+const outsider=makeIdentity({userId:'outsider',team:member.team,membership:null});
+for(const who of [outsider]){const denied=await invoker.invokeRead(request,who);assert.ok('error'in denied);assert.equal(denied.error.code,'forbidden');}
+await memberships.removeMembership(member.membership.membership_id);
+const revoked=await invoker.invokeRead(request,identity);assert.ok('error'in revoked);assert.equal(revoked.error.code,'forbidden');
+assert.equal(await store.readRevision(),revision);assert.deepEqual(await store.outboxPending(),[]);
+assert.deepEqual(await Promise.all(rows.map(row=>store.historyFor(asModel('HelperFirst.Slot'),row.id))),history);
+"#).unwrap();
+    let consumed = Command::new("node")
+        .arg(runner)
+        .arg(root())
+        .arg(artifact_path)
+        .arg(input)
+        .output()
+        .unwrap();
+    assert!(
+        consumed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&consumed.stdout),
+        String::from_utf8_lossy(&consumed.stderr)
+    );
+}
+
+#[test]
+fn public_scalar_query_body_keeps_projection_grants_and_finalization_fence() {
+    let source = r#"app ScalarQuery
+Given
+ Root {enabled:bool=true,currency:currency,total:money}
+ Item in Root {price:money,quantity:int,tax:money,discount:money,visible:bool=true}
+ policy Root read=members fields=enabled,currency,total
+ policy Item read=members where=row.visible fields=price,quantity,tax,discount
+When
+ scenario summarize(root:Root) by=members
+  require root.enabled
+  do set root {total=sum(root.Item as item select item.price*item.quantity+item.tax-item.discount,root.currency)}
+Then
+"#;
+    assert!(
+        include_str!("../../draft/apps/CanPropose/CanPropose.can")
+            .contains("item.price*item.quantity+item.tax-item.discount")
+    );
+    let contract_source = source.replace(" Root {enabled:bool=true,currency:currency,total:money}",
+        " contract QuotedLine {amount:money}\n Root {enabled:bool=true,currency:currency,total:money,lines:QuotedLine[]}")
+        .replace("total=sum(root.Item as item select item.price*item.quantity+item.tax-item.discount,root.currency)",
+            "lines=root.Item as item select QuotedLine {amount=item.price*item.quantity+item.tax-item.discount}");
+    let scratch = tempfile::tempdir().unwrap();
+    for (mode, source) in [
+        ("allowed", source.to_owned()),
+        ("contract", contract_source.clone()),
+        (
+            "contract-withheld",
+            contract_source.replace(
+                "fields=price,quantity,tax,discount",
+                "fields=price,quantity,discount",
+            ),
+        ),
+        (
+            "projection-withheld",
+            source.replace(
+                "fields=price,quantity,tax,discount",
+                "fields=price,quantity,discount",
+            ),
+        ),
+        (
+            "currency-withheld",
+            source.replace("fields=enabled,currency,total", "fields=enabled,total"),
+        ),
+    ] {
+        let input = scratch.path().join(format!("{mode}.can"));
+        std::fs::write(&input, source).unwrap();
+        let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args([
+                "compile",
+                "--format=json",
+                "--native-scenario-receipts",
+                "--catalog",
+            ])
+            .arg(root().join("packages/values/dist/catalog.json"))
+            .arg(&input)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap();
+        assert!(
+            compiled.status.success(),
+            "{mode}: {}\n{}",
+            String::from_utf8_lossy(&compiled.stdout),
+            String::from_utf8_lossy(&compiled.stderr)
+        );
+        std::fs::write(scratch.path().join(format!("{mode}.json")), compiled.stdout).unwrap();
+    }
+    let postwrite = scratch.path().join("postwrite.can");
+    std::fs::write(
+        &postwrite,
+        source.replace(
+            "  do set root {",
+            "  do\n   set root {enabled=true}\n   set root {",
+        ),
+    )
+    .unwrap();
+    let refused = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args([
+            "compile",
+            "--format=json",
+            "--native-scenario-receipts",
+            "--catalog",
+        ])
+        .arg(root().join("packages/values/dist/catalog.json"))
+        .arg(postwrite)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert_eq!(
+        refused.status.code(),
+        Some(10),
+        "{}\n{}",
+        String::from_utf8_lossy(&refused.stdout),
+        String::from_utf8_lossy(&refused.stderr)
+    );
+    let refusal: serde_json::Value = serde_json::from_slice(&refused.stdout).unwrap();
+    assert!(
+        refusal["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "E6008"),
+        "post-write queries require State provisional provenance: {refusal}"
+    );
+    // A decision-only source frame carries no result DATA provenance. The
+    // original query must not make a withheld stored field returnable through
+    // the ordinary parameter view after an otherwise authorized mutation.
+    let withheld_return = scratch.path().join("withheld-return.can");
+    std::fs::write(
+        &withheld_return,
+        source
+            .replace("total:money}", "total:money,hidden:text}")
+            .replace(
+                "scenario summarize(root:Root) by=members",
+                "scenario summarize(root:Root) -> text by=members",
+            )
+            .replace("  do set root {", "  do\n   set root {")
+            .replace("\nThen", "\n   return root.hidden\nThen"),
+    )
+    .unwrap();
+    let refused = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args([
+            "compile",
+            "--format=json",
+            "--native-scenario-receipts",
+            "--catalog",
+        ])
+        .arg(root().join("packages/values/dist/catalog.json"))
+        .arg(withheld_return)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert_eq!(
+        refused.status.code(),
+        Some(10),
+        "withheld stored result needs its own complete receipt: {}\n{}",
+        String::from_utf8_lossy(&refused.stdout),
+        String::from_utf8_lossy(&refused.stderr)
+    );
+    let refusal: serde_json::Value = serde_json::from_slice(&refused.stdout).unwrap();
+    assert!(
+        refusal["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "E6008"),
+        "source-only guard cannot authorize withheld result DATA: {refusal}"
+    );
+    let runner = scratch.path().join("consumer.mjs");
+    std::fs::write(&runner,r#"
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {dirname,resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+const require=createRequire(resolve(process.argv[2],'package.json')),base=dirname(process.argv[1]);
+const load=specifier=>import(pathToFileURL(require.resolve(specifier)));
+const {assembleModules}=await load('@canlang/cloudflare/runtime/modules');
+const {buildInvoker}=await load('@canlang/cloudflare/worker/assembly');
+const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
+const {FIXED_NOW,createMemoryIdentityStore,seedMember,makeIdentity,asModel,asId,asVersion,makeRow,makeBatch,uuidv7}=await load('@canlang/state/testing/invocation/fixtures');
+for(const mode of ['allowed','projection-withheld','currency-withheld','hidden','finalization-race','contract','contract-withheld']){
+ const variant=mode==='hidden'||mode==='finalization-race'?'allowed':mode;
+ const artifact=JSON.parse(readFileSync(resolve(base,variant+'.json'),'utf8'));
+ const asm=await assembleModules({artifact,sourcePath:resolve(base,variant+'.can')},{workDir:resolve(base,mode),
+  stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href,uiUrl:pathToFileURL(require.resolve('@canlang/ui')).href});
+ const {store:backing}=createTestMemoryStorage(),memberships=createMemoryIdentityStore();
+ const member=await seedMember(memberships,{isOwner:false}),identity=makeIdentity({membership:member.membership,email:member.user.email});
+ const root={...makeRow({id:asId('root'),data:{enabled:true,currency:'EUR',total:{minor:'0',currency:'EUR'},...(mode.startsWith('contract')?{lines:[]}: {})}}),parent:null};
+ const item={...makeRow({id:asId('item'),data:{price:{minor:'100',currency:'EUR'},quantity:'2',tax:{minor:'5',currency:'EUR'},discount:{minor:'3',currency:'EUR'},visible:mode!=='hidden'}}),parent:{model:asModel('ScalarQuery.Root'),id:root.id}};
+ await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'insert',model:asModel('ScalarQuery.Root'),row:root},{kind:'insert',model:asModel('ScalarQuery.Item'),row:item}]}));
+ const history=await backing.historyFor(asModel('ScalarQuery.Root'),root.id);let raced=false;
+ const store={...backing,commit:async batch=>{
+  if(mode==='finalization-race'&&!raced&&batch.writes.some(write=>write.model==='ScalarQuery.Root')){
+   raced=true;await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'update',model:asModel('ScalarQuery.Item'),id:item.id,expectedVersion:item.version,
+    row:{...item,version:asVersion(item.version+1),data:{...item.data,price:{minor:'900',currency:'EUR'}}}}]}));
+  }
+  return backing.commit(batch);
+ }};
+ const invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
+ const outcome=await invoker.invokeMutation({operation:'ScalarQuery.summarize',operation_id:uuidv7(FIXED_NOW,1),inputs:{root:{id:root.id,version:String(root.version)}}},identity);
+ const success=mode==='allowed'||mode==='hidden'||mode==='contract'||mode==='finalization-race',current=await backing.load(asModel('ScalarQuery.Root'),root.id);
+ assert.ok(current);assert.equal('result'in outcome,success,mode+': '+JSON.stringify(outcome));
+ if(success){assert.equal(outcome.result.status,'committed');if(mode==='contract'){assert.deepEqual(current.data.lines,[{amount:{minor:'202',currency:'EUR'}}]);assert.deepEqual(current.data.total,root.data.total);}else assert.deepEqual(current.data.total,{minor:mode==='hidden'?'0':mode==='finalization-race'?'1802':'202',currency:'EUR'});assert.equal(current.version,root.version+1);}
+ else{assert.equal(outcome.error.code,mode==='finalization-race'?'conflict':'forbidden');assert.deepEqual(current,root);assert.deepEqual(await backing.historyFor(asModel('ScalarQuery.Root'),root.id),history);}
+ assert.deepEqual(await backing.outboxPending(),[]);if(mode==='finalization-race'){assert.equal(raced,true);const completed=await backing.historyFor(asModel('ScalarQuery.Root'),root.id);assert.equal(completed.length,history.length+1);assert.deepEqual(completed.at(-1).after.total,{minor:'1802',currency:'EUR'});assert.ok(completed.every(entry=>entry.after?.total?.minor!=='202'),'retry must publish only the fresh aggregate');}
+}
+"#).unwrap();
+    let consumed = Command::new("node")
+        .arg(runner)
+        .arg(root())
+        .output()
+        .unwrap();
+    assert!(
+        consumed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&consumed.stdout),
+        String::from_utf8_lossy(&consumed.stderr)
+    );
+}
+
+#[test]
+fn source_guard_plain_collections_preserve_global_alias_lineage_and_fences() {
+    let scratch = tempfile::tempdir().unwrap();
+    let input = scratch.path().join("guard.can");
+    std::fs::write(&input, r#"app GuardValues
+Given
+ Root {enabled:bool=true,anchor:datetime,until:datetime}
+ Span in Root {from:datetime,until:datetime,visible:bool=true,tone:enum(day,night)=day}
+ policy Root read=members
+ policy Span read=members where=row.visible
+ derive eligible(span:Span):bool=format("{tone}",{tone=span.tone})!="" and any(span.parent.Span as sibling,sibling.from==span.from)
+ derive covered(root:Root):bool = all([root.anchor]+flatten(root.Span as item select [item.from,item.until]) as instant,instant<root.anchor or instant>=root.until or count(Span as item where item.parent==root and eligible(item) and item.from<=instant and instant<item.until)>0)
+When
+ scenario confirm(root:Root) by=members
+  require root.enabled
+  do
+   require covered(root)
+   set root {enabled=false}
+Then
+"#).unwrap();
+    let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args([
+            "compile",
+            "--format=json",
+            "--native-scenario-receipts",
+            "--catalog",
+        ])
+        .arg(root().join("packages/values/dist/catalog.json"))
+        .arg(&input)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    let artifact = scratch.path().join("artifact.json");
+    std::fs::write(&artifact, compiled.stdout).unwrap();
+    let runner = scratch.path().join("consumer.mjs");
+    std::fs::write(&runner, r#"import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {pathToFileURL} from 'node:url';
+const require=createRequire(process.argv[2]+'/package.json');
+const load=specifier=>import(pathToFileURL(require.resolve(specifier)));
+const {assembleModules}=await load('@canlang/cloudflare/runtime/modules');
+const {buildInvoker}=await load('@canlang/cloudflare/worker/assembly');
+const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
+const {FIXED_NOW,createMemoryIdentityStore,seedMember,makeIdentity,asModel,asId,asVersion,makeRow,makeBatch,uuidv7}=await load('@canlang/state/testing/invocation/fixtures');
+const artifact=JSON.parse(readFileSync(process.argv[4],'utf8'));
+const asm=await assembleModules({artifact,sourcePath:process.argv[3]},{workDir:process.argv[5],stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href,uiUrl:pathToFileURL(require.resolve('@canlang/ui')).href});
+for(const mode of ['allowed','hidden','empty','race','nonmember']){
+ const {store}=createTestMemoryStorage(),memberships=createMemoryIdentityStore();
+ const member=await seedMember(memberships,{isOwner:false}),identity=makeIdentity({membership:member.membership,email:member.user.email});
+ const root={...makeRow({id:asId('root'),data:{enabled:true,anchor:'2031-01-01T00:00:00.000Z',until:'2031-01-02T00:00:00.000Z'}}),parent:null};
+ const span={...makeRow({id:asId('span'),data:{from:root.data.anchor,until:root.data.until,visible:mode!=='hidden',tone:'day'}}),parent:{model:asModel('GuardValues.Root'),id:root.id}};
+ await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:asModel('GuardValues.Root'),row:root},...(mode==='empty'?[]:[{kind:'insert',model:asModel('GuardValues.Span'),row:span}])]}));
+ const commit=store.commit.bind(store);let raced=false;
+ store.commit=async batch=>{
+  if(mode==='race'&&!raced&&batch.writes.some(write=>write.model==='GuardValues.Root')){
+   raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('GuardValues.Span'),id:span.id,expectedVersion:span.version,row:{...span,version:asVersion(span.version+1),data:{...span.data,until:span.data.from}}}]}));
+  }
+  return commit(batch);
+ };
+ if(mode==='nonmember')await memberships.removeMembership(member.membership.membership_id);
+ const invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
+ const request={operation:'GuardValues.confirm',operation_id:uuidv7(FIXED_NOW,1),inputs:{root:{id:root.id,version:'1'}}};
+ const result=await invoker.invokeMutation(request,identity),success=mode==='allowed'||mode==='hidden';
+ assert.equal('result'in result,success,mode+': '+JSON.stringify(result));
+ const current=await store.load(asModel('GuardValues.Root'),root.id);assert.ok(current);assert.equal(current.data.enabled,!success);
+ assert.deepEqual(await store.outboxPending(),[]);
+ if(success){const revision=await store.readRevision();const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.equal(await store.readRevision(),revision);}
+ if(mode==='race')assert.equal(raced,true);
+}
+"#).unwrap();
+    let consumed = Command::new("node")
+        .arg(runner)
+        .arg(root())
+        .arg(input)
+        .arg(artifact)
+        .arg(scratch.path().join("modules"))
+        .output()
+        .unwrap();
+    assert!(
+        consumed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&consumed.stdout),
+        String::from_utf8_lossy(&consumed.stderr)
+    );
+}

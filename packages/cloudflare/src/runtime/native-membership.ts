@@ -219,8 +219,8 @@ function markerKey(value: unknown): string {
   return stableStringify({ source, node });
 }
 function binding(sites: readonly ScenarioReceiptMembershipSite[], handles?: readonly Handle[]): Binding {
-  // State has synchronously checked every own-data recipe before this copy.
-  const snapshot = JSON.parse(stableStringify(sites)) as ScenarioReceiptMembershipSite[];
+  // Retain State's immutable checked recipe and shared call definitions.
+  const snapshot = checkScenarioReceiptMembershipSites(sites);
   const occurrences: Occurrence[] = []; let handleIndex = 0;
   snapshot.forEach((site, siteIndex) => site.calls.forEach((call, callIndex) => {
     if (call.target.kind !== 'builtin' || call.target.id !== 'active_member') return;

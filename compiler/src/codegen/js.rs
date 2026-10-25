@@ -1236,6 +1236,38 @@ fn source_require_missing_guard_tree(
     false
 }
 
+fn source_query_before_first_write(body: &[IrStmt], query: Span, depth: usize) -> bool {
+    if depth >= 64 {
+        return false;
+    }
+    body.iter().all(|statement| match statement {
+        IrStmt::Create { span, .. }
+        | IrStmt::Set { span, .. }
+        | IrStmt::Delete { span, .. }
+        | IrStmt::Transition { span, .. }
+        | IrStmt::Send { span, .. }
+        | IrStmt::Emit { span, .. }
+        | IrStmt::Schedule { span, .. }
+        | IrStmt::Cancel { span, .. }
+        | IrStmt::Call { span, .. } => span.file != query.file || span.end > query.start,
+        IrStmt::For { span, body, .. } => {
+            !(span.file == query.file && span.start <= query.start && query.end <= span.end)
+                && source_query_before_first_write(body, query, depth + 1)
+        }
+        IrStmt::If {
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            source_query_before_first_write(then_branch, query, depth + 1)
+                && source_query_before_first_write(else_branch, query, depth + 1)
+        }
+        IrStmt::Match { arms, .. } => arms
+            .iter()
+            .all(|arm| source_query_before_first_write(&arm.body, query, depth + 1)),
+        _ => true,
+    })
+}
 fn source_require_only_body_supported(
     ir: &IrProgram,
     owner: &IrItem,
@@ -1248,6 +1280,37 @@ fn source_require_only_body_supported(
     loops: &HashMap<String, serde_json::Value>,
     context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> bool {
+    fn query_parent(ir: &IrProgram, owner: &IrItem, value: &TypedExpr, depth: usize) -> bool {
+        if depth >= 16 {
+            return false;
+        }
+        let IrItemKind::Scenario { params, .. } = &owner.kind else {
+            return false;
+        };
+        match &value.expr {
+            IrExpr::Name(name) => params.iter().filter_map(|id| ir.items.get(id.0 as usize)).any(|parameter|
+                parameter.name == *name && matches!(&parameter.kind, IrItemKind::Param { owner: actual, ty: IrType::Known(ty), .. }
+                    if *actual == owner.id && ty == &value.ty && matches!(ty, ResolvedType::Record { stored: true, .. }))),
+            IrExpr::Member { base, field } if field == "parent" => {
+                let (ResolvedType::Record { symbol: child, stored: true }, ResolvedType::Record { symbol: parent, stored: true }) = (&base.ty, &value.ty) else { return false; };
+                query_parent(ir, owner, base, depth + 1) && matches!(ir.items.get(child.0 as usize).map(|item| &item.kind),
+                    Some(IrItemKind::Model { owner: IrOwner::ChildOf(actual), fields, .. }) if actual == parent
+                        && fields.iter().filter_map(|id| ir.items.get(id.0 as usize)).all(|field| field.name != "parent"))
+            }
+            _ => false,
+        }
+    }
+    fn scalar_projection(ty: &ResolvedType) -> bool {
+        match ty {
+            ResolvedType::Scalar(value) => !matches!(
+                value,
+                Scalar::File | Scalar::Secret | Scalar::Member | Scalar::Json | Scalar::Bytes
+            ),
+            ResolvedType::Nullable(inner) => scalar_projection(inner),
+            ResolvedType::Enum { cases, .. } => !cases.is_empty(),
+            _ => false,
+        }
+    }
     fn expression(ir: &IrProgram, value: &TypedExpr, depth: usize) -> bool {
         if depth > 64 {
             return false;
@@ -1288,6 +1351,86 @@ fn source_require_only_body_supported(
             IrExpr::Array(values) => values.iter().all(child),
             IrExpr::Object(fields) => fields.iter().all(|(_, value)| child(value)),
             IrExpr::HasRole { person, .. } => person.as_ref().is_none_or(|value| child(value)),
+            IrExpr::Query(query) => {
+                let (IrQueryDomain::Model(name), Some(source), Some(selected)) = (
+                    &query.domain,
+                    query.source.as_deref(),
+                    query.select.as_deref(),
+                ) else {
+                    return false;
+                };
+                let Some(owner) = ir.items.iter().find(|item| {
+                    ir.scenario_disclosures
+                        .get(&item.id)
+                        .and_then(|proof| proof.source_facts())
+                        .is_some_and(|source| {
+                            source.scenario == item.id
+                                && source.node.file == value.span.file
+                                && source.node.start <= value.span.start
+                                && value.span.end <= source.node.end
+                        })
+                        && matches!(
+                            item.kind,
+                            IrItemKind::Scenario {
+                                trusted: false,
+                                read: false,
+                                hook: None,
+                                ..
+                            }
+                        )
+                }) else {
+                    return false;
+                };
+                let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+                    return false;
+                };
+                if !source_query_before_first_write(effects, value.span, 0) {
+                    return false;
+                }
+                let Some(model) = ir.items.iter().find(|item| {
+                    item.canonical == *name && matches!(item.kind, IrItemKind::Model { .. })
+                }) else {
+                    return false;
+                };
+                let ResolvedType::Array {
+                    element,
+                    ordered: true,
+                    nonempty: false,
+                } = &source.domain_type
+                else {
+                    return false;
+                };
+                element.as_ref()
+                    == &ResolvedType::Record {
+                        symbol: model.id,
+                        stored: true,
+                    }
+                    && source.node.file == value.span.file
+                    && source.node.start == value.span.start
+                    && source.node.end == value.span.end
+                    && source.result == value.ty
+                    && source.projection.is_none()
+                    && !query.where_async
+                    && super::source_send_data::plain_value(ir, &selected.ty, 0)
+                    && child(selected)
+                    && query.where_pred.as_ref().is_none_or(|predicate| {
+                        predicate.ty == ResolvedType::Scalar(Scalar::Bool) && child(predicate)
+                    })
+                    && query
+                        .value_order
+                        .as_ref()
+                        .is_none_or(|order| scalar_projection(&order.key.ty) && child(&order.key))
+                    && query.limit.as_ref().is_none_or(|value| child(value))
+                    && query.archived.as_ref().is_none_or(|value| child(value))
+                    && match &query.parent {
+                        None => true,
+                        Some(parent) => {
+                            query_parent(ir, owner, parent, 0)
+                                && matches!((&model.kind, &parent.ty),
+                            (IrItemKind::Model { owner: IrOwner::ChildOf(actual), .. }, ResolvedType::Record { symbol, stored: true }) if actual == symbol)
+                        }
+                    }
+            }
             _ => false,
         }
     }
@@ -1432,10 +1575,17 @@ fn source_require_only_body_supported(
             _ => false,
         })
     }
+    if context
+        .and_then(|context| context.same_scenario(ir, owner))
+        .is_none()
+    {
+        return false;
+    }
     let IrItemKind::Scenario {
         params,
         guards,
         effects,
+        result: None,
         hook: None,
         ..
     } = &owner.kind
@@ -2485,6 +2635,22 @@ fn emit_program_with_sources(
         }
     }
     emitter.native_source_predicates = native_receipts;
+    if let Some(context) = decisions.source_context {
+        emitter.checked_query_helpers = ir
+            .items
+            .iter()
+            .filter(|item| {
+                super::source_correspondence::same_derive_semantics(
+                    context.program(),
+                    ir,
+                    context.fresh(),
+                    item,
+                )
+                .is_some()
+            })
+            .map(|item| item.id)
+            .collect();
+    }
     emitter.authority_queries = decisions.authority_queries;
     emitter.owner_handlers = decisions.owner_handlers.cloned().unwrap_or_default();
     emitter.private_derives = decisions.private_derives.cloned().unwrap_or_default();
@@ -3287,12 +3453,24 @@ fn emit_program_with_sources(
         // closures; the verified loader compares both independently of the
         // membership inventory.
         let mut inventory: BTreeMap<String, Vec<serde_json::Value>> = BTreeMap::new();
+        let mut invalid_transport = false;
         for identity in emitter.source_requires.values() {
             let owner = identity["owner"].as_str().expect("sealed Require owner");
-            inventory
-                .entry(owner.to_owned())
-                .or_default()
-                .push(identity.clone());
+            inventory.entry(owner.to_owned()).or_default().push(
+                super::scenario_decisions::compact_require_identity(identity).unwrap_or_else(
+                    || {
+                        invalid_transport = true;
+                        serde_json::Value::Null
+                    },
+                ),
+            );
+        }
+        if invalid_transport {
+            emitter.unsupported(
+                "decision source transport",
+                "checked decision transport exceeds its bounded wire format",
+                entry_span,
+            );
         }
         for sites in inventory.values_mut() {
             sites.sort_by_key(|site| site.to_string());
@@ -3332,7 +3510,20 @@ fn emit_program_with_sources(
         .membership
         .filter(|membership| !membership.sites.is_empty())
     {
-        let payload = descriptor_json(&descriptor_json(&membership.sites));
+        let mut inventory = BTreeMap::new();
+        for (owner, sites) in &membership.sites {
+            match super::scenario_decisions::compact_decision_sites(sites) {
+                Some(sites) => {
+                    inventory.insert(owner, sites);
+                }
+                None => emitter.unsupported(
+                    "decision source transport",
+                    "checked decision transport exceeds its bounded wire format",
+                    entry_span,
+                ),
+            }
+        }
+        let payload = descriptor_json(&descriptor_json(&inventory));
         body.push(
             entry_span,
             Some("canMembershipSources".into()),
@@ -5340,6 +5531,9 @@ pub struct Emitter<'a> {
     /// Its checked stored-model query may feed pure `first(array)` without
     /// claiming an owner mutation receipt.
     viewer_read_body: bool,
+    /// Only a complete fresh-source semantic join admits contextual helper queries.
+    checked_query_helpers: HashSet<SymbolId>,
+    checked_query_helper: bool,
     /// True while lowering a `scope=authority` report body (DESIGN §442
     /// decision mode): helper calls resolve to the decision variant where
     /// dual-emitted, falling back to the emitted variant otherwise.
@@ -5593,6 +5787,8 @@ impl<'a> Emitter<'a> {
             source_guard_derive_depth: 0,
             boolean_helper: false,
             viewer_read_body: false,
+            checked_query_helpers: HashSet::new(),
+            checked_query_helper: false,
             authority_body: false,
             record_page_render: false,
             native_source_predicates: false,
@@ -8953,7 +9149,7 @@ impl<'a> Emitter<'a> {
             };
             let receiver = if dependencies
                 .iter()
-                .any(|read| read.source_dependency_id.is_some())
+                .any(|read| read.source_dependency_id.is_some() && !read.captured_reference)
             {
                 let last_source = self
                     .receipt_capture
@@ -9843,7 +10039,7 @@ impl<'a> Emitter<'a> {
         args: &[TypedExpr],
         span: Span,
     ) -> bool {
-        if !self.viewer_read_body
+        if !(self.viewer_read_body || self.checked_query_helper)
             || !matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "first")
         {
             return false;
@@ -10780,15 +10976,52 @@ impl<'a> Emitter<'a> {
         else {
             return None;
         };
+        let slots = call["slots"].as_array()?;
+        let checked_defaults = call["defaults"].as_array()?;
         if params.len() != parts.len()
-            || call["slots"]
-                .as_array()?
+            || slots.len() != params.len()
+            || checked_defaults.len() != slots.iter().filter(|slot| slot.is_null()).count()
+            || slots
                 .iter()
                 .enumerate()
-                .any(|(index, slot)| slot.as_u64() != Some(index as u64))
-            || !call["defaults"].as_array()?.is_empty()
+                .any(|(index, slot)| !slot.is_null() && slot.as_u64() != Some(index as u64))
         {
             return None;
+        }
+        let mut defaults = Vec::new();
+        for (index, id) in params.iter().enumerate() {
+            if !slots[index].is_null() {
+                continue;
+            }
+            let parameter = self.ir.items.get(id.0 as usize)?;
+            let IrItemKind::Param {
+                default_node: Some(node),
+                default: Some(IrDefault::Literal(value)),
+                ..
+            } = &parameter.kind
+            else {
+                return None;
+            };
+            let mut matching = checked_defaults.iter().filter(|default| {
+                default["parameter"] == parameter.canonical
+                    && default["node"]["start"].as_u64() == Some(node.start as u64)
+                    && default["node"]["end"].as_u64() == Some(node.end as u64)
+            });
+            let _original = matching.next()?;
+            if matching.next().is_some()
+                || value.span != Span::new(node.file, node.start, node.end)
+                || !matches!(
+                    value.expr,
+                    IrExpr::Bool(_)
+                        | IrExpr::Int(_)
+                        | IrExpr::Decimal(_)
+                        | IrExpr::Text(_)
+                        | IrExpr::Null
+                )
+            {
+                return None;
+            }
+            defaults.push((index, value.clone()));
         }
         self.enter_scope();
         let names = params
@@ -10798,11 +11031,15 @@ impl<'a> Emitter<'a> {
         self.source_require_calls.push(
             serde_json::json!({"source":call["source"],"node":call["node"],"derive":canonical}),
         );
+        let defaults = defaults
+            .into_iter()
+            .map(|(index, value)| format!("{}={};", names[index], self.lower_expr(&value)))
+            .collect::<String>();
         let expression = self.lower_expr(&body);
         self.source_require_calls.pop();
         self.exit_scope();
         Some(format!(
-            "{}(async({})=>({expression}))({})",
+            "{}(async({})=>{{{defaults}return {expression};}})({})",
             if await_result { "await " } else { "" },
             names.join(","),
             parts.join(",")
@@ -12676,6 +12913,77 @@ impl<'a> Emitter<'a> {
             );
             return self.throw_expr("mismatched query order");
         }
+        let source_data_query = self.source_data_body
+            && (if self.source_send_data_body {
+                &self.source_data_sends
+            } else {
+                &self.source_data_emits
+            })
+            .values()
+            .filter_map(|source| source["queries"].as_array())
+            .flatten()
+            .any(|source| {
+                source["node"]["file"] == span.file.0
+                    && source["node"]["start"] == span.start
+                    && source["node"]["end"] == span.end
+            });
+        // Newly admitted viewer source-policy projections have a real physical
+        // State observation only before writes. Other query consumers retain
+        // their existing independently checked staged/owner transports.
+        if self.native_source_predicates
+            && !self.source_guard_body
+            && !source_data_query
+            && self.query_capture.is_none()
+            && query.select.is_some()
+            && let IrQueryDomain::Model(name) = &query.domain
+            && let Some(model) = self.ir.items.iter().find(|item| item.canonical == *name)
+            && let IrItemKind::Model { fields, grants, .. } = &model.kind
+            && grants.iter().any(|grant| {
+                if grant.public {
+                    return false;
+                }
+                let mut rules = self
+                    .ir
+                    .read_rules
+                    .iter()
+                    .filter(|rule| rule.id == grant.rule);
+                !rules.next().is_some_and(|rule| {
+                    rules.next().is_none()
+                        && (actor_read_role(&rule.pred).is_some()
+                            || row_read_role(&rule.pred, model, fields, self.ir).is_some())
+                })
+            })
+            && let Some(owner) = self.ir.items.iter().find(|item| {
+                self.ir
+                    .scenario_disclosures
+                    .get(&item.id)
+                    .and_then(|proof| proof.source_facts())
+                    .is_some_and(|source| {
+                        source.scenario == item.id
+                            && source.node.file == span.file
+                            && source.node.start <= span.start
+                            && span.end <= source.node.end
+                    })
+                    && matches!(
+                        item.kind,
+                        IrItemKind::Scenario {
+                            trusted: false,
+                            read: false,
+                            hook: None,
+                            ..
+                        }
+                    )
+            })
+            && let IrItemKind::Scenario { effects, .. } = &owner.kind
+            && !source_query_before_first_write(effects, span, 0)
+        {
+            self.unsupported(
+                "viewer source query",
+                "post-write source-policy projection requires its State provisional observation",
+                span,
+            );
+            return self.throw_expr("unavailable provisional viewer query");
+        }
         if let Some(capture) = self.query_capture.clone() {
             if let Some(selected) = self.lower_transcript_selection(query, &capture, span) {
                 return selected;
@@ -13291,6 +13599,14 @@ impl<'a> Emitter<'a> {
         self.receipt_capture = previous_receipt;
         self.query_capture = previous_query;
         self.stdlib.insert("nativeScenarioRequire".into());
+        let Some(identity) = super::scenario_decisions::compact_require_identity(&identity) else {
+            self.unsupported(
+                "decision source transport",
+                "checked decision transport exceeds its bounded wire format",
+                cond.span,
+            );
+            return Some(self.throw_expr("checked decision transport unavailable"));
+        };
         Some(format!(
             "await nativeScenarioRequire(c,$can$require$issue({},async(c,{{{bindings}}})=>({expression})),{{{bindings}}})",
             descriptor_json(&descriptor_json(&identity))
@@ -13462,7 +13778,26 @@ impl<'a> Emitter<'a> {
                 } else {
                     None
                 };
-                let value_text = self.lower_expr(value);
+                let mut value_text = self.lower_expr(value);
+                // The checked immutable alias captures its original target before
+                // any subsequent SET may reassign the owning reference field.
+                let captured = self.receipt_capture.as_ref().and_then(|recipe| {
+                    let sources = recipe.dependencies.get(&self.receipt_site(value.span))?;
+                    recipe.dependencies.values().flatten().find_map(|leaf| {
+                        let source = leaf.source_dependency_id.as_ref()?;
+                        (leaf.captured_reference && sources.iter().any(|read| &read.id == source))
+                            .then(|| (source.clone(), leaf.id.clone()))
+                    })
+                });
+                if let Some((source, leaf)) = captured {
+                    self.stdlib
+                        .insert("readScenarioReceiptStoredReference".into());
+                    value_text = format!(
+                        "(await readScenarioReceiptStoredReference(c,{value_text},{},{}))",
+                        js_string(&source),
+                        js_string(&leaf)
+                    );
+                }
                 let emitted = self.bind(name);
                 self.formatted_bindings
                     .last_mut()
@@ -20195,27 +20530,32 @@ impl<'a> Emitter<'a> {
         {
             return Some(Cow::Owned(name));
         }
-        // A declared stored model result preserves its owning identity for
-        // reads and mutations alike; publishing it does not encode the row.
-        if let Some(ResolvedType::Record {
-            symbol,
-            stored: true,
-        }) = result
-            && let Some(model) = self.ir.items.get(symbol.0 as usize)
-            && matches!(model.kind, IrItemKind::Model { .. })
-        {
-            return Some(Cow::Owned(model.canonical.clone()));
-        }
-        if read
-            && let Some(ResolvedType::Array { element, .. }) = result
-            && let ResolvedType::Record {
+        // Model result wrappers preserve the owning identity without
+        // encoding row content or importing a query/receipt authority.
+        if let Some(result) = result {
+            let (result, nullable) = match result {
+                ResolvedType::Nullable(inner) => (inner.as_ref(), true),
+                result => (result, false),
+            };
+            let (element, array) = match result {
+                ResolvedType::Array { element, .. } if read => (element.as_ref(), true),
+                result => (result, false),
+            };
+            if let ResolvedType::Record {
                 symbol,
                 stored: true,
-            } = element.as_ref()
-            && let Some(model) = self.ir.items.get(symbol.0 as usize)
-            && matches!(model.kind, IrItemKind::Model { .. })
-        {
-            return Some(Cow::Owned(format!("{}[]", model.canonical)));
+            } = element
+                && let Some(model) = self.ir.items.get(symbol.0 as usize)
+                && model.id == *symbol
+                && matches!(model.kind, IrItemKind::Model { .. })
+            {
+                return Some(Cow::Owned(format!(
+                    "{}{}{}",
+                    model.canonical,
+                    if array { "[]" } else { "" },
+                    if nullable { "?" } else { "" }
+                )));
+            }
         }
         if let Some(result) = result {
             let outer = match result {
@@ -22207,6 +22547,7 @@ impl<'a> Emitter<'a> {
                     self.generic_boolean_body = generic_boolean_mode;
                     self.source_guard_body = generic_boolean_mode;
                     self.boolean_helper = self.boolean_derives.contains(&item.canonical);
+                    self.checked_query_helper = self.checked_query_helpers.contains(&item.id);
                     let name = binding_ident(
                         if generic_boolean_mode {
                             "v"
@@ -22294,6 +22635,7 @@ impl<'a> Emitter<'a> {
                     self.generic_boolean_body = false;
                     self.source_guard_body = false;
                     self.boolean_helper = false;
+                    self.checked_query_helper = false;
                     self.owner_handler_body = false;
                     self.retained_owner_body = false;
                 }

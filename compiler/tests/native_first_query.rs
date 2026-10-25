@@ -972,6 +972,115 @@ fn required_reference_return_and_fresh_branch_emit_distinct_observations_and_sea
             "{mode}"
         );
     }
+    let branch_source = r#"app ReferenceCapture
+Given
+ Customer {active:bool=true}
+ Program {active:bool=true,window:duration}
+ Advocate in Program {account:user,code:text}
+ Partner {active:bool=true,account:user,window:duration}
+ Capture in Customer {advocate:Advocate?,partner:Partner?,code:text,program:text,window:duration,source:text}
+ policy Customer read=members
+ policy Program read=members
+ policy Advocate read=members
+ policy Partner read=members
+ policy Capture read=members
+When
+ scenario capture(customer:Customer,advocate:Advocate?,partner:Partner?) -> Capture by=members
+  require customer.active
+  require (advocate!=null and partner==null) or (advocate==null and partner!=null)
+  do
+   if advocate!=null
+    require advocate.parent.active and advocate.account!=actor
+    create Capture {parent=customer,advocate,code=advocate.code,program=format("program:{id}",{id=advocate.parent.id}),window=advocate.parent.window,source=operation.id} as captured
+    return captured
+   require partner!=null
+   require partner.active and partner.account!=actor
+   create Capture {parent=customer,partner,code=partner.id,program=format("partner:{id}",{id=partner.id}),window=partner.window,source=operation.id} as captured
+   return captured
+Then
+"#;
+    let (branch_db, branch_program, branch_ir, branch_catalog) =
+        fixture_source("nullable-created-branches.can", branch_source);
+    let branch_owner = item(&branch_ir, "ReferenceCapture.capture");
+    let (branch_artifact, diagnostics) =
+        prepared_artifact(&branch_program, &branch_db, &branch_catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let operation = branch_artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == branch_owner.canonical)
+        .unwrap();
+    let ScenarioDisclosure::Complete(branch_checked) =
+        &branch_ir.scenario_disclosures[&branch_owner.id]
+    else {
+        panic!("complete original branch disclosure");
+    };
+    assert_eq!(
+        operation["result"]["disclosure"]["returns"]
+            .as_array()
+            .unwrap()
+            .len(),
+        branch_checked.returns.len()
+    );
+    let return_origins = branch_checked
+        .returns
+        .iter()
+        .map(|returned| returned.node)
+        .collect::<std::collections::HashSet<_>>();
+    assert_eq!(return_origins.len(), 2);
+    for returned in return_origins {
+        assert_eq!(
+            branch_source[returned.start as usize..returned.end as usize].trim(),
+            "return captured"
+        );
+    }
+    let constructors = branch_checked
+        .source_facts
+        .as_ref()
+        .unwrap()
+        .creates
+        .as_ref()
+        .unwrap();
+    assert_eq!(constructors.len(), 2);
+    for constructor in constructors {
+        assert_eq!(
+            branch_ir.items[constructor.model.0 as usize].canonical,
+            "ReferenceCapture.Capture"
+        );
+        assert!(
+            branch_source[constructor.node.start as usize..constructor.node.end as usize]
+                .trim()
+                .starts_with("create Capture {")
+        );
+    }
+    let mut changed = branch_ir.clone();
+    let IrItemKind::Scenario { effects, .. } = &mut changed.items[branch_owner.id.0 as usize].kind
+    else {
+        panic!("scenario");
+    };
+    let IrStmt::If { then_branch, .. } = &mut effects[0] else {
+        panic!("branch");
+    };
+    let IrStmt::Return {
+        value: Some(value), ..
+    } = &mut then_branch[2]
+    else {
+        panic!("return");
+    };
+    value.expr = IrExpr::Name("customer".into());
+    assert!(
+        serialize_complete_query_receipt(
+            &branch_program,
+            &changed,
+            &changed.items[branch_owner.id.0 as usize],
+            &branch_db,
+            Some(&branch_catalog),
+            "$can$m$5265666572656e636543617074757265.mjs"
+        )
+        .is_none(),
+        "a branch cannot replace its actual captured constructor result with an unrelated original input"
+    );
 }
 
 #[test]
@@ -1196,6 +1305,39 @@ fn scalar_require_preserves_existing_stored_contract_schema_identity() {
     let text = artifact["modules"][0]["js"].as_str().unwrap();
     assert!(text.contains("\"field\":\"held\",\"type\":\"int\""));
     assert!(text.contains("\"field\":\"input\",\"type\":\"FirstSources.Details\""));
+    let counted = "app CountContract\nGiven\n contract Entry {note:text}\n Batch {entries:Entry[]}\n policy Batch read=members\n derive inner(batch:Batch):int=count(batch.entries)\n derive outer(batch:Batch):int=inner(batch)\nWhen\n scenario size(batch:Batch) -> int by=members\n  do return outer(batch)\nThen\n";
+    let (count_db, count_program, count_ir, count_catalog) =
+        fixture_source("nested-contract-count.can", counted);
+    let count_owner = item(&count_ir, "CountContract.size");
+    assert!(
+        matches!(
+            &count_ir.scenario_disclosures[&count_owner.id],
+            ScenarioDisclosure::Complete(_)
+        ),
+        "{:?}",
+        count_ir.scenario_disclosures[&count_owner.id]
+    );
+    let (count_artifact, diagnostics) =
+        prepared_artifact(&count_program, &count_db, &count_catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let operation = count_artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "CountContract.size")
+        .unwrap();
+    assert!(
+        operation["result"]["disclosure"]["returns"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|returned| returned["dependencies"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|read| read["field"] == "entries" && read["type"] == "CountContract.Entry[]")),
+        "nested counts retain the original complete Contract-array DATA read"
+    );
 }
 
 #[test]
@@ -2006,13 +2148,22 @@ fn commercial_money_sums_preserve_nullable_history_guard_and_original_first() {
             .iter()
             .any(|entry| entry["id"] == "invoice.first_paid_invoice")
     );
-    // Equal Money types cannot substitute the source's complete contained
-    // child census or the original same-row stored currency field.
+    let mut parent_currency=source.replace("  derive Invoice.received:money",
+        "  derive Invoice.parent_currency_total:money = sum(row.ExternalPayment as payment select payment.amount,row.parent.currency)\n  derive Invoice.received:money");
+    let parent_at = parent_currency.rfind(" Then\n").unwrap();
+    parent_currency.insert_str(parent_at,"  scenario verify_parent_currency(invoice:Invoice,amount:money) -> int by=members\n   require amount<=invoice.parent_currency_total\n   do return 1\n");
+    let (parent_db, parent_program, _, parent_catalog) =
+        fixture_source("owning-parent-currency.can", &parent_currency);
+    let (_, parent_diagnostics) = prepared_artifact(&parent_program, &parent_db, &parent_catalog);
+    assert!(parent_diagnostics.is_empty(), "{parent_diagnostics:?}");
+    // Equal Money types cannot substitute the complete contained child census
+    // or an arbitrary reference for the actual owning-parent currency path.
     for (name,changed) in [
         ("global-payment-domain",source.replace("sum(row.ExternalPayment as payment select payment.amount,row.currency)",
             "sum(ExternalPayment as payment select payment.amount,row.currency)")),
-        ("foreign-currency",source.replace("sum(row.ExternalPayment as payment select payment.amount,row.currency)",
-            "sum(row.ExternalPayment as payment select payment.amount,row.parent.currency)")),
+        ("foreign-currency",parent_currency.replace("export Invoice in Customer {", "export Invoice in Customer {currency_owner:Customer,")
+            .replace("sum(row.ExternalPayment as payment select payment.amount,row.parent.currency)",
+            "sum(row.ExternalPayment as payment select payment.amount,row.currency_owner.currency)")),
         ("parent-filter",source.replace("attempt.kind==collection and attempt.status==succeeded select attempt.amount",
             "attempt.kind==collection and attempt.parent.currency==row.currency and attempt.status==succeeded select attempt.amount")),
     ] {
@@ -2201,7 +2352,8 @@ fn parent_timezone_keeps_its_original_stored_dependency() {
             include_str!("../../packages/cloudflare/test/fixtures/native-reference-timezone.can"),
         ),
     ] {
-        let (db, program, ir, catalog) = fixture_source(name, source);
+        let source = source.replace("\nThen", "\n scenario nullable_day(booking:Booking?=null) -> date by=members\n  require booking!=null\n  do return local_date(now,booking.parent.timezone)\n scenario nullable_parent_id(booking:Booking?=null) -> text by=members\n  require booking!=null\n  do return booking.parent.id\nThen");
+        let (db, program, ir, catalog) = fixture_source(name, &source);
         let owner = item(&ir, "ParentTimezone.day");
         assert!(
             matches!(
@@ -2220,6 +2372,113 @@ fn parent_timezone_keeps_its_original_stored_dependency() {
             .find(|value| value["name"] == "ParentTimezone.day")
             .unwrap();
         assert!(operation["result"]["disclosure"].is_object(), "{operation}");
+        let parent_id = artifact["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|operation| operation["name"] == "ParentTimezone.nullable_parent_id")
+            .unwrap();
+        assert!(
+            parent_id["result"]["disclosure"].is_object(),
+            "a narrowed original input parent identity keeps its complete source footprint: {parent_id}"
+        );
+        let nullable = artifact["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|operation| operation["name"] == "ParentTimezone.nullable_day")
+            .unwrap();
+        assert!(
+            nullable["result"]["disclosure"]["returns"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|returned| returned["dependencies"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|read| read["field"] == "timezone"
+                        && read["model"] == "ParentTimezone.Resource")),
+            "the exact nullable input narrowed by its guard retains the original parent leaf: {nullable}"
+        );
+        if name == "native-reference-timezone.can" {
+            let captured = item(&ir, "ParentTimezone.snapshot");
+            let plan = artifact["operations"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|operation| operation["name"] == captured.canonical)
+                .unwrap();
+            let returns = plan["result"]["disclosure"]["returns"].as_array().unwrap();
+            let emitted = artifact["modules"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|module| module["js"].as_str())
+                .collect::<Vec<_>>()
+                .join("\n");
+            let snapshot = emitted
+                .split("async \"ParentTimezone.snapshot\"")
+                .nth(1)
+                .unwrap();
+            let captured_at = snapshot
+                .find("readScenarioReceiptStoredReference(c,")
+                .expect("the exact alias getter must bind its original target");
+            let reassigned_at = snapshot.find("await set(c,").unwrap();
+            assert!(
+                captured_at < reassigned_at,
+                "reference capture must precede reassignment"
+            );
+
+            assert!(returns.iter().any(|returned| {
+                returned["dependencies"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|read| read["field"] == "location")
+            }));
+            assert!(returns.iter().any(|returned| {
+                returned["dependencies"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|read| read["field"] == "timezone")
+            }));
+            for mutation in 0..3 {
+                let mut changed = ir.clone();
+                let IrItemKind::Scenario { effects, .. } =
+                    &mut changed.items[captured.id.0 as usize].kind
+                else {
+                    panic!("snapshot");
+                };
+                let IrStmt::Let { name, value, .. } = &mut effects[0] else {
+                    panic!("original immutable receiver");
+                };
+                match mutation {
+                    0 => *name = "copied".into(),
+                    1 => {
+                        let IrExpr::Member { field, .. } = &mut value.expr else {
+                            panic!("original getter");
+                        };
+                        *field = "parent".into();
+                    }
+                    2 => value.ty = ResolvedType::Nullable(Box::new(value.ty.clone())),
+                    _ => unreachable!(),
+                }
+                assert!(
+                    serialize_complete_query_receipt(
+                        &program,
+                        &changed,
+                        &changed.items[captured.id.0 as usize],
+                        &db,
+                        Some(&catalog),
+                        "$can$m$506172656e7454696d657a6f6e65.mjs"
+                    )
+                    .is_none(),
+                    "captured source/type/binding mutation {mutation} must not replace its original receiver"
+                );
+            }
+        }
         for field_name in ["ParentTimezone.Resource.timezone"].into_iter().chain(
             (name == "native-reference-timezone.can").then_some("ParentTimezone.Booking.location"),
         ) {
@@ -2258,6 +2517,66 @@ fn original_purchase_decision_keeps_nested_guard_money_closure_and_branch_corres
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let owner = item(&ir, "purchase.decide");
     assert!(serialize_decision_sources(&program, &ir, owner, &db, Some(&catalog)).is_some());
+    for (name, declaration, condition) in [
+        (
+            "literal-bool-default",
+            "location:Location,enabled:bool=true",
+            "enabled and any(Employee",
+        ),
+        (
+            "literal-null-default",
+            "location:Location,optional:Location?=null",
+            "optional==null and any(Employee",
+        ),
+    ] {
+        let changed = source.replace(
+            "person:user,location:Location):bool = any(Employee",
+            &format!("person:user,{declaration}):bool = {condition}"),
+        );
+        assert_ne!(changed, source, "{name}");
+        let (db, program, ir, catalog) = fixture_source(&format!("{name}.can"), &changed);
+        let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
+        assert!(diagnostics.is_empty(), "{name}: {diagnostics:?}");
+        assert!(
+            serialize_decision_sources(
+                &program,
+                &ir,
+                item(&ir, "purchase.decide"),
+                &db,
+                Some(&catalog)
+            )
+            .is_some(),
+            "{name}: original selected defaults retain complete source correspondence"
+        );
+        if name == "literal-bool-default" {
+            let mut forged = ir.clone();
+            let helper = item(&forged, "purchase.can_work").id;
+            let IrItemKind::DeriveFn { params, .. } = &forged.items[helper.0 as usize].kind else {
+                panic!("original defaulted helper");
+            };
+            let formal = *params.last().unwrap();
+            let IrItemKind::Param {
+                default: Some(ir::IrDefault::Literal(value)),
+                ..
+            } = &mut forged.items[formal.0 as usize].kind
+            else {
+                panic!("original literal default");
+            };
+            assert!(matches!(value.expr, IrExpr::Bool(true)));
+            value.expr = IrExpr::Bool(false);
+            assert!(
+                serialize_decision_sources(
+                    &program,
+                    &forged,
+                    item(&forged, "purchase.decide"),
+                    &db,
+                    Some(&catalog)
+                )
+                .is_none(),
+                "same-span/type omitted default value mutation must retain the fresh source seal"
+            );
+        }
+    }
     for mode in [
         "branch-condition",
         "nested-guard",
@@ -2313,12 +2632,56 @@ fn original_purchase_decision_keeps_nested_guard_money_closure_and_branch_corres
             "{mode}"
         );
     }
+    let staged = source.replace(
+        "     require request.parent.active",
+        "     set request {decision=reason}\n     require request.parent.active",
+    );
+    let (staged_db, staged_program, _, staged_catalog) =
+        fixture_source("staged-original-require.can", &staged);
+    let (staged_artifact, staged_diagnostics) =
+        prepared_artifact(&staged_program, &staged_db, &staged_catalog);
+    assert!(staged_diagnostics.is_empty(), "{staged_diagnostics:?}");
+    let code = staged_artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|module| module["js"].as_str())
+        .find(|code| {
+            code.contains("export function canScenarioRequireSources(){return JSON.parse(")
+        })
+        .unwrap();
+    let literal = code
+        .split("export function canScenarioRequireSources(){return JSON.parse(")
+        .nth(1)
+        .unwrap()
+        .split(");}")
+        .next()
+        .unwrap();
+    let payload: String = serde_json::from_str(literal).unwrap();
+    let inventory: Value = serde_json::from_str(&payload).unwrap();
+    let phases = inventory["purchase.decide"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|frame| frame["decision"] == "require")
+        .collect::<Vec<_>>();
+    assert_eq!(
+        phases.len(),
+        1,
+        "only the original post-SET Require needs a phase"
+    );
+    assert_eq!(
+        phases[0]["mutationPrefix"],
+        serde_json::json!([
+            {"kind":"set","parameter":"request","model":"purchase.Request","parents":[],"fields":["decision"]}
+        ])
+    );
     for (name,changed) in [
         ("guard-value-copied-to-effect",source.replace("set request {state=approved,decision=reason}",
             "set request {state=approved,decision=format(\"{available}\",{available=request.parent.remaining.minor})}")),
-        ("late-require",source.replace("     require request.parent.active", "     set request {decision=reason}\n     require request.parent.active")),
+        ("unproved-stage-before-require",source.replace("     require request.parent.active", "     create Location {name=reason} as added\n     require request.parent.active")),
         ("global-budget-domain",source.replace("sum(row.Request as request where request.state==approved", "sum(Request as request where request.state==approved")),
-        ("foreign-currency",source.replace("sum(row.Increase as increase select increase.amount,row.amount.currency)", "sum(row.Increase as increase select increase.amount,row.parent.total.currency)")),
+        ("foreign-currency",source.replace("Request in Budget {", "Request in Budget {currency_budget:Budget,").replace("sum(row.Increase as increase select increase.amount,row.amount.currency)", "sum(row.Increase as increase select increase.amount,row.currency_budget.total.currency)")),
     ] {
         assert_ne!(source,changed,"{name}");
         let (db,program,_,catalog)=fixture_source(&format!("{name}.can"),&changed);
@@ -3480,6 +3843,24 @@ fn source_only_emit_data_seals_helper_formals_and_nominal_event_payload() {
     let (db, program, ir, catalog) = fixture_source("source-emit-data.can", source);
     let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let nonvoid = source
+        .replace(
+            "scenario notify(root:Root,reason:text) by=members",
+            "scenario notify(root:Root,reason:text) -> date by=members",
+        )
+        .replace(
+            " scenario lose_grant(",
+            "   return add_days(local_date(now,\"UTC\"),1)\n scenario lose_grant(",
+        );
+    let (nonvoid_db, nonvoid_program, _, nonvoid_catalog) =
+        fixture_source("source-emit-nonvoid.can", &nonvoid);
+    let (_, diagnostics) = prepared_artifact(&nonvoid_program, &nonvoid_db, &nonvoid_catalog);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008"),
+        "source-only EMIT cannot authenticate a nonvoid result: {diagnostics:?}"
+    );
     let owner = item(&ir, "SourceEmitData.notify");
     assert!(serialize_decision_sources(&program, &ir, owner, &db, Some(&catalog)).is_some());
     let input = item(&ir, "SourceEmitData.input");
@@ -3799,6 +4180,90 @@ fn original_model_helper_identity_retains_required_stored_reference() {
             "{mode}"
         );
     }
+    let nested = source.replace("Customer {active:bool=true}",
+        "Customer {active:bool=true,status:enum(ready,blocked)=ready}")
+        .replace("Entitlement {customer:text}", "Entitlement {customer:text,owner:Customer}")
+        .replace("Entitlement {customer=booking.customer.id}", "Entitlement {customer=booking.customer.id,owner=booking.customer}")
+        .replace("derive allowed(booking:Booking):bool=booking.visible",
+        "derive customer_ready(customer:Customer):bool=customer.active and customer.status==ready\n  derive checked_customer(customer:Customer):bool=customer_ready(customer)\n  derive allowed(booking:Booking):bool=booking.visible and checked_customer(booking.customer)");
+    let (nested_db, nested_program, nested_ir, nested_catalog) =
+        fixture_source("nested-reference-helper.can", &nested);
+    let nested_owner = item(&nested_ir, "worker.prepare");
+    assert!(
+        matches!(
+            &nested_ir.scenario_disclosures[&nested_owner.id],
+            ScenarioDisclosure::Complete(_)
+        ),
+        "{:?}",
+        nested_ir.scenario_disclosures[&nested_owner.id]
+    );
+    let (_, diagnostics) = prepared_artifact(&nested_program, &nested_db, &nested_catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let navigable = nested.replace(
+        "require allowed(booking)",
+        "require allowed(booking) and benefit_request(booking).owner.active",
+    );
+    let (_, _, opaque_ir, _) = fixture_source("opaque-contract-reference.can", &navigable);
+    let opaque_owner = item(&opaque_ir, "worker.prepare");
+    assert!(
+        !matches!(
+            &opaque_ir.scenario_disclosures[&opaque_owner.id],
+            ScenarioDisclosure::Complete(_)
+        ),
+        "a stored reference embedded in a local Contract cannot mint a navigable target row"
+    );
+    for mode in ["caller", "default", "type"] {
+        let mut changed = nested_ir.clone();
+        let helper = item(&changed, "worker.customer_ready").id;
+        let IrItemKind::DeriveFn { params, .. } = &changed.items[helper.0 as usize].kind else {
+            panic!("helper");
+        };
+        let formal = params[0];
+        if mode == "caller" {
+            let wrapper = item(&changed, "worker.checked_customer").id;
+            let IrItemKind::DeriveFn {
+                expr: Some(body), ..
+            } = &mut changed.items[wrapper.0 as usize].kind
+            else {
+                panic!("wrapper");
+            };
+            match &mut body.expr {
+                IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => {
+                    args[0].expr = IrExpr::Name("foreign".into())
+                }
+                _ => panic!("call"),
+            }
+        } else {
+            let IrItemKind::Param { default, ty, .. } = &mut changed.items[formal.0 as usize].kind
+            else {
+                panic!("formal");
+            };
+            if mode == "default" {
+                *default = Some(ir::IrDefault::Literal(ir::TypedExpr {
+                    expr: IrExpr::Null,
+                    ty: ResolvedType::Null,
+                    span: nested_owner.span,
+                }));
+            } else {
+                let IrType::Known(original) = ty else {
+                    panic!("type");
+                };
+                *ty = IrType::Known(ResolvedType::Nullable(Box::new(original.clone())));
+            }
+        }
+        assert!(
+            serialize_complete_query_receipt(
+                &nested_program,
+                &changed,
+                &changed.items[nested_owner.id.0 as usize],
+                &nested_db,
+                Some(&nested_catalog),
+                "$can$m$48656c7065724964656e74697479.mjs"
+            )
+            .is_none(),
+            "nested helper {mode} cannot replace its original source receiver"
+        );
+    }
     let copied = source
         .replace(
             "    set booking {checked=true}",
@@ -3835,6 +4300,22 @@ fn original_helper_parent_reference_keeps_containment_and_field_identity() {
         .find(|operation| operation["name"] == owner.canonical)
         .unwrap();
     assert!(operation["result"]["disclosure"].is_object(), "{operation}");
+    let consumed = source.replace("  derive benefit_request(booking:Booking):Entitlement =",
+        "  derive resource_request(resource:Resource,customer:text):Entitlement = Entitlement {customer,location=resource.location.id}\n  derive benefit_request(booking:Booking):Entitlement =")
+        .replace("send Membership.reserve {value=benefit_request(booking)}", "send Membership.reserve {value=resource_request(booking.parent,booking.customer.id)}");
+    let (consumed_db, consumed_program, consumed_ir, consumed_catalog) =
+        fixture_source("consumed-parent-helper.can", &consumed);
+    let consumed_owner = item(&consumed_ir, "worker.prepare");
+    assert!(
+        matches!(
+            &consumed_ir.scenario_disclosures[&consumed_owner.id],
+            ScenarioDisclosure::Complete(_)
+        ),
+        "{:?}",
+        consumed_ir.scenario_disclosures[&consumed_owner.id]
+    );
+    let (_, diagnostics) = prepared_artifact(&consumed_program, &consumed_db, &consumed_catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
     for mode in ["helper-parent-receiver", "schema-parent", "location-target"] {
         let mut changed = ir.clone();
         if mode == "schema-parent" {
@@ -4824,6 +5305,56 @@ fn contained_sibling_constructor_preserves_native_prefix_and_original_loop_closu
         serialize_complete_query_receipt(&program, &ir, owner, &db, Some(&catalog), module)
             .is_some()
     );
+    let conditional_source = source.replace(
+        "     create Conflict {parent=resource,booking,reason} as conflict",
+        "     if booking.status==confirmed\n      create Conflict {parent=resource,booking,reason} as conflict",
+    );
+    let (conditional_db, conditional_program, conditional_ir, conditional_catalog) =
+        fixture_source("rent-conditional-loop-source.can", &conditional_source);
+    let conditional_owner = item(&conditional_ir, "rent_reservations.block");
+    let (_, conditional_diagnostics) =
+        prepared_artifact(&conditional_program, &conditional_db, &conditional_catalog);
+    assert!(
+        conditional_diagnostics.is_empty(),
+        "{conditional_diagnostics:?}"
+    );
+    assert!(
+        serialize_complete_query_receipt(
+            &conditional_program,
+            &conditional_ir,
+            conditional_owner,
+            &conditional_db,
+            Some(&conditional_catalog),
+            module
+        )
+        .is_some(),
+        "original finite conditional constructor owns its branch receipt"
+    );
+    let mut forged_condition = conditional_ir.clone();
+    let IrItemKind::Scenario { effects, .. } =
+        &mut forged_condition.items[conditional_owner.id.0 as usize].kind
+    else {
+        panic!("conditional owner");
+    };
+    let IrStmt::For { body, .. } = effects.last_mut().unwrap() else {
+        panic!("conditional loop");
+    };
+    let IrStmt::If { cond, .. } = &mut body[0] else {
+        panic!("conditional constructor");
+    };
+    cond.expr = IrExpr::Bool(true);
+    assert!(
+        serialize_complete_query_receipt(
+            &conditional_program,
+            &forged_condition,
+            &forged_condition.items[conditional_owner.id.0 as usize],
+            &conditional_db,
+            Some(&conditional_catalog),
+            module
+        )
+        .is_none(),
+        "edited condition cannot borrow the original constructor/branch authority"
+    );
     let unprepared = js::emit_program_with_native_source_receipts(&ir, true, &db);
     assert!(
         unprepared
@@ -5012,7 +5543,7 @@ fn original_shift_request_retains_created_and_parent_source_ownership() {
 }
 
 #[test]
-fn original_shift_nested_first_requires_every_helper_consumer_private() {
+fn original_shift_nested_first_retains_checked_public_and_private_consumers() {
     let source = include_str!("fixtures/shift-assign-original.can");
     let (db, program, _, catalog) = fixture_source("shift-assign-original.can", source);
     let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
@@ -5025,7 +5556,11 @@ fn original_shift_nested_first_requires_every_helper_consumer_private() {
  ]{
   assert_ne!(source,changed,"{mode}");let(db,program,_,catalog)=fixture_source(&format!("shift-first-{mode}.can"),&changed);
   let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);
-  assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"&&diagnostic.message.contains("first query")),"{mode}: {diagnostics:?}");
+  if mode=="ordinary-tail" {
+   assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {diagnostics:?}");
+  } else {
+   assert!(diagnostics.is_empty(),"source-sealed helper remains contextual: {mode}: {diagnostics:?}");
+  }
  }
 }
 
@@ -5353,7 +5888,7 @@ fn original_shift_descendant_control_keeps_its_exact_selected_loop_and_public_ro
     );
     let oversized = source.replace(
         "limit=100\n     if commitment.conflict",
-        "limit=201\n     if commitment.conflict",
+        "limit=1001\n     if commitment.conflict",
     );
     assert_ne!(source, oversized);
     let (large_db, large_program, _, large_catalog) =

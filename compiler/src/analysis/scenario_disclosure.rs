@@ -150,6 +150,27 @@ pub struct DisclosureQuery {
 }
 
 impl DisclosureQuery {
+    /// Replay keys retain every original text equality dependency and input.
+    /// Both admission and transport still prove their complete predicate/IR join.
+    pub fn text_keyed_first_replay(&self) -> bool {
+        !self.dependencies.is_empty()
+            && self.dependencies.len() <= 200
+            && self.inputs.len() == self.dependencies.len()
+            && self
+                .first
+                .as_ref()
+                .is_some_and(|first| first.reference_predicate.is_none())
+            && self.dependencies.iter().all(|dependency| {
+                dependency.role == DependencyRole::Control
+                    && dependency.model == self.model
+                    && dependency.type_id == "text"
+                    && dependency.ty == ResolvedType::Scalar(Scalar::Text)
+                    && dependency.source == self.source
+                    && dependency.query_id.is_none()
+                    && dependency.calls.is_empty()
+            })
+    }
+
     /// The checked projection return identity shared by admission and transport.
     pub fn return_id(&self) -> String {
         sha256_hex(
@@ -727,6 +748,41 @@ pub struct CheckedDecisionCall {
     /// Only omitted defaults; supplied arguments do not visit these bodies.
     pub defaults: Vec<(SymbolId, NodeKey)>,
     pub chain: Vec<CheckedDecisionCallFrame>,
+}
+
+#[derive(Default)]
+struct DecisionExpressionBudget {
+    selected: HashSet<(ModuleId, NodeKey)>,
+    templates: HashMap<(SymbolId, Vec<(SymbolId, NodeKey)>), Vec<CheckedDecisionCall>>,
+    occurrences: usize,
+    weight: usize,
+}
+impl DecisionExpressionBudget {
+    fn len(&self) -> usize {
+        self.selected.len()
+    }
+    fn insert(&mut self, site: (ModuleId, NodeKey)) {
+        self.selected.insert(site);
+    }
+    fn append(
+        &mut self,
+        call: CheckedDecisionCall,
+        out: &mut Vec<CheckedDecisionCall>,
+    ) -> Option<()> {
+        self.occurrences += 1;
+        self.weight +=
+            call.arguments.len() + call.slots.len() + call.defaults.len() + call.chain.len() + 1;
+        self.selected.insert((call.module, call.node));
+        if self.occurrences > 16384
+            || self.weight > 20000
+            || self.selected.len() > 200
+            || call.chain.len() > 16
+        {
+            return None;
+        }
+        out.push(call);
+        Some(())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1404,7 +1460,7 @@ pub fn checked_read_decision_sites(
     let cx = Closure::new(db, resolve, types, effects, nodes, None);
     let mut sites = Vec::new();
     let mut steps = 0;
-    let mut call_count = 0;
+    let mut call_count = DecisionExpressionBudget::default();
     for key in std::iter::once(policy.read?).chain(policy.where_predicate) {
         if key.file != policy.node.file
             || key.start < policy.node.start
@@ -1469,7 +1525,7 @@ pub fn checked_read_predicate_site(
     let cx = Closure::new(db, resolve, types, effects, nodes, None);
     let mut calls = Vec::new();
     let mut steps = 0;
-    let mut count = 0;
+    let mut count = DecisionExpressionBudget::default();
     cx.checked_decision_expression(
         predicate,
         module,
@@ -1607,7 +1663,7 @@ pub fn collect_read_calls(
         &mut HashSet::new(),
         &mut calls,
         &mut 0,
-        &mut 0,
+        &mut DecisionExpressionBudget::default(),
         0,
     )?;
     Some(CollectedReadCalls {
@@ -1774,6 +1830,14 @@ enum ReferenceOrigin {
         parameter: SymbolId,
         model: SymbolId,
         depth: u8,
+    },
+    /// Parent edges consumed by one checked Model helper formal. This is not
+    /// a general parent operand: each use rechecks its exact selected slots.
+    HelperParent {
+        parameter: SymbolId,
+        model: SymbolId,
+        depth: u8,
+        argument: NodeKey,
     },
     Field {
         parameter: SymbolId,
@@ -3023,6 +3087,45 @@ impl<'a> Closure<'a> {
         Some((parameter, branch, reference_field, profile, field.id))
     }
 
+    /// An immutable required-reference alias retains the exact original field
+    /// getter. Only a dominating top-level let in the same ordinary scenario
+    /// may lend its captured identity; copies of aliases and nullable rows do
+    /// not acquire a new receiver origin.
+    fn checked_reference_alias_source(&self, key: NodeKey, module: ModuleId) -> Option<NodeKey> {
+        let key = self.query_group(key)?;
+        let Some(Binding::Let { node }) = self.query_binding(key) else {
+            return None;
+        };
+        let scenario = self.effects.scenarios.values().find(|scenario| {
+            scenario.module == module
+                && !scenario.read
+                && scenario.on.is_none()
+                && scenario.node.file == key.file
+                && scenario.node.start <= key.start
+                && key.end <= scenario.node.end
+        })?;
+        let mut bindings = scenario
+            .effects
+            .iter()
+            .filter(|effect| effect.node == *node);
+        let binding = bindings.next()?;
+        if bindings.next().is_some()
+            || binding.verb != EffectVerb::Let
+            || binding.node.end > key.start
+        {
+            return None;
+        }
+        let original = self.query_group(binding.value?)?;
+        let (_, _, target) = self.checked_required_model_reference(original, module)?;
+        let ty = ResolvedType::Record {
+            symbol: target,
+            stored: true,
+        };
+        (self.types.node_types.get(&key) == Some(&ty)
+            && self.types.node_types.get(&original) == Some(&ty))
+        .then_some(original)
+    }
+
     /// A scalar may consume an original required stored reference on a
     /// required input or its checked parent path. Retain both owning DATA
     /// observations; the actual getter still authorizes each reached field.
@@ -3031,7 +3134,10 @@ impl<'a> Closure<'a> {
         key: NodeKey,
         module: ModuleId,
     ) -> Option<(SymbolId, SymbolId, SymbolId, SymbolId, SymbolId)> {
-        let (reference, name) = self.count_member(key)?;
+        let (receiver, name) = self.count_member(key)?;
+        let reference = self
+            .checked_reference_alias_source(receiver, module)
+            .unwrap_or(receiver);
         let (root, _) = self.count_member(reference)?;
         let (source, reference_field, target) =
             self.checked_required_model_reference(reference, module)?;
@@ -3066,7 +3172,9 @@ impl<'a> Closure<'a> {
                     && matches!(field.kind, SymbolKind::Field {owner, ..} if owner == target)
             })?;
         let ty = self.types.symbol_types.get(&field.id)?;
-        if (!primitive_type(ty) && *ty != ResolvedType::Scalar(Scalar::Timezone))
+        if (!primitive_type(ty)
+            && *ty != ResolvedType::Scalar(Scalar::Timezone)
+            && !matches!(ty, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
             || self.types.node_types.get(&key) != Some(ty)
             || self.types.field_reuse_sources.contains_key(&field.id)
         {
@@ -3318,6 +3426,14 @@ impl<'a> Closure<'a> {
     /// The parameter itself as a parent path: an original required
     /// reference to a stored model with no default.
     fn call_parent_nameref(&self, key: NodeKey, parameter: SymbolId) -> Option<(SymbolId, u8)> {
+        // A checked required occurrence of the original nullable input keeps
+        // its own admitted identity after the source guard narrows it.
+        let module = self.resolve.symbols.get(parameter.0 as usize)?.module;
+        if let Some((original, model)) = self.narrowed_model_input(key, module)
+            && original == parameter
+        {
+            return Some((model, 0));
+        }
         if !self.original_reference_parameter(key, parameter) {
             return None;
         }
@@ -15077,8 +15193,42 @@ impl<'a> Closure<'a> {
     /// ownership. Arrays contribute only the checked literal alternatives above.
     fn source_require_expression_shape(&self, key: NodeKey) -> Option<()> {
         let node = self.nodes.get(&key)?;
+        if node.kind == SyntaxKind::Object {
+            // Immutable value construction grants no row authority. Every
+            // property expression still passes this observer's leaf walk.
+            return self
+                .types
+                .node_types
+                .get(&key)
+                .is_some_and(|ty| {
+                    matches!(ty, ResolvedType::Object(fields) if fields.len() <= 200
+                    && fields.iter().all(|(_, ty)| self.source_require_plain_value(ty, 0)
+                        || matches!(ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())))
+                })
+                .then_some(());
+        }
         if node.kind == SyntaxKind::Array {
-            return self.source_require_literal_array(key);
+            if self.source_require_literal_array(key).is_some() {
+                return Some(());
+            }
+            // This observer visits every element below; a computed scalar
+            // array carries values, while its getters keep their own checks.
+            let ResolvedType::Array {
+                element,
+                ordered: true,
+                ..
+            } = self.types.node_types.get(&key)?
+            else {
+                return None;
+            };
+            return (primitive_type(element)
+                && node
+                    .children
+                    .iter()
+                    .filter(|child| expression(child.kind))
+                    .count()
+                    <= 200)
+                .then_some(());
         }
         (!expression(node.kind)
             || matches!(
@@ -15310,6 +15460,31 @@ impl<'a> Closure<'a> {
                 .filter(|clause| matches!(clause.kind, CheckedQueryClauseKind::As { .. }))
                 .count()
                 == 1
+    }
+
+    /// Values produced inside the complete source observer confer no row
+    /// identity. Its walk independently checks every domain and clause leaf.
+    fn source_require_observed_value_query(&self, query: &super::types::CheckedQuery) -> bool {
+        self.source_require_value_query(query)
+            || matches!(&query.domain_type, ResolvedType::Array { element, ordered: true, .. }
+                if self.source_require_plain_value(element, 0))
+                && self.types.node_types.get(&query.domain) == Some(&query.domain_type)
+                && query.projection.is_none()
+                && query.clauses.iter().all(|clause| {
+                    matches!(
+                        clause.kind,
+                        CheckedQueryClauseKind::As { .. }
+                            | CheckedQueryClauseKind::Where
+                            | CheckedQueryClauseKind::Select
+                            | CheckedQueryClauseKind::Order
+                    )
+                })
+                && query
+                    .clauses
+                    .iter()
+                    .filter(|clause| matches!(clause.kind, CheckedQueryClauseKind::As { .. }))
+                    .count()
+                    == 1
     }
 
     /// A bounded original dates expression carries only immutable civil
@@ -16106,8 +16281,9 @@ impl<'a> Closure<'a> {
         Some(())
     }
 
-    /// Currency comes from this row's stored currency or stored Money field.
-    /// A same-typed parent/foreign expression carries no aggregate authority.
+    /// Currency comes from this row or its exact synthetic owning-parent path.
+    /// The existing source observer still owns current fields and containment;
+    /// an arbitrary same-typed stored reference carries no aggregate authority.
     fn source_require_money_currency(&self, key: NodeKey, model: SymbolId) -> Option<()> {
         let key = self.query_group(key)?;
         if self.types.node_types.get(&key) != Some(&ResolvedType::Scalar(Scalar::Currency)) {
@@ -16122,14 +16298,74 @@ impl<'a> Closure<'a> {
         } else {
             (base, name, ResolvedType::Scalar(Scalar::Currency))
         };
-        if !matches!(self.query_binding(row),Some(Binding::Context(ContextVar::RowModel(owner))) if *owner==model)
-        {
+        let ResolvedType::Record {
+            symbol: field_owner,
+            stored: true,
+        } = self.types.node_types.get(&row)?
+        else {
+            return None;
+        };
+        let mut receiver = self.query_group(row)?;
+        let mut established = false;
+        for _ in 0..=16 {
+            if matches!(self.query_binding(receiver),Some(Binding::Context(ContextVar::RowModel(owner)))if *owner==model)
+            {
+                if self.types.node_types.get(&receiver)
+                    != Some(&ResolvedType::Record {
+                        symbol: model,
+                        stored: true,
+                    })
+                {
+                    return None;
+                }
+                established = true;
+                break;
+            }
+            let (base, edge) = self.count_member(receiver)?;
+            let (
+                ResolvedType::Record {
+                    symbol: child,
+                    stored: true,
+                },
+                ResolvedType::Record {
+                    symbol: parent,
+                    stored: true,
+                },
+            ) = (
+                self.types.node_types.get(&base)?,
+                self.types.node_types.get(&receiver)?,
+            )
+            else {
+                return None;
+            };
+            let declaration = self.resolve.symbols.get(child.0 as usize)?;
+            let SymbolKind::Model {
+                owner: ModelOwner::ChildOf(actual),
+                fields,
+                ..
+            } = &declaration.kind
+            else {
+                return None;
+            };
+            if edge != "parent"
+                || actual != parent
+                || self.effects.models.get(child)?.owner != ModelOwner::ChildOf(*parent)
+                || fields
+                    .iter()
+                    .filter_map(|id| self.resolve.symbols.get(id.0 as usize))
+                    .any(|field| field.name == "parent")
+            {
+                return None;
+            }
+            receiver = self.query_group(base)?;
+        }
+        if !established {
             return None;
         }
         let field = self
             .effects
             .models
-            .get(&model)?
+            .get(field_owner)?
             .fields
             .iter()
             .find(|field| {
@@ -16138,7 +16374,7 @@ impl<'a> Closure<'a> {
                     .get(field.field.0 as usize)
                     .is_some_and(|declaration| declaration.name == name)
             })?;
-        (matches!(self.resolve.symbols.get(field.field.0 as usize)?.kind,SymbolKind::Field{owner,..} if owner==model)
+        (matches!(self.resolve.symbols.get(field.field.0 as usize)?.kind,SymbolKind::Field{owner,..} if owner==*field_owner)
             && self.types.symbol_types.get(&field.field)==Some(&expected)).then_some(())
     }
 
@@ -16593,23 +16829,61 @@ impl<'a> Closure<'a> {
         self.source_require_aggregate_domain(query, alias, select, child, model)
     }
 
-    fn source_require_derive_call(&self, id: &SymbolId, supported: &mut bool) -> Option<bool> {
+    fn source_require_derive_call(
+        &self,
+        id: &SymbolId,
+        call: &CheckedDecisionCall,
+        supported: &mut bool,
+    ) -> Option<bool> {
         let data = self.effects.derives.get(id)?;
-        if data.params.iter().any(|param| {
-            param.default.is_some()
-                || self
-                    .types
+        // Defaults remain original selected source slots. Admit only literal
+        // defaults here; a declaration with an executable default needs its
+        // own source evaluator and cannot acquire observer authority by type.
+        let expected_defaults = (|| {
+            let selected = self.types.selected_calls.get(&call.node)?;
+            if !matches!(selected.target, SelectedCallTarget::DeriveFn(target) if target == *id)
+                || selected.slots != call.slots
+                || data.params.len() != call.slots.len()
+            {
+                return None;
+            }
+            let mut defaults = Vec::new();
+            for (param, slot) in data.params.iter().zip(&call.slots) {
+                if let Some(default) = param.default {
+                    let formal = self.types.symbol_types.get(&param.param)?;
+                    let actual = self.types.node_types.get(&default)?;
+                    if self.nodes.get(&default)?.kind != SyntaxKind::Literal
+                        || !(actual == formal
+                            || matches!(formal, ResolvedType::Nullable(inner)
+                                if actual == &ResolvedType::Null || actual == inner.as_ref()))
+                        || !matches!(actual, ResolvedType::Scalar(_) | ResolvedType::Null)
+                        || self.source(data.module, default).is_err()
+                    {
+                        return None;
+                    }
+                }
+                if slot.is_none() {
+                    defaults.push((param.param, param.default?));
+                }
+            }
+            Some(defaults)
+        })();
+        if expected_defaults.as_ref() != Some(&call.defaults)
+            || data.params.iter().any(|param| {
+                self.types
                     .symbol_types
                     .get(&param.param)
                     .is_none_or(|ty| !self.source_require_input(ty))
                     && !self.source_require_owned_enum_formal(param)
-        }) || !self.types.symbol_results.get(id).is_some_and(|result| {
-            result.as_ref().is_some_and(|ty| {
-                self.source_require_input(ty)
-                    || matches!(ty, ResolvedType::Nullable(inner)
-                if matches!(inner.as_ref(), ResolvedType::Scalar(_)))
             })
-        }) {
+            || !self.types.symbol_results.get(id).is_some_and(|result| {
+                result.as_ref().is_some_and(|ty| {
+                    self.source_require_input(ty)
+                        || matches!(ty, ResolvedType::Nullable(inner)
+                            if matches!(inner.as_ref(), ResolvedType::Scalar(_)))
+                })
+            })
+        {
             *supported = false;
             return Some(false);
         }
@@ -17025,6 +17299,15 @@ impl<'a> Closure<'a> {
         query: &super::types::CheckedQuery,
         model: SymbolId,
     ) -> bool {
+        self.source_require_global_model_domain_in(call.module, query, model)
+    }
+
+    fn source_require_global_model_domain_in(
+        &self,
+        module: ModuleId,
+        query: &super::types::CheckedQuery,
+        model: SymbolId,
+    ) -> bool {
         let Some(domain) = self.query_group(query.domain) else {
             return false;
         };
@@ -17043,8 +17326,8 @@ impl<'a> Closure<'a> {
                 if element.as_ref() == &ResolvedType::Record { symbol: model, stored: true })
             && self.types.node_types.get(&query.domain) == Some(&query.domain_type)
             && self.types.node_types.get(&domain) == Some(&query.domain_type)
-            && self.source(call.module, query.domain).is_ok()
-            && self.source(call.module, domain).is_ok()
+            && self.source(module, query.domain).is_ok()
+            && self.source(module, domain).is_ok()
     }
 
     /// Archive mode belongs to this exact authored query occurrence. Strip
@@ -17390,6 +17673,14 @@ impl<'a> Closure<'a> {
                 let ResolvedType::Array { element, .. } = &query.domain_type else {
                     return None;
                 };
+                let frame_module = if frames == 0 {
+                    scenario.module
+                } else {
+                    self.effects
+                        .derives
+                        .get(&call.chain.get(frames - 1)?.derive)?
+                        .module
+                };
                 if element.as_ref()
                     != &(ResolvedType::Record {
                         symbol: *expected,
@@ -17407,6 +17698,10 @@ impl<'a> Closure<'a> {
                         query.domain,
                         frames,
                         depth + 1,
+                    ) || self.source_require_global_model_domain_in(
+                        frame_module,
+                        query,
+                        *expected,
                     ))
                 {
                     return None;
@@ -17488,15 +17783,34 @@ impl<'a> Closure<'a> {
         depth: usize,
     ) -> bool {
         self.source_require_contained_domain(scenario, call, query, frames, depth)
-            && query.clauses.iter().all(|clause| matches!(clause.kind,
-                CheckedQueryClauseKind::As {..} | CheckedQueryClauseKind::Where
-                    | CheckedQueryClauseKind::Select | CheckedQueryClauseKind::Order))
-            && query.clauses.iter().filter(|clause| matches!(clause.kind,CheckedQueryClauseKind::As {..})).count() == 1
+            && query.clauses.iter().all(|clause| {
+                matches!(
+                    clause.kind,
+                    CheckedQueryClauseKind::As { .. }
+                        | CheckedQueryClauseKind::Where
+                        | CheckedQueryClauseKind::Select
+                        | CheckedQueryClauseKind::Order
+                )
+            })
+            && query
+                .clauses
+                .iter()
+                .filter(|clause| matches!(clause.kind, CheckedQueryClauseKind::As { .. }))
+                .count()
+                == 1
             && query.projection.is_none()
-            && query.clauses.iter().filter(|clause| matches!(clause.kind,CheckedQueryClauseKind::Select))
-                .all(|clause| clause.expressions.len() == 1 && self.types.node_types.get(&clause.expressions[0])
-                    .is_some_and(|ty| matches!(ty,ResolvedType::Scalar(_))
-                        || matches!(ty,ResolvedType::Nullable(inner) if matches!(inner.as_ref(),ResolvedType::Scalar(_)))))
+            && query
+                .clauses
+                .iter()
+                .filter(|clause| matches!(clause.kind, CheckedQueryClauseKind::Select))
+                .all(|clause| {
+                    clause.expressions.len() == 1
+                        && self
+                            .types
+                            .node_types
+                            .get(&clause.expressions[0])
+                            .is_some_and(|ty| self.source_require_plain_value(ty, 0))
+                })
     }
 
     fn source_require_contained_query(
@@ -17876,6 +18190,9 @@ impl<'a> Closure<'a> {
         helper_query: &mut bool,
         supported: &mut bool,
     ) -> Option<bool> {
+        if let CheckedDecisionCallTarget::DeriveFn(id) = &call.target {
+            return self.source_require_derive_call(id, call, supported);
+        }
         if !call.defaults.is_empty() || call.slots.iter().any(Option::is_none) {
             *supported = false;
             return Some(false);
@@ -17927,6 +18244,53 @@ impl<'a> Closure<'a> {
                 return Some(true);
             }
         }
+        if let CheckedDecisionCallTarget::Builtin { id, overload: 0 } = &call.target
+            && id == "flatten"
+            && call.slots.as_slice() == [Some(0)]
+            && let [
+                (
+                    argument,
+                    ResolvedType::Array {
+                        element: inner,
+                        ordered: true,
+                        ..
+                    },
+                ),
+            ] = call.arguments.as_slice()
+            && let ResolvedType::Array {
+                element,
+                ordered: true,
+                ..
+            } = inner.as_ref()
+            && self.source_require_plain_value(element, 0)
+            && self.types.node_types.get(argument) == Some(&call.arguments[0].1)
+            && matches!(self.types.node_types.get(&call.node), Some(ResolvedType::Array { element: actual, ordered: true, .. }) if actual == element)
+        {
+            return Some(true);
+        }
+        if let CheckedDecisionCallTarget::Builtin { id, .. } = &call.target
+            && id == "format"
+            && self.types.node_types.get(&call.node) == Some(&ResolvedType::Scalar(Scalar::Text))
+            && call
+                .slots
+                .first()
+                .copied()
+                .flatten()
+                .and_then(|index| call.arguments.get(index))
+                .is_some_and(|(_, ty)| ty == &ResolvedType::Scalar(Scalar::Text))
+            && self
+                .literal_format_arguments(
+                    &call
+                        .arguments
+                        .iter()
+                        .map(|(node, _)| *node)
+                        .collect::<Vec<_>>(),
+                    &call.slots,
+                )
+                .is_some()
+        {
+            return Some(true);
+        }
         // Pure checked Values collections run over the admitted input, never
         // through State's stored-model collection reader.
         if let CheckedDecisionCallTarget::Builtin { id, .. } = &call.target
@@ -17944,7 +18308,7 @@ impl<'a> Closure<'a> {
                 self.types
                     .checked_queries
                     .get(node)
-                    .is_none_or(|query| self.source_require_value_query(query))
+                    .is_none_or(|query| self.source_require_observed_value_query(query))
             })
         {
             return Some(true);
@@ -17970,9 +18334,6 @@ impl<'a> Closure<'a> {
                     *supported = false;
                 }
                 Some(valid)
-            }
-            CheckedDecisionCallTarget::DeriveFn(id) => {
-                self.source_require_derive_call(id, supported)
             }
             CheckedDecisionCallTarget::Builtin { id, overload } if id == "any" => self
                 .source_require_any_call(
@@ -18268,7 +18629,8 @@ impl<'a> Closure<'a> {
         }
         if node.kind == SyntaxKind::Query
             && self.types.checked_queries.get(&key).is_some_and(|query| {
-                self.source_require_value_query(query) || self.source_require_dates_query(query)
+                self.source_require_observed_value_query(query)
+                    || self.source_require_dates_query(query)
             })
         {
             return Some(true);
@@ -18307,6 +18669,19 @@ impl<'a> Closure<'a> {
             })
         {
             let query = self.types.checked_queries.get(&key)?;
+            // The same declared global model domain supported by ANY may
+            // feed COUNT. All predicate leaves are checked by this observer;
+            // the enclosing body Require is still required to precede writes.
+            if query.projection.is_none() && site.calls.iter().any(|call|
+                matches!(&call.target, CheckedDecisionCallTarget::Builtin { id, .. } if id == "count")
+                    && call.slots.as_slice() == [Some(0)]
+                    && call.arguments.first().is_some_and(|(argument, _)| self.query_group(*argument) == Some(key))
+                    && matches!(&query.domain_type, ResolvedType::Array { element, ordered: true, .. }
+                        if matches!(element.as_ref(), ResolvedType::Record { symbol, stored: true }
+                            if self.source_require_global_model_domain(call, query, *symbol))))
+                && query.clauses.iter().all(|clause| matches!(clause.kind,
+                    CheckedQueryClauseKind::As { .. } | CheckedQueryClauseKind::Where))
+            { return Some(true); }
             let Some((receiver, child_name)) = self.count_member(query.domain) else { *supported = false; return Some(false); };
             let Some(ResolvedType::Record { symbol: parent, stored: true }) = self.types.node_types.get(&receiver) else { *supported = false; return Some(false); };
             let ResolvedType::Array { element, ordered: true, nonempty: false } = &query.domain_type else { *supported = false; return Some(false); };
@@ -18339,7 +18714,14 @@ impl<'a> Closure<'a> {
             _ => None,
         }));
         let mut steps = 0usize;
+        let mut visited = HashSet::new();
         while let Some(key) = pending.pop() {
+            // Identical source nodes receive the same whole-site call census
+            // and owner context. Validate them once; invocation frames remain
+            // independently checked in the complete decision inventory.
+            if !visited.insert(key) {
+                continue;
+            }
             steps += 1;
             if steps > 16384 {
                 return None;
@@ -18418,6 +18800,67 @@ impl<'a> Closure<'a> {
             effect = branch.get(index)?;
         }
         Some(effect)
+    }
+
+    /// A distinct post-mutation Require candidate. The code generator must
+    /// independently seal its complete SET/loop prefix, and State must prove
+    /// that exact prefix against its actual execution ledger before observing.
+    /// The existing initial-stage matcher intentionally remains unchanged.
+    fn source_require_staged_body_guard<'b>(
+        &self,
+        scenario: &'b super::effects::ScenarioData,
+        path: &[CheckedDecisionPosition],
+    ) -> Option<&'b Effect> {
+        fn prefix(effects: &[Effect], wrote: &mut bool) -> Option<()> {
+            for effect in effects {
+                if effect.verb != EffectVerb::Require && effect.cond.is_some()
+                    || effect.when.is_some()
+                    || !effect.else_effects.is_empty()
+                    || !effect.match_arms.is_empty()
+                {
+                    return None;
+                }
+                match effect.verb {
+                    EffectVerb::Let | EffectVerb::Require if effect.then_effects.is_empty() => {}
+                    EffectVerb::Set if effect.then_effects.is_empty() => *wrote = true,
+                    EffectVerb::For
+                        if effect.limit.is_some()
+                            && !effect.then_effects.is_empty()
+                            && effect.then_effects.iter().all(|child| {
+                                child.verb == EffectVerb::Set
+                                    && child.cond.is_none()
+                                    && child.when.is_none()
+                                    && child.then_effects.is_empty()
+                                    && child.else_effects.is_empty()
+                                    && child.match_arms.is_empty()
+                            }) =>
+                    {
+                        *wrote = true
+                    }
+                    _ => return None,
+                }
+            }
+            Some(())
+        }
+        let (CheckedDecisionPosition::Body(index), nested) = path.split_first()? else {
+            return None;
+        };
+        let mut wrote = false;
+        prefix(scenario.effects.get(..*index)?, &mut wrote)?;
+        let mut effect = scenario.effects.get(*index)?;
+        for position in nested {
+            if effect.verb != EffectVerb::If || !effect.match_arms.is_empty() {
+                return None;
+            }
+            let (branch, index) = match position {
+                CheckedDecisionPosition::Then(index) => (&effect.then_effects, *index),
+                CheckedDecisionPosition::Else(index) => (&effect.else_effects, *index),
+                _ => return None,
+            };
+            prefix(branch.get(..index)?, &mut wrote)?;
+            effect = branch.get(index)?;
+        }
+        (wrote && effect.verb == EffectVerb::Require).then_some(effect)
     }
 
     /// A scalar operand in an original child Work loop may read its actual
@@ -18762,11 +19205,45 @@ impl<'a> Closure<'a> {
             || condition.node != site.statement
             || !condition.else_effects.is_empty()
             || !condition.match_arms.is_empty()
-            || !matches!(condition.then_effects.as_slice(),[effect]if effect.verb==EffectVerb::Set)
+            || !matches!(condition.then_effects.as_slice(),[effect]if matches!(effect.verb,EffectVerb::Set|EffectVerb::Create))
         {
             return None;
         }
         Some((outer, condition))
+    }
+
+    /// A pre-write body projection needs an actual source observer so its
+    /// separate caller DATA leaves cannot fall back to admitted owner rows.
+    fn source_require_initial_value_projection(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> bool {
+        self.types.checked_queries.values().any(|query| {
+            if query.node.file != scenario.node.file
+                || query.projection.is_some()
+                || !matches!(&query.domain_type,ResolvedType::Array{element,ordered:true,..}
+                    if matches!(element.as_ref(),ResolvedType::Record{symbol,stored:true}
+                        if self.effects.models.contains_key(symbol)))
+                || !self.source_require_plain_value(&query.result, 0)
+                || !query
+                    .clauses
+                    .iter()
+                    .any(|clause| clause.kind == CheckedQueryClauseKind::Select)
+            {
+                return false;
+            }
+            scenario.effects.iter().enumerate().any(|(index, effect)| {
+                matches!(
+                    effect.verb,
+                    EffectVerb::Let | EffectVerb::Set | EffectVerb::Create
+                ) && effect.node.file == query.node.file
+                    && effect.node.start <= query.node.start
+                    && query.node.end <= effect.node.end
+                    && scenario.effects[..index]
+                        .iter()
+                        .all(|prefix| self.source_require_before_write(prefix))
+            })
+        })
     }
 
     fn source_require_site(
@@ -18783,6 +19260,13 @@ impl<'a> Closure<'a> {
                 if self.source_require_body_guard(scenario, path).is_some() =>
             {
                 (self.source_require_body_guard(scenario, path)?, true)
+            }
+            (path, CheckedDecisionStage::BodyRequire)
+                if self
+                    .source_require_staged_body_guard(scenario, path)
+                    .is_some() =>
+            {
+                (self.source_require_staged_body_guard(scenario, path)?, true)
             }
             (path, CheckedDecisionStage::BodyCondition)
                 if matches!(path, [CheckedDecisionPosition::Body(_)])
@@ -18822,9 +19306,14 @@ impl<'a> Closure<'a> {
             self.source_require_site_guard(guard, &site)?;
         }
         let mut supported = true;
+        // Even a scalar per-item branch needs its own executed receipt. The
+        // original finite loop/branch and every operand are checked below;
+        // requiring a nested query here would drop its condition entirely.
         let mut helper_query = self
             .source_require_loop_condition(scenario, &site)
-            .is_some_and(|(outer, _)| self.checked_member_work_loop(scenario, outer).is_some());
+            .is_some()
+            || site.stage == CheckedDecisionStage::LeadingRequire
+                && self.source_require_initial_value_projection(scenario);
         let whole_count_observer = self.source_require_helper_count_site(scenario, &site);
         for call in &site.calls {
             if !self.source_require_call(
@@ -18959,6 +19448,8 @@ impl<'a> Closure<'a> {
     }
 
     /// Preserve the original whole-owner inventory and its shared budgets.
+    /// Selected calls count their distinct source sites; every expansion still
+    /// spends traversal steps and retains its own checked argument/call frame.
     /// A lost inventory must not disguise a proven budget refusal as an
     /// unrelated field/Contract failure during ordinary closure fallback.
     fn checked_decision_sites_detailed(
@@ -18967,7 +19458,7 @@ impl<'a> Closure<'a> {
     ) -> Result<Vec<CheckedDecisionSite>, DecisionInventoryFailure> {
         let mut sites = Vec::new();
         let mut steps = 0usize;
-        let mut calls = 0usize;
+        let mut calls = DecisionExpressionBudget::default();
         let mut pending = Vec::new();
         for (index, effect) in scenario.effects.iter().enumerate().rev() {
             pending.push((effect, vec![CheckedDecisionPosition::Body(index)], false));
@@ -19006,8 +19497,10 @@ impl<'a> Closure<'a> {
                     )
                     .is_none()
             {
-                let reason = if calls > 200 {
+                let reason = if calls.len() > 200 {
                     "scenario decision inventory exceeds 200 selected calls"
+                } else if calls.occurrences > 16384 || calls.weight > 20000 {
+                    "scenario decision inventory exceeds finite expanded call budget"
                 } else if steps > 16384 {
                     "scenario decision inventory exceeds 16384 traversal steps"
                 } else if sites.len() >= 200 {
@@ -19063,7 +19556,7 @@ impl<'a> Closure<'a> {
         position: Vec<CheckedDecisionPosition>,
         sites: &mut Vec<CheckedDecisionSite>,
         steps: &mut usize,
-        calls: &mut usize,
+        calls: &mut DecisionExpressionBudget,
     ) -> Option<()> {
         if sites.len() >= 200
             || self.types.node_types.get(&node) != Some(&ResolvedType::Scalar(Scalar::Bool))
@@ -19134,7 +19627,7 @@ impl<'a> Closure<'a> {
         stack: &mut HashSet<SymbolId>,
         out: &mut Vec<CheckedDecisionCall>,
         steps: &mut usize,
-        calls: &mut usize,
+        calls: &mut DecisionExpressionBudget,
         depth: usize,
     ) -> Option<()> {
         *steps += 1;
@@ -19163,8 +19656,8 @@ impl<'a> Closure<'a> {
         if node.kind != SyntaxKind::Call {
             return Some(());
         }
-        *calls += 1;
-        if *calls > 200 {
+        calls.insert((module, key));
+        if calls.len() > 200 {
             return None;
         }
         if !self.types.node_types.get(&key)?.is_resolved_shape() {
@@ -19173,16 +19666,19 @@ impl<'a> Closure<'a> {
         let selected = self.types.selected_calls.get(&key)?;
         let arguments = self.decision_call_arguments(key, module, selected)?;
         let (target, defaults) = self.decision_call_target(chain, stack, selected)?;
-        out.push(CheckedDecisionCall {
-            node: key,
-            module,
-            source: source.clone(),
-            target: target.clone(),
-            arguments,
-            slots: selected.slots.clone(),
-            defaults: defaults.clone(),
-            chain: chain.to_vec(),
-        });
+        calls.append(
+            CheckedDecisionCall {
+                node: key,
+                module,
+                source: source.clone(),
+                target: target.clone(),
+                arguments,
+                slots: selected.slots.clone(),
+                defaults: defaults.clone(),
+                chain: chain.to_vec(),
+            },
+            out,
+        )?;
         if let CheckedDecisionCallTarget::DeriveFn(id) = target {
             self.decision_derive_recurse(
                 key, module, source, chain, stack, out, steps, calls, id, defaults,
@@ -19295,7 +19791,7 @@ impl<'a> Closure<'a> {
         stack: &mut HashSet<SymbolId>,
         out: &mut Vec<CheckedDecisionCall>,
         steps: &mut usize,
-        calls: &mut usize,
+        calls: &mut DecisionExpressionBudget,
         id: SymbolId,
         defaults: Vec<(SymbolId, NodeKey)>,
     ) -> Option<()> {
@@ -19307,6 +19803,36 @@ impl<'a> Closure<'a> {
             source,
             derive: id,
         });
+        if nested.len() > 16 {
+            return None;
+        }
+        let template_key = (id, defaults.clone());
+        if let Some(template) = calls.templates.get(&template_key).cloned() {
+            for relative in template {
+                // Cache scope is this immutable checked owner. Every use keeps
+                // its actual caller prefix and all checked selected slots.
+                if relative
+                    .chain
+                    .iter()
+                    .any(|frame| stack.contains(&frame.derive))
+                    || matches!(relative.target,CheckedDecisionCallTarget::DeriveFn(target)if stack.contains(&target))
+                    || nested.len()
+                        + relative.chain.len()
+                        + usize::from(matches!(
+                            relative.target,
+                            CheckedDecisionCallTarget::DeriveFn(_)
+                        ))
+                        > 16
+                {
+                    return None;
+                }
+                let mut occurrence = relative;
+                occurrence.chain.splice(0..0, nested.iter().cloned());
+                calls.append(occurrence, out)?;
+            }
+            return Some(());
+        }
+        let start = out.len();
         stack.insert(id);
         for (_, default) in defaults {
             self.checked_decision_expression(
@@ -19331,6 +19857,11 @@ impl<'a> Closure<'a> {
             0,
         )?;
         stack.remove(&id);
+        let mut template = out[start..].to_vec();
+        for call in &mut template {
+            call.chain.drain(..nested.len());
+        }
+        calls.templates.insert(template_key, template);
         Some(())
     }
 
@@ -19990,10 +20521,21 @@ impl<'a> Closure<'a> {
         {
             return Ok(vec![ValuePath::default()]);
         }
-        let value = env
+        let mut value = env
             .get(&Local::Symbol(id))
             .cloned()
             .ok_or_else(|| self.fail(key, "unaccounted symbol value"))?;
+        if let Some((parameter, model)) = self.narrowed_model_input(key, module)
+            && parameter == id
+            && value.record.is_none_or(|actual| actual == model)
+            && (value.reference_origin.is_none()
+                || value.reference_origin == Some(ReferenceOrigin::NullableParameter(parameter)))
+        {
+            // Null defaults and supplied references share this lexical input;
+            // only the original occurrence narrowed by the checker lends a row.
+            value.record = Some(model);
+            value.reference_origin = Some(ReferenceOrigin::NullableParameter(parameter));
+        }
         Ok(vec![self.input_value(key, module, calls, value)?])
     }
 
@@ -20526,6 +21068,13 @@ impl<'a> Closure<'a> {
                 if model==target&&node==base_key&&source_model==source&&field==reference)
                 &&value.reads.iter().any(|read|read.node==base_key&&read.model==source&&read.field==reference
                     &&read.calls==calls&&read.query_id.is_none()));
+        let helper_argument = self.helper_reference_receiver(base_key,module,calls)
+            .is_some_and(|(argument,prefix,source,field,target)|
+                matches!(value.model_result,Some(DisclosureModelResult::Reference {model,node,source_model,field:actual})
+                    if model==target && node==argument && source_model==source && actual==field)
+                && value.reads.iter().any(|read| read.node==argument && read.model==source && read.field==field
+                    && read.ty==ResolvedType::Record {symbol:target,stored:true}
+                    && read.calls==calls[..prefix] && read.query_id.is_none()));
         let reminder_contact_email =
             self.count_member(key)
                 .is_some_and(|(base, name)| base == base_key && name == "email")
@@ -20552,6 +21101,7 @@ impl<'a> Closure<'a> {
             Some(DisclosureModelResult::Reference { .. })
         ) && !reminder_contact_email
             && !helper_scalar
+            && !helper_argument
             && !matches!(value.model_result,
             Some(DisclosureModelResult::Reference {model, node, ..})
                 if Some(node) == self.query_group(base_key)
@@ -20715,6 +21265,28 @@ impl<'a> Closure<'a> {
                 if self.narrowed_model_input(base_key, module) == Some((parameter, model)) =>
             {
                 (parameter, false)
+            }
+            Some(ReferenceOrigin::Parent {
+                parameter,
+                model: original,
+                depth,
+            }) if original == model
+                && (1..=2).contains(&depth)
+                && self.checked_call_parent_path(base_key, parameter, 0)
+                    == Some((model, depth))
+                && value.reads.iter().any(|read| {
+                    read.node == base_key
+                        && read.field_name == "parent"
+                        && read.ty
+                            == ResolvedType::Record {
+                                symbol: model,
+                                stored: true,
+                            }
+                        && read.calls.is_empty()
+                        && read.query_id.is_none()
+                }) =>
+            {
+                (parameter, true)
             }
             Some(ReferenceOrigin::ParameterMember { parameter, node })
                 if Some(node) == self.query_group(base_key)
@@ -20921,6 +21493,11 @@ impl<'a> Closure<'a> {
         } else {
             match value.reference_origin {
                 Some(ReferenceOrigin::Parameter(parameter)) => (parameter, 0, false),
+                Some(ReferenceOrigin::NullableParameter(parameter))
+                    if self.narrowed_model_input(base_key, module) == Some((parameter, model)) =>
+                {
+                    (parameter, 0, false)
+                }
                 Some(ReferenceOrigin::EventRow { field, node })
                     if node == base_key
                         && self
@@ -21171,14 +21748,15 @@ impl<'a> Closure<'a> {
         module: ModuleId,
         calls: &[NodeKey],
     ) -> Option<(SymbolId, SymbolId, u8)> {
-        let [call] = calls else {
+        let last = calls.last()?;
+        if calls.len() > 16 {
+            return None;
+        }
+        let SelectedCallTarget::DeriveFn(inner) = self.types.selected_calls.get(last)?.target
+        else {
             return None;
         };
-        let selected = self.types.selected_calls.get(call)?;
-        let SelectedCallTarget::DeriveFn(derive) = selected.target else {
-            return None;
-        };
-        let helper = self.effects.derives.get(&derive)?;
+        let helper = self.effects.derives.get(&inner)?;
         let body = helper.expr?;
         if helper.module != module
             || key.file != body.file
@@ -21187,27 +21765,169 @@ impl<'a> Closure<'a> {
         {
             return None;
         }
-        let (formal, model, depth) = self.source_require_helper_parent_path(key, derive, 0)?;
-        let ResolvedType::Record {
-            symbol: root,
-            stored: true,
-        } = self.types.symbol_types.get(&formal)?
-        else {
+        let (mut formal, model, mut hops) =
+            self.source_require_helper_parent_path(key, inner, 0)?;
+        let mut seen = HashSet::new();
+        for index in (0..calls.len()).rev() {
+            let call = calls[index];
+            let selected = self.types.selected_calls.get(&call)?;
+            let SelectedCallTarget::DeriveFn(derive) = selected.target else {
+                return None;
+            };
+            let helper = self.effects.derives.get(&derive)?;
+            if !seen.insert(derive) || selected.slots.len() != helper.params.len() {
+                return None;
+            }
+            let slot = helper
+                .params
+                .iter()
+                .position(|parameter| parameter.param == formal)?;
+            if helper.params[slot].default.is_some() {
+                return None;
+            }
+            let argument = self.query_group(
+                *selected
+                    .arguments
+                    .get(*selected.slots.get(slot)?.as_ref()?)?,
+            )?;
+            let expected = self.types.symbol_types.get(&formal)?;
+            if self.types.node_types.get(&argument) != Some(expected) {
+                return None;
+            }
+            if index == 0 {
+                let scenario = self.effects.scenarios.values().find(|scenario| {
+                    !scenario.read
+                        && scenario.on.is_none()
+                        && scenario.node.file == call.file
+                        && scenario.node.start <= call.start
+                        && call.end <= scenario.node.end
+                })?;
+                let (parameter, prior) = scenario.params.iter().find_map(|parameter| {
+                    let (actual, prior) =
+                        self.checked_call_parent_path(argument, parameter.param, 0)?;
+                    (expected
+                        == &ResolvedType::Record {
+                            symbol: actual,
+                            stored: true,
+                        })
+                        .then_some((parameter.param, prior))
+                })?;
+                hops = hops.checked_add(prior)?;
+                return (hops <= 2).then_some((parameter, model, hops));
+            }
+            let SelectedCallTarget::DeriveFn(outer) =
+                self.types.selected_calls.get(&calls[index - 1])?.target
+            else {
+                return None;
+            };
+            let (outer_formal, actual, prior) =
+                self.source_require_helper_parent_path(argument, outer, 0)?;
+            if expected
+                != &(ResolvedType::Record {
+                    symbol: actual,
+                    stored: true,
+                })
+            {
+                return None;
+            }
+            formal = outer_formal;
+            hops = hops.checked_add(prior)?;
+            if hops > 2 {
+                return None;
+            }
+        }
+        None
+    }
+
+    /// Resolve only an exact required helper formal through its actual selected
+    /// slots. A stored reference argument retains its original field read and
+    /// call prefix; a same-typed sibling or default cannot replace that source.
+    fn helper_reference_receiver(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+        calls: &[NodeKey],
+    ) -> Option<(NodeKey, usize, SymbolId, SymbolId, SymbolId)> {
+        if calls.is_empty() || calls.len() > 16 {
             return None;
-        };
-        let index = helper
-            .params
-            .iter()
-            .position(|param| param.param == formal)?;
-        let argument = *selected
-            .arguments
-            .get(selected.slots.get(index)?.as_ref().copied()?)?;
-        let Some(Binding::Symbol(parameter)) = self.query_binding(argument) else {
-            return None;
-        };
-        (self.original_reference_parameter(argument, *parameter)
-            && self.checked_call_parent_path(argument, *parameter, 0) == Some((*root, 0)))
-        .then_some((*parameter, model, depth))
+        }
+        let mut receiver = self.query_group(key)?;
+        let mut seen = HashSet::new();
+        for index in (0..calls.len()).rev() {
+            let selected = self.types.selected_calls.get(&calls[index])?;
+            let SelectedCallTarget::DeriveFn(derive) = selected.target else {
+                return None;
+            };
+            let helper = self.effects.derives.get(&derive)?;
+            let body = helper.expr?;
+            if !seen.insert(derive)
+                || index == calls.len() - 1 && helper.module != module
+                || receiver.file != body.file
+                || receiver.start < body.start
+                || receiver.end > body.end
+                || selected.slots.len() != helper.params.len()
+            {
+                return None;
+            }
+            let Some(Binding::Symbol(formal)) = self.query_binding(receiver) else {
+                return None;
+            };
+            let slot = helper
+                .params
+                .iter()
+                .position(|parameter| parameter.param == *formal)?;
+            let expected = self.types.symbol_types.get(formal)?;
+            if helper.params[slot].default.is_some()
+                || !matches!(expected, ResolvedType::Record { stored: true, .. })
+                || self.types.node_types.get(&receiver) != Some(expected)
+            {
+                return None;
+            }
+            let argument = self.query_group(
+                *selected
+                    .arguments
+                    .get(*selected.slots.get(slot)?.as_ref()?)?,
+            )?;
+            if self.types.node_types.get(&argument) != Some(expected) {
+                return None;
+            }
+            let argument_module = if index == 0 {
+                // Several packages may share one source file. The owning
+                // scenario span, not the first module in that file, selects
+                // the original argument's lexical declaration context.
+                self.effects
+                    .scenarios
+                    .values()
+                    .find(|scenario| {
+                        scenario.node.file == calls[index].file
+                            && scenario.node.start <= calls[index].start
+                            && calls[index].end <= scenario.node.end
+                    })?
+                    .module
+            } else {
+                let SelectedCallTarget::DeriveFn(outer) =
+                    self.types.selected_calls.get(&calls[index - 1])?.target
+                else {
+                    return None;
+                };
+                self.effects.derives.get(&outer)?.module
+            };
+            let association = if index == 0 {
+                self.checked_required_model_reference(argument, argument_module)
+            } else {
+                self.helper_reference_source(argument, argument_module, &calls[..index])
+            };
+            if let Some((source, field, target)) = association {
+                return (expected
+                    == &ResolvedType::Record {
+                        symbol: target,
+                        stored: true,
+                    })
+                    .then_some((argument, index, source, field, target));
+            }
+            receiver = argument;
+        }
+        None
     }
 
     /// The source reference remains the original required helper formal's
@@ -21219,7 +21939,13 @@ impl<'a> Closure<'a> {
         calls: &[NodeKey],
     ) -> Option<(SymbolId, SymbolId, SymbolId)> {
         let (base, _) = self.count_member(key)?;
-        let (_, source, _) = self.original_helper_model_path(base, module, calls)?;
+        let source = self
+            .original_helper_model_path(base, module, calls)
+            .map(|(_, model, _)| model)
+            .or_else(|| {
+                self.helper_reference_receiver(base, module, calls)
+                    .map(|(_, _, _, _, target)| target)
+            })?;
         let association = self.required_reference_field(key, self.nodes.get(&key)?, &source)?;
         let field = self
             .effects
@@ -21265,9 +21991,34 @@ impl<'a> Closure<'a> {
         calls: &[NodeKey],
     ) -> Option<(SymbolId, SymbolId, SymbolId)> {
         let association = self.helper_reference_source(key, module, calls)?;
-        self.nodes
-            .keys()
-            .any(|consumer| {
+        let helper_argument = self.types.selected_calls.values().any(|selected| {
+            let SelectedCallTarget::DeriveFn(derive) = selected.target else {
+                return false;
+            };
+            let Some(helper) = self.effects.derives.get(&derive) else {
+                return false;
+            };
+            selected.slots.len() == helper.params.len()
+                && helper
+                    .params
+                    .iter()
+                    .zip(&selected.slots)
+                    .any(|(formal, slot)| {
+                        formal.default.is_none()
+                            && self.types.symbol_types.get(&formal.param)
+                                == Some(&ResolvedType::Record {
+                                    symbol: association.2,
+                                    stored: true,
+                                })
+                            && slot
+                                .and_then(|slot| selected.arguments.get(slot))
+                                .is_some_and(|argument| {
+                                    self.query_group(*argument) == self.query_group(key)
+                                })
+                    })
+        });
+        (helper_argument
+            || self.nodes.keys().any(|consumer| {
                 self.count_member(*consumer).is_some_and(|(base, name)| {
                     base == key
                         && (name == "id"
@@ -21277,8 +22028,8 @@ impl<'a> Closure<'a> {
                                 .helper_reference_scalar(*consumer, module, calls)
                                 .is_some())
                 })
-            })
-            .then_some(association)
+            }))
+        .then_some(association)
     }
 
     fn expr_member_required_reference(
@@ -21293,7 +22044,7 @@ impl<'a> Closure<'a> {
     ) -> Option<SymbolId> {
         if self.loop_node.is_none()
             && let Some((source, field, target)) =
-                self.helper_reference_identity(key, module, calls)
+                self.helper_reference_source(key, module, calls)
             && source == model
             && field == field_id
             && self
@@ -21304,13 +22055,27 @@ impl<'a> Closure<'a> {
                             && value.reference_origin
                                 == Some(ReferenceOrigin::Parameter(parameter))
                             || depth > 0
-                                && value.reference_origin
+                                && (value.reference_origin
                                     == Some(ReferenceOrigin::Parent {
                                         parameter,
                                         model,
                                         depth,
-                                    }))
+                                    }) || matches!(value.reference_origin,
+                                        Some(ReferenceOrigin::HelperParent {parameter: original,model: actual,depth: hops,argument})
+                                            if original==parameter && actual==model && hops==depth
+                                                && self.checked_call_parent_path(argument,parameter,0)==Some((model,depth)))))
                 })
+        {
+            return Some(target);
+        }
+        if self.loop_node.is_none()
+            && let Some((source, field, target)) = self.helper_reference_source(key,module,calls)
+            && source==model && field==field_id
+            && self.helper_reference_receiver(base_key,module,calls).is_some_and(|(argument,prefix,original,reference,receiver)|
+                receiver==source && matches!(value.model_result,Some(DisclosureModelResult::Reference {model,node,source_model,field})
+                    if model==receiver && node==argument && source_model==original && field==reference)
+                && value.reads.iter().any(|read|read.node==argument && read.model==original && read.field==reference
+                    && read.ty==ResolvedType::Record {symbol:receiver,stored:true} && read.calls==calls[..prefix] && read.query_id.is_none()))
         {
             return Some(target);
         }
@@ -21871,16 +22636,19 @@ impl<'a> Closure<'a> {
         let required_reference = self
             .expr_member_required_reference(key, module, calls, base_key, model, field.id, value);
         let required_scalar = self.checked_required_reference_scalar(key, module);
+        let source_receiver = self
+            .checked_reference_alias_source(base_key, module)
+            .unwrap_or(base_key);
         if let Some((_, source, reference, target, scalar)) = required_scalar
             && (!calls.is_empty()
                 || self.loop_node.is_some()
                 || model != target
                 || field.id != scalar
                 || !matches!(value.model_result, Some(DisclosureModelResult::Reference {
-                    model, node, source_model, field }) if model == target && node == base_key
+                    model, node, source_model, field }) if model == target && node == source_receiver
                     && source_model == source && field == reference)
                 || !value.reads.iter().any(|read| {
-                    read.node == base_key
+                    read.node == source_receiver
                         && read.model == source
                         && read.field == reference
                         && read.ty
@@ -24399,8 +25167,16 @@ impl<'a> Closure<'a> {
         env: &Env,
         calls: &[NodeKey],
     ) -> Result<Option<Vec<ValuePath>>, DisclosureDecline> {
-        if calls.is_empty()
-            && let Some(argument) = self.query_count(key)
+        if let Some(argument) = self.query_count(key)
+            && self.count_member(argument).is_some_and(|(base, _)| {
+                calls.is_empty()
+                    || self
+                        .original_helper_model_path(base, module, calls)
+                        .is_some()
+                    || self
+                        .helper_reference_receiver(base, module, calls)
+                        .is_some()
+            })
             && self
                 .nodes
                 .get(&self.query_group(argument).unwrap_or(argument))
@@ -24415,7 +25191,12 @@ impl<'a> Closure<'a> {
             let mut values = self.expr(argument, module, env, calls)?;
             for value in &mut values {
                 if !matches!(value.contract_value, Some(ContractValue::Array(_)))
-                    || value.reads.is_empty()
+                    || !value.reads.iter().any(|read| {
+                        read.node == self.query_group(argument).unwrap_or(argument)
+                            && read.calls == calls
+                            && read.query_id.is_none()
+                            && self.types.node_types.get(&argument) == Some(&read.ty)
+                    })
                 {
                     return Err(self.fail(key, "count needs its whole stored Contract origin"));
                 }
@@ -24546,7 +25327,10 @@ impl<'a> Closure<'a> {
                 .checked_required_model_reference(supplied, module)
                 .is_none()
             && required.is_some();
-        if chained {
+        // Both direct and parent-chained stored fields use the same exact
+        // source-edge consumer. A newly recognized required path must not
+        // bypass consumption of its retained Field operand provenance.
+        if supplied == argument && input.is_none() && required.is_some() {
             let grouped = self
                 .query_group(supplied)
                 .ok_or_else(|| self.fail(supplied, "helper chained argument grouping"))?;
@@ -25038,7 +25822,26 @@ impl<'a> Closure<'a> {
             // An exact required parent is an ordinary Model formal, with
             // the same original edge census as an authorization argument.
             // The callee still proves and authorizes every DATA field it reads.
+            let origins = alternatives
+                .iter()
+                .map(|value| value.reference_origin)
+                .collect::<Vec<_>>();
             self.call_authorization_argument(module, env, model, argument, alternatives)?;
+            for (value, origin) in alternatives.iter_mut().zip(origins) {
+                if let Some(ReferenceOrigin::Parent {
+                    parameter,
+                    model,
+                    depth,
+                }) = origin
+                {
+                    value.reference_origin = Some(ReferenceOrigin::HelperParent {
+                        parameter,
+                        model,
+                        depth,
+                        argument,
+                    });
+                }
+            }
             for value in alternatives.iter() {
                 helper_reference_reads.extend(value.reads.iter().map(|read| read.node));
             }
@@ -25853,31 +26656,153 @@ impl<'a> Closure<'a> {
         created: &Effect,
         created_pair: bool,
     ) -> bool {
-        effects.len() >= 2
-                    && ((!created_pair && effects.iter().position(|effect| effect.node == created.node).is_some_and(|position| {
-                            position + 1 < effects.len()
-                                && effects[..position].iter().all(Self::before_direct_create)
-                                && Self::ordered_created_tail(&effects[position + 1..effects.len() - 1])
-                        }))
-                        || (created_pair && effects.len() >= 3
-                            && (effects.get(effects.len() - 3).map(|effect| effect.node) == Some(created.node)
-                                || effects.iter().position(|effect| effect.node == created.node).is_some_and(|position|
-                                    position + 2 < effects.len()
-                                        && Self::ordered_created_tail(&effects[position + 2..effects.len() - 1])))))
-                    && matches!(created.target, Some(EffectTarget::Model(actual)) if actual == model)
-                    && effects.last().is_some_and(|returned| {
-                        returned.verb == EffectVerb::Return
-                            && returned.value.is_some_and(|key| {
-                                matches!(self.query_binding(key), Some(Binding::CreateAs {node}) if *node == created.node)
-                                    && self.query_group(key).is_some_and(|key| {
-                                        self.types.node_types.get(&key) == Some(&ResolvedType::Record {symbol: model, stored: true})
-                                    })
+        let direct = !created_pair
+            && effects
+                .iter()
+                .position(|effect| effect.node == created.node)
+                .is_some_and(|position| {
+                    position + 1 < effects.len()
+                        && effects[..position].iter().all(|effect| {
+                            Self::before_direct_create(effect)
+                                || self.created_return_branch(effect, model)
+                        })
+                        && Self::bounded_created_result_tail(
+                            &effects[position + 1..effects.len() - 1],
+                        )
+                });
+        let paired = created_pair
+            && effects.len() >= 3
+            && (effects.get(effects.len() - 3).map(|effect| effect.node) == Some(created.node)
+                || effects
+                    .iter()
+                    .position(|effect| effect.node == created.node)
+                    .is_some_and(|position| {
+                        position + 2 < effects.len()
+                            && Self::ordered_created_tail(&effects[position + 2..effects.len() - 1])
+                    }))
+            && effects.iter().all(|effect| {
+                effect.verb == EffectVerb::If
+                    || effect.then_effects.is_empty()
+                        && effect.else_effects.is_empty()
+                        && effect.match_arms.is_empty()
+            });
+        effects.len() >= 2 && (direct || paired)
+            && matches!(created.target, Some(EffectTarget::Model(actual)) if actual == model)
+            && effects.last().is_some_and(|returned| {
+                returned.verb == EffectVerb::Return && returned.value.is_some_and(|key| {
+                    matches!(self.query_binding(key), Some(Binding::CreateAs {node}) if *node == created.node)
+                        && self.query_group(key).is_some_and(|key|
+                            self.types.node_types.get(&key) == Some(&ResolvedType::Record {symbol:model,stored:true}))
+                })
+            })
+    }
+
+    /// A preceding alternative may finish with its own original created row.
+    /// The ordinary Flow walk still proves the branch selector, constructor
+    /// operands and exact returned identity; this only admits its source shape.
+    fn created_return_branch(&self, effect: &Effect, model: SymbolId) -> bool {
+        if effect.verb != EffectVerb::If || effect.cond.is_none() || !effect.match_arms.is_empty() {
+            return false;
+        }
+        let branch = |body: &[Effect]| {
+            if body.is_empty() {
+                return true;
+            }
+            let Some(returned) = body
+                .last()
+                .filter(|effect| effect.verb == EffectVerb::Return)
+            else {
+                return false;
+            };
+            let Some(Binding::CreateAs { node }) =
+                returned.value.and_then(|key| self.query_binding(key))
+            else {
+                return false;
+            };
+            let Some(position) = body.iter().position(|effect| effect.node == *node) else {
+                return false;
+            };
+            position + 1 < body.len()
+                && matches!(body[position].target, Some(EffectTarget::Model(actual)) if actual == model)
+                && body[position].verb == EffectVerb::Create
+                && body[..position].iter().all(|effect| {
+                    matches!(effect.verb, EffectVerb::Let | EffectVerb::Require)
+                        && effect.then_effects.is_empty()
+                        && effect.else_effects.is_empty()
+                        && effect.match_arms.is_empty()
+                })
+                && Self::bounded_created_result_tail(&body[position + 1..body.len() - 1])
+                && returned
+                    .value
+                    .and_then(|key| self.query_group(key))
+                    .is_some_and(|key| {
+                        self.types.node_types.get(&key)
+                            == Some(&ResolvedType::Record {
+                                symbol: model,
+                                stored: true,
                             })
                     })
-                    && effects.iter().all(|effect| effect.verb == EffectVerb::If
-                        || effect.then_effects.is_empty()
-                            && effect.else_effects.is_empty() && effect.match_arms.is_empty())
+        };
+        branch(&effect.then_effects) && branch(&effect.else_effects)
     }
+
+    /// A finite effect tail can contain explicitly bounded loops. Nested
+    /// constructors remain confined to those loops and keep the loop walk's
+    /// original ownership, operand, iteration and write-budget checks.
+    fn bounded_created_result_tail(tail: &[Effect]) -> bool {
+        let mut pending = tail
+            .iter()
+            .map(|effect| (effect, false, 0usize))
+            .collect::<Vec<_>>();
+        let mut visits = 0usize;
+        while let Some((effect, in_loop, depth)) = pending.pop() {
+            visits += 1;
+            if visits > 16384 || depth > 64 || !effect.match_arms.is_empty() {
+                return false;
+            }
+            match effect.verb {
+                EffectVerb::If if effect.cond.is_some() => {
+                    pending.extend(
+                        effect
+                            .then_effects
+                            .iter()
+                            .chain(&effect.else_effects)
+                            .map(|effect| (effect, in_loop, depth + 1)),
+                    );
+                }
+                EffectVerb::For if effect.limit.is_some() && effect.else_effects.is_empty() => {
+                    pending.extend(
+                        effect
+                            .then_effects
+                            .iter()
+                            .map(|effect| (effect, true, depth + 1)),
+                    );
+                }
+                EffectVerb::Create
+                    if in_loop
+                        && effect.binding.is_some()
+                        && matches!(effect.target, Some(EffectTarget::Model(_))) =>
+                {
+                    if !effect.then_effects.is_empty() || !effect.else_effects.is_empty() {
+                        return false;
+                    }
+                }
+                EffectVerb::Let
+                | EffectVerb::Require
+                | EffectVerb::Send
+                | EffectVerb::Set
+                | EffectVerb::Emit
+                | EffectVerb::Schedule => {
+                    if !effect.then_effects.is_empty() || !effect.else_effects.is_empty() {
+                        return false;
+                    }
+                }
+                _ => return false,
+            }
+        }
+        true
+    }
+
     /// Updating an owning bounded child domain may precede its one
     /// new revision. Individual loop/SET/CREATE proofs still execute
     /// in source order; this is only the created-result shape join.
@@ -26068,11 +26993,54 @@ impl<'a> Closure<'a> {
         let value = effect
             .value
             .ok_or_else(|| self.fail(effect.node, "missing immutable initializer"))?;
-        for evaluated in self.expr(value, module, &flow.env, calls)? {
+        for mut evaluated in self.expr(value, module, &flow.env, calls)? {
+            let alias = calls.is_empty()
+                && self.loop_node.is_none()
+                && self.effects.scenarios.values().any(|scenario| {
+                    scenario.module == module
+                        && !scenario.read
+                        && scenario.on.is_none()
+                        && scenario.effects.iter().any(|original| {
+                            original.node == effect.node && original.verb == EffectVerb::Let
+                        })
+                })
+                && self.query_group(value).is_some_and(|original| {
+                    self.checked_required_model_reference(original, module)
+                        .is_some_and(|(source, field, target)| {
+                            evaluated.record == Some(target)
+                                && evaluated.model_result
+                                    == Some(DisclosureModelResult::Reference {
+                                        model: target,
+                                        node: original,
+                                        source_model: source,
+                                        field,
+                                    })
+                                && evaluated.reads.iter().any(|read| {
+                                    read.node == original
+                                        && read.model == source
+                                        && read.field == field
+                                        && read.ty
+                                            == ResolvedType::Record {
+                                                symbol: target,
+                                                stored: true,
+                                            }
+                                        && read.role == DependencyRole::Data
+                                        && read.calls.is_empty()
+                                        && read.query_id.is_none()
+                                })
+                        })
+                });
+            if alias {
+                // The row identity was captured by the original getter. Its
+                // required field read remains in the value and every consumer;
+                // it is no longer a live containment navigation after a SET.
+                evaluated.reference_origin = None;
+            }
             if matches!(
                 evaluated.model_result,
                 Some(DisclosureModelResult::Reference { .. })
-            ) {
+            ) && !alias
+            {
                 return Err(self.fail(value, "stored Model reference result cannot be copied"));
             }
             if matches!(
@@ -28301,10 +29269,52 @@ impl<'a> Closure<'a> {
             return Err(self.fail(key, "object fields disagree with checked shape"));
         }
         let value = entry.children.iter().find(|child| expression(child.kind));
-        let alternatives = match value {
+        let mut alternatives = match value {
             Some(value) => self.expr(NodeKey::of(value), module, env, calls)?,
             None => self.lexical(NodeKey::of(key_node), module, env, calls)?,
         };
+        let expected = &fields
+            .iter()
+            .find(|(field, _)| field == name)
+            .ok_or_else(|| self.fail(key, "missing object field declaration"))?
+            .1;
+        if let Some(expression) = value {
+            let occurrence = NodeKey::of(expression);
+            let association = self
+                .checked_required_model_reference(occurrence, module)
+                .filter(|_| calls.is_empty())
+                .or_else(|| self.helper_reference_source(occurrence, module, calls));
+            if let Some((source, field, target)) = association
+                && *expected
+                    == (ResolvedType::Record {
+                        symbol: target,
+                        stored: true,
+                    })
+                && self.types.node_types.get(&occurrence) == Some(expected)
+            {
+                for value in &mut alternatives {
+                    if value.record == Some(target)
+                        && matches!(value.model_result,Some(DisclosureModelResult::Reference {model,node,source_model,field:original})
+                            if model==target && node==occurrence && source_model==source && original==field)
+                        && value.reads.iter().any(|read| {
+                            read.node == occurrence
+                                && read.model == source
+                                && read.field == field
+                                && read.ty == *expected
+                                && read.calls == calls
+                                && read.query_id.is_none()
+                        })
+                    {
+                        // The declared Contract stores the original opaque reference
+                        // value and its DATA read, never a navigable owning row.
+                        value.record = None;
+                        value.model_result = None;
+                        value.reference = None;
+                        value.reference_origin = None;
+                    }
+                }
+            }
+        }
         if alternatives
             .iter()
             .any(|value| value.record.is_some() || value.delivery.is_some())
@@ -31457,8 +32467,19 @@ impl<'a> Closure<'a> {
         {
             return Err(fail());
         }
-        let [created] = effect.then_effects.as_slice() else {
+        let [body] = effect.then_effects.as_slice() else {
             return Err(fail());
+        };
+        let created = if body.verb == EffectVerb::If {
+            let [created] = body.then_effects.as_slice() else {
+                return Err(fail());
+            };
+            if !body.else_effects.is_empty() || !body.match_arms.is_empty() || body.when.is_some() {
+                return Err(fail());
+            }
+            created
+        } else {
+            body
         };
         let owner = self
             .effects
@@ -31591,7 +32612,7 @@ impl<'a> Closure<'a> {
                 item,
                 parameter,
                 model,
-                body: vec![created.node],
+                body: vec![body.node],
             },
         )?;
         let mut empty = flow.clone();
@@ -31915,6 +32936,147 @@ impl<'a> Closure<'a> {
         populated.writes.join(&populated.controls);
         populated.writes.join(&populated.effect_guards);
         populated.writes.join(&body);
+        self.effect_visits += 1;
+        Ok(vec![empty, populated])
+    }
+
+    /// Source-owned effect loops retain each original mutation/SEND/Work proof.
+    /// Their selected rows and DATA reads execute through the finite source-loop
+    /// producer; a repeated row read is never flattened into a returned value.
+    fn bounded_source_effect_loop(
+        &mut self,
+        effect: &Effect,
+        module: ModuleId,
+        flow: Flow,
+        calls: &[NodeKey],
+    ) -> Result<Vec<Flow>, DisclosureDecline> {
+        let fail = || self.fail(effect.node, "checked finite source effect loop required");
+        if !calls.is_empty()
+            || self.loop_node.is_some()
+            || effect.cond.is_some()
+            || effect.when.is_some()
+            || !effect.else_effects.is_empty()
+            || !effect.match_arms.is_empty()
+            || effect.then_effects.is_empty()
+            || effect.then_effects.len() > 200
+        {
+            return Err(fail());
+        }
+        let owner = self
+            .effects
+            .scenarios
+            .values()
+            .find(|owner| {
+                owner.module == module
+                    && !owner.read
+                    && owner.on.is_none()
+                    && owner.cohort.is_none()
+                    && owner.result.is_none()
+                    && owner
+                        .effects
+                        .iter()
+                        .any(|original| original.node == effect.node)
+            })
+            .ok_or_else(fail)?;
+        let domain = effect.domain.ok_or_else(fail)?;
+        let query = self.types.checked_queries.get(&domain).ok_or_else(fail)?;
+        self.bounded_loop_filter(query).ok_or_else(fail)?;
+        let (parameter, model) =
+            self.original_loop_member_root(query.domain, effect.node, module)?;
+        if !owner
+            .params
+            .iter()
+            .any(|input| input.param == parameter && input.default.is_none())
+        {
+            return Err(fail());
+        }
+        let limit = effect.limit.ok_or_else(fail)?;
+        let maximum = self
+            .db
+            .get(limit.file)
+            .and_then(|source| source.text.get(limit.start as usize..limit.end as usize))
+            .and_then(|text| text.trim().parse::<u16>().ok())
+            .filter(|bound| (1..=1000).contains(bound))
+            .ok_or_else(fail)?;
+        if self
+            .nodes
+            .get(&limit)
+            .is_none_or(|node| node.kind != SyntaxKind::Literal)
+            || self.types.node_types.get(&limit) != Some(&ResolvedType::Scalar(Scalar::Int))
+        {
+            return Err(fail());
+        }
+        for child in &effect.then_effects {
+            if !matches!(
+                child.verb,
+                EffectVerb::Set | EffectVerb::Send | EffectVerb::Cancel
+            ) || child.when.is_some()
+                || !child.then_effects.is_empty()
+                || !child.else_effects.is_empty()
+                || !child.match_arms.is_empty()
+            {
+                return Err(fail());
+            }
+            if child.verb == EffectVerb::Cancel {
+                let (base, field) = child
+                    .value
+                    .and_then(|key| self.count_member(key))
+                    .ok_or_else(fail)?;
+                if field != "id"
+                    || !matches!(self.query_binding(base),Some(Binding::ForItem{node})if *node==effect.node)
+                {
+                    return Err(fail());
+                }
+            }
+        }
+        self.loop_node = Some(effect.node);
+        let mut body = Flow {
+            env: flow.env.clone(),
+            ..Flow::default()
+        };
+        body.env.insert(
+            Local::For(effect.node),
+            ValuePath {
+                record: Some(model),
+                ..ValuePath::default()
+            },
+        );
+        let (paths, returns) = self.statements(&effect.then_effects, module, vec![body], calls)?;
+        if paths.len() != 1 || !returns.is_empty() {
+            return Err(self.fail(effect.node, "source loop body must complete once per item"));
+        }
+        self.proof(
+            effect,
+            module,
+            DisclosureEffectKind::ForMember {
+                domain,
+                limit,
+                maximum,
+                item: effect
+                    .item
+                    .clone()
+                    .ok_or_else(|| self.fail(effect.node, "missing loop item"))?,
+                parameter,
+                model,
+                body: effect.then_effects.iter().map(|child| child.node).collect(),
+            },
+        )?;
+        let mut empty = flow.clone();
+        empty.writes.join(&empty.controls);
+        empty.evaluated.push(DisclosureDecision {
+            node: effect.node,
+            calls: Vec::new(),
+            choice: DisclosureChoice::Else,
+        });
+        let mut populated = flow;
+        populated.executed_effect = true;
+        populated.writes.join(&populated.controls);
+        populated.writes.join(&populated.effect_guards);
+        populated.evaluated.push(DisclosureDecision {
+            node: effect.node,
+            calls: Vec::new(),
+            choice: DisclosureChoice::Then,
+        });
         self.effect_visits += 1;
         Ok(vec![empty, populated])
     }
@@ -32684,7 +33846,23 @@ impl<'a> Closure<'a> {
             .find_map(|owner| self.checked_member_work_loop(owner, effect));
         let paths = if let Some(plan) = work {
             self.bounded_member_work_loop(effect, module, flow, calls, plan)
-        } else if matches!(effect.then_effects.as_slice(),[created] if created.verb==EffectVerb::Create)
+        } else if effect
+            .then_effects
+            .iter()
+            .any(|child| child.verb == EffectVerb::Send)
+            || !effect.then_effects.is_empty()
+                && effect
+                    .then_effects
+                    .iter()
+                    .all(|child| child.verb == EffectVerb::Set)
+                && effect
+                    .domain
+                    .and_then(|domain| self.types.checked_queries.get(&domain))
+                    .is_some_and(|query| self.bounded_loop_filter(query).is_some())
+        {
+            self.bounded_source_effect_loop(effect, module, flow, calls)
+        } else if matches!(effect.then_effects.as_slice(),[created] if created.verb==EffectVerb::Create
+            || created.verb==EffectVerb::If && matches!(created.then_effects.as_slice(),[child] if child.verb==EffectVerb::Create))
         {
             if self.effects.scenarios.values().any(|owner|owner.module==module&&matches!(owner.effects.as_slice(),[called,linked,looped]
                 if called.verb==EffectVerb::Call&&linked.verb==EffectVerb::Set&&looped.node==effect.node)){
@@ -33074,7 +34252,7 @@ impl<'a> Closure<'a> {
             // whole-row idempotent replay
             // (`if previous!=null ... return previous`
             // alongside a same-model create) for one
-            // unscoped single-Text-equality
+            // unscoped Text-equality conjunction
             // id-ordered family. All other Let returns
             // (including bare absence and direct
             // returns) stay refused below.
@@ -33110,12 +34288,7 @@ impl<'a> Closure<'a> {
                             && value.first_query.is_some_and(|(call, binding)| {
                                 call == first.call && binding == first.binding
                             })
-                            && query.dependencies.len() == 1
-                            && query.dependencies[0].role == DependencyRole::Control
-                            && query.dependencies[0].model == model
-                            && query.dependencies[0].type_id == "text"
-                            && query.dependencies[0].ty == ResolvedType::Scalar(Scalar::Text)
-                            && query.inputs.len() == 1
+                            && query.text_keyed_first_replay()
                             && !query.archived
                             && query.limit.is_none()
                             && query.projection.is_none()

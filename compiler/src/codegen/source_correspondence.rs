@@ -174,6 +174,48 @@ pub(super) fn same_scenario_semantics(
     join.statements(ae, be, 0)
 }
 
+/// Pure query helpers use the same complete source join as scenario bodies.
+/// This seals declarations and expressions, without selecting a read authority.
+pub(super) fn same_derive_semantics(
+    program: &CheckedProgram,
+    actual: &IrProgram,
+    expected: &IrProgram,
+    owner: &IrItem,
+) -> Option<()> {
+    let original = check_owner_identity(expected, owner)?;
+    let (
+        IrItemKind::DeriveFn {
+            params: a,
+            result: ar,
+            expr: Some(ae),
+        },
+        IrItemKind::DeriveFn {
+            params: b,
+            result: br,
+            expr: Some(be),
+        },
+    ) = (&owner.kind, &original.kind)
+    else {
+        return None;
+    };
+    if a != b
+        || !known_type_equal(ar, br)
+        || owner.name != original.name
+        || owner.exported != original.exported
+    {
+        return None;
+    }
+    let mut join = SemanticJoin {
+        program,
+        actual,
+        expected,
+        nodes: 0,
+        stack: HashSet::new(),
+    };
+    join_semantic_params(&mut join, actual, expected, owner.id, a)?;
+    join.expression(ae, be, 0)
+}
+
 /// A nullable local delivery retains its original declared operation only;
 /// this seal grants no send or result observation producer.
 pub(super) fn same_capability_operation(
