@@ -4169,6 +4169,34 @@ fn created_parent_keeps_its_exact_original_create_and_required_parent_associatio
         serialize_complete_query_receipt(&program, &ir, owner, &db, Some(&catalog), module)
             .is_some()
     );
+    // The same original created-parent count may accompany a direct return
+    // of that primary created Model. It never becomes an admitted input.
+    let returned = source
+        .replace("scenario created_parent(root:Root,allowed:bool) by=members",
+            "scenario created_parent(root:Root,allowed:bool) -> Child by=members")
+        .replace("    create Snapshot {parent=child.parent,sequence=count(child.parent.Snapshot)+1} as snapshot\n  scenario snapshot_after_writes",
+            "    create Snapshot {parent=child.parent,sequence=count(child.parent.Snapshot)+1} as snapshot\n    return child\n  scenario snapshot_after_writes");
+    let (_, _, returned_ir, _) = fixture_source("returned-created-parent.can", &returned);
+    let returned_owner = item(&returned_ir, "count_visibility.created_parent");
+    let ScenarioDisclosure::Complete(returned_proof) =
+        &returned_ir.scenario_disclosures[&returned_owner.id]
+    else {
+        panic!("{:?}", returned_ir.scenario_disclosures[&returned_owner.id]);
+    };
+    assert_eq!(
+        returned_proof
+            .source_facts
+            .as_ref()
+            .unwrap()
+            .queries
+            .as_ref()
+            .unwrap()
+            .iter()
+            .filter(|query| query.count.is_some())
+            .count(),
+        1
+    );
+
     for mode in [
         "parent-input",
         "created-binding",

@@ -11957,11 +11957,20 @@ impl<'a> Closure<'a> {
             return None;
         }
         let (receiver, name) = self.count_member(node)?;
-        let created = scenario
-            .result
-            .is_none()
-            .then(|| self.created_parent_source(receiver, scenario.module))
-            .flatten();
+        let created = self
+            .created_parent_source(receiver, scenario.module)
+            .filter(|(created, _, _)| {
+                scenario.result.is_none()
+                    || matches!(self.types.symbol_results.get(&scenario.scenario).and_then(Option::as_ref),
+                        Some(ResolvedType::Record { symbol, stored: true }) if *symbol == created.model)
+                        && scenario.effects.last().is_some_and(|returned| {
+                            returned.verb == EffectVerb::Return
+                                && returned.value.is_some_and(|value| {
+                                    matches!(self.query_binding(value),
+                                        Some(Binding::CreateAs { node }) if *node == created.node)
+                                })
+                        })
+            });
         let parameter = self
             .query_parameter(scenario, receiver)
             .or_else(|| created.as_ref().map(|(_, _, parameter)| *parameter))
