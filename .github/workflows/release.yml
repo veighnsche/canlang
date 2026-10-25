@@ -29,7 +29,7 @@ jobs:
             target: x86_64-unknown-linux-gnu
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
         with:
           toolchain: "stable"
@@ -56,7 +56,7 @@ jobs:
           shasum -a 256 can can-dev THIRD-PARTY-NOTICES.txt DEV-SERVER-THIRD-PARTY-NOTICES.txt > "SHA256SUMS-${{ matrix.name }}.txt"
           cat "SHA256SUMS-${{ matrix.name }}.txt"
           shasum -a 256 -c "SHA256SUMS-${{ matrix.name }}.txt"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.name }}
           if-no-files-found: error
@@ -68,36 +68,36 @@ jobs:
             compiler/target/release/SHA256SUMS-${{ matrix.name }}.txt
 
   node-libraries:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "latest"
+          bun-version: "1.4.2"
       - name: Install from lock
         run: bun install --frozen-lockfile
       - name: Build, verify and pack complete workspace artifacts
         # Private runtime dependencies travel with the artifact set.
         # Producer restoration precedes uncached validation and packing.
         run: bun run release:pack
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: node-libraries
           path: output/release-artifacts/*
 
   editor-bundle:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "latest"
+          bun-version: "1.4.2"
       - name: Install from lock
         run: bun install --frozen-lockfile
       - name: Compile the editor client
@@ -113,7 +113,7 @@ jobs:
         run: |
           cd editors/vscode
           npx -y @vscode/vsce package --out ../../release-artifacts/canlang-vscode.vsix
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: editor-bundle
           path: |
@@ -130,17 +130,17 @@ jobs:
             compiler: can-linux-x86_64
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           name: ${{ matrix.compiler }}
           path: output/compiler-release
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "latest"
+          bun-version: "1.4.2"
       - name: Build production owners and packaging tools
         run: |
           bun install --frozen-lockfile
@@ -155,7 +155,7 @@ jobs:
           chmod +x output/compiler-release/can output/compiler-release/can-dev
           node scripts/pack-install.mjs --compiler output/compiler-release/can --dev-server output/compiler-release/can-dev
           node scripts/verify-install.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: can-install-${{ matrix.platform }}
           if-no-files-found: error
@@ -181,11 +181,11 @@ jobs:
       group: can-release-${{ github.ref }}
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: can-install-linux-x64
           path: output/publish-install/linux-x64
