@@ -4067,6 +4067,30 @@ fn void_constructor_count_retains_required_parent_and_original_scalar_consumer()
         1,
         "leading helper belongs to its independently checked source observer"
     );
+    // Several distinct original guard calls keep their own source observers;
+    // they must not suppress the one independently sealed constructor COUNT.
+    let many = source.replace(
+        "require can_work(actor,downtime.parent.location) and downtime.active",
+        &format!(
+            "require {} and downtime.active",
+            ["can_work(actor,downtime.parent.location)"; 4].join(" and ")
+        ),
+    );
+    let (many_db, many_program, many_ir, many_catalog) =
+        fixture_source("many-guard-constructor-count.can", &many);
+    let many_owner = item(&many_ir, "rent_reservations.restore");
+    let (_, diagnostics) = prepared_artifact(&many_program, &many_db, &many_catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let many_plan = serialize_complete_query_receipt(
+        &many_program,
+        &many_ir,
+        many_owner,
+        &many_db,
+        Some(&many_catalog),
+        module,
+    )
+    .expect("every guard keeps its original source while the constructor retains its COUNT");
+    assert_eq!(many_plan["queries"].as_array().unwrap().len(), 1);
     for mode in [
         "count-offset",
         "consumer-field",

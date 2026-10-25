@@ -2891,6 +2891,9 @@ fn emit_program_with_sources(
                 .as_ref()
                 .filter(|queries| {
                     queries.len() <= 3
+                        || (queries.len() <= 200
+                            && super::scenario_receipts::constructor_count_queries(source)
+                                .is_some())
                         || super::scenario_receipts::checked_scenario_query_influences(source)
                             .is_some_and(|influences| influences.len() == 24)
                 })

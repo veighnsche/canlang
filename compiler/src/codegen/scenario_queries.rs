@@ -2393,7 +2393,7 @@ fn checked_query_plan_full(
     {
         return checked_inline_selection_query_plan(program, ir, owner, db, entry_module, prepared);
     }
-    if queries.is_empty() || queries.len() > 3 {
+    if queries.is_empty() || queries.len() > 200 {
         return None;
     }
     // Build from the immutable checked owner rather than accepting a second
@@ -2407,11 +2407,13 @@ fn checked_query_plan_full(
     let IrItemKind::Scenario { .. } = &owner.kind else {
         return None;
     };
-    if let Some(plan) = mixed_helper_plan(prepared, ir, owner, db, entry_module) {
-        return Some(plan);
-    }
-    if let Some(plan) = any_helper_plan(prepared, ir, owner, db, entry_module) {
-        return Some(plan);
+    if queries.len() <= 3 {
+        if let Some(plan) = mixed_helper_plan(prepared, ir, owner, db, entry_module) {
+            return Some(plan);
+        }
+        if let Some(plan) = any_helper_plan(prepared, ir, owner, db, entry_module) {
+            return Some(plan);
+        }
     }
     if let Some(counts) = super::scenario_receipts::constructor_count_queries(source) {
         prepared.decisions(owner)?;
@@ -2436,6 +2438,12 @@ fn checked_query_plan_full(
             entry_module,
             source_context,
         );
+    }
+    // Constructor plans select one or two exact COUNTs after proving every
+    // other query belongs to its independently checked leading Require.
+    // The legacy mixed-query shape bound applies to the remaining shapes.
+    if queries.len() > 3 {
+        return None;
     }
     if queries
         .iter()

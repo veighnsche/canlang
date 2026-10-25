@@ -3081,10 +3081,15 @@ it('projects the original Invoice document child arrays through ordinary field D
 it('consumes original post-SET parent COUNT in an atomic ResourcePolicy CREATE', {timeout:240000},async()=>{
   const directory=await mkdtemp(join(tmpdir(),'can-constructor-count-'));
   try{
-    const source=join(root,'compiler/tests/fixtures/rent-restore-count-source.can');
+    const originalSource=join(root,'compiler/tests/fixtures/rent-restore-count-source.can');
+    for(const manyGuards of [false,true]){
+    const source=manyGuards?join(directory,'many-guards.can'):originalSource;
+    const original=await readFile(originalSource,'utf8');
+    if(manyGuards)await writeFile(source,original.replace('require can_work(actor,downtime.parent.location) and downtime.active',
+      `require ${Array(4).fill('can_work(actor,downtime.parent.location)').join(' and ')} and downtime.active`));
     const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
     const artifact=JSON.parse(stdout) as CompileArtifact;
-    const asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+    const asm=await assembleModules({artifact,sourcePath:source},{workDir:join(directory,manyGuards?'many':'single'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
     for(const mode of ['empty','siblings','other-parent','stale','inactive','policy-denied','insert-race','update-race','identity-race','grant-race']){
       const {now,identities,identity,user:actor,membership}=await member('constructor-count-'+mode,['rent_reservations.reservation_manager']);
       const {store}=createTestMemoryStorage();
@@ -3123,7 +3128,7 @@ it('consumes original post-SET parent COUNT in an atomic ResourcePolicy CREATE',
       const operation_id=operationId(now),request={operation:'rent_reservations.restore',operation_id,inputs:{downtime:{id:'downtime',version:mode==='stale'?'2':'1'},evidence:'Checked'}};
       const result=await invoker.invokeMutation(request,identity);
       const success=['empty','siblings','other-parent'].includes(mode);
-      assert.equal('result'in result,success,mode+': '+JSON.stringify(result));
+      assert.equal('result'in result,success,`${manyGuards?'many':'single'} ${mode}: `+JSON.stringify(result));
       if(mode.endsWith('-race'))assert.equal(raced,true,mode);
       const downtime=await load(asModel('rent_reservations.Downtime'),asId('downtime'));assert.ok(downtime);
       const policies=(await query({model:asModel('rent_reservations.ResourcePolicy'),authority:'owner'})).filter(row=>row.parent?.id==='resource');
@@ -3163,6 +3168,7 @@ it('consumes original post-SET parent COUNT in an atomic ResourcePolicy CREATE',
         assert.equal((await store.query({model:asModel('count_visibility.Revision'),authority:'owner'})).length,1);
         assert.equal((await store.load(parent.model,parent.id))!.data['label'],'revised');
       }
+    }
     }
   }finally{await rm(directory,{recursive:true,force:true});}
 });
