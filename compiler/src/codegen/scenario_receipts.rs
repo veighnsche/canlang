@@ -574,6 +574,7 @@ pub(super) struct ReceiptIntrinsic {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub(super) enum NativeIntrinsicKind {
+    CreatedModelVersion { created: serde_json::Value },
     OperationId,
     AdmittedInput { parameter: String },
     AdmittedReferenceVersion { parameter: String, model: String },
@@ -4127,6 +4128,62 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                                     || parameter_ty != &base.ty))
                             || default.is_some()
                         {
+                DisclosureIntrinsicKind::CreatedModelVersion {
+                    create,
+                    model,
+                    model_name,
+                } => {
+                    let context = source_context?;
+                    context.same_scenario(ir, item)?;
+                    checked_created_model_result(ir, item)?;
+                    let IrExpr::Member { base, field } = &expression.expr else {
+                        return None;
+                    };
+                    let IrExpr::Name(name) = &base.expr else {
+                        return None;
+                    };
+                    if field != "version"
+                        || intrinsic.ty != ResolvedType::Scalar(Scalar::Int)
+                        || intrinsic.type_id != "int"
+                        || !intrinsic.calls.is_empty()
+                        || base.ty
+                            != (ResolvedType::Record {
+                                symbol: *model,
+                                stored: true,
+                            })
+                        || ir.items.get(model.0 as usize)?.canonical != *model_name
+                    {
+                        return None;
+                    }
+                    let binding = [SyntaxKind::NameRef, SyntaxKind::Name, SyntaxKind::Path]
+                        .iter()
+                        .find_map(|kind| {
+                            context
+                                .resolved()
+                                .node_binding
+                                .get(&crate::analysis::NodeKey {
+                                    file: base.span.file,
+                                    start: base.span.start,
+                                    end: base.span.end,
+                                    kind: *kind as u8,
+                                })
+                        })?;
+                    if !matches!(binding,crate::analysis::resolve::Binding::CreateAs{node}if node==create)
+                    {
+                        return None;
+                    }
+                    let source =
+                        serde_json::to_value(transport_source(&checked.source, entry_module)?)
+                            .ok()?;
+                    let roots = super::source_created_rows::collect(ir, item, context, &source)?;
+                    let created = roots.into_iter().find(|root| {
+                        root["node"]["start"] == create.start
+                            && root["node"]["end"] == create.end
+                            && root["binding"] == *name
+                            && root["model"] == *model_name
+                    })?;
+                    NativeIntrinsicKind::CreatedModelVersion { created }
+                }
                             return None;
                         }
                     }
@@ -7800,6 +7857,7 @@ fn inline_selection_actual<'a>(
                 .find(|(name, actual)| {
                     name == &field.name && actual.span == node_span(field.value_node)
                 })?
+                DisclosureIntrinsicKind::CreatedModelVersion { .. } => return None,
                 .1,
         )
     }

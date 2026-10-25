@@ -118,6 +118,10 @@ export interface ScenarioReceiptSourceOrigin {
  * singular primitive input, and a required singular versioned reference
  * parameter's ORIGINAL version, never its provisional row version.
  */
+export interface ScenarioReceiptCreatedRoot {
+  readonly id:string;readonly node:{readonly start:number;readonly end:number};readonly stage:number;
+  readonly binding:string;readonly model:ModelName;readonly parentParameter:string;readonly parentModel:ModelName;
+}
 export type ScenarioReceiptIntrinsicDependency = {
   readonly id: string;
   readonly source: ScenarioReceiptSourceOrigin;
@@ -127,6 +131,7 @@ export type ScenarioReceiptIntrinsicDependency = {
   readonly kind: 'admitted-input'; readonly parameter: string;
 } | {
   readonly kind: 'admitted-reference-version'; readonly parameter: string; readonly model: ModelName;
+} | { readonly kind:'created-model-version';readonly created:ScenarioReceiptCreatedRoot;
 });
 /** Checked query occurrence; declarations and source correspondence grant no authority. */
 export interface ScenarioReceiptQueryPlan {
@@ -328,6 +333,8 @@ export interface ScenarioReceiptAssociation {
     /** Original DATA source for one source-sealed loop constructor. */
     readonly sourceCopy?: {readonly loop:string;readonly row:StoredRow};
   }>;
+  } | { readonly dependencyId:string;readonly kind:'created-model-version';readonly wire:string;readonly stage:number;
+    readonly model:ModelName;readonly row:StoredRow;readonly secretFields:ReadonlyArray<string>;
 }
 
 /** Saved outcome of a committed or rejected operation, for exact replay. */

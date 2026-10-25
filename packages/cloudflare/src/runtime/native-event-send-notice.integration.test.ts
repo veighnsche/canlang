@@ -904,7 +904,7 @@ it('resolves original event aliases only through the complete checked framework 
       // cannot supply an event intrinsic, and its rejection is replayed.
       const resolved=fresh();bindScenarioReceiptFrameworkProducer(resolved.def,producer);
       for(const [index,parameter] of ['eventRevision','eventTerm'].entries()){
-        const dependency=resolved.def.descriptor.result!.disclosure!.returns.flatMap(returned=>returned.intrinsics??[]).find(dep=>dep.kind!=='operation-id'&&dep.parameter===parameter);assert.ok(dependency && dependency.kind!=='operation-id');
+        const dependency=resolved.def.descriptor.result!.disclosure!.returns.flatMap(returned=>returned.intrinsics??[]).find(dep=>(dep.kind==='admitted-input'||dep.kind==='admitted-reference-version')&&dep.parameter===parameter);assert.ok(dependency && dependency.kind!=='operation-id');
         const envelope={operation:handler,operation_id:uuidv7(now,index+1),inputs:{term:{id:'term-1',version:'1'},revision:'1'}};
         let attempts=0;
         const denied=()=>invokeState({registry:resolved.registry,app:'NoticeProbe',source:'schedule',store,memberships:identities,clock,

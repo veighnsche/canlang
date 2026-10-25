@@ -1440,7 +1440,7 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
     for (const item of list(Object.hasOwn(returned, 'intrinsics') ? returned['intrinsics'] : [])) {
       const kind = (item as Record<string, unknown>)?.['kind'];
       const dependency = object(item, ['id', 'source', 'role', 'type', 'kind',
-        ...(kind === 'admitted-reference-version' ? ['parameter', 'model'] : kind === 'admitted-input' ? ['parameter'] : [])]);
+        ...(kind === 'created-model-version'?['created']:kind === 'admitted-reference-version' ? ['parameter', 'model'] : kind === 'admitted-input' ? ['parameter'] : [])]);
       origin(dependency['source']); const depId = text(dependency['id']);
       if (dependency['role'] !== 'data' && dependency['role'] !== 'control') return invalid('unknown intrinsic role.');
       if (kind === 'operation-id') {
@@ -1462,6 +1462,13 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
   }
   if (dependencies.size > MAX_ITEMS) return invalid('dependency closure exceeds its finite budget.');
   return deepFreeze(plan as unknown as ScenarioResultDisclosurePlan);
+      } else if(kind==='created-model-version'){
+        const created=object(dependency['created'],['id','node','stage','binding','model','parentParameter','parentModel']);
+        const node=object(created['node'],['start','end']);
+        if(dependency['type']!=='int'||!/^[a-f0-9]{64}$/.test(text(created['id']))
+            ||!Number.isSafeInteger(created['stage'])||Number(created['stage'])<0||Number(created['stage'])>=MAX_ITEMS
+            ||!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start']))return invalid('created version requires its exact original CREATE stage and int wire.');
+        for(const key of ['binding','model','parentParameter','parentModel'])text(created[key]);
 }
 
 const PRIMITIVE_INPUT_KINDS: Readonly<Record<string, string>> = Object.freeze({

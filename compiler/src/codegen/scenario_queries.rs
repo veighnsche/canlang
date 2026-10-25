@@ -2617,6 +2617,7 @@ fn assemble_return_intrinsics(
                 },
                 type_id: read.type_id.clone(),
                 kind: match &read.kind {
+                    DisclosureIntrinsicKind::CreatedModelVersion { .. } => return None,
                     DisclosureIntrinsicKind::OperationId => NativeIntrinsicKind::OperationId,
                     DisclosureIntrinsicKind::AdmittedInput { parameter_name, .. } => {
                         NativeIntrinsicKind::AdmittedInput {
@@ -3229,6 +3230,14 @@ fn check_transcript_return_coverage(
 }
 
 fn build_transcript_return(returned: &DisclosureReturn, entry: &str) -> Option<ReceiptReturn> {
+    if returned.intrinsics.iter().any(|read| {
+        matches!(
+            read.kind,
+            crate::analysis::scenario_disclosure::DisclosureIntrinsicKind::CreatedModelVersion { .. }
+        )
+    }) {
+        return None;
+    }
     Some(ReceiptReturn {
         id: returned.id.clone(),
         source: origin(&returned.source, entry),
@@ -3278,6 +3287,7 @@ fn build_transcript_return(returned: &DisclosureReturn, entry: &str) -> Option<R
                 },
                 type_id: read.type_id.clone(),
                 kind: match &read.kind {
+                    crate::analysis::scenario_disclosure::DisclosureIntrinsicKind::CreatedModelVersion{..} => unreachable!("created version is not a transcript intrinsic"),
                     crate::analysis::scenario_disclosure::DisclosureIntrinsicKind::OperationId => {
                         NativeIntrinsicKind::OperationId
                     }

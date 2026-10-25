@@ -917,6 +917,11 @@ Then
             "set root {lines}",
             "create Snapshot {parent=root,total=first_line.amount,lines} as snapshot\n   return snapshot",
         );
+    let versioned_source = created_source
+        .replace("When\n", " event SnapshotVersion {snapshot:Snapshot,revision:int}\nWhen\n")
+        .replace("scenario summarize(root:Root)", "scenario summarize(root:Root,update:bool=false)")
+        .replace("   return snapshot", "   if update\n    set snapshot {label=\"updated\"}\n   emit SnapshotVersion {snapshot,revision=snapshot.version}\n   return snapshot")
+        .replace("Then\n", " scenario observe_version on=SnapshotVersion\n  require event.revision==event.snapshot.version\n  do set event.snapshot {label=\"observed\"}\nThen\n");
     let mapped_source = created_source
         .replace("multiplier:int=1}", "multiplier:int=1,adjustment:money}")
         .replace("fields=enabled,currency,total,multiplier", "fields=enabled,currency,total,multiplier,adjustment")
@@ -938,6 +943,7 @@ Then
     let scratch = tempfile::tempdir().unwrap();
     for (mode, source) in [
         ("allowed", source.to_owned()),
+        ("let-created-version", versioned_source.clone()),
         ("let-created-map", mapped_source.clone()),
         (
             "let-created-map-withheld",
@@ -1060,6 +1066,7 @@ Then
                 | "let-created"
                 | "let-enum"
                 | "let-enum-withheld"
+                | "let-created-version"
         ) {
             let artifact: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
             let operation = artifact["operations"]
@@ -1074,9 +1081,48 @@ Then
                     .is_some_and(|queries| !queries.is_empty()),
                 "computed Values LET must retain its actual complete native query receipt: {operation}"
             );
+            if mode == "let-created-version" {
+                assert!(
+                    operation["result"]["disclosure"]["returns"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|result| result["intrinsics"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .any(|intrinsic| intrinsic["kind"] == "created-model-version"))
+                );
+            }
         }
         std::fs::write(scratch.path().join(format!("{mode}.json")), compiled.stdout).unwrap();
     }
+    let void_version = scratch.path().join("void-created-version.can");
+    std::fs::write(
+        &void_version,
+        versioned_source
+            .replace(" -> Snapshot", "")
+            .replace("   return snapshot\n", ""),
+    )
+    .unwrap();
+    let refused_version = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args([
+            "compile",
+            "--format=json",
+            "--native-scenario-receipts",
+            "--catalog",
+        ])
+        .arg(root().join("packages/values/dist/catalog.json"))
+        .arg(void_version)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert_eq!(
+        refused_version.status.code(),
+        Some(10),
+        "created version needs an independent complete Model result receipt: {}",
+        String::from_utf8_lossy(&refused_version.stdout)
+    );
     let postwrite = scratch.path().join("postwrite.can");
     std::fs::write(
         &postwrite,
@@ -1177,6 +1223,7 @@ function alterValueMetadata(artifact,mode){
  let changed=0;
  const alter=value=>{
   if(value===null||typeof value!=='object')return;
+  if(mode==='forge-created-version-stage'){if(value.kind==='created-model-version'){value.created.stage+=50;changed++;}for(const child of Object.values(value))alter(child);return;}
   if(value.receiptQueryId===query.id){
    if(mode==='forge-pair-swapped'||mode==='forge-enum-pair'){
     const price=query.dependencies.find(dependency=>dependency.field=== (mode==='forge-enum-pair'?'fold':'price')),tax=query.dependencies.find(dependency=>dependency.field==='tax');
@@ -1189,8 +1236,10 @@ function alterValueMetadata(artifact,mode){
   }
   for(const child of Object.values(value))alter(child);
  };
+ if(mode==='forge-created-version-stage')alter(artifact.operations);
  for(const module of artifact.modules){
-  if(mode==='forge-unissued-capture'){
+  if(mode==='forge-created-version-unobserved'){module.js=module.js.replace(/\(await readScenarioReceiptCreatedVersion\(c,\"[a-f0-9]+\"\)\)/g,()=>{changed++;return '0n';});}
+  else if(mode==='forge-unissued-capture'){
    const before='function $can$query$value$issue(source,context,body,captures){';
    if(module.js.includes(before)){module.js=module.js.replace(before,before+'if(captures!==undefined)return async()=>{globalThis.__unissuedPureCalls++;return body();};');changed++;}
   }else module.js=module.js.replace(/"(?:[^"\\]|\\.)*"/g,literal=>{
@@ -1199,11 +1248,11 @@ function alterValueMetadata(artifact,mode){
    }catch{return literal;}
   });
  }
- assert.ok(changed>=(mode==='forge-unissued-capture'?1:2),mode+': actual inventory and private callback descriptors both changed');
+ assert.ok(changed>=(mode==='forge-unissued-capture'||mode==='forge-created-version-unobserved'?1:2),mode+': actual inventory and private callback descriptors both changed');
 }
-for(const mode of ['allowed','projection-withheld','currency-withheld','hidden','finalization-race','contract','contract-withheld','let-values','let-enum','let-enum-withheld','let-withheld','let-root-withheld','let-race','let-empty','let-member','let-member-withheld','let-created','let-created-withheld','let-created-return-withheld','let-created-result-hidden','let-created-empty','let-created-map','let-created-map-withheld','let-created-map-empty','forge-model-cases-swapped','forge-pair-swapped','forge-enum-pair','forge-pair-duplicate','forge-pair-missing','forge-cases-swapped','forge-unissued-capture']){
- const forged=mode.startsWith('forge-'),valuesMode=forged||mode.startsWith('let-');
- const variant=mode==='forge-enum-pair'?'let-enum':mode==='forge-model-cases-swapped'||mode==='let-created-empty'?'let-created':forged?'let-values':mode==='let-race'?'let-values':mode==='hidden'||mode==='finalization-race'?'allowed':mode;
+for(const mode of ['let-created-version','let-created-version-set','let-created-version-race','forge-created-version-stage','forge-created-version-unobserved','allowed','projection-withheld','currency-withheld','hidden','finalization-race','contract','contract-withheld','let-values','let-enum','let-enum-withheld','let-withheld','let-root-withheld','let-race','let-empty','let-member','let-member-withheld','let-created','let-created-withheld','let-created-return-withheld','let-created-result-hidden','let-created-empty','let-created-map','let-created-map-withheld','let-created-map-empty','forge-model-cases-swapped','forge-pair-swapped','forge-enum-pair','forge-pair-duplicate','forge-pair-missing','forge-cases-swapped','forge-unissued-capture']){
+ const forged=mode.startsWith('forge-'),versionMode=mode.startsWith('let-created-version')||mode.startsWith('forge-created-version'),valuesMode=forged||mode.startsWith('let-');
+ const variant=versionMode?'let-created-version':mode==='forge-enum-pair'?'let-enum':mode==='forge-model-cases-swapped'||mode==='let-created-empty'?'let-created':forged?'let-values':mode==='let-race'?'let-values':mode==='hidden'||mode==='finalization-race'?'allowed':mode;
  const artifact=JSON.parse(readFileSync(resolve(base,variant+'.json'),'utf8'));
  if(forged){globalThis.__unissuedPureCalls=0;alterValueMetadata(artifact,mode);}
  const asm=await assembleModules({artifact,sourcePath:resolve(base,variant+'.can')},{workDir:resolve(base,mode),
@@ -1213,8 +1262,9 @@ for(const mode of ['allowed','projection-withheld','currency-withheld','hidden',
  const root={...makeRow({id:asId('root'),data:{enabled:true,currency:'EUR',total:{minor:'0',currency:'EUR'},...(valuesMode?{lines:[],multiplier:'1',...(mode.startsWith('let-created-map')?{adjustment:{minor:'1',currency:'EUR'}}:{})}:mode.startsWith('contract')?{lines:[]}: {})}}),parent:null};
  const item={...makeRow({id:asId('item'),data:{price:{minor:'100',currency:'EUR'},quantity:'2',tax:{minor:'5',currency:'EUR'},discount:{minor:'3',currency:'EUR'},visible:mode!=='hidden'&&mode!=='let-empty',...(mode==='let-enum'||mode==='let-enum-withheld'||mode==='forge-enum-pair'?{fold:'earlier'}:{})}}),parent:{model:asModel('ScalarQuery.Root'),id:root.id}};
  await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'insert',model:asModel('ScalarQuery.Root'),row:root},...((mode==='let-created-empty'||mode==='let-created-map-empty')?[]:[{kind:'insert',model:asModel('ScalarQuery.Item'),row:item},...(valuesMode?[{kind:'insert',model:asModel('ScalarQuery.Item'),row:{...item,id:asId('item-2')}}]:[])])]}));
- const history=await backing.historyFor(asModel('ScalarQuery.Root'),root.id);let raced=false;
+ const history=await backing.historyFor(asModel('ScalarQuery.Root'),root.id);let raced=false,racedRoot;
  const store={...backing,commit:async batch=>{
+  if(mode==='let-created-version-race'&&!raced&&batch.writes.some(write=>write.model==='ScalarQuery.Snapshot')){raced=true;racedRoot={...root,version:asVersion(root.version+1),data:{...root.data,total:{minor:'5',currency:'EUR'}}};await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'update',model:asModel('ScalarQuery.Root'),id:root.id,expectedVersion:root.version,row:racedRoot}]}));}
   if(mode==='finalization-race'&&!raced&&batch.writes.some(write=>write.model==='ScalarQuery.Root')){
    raced=true;await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'update',model:asModel('ScalarQuery.Item'),id:item.id,expectedVersion:item.version,
     row:{...item,version:asVersion(item.version+1),data:{...item.data,price:{minor:'900',currency:'EUR'}}}}]}));
@@ -1222,24 +1272,31 @@ for(const mode of ['allowed','projection-withheld','currency-withheld','hidden',
   if(mode==='let-race'&&!raced&&batch.writes.some(write=>write.model==='ScalarQuery.Root')){raced=true;await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'update',model:asModel('ScalarQuery.Item'),id:item.id,expectedVersion:item.version,row:{...item,version:asVersion(item.version+1),data:{...item.data,price:{minor:'900',currency:'EUR'}}}}]}));}
   return backing.commit(batch);
  }};
- let outcome,failure,invoker;
+ let outcome,failure,invoker;const inputs={root:{id:root.id,version:String(root.version)},...(versionMode?{update:mode==='let-created-version-set'}:{})};
  try{invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
-  outcome=await invoker.invokeMutation({operation:'ScalarQuery.summarize',operation_id:uuidv7(FIXED_NOW,1),inputs:{root:{id:root.id,version:String(root.version)}}},identity);
+  outcome=await invoker.invokeMutation({operation:'ScalarQuery.summarize',operation_id:uuidv7(FIXED_NOW,1),inputs},identity);
  }catch(error){failure=error;}
  if(forged){
   assert.ok(failure!==undefined||outcome?.error!==undefined,mode+': forged source must refuse');
   const message=String(failure?.message??outcome.error.message);
-  assert.match(message,mode==='forge-model-cases-swapped'?/Model query empty return lacks its exact original Values case producer/:mode==='forge-cases-swapped'?/actual original Values query empty\/nonempty case/:mode==='forge-unissued-capture'?/Local owner policy requires plain owning metadata/:/DATA pair/i,mode+': '+message);
+  assert.match(message,mode.startsWith('forge-created-version')?/created|intrinsic|observation/i:mode==='forge-model-cases-swapped'?/Model query empty return lacks its exact original Values case producer/:mode==='forge-cases-swapped'?/actual original Values query empty\/nonempty case/:mode==='forge-unissued-capture'?/Local owner policy requires plain owning metadata/:/DATA pair/i,mode+': '+message);
   assert.deepEqual(await backing.load(asModel('ScalarQuery.Root'),root.id),root);
   assert.deepEqual(await backing.load(asModel('ScalarQuery.Item'),item.id),item);
   assert.deepEqual(await backing.load(asModel('ScalarQuery.Item'),asId('item-2')),{...item,id:asId('item-2')});
   assert.deepEqual(await backing.historyFor(asModel('ScalarQuery.Root'),root.id),history);
   assert.deepEqual(await backing.outboxPending(),[]);
   assert.equal(globalThis.__unissuedPureCalls,0,'unissued pure closure must never execute');
-  if(mode==='forge-model-cases-swapped')assert.deepEqual(await backing.query({model:asModel('ScalarQuery.Snapshot'),authority:'owner'}),[]);
+  if(mode==='forge-model-cases-swapped'||mode.startsWith('forge-created-version'))assert.deepEqual(await backing.query({model:asModel('ScalarQuery.Snapshot'),authority:'owner'}),[]);
   continue;
  }
  if(failure!==undefined)throw failure;
+ if(versionMode){
+  const rows=await backing.query({model:asModel('ScalarQuery.Snapshot'),authority:'owner'}),events=await backing.query({model:asModel('work.occurrence'),authority:'owner'});
+  if(mode==='let-created-version-race'){assert.equal(raced,true);assert.ok('error'in outcome,JSON.stringify(outcome));assert.equal(outcome.error.code,'conflict');assert.deepEqual(rows,[]);assert.deepEqual(events,[]);assert.deepEqual(await backing.load(asModel('ScalarQuery.Root'),root.id),racedRoot);assert.deepEqual(await backing.historyFor(asModel('ScalarQuery.Root'),root.id),history,'competing raw storage update creates no scenario history');}
+  else{assert.ok('result'in outcome,JSON.stringify(outcome));assert.equal(outcome.result.status,'committed');assert.equal(rows.length,1);assert.equal(rows[0].data.label,mode==='let-created-version-set'?'updated':'saved');assert.equal(rows[0].version,1,'created+SET keeps its reserved physical version');assert.deepEqual(outcome.result.result,{id:rows[0].id});assert.equal(events.length,1);const emitted=events[0].data.result;assert.equal(emitted.event,'ScalarQuery.SnapshotVersion');assert.deepEqual(emitted.payload,{snapshot:{id:rows[0].id,version:String(rows[0].version)},revision:String(rows[0].version)});const handlers=await backing.query({model:asModel('work.handler_occurrence'),authority:'owner'});assert.equal(handlers.length,1);assert.equal(handlers[0].data.handler,'ScalarQuery.observe_version');assert.equal(handlers[0].data.state,'pending');assert.equal(handlers[0].data.event,'ScalarQuery.SnapshotVersion');assert.deepEqual(handlers[0].data.payload,{snapshot:{id:rows[0].id,version:String(rows[0].version)},revision:String(rows[0].version)});const pending=await backing.outboxPending();
+   const replay=await invoker.invokeMutation({operation:'ScalarQuery.summarize',operation_id:uuidv7(FIXED_NOW,1),inputs},identity);assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');assert.deepEqual(replay.result.result,outcome.result.result);assert.deepEqual(await backing.query({model:asModel('ScalarQuery.Snapshot'),authority:'owner'}),rows);assert.deepEqual(await backing.query({model:asModel('work.occurrence'),authority:'owner'}),events);assert.deepEqual(await backing.query({model:asModel('work.handler_occurrence'),authority:'owner'}),handlers);assert.deepEqual(await backing.outboxPending(),pending);assert.deepEqual(await backing.load(asModel('ScalarQuery.Root'),root.id),root);assert.deepEqual(await backing.historyFor(asModel('ScalarQuery.Root'),root.id),history);}
+  continue;
+ }
  if(mode.startsWith('let-created')){
   const rows=await backing.query({model:asModel('ScalarQuery.Snapshot'),authority:'owner'});
   const current=await backing.load(asModel('ScalarQuery.Root'),root.id);
@@ -1247,7 +1304,7 @@ for(const mode of ['allowed','projection-withheld','currency-withheld','hidden',
    assert.ok('result'in outcome,JSON.stringify(outcome));assert.equal(outcome.result.status,'committed');
    const empty=mode==='let-created-map-empty',mapped=mode==='let-created-map';const expectedTotal={minor:empty?'0':'202',currency:'EUR'};assert.equal(rows.length,1);assert.deepEqual(rows[0].data,{total:expectedTotal,label:'saved',lines:empty?[]:[{amount:{minor:mapped?'203':'202',currency:'EUR'}},{amount:{minor:mapped?'203':'202',currency:'EUR'}}]});
    assert.deepEqual(outcome.result.result,{id:rows[0].id});assert.equal(outcome.result.records.length,1);assert.deepEqual(outcome.result.records[0].data,mode==='let-created-return-withheld'?{label:'saved'}:{total:expectedTotal,label:'saved'});assert.equal(Object.hasOwn(outcome.result.records[0].data,'lines'),false);
-   const replay=await invoker.invokeMutation({operation:'ScalarQuery.summarize',operation_id:uuidv7(FIXED_NOW,1),inputs:{root:{id:root.id,version:String(root.version)}}},identity);
+   const replay=await invoker.invokeMutation({operation:'ScalarQuery.summarize',operation_id:uuidv7(FIXED_NOW,1),inputs},identity);
    assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');assert.deepEqual(replay.result.result,outcome.result.result);
    assert.deepEqual(await backing.query({model:asModel('ScalarQuery.Snapshot'),authority:'owner'}),rows);
   }else{assert.ok('error'in outcome,JSON.stringify(outcome));assert.equal(outcome.error.code,mode==='let-created-empty'?'rule_failed':'forbidden');assert.deepEqual(rows,[]);if(mode==='let-created-empty')assert.deepEqual(await backing.query({model:asModel('ScalarQuery.Item'),authority:'owner'}),[]);}

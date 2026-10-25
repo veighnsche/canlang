@@ -7,6 +7,7 @@ import { executeScenarioReceiptAny as executeStateAny } from '@canlang/state';
 import { executeScenarioReceiptPurchaseAll as executeStatePurchaseAll,
   observeScenarioReceiptDependency as observeStateDependency,
   observeScenarioReceiptIntrinsic as observeStateIntrinsic,
+  readScenarioReceiptCreatedVersion as readStateCreatedVersion,
   selectScenarioReceiptReturn as selectStateReturn,
   executeScenarioReceiptQuery as executeStateQuery,
   executeScenarioReceiptQueryValueRow as executeStateQueryValueRow,
@@ -458,6 +459,14 @@ export function observeScenarioReceiptDependency(c: HandlerContext, model: strin
   return operation;
 }
 
+/** Redeem original created-row metadata through State's protected current view. */
+export function readScenarioReceiptCreatedVersion(c:HandlerContext,dependencyId:string):Promise<bigint>{
+  const operation=(async()=>{const frame=checked(c);if(frame.pending!==0)return fail(frame,new StateError('validation','Created version observations must run sequentially.'));frame.pending++;
+    try{if(frame.intrinsics.get(dependencyId)?.kind!=='created-model-version')return refuse('Created version differs from its original intrinsic.');
+      const result=await readStateCreatedVersion(frame.call,frame.store,{dependencyId});checked(c);return result;
+    }catch(error){return fail(frame,error);}finally{frame.pending--;}})();void operation.catch(()=>{});return operation;
+}
+
 /** Checked code evaluates the original expression once before awaiting this
  * facade. Native source correspondence is owned by Compiler, while this host
  * supplies its actual Values wire and private original parameter binding.
@@ -488,9 +497,9 @@ export function observeScenarioReceiptIntrinsic(c: HandlerContext, dependencyId:
           return refuse('Scenario intrinsic identity differs from its admitted framework context.');
         }
         await observeStateIntrinsic(frame.call, frame.store, { dependencyId, kind: dependency.kind, wire });
-      } else {
+      } else if(dependency.kind==='admitted-input') {
         await observeStateIntrinsic(frame.call, frame.store, { dependencyId, kind: dependency.kind, wire });
-      }
+      } else return refuse('Created version requires its original State getter.');
       checked(c);
     } catch (error) { fail(frame, error); }
     finally { frame.pending -= 1; }

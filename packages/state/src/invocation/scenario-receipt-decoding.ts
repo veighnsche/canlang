@@ -259,7 +259,7 @@ function readSavedScenarioAssociation(receipt: Receipt,
   for (const entry of intrinsics) {
     const kind = (entry as Record<string, unknown>)?.['kind'];
     const observation = object(entry, ['dependencyId', 'kind', 'wire',
-      ...(kind === 'admitted-reference-version' ? ['model', 'row', 'secretFields'] : [])]);
+      ...(kind === 'created-model-version'?['model','row','secretFields','stage']:kind === 'admitted-reference-version' ? ['model', 'row', 'secretFields'] : [])]);
     const dependency = returned.intrinsics?.find(dep => dep.id === observation['dependencyId']);
     if (dependency === undefined || dependency.kind !== kind) return invalid('foreign saved intrinsic.');
     scalarWire(dependency.type, observation['wire']);
@@ -280,6 +280,13 @@ function readSavedScenarioAssociation(receipt: Receipt,
   let changedMaximum=budgets?.changedMaximum(receipt)??MAX_ITEMS;
   if(plan.sourceLoops?.loops.some(loop=>loop.copy!==undefined)){
     const children=list(value['calls']??[]).map(entry=>{
+    } else if(kind==='created-model-version'){
+      const row=checkedRow(observation['row']);paths(observation['secretFields']);
+      if(dependency.kind!=='created-model-version'||dependency.created.model!==observation['model']
+          ||!Number.isSafeInteger(observation['stage'])||Number(observation['stage'])<=dependency.created.stage
+          ||row.archivedAt!==null||row.parent?.model!==dependency.created.parentModel
+          ||observation['wire']!==String(row.version)
+          ||!list(value['changed']).some(raw=>{const change=raw as Record<string,unknown>;if(change['model']!==observation['model'])return false;const created=checkedRow(change['row']);return created.id===row.id&&created.created===row.created&&created.createdBy===row.createdBy&&stableStringify(created.parent)===stableStringify(row.parent);}))return invalid('invalid saved original created version.');
       const saved=entry as Record<string,unknown>,scenario=saved['scenario'] as Record<string,unknown>|undefined;
       if(scenario===undefined)return invalid('Saved source copy lacks its original child scenario receipt.');
       const childPlan=checkScenarioResultDisclosurePlan(scenario['plan']);

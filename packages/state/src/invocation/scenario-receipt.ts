@@ -326,7 +326,7 @@ const sourceCreatedRootProducers=new WeakMap<GeneratedOperationDef,Map<string,Sc
 const sourceCreatedRootCaptures=new WeakMap<ReceiptOwnerSession,Map<string,SourceCreatedRootCapture>>();
 export function bindScenarioSourceCreatedRoots(def:GeneratedOperationDef,value:{readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;readonly creates:readonly ScenarioSourceCreatedRoot[]}):void{
   const bound=boundPlans.get(def),raw=object(dataCopy(value),['source','owner','creates']);origin(raw['source']);
-  if(!bound?.sourceRequireOnly||invokedPlans.has(def)||raw['owner']!==def.name||stableStringify(raw['source'])!==stableStringify(bound.plan.source))return invalid('Created source roots require their uninvoked original source-only owner.');
+  if(bound===undefined||(!bound.sourceRequireOnly&&bound.resultModel===undefined)||invokedPlans.has(def)||raw['owner']!==def.name||stableStringify(raw['source'])!==stableStringify(bound.plan.source))return invalid('Created source roots require their uninvoked original source-only owner.');
   const previous=sourceCreatedRootProducers.get(def)??new Map<string,ScenarioSourceCreatedRoot>(),next=new Map(previous);
   for(const value of list(raw['creates'])){
     const profile=object(value,['id','node','stage','binding','model','parentParameter','parentModel']),id=text(profile['id']);
@@ -336,6 +336,7 @@ export function bindScenarioSourceCreatedRoots(def:GeneratedOperationDef,value:{
         ||!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start'])
         ||input?.kind!=='ref'||input.model!==parent||input.nullable===true||Object.hasOwn(def.inputArrays,parameter)
         ||bound.artifactModels.get(model as ModelName)?.parent!==parent)return invalid('Created source root lost its original stage, model or required admitted parent.');
+    if(!bound.sourceRequireOnly&&!bound.plan.returns.some(returned=>returned.intrinsics?.some(dependency=>dependency.kind==='created-model-version'&&stableStringify(dependency.created)===stableStringify(profile))))return invalid('Native created version lacks its independently bound original CREATE intrinsic.');
     const prior=next.get(id);if(prior!==undefined&&stableStringify(prior)!==stableStringify(profile))return invalid('Created source root ID changes its original declaration.');
     if([...next.values()].some(other=>other.id!==id&&other.stage===profile['stage']))return invalid('Created source roots overlap an actual linear owner stage.');
     next.set(id,deepFreeze(profile) as unknown as ScenarioSourceCreatedRoot);
@@ -1701,6 +1702,7 @@ function bindScenarioPlan(def: GeneratedOperationDef, models: readonly ArtifactM
       return invalid('original version requires its declared required singular versioned reference input.');
     }
     if (dep.kind === 'admitted-input' && !primitiveInput(def, dep)) return invalid('intrinsic input disagrees with its required singular primitive declaration.');
+    if(dep.kind==='created-model-version'&&(resultModel===undefined||sourceRequire!==undefined||!inventory.has(dep.created.model)))return invalid('Created version requires its independent complete native Model result receipt.');
   }
   // Pure-control scalar returns carry only execution-gating provenance: they
   // read no stored row, so replay needs nothing beyond the declared queries,
@@ -1761,6 +1763,8 @@ function bindScenarioPlan(def: GeneratedOperationDef, models: readonly ArtifactM
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle,
     artifactModels, canonicalModels, idDependencies, namedEnumDependencies, narrowedDependencies, nominalDependencies, referenceDependencies, fileDependencies,
     valueTypes: defaults.valueTypes === undefined ? undefined : deepFreeze(dataCopy(defaults.valueTypes)) });
+  const createdVersions=plan.returns.flatMap(returned=>returned.intrinsics??[]).filter((dependency):dependency is Extract<ScenarioReceiptIntrinsicDependency,{kind:'created-model-version'}>=>dependency.kind==='created-model-version');
+  if(createdVersions.length!==0)bindScenarioSourceCreatedRoots(def,{source:plan.source,owner:def.name,creates:createdVersions.map(dependency=>dependency.created)});
   if (eventAliases.length !== 0) eventIntrinsicClaims.set(def, Object.freeze(eventAliases));
 }
 
@@ -10978,6 +10982,29 @@ export type ScenarioReceiptIntrinsicInput = {
  * identity/version from its protected admission and checks the host's encoded
  * value. This does not attest native evaluation: the verified generated host
  * must check its actual operation/ref binding before calling this producer.
+/** Version is metadata of this invocation's actual staged CREATE, not an
+ * admitted input or a stored business-field grant. The caller supplies no wire. */
+export async function readScenarioReceiptCreatedVersion(call:AdmittedCall,store:StoragePort,input:{readonly dependencyId:string}):Promise<bigint>{
+  const state=capture(call,store),owner=ownerSessions.get(call);let acquired=false;
+  try{
+    object(input,['dependencyId']);const dependency=state.bound.plan.returns.flatMap(returned=>returned.intrinsics??[]).find(dependency=>dependency.id===input.dependencyId);
+    if(dependency?.kind!=='created-model-version'||state.bound.resultModel===undefined||state.bound.sourceRequireOnly||owner===undefined||owner.executingCall!==call||state.returnId!==null)return invalid('Created version lacks its active complete native owner.');
+    const row=await readScenarioSourceCreatedRoot(call,store,{id:dependency.created.id});
+    capture(call,store);ownerHealthy(owner);
+    if(owner.busy||state.pending!==0||ownerRows.get(row)?.session!==owner||ownerRows.get(row)?.stage!==owner.stage
+        ||row.archivedAt!==null||row.parent?.model!==dependency.created.parentModel)return invalid('Created version lost its exact original owner-stage row.');
+    if(state.intrinsics.length+state.observations.length>=MAX_ITEMS)return invalid('created version exceeds original observation budget.');
+    const stage=owner.stage;owner.busy=true;state.pending++;acquired=true;
+    if(await store.readRevision()!==call.revision)throw new StateError('conflict','Created version moved beyond its actual original revision.');
+    capture(call,store);ownerHealthy(owner);if(owner.stage!==stage||owner.executingCall!==call)return invalid('Created version crossed its actual observation stage.');
+    const snapshot=checkedRow(dataCopy(row)),secrets=state.bound.models.get(dependency.created.model)?.secrets;
+    if(secrets===undefined)return invalid('Created version lost its original model inventory.');
+    state.intrinsics.push({dependencyId:dependency.id,kind:'created-model-version',wire:String(snapshot.version),stage:owner.stage,model:dependency.created.model,row:snapshot,secretFields:[...secrets]});
+    return BigInt(snapshot.version);
+  }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
+  finally{if(acquired){state.pending--;if(owner!==undefined)owner.busy=false;}}
+}
+
  */
 export async function observeScenarioReceiptIntrinsic(call: AdmittedCall, store: StoragePort,
   input: ScenarioReceiptIntrinsicInput): Promise<void> {
@@ -10993,7 +11020,9 @@ export async function observeScenarioReceiptIntrinsic(call: AdmittedCall, store:
       ...(kind === 'admitted-reference-version' ? ['reference'] : [])]);
     const dependency = state.bound.plan.returns.flatMap(entry => entry.intrinsics ?? [])
       .find(dep => dep.id === observed.dependencyId);
-    if (dependency === undefined || dependency.kind !== observed.kind) return invalid('native intrinsic disagrees with its checked dependency.');
+    if (dependency === undefined) return invalid('native intrinsic disagrees with its checked dependency.');
+    if(dependency.kind==='created-model-version')return invalid('Created version requires its genuine State-owned current-row getter.');
+    if(dependency.kind!==observed.kind)return invalid('native intrinsic disagrees with its checked dependency.');
     if (state.observations.length + state.intrinsics.length >= MAX_ITEMS) return invalid('observation budget exceeded.');
     let observation: IntrinsicObservation;
     if (dependency.kind === 'operation-id') {
@@ -12931,6 +12960,10 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       }
     }
     const returned = association.plan.returns.find(entry => entry.id === association.returnId)!;
+        if(observed.kind==='created-model-version'){
+          if(dependency.kind!=='created-model-version'||stableStringify(sourceCreatedRootProducers.get(target)?.get(dependency.created.id))!==stableStringify(dependency.created)||projection===null||String(projection.version)!==observed.wire)dependenciesReadable=false;
+          continue;
+        }
     if (!savedNarrowedControls(currentBound, association.observations)) dependenciesReadable = false;
     if (currentBound.resultModel !== undefined && (stableStringify(currentBound.plan) !== stableStringify(association.plan) ||
         !await modelResultReadable(def as GeneratedOperationDef, currentBound, receipt.outcome.status === 'committed' ? receipt.outcome.result : null))) {
@@ -12958,6 +12991,11 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       const projection = await savedProjection(observation.model, observation.row, observation.secretFields, []);
       if (projection === null || String(projection.version) !== observation.wire) dependenciesReadable = false;
     }
+      if(observation.kind==='created-model-version'){
+        const projection=await savedProjection(observation.model,observation.row,observation.secretFields,[]);
+        if(dependency.kind!=='created-model-version'||stableStringify(sourceCreatedRootProducers.get(def as GeneratedOperationDef)?.get(dependency.created.id))!==stableStringify(dependency.created)||projection===null||String(projection.version)!==observation.wire)dependenciesReadable=false;
+        continue;
+      }
     const records: ProjectedRecord[] = [];
     for (const changed of association.changed) {
       // New-row grants cannot launder original source DATA. Recheck only the

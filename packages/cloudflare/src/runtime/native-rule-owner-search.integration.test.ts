@@ -55,6 +55,7 @@ function assertSourceOnlyReceipt(artifact: CompileArtifact, operation: string, t
       assert.match(site.id, /^[a-f0-9]{64}$/); assert.deepEqual(site.source, plan.source);
       assert.ok(site.role === 'data' || site.role === 'control');
       if (site.kind === 'operation-id') assert.equal(site.type, 'text');
+      else if(site.kind==='created-model-version'){assert.equal(site.type,'int');assert.match(site.created.id,/^[a-f0-9]{64}$/);assert.ok(site.created.stage>=0);}
       else {
         const input: ArtifactOperationInput | undefined = descriptor!.inputs.fields.find(declaredInput => declaredInput.name === site.parameter); assert.ok(input);
         if (site.kind === 'admitted-reference-version') { assert.equal(input.field.kind, 'ref'); assert.equal(site.model, input.field.kind === 'ref' ? input.field.model : undefined); assert.equal(site.type, 'int'); }

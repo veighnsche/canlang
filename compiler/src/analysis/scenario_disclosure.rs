@@ -53,6 +53,11 @@ pub struct DisclosureDependency {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DisclosureIntrinsicKind {
+    CreatedModelVersion {
+        create: NodeKey,
+        model: SymbolId,
+        model_name: String,
+    },
     OperationId,
     AdmittedInput {
         parameter: SymbolId,
@@ -22881,6 +22886,43 @@ impl<'a> Closure<'a> {
     ) -> Result<(), DisclosureDecline> {
         if *ty != ResolvedType::Scalar(Scalar::Int) {
             return Err(self.fail(key, "unestablished intrinsic version type"));
+        }
+        if calls.is_empty()
+            && self.loop_node.is_none()
+            && self.result_model.is_some()
+            && let Some(DisclosureModelResult::Create {
+                model: created_model,
+                node,
+            }) = value.model_result
+            && created_model == model
+            && let Some((base, "version")) = self.count_member(key)
+            && self
+                .created_binding_source(base, module)
+                .is_some_and(|created| created.node == node && created.model == model)
+        {
+            let intrinsic = self.intrinsic(
+                key,
+                module,
+                calls,
+                DisclosureIntrinsicKind::CreatedModelVersion {
+                    create: node,
+                    model,
+                    model_name: self
+                        .resolve
+                        .symbols
+                        .get(model.0 as usize)
+                        .ok_or_else(|| self.fail(key, "missing created version model"))?
+                        .canonical
+                        .clone(),
+                },
+                Scalar::Int,
+            )?;
+            value.join(&intrinsic);
+            value.record = None;
+            value.reference = None;
+            value.reference_origin = None;
+            value.model_result = None;
+            return Ok(());
         }
         let kind = value.reference.clone().ok_or_else(|| {
             self.fail(
