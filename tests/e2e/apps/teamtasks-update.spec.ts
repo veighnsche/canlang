@@ -12,6 +12,7 @@
  */
 import { expect, type Page } from "@playwright/test";
 import { test } from "../fixtures/e2e-test.js";
+import { CSRF_FIELD } from "@canlang/contracts";
 import { seedFixtureTask, seedTeamUsers } from "../fixtures/seed.js";
 import type { WorkerAssembly } from "../fixtures/artifact-loader.js";
 
@@ -35,6 +36,7 @@ async function createTask(page: Page, title: string): Promise<void> {
 
 test.describe("teamtasks update journeys", () => {
   let sessionToken = "";
+  let csrfToken = "";
 
   test.beforeAll(async ({ assembly, bridge, dev }) => {
     expect(assembly.label).toBe("fixture/handbuilt/teamtasks");
@@ -47,6 +49,7 @@ test.describe("teamtasks update journeys", () => {
       throw new Error("teamtasks-update spec: seed returned no users");
     }
     sessionToken = bob.session_token;
+    csrfToken = bob.csrf_token;
   });
 
   test("edits a task title in the browser", async ({ page, bridge, assembly, dev }) => {
@@ -109,4 +112,32 @@ test.describe("teamtasks update journeys", () => {
       .all();
     expect(results).toHaveLength(0);
   });
+
+  test("row mutations reject anonymous, CSRF, and stale writes without changing D1", async ({ page, bridge, assembly, dev }) => {
+    const title = "Update journey security witness";
+    await page.context().addCookies([{ name: "can_session", value: sessionToken, url: bridge.url }]);
+    await page.goto(`${bridge.url}/`);
+    await createTask(page, title);
+    const db = await dev.getD1Database(d1Binding(assembly));
+    const before = await db.prepare("SELECT id, title, done, version FROM todo WHERE title = ?").bind(title).first();
+    expect(before).not.toBeNull();
+    for (const action of ["edit", "toggle", "delete"]) {
+      for (const variant of ["anonymous", "csrf", "stale"]) {
+        const body = new URLSearchParams({ title: "Rejected replacement", version: String(variant === "stale" ? 999 : before?.["version"]) });
+        if (variant !== "csrf") body.set(CSRF_FIELD, csrfToken);
+        const response = await fetch(`${bridge.url}/tasks/${before?.["id"]}/${action}`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/x-www-form-urlencoded",
+            ...(variant === "anonymous" ? {} : { cookie: `can_session=${sessionToken}` }),
+          },
+          body,
+          redirect: "manual",
+        });
+        expect(response.status, `${action} ${variant}`).toBe(variant === "stale" ? 409 : 403);
+      }
+    }
+    expect(await db.prepare("SELECT id, title, done, version FROM todo WHERE id = ?").bind(before?.["id"]).first()).toEqual(before);
+  });
+
 });

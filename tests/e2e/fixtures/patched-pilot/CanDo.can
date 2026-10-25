@@ -40,8 +40,6 @@ package todo
   lock Comment fields=body,author
   fixture open_task=Task {title="Opening checks",assignee=self}
   fixture work_view=WorkView {account=self,requested=datetime("2026-10-03T09:00:00Z"),delivery="work-test"}
-  preferences { location:Location?, done:bool?, view:enum(all,today,overdue)=all label={text="Task view"@{nl="Taakweergave"},values={all="All tasks"@{nl="Alle taken"},today="Due today"@{nl="Vandaag verschuldigd"},overdue="Overdue"@{nl="Te laat"}}} }
-  invariant preferences: actor==null or (row.location==null or can_work(actor,row.location))
   message source_freshness_caption = "Source freshness"@{nl="Actualiteit bron"}
   message label_WorkItem_source = "Source reference"@{nl="Bronreferentie"}
   message label_WorkItem_detail = "Details"@{nl="Details"}
@@ -114,6 +112,8 @@ package todo
   scenario report_error on=instrumentation.error
    do send Catch.report {event=event} as delivery
  Then
+  preferences { location:Location?, done:bool?, view:enum(all,today,overdue)=all label={text="Task view"@{nl="Taakweergave"},values={all="All tasks"@{nl="Alle taken"},today="Due today"@{nl="Vandaag verschuldigd"},overdue="Overdue"@{nl="Te laat"}}} }
+  invariant preferences: actor==null or (row.location==null or can_work(actor,row.location))
   # Add tasks quickly and follow location, due date and ownership. @{nl="Voeg taken snel toe en volg locatie, deadline en eigenaarschap."}
   page /tasks title="Tasks"@{nl="Taken"}
    require members
@@ -133,15 +133,15 @@ package todo
     text row.done
     badge row.priority
     card "Current task"@{nl="Huidige taak"}
-     text row.title,row.assignee,row.due,row.priority,row.done,row.completed_by,row.completed_at
-     content row.description
-     edit
-     ## Completion and reopening stay canonical operations presented as quick actions.
-     fab
-      button action=complete
-      button action=reopen
+     card "Task"@{nl="Taak"}
+      title row.title
+      text row.assignee,row.due,row.priority,row.done,row.completed_by,row.completed_at
+      content row.description
+      primary "Edit Task"@{nl="Bewerken"} action=Task.update arguments={record=row}
+      primary "Complete" action=complete arguments={task=row}
+      primary "Reopen" action=reopen arguments={task=row}
     card "Attributed comments"@{nl="Toegeschreven reacties"}
-     form Comment.create
+     primary "Create Comment"@{nl="Aanmaken"} action=Comment.create
       textarea body
      list row.Comment empty="No comments yet."@{nl="Nog geen reacties."}
       pagination
@@ -185,19 +185,19 @@ package todo
    require task_manager
    breadcrumbs
    card "Template intake"@{nl="Sjabloon aanmaken"}
-    form Template.create
+    primary "Create Checklist template"@{nl="Aanmaken"} action=Template.create
      input name
      select location
    list Template columns=name,location search=name display=split empty="No templates yet."@{nl="Nog geen sjablonen."}
     pagination
     card "Template and generation"@{nl="Sjabloon en generatie"}
      text row.name,row.location
-     edit
-     delete
-     form generate
+     primary "Edit Checklist template"@{nl="Bewerken"} action=Template.update arguments={record=row}
+     secondary "Delete Checklist template"@{nl="Verwijderen"} action=Template.delete arguments={record=row}
+     primary "Generate tasks from checklist"@{nl="Taken uit checklist genereren"} action=generate arguments={template=row}
     card "Template items"@{nl="Sjabloonitems"}
-     form TemplateTask.create
+     primary "Create TemplateTask"@{nl="Aanmaken"} action=TemplateTask.create
      table row.TemplateTask columns=title,offset,priority order=offset empty="No template items yet."@{nl="Nog geen sjabloonitems."}
       pagination
-      edit
-      delete
+      primary "Edit TemplateTask"@{nl="Bewerken"} action=TemplateTask.update arguments={record=row}
+      secondary "Delete TemplateTask"@{nl="Verwijderen"} action=TemplateTask.delete arguments={record=row}

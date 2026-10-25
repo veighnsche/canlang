@@ -12,8 +12,8 @@ import { test } from "../fixtures/e2e-test.js";
 import { seedFixtureTask, seedTeamUsers } from "../fixtures/seed.js";
 import type { WorkerAssembly } from "../fixtures/artifact-loader.js";
 
-const BOB = { email: "bob@example.com", password: "correct-horse-43" };
-const CAROL = { email: "carol@example.com", password: "correct-horse-44" };
+const BOB = { email: "bob.journeys@example.com", password: "correct-horse-43" };
+const CAROL = { email: "carol.journeys@example.com", password: "correct-horse-44" };
 const JOURNEY_TITLE = "Journey persists this task";
 const CAROL_TITLE = "Carol shares this task";
 const CSRF_PROBE_TITLE = "CSRF probe must not persist";

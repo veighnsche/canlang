@@ -47,7 +47,7 @@ import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { join, relative } from "node:path";
+import { join, relative, resolve } from "node:path";
 import type { LocalDevOptions } from "../../fixtures/raw-worker.js";
 import { distribution as contractsDistribution } from "@canlang/contracts/distribution";
 import type { CompileArtifact, StoragePort } from "@canlang/contracts";
@@ -347,7 +347,7 @@ export interface CompiledAssembly {
 }
 
 function canBinary(root: string): string {
-  const bin = join(root, COMPILED_CAN_BINARY);
+  const bin = resolve(root, process.env["CAN_BIN"] ?? COMPILED_CAN_BINARY);
   try {
     if (!statSync(bin).isFile()) throw new Error("not a file");
   } catch {

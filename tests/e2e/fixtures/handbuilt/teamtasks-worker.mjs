@@ -179,7 +179,16 @@ async function homePage(context, db, csrfToken) {
       return (
         `<li data-task-id="${escapeHtml(String(row.id))}">` +
         `<strong>${escapeHtml(String(row.title))}</strong> ` +
-        `<span>${badge}</span>${assignee}</li>`
+        `<span>${badge}</span>${assignee}` +
+        `<details><summary role="button">Edit</summary>` +
+        `<form method="post" action="/tasks/${encodeURIComponent(row.id)}/edit">` +
+        taskMutationFields(row, csrfToken) +
+        `<label>Title <input name="title" value="${escapeHtml(String(row.title))}" required maxlength="200"></label>` +
+        `<button type="submit">Save</button></form></details>` +
+        `<form method="post" action="/tasks/${encodeURIComponent(row.id)}/toggle">` +
+        taskMutationFields(row, csrfToken) + `<button type="submit">${done ? "Reopen" : "Complete"}</button></form>` +
+        `<form method="post" action="/tasks/${encodeURIComponent(row.id)}/delete">` +
+        taskMutationFields(row, csrfToken) + `<button type="submit">Delete</button></form></li>`
       );
     })
     .join("");
@@ -205,6 +214,40 @@ async function homePage(context, db, csrfToken) {
   });
   const heading = await title({ context: contexted, text: "Team tasks" });
   return html(shell("Team tasks", `${heading}${addCard}${listCard}`));
+}
+
+function taskMutationFields(row, csrfToken) {
+  return `<input type="hidden" name="${escapeHtml(CSRF_FIELD)}" value="${escapeHtml(csrfToken)}">` +
+    `<input type="hidden" name="version" value="${escapeHtml(String(row.version))}">`;
+}
+
+async function handleTaskMutation(request, env, sessionToken, id, action) {
+  const form = await request.formData();
+  const token = form.get(CSRF_FIELD);
+  if (typeof token !== "string" || !(await verifyCsrfToken(sessionToken, token))) {
+    return new Response("forbidden: bad CSRF token", { status: 403 });
+  }
+  const version = Number(form.get("version"));
+  if (!Number.isSafeInteger(version) || version < 1) {
+    return new Response("bad request: version required", { status: 400 });
+  }
+  let statement;
+  if (action === "edit") {
+    const title = form.get("title");
+    if (typeof title !== "string" || title.trim().length === 0 || title.trim().length > 200) {
+      return new Response("bad request: title must be 1–200 chars", { status: 400 });
+    }
+    statement = env.DB.prepare("UPDATE todo SET title = ?, version = version + 1 WHERE id = ? AND version = ?")
+      .bind(title.trim(), id, version);
+  } else if (action === "toggle") {
+    statement = env.DB.prepare("UPDATE todo SET done = 1 - done, version = version + 1 WHERE id = ? AND version = ?")
+      .bind(id, version);
+  } else {
+    statement = env.DB.prepare("DELETE FROM todo WHERE id = ? AND version = ?").bind(id, version);
+  }
+  const result = await statement.run();
+  if (result.meta.changes !== 1) return new Response("conflict: task changed", { status: 409 });
+  return redirect("/");
 }
 
 async function handleSeed(request) {
@@ -267,9 +310,9 @@ async function handleSeed(request) {
 async function handleLogin(request) {
   // Pre-session endpoint: no CSRF check is possible without a session key
   // (standard login exemption); the fixture login form posts directly.
-  // Field names follow the real renderLogin form: username + password.
+  // Field names follow the real renderLogin form: email + password.
   const form = await request.formData();
-  const email = form.get("username");
+  const email = form.get("email");
   const password = form.get("password");
   const context = makeContext("/login", "", null);
   if (typeof email !== "string" || typeof password !== "string") {
@@ -580,6 +623,14 @@ export default {
         return new Response("forbidden: sign in first", { status: 403 });
       }
       return handleCreateTask(request, env, sessionToken);
+    }
+    const mutation = /^\/tasks\/([^/]+)\/(edit|toggle|delete)$/.exec(url.pathname);
+    if (mutation !== null && request.method === "POST") {
+      const { viewer, sessionToken } = await currentViewer(request);
+      if (viewer === null || viewer === "invalid" || sessionToken === null || viewer.membership?.status !== "active") {
+        return new Response("forbidden: sign in first", { status: 403 });
+      }
+      return handleTaskMutation(request, env, sessionToken, decodeURIComponent(mutation[1]), mutation[2]);
     }
     return new Response("not found", { status: 404 });
   },
