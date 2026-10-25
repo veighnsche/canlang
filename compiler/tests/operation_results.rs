@@ -223,6 +223,8 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
         .unwrap()
     {
         match input["name"].as_str().unwrap() {
+            "value" => assert_eq!(input["valueType"], "email", "{input}"),
+            "link" => assert_eq!(input["valueType"], "url", "{input}"),
             "day" => assert_eq!(input["valueType"], "date", "{input}"),
             "zone" => assert_eq!(input["valueType"], "timezone", "{input}"),
             "code" => assert_eq!(input["valueType"], "currency", "{input}"),
