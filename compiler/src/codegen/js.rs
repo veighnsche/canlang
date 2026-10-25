@@ -1654,18 +1654,15 @@ fn source_require_only_body_supported(
         })
         .collect();
     let mut actual_lets = let_data.clone();
-    if let Some(context) = context {
-        if let Some(module) = sources
+    if let Some(context) = context
+        && let Some(module) = sources
             .values()
             .find(|source| source["owner"] == owner.canonical)
             .and_then(|source| source["source"]["module"].as_str())
-        {
-            if let Some(values) =
-                super::source_let_data::collect_query_values(ir, owner, context, sources, module)
-            {
-                actual_lets.extend(values);
-            }
-        }
+        && let Some(values) =
+            super::source_let_data::collect_query_values(ir, owner, context, sources, module)
+    {
+        actual_lets.extend(values);
     }
     let let_data = &actual_lets;
     statements(

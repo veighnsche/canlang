@@ -18563,9 +18563,7 @@ fn source_owned_created_return_branches(
                     if states.iter().any(Option::is_some) {
                         return None;
                     }
-                    for state in &mut states {
-                        *state = Some(source.node);
-                    }
+                    states.fill(Some(source.node));
                 }
                 IrStmt::Return {
                     value: Some(_),

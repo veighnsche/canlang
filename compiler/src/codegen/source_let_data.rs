@@ -948,8 +948,15 @@ pub(super) fn collect_query_values(
     let source = &requires
         .values()
         .find(|source| source["owner"] == owner.canonical)?["source"];
-    let mut values=params.iter().filter_map(|id|ir.items.get(id.0 as usize)).filter_map(|item|
-        matches!(&item.kind,IrItemKind::Param{ty:IrType::Known(ty),..} if super::source_send_data::plain_value(ir,ty,0)).then(||item.name.clone())).collect::<BTreeSet<_>>();
+    let mut values = params
+        .iter()
+        .filter_map(|id| ir.items.get(id.0 as usize))
+        .filter(|item| {
+            matches!(&item.kind, IrItemKind::Param { ty: IrType::Known(ty), .. }
+            if super::source_send_data::plain_value(ir, ty, 0))
+        })
+        .map(|item| item.name.clone())
+        .collect::<BTreeSet<_>>();
     let mut output = HashMap::new();
     for effect in effects {
         let IrStmt::Let { name, value, span } = effect else {
