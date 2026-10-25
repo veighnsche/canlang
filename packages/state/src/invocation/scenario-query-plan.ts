@@ -232,6 +232,13 @@ function artifactType(field: ArtifactModelField, models: readonly ArtifactModel[
     if (parsed.base.kind === 'enum') { if (!same(parsed.base.cases, tag.values)) fail('enum cases disagree.'); }
     else if (parsed.base.kind !== 'nominal' || schema === undefined || !Object.hasOwn(schema.enums, leaf) || !same(schema.enums[leaf]!.cases, tag.values)) fail('exact owning nominal enum required.');
   } else if (leaf !== primitive) fail('canonical field type disagrees with owning scalar tag.');
+  // A direct query enum uses its case-list wire identity even when reuse also
+  // publishes the field as nominal. Validate that owning nominal schema above
+  // before normalizing; nullable/array and reference identities stay explicit.
+  if (!parsed.array && !parsed.nullable && (tag.kind === 'enum' || tag.kind === 'nominal')) {
+    const cases = tag.kind === 'enum' ? tag.values : schema!.enums[leaf]!.cases;
+    return checkedType(`enum(${cases.join(',')})`, true);
+  }
   return type;
 }
 
@@ -316,7 +323,15 @@ export function checkQueryInventory(plan: ScenarioResultDisclosurePlan, type: Ca
       else if (mapping.kind === 'reference') {
         if (actual.typeId !== query.model || actual.type.base.kind !== 'nominal' || actual.type.array || actual.type.nullable ||
             Object.hasOwn(schema.contracts, query.model) || Object.hasOwn(schema.enums, query.model) || Object.hasOwn(schema.aliases ?? {}, query.model)) fail('reference must be the singular versioned native query model.');
-      } else if (!query.dependencies.some(dep => dep.role === 'data' && dep.field === mapping.field && dep.type === actual.typeId)) fail('contract field type must match its actual queried data field.');
+      } else if (!query.dependencies.some(dep => {
+        if (dep.role !== 'data' || dep.field !== mapping.field) return false;
+        if (dep.type === actual.typeId) return true;
+        const field = models.find(model => model.name === query.model)?.fields.find(field => field.name === mapping.field);
+        // Keep the exact declaring nominal identity in the projected Contract,
+        // while the already-checked query dependency uses its enum case wire.
+        const declared = field?.valueType ?? (field?.field.kind === 'nominal' ? field.field.name : undefined);
+        return field !== undefined && declared === actual.typeId && artifactType(field, models, schema) === dep.type;
+      })) fail('contract field type must match its actual queried data field.');
     }
   }
 }

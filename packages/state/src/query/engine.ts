@@ -1615,6 +1615,11 @@ async function matchOneViewerRow(
   if (projected === null) {
     return;
   }
+  // Source policies are evaluated per row. A different, unsatisfied grant
+  // must not authorize ordering or aggregation over this visible row.
+  const grantedFields = matching.flatMap(grant => [...grant.fields]);
+  for (const term of run.order) checkViewerPath(term.field, grantedFields, run.secrets, run.implicitParent);
+  for (const path of run.extraViewerPaths ?? []) checkViewerPath(path, grantedFields, run.secrets, run.implicitParent);
   const presence = Object.freeze(Object.keys(row.data));
   const candidateIndex = observation?.candidates.length;
   const candidate = observation === undefined ? undefined : {

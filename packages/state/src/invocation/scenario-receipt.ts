@@ -2468,15 +2468,26 @@ const executedDependencies = new WeakMap<Capture, Set<string>>();
 const referenceProducers = new WeakMap<GeneratedOperationDef, ScenarioReceiptReferenceProducer & {
   readonly boundExecutionDependencies: ReadonlyMap<string, BoundExecutionDependency>;
 }>();
+/** The checked State plan owns the exact consumer census; input references
+ * and unrelated model declarations alone never require this producer. */
+export function needsScenarioReceiptReferenceProducer(def: GeneratedOperationDef, executionDependencies = false): boolean {
+  const bound = boundPlans.get(def);
+  if (bound === undefined) return invalid('reference consumer census requires its checked source plan.');
+  const modelInputs = frameworkModelInputs.get(def);
+  return bound.referenceDependencies.size !== 0 || bound.fileDependencies.size !== 0 || executionDependencies ||
+    bound.plan.sourceLoops?.loops.some(loop => loop.copy !== undefined) === true ||
+    def.kind === 'scenario' && bound.plan.returns.some(returned => returned.dependencies.some(dependency => dependency.role === 'data' && dependency.queryId === undefined)) ||
+    [...bound.nominalDependencies.values()].some(value => value.profile.hasFiles || value.profile.array && value.dependency.role === 'data') ||
+    bound.idDependencies.size !== 0 || bound.resultModel !== undefined ||
+    bound.plan.queries?.some(query => query.parent !== undefined || query.dependencies.some(dep => dep.field === 'parent')) === true ||
+    [...modelInputs?.values() ?? []].some(inputs => inputs.size !== 0) ||
+    def.kind === 'scenario' && hasNominalAssignments(bound);
+}
 export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef, producer: ScenarioReceiptReferenceProducer): void {
   const bound = boundPlans.get(def);
   const modelInputs = frameworkModelInputs.get(def);
-  if (bound === undefined || bound.referenceDependencies.size === 0 && bound.fileDependencies.size === 0 && !Object.hasOwn(producer, 'executionDependencies') &&
-      !bound.plan.sourceLoops?.loops.some(loop=>loop.copy!==undefined) &&
-      !(def.kind==='scenario'&&bound.plan.returns.some(returned=>returned.dependencies.some(dependency=>dependency.role==='data'&&dependency.queryId===undefined))) &&
-      ![...bound.nominalDependencies.values()].some(value => value.profile.hasFiles || value.profile.array && value.dependency.role === 'data') && bound.idDependencies.size === 0 && bound.resultModel === undefined &&
-      !bound.plan.queries?.some(query => query.parent !== undefined || query.dependencies.some(dep => dep.field === 'parent')) &&
-      ![...modelInputs?.values() ?? []].some(inputs => inputs.size !== 0) && !(def.kind === 'scenario' && hasNominalAssignments(bound)) || invokedPlans.has(def) || referenceProducers.has(def)) {
+  if (bound === undefined || !needsScenarioReceiptReferenceProducer(def, Object.hasOwn(producer, 'executionDependencies')) ||
+      invokedPlans.has(def) || referenceProducers.has(def)) {
     return invalid('reference producer requires one checked source binding before execution.');
   }
   object(producer, ['source', 'app', 'policy', ...(Object.hasOwn(producer, 'readPolicies') ? ['readPolicies'] : []),

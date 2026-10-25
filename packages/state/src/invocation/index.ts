@@ -24,7 +24,7 @@ export { stableStringify, hashInputs } from './replay.js';
 export {
   bindScenarioReceiptFileProducer, observeScenarioReceiptFileAssignment,
   type ScenarioReceiptFileProducer, type ScenarioReceiptFileAssignmentLocator, type ScenarioReceiptFileAssignmentInput,
-  bindScenarioReceiptReferenceProducer, bindScenarioReceiptModelResult, type ScenarioReceiptReferenceProducer,
+  bindScenarioReceiptReferenceProducer, needsScenarioReceiptReferenceProducer, bindScenarioReceiptModelResult, type ScenarioReceiptReferenceProducer,
   observeScenarioReceiptDependency, observeScenarioReceiptRowId, type ScenarioReceiptRowIdInput, observeScenarioReceiptIntrinsic, type ScenarioReceiptIntrinsicInput, selectScenarioReceiptReturn,
   executeScenarioReceiptSourceCopy, readScenarioReceiptOwnerBounds, beginScenarioReceiptMutation, observeScenarioInputComputedDefault, type ScenarioReceiptMutationInput,
   executeScenarioReceiptEventNoticeFormat, materializeScenarioReceiptEventNoticeAudit,

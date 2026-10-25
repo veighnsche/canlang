@@ -27,7 +27,9 @@ jobs:
   workspace:
     name: Workspace and installed artifacts
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # The complete native runtime corpus includes long multi-mode owner and
+    # rollback journeys, followed by isolated installed-package checks.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
         with:

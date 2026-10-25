@@ -140,6 +140,7 @@ assert.equal(parent.kind,'scenario');assert.equal(parent.result.type,'int');
 const plan=context.result.disclosure;
 assert.equal(plan.version,1);assert.equal(plan.queries.length,1);
 assert.equal(plan.queries[0].model,'todo.Task');
+assert.equal(plan.queries[0].dependencies.find(dep=>dep.field==='priority').type,'enum(low,normal,high)');
 assert.equal(plan.returns.length,1);
 assert.equal(plan.returns[0].projection.kind,'query-contract-array');
 assert.equal(plan.returns[0].projection.fields.length,7);

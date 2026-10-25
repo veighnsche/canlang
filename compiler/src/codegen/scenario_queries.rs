@@ -2122,13 +2122,20 @@ fn assemble_direct_dependency(
     entry: &str,
 ) -> Option<ReceiptQueryDependency> {
     let field = nominal(program, ir, dep.field)?;
+    // Authenticate the nominal declaration first. Query DTOs spell an inline
+    // enum by its cases, matching the checked source and State field inventory.
+    let declared_type = serial_type(&dep.ty, program, ir, 0)?;
+    let query_type = match &dep.ty {
+        ResolvedType::Enum { cases, .. } => format!("enum({})", cases.join(",")),
+        _ => declared_type,
+    };
     if dep.source != q.source
         || dep.model != q.model
         || dep.model_name != model.canonical
         || dep.field_name != field.name
         || !dep.calls.is_empty()
         || field_type(program, ir, dep.field, q.model)? != &dep.ty
-        || serial_type(&dep.ty, program, ir, 0)? != dep.type_id
+        || query_type != dep.type_id
     {
         return None;
     }
@@ -3481,7 +3488,7 @@ fn checked_count_query_plan(
 /// value) while IR drops the valueless clause, so a disclosed include with
 /// no IR archived value is the genuine shape. Any other combination —
 /// disclosed exclude with an IR value, or an IR non-include value — refuses.
-fn archived_first_matches(disclosed: bool, ir: &Option<Box<TypedExpr>>) -> bool {
+pub(super) fn archived_first_matches(disclosed: bool, ir: &Option<Box<TypedExpr>>) -> bool {
     match (disclosed, ir) {
         (false, None) => true,
         (true, None) => true,

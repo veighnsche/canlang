@@ -1098,7 +1098,7 @@ fn draft_outcome_table() {
         ("draft/apps/CanHire/CanHire.can", 124),
         // Exact IncomingEmail identity clears only the replay guard E3002;
         // all other original findings and all 52 corpus rows remain.
-        ("draft/apps/CanInbox/CanInbox.can", 41),
+        ("draft/apps/CanInbox/CanInbox.can", 40),
         ("draft/apps/CanInvoice/CanInvoice.can", 203),
         // R26-purity (T37 pilot): CRUD `when=` guards are bounded, so
         // crud-when membership reads no longer diagnose (Knowledge -2).

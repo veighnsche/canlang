@@ -111,7 +111,7 @@ fn ui_order_aliases_and_descending_datetime_keys_keep_their_owning_domain() {
 }
 
 #[test]
-fn production_model_query_order_preserves_direct_alias_fields_and_refuses_expressions() {
+fn production_model_query_order_preserves_aliases_and_checked_expression_comparators() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
@@ -196,30 +196,21 @@ fn production_model_query_order_preserves_direct_alias_fields_and_refuses_expres
         let path = scratch.path().join(format!("{name}.can"));
         std::fs::write(&path, refused_source).unwrap();
         let (output, response) = compile(&path);
-        assert_eq!(
-            output.status.code(),
-            Some(10),
-            "{name}: {}\n{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-        let diagnostics = response["diagnostics"].as_array().unwrap();
-        assert_eq!(diagnostics.len(), 1, "{name}: {diagnostics:?}");
-        assert_eq!(diagnostics[0]["code"], "E6008", "{name}: {diagnostics:?}");
-        assert_eq!(
-            diagnostics[0]["message"],
-            "cannot lower expression query order: no §13 lowering exists",
-            "{name}: {diagnostics:?}"
-        );
-        assert!(
-            response.get("modules").is_none(),
-            "{name}: refused query must not publish modules"
-        );
+        assert!(output.status.success(), "{name}: {response}");
+        let code = response["modules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|module| module["js"].as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(code.contains("order:{by:"), "{name}: {code}");
+        assert!(code.contains("compare:"), "{name}: {code}");
     }
 }
 
 #[test]
-fn first_query_orders_checked_owning_metadata_without_admitting_other_expressions() {
+fn first_query_order_supports_normal_comparators_without_claiming_native_receipts() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();
     let source = "app MetadataOrders\nGiven\n Allowance { account:user }\n policy Allowance read=owner\nWhen\n scenario ascending() -> Allowance? by=owner\n  do return first(Allowance as row where row.account==actor order=row.id)\n scenario descending() -> Allowance? by=owner\n  do return first(Allowance as row where row.account==actor order=-row.id)\nThen\n";
@@ -328,16 +319,44 @@ fn first_query_orders_checked_owning_metadata_without_admitting_other_expression
         let (output, checked) = invoke(name, &refused_source, "check");
         assert!(output.status.success(), "{name}: {checked}");
         let (output, artifact) = invoke(name, &refused_source, "compile");
-        assert_eq!(output.status.code(), Some(10), "{name}: {artifact}");
-        let diagnostics = artifact["diagnostics"].as_array().unwrap();
-        assert_eq!(diagnostics.len(), 1, "{name}: {artifact}");
-        assert_eq!(diagnostics[0]["code"], "E6008", "{name}: {artifact}");
+        assert!(output.status.success(), "{name}: {artifact}");
+        let code = artifact["modules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|module| module["js"].as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(code.contains("order:{by:"), "{name}: {code}");
+        // Ordinary expression ordering has a comparator, but cannot claim an
+        // authenticated native first-query receipt for these expressions.
+        let native = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args([
+                "compile",
+                "--format=json",
+                "--native-scenario-receipts",
+                "--catalog",
+            ])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(scratch.path().join(format!("{name}.can")))
+            .current_dir(root)
+            .output()
+            .unwrap();
         assert_eq!(
-            diagnostics[0]["message"],
-            "cannot lower expression query order: no §13 lowering exists",
-            "{name}: {artifact}"
+            native.status.code(),
+            Some(10),
+            "{name}: {}",
+            String::from_utf8_lossy(&native.stdout)
         );
-        assert!(artifact.get("modules").is_none(), "{name}: {artifact}");
+        let refused: serde_json::Value = serde_json::from_slice(&native.stdout).unwrap();
+        assert!(refused.get("modules").is_none());
+        assert!(
+            refused["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|diagnostic| diagnostic["code"] == "E6008")
+        );
     }
 }
 
@@ -374,8 +393,8 @@ When
   do return Entry as entry where entry.label=="bad" order=entry.at select entry.label
 Then
 "#;
-    let compile = |text: &str| {
-        let path = scratch.path().join("metadata.can");
+    let compile = |text: &str, filename: &str| {
+        let path = scratch.path().join(filename);
         std::fs::write(&path, text).unwrap();
         let output = Command::new(env!("CARGO_BIN_EXE_can"))
             .args([
@@ -392,8 +411,16 @@ Then
         let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
         (output, value)
     };
-    let (output, artifact) = compile(source);
+    let (output, artifact) = compile(source, "metadata.can");
     assert!(output.status.success(), "{artifact}");
+    // A second authored policy exposes rows through label alone, making the
+    // anonymous forbidden-order-field checks reachable rather than filtered out.
+    let public_source = source.replace(
+        " policy Entry read=owner",
+        " policy Entry read=public fields=label\n policy Entry read=owner",
+    );
+    let (public_output, public_artifact) = compile(&public_source, "public-label.can");
+    assert!(public_output.status.success(), "{public_artifact}");
     let generated = artifact["modules"][0]["js"].as_str().unwrap();
     assert!(generated.contains("order:[\"created\"]"), "{generated}");
     assert!(generated.contains("order:[\"-created\"]"), "{generated}");
@@ -406,7 +433,7 @@ import {FIXED_NOW,asModel,createMemoryIdentityStore,makeIdentity,seedMember,seed
 import {assembleModules} from '@canlang/cloudflare/runtime/modules';
 import {buildInvoker} from '@canlang/cloudflare/worker/assembly';
 import {datetime,encodeValue} from '@canlang/values';
-const artifact=__ARTIFACT__,sourcePath=__SOURCE__;
+const artifact=__ARTIFACT__,sourcePath=__SOURCE__,publicArtifact=__PUBLIC_ARTIFACT__,publicSource=__PUBLIC_SOURCE__;
 const worker=new Miniflare({compatibilityDate:'2026-07-15',modules:true,
  script:'export default {fetch(){return new Response(null,{status:404})}}',d1Databases:['DB']});
 try {
@@ -439,25 +466,34 @@ try {
   const result=await invoker.invokeRead({operation:'MetadataOrder.'+operation,inputs:{}},identity);
   assert.ok('result' in result,JSON.stringify(result));assert.deepEqual(result.result,{result:expected,revision});
   const hidden=await invoker.invokeRead({operation:'MetadataOrder.'+operation,inputs:{}},anonymous);
-  if(operation==='ascending'||operation==='descending') {
-   assert.ok('result' in hidden,JSON.stringify(hidden));assert.deepEqual(hidden.result,{result:[],revision});
-  } else {
-   assert.equal(hidden.error?.code,'validation',JSON.stringify(hidden));
-   const field=operation.startsWith('day')?'day':'at';
-   assert.equal(hidden.error.message,'Query path "'+field+'" is not granted to this caller.');
-  }
+  assert.ok('result' in hidden,JSON.stringify(hidden));
+  assert.deepEqual(hidden.result,{result:[],revision},'unreadable rows are filtered before order fields are touched');
  }
  const denied=await invoker.invokeRead({operation:'MetadataOrder.privateAscending',inputs:{}},identity);
  assert.equal(denied.error?.code,'validation',JSON.stringify(denied));
  assert.equal(denied.error.message,'Query path "privateAt" is not granted to this caller.');
  assert.equal(await store.readRevision(),revision);
  assert.deepEqual(await store.query({model,authority:'owner'}),before);
+ const publicAsm=await assembleModules({artifact:publicArtifact,sourcePath:publicSource},{workDir:__PUBLIC_WORK__,
+  stdlibUrl:import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),uiUrl:import.meta.resolve('@canlang/ui')});
+ const publicInvoker=buildInvoker(publicArtifact,publicAsm,store,{memberships,now:()=>FIXED_NOW+2000});
+ const visible=await publicInvoker.invokeRead({operation:'MetadataOrder.ascending',inputs:{}},anonymous);
+ assert.ok('result' in visible,JSON.stringify(visible));
+ assert.deepEqual(visible.result,{result:['early-b','early-c','late-a','null','absent'],revision},'anonymous caller has genuine label-only row grants');
+ for(const operation of ['dayAscending','dayDescending','instantAscending','instantDescending']) {
+  const hidden=await publicInvoker.invokeRead({operation:'MetadataOrder.'+operation,inputs:{}},anonymous);
+  assert.equal(hidden.error?.code,'validation',JSON.stringify(hidden));
+  const field=operation.startsWith('day')?'day':'at';
+  assert.equal(hidden.error.message,'Query path "'+field+'" is not granted to this caller.');
+ }
+ assert.equal(await store.readRevision(),revision);
+ assert.deepEqual(await store.query({model,authority:'owner'}),before);
  await seedRow(store,model,{id:uuidv7(FIXED_NOW,6),data:{label:'bad',day:'2026-02-30',at:'2026-10-15T01:00:00+00:00'}});
  const badRevision=await store.readRevision(),badBefore=await store.query({model,authority:'owner'});
- for(const [operation,type] of [['dayAscending','date'],['instantAscending','datetime']]) {
+ for(const operation of ['dayAscending','instantAscending']) {
   const failed=await invoker.invokeRead({operation:'MetadataOrder.'+operation,inputs:{}},identity);
-  assert.equal(failed.error?.code,'validation',JSON.stringify(failed));
-  assert.match(failed.error.message,new RegExp('invalid '+type+' wire value'));
+  assert.equal(failed.error?.code,'rule_failed',JSON.stringify(failed));
+  assert.equal(failed.error.message,'schema validation failed with 1 violation(s)');
  }
  // The authored predicate materializes the native row first: its schema failure
  // remains earlier than the order step, including this singleton selection.
@@ -470,6 +506,9 @@ try {
  assert.deepEqual(await store.query({model,authority:'owner'}),badBefore);
 } finally {await worker.dispose();}
 "#.replace("__ARTIFACT__",String::from_utf8_lossy(&output.stdout).trim())
+ .replace("__PUBLIC_ARTIFACT__",String::from_utf8_lossy(&public_output.stdout).trim())
+ .replace("__PUBLIC_SOURCE__",&serde_json::to_string(&scratch.path().join("public-label.can")).unwrap())
+ .replace("__PUBLIC_WORK__",&serde_json::to_string(&scratch.path().join("public-assembled")).unwrap())
  .replace("__SOURCE__",&serde_json::to_string(&scratch.path().join("metadata.can")).unwrap())
  .replace("__WORK__",&serde_json::to_string(&scratch.path().join("assembled")).unwrap());
     let runner = scratch.path().join("run.mjs");
@@ -484,24 +523,18 @@ try {
         "{}",
         String::from_utf8_lossy(&native.stderr)
     );
-    for invalid in [
+    for expression in [
         source
             .replace("ascending()", "ascending(other:Entry)")
             .replacen("order=entry.created", "order=other.created", 1),
         source.replacen("order=entry.created", "order=entry.created+1h", 1),
     ] {
-        let (output, refusal) = compile(&invalid);
-        assert_eq!(output.status.code(), Some(10), "{refusal}");
+        let (output, artifact) = compile(&expression, "expression.can");
+        assert!(output.status.success(), "{artifact}");
+        let code = artifact["modules"][0]["js"].as_str().unwrap();
         assert!(
-            refusal["diagnostics"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|d| d["code"] == "E6008"
-                    && d["message"]
-                        == "cannot lower expression query order: no §13 lowering exists"),
-            "{refusal}"
+            code.contains("order:{by:") && code.contains("compare:"),
+            "{code}"
         );
-        assert!(refusal.get("modules").is_none(), "{refusal}");
     }
 }
