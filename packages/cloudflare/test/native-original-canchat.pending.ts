@@ -282,10 +282,12 @@ test('unchanged original CanChat retains Files and exercises original empty term
       // The receipt-free unavailable verdict commits one empty System batch: exactly one fence
       // revision plus one appended unknown fence_log entry; every other table stays byte-identical.
       const beforeFence=beforeUnsupported.owner['fence'],afterFence=afterUnsupported.owner['fence'];
+      assert.ok(beforeFence);assert.ok(afterFence);
       assert.equal(beforeFence.length,1);assert.equal(afterFence.length,1);
       assert.deepEqual({...afterFence[0],revision:beforeFence[0]!.revision},beforeFence[0]);
       assert.equal(afterFence[0]!.revision,(beforeFence[0]!.revision as number)+1);
       const beforeLog=beforeUnsupported.owner['fence_log'],afterLog=afterUnsupported.owner['fence_log'];
+      assert.ok(beforeLog);assert.ok(afterLog);
       assert.equal(afterLog.length,beforeLog.length+1);
       const remaining=[...afterLog];
       for (const prior of beforeLog) {

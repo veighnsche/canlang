@@ -2,7 +2,7 @@
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { prepareCrmPromotionSource } from './crm-promotion-source.ts';
+import { prepareCrmPromotionSource } from './crm-promotion-source.js';
 
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
 export async function preparePartnerShareSource(directory: string) {
@@ -12,7 +12,7 @@ export async function preparePartnerShareSource(directory: string) {
   const affiliatePath = join(root, 'draft/apps/CanAffiliate/CanAffiliate.can');
   const referPath = join(root, 'draft/apps/CanRefer/CanRefer.can');
   const customerPath = join(root, 'draft/apps/CanCustomer/CanCustomer.can');
-  const [affiliate, refer, customer] = await Promise.all([affiliatePath, referPath, customerPath].map(path => readFile(path, 'utf8')));
+  const [affiliate, refer, customer] = await Promise.all(([affiliatePath, referPath, customerPath] as const).map(path => readFile(path, 'utf8')));
   function owner(text: string) {
     const lines = text.split('\n');
     const many = (prefix: string, expected: number) => {
@@ -22,7 +22,7 @@ export async function preparePartnerShareSource(directory: string) {
     };
     return { lines, many, one: (prefix: string) => many(prefix, 1)[0]! };
   }
-  const a = owner(affiliate), r = owner(refer), c = owner(customer);
+  const a = owner(affiliate!), r = owner(refer!), c = owner(customer!);
   const base = dependencies.source.split('\n');
   const crmStart = base.findIndex(line => line.startsWith('package crm '));
   if (crmStart < 0) throw new Error('Original CRM dependency package boundary is missing.');

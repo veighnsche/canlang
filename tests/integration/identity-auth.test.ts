@@ -41,7 +41,7 @@ function createMailOutbox(): { sent: SentMail[]; mail: { sendMail(to: string, su
 
 function extractToken(body: string): string {
   const match = body.match(/token=([^\s&]+)/);
-  if (match === null) throw new Error("recovery mail carries no token link");
+  if (match?.[1] === undefined) throw new Error("recovery mail carries no token link");
   return match[1];
 }
 
@@ -69,8 +69,8 @@ describe("identity auth", () => {
     ).resolves.toEqual({ ok: true });
     expect(sent).toHaveLength(2);
 
-    const firstToken = extractToken(sent[0].body);
-    const secondToken = extractToken(sent[1].body);
+    const firstToken = extractToken(sent[0]!.body);
+    const secondToken = extractToken(sent[1]!.body);
     expect(secondToken).not.toBe(firstToken);
 
     await expect(

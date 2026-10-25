@@ -9,7 +9,7 @@ import { expect, it } from 'vitest';
 import { createD1IdentityStore, ensureIdentitySchema, hashPassword, deriveCsrfToken, resolveIdentity } from '@canlang/identity';
 import { Window } from 'happy-dom';
 import { form as renderForm, submitGeneratedForm } from '@canlang/ui';
-import { buildPresentationContext } from '../../interfaces/src/http/presentation.js';
+import { buildPresentationContext } from '@canlang/interfaces';
 import { composeSystemTeamCatalog, createArtifactCatalog, systemTeamRoles } from '../src/runtime/mcp-registry.js';
 import type { D1Database } from '@cloudflare/workers-types';
 import { distribution as valuesDistribution } from '@canlang/values/distribution';

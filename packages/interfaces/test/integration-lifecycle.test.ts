@@ -758,7 +758,7 @@ test('B2 uploads: intent -> PUT -> finalize journeys to {file}; invented intent 
     testRequest('/files/content/intent-1', {
       method: 'PUT',
       cookie: t.owner.cookie,
-      headers: { 'content-type': 'application/octet-stream', 'x-csrf-token': t.owner.csrf },
+      headers: { 'content-type': 'application/octet-stream', 'x-csrf-token': t.owner.csrf, 'upload-offset': '0' },
       body: 'abcd',
     }),
   );

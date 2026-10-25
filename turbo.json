@@ -21,7 +21,8 @@
     "CAN_PREPARATION_BIN", "CAN_BIN", "LOADER_SMOKE_WASM", "CAN_COMPLETION_REQUIRE_ENGINES",
     "CI", "NO_COLOR", "FORCE_COLOR", "TMPDIR", "TMP", "TEMP",
     "CARGO_TARGET_DIR", "CARGO_HOME", "RUSTUP_HOME", "RUSTUP_TOOLCHAIN",
-    "RUSTFLAGS", "CARGO_BUILD_TARGET", "WASM_BINDGEN_*"
+    "RUSTFLAGS", "RUST_MIN_STACK", "CARGO_BUILD_TARGET", "CARGO_BUILD_JOBS",
+    "CARGO_PROFILE_DEV_DEBUG", "CARGO_PROFILE_TEST_DEBUG", "CARGO_INCREMENTAL", "WASM_BINDGEN_*"
   ],
   "tasks": {
     "build": {
@@ -40,6 +41,15 @@
     "catalog:emit": { "dependsOn": ["build"], "cache": false, "outputs": ["dist/catalog.json"] },
     "build:semantics": { "cache": false },
     "build:wasm": { "cache": false },
+    "@canlang/work-kernel#build:wasm": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "outputs": ["dist/native/recovery.wasm", "dist/native/BUILD.json"]
+    },
+    "@canlang/cloudflare#test:runtime": {
+      "dependsOn": ["build", "@canlang/work-kernel#build:wasm"],
+      "cache": false
+    },
     "//#typecheck:root": { "dependsOn": ["^build"], "cache": false },
     "//#typecheck:e2e:check": { "dependsOn": ["^build"], "cache": false },
     "//#test:root": { "dependsOn": ["^build"], "cache": false },

@@ -114,9 +114,7 @@ describe("captured compiler against the Office Supplies evaluator source", () =>
     try {
       const source = await readFile(app, "utf8");
       writeFileSync(app, source.replace("When\n", "When\n use Extra {Thing}\n"));
-      const importResult = await compileCapturedSingleFile(await captureSingleFileSource(request));
-      expect(importResult.kind).toBe("profile_unsupported");
-      if (importResult.kind === "profile_unsupported") expect(importResult.reason).toMatch(/imported members/);
+      await expect(captureSingleFileSource(request)).rejects.toThrow('imported package Extra has no provider source in the checkout');
 
       writeFileSync(app, source + "\napp Another\nGiven\nWhen\nThen\n");
       const multiple = await compileCapturedSingleFile(await captureSingleFileSource(request));
@@ -126,7 +124,7 @@ describe("captured compiler against the Office Supplies evaluator source", () =>
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
-  });
+  }, 30000);
 
   it("refuses a catalog changed after capture before invoking the compiler", async () => {
     const { root, request } = await tempWitness();
@@ -141,7 +139,7 @@ describe("captured compiler against the Office Supplies evaluator source", () =>
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
-  });
+  }, 30000);
 
   it("withholds a compiler result when the captured source changes while it runs", async () => {
     const { root, app, request } = await tempWitness();

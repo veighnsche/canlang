@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { Miniflare } from 'miniflare';
 import { it } from 'vitest';
-import { createSqliteFileStore } from '../../files/src/host/sqlite.js';
+import { createSqliteFileStore } from '@canlang/files/host/sqlite';
 import type { CompileArtifact, StoredRow } from '@canlang/contracts';
 import { deriveCsrfToken, sha256HexText } from '@canlang/identity';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
@@ -54,18 +54,21 @@ it('admits native Worker upload intents through current canonical context before
     const store = createMemoryStorage();
     const row = makeRow({ id: asId('upload-entry'), data: { label: 'Uploaded', attachment: null } });
     await store.commit(makeBatch(await store.readRevision(), { writes: [
-      { kind: 'insert', model: asModel('TypedFileJourney.Entry'), row, parent: null },
+      { kind: 'insert', model: asModel('TypedFileJourney.Entry'), row },
     ] }));
     const db = await runtime.getD1Database('DB');
     const files = await createWorkerFiles({ artifact, asm, store, identities, clock,
       env: { DB: db, FILES: await runtime.getR2Bucket('FILES') }, origin: 'https://files.test',
       retention: { unattachedHorizonMs: 86400000, retentionMs: 86400000 }, intentTtlMs: 900000 });
     assert.ok(files, 'the compiler must install its implicit Files binding');
+    assert.ok(files.fetch, 'the Files binding must expose its HTTP handler');
+    assert.ok(files.intentsUrl, 'the Files binding must expose its upload-intent endpoint');
+    const fetchFiles = files.fetch.bind(files);
     const headers = { 'content-type': 'application/json', cookie: `can_session=${token}`,
       'x-csrf-token': await deriveCsrfToken(token) };
     const body = { upload_id: 'native-one', operation: 'TypedFileJourney.attach', field: '/attachment',
       arguments: { entry: { id: row.id, version: String(row.version) } }, name: 'native.txt', type: 'text/plain', size: '5' };
-    const intent = (input: unknown, withHeaders: HeadersInit = headers) => files.fetch(new Request(files.intentsUrl,
+    const intent = (input: unknown, withHeaders: ConstructorParameters<typeof Headers>[0] = headers) => fetchFiles(new Request(files.intentsUrl!,
       { method: 'POST', headers: withHeaders, body: JSON.stringify(input) }));
     // accept is deliberately absent: the later business Require remains unevaluated.
     const granted = await intent(body);
@@ -112,11 +115,11 @@ it('admits native Worker upload intents through current canonical context before
     const unionGranted = await intent({ ...union,
       arguments: { payload: { draft: { type: 'TypedFileJourney.UploadDraft', value: { entry: body.arguments.entry } } } } });
     assert.equal(unionGranted.status, 200, await unionGranted.clone().text());
-    const appended = await files.fetch(new Request(grant.content, { method: 'PUT',
+    const appended = await fetchFiles(new Request(grant.content, { method: 'PUT',
       headers: { ...headers, 'upload-offset': '0' }, body: 'hello' }));
     assert.equal(appended.status, 200, await appended.clone().text());
     const digest = `sha256:${createHash('sha256').update('hello').digest('hex')}`;
-    const finalized = await files.fetch(new Request(grant.finalize, { method: 'POST', headers,
+    const finalized = await fetchFiles(new Request(grant.finalize, { method: 'POST', headers,
       body: JSON.stringify({ upload_id: body.upload_id, bytes_digest: digest }) }));
     assert.equal(finalized.status, 200, await finalized.clone().text());
     assert.ok(await finalized.json());
@@ -615,12 +618,12 @@ it('persists real finalized bytes and metadata, preserves observation issuance, 
   const directory = await mkdtemp(join(tmpdir(), 'can-durable-files-'));
   const entry = join(directory, 'entry.js');
   const output = join(directory, 'worker.js');
-  const adapter = fileURLToPath(new URL('../../files/dist/src/host/durable-sqlite.js', import.meta.url));
-  const finalize = fileURLToPath(new URL('../../files/dist/src/finalize/index.js', import.meta.url));
-  const upload = fileURLToPath(new URL('../../files/dist/src/upload/index.js', import.meta.url));
+  const adapter = createRequire(import.meta.url).resolve('@canlang/files/host/durable-sqlite');
+  const finalize = createRequire(import.meta.url).resolve('@canlang/files/finalize');
+  const upload = createRequire(import.meta.url).resolve('@canlang/files/upload');
   const bound = fileURLToPath(new URL('../dist/runtime/bound-files.js', import.meta.url));
   const staging = fileURLToPath(new URL('../dist/runtime/file-staging.js', import.meta.url));
-  const kernel = fileURLToPath(new URL('../../interfaces/dist/src/uploads/kernel.js', import.meta.url));
+  const kernel = createRequire(import.meta.url).resolve('@canlang/interfaces/uploads/kernel');
   await writeFile(entry, `
 import {createDurableSqliteFileStore,createSqliteFileBindings} from ${JSON.stringify(adapter)};
 import {readFinalizedFileObservation} from ${JSON.stringify(finalize)};

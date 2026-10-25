@@ -19,12 +19,13 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createWorkKernel } from "@canlang/work-kernel";
+import { distribution as workKernelDistribution } from "@canlang/work-kernel/distribution";
 import { gatherDeploymentAssets } from "../deploy/package-assets.js";
 import { startLocalDev } from "./native-preview.test-support.js";
 import { PINNED_COMPATIBILITY_DATE } from "../cli/artifact-defaults.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const WORK_KERNEL_DIST = join(HERE, "..", "..", "..", "work-kernel", "dist");
+const WORK_KERNEL_DIST = fileURLToPath(workKernelDistribution.modules);
 const FIXTURES = join(HERE, "..", "..", "..", "work-kernel", "conformance", "fixtures");
 const WASM_KEY = "vendor/work-kernel/native/recovery.wasm";
 

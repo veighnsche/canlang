@@ -7,8 +7,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Miniflare } from 'miniflare';
 import { it } from 'vitest';
-import { bootstrapD1Owner, bootstrapD1SetupOwner, addD1TeamMember } from '../../identity/src/storage/bootstrap.js';
-import { ensureIdentitySchema, type IdentityD1Database, type IdentityD1BoundStatement } from '../../identity/src/storage/d1.js';
+import { bootstrapD1Owner, bootstrapD1SetupOwner, addD1TeamMember } from '@canlang/identity';
+import { ensureIdentitySchema, type IdentityD1Database, type IdentityD1BoundStatement } from '@canlang/identity';
 
 import { createD1IdentityStore, createOpaqueToken, deriveCsrfToken, hashPassword, inviteMember, inviteMemberWithReceipt, acceptInvitation, setMemberRole } from '@canlang/identity';
 import { handleAuthRequest, type AuthHttpDeps } from '@canlang/interfaces';

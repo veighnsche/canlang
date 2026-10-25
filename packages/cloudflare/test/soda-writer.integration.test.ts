@@ -34,7 +34,7 @@ function compiledInput(workspace?: string, fixtureSource?: string) {
   const original = join(root, 'scripts/fixtures/soda-runtime.can');
   const fixture = workspace ? join(workspace, 'soda-runtime.can') : original;
   if (workspace) writeFileSync(fixture, fixtureSource ?? readFileSync(original));
-  const { artifact } = parseArtifactText(execFileSync(join(root, 'compiler/target/release/can'), [
+  const { artifact } = parseArtifactText(execFileSync(process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can'), [
     'compile', '--format=json', '--native-scenario-receipts', `--catalog=${fileURLToPath(distribution.catalog)}`, fixture,
   ], { cwd: workspace ?? root, encoding: 'utf8' }), fixture);
   const requirements = [{ binding: 'DB', kind: 'd1' as const, logicalName: 'identity' },
