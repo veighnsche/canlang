@@ -13305,16 +13305,17 @@ async function runScenarioExecution(
       try{
         const execute=loaded.producers.invoke.executeScenarioSourceQueryValue,assertExecution=loaded.producers.invoke.assertScenarioReceiptCallExecution;
         if(execute===undefined||assertExecution===undefined||nativeScenarioExecutions.get(actual)?.session!==ownerSession)return refuseRecordBinding('LET Values query lacks its actual live State owner.');
-        assertExecution(actual,receiptStore,sourceRequireAware?0:undefined);
+        assertExecution(actual,receiptStore);
         const raw=producer.original(body),issued=localPolicyObject(raw);
         const source=producer.sources.find(source=>stableStringify(source)===stableStringify(captureDispatchPreclaimData(issued.source)));
         if(issued.context!==ctx||source===undefined)return refuseRecordBinding('LET Values query changed its original callback, context or source census.');
+        assertExecution(actual,receiptStore,sourceRequireAware&&source.stage===0?0:undefined);
         localPolicyObject(raw,source.captures===undefined?['source','context']:['source','context','captures']);
         if(activeSourceValueQuery!==null)return refuseRecordBinding('LET Values query cannot replace its active original evaluation.');
         activeSourceValueQuery=new Map();
         try{
           const value=await execute(actual,receiptStore,{source,body,context:ctx});
-          assertExecution(actual,receiptStore,sourceRequireAware?0:undefined);return value;
+          assertExecution(actual,receiptStore,sourceRequireAware&&source.stage===0?0:undefined);return value;
         }finally{activeSourceValueQuery=null;}
       }catch(error){recordEngineFailure(error);throw error;}
     });

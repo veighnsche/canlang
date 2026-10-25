@@ -2759,7 +2759,38 @@ fn serialize_require_phase_prefix(
     if !matches!(site.stage, Stage::BodyCondition | Stage::BodyRequire) {
         return None;
     }
-    let [Position::Body(index), nested @ ..] = site.position.as_slice() else {
+    serialize_mutation_prefix(
+        sources,
+        owner,
+        &site.position,
+        &serde_json::to_value(serial_source(site.source.clone())).ok()?,
+    )
+}
+
+/// A LET producer proves its own source kind before sharing the exact ordered
+/// mutation-prefix transport with original guard producers.
+pub(super) fn serialize_let_mutation_prefix(
+    sources: &FreshSourceContext<'_>,
+    owner: &IrItem,
+    statement: Span,
+    source: &serde_json::Value,
+) -> Option<serde_json::Value> {
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return None;
+    };
+    let index = effects
+        .iter()
+        .position(|effect| matches!(effect, IrStmt::Let { span, .. } if *span == statement))?;
+    serialize_mutation_prefix(sources, owner, &[Position::Body(index)], source)
+}
+
+fn serialize_mutation_prefix(
+    sources: &FreshSourceContext<'_>,
+    owner: &IrItem,
+    position: &[Position],
+    source: &serde_json::Value,
+) -> Option<serde_json::Value> {
+    let [Position::Body(index), nested @ ..] = position else {
         return None;
     };
     sources.same_scenario(sources.ir(), owner)?;
@@ -2832,8 +2863,7 @@ fn serialize_require_phase_prefix(
         }
     }
     let ir = sources.ir();
-    let source = serde_json::to_value(serial_source(site.source.clone())).ok()?;
-    let loops = super::source_loops::collect_phase_prefix(ir, owner, sources, &source, "");
+    let loops = super::source_loops::collect_phase_prefix(ir, owner, sources, source, "");
     let mut prefix = Vec::new();
     let mut append = |body: &[IrStmt]| -> Option<()> {
         for statement in body {
@@ -2874,7 +2904,7 @@ fn serialize_require_phase_prefix(
                     when: None,
                     ..
                 } if matches!(&owner.kind, IrItemKind::Scenario { result: None, .. }) => {
-                    let creates = super::source_created_rows::collect(ir, owner, sources, &source)?;
+                    let creates = super::source_created_rows::collect(ir, owner, sources, source)?;
                     let created = creates.iter().find(|created| {
                         created["node"]["start"] == span.start && created["node"]["end"] == span.end
                     })?;

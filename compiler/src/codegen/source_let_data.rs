@@ -925,6 +925,27 @@ pub(super) fn capture_plain_value(ir: &IrProgram, ty: &ResolvedType, depth: usiz
     }
 }
 
+/// A staged scalar aggregate still executes its original selected query.
+/// No caller-supplied array or arbitrary helper stands in for that domain.
+pub(super) fn query_value_expression(value: &TypedExpr) -> Option<(&TypedExpr, &IrQuery)> {
+    if let IrExpr::Query(query) = &value.expr {
+        return Some((value, query));
+    }
+    let (IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. }) = &value.expr
+    else {
+        return None;
+    };
+    if !matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "sum")
+        || args.len() != 2
+    {
+        return None;
+    }
+    let IrExpr::Query(query) = &args[0].expr else {
+        return None;
+    };
+    Some((&args[0], query))
+}
+
 pub(super) fn collect_query_values(
     ir: &IrProgram,
     owner: &IrItem,
@@ -958,15 +979,37 @@ pub(super) fn collect_query_values(
         .map(|item| item.name.clone())
         .collect::<BTreeSet<_>>();
     let mut output = HashMap::new();
+    let mut written = false;
     for effect in effects {
         let IrStmt::Let { name, value, span } = effect else {
             if matches!(effect, IrStmt::Require { .. }) {
                 continue;
             }
+            if matches!(effect, IrStmt::Create { when: None, .. }) {
+                written = true;
+                continue;
+            }
             break;
         };
+        let prefix = if written {
+            let Some(prefix) = super::scenario_decisions::serialize_let_mutation_prefix(
+                context, owner, *span, source,
+            ) else {
+                continue;
+            };
+            if !prefix
+                .as_array()?
+                .iter()
+                .all(|step| step["kind"] == "create")
+            {
+                continue;
+            }
+            Some(prefix)
+        } else {
+            None
+        };
         let mut queries = Vec::new();
-        let query = if let IrExpr::Query(query) = &value.expr {
+        let query = if let Some((query_value, query)) = query_value_expression(value) {
             let IrQueryDomain::Model(model) = &query.domain else {
                 continue;
             };
@@ -976,16 +1019,19 @@ pub(super) fn collect_query_values(
                 || query.limit.is_some()
                 || query.archived.is_some()
                 || original.node.file != span.file
-                || original.node.start != value.span.start
-                || original.node.end != value.span.end
+                || original.node.start != query_value.span.start
+                || original.node.end != query_value.span.end
             {
                 continue;
             }
-            queries.push(serde_json::json!({"node":{"start":value.span.start,"end":value.span.end},"model":model}));
+            queries.push(serde_json::json!({"node":{"start":query_value.span.start,"end":query_value.span.end},"model":model}));
             true
         } else {
             false
         };
+        if written && !query {
+            continue;
+        }
         if !capture_plain_value(ir, &value.ty, 0)
             || !query && !super::source_send_data::send_value(ir, value, &values, 0)
         {
@@ -993,9 +1039,28 @@ pub(super) fn collect_query_values(
         }
         let type_id = super::scenario_decisions::serial_type(&value.ty, context.original(), ir, 0)?;
         values.insert(name.clone());
-        output.insert(*span,serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},
+        let mut descriptor = serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},
             "owner":owner.canonical,"node":{"start":span.start,"end":span.end},"value":{"start":value.span.start,"end":value.span.end},
-            "binding":name,"typeId":type_id,"stage":0,"queries":queries}));
+            "binding":name,"typeId":type_id,"stage":0,"queries":queries});
+        if let Some(prefix) = prefix {
+            descriptor["stage"] = serde_json::json!(prefix.as_array()?.len());
+            descriptor["mutationPrefix"] = prefix;
+            let readers = collect_query_rows(
+                ir,
+                owner,
+                context,
+                &HashMap::from([(*span, descriptor.clone())]),
+            );
+            let Some(reader) = readers
+                .get(span)
+                .and_then(|site| site["queries"].as_array())
+                .and_then(|queries| queries.first())
+            else {
+                continue;
+            };
+            descriptor["queries"][0]["reader"] = reader.clone();
+        }
+        output.insert(*span, descriptor);
     }
     Some(output)
 }
@@ -1206,13 +1271,13 @@ pub(super) fn collect_query_rows(
         if site.get("receiptQueryId").is_some() {
             continue;
         }
-        let IrExpr::Query(query) = &value.expr else {
+        let Some((query_value, query)) = query_value_expression(value) else {
             continue;
         };
         let super::ir::IrQueryDomain::Model(model) = &query.domain else {
             continue;
         };
-        if query.parent.is_some()
+        if query.parent.is_some() && site.get("mutationPrefix").is_none()
             || query.where_pred.is_some()
             || query.limit.is_some()
             || query.archived.is_some()
@@ -1245,11 +1310,40 @@ pub(super) fn collect_query_rows(
         let id = crate::source::sha256_hex(
             format!(
                 "source-values-query/v1:{}:{}:{}",
-                site["source"]["sha256"], value.span.start, value.span.end
+                site["source"]["sha256"], query_value.span.start, query_value.span.end
             )
             .as_bytes(),
         );
-        out.insert(*span,serde_json::json!({"source":site["source"],"owner":owner.canonical,"node":site["node"],"queries":[{"id":id,"node":{"start":value.span.start,"end":value.span.end},"model":model,"fields":[{"name":field,"type":ty}]}]}));
+        let mut descriptor = serde_json::json!({"id":id,"node":{"start":query_value.span.start,"end":query_value.span.end},"model":model,"fields":[{"name":field,"type":ty}]});
+        if let Some(parent) = &query.parent {
+            let IrExpr::Name(name) = &parent.expr else {
+                continue;
+            };
+            let ResolvedType::Record {
+                symbol,
+                stored: true,
+            } = parent.ty
+            else {
+                continue;
+            };
+            let Some(parent_model) = ir.items.get(symbol.0 as usize) else {
+                continue;
+            };
+            if !matches!(&model_item.kind, IrItemKind::Model { owner: IrOwner::ChildOf(actual), .. } if *actual == symbol)
+            {
+                continue;
+            }
+            let IrItemKind::Scenario { params, .. } = &owner.kind else {
+                continue;
+            };
+            if params.iter().filter_map(|id|ir.items.get(id.0 as usize)).any(|parameter|parameter.name==*name&&matches!(&parameter.kind,IrItemKind::Param {ty:IrType::Known(ty),default:None,..} if *ty==parent.ty)) {
+                descriptor["parent"] = serde_json::json!({"model":parent_model.canonical,"parameter":name});
+            } else {
+                let Some(created) = site["mutationPrefix"].as_array().and_then(|prefix|prefix.iter().find_map(|step|(step["kind"]=="create"&&step["created"]["binding"]==*name&&step["created"]["model"]==parent_model.canonical).then_some(&step["created"]))) else { continue; };
+                descriptor["parent"] = serde_json::json!({"model":parent_model.canonical,"created":created});
+            }
+        }
+        out.insert(*span,serde_json::json!({"source":site["source"],"owner":owner.canonical,"node":site["node"],"queries":[descriptor]}));
     }
     out
 }

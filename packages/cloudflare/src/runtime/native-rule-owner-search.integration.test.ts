@@ -1185,7 +1185,7 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
     try {
       const source = join(directory,'phase-prefix.can');
       const original=await readFile(join(root,'compiler/tests/fixtures/native-require-missing-owner-frame.can'),'utf8');
-      await writeFile(source,original.replace('Given\n','Given\n contract Selected {active:bool}\n').replace('Child in Root {active:bool=true}','Child in Root {active:bool=true,marked:bool=false}').replace('Then\n',' scenario staged(root:Root) by=members\n  do\n   let probe_values=Child as child select child.active\n   let original=root.capacity\n   require count(probe_values)>0\n   set root {checked=true,capacity=root.capacity+1}\n   for child in root.Child limit=10\n    set child {marked=true}\n   require root.checked and root.capacity>original and allowed(root)\n   if root.checked and allowed(root)\n    set root {capacity=root.capacity+1}\n scenario query_value(root:Root) by=members\n  require root.capacity>0\n  do\n   let values=root.Child as child select Selected {active=child.active}\n   require count(values)>0 and all(values as selected,selected.active)\n   let first_value=at(values,0)\n   require first_value!=null\n   set root {checked=true}\n scenario created(root:Root) by=members\n  do\n   create Child {parent=root,active=true,marked=false} as child\n   require root.capacity>0 and allowed(root)\n   for item in root.Child limit=10\n    set item {marked=true}\nThen\n'));
+      await writeFile(source,original.replace('Given\n','Given\n contract Selected {active:bool}\n StagedSettlement in Root {amount:money,visible:bool=true}\n StagedAllocation in StagedSettlement {amount:money}\n policy StagedSettlement read=members where=row.visible\n policy StagedAllocation read=members\n').replace('Child in Root {active:bool=true}','Child in Root {active:bool=true,marked:bool=false}').replace('Then\n',' scenario staged(root:Root) by=members\n  do\n   let probe_values=Child as child select child.active\n   let original=root.capacity\n   require count(probe_values)>0\n   set root {checked=true,capacity=root.capacity+1}\n   for child in root.Child limit=10\n    set child {marked=true}\n   require root.checked and root.capacity>original and allowed(root)\n   if root.checked and allowed(root)\n    set root {capacity=root.capacity+1}\n scenario query_value(root:Root) by=members\n  require root.capacity>0\n  do\n   let values=root.Child as child select Selected {active=child.active}\n   require count(values)>0 and all(values as selected,selected.active)\n   let first_value=at(values,0)\n   require first_value!=null\n   set root {checked=true}\n scenario staged_values(root:Root,other:Root,amount:money) by=members\n  require root.capacity>0 and amount.minor>0\n  do\n   create StagedSettlement {parent=root,amount,visible=true} as settlement\n   let staged_total=sum(root.StagedSettlement as entry select entry.amount,amount.currency)\n   let no_allocations=sum(settlement.StagedAllocation as entry select entry.amount,amount.currency)\n   require staged_total==amount and no_allocations==money(0,amount.currency)\n scenario created(root:Root) by=members\n  do\n   create Child {parent=root,active=true,marked=false} as child\n   require root.capacity>0 and allowed(root)\n   for item in root.Child limit=10\n    set item {marked=true}\nThen\n'));
       const { stdout } = await promisify(execFile)(compiler,
         ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
@@ -1205,6 +1205,74 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
         const artifact=JSON.parse(result.stdout)as CompileArtifact;
         const assembly=await assembleModules({artifact,sourcePath:variant},{workDir:join(directory,mode),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
         queryVariants.set(mode,{artifact,asm:assembly});
+      }
+      const stagedVariants=new Map<string,{artifact:CompileArtifact;asm:typeof asm}>();
+      for(const [mode,policy] of [['withheld','policy StagedSettlement read=members fields=visible where=row.visible'],['hidden','policy StagedSettlement read=members where=not row.visible']] as const){
+        const path=join(directory,`staged-${mode}.can`);await writeFile(path,(await readFile(source,'utf8')).replace('policy StagedSettlement read=members where=row.visible',policy));
+        const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,path],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+        const checked=JSON.parse(stdout)as CompileArtifact;
+        stagedVariants.set(mode,{artifact:checked,asm:await assembleModules({artifact:checked,sourcePath:path},{workDir:join(directory,`staged-${mode}`),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')})});
+      }
+      for(const mode of ['wrong-created-parent','stale-phase','missing-prefix','unissued-callback']){
+        const forged=JSON.parse(JSON.stringify(artifact))as CompileArtifact;let changed=0;
+        const alter=(value:unknown):void=>{
+          if(value===null||typeof value!=='object')return;
+          const object=value as Record<string,unknown>;
+          if(object.owner==='GuardOwnerFrame.staged_values'&&object.binding==='staged_total'&&Array.isArray(object.mutationPrefix)){
+            if(mode==='stale-phase'){object.stage=2;changed++;}
+            if(mode==='missing-prefix'){delete object.mutationPrefix;changed++;}
+          }
+          const parent=object.parent as {created?:{parentParameter:string}}|undefined;
+          if(mode==='wrong-created-parent'&&parent?.created!==undefined){parent.created.parentParameter='other';changed++;}
+          for(const child of Object.values(object))alter(child);
+        };
+        for(const module of forged.modules){
+          if(mode==='unissued-callback'){
+            const before='function $can$query$value$issue(source,context,body,captures){';
+            if(module.js.includes(before)){module.js=module.js.replace(before,before+'if(JSON.parse(source).owner===\"GuardOwnerFrame.staged_values\")return async()=>body();');changed++;}
+          }else module.js=module.js.replace(/"(?:[^"\\]|\\.)*"/g,literal=>{
+            try{const text=JSON.parse(literal);if(typeof text!=='string')return literal;const value=JSON.parse(text),before=changed;alter(value);return before===changed?literal:JSON.stringify(JSON.stringify(value));}catch{return literal;}
+          });
+        }
+        assert.ok(changed>0,mode+': mutates actual staged source metadata or callback');
+        stagedVariants.set(mode,{artifact:forged,asm:await assembleModules({artifact:forged,sourcePath:source},{workDir:join(directory,`staged-${mode}`),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')})});
+      }
+      for(const mode of ['allowed','withheld','hidden','identity-during-query','domain-at-commit','wrong-created-parent','stale-phase','missing-prefix','unissued-callback']){
+        const {now,identities,identity,membership}=await member(`staged-values-${mode}`),store=createMemoryStorage();
+        const rootModel=model('GuardOwnerFrame','Root'),settlementModel=model('GuardOwnerFrame','StagedSettlement');
+        const parent={...makeRow({id:asId('root'),data:{capacity:'2',checked:false}}),parent:null};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:rootModel,row:parent},{kind:'insert',model:rootModel,row:{...parent,id:asId('other')}}]}));
+        const commit=store.commit.bind(store),query=store.query.bind(store);let raced=false;
+        store.query=async spec=>{
+          if(mode==='identity-during-query'&&!raced&&spec.model===settlementModel){raced=true;await identities.removeMembership(membership.membership_id);}
+          return query(spec);
+        };
+        store.commit=async batch=>{
+          if(!raced&&mode.endsWith('-at-commit')&&batch.writes.some(write=>write.kind==='insert'&&write.model===settlementModel)){
+            raced=true;
+            await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:settlementModel,row:{...makeRow({id:asId('concurrent'),data:{amount:{minor:'1',currency:'EUR'},visible:true}}),parent:{model:rootModel,id:parent.id}}}]}));
+          }
+          return commit(batch);
+        };
+        const selected=stagedVariants.get(mode);
+        const request={operation:'GuardOwnerFrame.staged_values',operation_id:operationId(now),inputs:{root:{id:'root',version:'1'},other:{id:'other',version:'1'},amount:{minor:'7',currency:'EUR'}}};
+        let result:MutationOutcome|undefined,rejected:unknown;
+        try{result=await buildInvoker(selected?.artifact??artifact,selected?.asm??asm,store,{memberships:identities,now:()=>now}).invokeMutation(request,identity);}catch(error){rejected=error;}
+        if(['wrong-created-parent','stale-phase','missing-prefix','unissued-callback'].includes(mode)){
+          if(rejected!==undefined)assert.match(String(rejected),/original|phase|created|parent|shape|invocation/i,mode);
+          else{assert.ok(result!==undefined&&'error'in result,mode);assert.equal(result.error.code,mode==='unissued-callback'?'rule_failed':'validation',mode+': '+JSON.stringify(result));if(mode==='unissued-callback')assert.match(result.error.message,/plain owning metadata/);}
+        }else{assert.equal(rejected,undefined,String(rejected));assert.ok(result!==undefined);if(mode==='identity-during-query'||mode.endsWith('-at-commit'))assert.equal(raced,true,mode+': actual race hook reached');assert.equal('result'in result,mode==='allowed',`${mode}: ${JSON.stringify(result)}`);}
+        const actual=await store.query({model:settlementModel,authority:'owner'});
+        assert.equal(actual.length,mode==='allowed'||mode==='domain-at-commit'?1:0,mode+': staged query denial rolls back its original CREATE');
+        if(mode==='allowed'){
+          assert.deepEqual(actual[0]!.data,{amount:{minor:'7',currency:'EUR'},visible:true});
+          assert.deepEqual(actual[0]!.parent,{model:rootModel,id:parent.id});
+          const replay=await buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}).invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
+          assert.ok(result!==undefined&&'result'in result);assert.deepEqual(replay.result.result,result.result.result);
+          assert.deepEqual(await store.query({model:settlementModel,authority:'owner'}),actual);
+        }else if(mode==='domain-at-commit')assert.equal(actual[0]!.id,'concurrent','only the independent physical race remains');
+        assert.deepEqual(await store.load(rootModel,parent.id),parent);assert.deepEqual(await store.outboxPending(),[]);
+        assert.deepEqual(await store.query({model:model('GuardOwnerFrame','StagedAllocation'),authority:'owner'}),[]);
       }
       for (const mode of ['allowed', 'full', 'inactive', 'other-parent', 'capacity-at-commit', 'membership-during-query','stage-allowed','stage-capacity-at-commit','stage-membership-during-query','stage-withheld-capture','stage-hidden-query','stage-withheld-query']) {
         const { now, identities, identity, membership } = await member(`source-only-${mode}`);

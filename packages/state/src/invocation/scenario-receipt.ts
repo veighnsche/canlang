@@ -4454,7 +4454,7 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
         if(sourceQueryValueActive.has(owner))return invalid('Original query LET capture cannot stage mutations.');
         // The engine and phase ledger consume one identical immutable input.
         // Retain only its shape in the ledger; payload data stays in staging.
-        if(sourceRequirePhaseProducers.has(owner.call.def as GeneratedOperationDef))writes=deepFreeze(jsonClone(writes,'Source phase mutation writes'));
+        if(sourceMutationProofRequired(owner.call.def as GeneratedOperationDef))writes=deepFreeze(jsonClone(writes,'Source phase mutation writes'));
         if (options?.cause !== 'scenario') return invalid('receipt owner staging requires the actual scenario cause.');
         const leave = owner.activeLeaveDecision;
         if (leave !== null) {
@@ -5175,15 +5175,8 @@ interface SourceMutationStamp {readonly stage:number;readonly call:AdmittedCall;
 const sourceMutationStamps=new WeakMap<ReceiptOwnerSession,SourceMutationStamp[]>();
 const sourceRequirePhaseProducers=new WeakMap<GeneratedOperationDef,ScenarioSourceRequirePhasePlan>();
 const sourceRequirePhaseTokens=new WeakMap<object,{readonly call:AdmittedCall;readonly store:StoragePort;readonly owner:ReceiptOwnerSession;readonly plan:ScenarioSourceRequirePhasePlan;readonly node:string;readonly stage:number;readonly revision:number;consumed:boolean}>();
-export function bindScenarioSourceRequirePhases(def:GeneratedOperationDef,value:ScenarioSourceRequirePhasePlan):void{
- const bound=boundPlans.get(def);if(bound===undefined||invokedPlans.has(def)||sourceRequirePhaseProducers.has(def))return invalid('Source phase needs its original uninvoked bound owner.');
- const raw=object(dataCopy(value),['source','owner','phases']);origin(raw['source']);
- if(raw['owner']!==def.name||stableStringify(raw['source'])!==stableStringify(bound.plan.source))return invalid('Source phase differs from its original owner/source.');
- const ids=new Set<string>();for(const value of list(raw['phases'])){
-  const phase=object(value,['node','statement','prefix']);
-  for(const value of [phase['node'],phase['statement']]){const span=object(value,['start','end']);if(!Number.isSafeInteger(span['start'])||!Number.isSafeInteger(span['end'])||Number(span['start'])<0||Number(span['end'])<=Number(span['start']))return invalid('Source phase lost its original guard interval.');}
-  const key=stableStringify(phase['node']);if(ids.has(key))return invalid('Source phase repeats an original guard.');ids.add(key);
-  const prefix=list(phase['prefix']);if(prefix.length===0)return invalid('Source phase requires its complete nonempty mutation prefix.');
+function bindSourceMutationPrefix(def:GeneratedOperationDef,bound:BoundPlan,raw:unknown):void{
+ const prefix=list(raw);if(prefix.length===0||prefix.length>MAX_ITEMS)return invalid('Source phase requires its complete bounded nonempty mutation prefix.');
   for(const value of prefix){
    if(typeof value==='object'&&value!==null&&Object.getOwnPropertyDescriptor(value,'kind')?.value==='create'){
     const step=object(value,['kind','created','fields']);
@@ -5206,26 +5199,37 @@ export function bindScenarioSourceRequirePhases(def:GeneratedOperationDef,value:
    for(const value of parents){const parent=text(value) as ModelName;if(bound.artifactModels.get(model)?.parent!==parent||storedReferenceField(bound,model,'parent',parent).target!==parent)return invalid('Source phase SET parent differs from containment.');model=parent;}
    const fields=list(step['fields']).map(text);if(fields.length===0||new Set(fields).size!==fields.length||fields.some(name=>!bound.artifactModels.get(model)?.fields.some(field=>field.name===name&&field.default?.kind!=='derived')))return invalid('Source phase SET field census differs from its actual schema.');
   }
+}
+export function bindScenarioSourceRequirePhases(def:GeneratedOperationDef,value:ScenarioSourceRequirePhasePlan):void{
+ const bound=boundPlans.get(def);if(bound===undefined||invokedPlans.has(def)||sourceRequirePhaseProducers.has(def))return invalid('Source phase needs its original uninvoked bound owner.');
+ const raw=object(dataCopy(value),['source','owner','phases']);origin(raw['source']);
+ if(raw['owner']!==def.name||stableStringify(raw['source'])!==stableStringify(bound.plan.source))return invalid('Source phase differs from its original owner/source.');
+ const ids=new Set<string>();for(const value of list(raw['phases'])){
+  const phase=object(value,['node','statement','prefix']);
+  for(const value of [phase['node'],phase['statement']]){const span=object(value,['start','end']);if(!Number.isSafeInteger(span['start'])||!Number.isSafeInteger(span['end'])||Number(span['start'])<0||Number(span['end'])<=Number(span['start']))return invalid('Source phase lost its original guard interval.');}
+  const key=stableStringify(phase['node']);if(ids.has(key))return invalid('Source phase repeats an original guard.');ids.add(key);
+  bindSourceMutationPrefix(def,bound,phase['prefix']);
  }
  if(ids.size===0)return invalid('Source phase needs an original checked guard census.');sourceRequirePhaseProducers.set(def,deepFreeze(raw) as unknown as ScenarioSourceRequirePhasePlan);
 }
+function sourceMutationProofRequired(def:GeneratedOperationDef):boolean{
+ return sourceRequirePhaseProducers.has(def)||sourceQueryValueProducers.get(def)?.sites.some(site=>site.mutationPrefix!==undefined)===true;
+}
 function recordSourceMutationStamp(owner:ReceiptOwnerSession,writes:Parameters<OwnerMutationSession['stage']>[0]):void{
- if(!sourceRequirePhaseProducers.has(owner.call.def as GeneratedOperationDef))return;
+ if(!sourceMutationProofRequired(owner.call.def as GeneratedOperationDef))return;
  const stamps=sourceMutationStamps.get(owner)??[];sourceMutationStamps.set(owner,stamps);
  if(stamps.length>=((sourceBodyLoopLimits(owner.call.def as GeneratedOperationDef)?.maxWrites)??MAX_ITEMS))return invalid('Source phase mutation stamp census exceeded its owning budget.');
  const item=sourceBodyLoopItems.get(owner),actual=Array.isArray(writes)?writes:[writes];
  stamps.push(Object.freeze({stage:owner.stage,call:owner.executingCall,writes:Object.freeze(actual.map(write=>Object.freeze({op:write.op,model:write.model,id:write.id,fields:Object.freeze(Object.keys(write.data??{}).sort()),plain:write.parent===undefined&&write.transition===undefined&&write.when===undefined,noModifiers:write.transition===undefined&&write.when===undefined,...(write.parent===undefined?{}:{parent:Object.freeze({model:write.parent.model,id:write.parent.id})})}))),...(item===undefined?{}:{loop:Object.freeze({id:item.execution.loop.id,item:item.row.id})})}));
 }
-export async function openScenarioSourceRequirePhase(call:AdmittedCall,store:StoragePort,node:{readonly start:number;readonly end:number}):Promise<ScenarioSourceRequirePhase>{
- const state=capture(call,store),owner=ownerSessions.get(call),plan=sourceRequirePhaseProducers.get(call.def as GeneratedOperationDef);
- try{
-  const key=stableStringify(dataCopy(node)),phase=plan?.phases.find(phase=>stableStringify(phase.node)===key);
-  if(owner===undefined||owner.session===null||owner.call!==call||owner.executingCall!==call||owner.busy||state.pending!==0||phase===undefined||plan===undefined)return invalid('Source phase needs its actual quiescent original owner.');
-  return await ownerOperation(owner,async()=>{
+/** Verify the actual ordered owner mutations without assigning a source kind.
+ * Guard and LET producers independently bind their original authored sites. */
+async function checkedSourceMutationPrefix(call:AdmittedCall,store:StoragePort,owner:ReceiptOwnerSession,
+ prefix:ScenarioSourceRequirePhasePlan['phases'][number]['prefix']):Promise<number>{
    const stage=owner.stage,healthy=()=>{ownerHealthy(owner);if(owner.stage!==stage||owner.executingCall!==call)return invalid('Source phase crossed its actual original checkpoint.');};
    if(await store.readRevision()!==call.revision)throw new StateError('conflict','Source phase admission revision changed.');healthy();
    const stamps=sourceMutationStamps.get(owner)??[];let cursor=0;
-   for(const step of phase.prefix){
+   for(const step of prefix){
     if(step.kind==='create'){
      const captured=sourceCreatedRootCaptures.get(owner)?.get(step.created.id),stamp=stamps[cursor],write=stamp?.writes[0];
      if(captured===undefined||stableStringify(captured.profile)!==stableStringify(step.created)||captured.profile.stage!==cursor
@@ -5258,6 +5262,15 @@ export async function openScenarioSourceRequirePhase(call:AdmittedCall,store:Sto
    }
    if(cursor!==stamps.length||cursor!==stage)return invalid('Source phase omitted or reordered an actual owner mutation.');
    if(await store.readRevision()!==call.revision)throw new StateError('conflict','Source phase snapshot revision changed.');healthy();
+   return stage;
+}
+export async function openScenarioSourceRequirePhase(call:AdmittedCall,store:StoragePort,node:{readonly start:number;readonly end:number}):Promise<ScenarioSourceRequirePhase>{
+ const state=capture(call,store),owner=ownerSessions.get(call),plan=sourceRequirePhaseProducers.get(call.def as GeneratedOperationDef);
+ try{
+  const key=stableStringify(dataCopy(node)),phase=plan?.phases.find(phase=>stableStringify(phase.node)===key);
+  if(owner===undefined||owner.session===null||owner.call!==call||owner.executingCall!==call||owner.busy||state.pending!==0||phase===undefined||plan===undefined)return invalid('Source phase needs its actual quiescent original owner.');
+  return await ownerOperation(owner,async()=>{
+   const stage=await checkedSourceMutationPrefix(call,store,owner,phase.prefix);
    const token=Object.freeze({kind:'source-require-phase' as const});sourceRequirePhaseTokens.set(token,{call,store,owner,plan,node:key,stage,revision:call.revision,consumed:false});return token;
   },call);
  }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
@@ -5551,8 +5564,11 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
       const capture=object(raw,['node','binding','typeId']),node=object(capture['node'],['start','end']);
       const binding=text(capture['binding']),typeId=text(capture['typeId']);
       const recorded=sourceLetValueCaptures.get(call)?.get(`${node['start']}:${node['end']}`);
+      const stagedValue=recorded!==undefined&&recorded.stage>0&&recorded.site.stage===recorded.stage&&original.mutationPrefix!==undefined&&sourceQueryValueProducers.get(call.def as GeneratedOperationDef)?.sites.some(site=>
+        site.stage===recorded.stage&&site.node.start===recorded.site.node.start&&site.node.end===recorded.site.node.end&&site.binding===binding&&site.typeId===typeId&&site.mutationPrefix!==undefined&&
+        stableStringify(original.mutationPrefix!.slice(0,site.mutationPrefix.length))===stableStringify(site.mutationPrefix))===true;
       if(!sourceSendPlainType(state.bound,typeId,new Set(),0,false)||recorded===undefined||recorded.owner!==owner||recorded.store!==store
-          ||recorded.revision!==call.revision||recorded.stage!==0||recorded.site.stage!==0||recorded.site.loop!==undefined
+          ||recorded.revision!==call.revision||!stagedValue&&(recorded.stage!==0||recorded.site.stage!==0)||recorded.site.loop!==undefined
           ||recorded.site.binding!==binding||recorded.site.valueType!==typeId||recorded.site.node.end>original.node.start
           ||stableStringify(recorded.site.node)!==stableStringify(node)||recorded.site.owner!==original.owner
           ||stableStringify(recorded.site.source)!==stableStringify(state.bound.plan.source)
@@ -8157,7 +8173,7 @@ function sourceEffectGrantSlot(owner:ReceiptOwnerSession,producer:ScenarioReceip
       maximum+=site.parameters.reduce((total,parameter)=>total+sourceEffectParameterGuardMaximum(parameter),0)+(site.queries?.length??0)*owner.maxRows;
   }else if(producer!==undefined&&producer===sourceQueryRowsProducers.get(def)){
     const sites=sourceQueryRowsProducers.get(def)!.sites;
-    maximum=sites.reduce((total,site)=>total+site.queries.length*(owner.maxRows+1),0);
+    maximum=sites.reduce((total,site)=>total+site.queries.reduce((sum,query)=>sum+owner.maxRows+1+(query.parent===undefined?0:1),0),0);
   }else if(producer!==undefined&&producer===sourceSendDataProducers.get(def)){
     for(const site of sourceSendDataProducers.get(def)!.sites){
       const ids=new Set(site.parameters.flatMap(parameter=>parameter.loop===undefined?[]:[parameter.loop]));
@@ -8343,7 +8359,7 @@ interface SourceLetDataProducer extends ScenarioReceiptReferenceProducer {readon
 const sourceLetDataProducers=new WeakMap<GeneratedOperationDef,SourceLetDataProducer>();
 const consumedSourceLetData=new WeakMap<AdmittedCall,Set<string>>();
 const SOURCE_PRIMITIVE_LET_TYPES=new Set(['bool','int','decimal','text','email','url','locale','date','datetime','duration','timezone','currency','money']);
-interface SourceLetValueCapture {readonly owner:ReceiptOwnerSession;readonly store:StoragePort;readonly revision:number;readonly stage:number;readonly site:Pick<ScenarioSourceLetDataSource,'source'|'owner'|'node'|'binding'|'valueType'|'loop'> & {readonly stage:0};readonly wire:unknown;}
+interface SourceLetValueCapture {readonly owner:ReceiptOwnerSession;readonly store:StoragePort;readonly revision:number;readonly stage:number;readonly site:Pick<ScenarioSourceLetDataSource,'source'|'owner'|'node'|'binding'|'valueType'|'loop'> & {readonly stage:number};readonly wire:unknown;}
 const sourceLetValueCaptures=new WeakMap<AdmittedCall,Map<string,SourceLetValueCapture>>();
 
 /** A compiler-issued original LET expression may complete with plain Values.
@@ -8351,12 +8367,13 @@ const sourceLetValueCaptures=new WeakMap<AdmittedCall,Map<string,SourceLetValueC
 export interface ScenarioSourceQueryValueSource {
  readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
  readonly node:{readonly start:number;readonly end:number};readonly value:{readonly start:number;readonly end:number};
- readonly binding:string;readonly typeId:CanTypeId;readonly stage:0;
+ readonly binding:string;readonly typeId:CanTypeId;readonly stage:number;
+ readonly mutationPrefix?:ScenarioSourceRequirePhasePlan['phases'][number]['prefix'];
  readonly receiptQueryId?:string;
  readonly receiptDependencies?:readonly {readonly ordinaryDependencyId:string;readonly queryDependencyId:string}[];
  readonly receiptCases?:Readonly<{readonly empty:readonly string[];readonly nonempty:readonly string[]}>;
  readonly captures?:readonly {readonly node:{readonly start:number;readonly end:number};readonly binding:string;readonly typeId:CanTypeId}[];
- readonly queries:readonly {readonly node:{readonly start:number;readonly end:number};readonly model:ModelName}[];
+ readonly queries:readonly {readonly node:{readonly start:number;readonly end:number};readonly model:ModelName;readonly reader?:ScenarioSourceQueryRows}[];
 }
 interface SourceQueryValueProducer {
  readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
@@ -8369,7 +8386,7 @@ function requireQueryValueEmptyProducers(def:GeneratedOperationDef,bound:BoundPl
  if(bound.queryValueEmptyReturns.some(required=>!sourceQueryValueProducers.get(def)?.sites.some(site=>site.receiptQueryId===required.queryId&&site.receiptCases?.empty.includes(required.returnId))))return invalid('Model query empty return requires its independently bound original Values producer before execution or replay.');
 }
 
-interface SourceQueryValueLease{readonly call:AdmittedCall;readonly site:ScenarioSourceQueryValueSource;}
+interface SourceQueryValueLease{readonly call:AdmittedCall;readonly site:ScenarioSourceQueryValueSource;readonly stage:number;readonly stamps:readonly SourceMutationStamp[];}
 const sourceQueryValueActive=new WeakMap<ReceiptOwnerSession,SourceQueryValueLease>();
 const sourceQueryValueSelections=new WeakMap<QueryExecution,{readonly lease:SourceQueryValueLease;next:number}>();
 const sourceQueryValueRowScopes=new WeakMap<QueryExecution,{readonly lease:SourceQueryValueLease;readonly slot:ScenarioReceiptQuerySlot}>();
@@ -8385,18 +8402,25 @@ export function bindScenarioSourceQueryValueProducer(def:GeneratedOperationDef,v
  if(raw['owner']!==def.name||stableStringify(source)!==stableStringify(bound.plan.source))return invalid('Query LET Values differ from their original source owner.');
  const ids=new Set<string>(),bindings=new Set<string>();
  const sites=list(dataCopy(raw['sites'])).map(value=>{
-  const site=object(value,['source','owner','node','value','binding','typeId','stage','queries',...(Object.hasOwn(value as object,'receiptQueryId')?['receiptQueryId']:[]),...(Object.hasOwn(value as object,'receiptCases')?['receiptCases']:[]),...(Object.hasOwn(value as object,'receiptDependencies')?['receiptDependencies']:[]),...(Object.hasOwn(value as object,'captures')?['captures']:[])]);
+  const site=object(value,['source','owner','node','value','binding','typeId','stage','queries',...(Object.hasOwn(value as object,'receiptQueryId')?['receiptQueryId']:[]),...(Object.hasOwn(value as object,'receiptCases')?['receiptCases']:[]),...(Object.hasOwn(value as object,'receiptDependencies')?['receiptDependencies']:[]),...(Object.hasOwn(value as object,'captures')?['captures']:[]),...(Object.hasOwn(value as object,'mutationPrefix')?['mutationPrefix']:[])]);
   const node=object(site['node'],['start','end']),expression=object(site['value'],['start','end']);
   const binding=text(site['binding']),type=text(site['typeId']);
   const valid=(span:Record<string,unknown>)=>Number.isSafeInteger(span['start'])&&Number.isSafeInteger(span['end'])&&Number(span['start'])>=0&&Number(span['start'])<Number(span['end']);
-  if(site['owner']!==def.name||stableStringify(site['source'])!==stableStringify(source)||site['stage']!==0
+  if(site['owner']!==def.name||stableStringify(site['source'])!==stableStringify(source)||!Number.isSafeInteger(site['stage'])||Number(site['stage'])<0||Number(site['stage'])>=MAX_ITEMS
       ||!valid(node)||!valid(expression)||Number(expression['start'])<Number(node['start'])||Number(expression['end'])>Number(node['end'])
       ||bound.inputs.some(input=>input.name===binding)||bindings.has(binding)||ids.has(stableStringify(node))
       ||!sourceSendPlainType(bound,type,new Set(),0,false))return invalid('Query LET Values lost their exact initial declaration or plain owning schema.');
+  if(Object.hasOwn(site,'mutationPrefix')){
+   const prefix=list(site['mutationPrefix']);
+   if(completeReceipt||Number(site['stage'])!==prefix.length||prefix.length===0||prefix.some(step=>typeof step!=='object'||step===null||Object.getOwnPropertyDescriptor(step,'kind')?.value!=='create'))return invalid('Staged LET Values require their complete original CREATE prefix and source-only owner.');
+   bindSourceMutationPrefix(def,bound,site['mutationPrefix']);
+  }else if(site['stage']!==0)return invalid('Query LET Values require their exact original phase.');
   const queries=list(site['queries']);if(queries.length>1)return invalid('Query LET Values exceed their original initial query census.');
-  for(const value of queries){const query=object(value,['node','model']),at=object(query['node'],['start','end']);
+  for(const value of queries){const query=object(value,['node','model',...(typeof value==='object'&&value!==null&&Object.hasOwn(value,'reader')?['reader']:[])]),at=object(query['node'],['start','end']);
+   if(Object.hasOwn(query,'reader')!==Object.hasOwn(site,'mutationPrefix'))return invalid('Staged Values require their complete private original query reader.');
    if(!valid(at)||Number(at['start'])<Number(expression['start'])||Number(at['end'])>Number(expression['end'])||!bound.artifactModels.has(text(query['model']) as ModelName))return invalid('Query LET Values lack their exact original model query interval.');
   }
+  if(Object.hasOwn(site,'mutationPrefix')&&queries.length!==1)return invalid('Staged LET Values require their exact original query.');
   if(completeReceipt&&Object.hasOwn(site,'captures')){
    const captures=list(site['captures']),names=new Set<string>(),nodes=new Set<string>();
    if(queries.length!==0||Object.hasOwn(site,'receiptQueryId')||Object.hasOwn(site,'receiptCases')||Object.hasOwn(site,'receiptDependencies')||captures.length===0)return invalid('Pure native Values need their exact prior immutable LET census.');
@@ -8436,7 +8460,7 @@ export async function executeScenarioSourceQueryValue(call:AdmittedCall,store:St
  const state=capture(call,store),owner=ownerSessions.get(call);
  try{
   const raw=object(input,['source','body','context']),producer=sourceQueryValueProducers.get(call.def as GeneratedOperationDef);
-  if(owner===undefined||owner.session===null||owner.executingCall!==call||owner.busy||state.pending!==0||owner.stage!==0
+  if(owner===undefined||owner.session===null||owner.executingCall!==call||owner.busy||state.pending!==0
       ||sourceQueryValueActive.has(owner)||producer===undefined||typeof raw['body']!=='function')return invalid('Query LET Values need their genuine quiescent initial owner.');
   const source=dataCopy(raw['source']),site=producer.sites.find(site=>stableStringify(site)===stableStringify(source));
   if(site===undefined)return invalid('Query LET Values changed their original declaration.');
@@ -8448,6 +8472,13 @@ export async function executeScenarioSourceQueryValue(call:AdmittedCall,store:St
     if(prior===undefined||prior.owner!==owner||prior.store!==store||prior.revision!==call.revision||prior.stage!==0||prior.site.stage!==0||prior.site.loop!==undefined||prior.site.binding!==captured.binding||prior.site.valueType!==captured.typeId||prior.site.node.start!==captured.node.start||prior.site.node.end!==captured.node.end||prior.site.owner!==site.owner||stableStringify(prior.site.source)!==stableStringify(site.source)||stableStringify(encodeValue(captured.typeId,lexical[captured.binding]as Parameters<typeof encodeValue>[1],undefined,state.bound.valueSchema))!==stableStringify(prior.wire))return invalid('Pure native Values differ from their genuine original immutable LET capture.');
    }
   }
+  if(owner.stage!==site.stage)return invalid('Query LET Values differ from their exact original stage.');
+  if(site.mutationPrefix!==undefined)await ownerOperation(owner,()=>checkedSourceMutationPrefix(call,store,owner,site.mutationPrefix!),call);
+  else if(owner.stage!==0)return invalid('Initial LET Values cannot consume a staged owner.');
+  if(site.mutationPrefix!==undefined){
+   const rows=sourceQueryRowsProducers.get(call.def as GeneratedOperationDef)?.sites.find(candidate=>stableStringify(candidate.node)===stableStringify(site.node));
+   if(rows===undefined||site.queries.some(query=>query.reader===undefined||!rows.queries.some(row=>stableStringify(row)===stableStringify(query.reader))))return invalid('Staged LET Values lack their independently bound original State query reader.');
+  }
   const key=`${site.node.start}:${site.node.end}`;
   if(sourceLetValueCaptures.get(call)?.has(key))return invalid('Query LET Values repeat their original declaration.');
   if(site.receiptQueryId!==undefined){
@@ -8456,8 +8487,8 @@ export async function executeScenarioSourceQueryValue(call:AdmittedCall,store:St
   }
   const queryCount=state.queries.length;
   const pure=site.captures!==undefined,observations=state.observations.length,guards=owner.callGuards.length,sourceGuards=sourceEffectGuards.get(owner)?.length??0,ordinal=owner.framework?.ordinal??0,calls=owner.calls.length;
-  const lease=Object.freeze({call,site});sourceQueryValueActive.set(owner,lease);
-  const healthy=()=>{ownerHealthy(owner);capture(call,store);if(sourceQueryValueActive.get(owner)!==lease||owner.executingCall!==call||owner.stage!==0||owner.busy||state.pending!==0)return invalid('Query LET Values crossed their original initial checkpoint.');};
+  const lease=Object.freeze({call,site,stage:owner.stage,stamps:Object.freeze([...(sourceMutationStamps.get(owner)??[])])});sourceQueryValueActive.set(owner,lease);
+  const healthy=()=>{ownerHealthy(owner);capture(call,store);if(sourceQueryValueActive.get(owner)!==lease||owner.executingCall!==call||owner.stage!==lease.stage||owner.busy||state.pending!==0)return invalid('Query LET Values crossed their original initial checkpoint.');if((sourceMutationStamps.get(owner)??[]).length!==lease.stamps.length||(sourceMutationStamps.get(owner)??[]).some((stamp,index)=>stamp!==lease.stamps[index]))return invalid('Query LET Values changed their verified original mutation prefix.');};
   try{
    if(await store.readRevision()!==call.revision)throw new StateError('conflict','Query LET Values admission revision changed.');healthy();
    const value=await Reflect.apply(raw['body'],undefined,[]);healthy();
@@ -8477,7 +8508,7 @@ export async function executeScenarioSourceQueryValue(call:AdmittedCall,store:St
    if(await store.readRevision()!==call.revision)throw new StateError('conflict','Query LET Values result revision changed.');healthy();
    let captures=sourceLetValueCaptures.get(call);if(captures===undefined){captures=new Map();sourceLetValueCaptures.set(call,captures);}
    if(captures.size>=MAX_ITEMS||captures.has(key))return invalid('Query LET Values exceed their finite original capture census.');
-   captures.set(key,Object.freeze({owner,store,revision:call.revision,stage:0,site:Object.freeze({source:site.source,owner:site.owner,node:site.node,binding:site.binding,valueType:site.typeId,stage:0 as const}),wire}));
+   captures.set(key,Object.freeze({owner,store,revision:call.revision,stage:lease.stage,site:Object.freeze({source:site.source,owner:site.owner,node:site.node,binding:site.binding,valueType:site.typeId,stage:lease.stage}),wire}));
    if(completed!==undefined){
     completed.selectionConsumed=true;
     const cases=site.receiptCases;if(cases===undefined)return invalid('Query LET Values omitted their original return case census.');
@@ -8521,6 +8552,7 @@ function sourceQueryValueSelectedDependency(query:QueryExecution,dependencyId:st
 export interface ScenarioSourceQueryRows {
  readonly id:string;readonly node:{readonly start:number;readonly end:number};readonly model:ModelName;
  readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];
+ readonly parent?:{readonly model:ModelName;readonly parameter:string}|{readonly model:ModelName;readonly created:ScenarioSourceCreatedRoot};
 }
 interface SourceQueryRowsProducer extends ScenarioReceiptReferenceProducer {
  readonly sites:readonly {readonly node:{readonly start:number;readonly end:number};readonly queries:readonly ScenarioSourceQueryRows[]}[];
@@ -8539,8 +8571,24 @@ export function bindScenarioSourceQueryRowsProducer(def:GeneratedOperationDef,va
   const original=values.sites.find(candidate=>stableStringify(candidate.node)===key);
   if(original===undefined||nodes.has(key))return invalid('Values query reader lost its original LET declaration.');nodes.add(key);
   const queries=list(site['queries']).map(value=>{
-   const query=object(value,['id','node','model','fields']),id=text(query['id']),model=text(query['model'])as ModelName;
+   const query=object(value,['id','node','model','fields',...(typeof value==='object'&&value!==null&&Object.hasOwn(value,'parent')?['parent']:[])]),id=text(query['id']),model=text(query['model'])as ModelName;
    if(ids.has(id)||!original.queries.some(candidate=>candidate.model===model&&stableStringify(candidate.node)===stableStringify(query['node'])))return invalid('Values query reader lost its exact original query interval.');ids.add(id);
+   if(Object.hasOwn(query,'parent')){
+    if(original.mutationPrefix===undefined)return invalid('Values query parent requires its genuine staged source prefix.');
+    const raw=query['parent'],parent=object(raw,['model',...(typeof raw==='object'&&raw!==null&&Object.hasOwn(raw,'created')?['created']:['parameter'])]),parentModel=text(parent['model'])as ModelName;
+    if(bound.artifactModels.get(model)?.parent!==parentModel)return invalid('Values query parent differs from original containment.');
+    if(Object.hasOwn(parent,'created')){
+     if(!original.mutationPrefix.some(step=>step.kind==='create'&&step.created.model===parentModel&&stableStringify(step.created)===stableStringify(parent['created'])))return invalid('Values query lost its genuine earlier created parent.');
+    }else{
+     const input=bound.inputs.find(input=>input.name===text(parent['parameter']));
+     if(input?.kind!=='ref'||input.model!==parentModel||input.nullable===true||Object.hasOwn(def.inputArrays,input.name))return invalid('Values query parent lacks its original required input.');
+    }
+    checkSourceEffectPolicies(bound,readPolicies,parentModel,'Values query parent');
+   }
+   if(original.mutationPrefix!==undefined){
+    const declared=original.queries.find(candidate=>candidate.model===model&&stableStringify(candidate.node)===stableStringify(query['node']));
+    if(declared?.reader===undefined||stableStringify(declared.reader)!==stableStringify(query))return invalid('Staged Values reader differs from its privately issued original field and parent census.');
+   }
    checkSourceEffectPolicies(bound,readPolicies,model,'Values query');
    const fields=list(query['fields']),names=new Set<string>();
    for(const value of fields){const field=object(value,['name','type']),name=text(field['name']),type=text(field['type']);
@@ -8559,13 +8607,32 @@ export async function executeScenarioSourceQueryRows(call:AdmittedCall,store:Sto
  try{
   const id=text(object(input,['id'])['id']),lease=owner===undefined?undefined:sourceQueryValueActive.get(owner),producer=sourceQueryRowsProducers.get(call.def as GeneratedOperationDef);
   const site=lease===undefined?undefined:producer?.sites.find(site=>stableStringify(site.node)===stableStringify(lease.site.node)),query=site?.queries.find(query=>query.id===id);
-  if(owner===undefined||lease?.call!==call||producer===undefined||query===undefined||owner.session===null||owner.executingCall!==call||owner.busy||state.pending!==0||owner.stage!==0||producer.app!==call.context.app)return invalid('Values query needs its genuine active original capture.');
+  if(owner===undefined||lease?.call!==call||producer===undefined||query===undefined||owner.session===null||owner.executingCall!==call||owner.busy||state.pending!==0||owner.stage!==lease.stage||producer.app!==call.context.app)return invalid('Values query needs its genuine active original capture.');
   let consumed=sourceQueryRowsConsumed.get(lease);if(consumed===undefined){consumed=new Set();sourceQueryRowsConsumed.set(lease,consumed);}
   if(consumed.has(id))return invalid('Values query repeats its original occurrence.');consumed.add(id);
   return await ownerOperation(owner,async()=>{
-   const healthy=()=>{ownerHealthy(owner);capture(call,store);if(sourceQueryValueActive.get(owner)!==lease||owner.executingCall!==call||owner.stage!==0||!owner.busy||state.pending!==0)return invalid('Values query crossed its original capture checkpoint.');};
+   const healthy=()=>{ownerHealthy(owner);capture(call,store);if(sourceQueryValueActive.get(owner)!==lease||owner.executingCall!==call||owner.stage!==lease.stage||!owner.busy||state.pending!==0)return invalid('Values query crossed its original capture checkpoint.');};
    if(!sourceEffectGrantSlot(owner,producer))return invalid('Values query exceeds its original bounded observation census.');
-   const domains=ownerPolicyDomains(owner,healthy),rows=await domains.capture(query.model),projected:ProjectedRecord[]=[];
+   let parent:Readonly<{model:ModelName;id:RecordId}>|undefined;
+   if(query.parent!==undefined){
+    const profile=query.parent;
+    let row:StoredRow|null;
+    if('created'in profile){
+     const captured=sourceCreatedRootCaptures.get(owner)?.get(profile.created.id);
+     if(captured===undefined||stableStringify(captured.profile)!==stableStringify(profile.created)||captured.profile.stage>=lease.stage)return invalid('Values query lost its actual original created parent.');
+     row=await owner.session!.views.final.get(profile.model,captured.row.id);healthy();
+     if(row===null||!sameModelLifetime(captured.row,row)||stableStringify(row.parent)!==stableStringify(captured.row.parent))return invalid('Values query created parent lifetime changed.');
+    }else{
+     const refs=call.recordRefs.filter(ref=>ref.param===profile.parameter),ref=refs[0];
+     if(refs.length!==1||ref?.model!==profile.model||ref.expectedVersion===null||ref.row.version!==ref.expectedVersion)return invalid('Values query lost its original admitted parent.');
+     row=await owner.session!.views.final.get(profile.model,ref.id);healthy();
+     if(row===null||!sameModelLifetime(ref.row,row))return invalid('Values query admitted parent lifetime changed.');
+    }
+    if(row.archivedAt!==null)return invalid('Values query parent lifetime ended.');
+    await observeModelQuerySourceAuthority(call,store,owner,state,profile.model,row,[],0,undefined,undefined,producer);healthy();
+    parent=Object.freeze({model:profile.model,id:row.id});
+   }
+   const domains=ownerPolicyDomains(owner,healthy),rows=await domains.capture(query.model,parent),projected:ProjectedRecord[]=[];
    for(const row of rows){
     const observed=await observeModelQuerySourceAuthority(call,store,owner,state,query.model,row,[],0,undefined,undefined,producer,true);healthy();
     if(observed.record!==null){await observed.requireFields(query.fields.map(field=>field.name));healthy();projected.push(observed.record);}
@@ -8574,7 +8641,7 @@ export async function executeScenarioSourceQueryRows(call:AdmittedCall,store:Sto
    appendSourceEffectGuard(owner,producer,Object.freeze({name:`values-query-domain:${id}`,evaluate:async()=>{
     const final=owner.finalized;if(final===null||owner.capture.poisoned)return invalid('Values query lost its final owner.');
     const guard=()=>{if(owner.finalized!==final||owner.capture.poisoned)return invalid('Values query final owner changed.');};
-    const retained=await domains.retained(guard)(query.model);if(stableStringify(retained)!==stableStringify(rows))return invalid('Values query retained domain changed.');
+    const retained=await domains.retained(guard)(query.model,parent);if(stableStringify(retained)!==stableStringify(rows))return invalid('Values query retained domain changed.');
     if(await store.readRevision()!==call.revision)throw new StateError('conflict','Values query domain moved before commit.');return true;
    }}));
    return Object.freeze(projected);

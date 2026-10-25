@@ -1392,11 +1392,11 @@ fn source_require_only_body_supported(
             _ => false,
         }
     }
-    fn expression(ir: &IrProgram, value: &TypedExpr, depth: usize) -> bool {
+    fn expression(ir: &IrProgram, value: &TypedExpr, depth: usize, staged: &HashSet<Span>) -> bool {
         if depth > 64 {
             return false;
         }
-        let child = |value: &TypedExpr| expression(ir, value, depth + 1);
+        let child = |value: &TypedExpr| expression(ir, value, depth + 1, staged);
         match &value.expr {
             IrExpr::Int(_)
             | IrExpr::Decimal(_)
@@ -1465,7 +1465,9 @@ fn source_require_only_body_supported(
                 let IrItemKind::Scenario { effects, .. } = &owner.kind else {
                     return false;
                 };
-                if !source_query_before_first_write(effects, value.span, 0) {
+                if !source_query_before_first_write(effects, value.span, 0)
+                    && !staged.contains(&value.span)
+                {
                     return false;
                 }
                 let Some(model) = ir.items.iter().find(|item| {
@@ -1506,7 +1508,7 @@ fn source_require_only_body_supported(
                     && match &query.parent {
                         None => true,
                         Some(parent) => {
-                            query_parent(ir, owner, parent, 0)
+                            (query_parent(ir, owner, parent, 0) || staged.contains(&value.span))
                                 && matches!((&model.kind, &parent.ty),
                             (IrItemKind::Model { owner: IrOwner::ChildOf(actual), .. }, ResolvedType::Record { symbol, stored: true }) if actual == symbol)
                         }
@@ -1621,6 +1623,7 @@ fn source_require_only_body_supported(
         data_emits: &HashMap<Span, serde_json::Value>,
         loops: &HashMap<String, serde_json::Value>,
         context: Option<&super::source_context::FreshSourceContext<'_>>,
+        staged: &HashSet<Span>,
     ) -> bool {
         if depth > 64 {
             return false;
@@ -1628,31 +1631,31 @@ fn source_require_only_body_supported(
         body.iter().all(|statement| match statement {
             IrStmt::For{span,body,..}=>loops.get(&owner.canonical).and_then(|source|source["loops"].as_array()).is_some_and(|entries|
                 entries.iter().any(|entry|entry["node"]["start"]==span.start&&entry["node"]["end"]==span.end))
-                &&statements(ir,owner,body,depth+1,&mut values.clone(),&mut records.clone(),consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context),
+                &&statements(ir,owner,body,depth+1,&mut values.clone(),&mut records.clone(),consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context,staged),
             IrStmt::Let { name,value,span } => {
                 let scalar=matches!(value.ty.nullable_inner().unwrap_or(&value.ty),ResolvedType::Scalar(scalar)
                     if !matches!(scalar,Scalar::File|Scalar::Secret|Scalar::Member|Scalar::Json|Scalar::Bytes))
                     ||matches!(value.ty.nullable_inner().unwrap_or(&value.ty),ResolvedType::Enum{..});
                 let pure=send_value(ir,value,values,0)||let_data.contains_key(span)
-                    ||scalar&&expression(ir,value,0)&&constructor_data(ir,value,let_data,values,records,0);
+                    ||scalar&&expression(ir,value,0,staged)&&constructor_data(ir,value,let_data,values,records,0);
                 values.remove(name);
                 records.remove(name);
                 if pure{values.insert(name.clone());}
-                expression(ir,value,0)
+                expression(ir,value,0,staged)
             },
-            IrStmt::Return { value, .. } => value.as_ref().is_none_or(|value| expression(ir, value, 0)),
-            IrStmt::Create { input, when: None, .. } => expression(ir, input, 0)&&constructor_data(ir,input,let_data,values,records,0),
+            IrStmt::Return { value, .. } => value.as_ref().is_none_or(|value| expression(ir, value, 0, staged)),
+            IrStmt::Create { input, when: None, .. } => expression(ir, input, 0, staged)&&constructor_data(ir,input,let_data,values,records,0),
             IrStmt::Send { args, when: None, span,.. } => send_value(ir,args,values,0)||data_sends.contains_key(span),
             IrStmt::Emit { event,payload,span } => data_emits.contains_key(span)||source_event_payload(ir,owner,event,payload,values,records,context),
             IrStmt::Cancel {span,..}=>cancels.contains_key(span),
             IrStmt::Schedule{span,..}=>schedules.contains_key(span),
-            IrStmt::Set { record, changes, when: None, .. } => expression(ir, record, 0) && expression(ir, changes, 0),
-            IrStmt::Delete { record, .. } | IrStmt::Transition { record, .. } => expression(ir, record, 0),
-            IrStmt::Require { cond, .. } => consumed.contains(&cond.span) || expression(ir, cond, 0),
-            IrStmt::If { cond, then_branch, else_branch, .. } => (consumed.contains(&cond.span)||expression(ir, cond, 0))
-                && statements(ir,owner, then_branch, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context) && statements(ir,owner, else_branch, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context),
-            IrStmt::Match { subject, arms, .. } => expression(ir, subject, 0)
-                && arms.iter().all(|arm| statements(ir,owner, &arm.body, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context)),
+            IrStmt::Set { record, changes, when: None, .. } => expression(ir, record, 0, staged) && expression(ir, changes, 0, staged),
+            IrStmt::Delete { record, .. } | IrStmt::Transition { record, .. } => expression(ir, record, 0, staged),
+            IrStmt::Require { cond, .. } => consumed.contains(&cond.span) || expression(ir, cond, 0, staged),
+            IrStmt::If { cond, then_branch, else_branch, .. } => (consumed.contains(&cond.span)||expression(ir, cond, 0, staged))
+                && statements(ir,owner, then_branch, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context,staged) && statements(ir,owner, else_branch, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context,staged),
+            IrStmt::Match { subject, arms, .. } => expression(ir, subject, 0, staged)
+                && arms.iter().all(|arm| statements(ir,owner, &arm.body, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context,staged)),
             _ => false,
         })
     }
@@ -1745,6 +1748,30 @@ fn source_require_only_body_supported(
     {
         actual_lets.extend(values);
     }
+    let staged = context
+        .map(|context| super::source_let_data::collect_query_rows(ir, owner, context, &actual_lets))
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|(span, _)| {
+            actual_lets
+                .get(span)
+                .is_some_and(|site| site.get("mutationPrefix").is_some())
+        })
+        .flat_map(|(_, site)| {
+            site["queries"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|query| {
+                    Some(Span::new(
+                        owner.span.file,
+                        query["node"]["start"].as_u64()?.try_into().ok()?,
+                        query["node"]["end"].as_u64()?.try_into().ok()?,
+                    ))
+                })
+        })
+        .collect::<HashSet<_>>();
     let let_data = &actual_lets;
     statements(
         ir,
@@ -1761,6 +1788,7 @@ fn source_require_only_body_supported(
         data_emits,
         loops,
         context,
+        &staged,
     ) && statements(
         ir,
         owner,
@@ -1776,6 +1804,7 @@ fn source_require_only_body_supported(
         data_emits,
         loops,
         context,
+        &staged,
     )
 }
 
