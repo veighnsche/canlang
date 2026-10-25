@@ -19584,6 +19584,30 @@ impl<'a> Emitter<'a> {
             let mut descriptors = guards.clone();
             let mut complete = true;
             for descriptor in descriptors.as_array_mut().into_iter().flatten() {
+                if descriptor["eventSource"]["version"] == 2
+                    && !self.native_receipts.get(&item.id).is_some_and(|receipt| {
+                        receipt
+                            .plan
+                            .retained_guarded_handler
+                            .as_ref()
+                            .is_some_and(|source| {
+                                source["owner"] == item.canonical
+                                    && source["event"] == descriptor["eventSource"]["event"]
+                                    && source["source"] == serde_json::json!(receipt.plan.source)
+                                    && source["source"]["path"] == descriptor["source"]["path"]
+                                    && source["source"]["sha256"] == descriptor["source"]["sha256"]
+                                    && self.ir.modules.get(item.module.0 as usize).is_some_and(
+                                        |module| descriptor["source"]["module"] == module.name,
+                                    )
+                                    && source["rules"]
+                                        .as_array()
+                                        .is_some_and(|rules| rules.contains(&descriptor["rule"]))
+                            })
+                    })
+                {
+                    self.unsupported("send dispatch inputs", "typed Event slots require their complete original retained handler source and Rule", item.span);
+                    return;
+                }
                 let guard = self.send_guards.and_then(|guards| {
                     guards
                         .values()
@@ -21682,22 +21706,65 @@ impl<'a> Emitter<'a> {
         let mut max = None;
         if let Some(symbol) = input.symbol {
             let param = self.ir.items.get(symbol.0 as usize)?;
-            let IrItemKind::Param {
-                owner: declared_owner,
-                ty: IrType::Known(ty),
-                array_bounds,
-                ..
-            } = &param.kind
-            else {
-                return None;
-            };
-            if param.id != symbol || *declared_owner != input.owner || *ty != input.value.ty {
-                return None;
-            }
-            min = array_bounds.as_ref().and_then(|bounds| bounds.min);
-            max = array_bounds.as_ref().and_then(|bounds| bounds.max);
-            if let Some(alias_field) = self.send_input_alias_field(symbol)? {
-                field = alias_field;
+            match &param.kind {
+                IrItemKind::Param {
+                    owner: declared_owner,
+                    ty: IrType::Known(ty),
+                    array_bounds,
+                    ..
+                } => {
+                    if param.id != symbol || *declared_owner != input.owner || *ty != input.value.ty
+                    {
+                        return None;
+                    }
+                    min = array_bounds.as_ref().and_then(|bounds| bounds.min);
+                    max = array_bounds.as_ref().and_then(|bounds| bounds.max);
+                    if let Some(alias_field) = self.send_input_alias_field(symbol)? {
+                        field = alias_field;
+                    }
+                }
+                IrItemKind::Field {
+                    owner: event_id,
+                    ty: IrType::Known(ty),
+                    ..
+                } => {
+                    let event = self.ir.items.get(event_id.0 as usize)?;
+                    let IrItemKind::Event { fields } = &event.kind else {
+                        return None;
+                    };
+                    let IrItemKind::Scenario {
+                        trusted: true,
+                        event_source: Some(IrEventSource::Declared(source)),
+                        params,
+                        ..
+                    } = &owner.kind
+                    else {
+                        return None;
+                    };
+                    let source_field = guard.descriptor["eventSource"]["fields"]
+                        .as_array()?
+                        .get(ordinal)?;
+                    if guard.descriptor["eventSource"]["version"] != 2
+                        || source != &event.canonical
+                        || event.module != owner.module
+                        || !params.is_empty()
+                        || fields.get(ordinal) != Some(&symbol)
+                        || param.id != symbol
+                        || param.module != event.module
+                        || ty != &input.value.ty
+                        || input.name != format!("eventField{ordinal}")
+                        || source_field["name"] != param.name
+                        || source_field["slot"] != input.name
+                        || source_field["type"] != input.type_id
+                        || source_field["declaration"]["start"] != input.declaration.start
+                        || source_field["declaration"]["end"] != input.declaration.end
+                        || param.span.file != input.declaration.file
+                        || param.span.end > input.declaration.start
+                    {
+                        return None;
+                    }
+                }
+                _ => return None,
             }
         }
         let nullable = matches!(input.value.ty, ResolvedType::Nullable(_));
@@ -22514,6 +22581,21 @@ impl<'a> Emitter<'a> {
                 let event_binding = guard.event_source.as_ref().map_or_else(
                     String::new,
                     |source| {
+                        if !source.fields.is_empty() {
+                            let fields = source
+                                .fields
+                                .iter()
+                                .map(|(field, slot)| {
+                                    format!(
+                                        "{}:$can$send$inputs[{}]",
+                                        object_key(field),
+                                        js_string(slot)
+                                    )
+                                })
+                                .collect::<Vec<_>>()
+                                .join(",");
+                            return format!("const {}={{{fields}}};", self.bind("event"));
+                        }
                         let extra = if guard.descriptor["owner"] == "success.remind" {
                             ",account_revision:$can$send$inputs[\"eventAccountRevision\"]"
                         } else if guard.descriptor["owner"] == "events.attendee_notice" {

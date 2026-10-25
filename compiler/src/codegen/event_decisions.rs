@@ -787,6 +787,7 @@ pub(super) fn prepare_maintain_remind(
             descriptor,
             inputs,
             event_source: Some(PreparedSendEventSource {
+                fields: Vec::new(),
                 model_slot: "eventTerm",
                 revision_slot: "eventRevision",
                 model_field: "inspection".into(),

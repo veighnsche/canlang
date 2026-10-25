@@ -26,6 +26,7 @@ interface BoundInput {
   readonly declaration: CanonicalInputDef;
   readonly profile: FileReferenceProfile;
   readonly modelSnapshot?: ModelLexicalSnapshotProfile;
+  readonly nullableModelSnapshot?: true;
 }
 interface BoundDeclaration {
   readonly declaration: FrameworkOpaqueDeclaration;
@@ -244,11 +245,15 @@ function boundInput(values: FileReferenceProfileBound, canonical: CanonicalInput
   if ((canonical as { default?: { kind: string; value?: unknown } }).default?.kind === 'literal') {
     fileReferenceOccurrences(profile, (canonical as { default: { value: unknown } }).default.value);
   }
-  // Nullable model slots retain their canonical ModelRef/null wire profile.
-  // Only a nonnull lexical model row carries an owning stored-row snapshot.
-  const modelSnapshot = sendOnly && !parseTypeId(original).nullable
-    ? bindModelLexicalSnapshotProfile(values, original) : undefined;
-  return { declaration: canonical, profile, ...(modelSnapshot === undefined ? {} : { modelSnapshot }) };
+  // A historical SEND slot may contain an authenticated lexical snapshot.
+  // Its nullable wrapper contributes no row or File occurrence when absent;
+  // the snapshot binder itself remains restricted to required singular models.
+  const ast=parseTypeId(original);
+  const snapshotType=ast.nullable && !ast.array ? printTypeId({...ast,nullable:false}) as CanTypeId : original;
+  const modelSnapshot = sendOnly && !ast.array
+    ? bindModelLexicalSnapshotProfile(values, snapshotType) : undefined;
+  return { declaration: canonical, profile, ...(modelSnapshot === undefined ? {} : { modelSnapshot,
+    ...(ast.nullable?{nullableModelSnapshot:true as const}:{}) }) };
 }
 function nominalResult(values: FileReferenceProfileBound, canonical: unknown, artifact: unknown): FileReferenceProfile {
   same(canonical, artifact);
@@ -471,13 +476,18 @@ export function resolveOpaqueFileProjection(bound: BoundOpaqueDeclarations, proj
         continue;
       }
       const member = data[name];
-      if (input.modelSnapshot === undefined && input.declaration.kind === 'ref' && input.declaration.versioned) {
+      // Preserve the existing ModelRef/null representation for ordinary
+      // nullable lexicals; only an actual stored-row shape enters the exact
+      // snapshot traversal. Neither representation issues live authority.
+      const snapshot=input.modelSnapshot!==undefined && (input.nullableModelSnapshot!==true ||
+        typeof member==='object' && member!==null && Object.hasOwn(member,'data'));
+      if (!snapshot && input.declaration.kind === 'ref' && input.declaration.versioned) {
         for (const ref of input.profile.array && member !== null ? array(member) : member === null ? [] : [member]) {
           if (typeof ref !== 'object' || ref === null || !Object.hasOwn(ref, 'version')) return refuse('original admitted reference version required.');
         }
       }
-      for (const item of input.modelSnapshot === undefined ? fileReferenceOccurrences(input.profile, member)
-        : modelLexicalSnapshotOccurrences(input.modelSnapshot, member)) found.push({ path: [name, ...item.path], ref: item.ref });
+      for (const item of snapshot ? modelLexicalSnapshotOccurrences(input.modelSnapshot!, member)
+        : fileReferenceOccurrences(input.profile, member)) found.push({ path: [name, ...item.path], ref: item.ref });
     }
     return deepFreeze(found);
   }

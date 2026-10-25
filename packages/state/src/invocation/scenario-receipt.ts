@@ -1775,12 +1775,25 @@ export interface ScenarioReceiptDeliveryOriginFrame {
   readonly revision: number;
   readonly send: OutboxIntent | AuthoredSkippedDelivery;
 }
+export interface ScenarioReceiptTypedEventSource {
+  readonly version: 2;
+  readonly event: string;
+  readonly handler: string;
+  readonly predicate: { readonly start: number; readonly end: number };
+  readonly fields: readonly {
+    readonly name: string; readonly slot: string; readonly type: CanTypeId;
+    readonly declaration: { readonly start: number; readonly end: number };
+    readonly occurrences: readonly { readonly start: number; readonly end: number }[];
+    readonly modelFields?: readonly string[];
+  }[];
+}
 export interface ScenarioReceiptSendGuard {
   readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source']; readonly owner: string;
   readonly evaluation?: 'source';
   readonly node: { readonly start: number; readonly end: number };
   readonly binding: string; readonly target: string;
   readonly inputs: readonly { readonly name: string; readonly type: CanTypeId }[];
+  readonly typedEventSource?: ScenarioReceiptTypedEventSource;
   /** Original declared-event field proof; only a genuine due Work admission
    * can supply these two frozen lexical inputs. */
   readonly eventSource?: {
@@ -1834,6 +1847,67 @@ const frameworkModelInputs = new WeakMap<GeneratedOperationDef, ReadonlyMap<stri
 const retainedQueryBudgets=new WeakSet<GeneratedOperationDef>();
 function hasRetainedQueryBudget(def:GeneratedOperationDef):boolean{return retainedQueryBudgets.has(def);}
 
+/** Typed event slots are selected by the original declaration, not by a
+ * model-name or row-id search. Only the authenticated retained handler may
+ * supply their model snapshots. */
+function bindTypedSendEvent(def: GeneratedOperationDef, bound: BoundPlan, rule: string,
+  node: Readonly<Record<string, unknown>>, raw: unknown,
+  inputs: readonly unknown[], models: Map<string, ModelLexicalSnapshotProfile>): ScenarioReceiptTypedEventSource {
+  const source=object(raw,['version','event','handler','predicate','fields']);
+  const retained=bound.plan.retainedGuardedHandler;
+  const interval=(raw:unknown):void=>{
+    const value=object(raw,['start','end']);
+    if(!Number.isSafeInteger(value['start']) || !Number.isSafeInteger(value['end']) ||
+      (value['start'] as number)<0 || (value['end'] as number)<=(value['start'] as number)) return invalid('Event field requires its original source interval.');
+  };
+  interval(source['predicate']);
+  if(source['version']!==2 || source['handler']!==def.name || retained?.owner!==def.name ||
+    source['event']!==retained.event || !retained.rules.includes(rule) ||
+    stableStringify(source['predicate'])!==stableStringify(node)) return invalid('Typed Event SEND lacks its complete retained source owner.');
+  text(source['event']);
+  const fields=list(source['fields']);
+  if(fields.length===0 || fields.length!==inputs.length || fields.length!==def.descriptor.inputs.length)
+    return invalid('Typed Event SEND requires every declared input exactly once.');
+  const names=new Set<string>();
+  for(const [index,rawField] of fields.entries()) {
+    const field=object(rawField,['name','slot','type','declaration','occurrences',
+      ...(typeof rawField==='object' && rawField!==null && Object.hasOwn(rawField,'modelFields')?['modelFields']:[])]);
+    const name=text(field['name']),slot=text(field['slot']),type=text(field['type']) as CanTypeId;
+    const parsed=parseTypeId(type), input=object(inputs[index],['name','type']);
+    const declared=def.descriptor.inputs[index];
+    if(names.has(name) || slot!==`eventField${index}` || input['name']!==slot || input['type']!==type ||
+      declared?.name!==name || (declared.kind==='ref'?`${declared.model}${declared.nullable===true?'?':''}`:'valueType' in declared?declared.valueType:undefined)!==type || parsed.array || printTypeId(parsed)!==type)
+      return invalid('Typed Event SEND field differs from its original declaration and lexical slot.');
+    names.add(name);interval(field['declaration']);
+    for(const occurrence of list(field['occurrences'])) interval(occurrence);
+    if(Object.hasOwn(field,'modelFields')) {
+      if(parsed.base.kind!=='nominal' || declared.kind!=='ref' || declared.model!==parsed.base.path ||
+        (declared.nullable===true)!==parsed.nullable) return invalid('Typed Event model slot differs from its declared reference.');
+      const model=bound.artifactModels.get(parsed.base.path as ModelName);
+      const actual=list(field['modelFields']).map(text);
+      if(model===undefined || stableStringify(actual)!==stableStringify(model.fields.map(field=>field.name).sort()))
+        return invalid('Typed Event model slot lacks its complete original field census.');
+      const profile=bindModelLexicalSnapshotProfile({artifactModels:bound.artifactModels,canonicalModels:bound.canonicalModels,
+        ...(bound.valueSchema===undefined?{}:{valueSchema:bound.valueSchema}),
+        ...(bound.valueTypes===undefined?{}:{valueTypes:bound.valueTypes})},parsed.base.path as CanTypeId);
+      if(profile===undefined) return invalid('Typed Event model slot lacks its required source snapshot profile.');
+      models.set(slot,profile);
+    } else if(parsed.base.kind==='nominal' || !['scalar','stringlike','enum','user'].includes(parsed.base.kind)) {
+      return invalid('Typed Event scalar slot has no finite canonical value codec.');
+    }
+  }
+  return deepFreeze(dataCopy(source)) as unknown as ScenarioReceiptTypedEventSource;
+}
+
+function typedSendEventPayload(call:AdmittedCall,source:ScenarioReceiptTypedEventSource):Readonly<Record<string,unknown>> {
+  const retained=boundPlans.get(call.def as GeneratedOperationDef)?.plan.retainedGuardedHandler;
+  if(retained?.owner!==call.def.name || retained.event!==source.event || source.handler!==call.def.name ||
+    !hasRetainedWorkAdmission(call) || call.context.kind!=='trusted' || call.context.actor!==null ||
+    call.context.source!=='schedule' || ![`schedule:${source.event}`,`event:${source.event}`].includes(call.context.trustedSource??''))
+    return invalid('Typed Event SEND requires its actual retained Work admission.');
+  return object(admittedWorkEventPayload(call,source.event),source.fields.map(field=>field.name));
+}
+
 export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef, producer: ScenarioReceiptFrameworkProducer): void {
   const bound = boundPlans.get(def);
   const retained=bound?.plan.retainedGuardedHandler;
@@ -1872,7 +1946,8 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
   for (const value of list(metadata.sendGuards ?? [])) {
     const guard = object(value, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs',
       ...(Object.hasOwn(value as object, 'evaluation') ? ['evaluation'] : []),
-      ...(Object.hasOwn(value as object, 'eventSource') ? ['eventSource'] : [])]);
+      ...(Object.hasOwn(value as object, 'eventSource') ? ['eventSource'] : []),
+      ...(Object.hasOwn(value as object, 'typedEventSource') ? ['typedEventSource'] : [])]);
     if (Object.hasOwn(guard, 'evaluation') && guard['evaluation'] !== 'source') return invalid('SEND evaluation phase differs from its checked source.');
     const rule = text(guard['rule']); origin(guard['source']);
     const issueSite = bound.invoiceIssueDecision?.sendRule.node;
@@ -1899,6 +1974,10 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
         ...(bound.valueSchema === undefined ? {} : { valueSchema: bound.valueSchema }),
         ...(bound.valueTypes === undefined ? {} : { valueTypes: bound.valueTypes }) }, type as CanTypeId);
       if (model !== undefined) models.set(name, model);
+    }
+    if (Object.hasOwn(guard,'typedEventSource')) {
+      if(Object.hasOwn(guard,'eventSource')) return invalid('Event SEND cannot mix two source inventories.');
+      bindTypedSendEvent(def,bound,rule,node,guard['typedEventSource'],guardInputs,models);
     }
     if (Object.hasOwn(guard, 'eventSource')) {
       const rawEvent = guard['eventSource'];
@@ -3573,6 +3652,34 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
   const profiles = frameworkModelInputs.get(call.def as GeneratedOperationDef)?.get(guard.rule);
   const producer = referenceProducers.get(call.def as GeneratedOperationDef);
   const inputs = object(supplied, guard.inputs.map(input => input.name)), values: Record<string, unknown> = {};
+  const typedEvent=guard.typedEventSource;
+  if(typedEvent!==undefined) {
+    const payload=typedSendEventPayload(call,typedEvent);
+    if(owner.call!==call || owner.executingCall!==call) return invalid('Typed Event SEND crossed its actual owner call.');
+    for(const field of typedEvent.fields) {
+      const supplied=inputs[field.slot],original=payload[field.name],admitted=admittedInputWire(call.inputs,field.name);
+      if(field.modelFields===undefined) {
+        const canonical=(wire:unknown)=>encodeValue(field.type,decodeValue(field.type,wire),undefined,state.bound.valueSchema);
+        if(stableStringify(canonical(original))!==stableStringify(canonical(admitted)) ||
+          stableStringify(canonical(supplied))!==stableStringify(canonical(original)))
+          return invalid('Typed Event scalar differs from its admitted retained payload and frozen source slot.');
+      } else if(original===null) {
+        if(!parseTypeId(field.type).nullable || admitted!==null || supplied!==null) return invalid('Typed Event absent model differs from its explicit null payload.');
+      } else {
+        const profile=profiles?.get(field.slot);
+        if(profile===undefined) return invalid('Typed Event model lacks its checked snapshot profile.');
+        const reference=decodeValue(profile.model,original) as {readonly model:string;readonly id:string};
+        const inputReference=decodeValue(profile.model,admitted) as {readonly model:string;readonly id:string};
+        if(inputReference.model!==reference.model || inputReference.id!==reference.id)
+          return invalid('Typed Event model differs from its exact admitted retained reference.');
+        const actual=supplied as StoredRow,issued=ownerRows.get(actual);
+        const admittedRef=call.recordRefs.find(ref=>ref.param===field.name && ref.model===profile.model && ref.id===reference.id);
+        if(reference.model!==profile.model || admittedRef===undefined || issued?.session!==owner || issued.model!==profile.model ||
+          issued.stage!==stage || actual.id!==reference.id || actual.archivedAt!==null || !sameModelLifetime(admittedRef.row,actual))
+          return invalid('Typed Event model is not its actual admitted current-stage source row.');
+      }
+    }
+  }
   const event = guard.eventSource;
   const eventPayload = event === undefined ? undefined : admittedWorkEventPayload(call, event.event);
   if (event !== undefined) {
@@ -3605,6 +3712,11 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
   // Preserve private row identity before copying any input or yielding.
   for (const input of guard.inputs) {
     const profile = profiles?.get(input.name);
+    if(profile!==undefined && inputs[input.name]===null && typedEvent?.fields.some(field=>
+      field.slot===input.name && field.modelFields!==undefined && parseTypeId(field.type).nullable)) {
+      values[input.name]=null;
+      continue;
+    }
     if (profile !== undefined) {
       const actual = inputs[input.name] as StoredRow, issued = ownerRows.get(actual);
       if (issued?.session !== owner || issued.model !== profile.model || issued.stage !== stage) {
@@ -4011,7 +4123,7 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
         const selected = producer.sendGuards!.find(guard => guard.rule === sourceGuard!.rule)!;
         // Source-stage event proof is not part of the persisted opaque SEND
         // declaration. Retain exactly the independently checked wire census.
-        const {eventSource:_eventSource,...guard}=selected;
+        const {eventSource:_eventSource,typedEventSource:_typedEventSource,...guard}=selected;
         ledger.skipped.set(id, deepFreeze({ deliveryId: id, operationId: call.context.operationId,
           operation: call.context.operation, target: source, arguments: request.arguments, occurrenceIndex, request, guard }));
         return makeDeliveryRef(id, source);

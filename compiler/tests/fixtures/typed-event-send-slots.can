@@ -1,0 +1,20 @@
+app TypedEventSlots uses=[roster]
+package roster
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  Commitment {revision:int=7,active:bool=true,conflict:bool=false}
+  Duty in Commitment {published:bool=true}
+  Swap {state:enum(open,accepted,rejected)=open}
+  Notice in Duty {recipient:user,revision:int,kind:enum(published,changed,cancelled,swap_request,swap_accepted,swap_rejected),delivery:delivery(Mail.send_user)?}
+  event DutyNotice {duty:Duty,recipient:user,revision:int,kind:Notice.kind,swap:Swap?}
+  derive eligible(commitment:Commitment):bool = commitment.active and not commitment.conflict
+  policy Commitment read=members
+  policy Duty read=members
+  policy Swap read=members fields=state
+  policy Notice read=members
+ When
+  scenario duty_notice on=DutyNotice
+   do
+    send Mail.send_user {to=event.recipient,subject=format("Your staff roster changed"@{nl="Je personeelsrooster is gewijzigd"},locale=null),body=format("Review your current shifts and swap decisions."@{nl="Bekijk je huidige diensten en ruilbesluiten."},locale=null)} when=active_member(event.recipient,team) and event.duty.parent.revision==event.revision and (event.kind in [cancelled,swap_rejected] or (eligible(event.duty.parent) and not event.duty.parent.conflict)) and ((event.kind==cancelled and not event.duty.parent.active) or (event.kind!=cancelled and event.duty.parent.active and (event.kind!=swap_request or (event.swap!=null and event.swap.state==open)))) as delivery
+    create Notice {parent=event.duty,recipient=event.recipient,revision=event.revision,kind=event.kind,delivery} as notice
+ Then

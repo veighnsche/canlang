@@ -78,6 +78,9 @@ pub(super) struct PreparedSendEventSource {
     pub revision_field: String,
     /// A source-proven `let alias=event.<model>` bound to the authenticated row.
     pub lexical_alias: Option<String>,
+    /// Complete declaration-ordered event slots. Older owner profiles retain
+    /// their original aliases until normalized by the runtime.
+    pub fields: Vec<(String, String)>,
 }
 
 /// Only this module constructs a prepared inventory. All editable IR is sealed.
@@ -807,6 +810,241 @@ fn rent_notice_event_source(
     Ok(Some((vec![booking_input, revision_input], descriptor)))
 }
 
+/// A complete declaration-owned event value, independent of a particular
+/// handler body or an assumed model/revision field pair. The owning source
+/// context and SEND site have already been joined against fresh checked IR.
+#[allow(clippy::too_many_arguments)]
+fn typed_event_source(
+    original: &CheckedProgram,
+    ir: &IrProgram,
+    db: &SourceDb,
+    resolved: &resolve::ResolveTables,
+    owner: &IrItem,
+    predicate: NodeKey,
+    predicate_node: &SyntaxNode,
+) -> Result<Option<(Vec<PreparedSendInput>, serde_json::Value)>, SendGuardGap> {
+    // Ordinary lexical guards retain their existing declaration transport.
+    // An event handler alone does not make its whole payload a Rule input.
+    if !predicate_node.descendants().any(|node| {
+        matches!(
+            resolved.node_binding.get(&NodeKey::of(node)),
+            Some(Binding::Context(resolve::ContextVar::Event))
+        )
+    }) {
+        return Ok(None);
+    }
+    let Some(scenario) = original.effects.scenarios.get(&owner.id) else {
+        return Ok(None);
+    };
+    let Some(HandlerSource::Event(event_id)) = scenario.on else {
+        return Ok(None);
+    };
+    let Some(event) = resolved.symbols.get(event_id.0 as usize) else {
+        return Ok(None);
+    };
+    let SymbolKind::Event { fields } = &event.kind else {
+        return Ok(None);
+    };
+    let IrItemKind::Scenario {
+        trusted: true,
+        event_source: Some(super::ir::IrEventSource::Declared(name)),
+        hook: None,
+        cohort: None,
+        params,
+        result: None,
+        read: false,
+        by,
+        ..
+    } = &owner.kind
+    else {
+        return Ok(None);
+    };
+    if name != &event.canonical
+        || event.module != owner.module
+        || scenario.module != owner.module
+        || scenario.by.is_some()
+        || !by.is_empty()
+        || !params.is_empty()
+        || !scenario.params.is_empty()
+        || scenario.result.is_some()
+        || scenario.read
+        || scenario.cohort.is_some()
+        || fields.is_empty()
+        || fields.len() > 200
+    {
+        return Ok(None);
+    }
+    let source = db
+        .get(predicate.file)
+        .ok_or_else(|| gap("missing event predicate source", Some(predicate_node.span)))?;
+    let site = |key: NodeKey| serde_json::json!({"start":key.start,"end":key.end});
+    let event_ty = ResolvedType::Record {
+        symbol: event_id,
+        stored: false,
+    };
+    let mut inputs = Vec::new();
+    let mut slots = Vec::new();
+    for (ordinal, id) in fields.iter().enumerate() {
+        let Some(field) = resolved.symbols.get(id.0 as usize) else {
+            return Ok(None);
+        };
+        let SymbolKind::Field {
+            owner: declared,
+            type_node,
+        } = &field.kind
+        else {
+            return Ok(None);
+        };
+        let Some(ty) = original.types.symbol_types.get(id) else {
+            return Ok(None);
+        };
+        let scalar = match ty {
+            ResolvedType::Nullable(inner) => inner.as_ref(),
+            ty => ty,
+        };
+        if *declared != event_id || field.module != event.module {
+            return Ok(None);
+        }
+        let type_id = match scalar {
+            ResolvedType::Scalar(_)
+                if crate::analysis::scenario_disclosure::primitive_type(scalar) =>
+            {
+                input_type(ty, original, ir, Some(*id), 0)
+            }
+            ResolvedType::Enum { cases, .. }
+                if !cases.is_empty()
+                    && cases.len() <= 200
+                    && cases
+                        .iter()
+                        .all(|name| !name.is_empty() && !name.contains([',', '(', ')'])) =>
+            {
+                Some(format!(
+                    "enum({}){}",
+                    cases.join(","),
+                    if matches!(ty, ResolvedType::Nullable(_)) {
+                        "?"
+                    } else {
+                        ""
+                    }
+                ))
+            }
+            ResolvedType::Record {
+                symbol,
+                stored: true,
+            } if original.effects.models.contains_key(symbol) => {
+                input_type(ty, original, ir, Some(*id), 0)
+            }
+            _ => None,
+        };
+        let Some(type_id) = type_id else {
+            return Ok(None);
+        };
+        let mut uses = Vec::new();
+        let mut first_root = None;
+        for member in predicate_node
+            .descendants()
+            .filter(|node| node.kind == SyntaxKind::Member)
+        {
+            let Some(root) = member
+                .children
+                .iter()
+                .find(|node| resolve::is_expression(node.kind))
+            else {
+                continue;
+            };
+            if !matches!(
+                resolved.node_binding.get(&NodeKey::of(root)),
+                Some(Binding::Context(resolve::ContextVar::Event))
+            ) {
+                continue;
+            }
+            let Some(name) = member
+                .children
+                .iter()
+                .rev()
+                .find(|node| node.kind == SyntaxKind::Name)
+                .and_then(|node| {
+                    source
+                        .text
+                        .get(node.span.start as usize..node.span.end as usize)
+                })
+            else {
+                return Ok(None);
+            };
+            if name != field.name {
+                continue;
+            }
+            let key = NodeKey::of(member);
+            let checked = original.types.node_types.get(&key);
+            if checked != Some(ty)
+                && !matches!(ty,ResolvedType::Nullable(inner) if checked==Some(inner.as_ref()) || checked==Some(&ResolvedType::Null))
+            {
+                return Ok(None);
+            }
+            uses.push(key);
+            first_root.get_or_insert(NodeKey::of(root));
+        }
+        let slot = format!("eventField{ordinal}");
+        // An unused field still belongs to the retained payload census. Its
+        // declaration owns the synthetic capture, never a forged use site.
+        let occurrence = uses.first().copied().unwrap_or(*type_node);
+        let root = first_root.unwrap_or(*type_node);
+        inputs.push(PreparedSendInput {
+            name: slot.clone(),
+            type_id: type_id.clone(),
+            value: TypedExpr::new(
+                IrExpr::Member {
+                    base: Box::new(TypedExpr::new(
+                        IrExpr::Name("event".into()),
+                        event_ty.clone(),
+                        Span::new(root.file, root.start, root.end),
+                    )),
+                    field: field.name.clone(),
+                },
+                ty.clone(),
+                Span::new(occurrence.file, occurrence.start, occurrence.end),
+            ),
+            declaration: *type_node,
+            symbol: Some(*id),
+            owner: owner.id,
+            ordinal,
+            narrowing: None,
+        });
+        let mut descriptor = serde_json::json!({"name":field.name,"slot":slot,"type":type_id,
+            "declaration":site(*type_node),"occurrences":uses.into_iter().map(site).collect::<Vec<_>>()});
+        if let ResolvedType::Record {
+            symbol,
+            stored: true,
+        } = scalar
+        {
+            let Some(model) = original.effects.models.get(symbol) else {
+                return Ok(None);
+            };
+            let mut model_fields = model
+                .fields
+                .iter()
+                .map(|field| {
+                    resolved
+                        .symbols
+                        .get(field.field.0 as usize)
+                        .map(|field| field.name.clone())
+                })
+                .collect::<Option<Vec<_>>>();
+            let Some(ref mut model_fields) = model_fields else {
+                return Ok(None);
+            };
+            model_fields.sort();
+            descriptor["modelFields"] = serde_json::json!(model_fields);
+        }
+        slots.push(descriptor);
+    }
+    Ok(Some((
+        inputs,
+        serde_json::json!({"version":2,"event":event.canonical,"handler":owner.canonical,
+        "predicate":site(predicate),"fields":slots}),
+    )))
+}
+
 /// Only checked agreement and appointment delivery handlers may transport a
 /// declared event into a SEND Rule. State authenticates their Work event row.
 #[allow(clippy::too_many_arguments)]
@@ -1226,7 +1464,17 @@ fn private_delivery_event_source(
                 "appointments.Notice",
                 true,
             ),
-            _ => return Ok(None),
+            _ => {
+                return typed_event_source(
+                    original,
+                    ir,
+                    db,
+                    resolved,
+                    owner,
+                    predicate,
+                    predicate_node,
+                );
+            }
         };
     if event.module != owner.module
         || scenario.module != owner.module
@@ -1976,13 +2224,33 @@ fn prepare_send_guard(
                 revision_slot: "eventRevision",
                 model_field: event["modelField"]["name"]
                     .as_str()
-                    .expect("checked event field")
+                    .unwrap_or_default()
                     .into(),
                 revision_field: event["revisionField"]["name"]
                     .as_str()
-                    .expect("checked event revision")
+                    .unwrap_or_default()
                     .into(),
                 lexical_alias: None,
+                fields: event["fields"]
+                    .as_array()
+                    .map(|fields| {
+                        fields
+                            .iter()
+                            .map(|field| {
+                                (
+                                    field["name"]
+                                        .as_str()
+                                        .expect("checked event field")
+                                        .to_owned(),
+                                    field["slot"]
+                                        .as_str()
+                                        .expect("checked event slot")
+                                        .to_owned(),
+                                )
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default(),
             }),
         },
     ))

@@ -226,7 +226,7 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
   } => {
     // The event field proof governs source-stage SEND capture. The retained
     // Work declaration has the historical guard/typed-input census only.
-    const { eventSource: _eventSource, ...original } = captureData(guard);
+    const { eventSource: _eventSource, typedEventSource: _typedEventSource, ...original } = captureData(guard);
     const matches = set.declarations.filter(candidate => candidate.source.kind === 'send-guard' &&
       candidate.profile.kind === 'inputs' && equal(candidate.source, { kind: 'send-guard', ...original }));
     if (matches.length !== 1 || matches[0]!.source.kind !== 'send-guard') refuse('send guard lacks its exact installed original lexical input declaration');

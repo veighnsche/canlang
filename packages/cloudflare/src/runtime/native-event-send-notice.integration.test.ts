@@ -18,10 +18,13 @@ import { STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
 import { asId, asModel, asVersion, makeBatch, makeRow, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work/kernel/file-reference-inventory';
 import { workSchedulePutCommand } from '@canlang/work/kernel/schedule-staging';
+import { WORK_DISPATCH_STAGE_COMMANDS, WORK_SYSTEM_COMMANDS, createWorkDispatchClaimCommand } from '@canlang/work/kernel/commands';
+import { classifyFailure } from '@canlang/work/receipt';
 import { installNativeFileInventory } from './file-inventory.js';
-import { invokeDueScheduleCanonical, loadCanonicalDescriptors } from './invoke.js';
+import { bindNativeEmailDispatchGuards, createWorkerDispatchJoinPort, driveDispatchIntentWithPreclaim,
+  invokeDueScheduleCanonical, loadCanonicalDescriptors, loadDispatchSystemProducers, withDispatchJoinPort } from './invoke.js';
 import { assembleModules } from './modules.js';
-import { buildInvoker } from '../worker/assembly.js';
+import { assembleDispatchCommands, buildInvoker } from '../worker/assembly.js';
 import { loadOpaqueFileStaging } from './opaque-file-staging.js';
 
 const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
@@ -188,6 +191,180 @@ it('runs the original notice Rule with the due event Term and its owner parent',
           }] })), /original scheduled event payload cannot change/,
           'a retained scheduled event header cannot authorize changed payload');
           assert.equal(probe.outboxAll().length, 1);
+        }
+      }
+      // The same retained Work/Rule journey transports a complete typed Event,
+      // including an optional second model and a business revision unrelated to
+      // either model's physical row version.
+      const typedSource=join(root,'compiler/tests/fixtures/typed-event-send-slots.can');
+      const typedOutput=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,typedSource],
+        {cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const typedArtifact=JSON.parse(typedOutput.stdout) as CompileArtifact;
+      assert.deepEqual('diagnostics' in typedArtifact?typedArtifact.diagnostics:[],[]);
+      const baseTypedAsm=await assembleModules({artifact:typedArtifact,sourcePath:typedSource},{workDir:join(directory,'typed-slots'),
+        stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      for(const mode of ['published-null','swap-open','swap-null','swap-closed','stale-business','cancelled','revoked-recipient','unissued-head','wrong-slot','withheld-census','wrong-model','identity-race','parent-race','dispatch-stale','dispatch-revoked','dispatch-swap-closed'] as const) {
+        const typedAsm=['wrong-slot','withheld-census','wrong-model'].includes(mode)
+          ? await assembleModules({artifact:typedArtifact,sourcePath:typedSource},{workDir:join(directory,`typed-slots-${mode}`),
+            stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')}) : baseTypedAsm;
+        const now=Date.parse('2099-01-01T12:00:00Z'),clock=createFrozenClock(now);
+        const identities=createMemoryIdentityStore({clock});
+        const team=await identities.createTeam({timezone:'UTC'});
+        const recipient=await identities.createUser({email:'typed-recipient@example.test',password_hash:'unused',email_verified:true});
+        await identities.createMembership({team_id:team.team_id,user_id:recipient.user_id,is_owner:false,roles:[]});
+        const scope={app:'TypedEventSlots',owner:team.team_id,ownerPackage:'roster'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'typed-event-state',fileStoreId:'typed-event-files',
+          receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+        const {store,probe}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({artifact:typedArtifact,asm:typedAsm,store,authority,scope,now:()=>now,
+          verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          {kind:'insert',model:asModel('roster.Commitment'),row:{...makeRow({id:asId('commitment'),data:{revision:'7',active:mode!=='cancelled',conflict:false}}),parent:null}},
+          {kind:'insert',model:asModel('roster.Duty'),row:{...makeRow({id:asId('duty'),data:{published:true}}),parent:{model:asModel('roster.Commitment'),id:asId('commitment')}}},
+          {kind:'insert',model:asModel('roster.Swap'),row:{...makeRow({id:asId('swap'),data:{state:mode==='swap-closed'?'accepted':'open'}}),parent:null}},
+        ]}));
+        const due={key:'duty',scope,occurrenceId:'typed-notice',event:'roster.DutyNotice',at:now-1};
+        const payload={duty:{id:'duty',version:'1'},recipient:{id:recipient.user_id},revision:mode==='stale-business'?'8':'7',
+          kind:mode.startsWith('swap-')||mode==='dispatch-swap-closed'?'swap_request':mode==='cancelled'?'cancelled':'published',
+          swap:mode==='swap-open'||mode==='swap-closed'||mode==='dispatch-swap-closed'?{id:'swap',version:'1'}:null};
+        const loaded=await loadCanonicalDescriptors(typedAsm,typedArtifact);assert.ok(loaded.valueTypes);
+        const opaque=await loadOpaqueFileStaging({store,inventoryOwner:scope.ownerPackage,artifact:typedArtifact,canonicalModels:loaded.models,
+          valueTypes:loaded.valueTypes,operations:new Map(),scope,verify:async()=>{}});assert.ok(opaque);
+        const sendRule=typedArtifact.callables.find(callable=>callable.kind==='rule' && callable.id.startsWith('roster.duty_notice.sendWhen.'));
+        assert.ok(sendRule);
+        const duty=await store.load(asModel('roster.Duty'),asId('duty'));assert.ok(duty);
+        const lexical={eventField0:{...duty,parent:duty.parent??null,sourcePresence:{fields:Object.keys(duty.data)}},
+          eventField1:payload.recipient,eventField2:payload.revision,eventField3:payload.kind,eventField4:null as unknown};
+        const projection={kind:'inputs' as const,declarationId:`${sendRule.id}:send-inputs`,path:['inputs']};
+        assert.deepEqual(opaque.occurrences(projection,lexical),[],'installed nullable SEND census keeps its canonical null codec');
+        assert.deepEqual(opaque.occurrences(projection,{...lexical,eventField4:{id:'swap',version:'1'}}),[],
+          'ordinary nullable ModelRef wire retains its existing installed census codec');
+        assert.throws(()=>opaque.occurrences(projection,{...lexical,eventField4:{id:'swap',version:'1',unexpected:true}}),
+          'nullable wrapper cannot bypass the original canonical ModelRef wire profile');
+        assert.throws(()=>opaque.occurrences({...projection,declarationId:'foreign:send-inputs'},lexical),
+          'lexical traversal still requires its exact installed original declaration');
+        const declaration=opaque.event(due.event),identity=await resolveIdentity(identities,{team_id:team.team_id},{clock});
+        const stageContext={actor:`schedule:${due.event}`,now,operation:'roster.duty_notice',
+          load:(model:Parameters<typeof store.load>[0],id:Parameters<typeof store.load>[1])=>store.load(model,id),
+          query:(spec:Parameters<typeof store.query>[0])=>store.query(spec)};
+        const request={...due,payload};
+        const first=await workSchedulePutCommand.stage(request,stageContext);
+        const scheduledRow=first.writes?.find(write=>write.kind==='insert'&&write.model==='work.schedule');
+        assert.ok(scheduledRow&&scheduledRow.kind==='insert');
+        const origin=await opaque.prepare({expectedRevision:await store.readRevision(),model:asModel('work.schedule'),row:scheduledRow.row,
+          field:'payload',scope,origin:{kind:'event-input',occurrenceId:due.occurrenceId,sourceOccurrence:due.occurrenceId,declaration,
+            lineage:{kind:'schedule',key:due.key,replaces:scheduledRow.row.data['replaces'] as null},target:{kind:'schedule'}},
+          projection:{kind:'inputs',path:[],declarationId:declaration.inputsDeclarationId},value:payload,identity});
+        const scheduled=await workSchedulePutCommand.stage({...request,filePayloadOrigin:origin},stageContext);
+        await store.commit(makeBatch(await store.readRevision(),{writes:scheduled.writes??[],schedules:scheduled.schedules??[]}));
+        if(mode==='revoked-recipient') {
+          const member=await identities.findMembership(team.team_id,recipient.user_id);assert.ok(member);
+          await identities.removeMembership(member.membership_id);
+        }
+        let swapLoads=0,raced=false,memberRead=false;
+        const membershipRead=identities.findMembership.bind(identities);
+        identities.findMembership=async(teamId,userId)=>{
+          const found=await membershipRead(teamId,userId);
+          if(teamId===team.team_id && userId===recipient.user_id) {
+            memberRead=true;
+            if(found!==null && !raced && (mode==='identity-race'||mode==='parent-race')) {
+              raced=true;
+              if(mode==='identity-race') await identities.removeMembership(found.membership_id);
+              else {
+                const row=await originalLoad(asModel('roster.Commitment'),asId('commitment'));assert.ok(row);
+                await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('roster.Commitment'),id:row.id,
+                  expectedVersion:row.version,row:{...row,version:asVersion(row.version+1),updated:now,data:{...row.data,revision:'8'}}}]}));
+              }
+            }
+          }
+          return found;
+        };
+        const originalLoad=store.load.bind(store),originalCohort=store.cohortLoad.bind(store);
+        const afterRead=async(model:string,row:Awaited<ReturnType<typeof store.load>>)=>{
+          if(model==='roster.Swap')swapLoads++;
+          return row;
+        };
+        store.load=async(model,id)=>afterRead(model,await originalLoad(model,id));
+        store.cohortLoad=async request=>afterRead(request.model,await originalCohort(request));
+        if(mode==='wrong-slot'||mode==='withheld-census'||mode==='wrong-model') {
+          const handler=typedArtifact.callables.find(callable=>callable.id==='roster.duty_notice' && callable.kind==='handler');assert.ok(handler);
+          const generated=await import(typedAsm.moduleUrls[handler.module]!);
+          const eventSource=generated.appDefinition.operations['roster.duty_notice'].sendGuards[0].eventSource;
+          const original=eventSource.fields;
+          eventSource.fields=original.map((field:Record<string,unknown>,index:number)=>index!==4?field:
+            mode==='wrong-slot'?{...field,slot:'eventField0'}:mode==='wrong-model'?{...field,type:'roster.Duty?'}:{...field,modelFields:[]});
+          try {
+            await assert.rejects(invokeDueScheduleCanonical({asm:typedAsm,artifact:typedArtifact,app:scope.app,handler:'roster.duty_notice',due,store,identities,now:()=>now}),
+              /Typed Event|Original SEND declaration inventory changed|original.*source|original.*declaration/);
+          } finally {eventSource.fields=original;}
+          assert.equal(probe.outboxAll().length,0,mode);
+          assert.equal((await store.query({model:asModel('roster.Notice'),authority:'owner'})).length,0,mode);
+          assert.equal(await store.load(asModel('work.occurrence'),asId(due.occurrenceId)),null,'forged slots never execute the original Work');
+          continue;
+        }
+        let result:Awaited<ReturnType<typeof invokeDueScheduleCanonical>>|undefined;
+        try {
+          result=await invokeDueScheduleCanonical({asm:typedAsm,artifact:typedArtifact,app:scope.app,handler:'roster.duty_notice',
+            due:mode==='unissued-head'?{...due,occurrenceId:'foreign-head'}:due,store,identities,now:()=>now});
+        } catch(error) {
+          if(mode!=='identity-race' && mode!=='parent-race') throw error;
+          const failure=error as {readonly code?:unknown;readonly cause?:{readonly code?:unknown}};
+          assert.ok(['forbidden','conflict'].includes(String(failure.code??failure.cause?.code)),
+            'only the actual Identity/revision fence may refuse the raced handler');
+        }
+        if(mode==='identity-race'||mode==='parent-race') {
+          assert.equal(memberRead && raced,true,'the race follows an actual recipient membership observation');
+          assert.equal(probe.outboxAll().length,0,'source Identity/revision races stage no stale Mail');
+          const notices=await store.query({model:asModel('roster.Notice'),authority:'owner'});
+          assert.equal(notices.length,result?.status==='completed'?1:0,'a refused attempt has no partial Notice, a fresh retry may record a skipped Mail');
+          continue;
+        }
+        assert.ok(result);
+        if(mode==='unissued-head') {
+          assert.equal(result.status,'refused');assert.equal(probe.outboxAll().length,0);
+          assert.equal((await store.query({model:asModel('roster.Notice'),authority:'owner'})).length,0);continue;
+        }
+        assert.equal(result.status,'completed',mode+': '+JSON.stringify(result));
+        const expected=['published-null','swap-open','cancelled','dispatch-stale','dispatch-revoked','dispatch-swap-closed'].includes(mode)?1:0;
+        assert.equal(probe.outboxAll().length,expected,mode);
+        const notices=await store.query({model:asModel('roster.Notice'),authority:'owner'});
+        assert.equal(notices.length,1,mode);assert.equal(String(notices[0]!.data['revision']),payload.revision);
+        if(payload.swap===null)assert.equal(swapLoads,0,'absent Model slot issues no Swap loads');
+        await invokeDueScheduleCanonical({asm:typedAsm,artifact:typedArtifact,app:scope.app,handler:'roster.duty_notice',due,store,identities,now:()=>now});
+        assert.equal(probe.outboxAll().length,expected,'actual Work replay stages no second SEND');
+        assert.equal((await store.query({model:asModel('roster.Notice'),authority:'owner'})).length,1,'actual Work replay creates no second Notice');
+        if(mode==='published-null'||mode==='swap-open'||mode.startsWith('dispatch-')) {
+          const intent=probe.outboxAll()[0];assert.ok(intent);
+          if(mode==='dispatch-revoked') {
+            const member=await membershipRead(team.team_id,recipient.user_id);assert.ok(member);
+            await identities.removeMembership(member.membership_id);
+          } else if(mode==='dispatch-stale'||mode==='dispatch-swap-closed') {
+            const model=mode==='dispatch-stale'?'roster.Commitment':'roster.Swap';
+            const row=await store.load(asModel(model),asId(mode==='dispatch-stale'?'commitment':'swap'));assert.ok(row);
+            await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel(model),id:row.id,
+              expectedVersion:row.version,row:{...row,version:asVersion(row.version+1),updated:now,
+                data:{...row.data,...(mode==='dispatch-stale'?{revision:'8'}:{state:'accepted'})}}}]}));
+          }
+          const fences=await bindNativeEmailDispatchGuards({asm:typedAsm,artifact:typedArtifact,store,identities,scope,revalidateAuthority:async()=>true});
+          const producers=await loadDispatchSystemProducers();
+          const claim=createWorkDispatchClaimCommand((id,target)=>id===intent.intentId&&target===intent.target);
+          const commands=assembleDispatchCommands({l3Commands:producers.l3Commands,
+            workCommands:WORK_SYSTEM_COMMANDS.map(command=>command.name===claim.name?claim:command),stageCommands:WORK_DISPATCH_STAGE_COMMANDS});
+          const joined=withDispatchJoinPort(store,await createWorkerDispatchJoinPort(store));
+          let providerCalls=0;
+          const dispatch=await driveDispatchIntentWithPreclaim({store:joined,intent,actor:'dispatch:roster.duty_notice',
+            operation:'test.roster.duty_notice.dispatch',nowMs:()=>now+1000,nextClaimId:()=>`claim-${mode}`,maxClaimAgeMs:60000,
+            claimOperationId:uuidv7(now+1000,1),recordOperationId:uuidv7(now+1000,2),
+            evaluateGuard:()=>{throw new Error('original typed Event Rule was bypassed');},readStateSnapshot:()=>null,
+            callProvider:async()=>{providerCalls++;return {kind:'delivered',result:null};},classifyFailure,fence:fences(intent)},
+            (guard,allocator)=>{
+              const guarded=createWorkDispatchClaimCommand((id,target)=>id===intent.intentId&&target===intent.target,guard,allocator);
+              return producers.createSystemRegistry(commands.map(command=>command.name===claim.name?guarded:command));
+            });
+          assert.equal(dispatch.status,mode.startsWith('dispatch-')?'not-claimed':'recorded',mode+': '+JSON.stringify(dispatch));
+          assert.equal(providerCalls,mode.startsWith('dispatch-')?0:1,'durable Rule rechecks current source and Identity before provider effects');
+          if(dispatch.status==='not-claimed')assert.equal(dispatch.reason,'guard-false');
+          assert.equal(probe.outboxAll().length,1,'dispatch does not stage a second original SEND');
         }
       }
     } finally { await rm(directory, { recursive: true, force: true }); }

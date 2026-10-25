@@ -3951,7 +3951,67 @@ function nativeEmailLexicalType(type: string): boolean {
   return /^(text|bool|int|decimal|money|date|datetime|duration|user|email|timezone)(\[\])?\?$/.test(type) ||
     /^(text|bool|int|decimal|money|date|datetime|duration|user|email|timezone)(\[\])?$/.test(type);
 }
-function nativeEventNoticeScalar(guard:ScenarioReceiptSendGuard,input:{readonly name:string;readonly type:string}):boolean {
+/** Resolve only a checked typed Event model slot to its underlying
+ * required snapshot profile. Nullable Values elsewhere keep their own codec. */
+function nativeSendModelType(guard:ScenarioReceiptSendGuard,input:{readonly name:string;readonly type:string}):string {
+  const field=guard.typedEventSource?.fields.find(field=>field.slot===input.name && field.type===input.type && field.modelFields!==undefined);
+  return field===undefined?input.type:input.type.endsWith('?')?input.type.slice(0,-1):input.type;
+}
+function nativeTypedEventSource(raw:unknown,def:GeneratedOperationDef,originalOperation:unknown,definition:unknown,
+  artifact:CompileArtifact,inputs:readonly {readonly name:string;readonly type:CanTypeId}[],node:unknown,
+  retained:import('@canlang/contracts').ScenarioResultDisclosurePlan['retainedGuardedHandler']):NonNullable<ScenarioReceiptSendGuard['typedEventSource']> {
+  const own=(value:unknown,key:string):unknown=>isUnknownRecord(value)?readMetadataMember(value,key,'Typed Event declaration')?.value:undefined;
+  const source=localPolicyObject(raw,['version','event','handler','predicate','fields']);
+  const event=own(originalOperation,'event');
+  const declarations=typeof event==='string'?own(own(own(definition,'events'),event),'inputs'):undefined;
+  const declaredFields=localPolicyObject(declarations);
+  const fields=nativeCallArray(source.fields,200);
+  const interval=(value:unknown):void=>{
+    const span=localPolicyObject(value,['start','end']);
+    if(!Number.isSafeInteger(span.start) || !Number.isSafeInteger(span.end) || (span.start as number)<0 || (span.end as number)<=(span.start as number))
+      throw new AssemblyCorrespondenceError('Typed Event field lacks its original source occurrence.');
+  };
+  interval(source.predicate);
+  if(source.version!==2 || source.event!==event || source.handler!==def.name ||
+    retained?.owner!==def.name || retained.event!==event || stableStringify(source.predicate)!==stableStringify(node) ||
+    fields.length===0 || fields.length!==Object.keys(declaredFields).length || fields.length!==inputs.length || fields.length!==def.descriptor.inputs.length)
+    throw new AssemblyCorrespondenceError('Typed Event SEND differs from its complete retained handler declaration.');
+  for(const [index,rawField] of fields.entries()) {
+    const field=localPolicyObject(rawField,['name','slot','type','declaration','occurrences',
+      ...(isUnknownRecord(rawField)&&Object.hasOwn(rawField,'modelFields')?['modelFields']:[])]);
+    const declared=def.descriptor.inputs[index],input=inputs[index];
+    if(declared===undefined || input===undefined) throw new AssemblyCorrespondenceError('Typed Event requires every declared slot.');
+    const names=Object.keys(declaredFields);
+    if(field.name!==names[index] || typeof field.type!=='string' || field.slot!==`eventField${index}` || input?.name!==field.slot ||
+      input.type!==field.type || declared.name!==field.name || (declared.kind==='ref'?`${declared.model}${declared.nullable===true?'?':''}`:'valueType' in declared?declared.valueType:undefined)!==field.type ||
+      own(declaredFields[String(field.name)],'type')!==field.type)
+      throw new AssemblyCorrespondenceError('Typed Event SEND slot differs from its exact original field and canonical type.');
+    interval(field.declaration);
+    for(const occurrence of nativeCallArray(field.occurrences,200)) {
+      interval(occurrence);
+      const span=occurrence as {start:number;end:number},predicate=source.predicate as {start:number;end:number};
+      if(span.start<predicate.start || span.end>predicate.end) throw new AssemblyCorrespondenceError('Typed Event occurrence is outside its owning SEND predicate.');
+    }
+    const type=parseTypeId(field.type);
+    if(type.array) throw new AssemblyCorrespondenceError('Typed Event SEND has no array snapshot transport.');
+    if(Object.hasOwn(field,'modelFields')) {
+      const modelName=type.base.kind==='nominal'?type.base.path:undefined;
+      const model=modelName===undefined?undefined:artifact.models?.find(model=>model.name===modelName);
+      if(model===undefined || declared.kind!=='ref' || declared.model!==model.name || (declared.nullable===true)!==type.nullable ||
+        stableStringify(nativeCallArray(field.modelFields,200))!==stableStringify(model.fields.map(field=>field.name).sort()))
+        throw new AssemblyCorrespondenceError('Typed Event model slot differs from its original model, nullability or complete fields.');
+    } else if(!['scalar','stringlike','enum','user'].includes(type.base.kind)) {
+      throw new AssemblyCorrespondenceError('Typed Event scalar slot has no finite canonical codec.');
+    }
+  }
+  return captureDispatchPreclaimData(source) as unknown as NonNullable<ScenarioReceiptSendGuard['typedEventSource']>;
+}
+
+function nativeEventScalar(guard:ScenarioReceiptSendGuard,input:{readonly name:string;readonly type:string}):boolean {
+  if(guard.typedEventSource?.fields.some(field=>field.slot===input.name && field.type===input.type && field.modelFields===undefined)) {
+    const parsed=parseTypeId(input.type);
+    return !parsed.array && ['scalar','stringlike','enum','user'].includes(parsed.base.kind);
+  }
   const fields=guard.eventSource?.scalarFields;
   return guard.owner==='events.attendee_notice' && guard.eventSource?.event==='events.AttendeeNotice' &&
     fields?.length===1 && fields[0]?.name==='kind' && fields[0].slot==='eventKind' && fields[0].type==='events.Notice.kind' &&
@@ -5413,7 +5473,12 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
         return Object.freeze({ name: input.name, type: input.type as CanTypeId });
       });
       let eventSource: ScenarioReceiptSendGuard['eventSource'];
-      if (eventGuard) {
+      let typedEventSource: ScenarioReceiptSendGuard['typedEventSource'];
+      if(eventGuard && isUnknownRecord(emitted.eventSource) && emitted.eventSource.version===2) {
+        if(callable.kind!=='handler') throw new AssemblyCorrespondenceError('Typed Event SEND requires its original private handler.');
+        typedEventSource=nativeTypedEventSource(emitted.eventSource,def,originalOperation,definition,artifact,inputs,emitted.node,plan.retainedGuardedHandler);
+        if(!plan.retainedGuardedHandler?.rules.includes(String(emitted.rule))) throw new AssemblyCorrespondenceError('Typed Event SEND lacks its exact retained Rule.');
+      } else if (eventGuard) {
         const source = localPolicyObject(emitted.eventSource, ['event', 'handler', 'modelField', 'revisionField', 'predicate',
           ...(isUnknownRecord(emitted.eventSource) && Object.hasOwn(emitted.eventSource, 'recipientPath') ? ['recipientPath'] : []),
           ...(isUnknownRecord(emitted.eventSource) && Object.hasOwn(emitted.eventSource, 'ownerDecision') ? ['ownerDecision'] : []),
@@ -5550,7 +5615,8 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
         ...(sourceEvaluation ? { evaluation: 'source' as const } : {}),
         owner: def.name, source: plan.source, node: guardNode as ScenarioReceiptSendGuard['node'],
         target: emitted.target, binding: emitted.binding, inputs,
-        ...(eventSource === undefined ? {} : { eventSource }) });
+        ...(eventSource === undefined ? {} : { eventSource }),
+        ...(typedEventSource===undefined?{}:{typedEventSource}) });
       guards.push(guard);
       const logicalGuard: ScenarioReceiptSendGuard = captureDispatchPreclaimData({ ...guard, source: emitted.source as unknown as ScenarioReceiptSendGuard['source'] });
       selected.set(guard.rule, Object.freeze({ guard, logicalGuard, inputDeclaration, ownerPackage, definition,
@@ -11612,7 +11678,7 @@ async function runScenarioExecution(
   };
   const sendSnapshots = await loadNativeSendModelSnapshots(loaded, opts.artifact,
     [...(nativeSourceSendGuards.get(call.def as GeneratedOperationDef)?.values() ?? [])]
-      .flatMap(selected => selected.guard.inputs.map(input => input.type)));
+      .flatMap(selected => selected.guard.inputs.map(input => nativeSendModelType(selected.guard,input))));
   const judgmentSpecification = await loadJudgmentSpecificationResolver(opts.asm, opts.artifact, opts.operation);
   const ctx = createContext({
     ...(opts.preferences === undefined ? {} : { preferences: opts.preferences }),
@@ -11902,7 +11968,7 @@ async function runScenarioExecution(
                 nativeObserveVenueRoomsGuard(def, selected)))) ||
               ownerSession === undefined || selected === undefined ||
               selected.guard.binding !== bindingKey || selected.guard.target !== source || selected.guard.owner !== scope.operation ||
-              selected.guard.inputs.some(input => !nativeEmailLexicalType(input.type) && !nativeEventNoticeScalar(selected.guard,input) && !sendSnapshots?.has(input.type) &&
+              selected.guard.inputs.some(input => !nativeEmailLexicalType(input.type) && !nativeEventScalar(selected.guard,input) && !sendSnapshots?.has(nativeSendModelType(selected.guard,input)) &&
                 !(isResourceSendTarget(selected.definition, bindingKey, source) && nativeResourceLexicalType(input.type, loaded.valueSchema, new Set(), source.endsWith('.publish') && opts.files !== undefined)))) {
             return refuseRecordBinding('Guarded SEND requires its original installed predicate and typed lexical declaration join.');
           }
@@ -11912,16 +11978,18 @@ async function runScenarioExecution(
           const wire: Record<string, unknown> = Object.create(null);
           for (const input of selected.guard.inputs) {
             const value = localPolicyMember(raw, input.name);
-            if (sendSnapshots?.has(input.type)) {
+            const modelType=nativeSendModelType(selected.guard,input);
+            if(value===null && modelType!==input.type) {wire[input.name]=null;continue;}
+            if (sendSnapshots?.has(modelType)) {
               const issued = isUnknownRecord(value) ? recordBindings.get(value) : undefined;
               // A retained original lexical may be a required stored-parent
               // identity rather than a hydrated recordView. Consume only an
               // already-read current owner row; this opens no public SEND port
               // and performs no extra source expression or ancestry read.
               const reference = internalRetainedGuarded ? nativeRecordReference(value) : undefined;
-              const binding = issued ?? (reference?.model === input.type ? reference : undefined);
+              const binding = issued ?? (reference?.model === modelType ? reference : undefined);
               const row = binding === undefined ? undefined : ownerRows.get(stagedKey(binding.model, binding.id));
-              if (binding?.model !== input.type || row == null) {
+              if (binding?.model !== modelType || row == null) {
                 return refuseRecordBinding('SEND model lexical requires its original native binding and current owner-stage row.');
               }
               // Preserve the exact State-issued current-stage row before any await.
@@ -12219,8 +12287,8 @@ async function runScenarioExecution(
           invoiceCollectGuard || invoiceIssueGuard || sendSnapshots === undefined
           ? undefined : await prepareNativeSendGuardReferences({
           loaded, artifact: opts.artifact, snapshots: sendSnapshots,
-          roots: selected.guard.inputs.filter(input => sendSnapshots.has(input.type)).map(input => ({
-            type: input.type, wire: localPolicyMember(frame.inputs, input.name) })),
+          roots: selected.guard.inputs.filter(input => localPolicyMember(frame.inputs,input.name)!==null && sendSnapshots.has(nativeSendModelType(selected.guard,input))).map(input => ({
+            type: nativeSendModelType(selected.guard,input), wire: localPolicyMember(frame.inputs, input.name) })),
           read: (model, id) => ownerSession!.read(model, id), healthy: assertGuard, failure: recordEngineFailure,
           ...(internalRetainedGuarded?{retainedSourceStage:true as const}:{}),
           parentOnly: selected.guard.eventSource !== undefined && selected.guard.owner !== 'success.renewal_due',
@@ -12231,9 +12299,10 @@ async function runScenarioExecution(
         let collectedInvoiceGuardInput = false;
         for (const input of selected.guard.inputs) {
           const wire = localPolicyMember(frame.inputs, input.name);
-          let value: unknown = retainedViews!==undefined && sendSnapshots?.has(input.type)
-            ? retainedViews.record(input.type as ModelName,sendSnapshots.snapshot(input.type,wire)) : sendSnapshots?.has(input.type)
-            ? sendSnapshots.view(input.type, wire, assertGuard, referenceNavigation?.reference)
+          const modelType=nativeSendModelType(selected.guard,input);
+          let value: unknown = wire===null && modelType!==input.type ? null : retainedViews!==undefined && sendSnapshots?.has(modelType)
+            ? retainedViews.record(modelType as ModelName,sendSnapshots.snapshot(modelType,wire)) : sendSnapshots?.has(modelType)
+            ? sendSnapshots.view(modelType, wire, assertGuard, referenceNavigation?.reference)
             : decodeCanonicalValue(loaded.valueSchema, input.type, wire);
 
           if (invoiceCollectGuard && input.type === 'invoice.Invoice') {
@@ -23101,7 +23170,7 @@ async function revalidateNativeSendGuardOrigin(loaded: LoadedCanonicalDescriptor
   const opaque = await nativeOpaqueFileStaging(loaded, opts, scope, healthy);
   const dispatch = tables.readDispatchRow(row);
   const guard = dispatch.sourceGuard, header = dispatch.filePayloadOrigin;
-  const { eventSource: _eventSource, ...retainedDeclaration } = selected.guard;
+  const { eventSource: _eventSource, typedEventSource: _typedEventSource, ...retainedDeclaration } = selected.guard;
   if (opaque === null || guard === undefined || header === undefined || header.origin.kind !== 'send-guard' ||
       originalIntent.dispatchGuard !== selected.guard.rule || dispatch.guardVerdict !== true ||
       stableStringify({ rule: guard.rule, source: guard.source, owner: guard.owner, node: guard.node }) !==
@@ -23180,7 +23249,7 @@ export async function bindNativeEmailDispatchGuards(input: {
     sendDefinitions.flatMap(value => {
       const def = generatedScenarioDef({ def: value });
       return def === undefined ? [] : [...(nativeSourceSendGuards.get(def)?.values() ?? [])]
-        .flatMap(selected => selected.guard.inputs.map(slot => slot.type));
+        .flatMap(selected => selected.guard.inputs.map(slot => nativeSendModelType(selected.guard,slot)));
     }));
   const guards = new Map<string, { def: GeneratedOperationDef; selected: NativeSourceSendGuard; sourceScope: WorkScope }>();
   for (const value of sendDefinitions) {
@@ -23193,7 +23262,7 @@ export async function bindNativeEmailDispatchGuards(input: {
           !nativeMemberRetryChargeGuard(def, selected) && !nativeInvoiceCollectPaymentGuard(def, selected) && !nativeRetainedFinancialGuard(def,selected) &&
           !nativeObserveVenueRoomsGuard(def, selected)) ||
           (targetOwner ?? selected.ownerPackage) !== scope.ownerPackage ||
-          selected.guard.inputs.some(slot => !nativeEmailLexicalType(slot.type) && !nativeEventNoticeScalar(selected.guard,slot) && !sendSnapshots?.has(slot.type) &&
+          selected.guard.inputs.some(slot => !nativeEmailLexicalType(slot.type) && !nativeEventScalar(selected.guard,slot) && !sendSnapshots?.has(nativeSendModelType(selected.guard,slot)) &&
             !(isResourceSendTarget(selected.definition, selected.guard.binding, selected.guard.target) && nativeResourceLexicalType(slot.type, loaded.valueSchema, new Set(), selected.guard.target.endsWith('.publish') && input.files !== undefined)))) continue;
       const sites = (loaded.membershipSources.get(def.name) ?? []).filter(site => site.stage === 'send-dispatch' &&
         stableStringify(site.node) === stableStringify(selected.guard.node));
@@ -23374,11 +23443,12 @@ export async function bindNativeEmailDispatchGuards(input: {
       let retainedEligible=true;
       if(retainedFrame!==undefined) {
         for(const slot of selected.guard.inputs) {
-          if(!sendSnapshots?.has(slot.type)) continue;
-          const frozen=sendSnapshots.snapshot(slot.type,localPolicyMember(actual.lexical,slot.name));
-          const current=await store.cohortLoad({model:slot.type as ModelName,id:frozen.id,expectedRevision:actual.input.revision});
+          const modelType=nativeSendModelType(selected.guard,slot),wire=localPolicyMember(actual.lexical,slot.name);
+          if(wire===null && modelType!==slot.type || !sendSnapshots?.has(modelType)) continue;
+          const frozen=sendSnapshots.snapshot(modelType,wire);
+          const current=await store.cohortLoad({model:modelType as ModelName,id:frozen.id,expectedRevision:actual.input.revision});
           healthy();
-          retainedRoots.set(slot.name,{model:slot.type,frozen,current});
+          retainedRoots.set(slot.name,{model:modelType,frozen,current});
           if(current===null || !sameRetainedModelLifetime(frozen,current)) retainedEligible=false;
         }
       }
@@ -23397,8 +23467,8 @@ export async function bindNativeEmailDispatchGuards(input: {
         invoiceCollectDecision !== undefined ||
         invoiceIssueDecision !== undefined || successRenewalGuard || sendSnapshots === undefined ? undefined : await prepareNativeSendGuardReferences({
         loaded, artifact, snapshots: sendSnapshots,
-        roots: selected.guard.inputs.filter(slot => sendSnapshots.has(slot.type)).map(slot => ({
-          type: slot.type, wire: retainedFrame===undefined?localPolicyMember(actual.lexical, slot.name):retainedRootWire(slot) })),
+        roots: selected.guard.inputs.filter(slot => localPolicyMember(actual.lexical,slot.name)!==null && sendSnapshots.has(nativeSendModelType(selected.guard,slot))).map(slot => ({
+          type: nativeSendModelType(selected.guard,slot), wire: retainedFrame===undefined?localPolicyMember(actual.lexical, slot.name):retainedRootWire(slot) })),
         read: (model, id) => store.cohortLoad({ model, id, expectedRevision: actual.input.revision }),
         healthy, failure: poison,
         parentOnly: selected.guard.eventSource !== undefined && selected.guard.owner !== 'success.renewal_due',
@@ -23529,8 +23599,9 @@ export async function bindNativeEmailDispatchGuards(input: {
               sendSnapshots!.view('member_terms.Term', { ...memberTerm!, sourcePresence: {
                 fields: Object.keys(memberTerm!.data),
               } }, healthy, referenceNavigation?.reference) :
-            retainedViews!==undefined && retainedEligible && sendSnapshots?.has(slot.type) ? retainedViews.record(slot.type as ModelName,
-              sendSnapshots.snapshot(slot.type,retainedRootWire(slot))) : sendSnapshots?.has(slot.type) ? sendSnapshots.view(slot.type, retainedFrame===undefined?wire:retainedRootWire(slot), healthy, referenceNavigation?.reference)
+            wire===null && nativeSendModelType(selected.guard,slot)!==slot.type ? null :
+            retainedViews!==undefined && retainedEligible && sendSnapshots?.has(nativeSendModelType(selected.guard,slot)) ? retainedViews.record(nativeSendModelType(selected.guard,slot) as ModelName,
+              sendSnapshots.snapshot(nativeSendModelType(selected.guard,slot),retainedRootWire(slot))) : sendSnapshots?.has(nativeSendModelType(selected.guard,slot)) ? sendSnapshots.view(nativeSendModelType(selected.guard,slot), retainedFrame===undefined?wire:retainedRootWire(slot), healthy, referenceNavigation?.reference)
             : decodeCanonicalValue(loaded.valueSchema, slot.type, wire) });
       }
       healthy(); admissions.set(execution, identity);
@@ -23598,8 +23669,10 @@ export async function bindNativeEmailDispatchGuards(input: {
         ...(input.files === undefined ? {} : { files: input.files }) }, sourceScope, row, claim.revision, selected, originalIntent, healthy);
       const lexical = guard.inputs;
       for (const slot of selected.guard.inputs) {
-        if (sendSnapshots?.has(slot.type)) {
-          sendSnapshots.check(slot.type, localPolicyMember(lexical, slot.name));
+        const modelType=nativeSendModelType(selected.guard,slot),wire=localPolicyMember(lexical,slot.name);
+        if(wire===null && modelType!==slot.type) continue;
+        if (sendSnapshots?.has(modelType)) {
+          sendSnapshots.check(modelType, wire);
           continue;
         }
         if (stableStringify(encodeCanonicalField(loaded.producers.errors, slot.type,

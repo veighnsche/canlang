@@ -678,6 +678,7 @@ pub(super) fn prepare_success_notice_send_guard(
             descriptor,
             inputs,
             event_source: Some(super::send_guards::PreparedSendEventSource {
+                fields: Vec::new(),
                 model_slot: "eventTerm",
                 revision_slot: "eventRevision",
                 model_field: root_field.into(),
