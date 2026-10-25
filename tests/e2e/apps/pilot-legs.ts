@@ -6,24 +6,39 @@
  * the identity leg, which takes the expected `{ source, extraSources }`
  * per spec. One home for all legs: no pristine/patched drift.
  */
+import { randomUUID } from "node:crypto";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { expect } from "@playwright/test";
+import { loadExampleBindings } from "@canlang/cloudflare/runtime/example-bindings";
+import { startLocalDev } from "../../fixtures/raw-worker.js";
 import type {
   FqOperationName,
   ModelName,
-  MutationResult,
   OperationId,
   OperationName,
   RecordId,
 } from "@canlang/contracts";
 import {
   COMPILED_LABEL_PREFIX,
+  E2E_COMPATIBILITY_DATE,
   createCompiledInvoker,
   type CompiledAssembly,
 } from "../fixtures/artifact-loader.js";
 import type { CompiledD1Island } from "../fixtures/e2e-test.js";
-import { freshOperationId } from "../fixtures/compiled-seed.js";
-import { seedPilotActors, seedPilotStaff, stageSuiteModule } from "../fixtures/pilot-seed.js";
-import { PilotExamples } from "../fixtures/pilot-examples.js";
+import { changedRow as createdRow, freshOperationId } from "../fixtures/compiled-seed.js";
+import { seedPilotActors, seedPilotStaff } from "../fixtures/pilot-seed.js";
+
+/** Durable effect channels, excluding the legitimate rejected receipt itself. */
+async function storedEffects(island: CompiledD1Island) {
+  const db = await island.dev.getD1Database(island.binding);
+  return Promise.all([
+    db.prepare("SELECT * FROM records ORDER BY model, id").all(),
+    db.prepare("SELECT * FROM history ORDER BY seq").all(),
+    db.prepare("SELECT * FROM outbox ORDER BY intent_id").all(),
+  ]).then(tables => tables.map(table => table.results));
+}
 
 const TASK = "todo.Task";
 const CREATE = "todo.Task.create";
@@ -80,6 +95,7 @@ export interface PilotLegSources {
 
 export interface PilotLeg {
   readonly name: string;
+  readonly timeoutMs?: number;
   readonly run: (fixtures: PilotLegFixtures, sources: PilotLegSources) => Promise<void>;
 }
 
@@ -89,16 +105,6 @@ interface TaskRow {
   readonly data: Record<string, unknown>;
 }
 
-function createdRow(result: MutationResult): TaskRow {
-  const row = result.result as { id?: unknown; version?: unknown; data?: unknown };
-  if (typeof row.id !== "string" || typeof row.version !== "number") {
-    throw new Error(`pilot: bad create result ${JSON.stringify(result.result).slice(0, 300)}`);
-  }
-  if (typeof row.data !== "object" || row.data === null || Array.isArray(row.data)) {
-    throw new Error(`pilot: bad create data ${JSON.stringify(result.result).slice(0, 300)}`);
-  }
-  return { id: row.id, version: row.version, data: row.data as Record<string, unknown> };
-}
 
 function readRows(result: unknown): TaskRow[] {
   const root = result as { records?: TaskRow[] };
@@ -188,7 +194,75 @@ export const pilotLegs: readonly PilotLeg[] = [
     },
   },
   {
-    name: "denied reads answer forbidden, never rows",
+    name: "assignment invariant observes membership revocation before commit",
+    run: async ({ compiled, island }) => {
+      for (const race of [false, true]) {
+        const actors = await seedPilotActors();
+        await seedPilotStaff(island.store, actors, `membership-${race}-${actors.now}`);
+        const membership = actors.member.identity.membership;
+        if (membership === null) throw new Error("pilot: assignment witness has no member");
+        let removed = false;
+        const memberships = {
+          ...actors.store,
+          findMembership: async (team: string, user: string) => {
+            const fact = await actors.store.findMembership(team, user);
+            if (race && !removed && user === actors.member.userId) {
+              removed = true;
+              await actors.store.removeMembership(membership.membership_id);
+            }
+            return fact;
+          },
+        };
+        const invoker = await createCompiledInvoker(compiled, island.store, {
+          memberships, now: () => actors.now,
+        });
+        if (!race) {
+          const allowed = await invoker.invokeMutation({
+            operation: CREATE as OperationName,
+            operation_id: freshOperationId(actors.now) as OperationId,
+            inputs: { title: "Current member assignment", assignee: { id: actors.member.userId } },
+          }, actors.manager.identity);
+          if (!("result" in allowed)) throw new Error(`pilot: active assignment failed ${JSON.stringify(allowed)}`);
+          expect(allowed.result.status).toBe("committed");
+          await actors.store.removeMembership(membership.membership_id);
+        }
+        const before = await storedEffects(island);
+        const operation = freshOperationId(actors.now) as OperationId;
+        const denied = await invoker.invokeMutation({
+          operation: CREATE as OperationName, operation_id: operation,
+          inputs: { title: "Revoked assignment must not persist", assignee: { id: actors.member.userId } },
+        }, actors.manager.identity);
+        expect(denied, `revocation race=${race}`).toHaveProperty("error");
+        if (!("error" in denied)) throw new Error("pilot: revoked assignment committed");
+        expect(["rule_failed", "forbidden", "conflict"]).toContain(denied.error.code);
+        if (race) expect(removed).toBe(true);
+        expect(await storedEffects(island)).toEqual(before);
+      }
+    },
+  },
+  {
+    name: "unsupported guarded work refresh refuses before changing rows or publishing work",
+    run: async ({ compiled, island }) => {
+      const actors = await seedPilotActors();
+      await seedPilotStaff(island.store, actors, `unsupported-${actors.now}`);
+      const invoker = await createCompiledInvoker(compiled, island.store, {
+        memberships: actors.store, now: () => actors.now,
+      });
+      const before = await storedEffects(island);
+      const refused = await invoker.invokeMutation({
+        operation: "todo.refresh" as OperationName,
+        operation_id: freshOperationId(actors.now) as OperationId,
+        inputs: { locations: [] },
+      }, actors.member.identity);
+      expect(refused).toHaveProperty("error");
+      if (!("error" in refused)) throw new Error("pilot: unsupported guarded refresh executed");
+      expect(refused.error.code).toBe("validation");
+      expect(refused.error.message).toBe('Guarded owner "todo.refresh" lacks its original checked execution source.');
+      expect(await storedEffects(island)).toEqual(before);
+    },
+  },
+  {
+    name: "public reads withhold every task from outsiders",
     run: async ({ compiled, island }) => {
       const actors = await seedPilotActors();
       await seedPilotStaff(island.store, actors, `denied-${actors.now}`);
@@ -209,15 +283,18 @@ export const pilotLegs: readonly PilotLeg[] = [
       if (!("result" in created)) {
         throw new Error(`pilot: seed create failed ${JSON.stringify(created)}`);
       }
-      // Outsider (no membership): `read=members` denies.
+      // Task.read admits public viewers; its authored members/staff row
+      // predicate withholds every row and all record metadata from outsiders.
       const denied = await invoker.invokeRead(
         { operation: READ as FqOperationName, inputs: {} },
         actors.outsider.identity,
       );
-      if (!("error" in denied)) {
-        throw new Error(`pilot: outsider read served rows, want forbidden`);
+      if (!("result" in denied)) {
+        throw new Error(`pilot: public outsider read failed ${JSON.stringify(denied)}`);
       }
-      expect(denied.error.code).toBe("forbidden");
+      expect(denied).toEqual({
+        result: { records: [], revision: await island.store.readRevision() },
+      });
     },
   },
   {
@@ -395,37 +472,42 @@ export const pilotLegs: readonly PilotLeg[] = [
   },
   {
     name: "genuine examples execute green against the live pilot",
-    run: async ({ compiled, island }) => {
-      const actors = await seedPilotActors();
-      await seedPilotStaff(island.store, actors, `examples-${actors.now}`);
-      const invoker = await createCompiledInvoker(compiled, island.store, {
-        memberships: actors.store,
-        now: () => actors.now,
-      });
-      const tests = compiled.artifact.tests ?? [];
-      const suite = tests.find((entry) => entry.scope === COMPLETE);
-      if (suite === undefined) {
-        throw new Error(
-          `pilot: artifact has no BDD suite for ${COMPLETE} (scopes: ${tests.map((entry) => entry.scope).join(",") || "none"})`,
-        );
-      }
-      const runner = new PilotExamples({
-        artifact: compiled.artifact,
-        invoker,
-        store: island.store,
-        caller: actors.member.identity,
-        userId: actors.member.userId,
-        now: () => actors.now,
-        operationId: () => freshOperationId(actors.now),
-      });
-      const report = await runner.runSuite(stageSuiteModule(compiled.workDir, suite), COMPLETE);
-      expect(report.rows.length).toBeGreaterThan(0);
-      for (const row of report.rows) {
-        expect(
-          row.outcome === "passed",
-          `pilot: example row ${row.rowIndex} ${row.outcome}: ${row.detail ?? JSON.stringify(row.mismatches ?? row.rejection)}`,
-        ).toBe(true);
-      }
+    // Each authored row provisions isolated Identity + two State databases.
+    timeoutMs: 90_000,
+    run: async ({ compiled }) => {
+      const moduleIndex = compiled.artifact.tests.findIndex((entry) => entry.scope === COMPLETE);
+      expect(moduleIndex, "authored complete example suite").toBeGreaterThanOrEqual(0);
+      const workDir = await mkdtemp(join(tmpdir(), "can-pilot-examples-"));
+      try {
+        const suite = await loadExampleBindings({
+          applicationRoot: process.cwd(),
+          artifactBytes: new TextEncoder().encode(JSON.stringify(compiled.artifact)),
+          artifactLabel: compiled.sourcePath,
+          sourceRevision: compiled.sourceSha256,
+          workDir,
+        }, moduleIndex);
+        expect(suite.metadata.rows.length).toBeGreaterThan(0);
+        for (const authored of suite.metadata.rows) {
+          const d1Id = randomUUID(), currentStateId = randomUUID(), otherStateId = randomUUID();
+          const dev = await startLocalDev({
+            workerName: "can-pilot-example", compatibilityDate: E2E_COMPATIBILITY_DATE,
+            mainModule: "vehicle.mjs",
+            modules: { "vehicle.mjs": "export default {fetch(){return new Response('example resources')}}" },
+            d1Databases: [
+              { binding: "DB", id: d1Id },
+              { binding: "CAN_EXAMPLE_STATE_CURRENT", id: currentStateId },
+              { binding: "CAN_EXAMPLE_STATE_OTHER", id: otherStateId },
+            ],
+          });
+          try {
+            const report = await suite.row(authored.rowIndex, dev, { d1Id, currentStateId, otherStateId, d1Binding: "DB" });
+            expect(report.rows).toHaveLength(1);
+            for (const row of report.rows) {
+              expect(row.outcome, `pilot: example row ${row.rowIndex}: ${row.detail ?? JSON.stringify(row.mismatches ?? row.rejection)}`).toBe("passed");
+            }
+          } finally { await dev.dispose(); }
+        }
+      } finally { await rm(workDir, { recursive: true, force: true }); }
     },
   },
 ];

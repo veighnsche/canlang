@@ -155,10 +155,9 @@ export interface PilotStaff {
 
 /**
  * Commit the staff bootstrap rows (one Location + one active Employee per
- * member) as ONE fenced batch. Values are tagged CanValues exactly as the
- * engine stores them (`{kind:'user',id}`, `{kind:'ref',model,id}`,
- * `{kind:'date',...}`); timezone/currency stay plain strings (no value
- * tag exists for them).
+ * member) as ONE fenced batch. Stored values use the owning Values wire
+ * codecs: opaque user/model references are `{id}` and civil dates use
+ * YYYY-MM-DD. Runtime hydration reconstructs typed values from declarations.
  */
 export async function seedPilotStaff(
   store: StoragePort,
@@ -168,7 +167,7 @@ export async function seedPilotStaff(
   const at = actors.now;
   const version = 1 as RecordVersion;
   const locationId = `loc-pilot-${operationPrefix}` as RecordId;
-  const locationRef = { kind: "ref", model: "rent_catalog.Location", id: locationId };
+  const locationRef = { id: locationId };
   const writes = [
     {
       kind: "insert" as const,
@@ -204,12 +203,12 @@ export async function seedPilotStaff(
         updatedBy: "pilot-seed",
         archivedAt: null,
         data: {
-          user: { kind: "user", id: actor.userId },
+          user: { id: actor.userId },
           home: locationRef,
           locations: [locationRef],
           operator_wide: false,
           active: true,
-          start: { kind: "date", year: 2026, month: 10, day: 1 },
+          start: "2026-10-01",
           role: "operator",
           skills: [],
         },

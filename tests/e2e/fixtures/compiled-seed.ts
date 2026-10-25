@@ -12,7 +12,7 @@
  * hex in UUID shape); uniqueness per call is the load-bearing property.
  */
 import { randomBytes } from "node:crypto";
-import type { ResolvedIdentity } from "@canlang/contracts";
+import type { MutationResult, ResolvedIdentity } from "@canlang/contracts";
 import type { createMemoryIdentityStore as MemoryStoreFn } from "@canlang/identity/testing";
 
 const IDENTITY_DIST_BUILD_COMMAND = "bun run --filter @canlang/identity build";
@@ -93,4 +93,30 @@ export async function seedCompiledMember(): Promise<CompiledMember> {
     memberToken,
     identity: resolved,
   };
+}
+
+/** Authorized changed records are separate from a scenario's returned value. */
+interface ChangedRecord {
+  readonly id: string;
+  readonly version: number;
+  readonly data: Record<string, unknown>;
+}
+
+export function changedRow(result: MutationResult): ChangedRecord {
+  if (result.result !== null || !Array.isArray(result.records) || result.records.length !== 1) {
+    throw new Error(`compiled journey: expected one authorized changed record ${JSON.stringify(result)}`);
+  }
+  const row: unknown = result.records[0];
+  if (typeof row !== "object" || row === null || Array.isArray(row)) {
+    throw new Error(`compiled journey: bad changed record ${JSON.stringify(row)}`);
+  }
+  const record = row as { id: unknown; version: unknown; data: unknown };
+  if (typeof record.id !== "string" || record.id === "" || typeof record.version !== "number" ||
+      !Number.isSafeInteger(record.version) || record.version < 1) {
+    throw new Error(`compiled journey: bad changed identity ${JSON.stringify(row)}`);
+  }
+  if (typeof record.data !== "object" || record.data === null || Array.isArray(record.data)) {
+    throw new Error(`compiled journey: bad changed data ${JSON.stringify(row)}`);
+  }
+  return { id: record.id, version: record.version, data: record.data as Record<string, unknown> };
 }

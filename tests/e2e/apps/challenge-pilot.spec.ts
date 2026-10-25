@@ -1,27 +1,9 @@
 /**
- * T37 basic pilot, direct legs (LG03): ONE unchanged original app —
- * `draft/apps/CanDo/CanDo.can` plus its minimal shared closure
- * (`draft/shared/Locations.can`, `draft/shared/Employees.can`) — proves
- * generated operations, two actors, denied read, persistence, stale
- * update, replay, `complete`/`reopen` scenarios, and genuine executed
- * examples. No reduced source projection: every input is hashed committed
- * bytes and the pilot stays first so `sources[0]` identity binds CanDo.
- *
- * Journeys invoke the REAL canonical invoker against REAL miniflare D1
- * (the T21 island); identity is the REAL L6 memory store (same
- * durable-claim scope as T21). Served legs (browser page GETs + MCP
- * tools/call over the C1 deploy bundle) ride a follow-up slice: worker
- * identity/env provisioning cannot be built blind and needs the same
- * runtime the T02 blockers gate.
- *
- * Presence-shaped assertions (own rows only): the island D1 is per
- * Playwright *worker*, shared across compiled specs in that worker.
- *
- * Leg bodies live in `./pilot-legs.ts`, shared with the patched live
- * runs (`challenge-pilot-patched.spec.ts`, suite-3 fixtures). This file
- * stays the pristine witness: while the draft carries the adjudicated
- * rejections it fails loud in the `compiled` fixture, proving the
- * owning-lane restructures are still needed.
+ * Original CanDo + its unchanged shared source closure, compiled by the real
+ * compiler and exercised against real D1. These journeys cover authored
+ * guards, row visibility, mutation receipts, replay and fixture examples.
+ * The examples use the production runner with real D1 Identity provisioning;
+ * direct mutation legs use the isolated Identity memory fixture.
  */
 import { compiledTest as base } from "../fixtures/e2e-test.js";
 import {
@@ -56,7 +38,8 @@ export const pilotTest = base.extend({
 
 pilotTest.describe("challenge pilot", () => {
   for (const leg of pilotLegs) {
-    pilotTest(leg.name, async ({ compiled, island }) => {
+    pilotTest(leg.name, async ({ compiled, island }, testInfo) => {
+      if (leg.timeoutMs !== undefined) testInfo.setTimeout(leg.timeoutMs);
       await leg.run({ compiled, island }, SOURCES);
     });
   }

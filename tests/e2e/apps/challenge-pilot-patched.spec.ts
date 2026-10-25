@@ -1,4 +1,4 @@
-/** Browser and MCP journeys against the self-contained patched pilot fixtures. */
+/** Canonical mutation and authored-example journeys against the isolated pilot fixture closure. */
 import { compiledTest as base } from "../fixtures/e2e-test.js";
 import {
   disposeCompiledAssembly,
@@ -38,7 +38,8 @@ export const patchedPilotTest = base.extend({
 
 patchedPilotTest.describe("challenge pilot (patched fixtures)", () => {
   for (const leg of pilotLegs) {
-    patchedPilotTest(leg.name, async ({ compiled, island }) => {
+    patchedPilotTest(leg.name, async ({ compiled, island }, testInfo) => {
+      if (leg.timeoutMs !== undefined) testInfo.setTimeout(leg.timeoutMs);
       await leg.run({ compiled, island }, SOURCES);
     });
   }

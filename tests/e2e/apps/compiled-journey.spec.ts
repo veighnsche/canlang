@@ -12,14 +12,13 @@
 import { expect } from "@playwright/test";
 import type {
   ModelName,
-  MutationResult,
   OperationId,
   OperationName,
   RecordId,
 } from "@canlang/contracts";
 import { COMPILED_JOURNEY_SOURCE, compiledTest as test } from "../fixtures/e2e-test.js";
 import { COMPILED_LABEL_PREFIX, createCompiledInvoker } from "../fixtures/artifact-loader.js";
-import { freshOperationId, seedCompiledMember } from "../fixtures/compiled-seed.js";
+import { changedRow, freshOperationId, seedCompiledMember } from "../fixtures/compiled-seed.js";
 
 const CREATE = "Store.Gadget.create";
 const READ = "Store.Gadget.read";
@@ -39,24 +38,6 @@ function readRows(result: unknown): ReadRow[] {
   return root.records;
 }
 
-function changedRow(result: MutationResult): ReadRow {
-  if (result.result !== null || !Array.isArray(result.records) || result.records.length !== 1) {
-    throw new Error(`compiled journey: expected one authorized changed record ${JSON.stringify(result)}`);
-  }
-  const row: unknown = result.records[0];
-  if (typeof row !== "object" || row === null || Array.isArray(row)) {
-    throw new Error(`compiled journey: bad changed record ${JSON.stringify(row)}`);
-  }
-  const record = row as { id: unknown; version: unknown; data: unknown };
-  if (typeof record.id !== "string" || record.id === "" || typeof record.version !== "number" ||
-      !Number.isSafeInteger(record.version) || record.version < 1) {
-    throw new Error(`compiled journey: bad changed identity ${JSON.stringify(row)}`);
-  }
-  if (typeof record.data !== "object" || record.data === null || Array.isArray(record.data)) {
-    throw new Error(`compiled journey: bad changed data ${JSON.stringify(row)}`);
-  }
-  return { id: record.id, version: record.version, data: record.data as Record<string, unknown> };
-}
 
 test.describe("compiled journey", () => {
   test("carries the source-bound compiled identity", async ({ compiled }) => {
