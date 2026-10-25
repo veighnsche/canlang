@@ -1963,6 +1963,21 @@ struct ImmutableSourceFacts {
     reference_identity_operands: Option<HashSet<NodeKey>>,
 }
 
+#[derive(Debug, Clone)]
+struct HelperModelRoute {
+    argument: NodeKey,
+    owner: SymbolId,
+    model: SymbolId,
+    reads: Vec<DisclosureDependency>,
+}
+
+#[derive(Debug, Clone)]
+struct HelperCreatedParent {
+    created: CheckedScenarioCreate,
+    parameter: SymbolId,
+    reads: Vec<DisclosureDependency>,
+}
+
 struct Closure<'a> {
     complete_children: HashSet<SymbolId>,
     complete_model_children: HashMap<SymbolId, SymbolId>,
@@ -21334,6 +21349,12 @@ impl<'a> Closure<'a> {
         base_key: NodeKey,
         value: &ValuePath,
     ) -> Result<(), DisclosureDecline> {
+        let helper_created = self.loop_node.is_none()
+            && self
+                .helper_created_parent(base_key, module, calls)
+                .is_some_and(|path| {
+                    self.helper_created_receiver_matches(&path, value, path.reads.len())
+                });
         let helper_scalar=self.helper_reference_scalar(key,module,calls).is_some_and(|(source,reference,target,_)|
             matches!(value.model_result,Some(DisclosureModelResult::Reference{model,node,source_model,field})
                 if model==target&&node==base_key&&source_model==source&&field==reference)
@@ -21371,6 +21392,7 @@ impl<'a> Closure<'a> {
             value.model_result,
             Some(DisclosureModelResult::Reference { .. })
         ) && !reminder_contact_email
+            && !helper_created
             && !helper_scalar
             && !helper_argument
             && !matches!(value.model_result,
@@ -21763,7 +21785,17 @@ impl<'a> Closure<'a> {
         let created=self.created_parent_source(key,module).filter(|(source,_,_)|
             calls.is_empty()&&self.loop_node.is_none()&&source.model==model
                 &&matches!(value.model_result,Some(DisclosureModelResult::Create{model:actual,node}) if actual==model&&node==source.node));
-        let (parameter, depth, event_row) = if let Some((_, _, parameter)) = &created {
+        let helper_created = (self.loop_node.is_none() && !calls.is_empty())
+            .then(|| self.helper_created_parent(key, module, calls))
+            .flatten()
+            .filter(|path| {
+                path.reads.last().is_some_and(|read| {
+                    read.node == key && read.calls == calls && read.model == model
+                }) && self.helper_created_receiver_matches(path, value, path.reads.len() - 1)
+            });
+        let (parameter, depth, event_row) = if let Some(path) = &helper_created {
+            (path.parameter, 0, false)
+        } else if let Some((_, _, parameter)) = &created {
             (*parameter, 0, false)
         } else {
             match value.reference_origin {
@@ -21820,13 +21852,14 @@ impl<'a> Closure<'a> {
         };
         let helper_parent = self.original_helper_model_path(key, module, calls)
             == Some((parameter, *parent, depth + 1));
-        if !calls.is_empty() && !helper_parent
+        if !calls.is_empty() && !helper_parent && helper_created.is_none()
             || (event_row
                 && self
                     .hook_delivery_field(base_key, module)
                     .is_none_or(|(_, field)| field != parameter))
             || (!event_row
                 && created.is_none()
+                && helper_created.is_none()
                 && !helper_parent
                 && self.checked_call_parent_path(key, parameter, 0) != Some((*parent, depth + 1))
                 && self.checked_delivery_parent_path(key, module, parameter, 2)
@@ -21866,7 +21899,7 @@ impl<'a> Closure<'a> {
         value.observed.push((key, calls.to_vec()));
         value.record = Some(*parent);
         value.reference = None;
-        value.reference_origin = if created.is_some() {
+        value.reference_origin = if created.is_some() || helper_created.is_some() {
             None
         } else {
             Some(ReferenceOrigin::Parent {
@@ -21875,7 +21908,14 @@ impl<'a> Closure<'a> {
                 depth: depth + 1,
             })
         };
-        if created.is_some() {
+        if helper_created.is_some() {
+            value.model_result = Some(DisclosureModelResult::Reference {
+                model: *parent,
+                node: key,
+                source_model: model,
+                field: model,
+            });
+        } else if created.is_some() {
             value.model_result = None;
         }
         Ok(())
@@ -22017,47 +22057,111 @@ impl<'a> Closure<'a> {
 
     /// Resolve a helper's required Model formal to its original admitted
     /// scenario input, retaining only the already-checked parent edges.
-    fn original_helper_model_path(
+    fn checked_parent_reads(
+        &self,
+        mut key: NodeKey,
+        module: ModuleId,
+        calls: &[NodeKey],
+    ) -> Option<(NodeKey, Vec<DisclosureDependency>)> {
+        let mut reads = Vec::new();
+        loop {
+            key = self.query_group(key)?;
+            if self.nodes.get(&key)?.kind == SyntaxKind::NameRef {
+                reads.reverse();
+                return Some((key, reads));
+            }
+            let (base, name) = self.count_member(key)?;
+            if name != "parent" || reads.len() >= 2 {
+                return None;
+            }
+            let ResolvedType::Record {
+                symbol: child,
+                stored: true,
+            } = self.types.node_types.get(&base)?
+            else {
+                return None;
+            };
+            let (parent, _) = self.call_parent_hop_valid(key, base, *child, 0)?;
+            let ty = ResolvedType::Record {
+                symbol: parent,
+                stored: true,
+            };
+            reads.push(DisclosureDependency {
+                query_id: None,
+                id: self
+                    .opaque("read-data", key, &self.call_stamp(calls).ok()?)
+                    .ok()?,
+                source: self.source(module, key).ok()?,
+                node: key,
+                calls: calls.to_vec(),
+                role: DependencyRole::Data,
+                model: *child,
+                field: *child,
+                model_name: self
+                    .resolve
+                    .symbols
+                    .get(child.0 as usize)?
+                    .canonical
+                    .clone(),
+                field_name: "parent".into(),
+                type_id: self.reference_operand_type_id(&ty)?,
+                ty,
+            });
+            key = base;
+        }
+    }
+
+    fn checked_helper_model_route(
         &self,
         key: NodeKey,
         module: ModuleId,
         calls: &[NodeKey],
-    ) -> Option<(SymbolId, SymbolId, u8)> {
-        let last = calls.last()?;
-        if calls.len() > 16 {
+    ) -> Option<HelperModelRoute> {
+        if calls.is_empty() || calls.len() > 16 {
             return None;
         }
-        let SelectedCallTarget::DeriveFn(inner) = self.types.selected_calls.get(last)?.target
-        else {
-            return None;
-        };
-        let helper = self.effects.derives.get(&inner)?;
-        let body = helper.expr?;
-        if helper.module != module
-            || key.file != body.file
-            || key.start < body.start
-            || key.end > body.end
-        {
-            return None;
-        }
-        let (mut formal, model, mut hops) =
-            self.source_require_helper_parent_path(key, inner, 0)?;
+        let mut path = key;
+        let mut reads = Vec::new();
         let mut seen = HashSet::new();
+        let mut target = None;
         for index in (0..calls.len()).rev() {
-            let call = calls[index];
-            let selected = self.types.selected_calls.get(&call)?;
+            let selected = self.types.selected_calls.get(&calls[index])?;
             let SelectedCallTarget::DeriveFn(derive) = selected.target else {
                 return None;
             };
             let helper = self.effects.derives.get(&derive)?;
-            if !seen.insert(derive) || selected.slots.len() != helper.params.len() {
+            let body = helper.expr?;
+            if !seen.insert(derive)
+                || index == calls.len() - 1 && helper.module != module
+                || path.file != body.file
+                || path.start < body.start
+                || path.end > body.end
+                || selected.slots.len() != helper.params.len()
+            {
+                return None;
+            }
+            let (formal, model, hops) = self.source_require_helper_parent_path(path, derive, 0)?;
+            target.get_or_insert(model);
+            let (root, mut prefix) =
+                self.checked_parent_reads(path, helper.module, &calls[..=index])?;
+            if prefix.len() != usize::from(hops)
+                || !matches!(self.query_binding(root),Some(Binding::Symbol(actual))if *actual==formal)
+            {
+                return None;
+            }
+            prefix.extend(reads);
+            reads = prefix;
+            if reads.len() > 2 {
                 return None;
             }
             let slot = helper
                 .params
                 .iter()
                 .position(|parameter| parameter.param == formal)?;
-            if helper.params[slot].default.is_some() {
+            let expected = self.types.symbol_types.get(&formal)?;
+            if helper.params[slot].default.is_some()
+                || !matches!(expected, ResolvedType::Record { stored: true, .. })
+            {
                 return None;
             }
             let argument = self.query_group(
@@ -22065,53 +22169,148 @@ impl<'a> Closure<'a> {
                     .arguments
                     .get(*selected.slots.get(slot)?.as_ref()?)?,
             )?;
-            let expected = self.types.symbol_types.get(&formal)?;
             if self.types.node_types.get(&argument) != Some(expected) {
                 return None;
             }
-            if index == 0 {
-                let scenario = self.effects.scenarios.values().find(|scenario| {
-                    !scenario.read
-                        && scenario.on.is_none()
-                        && scenario.node.file == call.file
-                        && scenario.node.start <= call.start
-                        && call.end <= scenario.node.end
-                })?;
-                let (parameter, prior) = scenario.params.iter().find_map(|parameter| {
-                    let (actual, prior) =
-                        self.checked_call_parent_path(argument, parameter.param, 0)?;
-                    (expected
-                        == &ResolvedType::Record {
-                            symbol: actual,
-                            stored: true,
-                        })
-                        .then_some((parameter.param, prior))
-                })?;
-                hops = hops.checked_add(prior)?;
-                return (hops <= 2).then_some((parameter, model, hops));
-            }
-            let SelectedCallTarget::DeriveFn(outer) =
-                self.types.selected_calls.get(&calls[index - 1])?.target
-            else {
-                return None;
-            };
-            let (outer_formal, actual, prior) =
-                self.source_require_helper_parent_path(argument, outer, 0)?;
-            if expected
-                != &(ResolvedType::Record {
-                    symbol: actual,
+            path = argument;
+        }
+        let owner = self.effects.scenarios.values().find(|scenario| {
+            !scenario.read
+                && scenario.on.is_none()
+                && scenario.node.file == calls[0].file
+                && scenario.node.start <= calls[0].start
+                && calls[0].end <= scenario.node.end
+        })?;
+        Some(HelperModelRoute {
+            argument: path,
+            owner: owner.scenario,
+            model: target?,
+            reads,
+        })
+    }
+
+    fn original_helper_model_path(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+        calls: &[NodeKey],
+    ) -> Option<(SymbolId, SymbolId, u8)> {
+        let route = self.checked_helper_model_route(key, module, calls)?;
+        let owner = self.effects.scenarios.get(&route.owner)?;
+        let (parameter, prior) = owner.params.iter().find_map(|parameter| {
+            let (model, prior) =
+                self.checked_call_parent_path(route.argument, parameter.param, 0)?;
+            (self.types.node_types.get(&route.argument)
+                == Some(&ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                }))
+            .then_some((parameter.param, prior))
+        })?;
+        let hops = u8::try_from(route.reads.len()).ok()?.checked_add(prior)?;
+        (hops <= 2).then_some((parameter, route.model, hops))
+    }
+
+    fn helper_created_parent(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+        calls: &[NodeKey],
+    ) -> Option<HelperCreatedParent> {
+        let route = self.checked_helper_model_route(key, module, calls)?;
+        let scenario = self.effects.scenarios.get(&route.owner)?;
+        let (argument, mut reads) =
+            self.checked_parent_reads(route.argument, scenario.module, &[])?;
+        reads.extend(route.reads);
+        if reads.is_empty() || reads.len() > 2 {
+            return None;
+        }
+        let created = self.created_binding_source(argument, scenario.module)?;
+        let ModelOwner::ChildOf(parent) = created.definition.declaration.owner else {
+            return None;
+        };
+        let input = created
+            .inputs
+            .iter()
+            .find(|input| input.name == "parent" && input.field.is_none())?;
+        let Some(Binding::Symbol(parameter)) = self.query_binding(input.value_node) else {
+            return None;
+        };
+        let parameter = *parameter;
+        if !scenario
+            .params
+            .iter()
+            .any(|input| input.param == parameter && input.default.is_none())
+            || self.types.symbol_types.get(&parameter)
+                != Some(&ResolvedType::Record {
+                    symbol: parent,
                     stored: true,
                 })
-            {
-                return None;
-            }
-            formal = outer_formal;
-            hops = hops.checked_add(prior)?;
-            if hops > 2 {
-                return None;
-            }
+            || self.checked_call_parent_path(input.value_node, parameter, 0) != Some((parent, 0))
+            || reads[0].model != created.model
+            || reads.windows(2).any(|pair| {
+                pair[0].ty
+                    != ResolvedType::Record {
+                        symbol: pair[1].model,
+                        stored: true,
+                    }
+            })
+            || reads.last()?.ty
+                != (ResolvedType::Record {
+                    symbol: route.model,
+                    stored: true,
+                })
+        {
+            return None;
         }
-        None
+        // Created consumers retain the complete original declarations too.
+        for read in &reads {
+            self.checked_created_model(
+                read.model,
+                self.resolve.symbols.get(read.model.0 as usize)?.module,
+            )?;
+            let ResolvedType::Record { symbol, .. } = read.ty else {
+                return None;
+            };
+            self.checked_created_model(
+                symbol,
+                self.resolve.symbols.get(symbol.0 as usize)?.module,
+            )?;
+        }
+        Some(HelperCreatedParent {
+            created,
+            parameter,
+            reads,
+        })
+    }
+    fn helper_created_receiver_matches(
+        &self,
+        path: &HelperCreatedParent,
+        value: &ValuePath,
+        prior: usize,
+    ) -> bool {
+        if prior > path.reads.len()
+            || !path.reads[..prior]
+                .iter()
+                .all(|expected| value.reads.contains(expected))
+        {
+            return false;
+        }
+        if prior == 0 {
+            value.record == Some(path.created.model)
+                && matches!(value.model_result,
+                Some(DisclosureModelResult::Create{model,node})if model==path.created.model&&node==path.created.node)
+        } else {
+            let read = &path.reads[prior - 1];
+            matches!((&read.ty,value.model_result),(ResolvedType::Record{symbol:target,stored:true},
+                Some(DisclosureModelResult::Reference{model,node,source_model,field}))
+                if model==*target&&node==read.node&&source_model==read.model&&field==read.field)
+                && value.record
+                    == Some(match &read.ty {
+                        ResolvedType::Record { symbol, .. } => *symbol,
+                        _ => return false,
+                    })
+        }
     }
 
     /// A consumed helper parent retains its original argument occurrence.
@@ -22258,6 +22457,16 @@ impl<'a> Closure<'a> {
             .original_helper_model_path(base, module, calls)
             .map(|(_, model, _)| model)
             .or_else(|| {
+                self.helper_created_parent(base, module, calls)
+                    .and_then(|path| match path.reads.last()?.ty {
+                        ResolvedType::Record {
+                            symbol,
+                            stored: true,
+                        } => Some(symbol),
+                        _ => None,
+                    })
+            })
+            .or_else(|| {
                 self.helper_reference_receiver(base, module, calls)
                     .map(|(_, _, _, _, target)| target)
             })?;
@@ -22357,6 +22566,15 @@ impl<'a> Closure<'a> {
         field_id: SymbolId,
         value: &ValuePath,
     ) -> Option<SymbolId> {
+        if self.loop_node.is_none()
+            && let Some(path) = self.helper_created_parent(base_key, module, calls)
+            && self.helper_created_receiver_matches(&path, value, path.reads.len())
+            && let Some((source, field, target)) = self.helper_reference_source(key, module, calls)
+            && source == model
+            && field == field_id
+        {
+            return Some(target);
+        }
         if calls.is_empty()
             && let Some((parameter, source, field, target)) =
                 self.checked_loop_send_reference_identity(key, module)

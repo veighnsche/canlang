@@ -2272,6 +2272,33 @@ fn original_book_and_reschedule_keep_required_reference_and_body_correspondence(
         .filter_map(|module| module["js"].as_str())
         .find(|code| code.contains("constructorInputs:"))
         .expect("original constructor input");
+    let body_loops: Value = code
+        .split_once("export function canScenarioBodyLoopSources(){return JSON.parse(")
+        .map(|(_, raw)| {
+            let encoded = serde_json::Deserializer::from_str(raw)
+                .into_iter::<String>()
+                .next()
+                .unwrap()
+                .unwrap();
+            serde_json::from_str(&encoded).unwrap()
+        })
+        .unwrap_or_else(|| serde_json::json!({}));
+    for owner in ["appointments.cancel", "appointments.discard_reschedule"] {
+        let operation = artifact["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|operation| operation["name"] == owner)
+            .unwrap();
+        assert!(
+            operation["result"]["disclosure"]["sourceLoops"].is_object(),
+            "{owner}: the original receipt loop remains present"
+        );
+        assert!(
+            body_loops.get(owner).is_none(),
+            "{owner}: the same original loop cannot publish an unused second reader"
+        );
+    }
     let raw = code.split_once("constructorInputs:").unwrap().1;
     let inputs = serde_json::Deserializer::from_str(raw)
         .into_iter::<Value>()
@@ -4595,6 +4622,114 @@ fn original_helper_parent_reference_keeps_containment_and_field_identity() {
                 &nested_db,
                 Some(&nested_catalog),
                 "$can$m$48656c7065724964656e74697479.mjs"
+            )
+            .is_none(),
+            "{mode}"
+        );
+    }
+    // A freshly created helper actual retains the constructor and original
+    // parent slot; nominal Model equality alone cannot authorize navigation.
+    // The public query-receipt consumer owns model/schema forgery checks.
+    // Give it a real original query; the direct fixture is also executed by
+    // the runtime integration with its independently emitted native receipt.
+    let created_source = include_str!("fixtures/helper-created-parent-reference.can")
+        .replace("   do\n    create Movement", "   do\n    let previous=first(booking.Movement as row order=row.id)\n    require previous==null\n    create Movement");
+    let (created_db, created_program, created_ir, created_catalog) =
+        fixture_source("created-helper-parent.can", &created_source);
+    let created_owner = item(&created_ir, "reservations.move");
+    assert!(
+        matches!(
+            &created_ir.scenario_disclosures[&created_owner.id],
+            ScenarioDisclosure::Complete(_)
+        ),
+        "{:?}",
+        created_ir.scenario_disclosures[&created_owner.id]
+    );
+    let (direct_db, direct_program, direct_ir, direct_catalog) = fixture_source(
+        "created-helper-direct.can",
+        include_str!("fixtures/helper-created-parent-reference.can"),
+    );
+    let direct_owner = item(&direct_ir, "reservations.move");
+    assert!(matches!(
+        &direct_ir.scenario_disclosures[&direct_owner.id],
+        ScenarioDisclosure::Complete(_)
+    ));
+    let (created_artifact, diagnostics) =
+        prepared_artifact(&direct_program, &direct_db, &direct_catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let created_operation = created_artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == created_owner.canonical)
+        .unwrap();
+    assert!(
+        created_operation["result"]["disclosure"].is_object(),
+        "created helper must emit its real native receipt: {created_operation}"
+    );
+    assert!(
+        serialize_complete_query_receipt(
+            &created_program,
+            &created_ir,
+            created_owner,
+            &created_db,
+            Some(&created_catalog),
+            "$can$m$4372656174656448656c706572.mjs"
+        )
+        .is_some()
+    );
+    for mode in [
+        "created-parent-schema",
+        "created-reference-target",
+        "created-helper-origin",
+    ] {
+        let mut changed = created_ir.clone();
+        if mode == "created-parent-schema" {
+            let id = item(&changed, "reservations.Movement").id;
+            let IrItemKind::Model { owner, .. } = &mut changed.items[id.0 as usize].kind else {
+                panic!("model");
+            };
+            *owner = canlang_compiler::codegen::ir::IrOwner::App;
+        } else if mode == "created-reference-target" {
+            let id = item(&changed, "reservations.Booking.customer").id;
+            let other = item(&changed, "reservations.Location").id;
+            let IrItemKind::Field { ty, .. } = &mut changed.items[id.0 as usize].kind else {
+                panic!("field");
+            };
+            *ty = IrType::Known(ResolvedType::Record {
+                symbol: other,
+                stored: true,
+            });
+        } else {
+            let id = item(&changed, "reservations.movement_request").id;
+            let IrItemKind::DeriveFn {
+                expr: Some(body), ..
+            } = &mut changed.items[id.0 as usize].kind
+            else {
+                panic!("helper");
+            };
+            let IrExpr::Object(fields) = &mut body.expr else {
+                panic!("object")
+            };
+            let IrExpr::Member { base: customer, .. } = &mut fields[1].1.expr else {
+                panic!("id")
+            };
+            let IrExpr::Member { base: parent, .. } = &mut customer.expr else {
+                panic!("customer")
+            };
+            let IrExpr::Member { base, .. } = &mut parent.expr else {
+                panic!("parent")
+            };
+            base.expr = IrExpr::Name("other".into());
+        }
+        assert!(
+            serialize_complete_query_receipt(
+                &created_program,
+                &changed,
+                &changed.items[created_owner.id.0 as usize],
+                &created_db,
+                Some(&created_catalog),
+                "$can$m$4372656174656448656c706572.mjs"
             )
             .is_none(),
             "{mode}"

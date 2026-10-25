@@ -3339,6 +3339,41 @@ it('observes original helper parent getters at their authored identity reads', {
     assert.deepEqual(evidence[0]!.data['value'],{customer:'customer',location:'location'});
     assert.ok('result'in await invoker.invokeMutation(request,identity));assert.deepEqual(await store.query({model:asModel('worker.Evidence'),authority:'owner'}),evidence);assert.deepEqual(await store.outboxPending(),pending);}
   }
+  const createdSource=join(root,'compiler/tests/fixtures/helper-created-parent-reference.can');
+  const createdOutput=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,createdSource],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const createdArtifact=JSON.parse(createdOutput.stdout) as CompileArtifact;
+  assert.ok(createdArtifact.operations?.find(operation=>operation.name==='reservations.move')?.result?.disclosure,'actual native Movement receipt required');
+  const createdAsm=await assembleModules({artifact:createdArtifact,sourcePath:createdSource},{workDir:join(directory,'created'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['allowed','hidden-booking','hidden-resource','hidden-customer','hidden-location','identity-race','reference-race','stale']){
+   const {now,identities,identity,membership}=await member('created-helper-'+mode);
+   const {store}=createTestMemoryStorage();
+   const row=(model:string,id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({kind:'insert' as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    row('reservations.Customer','customer',{visible:mode!=='hidden-customer'}),
+    row('reservations.Customer','other',{visible:true}),
+    row('reservations.Location','location',{visible:mode!=='hidden-location'}),
+    row('reservations.Resource','resource',{location:{id:'location'},visible:mode!=='hidden-resource'}),
+    row('reservations.Booking','booking',{customer:{id:'customer'},quantity:'3',visible:mode!=='hidden-booking'},{model:asModel('reservations.Resource'),id:asId('resource')})
+   ]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.load=async(model,id)=>{const value=await load(model,id);if(model==='reservations.Movement'&&mode==='identity-race'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return value;};
+   store.commit=async batch=>{if(mode==='reference-race'&&batch.writes.some(write=>write.kind==='insert'&&write.model==='reservations.Movement')){
+    raced=true;const model=asModel('reservations.Booking'),row=await load(model,asId('booking'));assert.ok(row);
+    await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model,id:row.id,expectedVersion:row.version,row:{...row,version:asVersion(row.version+1),data:{...row.data,customer:{id:'other'}}}}]}));
+   }return commit(batch);};
+   const invoker=buildInvoker(createdArtifact,createdAsm,store,{memberships:identities,now:()=>now});
+   const request={operation:'reservations.move',operation_id:operationId(now),inputs:{booking:{id:'booking',version:mode==='stale'?'2':'1'}}};
+   const result=await invoker.invokeMutation(request,identity),success=['allowed','hidden-customer','hidden-location'].includes(mode);
+   assert.equal('result'in result,success,mode+': '+JSON.stringify(result));
+   if(mode.endsWith('-race'))assert.equal(raced,true,mode);
+   const movement=await store.query({model:asModel('reservations.Movement'),authority:'owner'}),pending=await store.outboxPending();
+   assert.equal(movement.length,success?1:0,mode+': actual CREATE rollback');assert.equal(pending.length,success?1:0,mode+': actual SEND rollback');
+   const evidence=await store.query({model:asModel('reservations.Evidence'),authority:'owner'});assert.equal(evidence.length,success?1:0,mode+': evidence rollback');
+   if(success){assert.deepEqual(pending[0]!.arguments,{binding:'reservations.Membership',from:'deployment.membership',arguments:{value:{source:request.operation_id,customer:'customer',location:'location',quantity:'3'}}});
+    assert.deepEqual(movement[0]!.parent,{model:'reservations.Booking',id:'booking'});
+    const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));
+    assert.deepEqual(await store.query({model:asModel('reservations.Movement'),authority:'owner'}),movement);assert.deepEqual(await store.outboxPending(),pending);}
+  }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
 

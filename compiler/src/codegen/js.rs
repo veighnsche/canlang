@@ -3173,13 +3173,33 @@ fn emit_program_with_sources(
                     emitter.source_cancels.extend(cancels);
                     emitter.source_schedules.extend(schedules);
                 } else {
-                    if let Some(loops) = super::source_loops::collect_native(
+                    if let Some(mut loops) = super::source_loops::collect_native(
                         ir,
                         owner,
                         context,
                         &serde_json::to_value(&receipt.plan.source).expect("checked source"),
                         &module_path(&entry_name),
                     ) {
+                        // For lowering already uses the receipt's original loop
+                        // before consulting the auxiliary body-loop census.
+                        // Publishing that unused second identity would install
+                        // two independent readers on one owner context.
+                        let covered = receipt
+                            .plan
+                            .source_loops
+                            .as_ref()
+                            .into_iter()
+                            .chain(receipt.plan.source_emissions.as_ref())
+                            .filter_map(|plan| plan["loops"].as_array())
+                            .flatten()
+                            .map(|entry| entry["node"].clone())
+                            .collect::<Vec<_>>();
+                        if let Some(entries) = loops["loops"].as_array_mut() {
+                            entries.retain(|entry| !covered.contains(&entry["node"]));
+                            if entries.is_empty() {
+                                continue;
+                            }
+                        }
                         let source =
                             serde_json::to_value(&receipt.plan.source).expect("checked source");
                         if let Some(sends) = source_only_data_sends(
