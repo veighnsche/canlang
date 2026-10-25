@@ -697,8 +697,14 @@ function resolveCompletionOperation(
     (candidate.source.kind === 'event' ? candidate.source.event === operation : candidate.source.kind === 'callable' ?
       candidate.source.callable.id === operation : candidate.source.kind === 'delivery' &&
       `${candidate.source.context.canonical.capability}.${candidate.source.context.canonical.operation}` === operation));
-  if (matches.length !== 1) return refuse('schema operation lacks one original owning input profile.');
-  const selected = matches[0]!;
+  const selected = matches[0];
+  // Several authored SEND consumers can retain the same original provider
+  // input declaration. Their labels differ, but authority and type/default
+  // facts must agree in full before one declaration can project the schema.
+  if (selected === undefined || matches.some(candidate =>
+    !equal(candidate.source, selected.source) || !equal(candidate.profile, selected.profile))) {
+    return refuse('schema operation lacks one original owning input profile.');
+  }
   if (selected.profile.kind !== 'inputs') return refuse('schema input profile required.');
   same(Object.keys(object(operationSchema.inputs)), selected.profile.artifact.map(input => input.name), 'original schema input order');
   for (const [input, rawField] of Object.entries(object(operationSchema.inputs))) {
