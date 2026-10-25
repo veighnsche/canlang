@@ -51,6 +51,11 @@ jobs:
           targets: wasm32-unknown-unknown
       - name: Install from lock
         run: bun install --frozen-lockfile
+      - name: Build Values bindings from native semantics
+        run: |
+          bindgen_version=$(python3 -c 'import tomllib; print(next(p["version"] for p in tomllib.load(open("packages/values/Cargo.lock", "rb"))["package"] if p["name"] == "wasm-bindgen"))')
+          cargo install --locked wasm-bindgen-cli --version "$bindgen_version"
+          bun run build:values-wasm
       - name: Build workspace packages
         run: bun run build
       - name: Check declared package boundaries
@@ -70,6 +75,10 @@ jobs:
         run: bun run catalog
       - name: Build compiler for compiled runtime fixtures
         run: bun run build:compiler
+      - name: Build native SDK integration helper
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/compiler/target
+        run: cargo build --locked --manifest-path dev-server/Cargo.toml
       - name: Install Chromium and system dependencies for workspace tests
         run: bunx playwright install --with-deps chromium
       - name: Test all package and integration suites
@@ -106,6 +115,7 @@ jobs:
         with:
           toolchain: "stable"
           components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
       - name: Install from lock
         run: bun install --frozen-lockfile
       - name: Ensure actual completion engines
@@ -121,6 +131,11 @@ jobs:
       # the compiler lint command; those do not establish correctness.
       - name: Format and lint compiler
         run: bun run lint:compiler
+      - name: Build Values bindings from native semantics
+        run: |
+          bindgen_version=$(python3 -c 'import tomllib; print(next(p["version"] for p in tomllib.load(open("packages/values/Cargo.lock", "rb"))["package"] if p["name"] == "wasm-bindgen"))')
+          cargo install --locked wasm-bindgen-cli --version "$bindgen_version"
+          bun run build:values-wasm
       - name: Build real package and catalog prerequisites
         run: |
           bun run build
