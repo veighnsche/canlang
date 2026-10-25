@@ -577,29 +577,54 @@ it('executes the original register create, free notice and paid charge plus hold
         const token='register-tail-'+randomBytes(8).toString('hex');
         await identities.createSession({user_id:actor.user_id,token_sha256:await sha256HexText(token),last_team_id:team.team_id,expires_at:new Date(now+3600000).toISOString()});
         const identity=await resolveIdentity(identities,{session_token:token},{clock});
-        const {store,probe}=createTestMemoryStorage();
+        const scope = { app: 'EventRegisterProbe', owner: team.team_id, ownerPackage: 'events' };
+        const authority: FileRetirementAuthority = { app: scope.app, stateOwner: scope.app,
+          stateStoreId: `register-state-${mode}`, fileStoreId: `register-files-${mode}`,
+          receiver: { app: scope.app, owner: team.team_id, team: team.team_id } };
+        const {store,probe}=createTestMemoryStorage(authority,
+          [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({ artifact, asm, store, authority, scope,
+          now: () => now, verifyOwner: async () => { assert.ok(await identities.findTeamById(team.team_id)); } });
         const site=asId('site'),event=asId('event'),customer=asId('customer');
         const delegated=mode==='delegated'||mode==='identity-race',account=delegated?other.user_id:actor.user_id;
         const free=['free','full','unpublished','capacity-race'].includes(mode);
         const row=(model:string,id:string,data:Record<string,unknown>,parent:{model:ReturnType<typeof asModel>;id:ReturnType<typeof asId>}|null=null)=>({kind:'insert' as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
+        const capacityRegistration = (id: string) => row('events.Registration', id, {
+          settlement_revision: '0', event_revision: '7', account: { id: actor.user_id }, location: { id: site },
+          name: 'Existing attendee', email: 'existing@example.test', source: id, ticket: id,
+          price: { minor: '0', currency: 'EUR' }, terms: 'Original terms', refund_before: '2099-01-02T12:00:00.000Z',
+          refund_required: false, refund_state: 'none', collected: { minor: '0', currency: 'EUR' },
+          refunded: { minor: '0', currency: 'EUR' }, collection_pending: false, refund_pending: false,
+          fenced: false, fence_revision: '0', absent: false, expires: '2099-01-02T12:00:00.000Z',
+          state: 'confirmed', payment: 'free',
+        }, { model: asModel('events.Event'), id: event });
         const eventData:Record<string,unknown>={location:{id:site},name:'Original event',description:'Description',timezone:'Europe/Amsterdam',from:'2099-01-03T12:00:00.000Z',until:'2099-01-03T14:00:00.000Z',published:mode!=='unpublished',cancelled:false,sales_until:'2099-01-02T08:00:00.000Z',capacity:mode==='full'?'1':'10',venue:null,pending_change:null,revision:'7',terms:'Original terms',refund_before:'2099-01-02T12:00:00.000Z',organizer:{id:actor.user_id},price:{minor:free?'0':'1250',currency:'EUR'}};
         if(mode==='missing-description')delete eventData['name'];
         if(mode==='missing-timezone')delete eventData['timezone'];
-        await store.commit(makeBatch(await store.readRevision(),{writes:[
+        const beforeSeed = await store.readRevision();
+        const seed = makeBatch(beforeSeed,{writes:[
           row('rent_catalog.Location',site,{name:'Site',currency:'EUR'}),
           row('employee.Employee','employee',{user:{id:actor.user_id},active:true,operator_wide:false,home:{id:site},locations:[]}),
           row('customer.Customer',customer,{name:'Customer',kind:'individual',active:true,locations:[{id:site}]}),
           row('customer.Contact','contact',{account:{id:account},verified:true,hidden:false},{model:asModel('customer.Customer'),id:customer}),
           row('events.Program','program',{name:'Program'}),
           row('events.Event',event,eventData,{model:asModel('events.Program'),id:asId('program')}),
-          ...(mode==='full'?[row('events.Registration','existing',{state:'confirmed',expires:'2099-01-02T12:00:00.000Z'},{model:asModel('events.Event'),id:event})]:[]),
-        ]}));
+          ...(mode==='full'?[capacityRegistration('existing')]:[]),
+        ]});
+        if (mode === 'missing-description' || mode === 'missing-timezone') {
+          await assert.rejects(store.commit(seed), /required stored field absent/);
+          assert.equal(await store.readRevision(), beforeSeed, mode + ': malformed source never enters storage');
+          assert.equal(probe.outboxAll().length, 0);
+          assert.equal((await store.query({ model: asModel('events.Registration'), authority: 'owner' })).length, 0);
+          continue;
+        }
+        await store.commit(seed);
         let raced=false;
         const query=store.query.bind(store);
         store.query=async spec=>{const rows=await query(spec);if(mode==='identity-race'&&spec.model==='customer.Contact'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return rows;};
         if(mode==='capacity-race'||mode==='paid-capacity-race'){
           const commit=store.commit.bind(store);
-          store.commit=async batch=>{if(batch.writes.some(write=>write.kind==='insert'&&write.model==='events.Registration')){raced=true;await commit(makeBatch(await store.readRevision(),{writes:[row('events.Registration','racing-'+randomBytes(4).toString('hex'),{state:'confirmed',expires:'2099-01-02T12:00:00.000Z'},{model:asModel('events.Event'),id:event})]}));}return commit(batch);};
+          store.commit=async batch=>{if(batch.writes.some(write=>write.kind==='insert'&&write.model==='events.Registration')){raced=true;await commit(makeBatch(await store.readRevision(),{writes:[capacityRegistration('racing-'+randomBytes(4).toString('hex'))]}));}return commit(batch);};
         }
         const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
         const time=now.toString(16).padStart(12,'0'),random=randomBytes(10).toString('hex'),operationId=`${time.slice(0,8)}-${time.slice(8)}-7${random.slice(0,3)}-8${random.slice(4,7)}-${random.slice(7,19)}`;
