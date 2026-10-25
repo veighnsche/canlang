@@ -4803,9 +4803,59 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
     const wire = storedReferenceWire(reference.profile, currentSource) as { id: RecordId } | null;
     const target = wire === null ? null : await owner.session.views.final.get(scalar.model, wire.id); healthy();
     if (wire !== null && (target === null || target.archivedAt !== null)) throw new StateError('forbidden', 'Stored scalar target lifetime is unavailable.');
+    // A required containment edge may carry the source row of an already
+    // bound sink-only constructor input. It grants no read of that field:
+    // the later original source/leaf capture must consume the exact CREATE.
+    const constructorParent = !nullable && parentSource && singularReferenceLeaf && owner.stage === 0
+      ? referenceProducers.get(call.def as GeneratedOperationDef)?.constructorInputs?.find(profile =>
+        profile.sourceDependencyId === scalar.id && profile.sourceModel === scalar.model &&
+        profile.sourceField === scalar.field && profile.parents.length > 0)
+      : undefined;
+    let constructorParentRevalidate: (() => Promise<void>) | undefined;
+    if (constructorParent !== undefined) {
+      if (target === null || owner.callGuards.length >= MAX_ITEMS) return invalid('Constructor parent requires its complete original live path.');
+      const admitted = call.recordRefs.find(ref => ref.param === constructorParent.parameter && ref.model === constructorParent.rootModel);
+      if (admitted === undefined || admitted.expectedVersion === null || admitted.row.version !== admitted.expectedVersion) return invalid('Constructor parent lacks its admitted required versioned root.');
+      const rows: ConstructorCapture['rows'] = [];
+      let model = constructorParent.rootModel, id = admitted.id;
+      for (let depth = 0; depth <= constructorParent.parents.length; depth++) {
+        const row = await owner.session.views.final.get(model, id); healthy();
+        if (row === null || row.archivedAt !== null || depth === 0 && stableStringify(row) !== stableStringify(admitted.row)) throw new StateError('forbidden', 'Constructor parent root lifetime changed.');
+        if (depth === constructorParent.parents.length - 1 && (model !== source.model || stableStringify(row) !== stableStringify(currentSource))) return invalid('Constructor parent differs from its original source edge.');
+        rows.push({model, row: deepFreeze(dataCopy(row))});
+        if (depth < constructorParent.parents.length) {
+          if (row.parent === null || row.parent === undefined || row.parent.model !== constructorParent.parents[depth]) return invalid('Constructor parent differs from its original containment.');
+          model = row.parent.model; id = row.parent.id;
+        } else if (model !== scalar.model || stableStringify(row) !== stableStringify(target)) return invalid('Constructor parent differs from its original target source.');
+      }
+      const memberships = scenarioReceiptMemberships(call, store), actor = call.context.actor?.userId, team = call.context.team?.teamId;
+      const readMembership = async () => actor === undefined || team === undefined ? null : checkedMembershipFact(await memberships.findMembership(team, actor), team, actor);
+      const membership = await readMembership(); healthy();
+      constructorParentRevalidate = async () => {
+        for (const entry of rows) {
+          const row = await owner.session!.views.final.get(entry.model, entry.row.id); healthy();
+          if (row === null || stableStringify(row) !== stableStringify(entry.row)) throw new StateError('forbidden', 'Constructor parent path changed during evaluation.');
+        }
+        if (stableStringify(await readMembership()) !== stableStringify(membership)) throw new StateError('forbidden', 'Constructor parent Identity changed.');
+        healthy();
+        if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Constructor parent moved beyond its checkpoint.');
+        healthy();
+      };
+      await constructorParentRevalidate();
+      owner.callGuards.push(Object.freeze({name: `constructor-parent:${call.def.name}:${reference.dependency.id}`, evaluate: async () => {
+        const captured = constructorCaptures.get(owner)?.get(constructorParent.sourceDependencyId), final = owner.finalized;
+        if (final === null || captured?.profile !== constructorParent || captured.target === null || captured.consumedId === null ||
+            rows.some((entry, index) => captured.rows[index]?.model !== entry.model || stableStringify(captured.rows[index]?.row) !== stableStringify(entry.row))) return invalid('Constructor parent omitted its genuine original source capture and CREATE sink.');
+        const inserted = final.writes.find(write => write.kind === 'insert' && write.model === constructorParent.model && write.row.id === captured.consumedId);
+        if (inserted?.kind !== 'insert' || stableStringify(inserted.row.data[constructorParent.field]) !== stableStringify(captured.wire)) return invalid('Constructor parent differs from its original consumed CREATE field.');
+        if (stableStringify(await readMembership()) !== stableStringify(membership)) throw new StateError('forbidden', 'Constructor parent Identity changed before commit.');
+        if (owner.finalized !== final || owner.capture.poisoned || await store.readRevision() !== call.revision) throw new StateError('conflict', 'Constructor parent moved before commit.');
+        return true;
+      }}));
+    }
     const narrowed = state.bound.narrowedDependencies.get(scalar.id);
     if (target !== null && narrowed !== undefined) capturedNarrowedControl(call, owner, state, narrowed, target);
-    const targetAuthority = target === null || privateRecipient || constructor !== undefined ? null : await observeModelQuerySourceAuthority(call, store, owner, state,
+    const targetAuthority = target === null || privateRecipient || constructor !== undefined || constructorParent !== undefined ? null : await observeModelQuerySourceAuthority(call, store, owner, state,
       scalar.model, target, targetId ? [] : [scalar.field], 1); healthy();
     const recipientRevalidate = privateRecipient && target !== null
       ? await observeEventRecipientTargetAuthority(call, store, owner, state, currentSource, target,
@@ -4816,6 +4866,7 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
     healthy();
     await targetAuthority?.revalidate(); healthy();
     await recipientRevalidate?.(); healthy();
+    await constructorParentRevalidate?.(); healthy();
     // Ordinary stored-reference reads can depend on distinct subjects; they
     // retain their complete Identity conjunction. The event recipient instead
     // has the exact Work-root/Contact owner fence above.
@@ -4826,7 +4877,7 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
       const policyDomains = ownerPolicyDomains(owner, healthy);
       const authority = await observeRowGrantAuthority({ actorUserId, teamId, membership, memberships }, async context => {
         for (const entry of [{ model: source.model, row: currentSource, field: reference.dependency.field, parent: parentSource },
-          ...(target === null ? [] : [{ model: scalar.model, row: target, field: scalar.field, parent: false }])]) {
+          ...(target === null || constructorParent !== undefined ? [] : [{ model: scalar.model, row: target, field: scalar.field, parent: false }])]) {
           const producer = querySourceProducer(call.def as GeneratedOperationDef, entry.model), read = producer?.readPolicies?.get(entry.model);
           if (producer?.app !== call.context.app || producer.readPolicies === undefined || read === undefined || !('grants' in read)) {
             return invalid('stored scalar conjunction requires its installed source and target grants.');
