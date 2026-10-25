@@ -18485,9 +18485,9 @@ fn source_owned_created_return_tail(
     )
 }
 
-/// Independently returned constructors retain one actual created identity on
-/// every original branch. This proves topology only: each constructor still
-/// passes its ordinary schema, source operand and receipt-effect checks.
+/// Returned constructors retain one actual result identity on every branch.
+/// Auxiliary constructors of other Models leave that identity unchanged. This
+/// proves topology only; ordinary schema, operand and effect checks still run.
 fn source_owned_created_return_branches(
     context: &super::source_context::FreshSourceContext<'_>,
     owner: &IrItem,
@@ -18498,10 +18498,14 @@ fn source_owned_created_return_branches(
     context.same_scenario(ir, owner)?;
     let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
     let creates = facts.creates.as_deref()?;
+    let result_model = checked_created_model_result(ir, owner)?;
+    let result_creates = creates
+        .iter()
+        .filter(|source| source.model == result_model)
+        .collect::<Vec<_>>();
     if !(2..=200).contains(&creates.len())
         || !creates.iter().any(|source| std::ptr::eq(source, original))
-        || creates.iter().any(|source| source.model != original.model)
-        || checked_created_model_result(ir, owner) != Some(original.model)
+        || result_creates.is_empty()
     {
         return None;
     }
@@ -18512,14 +18516,14 @@ fn source_owned_created_return_branches(
         .returns
         .iter()
         .filter_map(|returned| match returned.model_result {
-            Some(DisclosureModelResult::Create { model, node }) if model == original.model => {
+            Some(DisclosureModelResult::Create { model, node }) if model == result_model => {
                 Some(node)
             }
             _ => None,
         })
         .collect::<HashSet<_>>();
-    if returned.len() != creates.len()
-        || creates
+    if returned.len() != result_creates.len()
+        || result_creates
             .iter()
             .any(|source| !returned.contains(&source.node))
     {
@@ -18530,6 +18534,7 @@ fn source_owned_created_return_branches(
         mut states: Vec<Option<crate::analysis::NodeKey>>,
         checked: &CheckedScenarioDisclosure,
         creates: &[crate::analysis::scenario_disclosure::CheckedScenarioCreate],
+        result_model: crate::analysis::SymbolId,
         depth: usize,
         steps: &mut usize,
     ) -> Option<Vec<Option<crate::analysis::NodeKey>>> {
@@ -18542,11 +18547,19 @@ fn source_owned_created_return_branches(
                 return None;
             }
             match statement {
-                IrStmt::Let { .. } | IrStmt::Require { .. } => {}
+                IrStmt::Let { .. }
+                | IrStmt::Require { .. }
+                | IrStmt::Set { .. }
+                | IrStmt::Send { .. }
+                | IrStmt::Emit { .. }
+                | IrStmt::Schedule { .. } => {}
                 IrStmt::Create { span, .. } => {
                     let source = creates
                         .iter()
                         .find(|source| node_span(source.node) == *span)?;
+                    if source.model != result_model {
+                        continue;
+                    }
                     if states.iter().any(Option::is_some) {
                         return None;
                     }
@@ -18575,10 +18588,19 @@ fn source_owned_created_return_branches(
                         states.clone(),
                         checked,
                         creates,
+                        result_model,
                         depth + 1,
                         steps,
                     )?;
-                    for state in walk(else_branch, states, checked, creates, depth + 1, steps)? {
+                    for state in walk(
+                        else_branch,
+                        states,
+                        checked,
+                        creates,
+                        result_model,
+                        depth + 1,
+                        steps,
+                    )? {
                         if !next.contains(&state) {
                             next.push(state);
                         }
@@ -18593,9 +18615,17 @@ fn source_owned_created_return_branches(
     let IrItemKind::Scenario { effects, .. } = &owner.kind else {
         return None;
     };
-    walk(effects, vec![None], checked, creates, 0, &mut 0)?
-        .is_empty()
-        .then_some(())
+    walk(
+        effects,
+        vec![None],
+        checked,
+        creates,
+        result_model,
+        0,
+        &mut 0,
+    )?
+    .is_empty()
+    .then_some(())
 }
 
 fn scenario_create_nesting(

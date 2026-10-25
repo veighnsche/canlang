@@ -343,3 +343,14 @@ export async function nativeScenarioSourceLetData(context:unknown,source:unknown
   if(read===undefined)throw new StateError('validation','Scalar LET DATA needs its actual source owner.');
   return read(source,root);
 }
+
+const sourceQueryValueReaders=new WeakMap<object,(body:Function)=>Promise<unknown>>();
+export function bindNativeScenarioSourceQueryValue(context:object,read:(body:Function)=>Promise<unknown>):void{
+  if(sourceQueryValueReaders.has(context))throw new StateError('validation','LET Values query reader cannot be rebound.');
+  sourceQueryValueReaders.set(context,read);
+}
+export async function nativeScenarioSourceQueryValue(context:unknown,body:Function):Promise<unknown>{
+  const read=typeof context==='object'&&context!==null?sourceQueryValueReaders.get(context):undefined;
+  if(read===undefined||typeof body!=='function')throw new StateError('validation','LET Values query requires its original installed owner.');
+  return read(body);
+}

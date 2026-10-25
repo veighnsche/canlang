@@ -1653,6 +1653,21 @@ fn source_require_only_body_supported(
                 .then(|| (param.name.clone(), ty.clone()))
         })
         .collect();
+    let mut actual_lets = let_data.clone();
+    if let Some(context) = context {
+        if let Some(module) = sources
+            .values()
+            .find(|source| source["owner"] == owner.canonical)
+            .and_then(|source| source["source"]["module"].as_str())
+        {
+            if let Some(values) =
+                super::source_let_data::collect_query_values(ir, owner, context, sources, module)
+            {
+                actual_lets.extend(values);
+            }
+        }
+    }
+    let let_data = &actual_lets;
     statements(
         ir,
         owner,
@@ -3186,6 +3201,15 @@ fn emit_program_with_sources(
             ) {
                 emitter.source_let_data.extend(loans);
             }
+            if let Some(values) = super::source_let_data::collect_query_values(
+                ir,
+                owner,
+                context,
+                &emitter.source_requires,
+                &module_path(&entry_name),
+            ) {
+                emitter.source_query_values.extend(values);
+            }
             if let Some(sends) = source_only_data_sends(
                 ir,
                 owner,
@@ -3442,6 +3466,32 @@ fn emit_program_with_sources(
             Some("canScenarioSendDataSources".into()),
             &format!(
                 "export function canScenarioSendDataSources(){{return JSON.parse({payload});}}"
+            ),
+        );
+    }
+    if !emitter.source_query_values.is_empty() {
+        body.push(entry_span,Some("canScenarioQueryValueSource".into()),"const $can$query$value=new WeakMap();function $can$query$value$issue(source,context,body){$can$query$value.set(body,{source,context});return body;}export function canScenarioQueryValueSource(body){const issued=$can$query$value.get(body);return issued===undefined?null:{source:JSON.parse(issued.source),context:issued.context};}");
+        let mut inventory: BTreeMap<String, Vec<serde_json::Value>> = BTreeMap::new();
+        for source in emitter.source_query_values.values() {
+            inventory
+                .entry(
+                    source["owner"]
+                        .as_str()
+                        .expect("original LET owner")
+                        .to_owned(),
+                )
+                .or_default()
+                .push(source.clone());
+        }
+        for sites in inventory.values_mut() {
+            sites.sort_by_key(|site| site.to_string());
+        }
+        let payload = descriptor_json(&descriptor_json(&inventory));
+        body.push(
+            entry_span,
+            Some("canScenarioQueryValueSources".into()),
+            &format!(
+                "export function canScenarioQueryValueSources(){{return JSON.parse({payload});}}"
             ),
         );
     }
@@ -5504,6 +5554,7 @@ pub struct Emitter<'a> {
     source_requires: HashMap<Span, serde_json::Value>,
     source_data_sends: HashMap<Span, serde_json::Value>,
     source_let_data: HashMap<Span, serde_json::Value>,
+    source_query_values: HashMap<Span, serde_json::Value>,
     source_data_emits: HashMap<Span, serde_json::Value>,
     source_body_loops: HashMap<String, serde_json::Value>,
     source_data_body: bool,
@@ -5763,6 +5814,7 @@ impl<'a> Emitter<'a> {
             source_requires: HashMap::new(),
             source_data_sends: HashMap::new(),
             source_let_data: HashMap::new(),
+            source_query_values: HashMap::new(),
             source_data_emits: HashMap::new(),
             source_body_loops: HashMap::new(),
             source_data_body: false,
@@ -6998,11 +7050,17 @@ impl<'a> Emitter<'a> {
             && !self.boolean_body
             && !self.boolean_helper
             && !self.source_data_body
+            && self.source_let_data.is_empty()
         {
             return false;
         }
         let mut pending = vec![expression];
         while let Some(value) = pending.pop() {
+            if matches!(value.expr, IrExpr::Member { .. })
+                && self.source_let_data.contains_key(&value.span)
+            {
+                return true;
+            }
             match &value.expr {
                 IrExpr::Member { base, field } => {
                     if self.source_data_body
@@ -13562,7 +13620,7 @@ impl<'a> Emitter<'a> {
         let parameters = identity["parameters"]
             .as_array()
             .expect("sealed Require parameters");
-        let names = parameters
+        let mut names = parameters
             .iter()
             .filter(|parameter| parameter["unread"].as_bool() != Some(true))
             .map(|parameter| {
@@ -13572,6 +13630,14 @@ impl<'a> Emitter<'a> {
                     .to_owned()
             })
             .collect::<Vec<_>>();
+        if let Some(captures) = identity["captures"].as_array() {
+            names.extend(captures.iter().map(|capture| {
+                capture["binding"]
+                    .as_str()
+                    .expect("original primitive LET binding")
+                    .to_owned()
+            }));
+        }
         let bindings = names
             .iter()
             .map(|name| format!("{}:{}", object_key(name), self.reference(name)))
@@ -13717,6 +13783,18 @@ impl<'a> Emitter<'a> {
         }
         match stmt {
             IrStmt::Let { name, value, span } => {
+                if let Some(source) = self.source_query_values.get(span).cloned() {
+                    self.stdlib.insert("nativeScenarioSourceQueryValue".into());
+                    let expression = self.lower_expr(value);
+                    let binding = self.bind(name);
+                    return vec![(
+                        format!(
+                            "{pad}const {binding}=await nativeScenarioSourceQueryValue(c,$can$query$value$issue({},c,async()=>({expression})));",
+                            descriptor_json(&descriptor_json(&source))
+                        ),
+                        *span,
+                    )];
+                }
                 if let Some(source) = self.source_let_data.get(span).cloned() {
                     self.stdlib.insert("nativeScenarioSourceLetData".into());
                     let root = self.reference(

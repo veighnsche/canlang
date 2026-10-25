@@ -271,7 +271,17 @@ pub(super) fn collect(
     for (index, statement) in effects.iter().enumerate() {
         match statement {
             IrStmt::Let { name, value, span } => {
-                if used_by_send(&effects[index + 1..], name)
+                let guard_capture = requires
+                    .values()
+                    .filter(|source| source["owner"] == owner.canonical)
+                    .filter_map(|source| source["captures"].as_array())
+                    .flatten()
+                    .any(|capture| {
+                        capture["binding"] == *name
+                            && capture["node"]["start"] == span.start
+                            && capture["node"]["end"] == span.end
+                    });
+                if (guard_capture || used_by_send(&effects[index + 1..], name))
                     && let Some(loan) = scalar_loan(
                         ir, owner, context, &roots, &source, module, value, *span, stage, name,
                     )
@@ -620,7 +630,9 @@ pub(super) fn collect(
         for statement in body {
             match statement {
                 IrStmt::Let { name, value, span } => {
-                    if !loans.contains_key(span) && scalar(&value.ty) {
+                    if !loans.contains_key(span)
+                        && super::source_send_data::plain_value(ir, &value.ty, 0)
+                    {
                         let mut nested = HashMap::new();
                         if leaves(
                             ir,
@@ -888,4 +900,95 @@ pub(super) fn collect(
         loops,
     );
     Some(loans)
+}
+
+/// Only original immutable, pre-write LET values may cross a later guard.
+/// The emitted callback retains the original query reader and field loans;
+/// its result creates no row or ordinary DATA capability.
+pub(super) fn capture_plain_value(ir: &IrProgram, ty: &ResolvedType, depth: usize) -> bool {
+    if depth >= 16 || !super::source_send_data::plain_value(ir, ty, depth) {
+        return false;
+    }
+    match ty {
+        ResolvedType::Scalar(crate::analysis::Scalar::User) => false,
+        ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => {
+            capture_plain_value(ir, inner, depth + 1)
+        }
+        ResolvedType::Object(fields) => fields
+            .iter()
+            .all(|(_, ty)| capture_plain_value(ir, ty, depth + 1)),
+        ResolvedType::Record { symbol, .. } => {
+            matches!(ir.items.get(symbol.0 as usize).map(|item|&item.kind),Some(IrItemKind::Contract{fields,..}) if fields.iter().all(|id|
+            matches!(ir.items.get(id.0 as usize).map(|item|&item.kind),Some(IrItemKind::Field{ty:IrType::Known(ty),..}) if capture_plain_value(ir,ty,depth+1))))
+        }
+        _ => true,
+    }
+}
+
+pub(super) fn collect_query_values(
+    ir: &IrProgram,
+    owner: &IrItem,
+    context: &super::source_context::FreshSourceContext<'_>,
+    requires: &HashMap<Span, serde_json::Value>,
+    module: &str,
+) -> Option<HashMap<Span, serde_json::Value>> {
+    let IrItemKind::Scenario {
+        params,
+        effects,
+        read: false,
+        trusted: false,
+        hook: None,
+        result: None,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    context.same_scenario(ir, owner)?;
+    let source = &requires
+        .values()
+        .find(|source| source["owner"] == owner.canonical)?["source"];
+    let mut values=params.iter().filter_map(|id|ir.items.get(id.0 as usize)).filter_map(|item|
+        matches!(&item.kind,IrItemKind::Param{ty:IrType::Known(ty),..} if super::source_send_data::plain_value(ir,ty,0)).then(||item.name.clone())).collect::<BTreeSet<_>>();
+    let mut output = HashMap::new();
+    for effect in effects {
+        let IrStmt::Let { name, value, span } = effect else {
+            if matches!(effect, IrStmt::Require { .. }) {
+                continue;
+            }
+            break;
+        };
+        let mut queries = Vec::new();
+        let query = if let IrExpr::Query(query) = &value.expr {
+            let IrQueryDomain::Model(model) = &query.domain else {
+                continue;
+            };
+            let original = query.source.as_ref()?;
+            if query.select.is_none()
+                || query.where_async
+                || query.limit.is_some()
+                || query.archived.is_some()
+                || original.node.file != span.file
+                || original.node.start != value.span.start
+                || original.node.end != value.span.end
+            {
+                continue;
+            }
+            queries.push(serde_json::json!({"node":{"start":value.span.start,"end":value.span.end},"model":model}));
+            true
+        } else {
+            false
+        };
+        if !capture_plain_value(ir, &value.ty, 0)
+            || !query && !super::source_send_data::send_value(ir, value, &values, 0)
+        {
+            continue;
+        }
+        let type_id = super::scenario_decisions::serial_type(&value.ty, context.original(), ir, 0)?;
+        values.insert(name.clone());
+        output.insert(*span,serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},
+            "owner":owner.canonical,"node":{"start":span.start,"end":span.end},"value":{"start":value.span.start,"end":value.span.end},
+            "binding":name,"typeId":type_id,"stage":0,"queries":queries}));
+    }
+    Some(output)
 }

@@ -109,3 +109,5 @@ export {
 } from './crud-receipt.js';
 
 export { bindScenarioSourceRequirePhases, openScenarioSourceRequirePhase, consumeScenarioSourceRequirePhase, type ScenarioSourceRequirePhasePlan, type ScenarioSourceRequirePhase } from "./scenario-receipt.js";
+
+export { bindScenarioSourceQueryValueProducer, executeScenarioSourceQueryValue, type ScenarioSourceQueryValueSource } from "./scenario-receipt.js";

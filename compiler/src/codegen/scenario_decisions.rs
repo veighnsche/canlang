@@ -2933,6 +2933,64 @@ fn serialize_require_phase_prefix(
     (!prefix.is_empty()).then(|| serde_json::json!(prefix))
 }
 
+/// Exact original lexical declarations consumed by this staged guard. The
+/// scalar field reader independently binds and records the actual DATA read.
+fn serialize_require_value_captures(
+    sources: &FreshSourceContext<'_>,
+    owner: &IrItem,
+    site: &CheckedDecisionSite,
+) -> Option<Vec<serde_json::Value>> {
+    let original = sources.original();
+    let scenario = original.effects.scenarios.get(&owner.id)?;
+    let IrItemKind::Scenario {
+        effects, params, ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let mut captures = std::collections::BTreeMap::new();
+    for (key, binding) in &sources.resolved().node_binding {
+        if key.file != site.node.file || key.start < site.node.start || key.end > site.node.end {
+            continue;
+        }
+        let crate::analysis::resolve::Binding::Let { node } = binding else {
+            continue;
+        };
+        let declaration = scenario
+            .effects
+            .iter()
+            .find(|effect| effect.node == *node)?;
+        let name = declaration.binding.as_ref()?;
+        let value = declaration.value?;
+        let ty = original.types.node_types.get(&value)?;
+        if !super::source_let_data::capture_plain_value(sources.ir(), ty, 0)
+            || declaration.node.end > site.node.start
+            || params
+                .iter()
+                .any(|id| sources.ir().items[id.0 as usize].name == *name)
+        {
+            return None;
+        }
+        let IrStmt::Let { name: actual, value: actual_value, span } = effects.iter().find(|effect|
+            matches!(effect, IrStmt::Let { span, .. } if span.file == node.file && span.start == node.start && span.end == node.end))? else { return None; };
+        if actual != name || &actual_value.ty != ty {
+            return None;
+        }
+        captures.insert((node.start,node.end),serde_json::json!({"node":{"start":span.start,"end":span.end},"binding":name,"typeId":serial_type(ty,original,sources.ir(),0)?}));
+    }
+    if captures.len() > 200 {
+        return None;
+    }
+    let captures = captures.into_values().collect::<Vec<_>>();
+    if !captures.is_empty() {
+        if site.stage != Stage::BodyRequire {
+            return None;
+        }
+        sources.same_scenario(sources.ir(), owner)?;
+    }
+    Some(captures)
+}
+
 fn serialize_require_observer(
     sources: &FreshSourceContext<'_>,
     original: &CheckedProgram,
@@ -2977,6 +3035,16 @@ fn serialize_require_observer(
         if site.stage == Stage::BodyRequire {
             identity["decision"] = serde_json::json!("require");
         }
+    }
+
+    let captures = if site.stage == Stage::BodyRequire {
+        serialize_require_value_captures(sources, owner, site)?
+    } else {
+        Vec::new()
+    };
+    if !captures.is_empty() {
+        identity["decision"] = serde_json::json!("require");
+        identity["captures"] = serde_json::json!(captures);
     }
 
     if let [

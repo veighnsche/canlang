@@ -1185,7 +1185,7 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
     try {
       const source = join(directory,'phase-prefix.can');
       const original=await readFile(join(root,'compiler/tests/fixtures/native-require-missing-owner-frame.can'),'utf8');
-      await writeFile(source,original.replace('Child in Root {active:bool=true}','Child in Root {active:bool=true,marked:bool=false}').replace('Then\n',' scenario staged(root:Root) by=members\n  do\n   set root {checked=true}\n   for child in root.Child limit=10\n    set child {marked=true}\n   require root.checked and allowed(root)\n   if root.checked and allowed(root)\n    set root {capacity=root.capacity+1}\nThen\n'));
+      await writeFile(source,original.replace('Child in Root {active:bool=true}','Child in Root {active:bool=true,marked:bool=false}').replace('Then\n',' scenario staged(root:Root) by=members\n  do\n   let probe_values=[1,2]\n   let original=root.capacity\n   set root {checked=true,capacity=root.capacity+1}\n   for child in root.Child limit=10\n    set child {marked=true}\n   require root.checked and root.capacity>original and allowed(root)\n   if root.checked and allowed(root)\n    set root {capacity=root.capacity+1}\nThen\n'));
       const { stdout } = await promisify(execFile)(compiler,
         ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
@@ -1193,7 +1193,12 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
       assertSourceOnlyReceipt(artifact, 'GuardOwnerFrame.run');
       const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
         stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
-      for (const mode of ['allowed', 'full', 'inactive', 'other-parent', 'capacity-at-commit', 'membership-during-query','stage-allowed','stage-capacity-at-commit','stage-membership-during-query']) {
+      const deniedSource=join(directory,'withheld-capture.can');
+      await writeFile(deniedSource,(await readFile(source,'utf8')).replace('policy Root read=members','policy Root read=members fields=checked'));
+      const deniedCompile=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,deniedSource],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const deniedArtifact=JSON.parse(deniedCompile.stdout)as CompileArtifact;
+      const deniedAsm=await assembleModules({artifact:deniedArtifact,sourcePath:deniedSource},{workDir:join(directory,'withheld'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      for (const mode of ['allowed', 'full', 'inactive', 'other-parent', 'capacity-at-commit', 'membership-during-query','stage-allowed','stage-capacity-at-commit','stage-membership-during-query','stage-withheld-capture']) {
         const { now, identities, identity, membership } = await member(`source-only-${mode}`);
         const store = createMemoryStorage(), rootModel = model('GuardOwnerFrame', 'Root');
         const rootRow = { ...makeRow({ id: asId('root-1'), data: { capacity: mode === 'full' ? '1' : '2', checked: false } }), parent: null };
@@ -1230,15 +1235,15 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
             return commit(batch);
           };
         }
-        const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+        const invoker = buildInvoker(mode==='stage-withheld-capture'?deniedArtifact:artifact, mode==='stage-withheld-capture'?deniedAsm:asm, store, { memberships: identities, now: () => now });
         const request = { operation:mode.startsWith('stage-')?'GuardOwnerFrame.staged':'GuardOwnerFrame.run', operation_id: operationId(now),
           inputs: { root: { id: rootRow.id, version: String(rootRow.version) } } };
         const outcome = await invoker.invokeMutation(request, identity);
         assert.equal('result' in outcome ? outcome.result.status : outcome.error.code,
-          mode.endsWith('allowed') ? 'committed' : mode.endsWith('capacity-at-commit') ? 'conflict' : mode.endsWith('membership-during-query') ? 'forbidden' : 'rule_failed',
+          mode.endsWith('allowed') ? 'committed' : mode.endsWith('capacity-at-commit') ? 'conflict' : mode.endsWith('membership-during-query')||mode==='stage-withheld-capture' ? 'forbidden' : 'rule_failed',
           `${mode}: ${JSON.stringify(outcome)}`);
         assert.equal((await store.load(rootModel, rootRow.id))?.data.checked, mode.endsWith('allowed'));
-        if(mode==='stage-allowed')assert.equal((await store.load(rootModel,rootRow.id))?.data.capacity,'3','phase IF reads the actual post-SET checked value');
+        if(mode==='stage-allowed')assert.equal((await store.load(rootModel,rootRow.id))?.data.capacity,'4','phase IF reads the actual post-SET checked value');
         if(mode.startsWith('stage-')&&mode!=='stage-allowed')assert.equal((await store.load(rootModel,rootRow.id))?.data.checked,false,'phase/race refusal rolls back the preceding genuine SET');
         if (mode.endsWith('allowed')) {
           assert.equal('result' in outcome && outcome.result.result, mode==='stage-allowed'?null:new Date(now + 86400000).toISOString().slice(0, 10));
@@ -1256,7 +1261,7 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
       // Exercise the actual admitted State owner API independently of the
       // generated IF adapter. A probe always aborts before business commit.
       const state=await import('@canlang/state/invocation');
-      for(const mode of ['valid','forged','stale','wrong-prefix','mutable-write','loop-wrong-fields','loop-extra-when','wrong-source','reused','revision-race']){
+      for(const mode of ['valid','forged','stale','wrong-prefix','mutable-write','loop-wrong-fields','loop-extra-when','missing-scalar-capture','forged-query-value','wrong-source','reused','revision-race']){
         const {now,identities,identity}=await member('phase-proof-'+mode),store=createMemoryStorage();
         const loaded=await loadCanonicalDescriptors(asm,artifact,store),target=model('GuardOwnerFrame','Root');
         const sourceRow={...makeRow({id:asId('root'),data:{capacity:'2',checked:false}}),parent:null};
@@ -1264,14 +1269,17 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
         await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:target,row:sourceRow},{kind:'insert',model:childModel,row:childRow}]}));
         const site=loaded.requireSources.get('GuardOwnerFrame.staged')?.find(site=>site.decision==='if'&&site.mutationPrefix!==undefined);
         assert.ok(site,'fresh compiler/loader independently bind the actual staged IF prefix');
-        assert.equal(site.mutationPrefix?.length,2);assert.deepEqual(site.mutationPrefix?.[0],{kind:'set',parameter:'root',model:target,parents:[],fields:['checked']});
+        assert.equal(site.mutationPrefix?.length,2);assert.deepEqual(site.mutationPrefix?.[0],{kind:'set',parameter:'root',model:target,parents:[],fields:['capacity','checked']});
         const loopStep=site.mutationPrefix?.[1];assert.ok(loopStep?.kind==='loop');assert.deepEqual(loopStep.fields,[['marked']]);
         const def=loaded.registry.get('GuardOwnerFrame.staged') as Parameters<typeof state.bindScenarioSourceRequirePhases>[0];
         const callable=artifact.callables.find(callable=>callable.id===def.name);assert.ok(callable);
         const module=await import(asm.moduleUrls[callable.module]!);
         const loopPlan=(module.canScenarioBodyLoopSources() as Record<string,Parameters<typeof state.bindScenarioSourceLoopProducer>[1]>)[def.name]!;
         assert.equal(loopPlan.loops.length,1);assert.equal(loopPlan.loops[0]!.id,loopStep.id);state.bindScenarioSourceLoopProducer(def,loopPlan);
-        state.bindScenarioSourceRequirePhases(def,{source:def.descriptor.result?.disclosure?.source??{...site.source,module:callable.module},owner:def.name,phases:[{node:site.node,statement:site.statement,prefix:site.mutationPrefix!}]});
+        const queryValues=(module.canScenarioQueryValueSources() as Record<string,Parameters<typeof state.bindScenarioSourceQueryValueProducer>[1]['sites']>)[def.name]!;
+        assert.ok(queryValues.some(site=>site.binding==='probe_values'),'fresh module binds original plain Values LET');
+        state.bindScenarioSourceQueryValueProducer(def,{source:{...site.source,module:callable.module},owner:def.name,sites:queryValues,original:module.canScenarioQueryValueSource});
+        state.bindScenarioSourceRequirePhases(def,{source:def.descriptor.result?.disclosure?.source??{...site.source,module:callable.module},owner:def.name,phases:loaded.requireSources.get(def.name)!.filter(site=>site.mutationPrefix!==undefined).map(site=>({node:site.node,statement:site.statement,prefix:site.mutationPrefix!}))});
 
         let entered=false,proven=false,phaseRaced=false;
         await assert.rejects(()=>state.invoke({registry:loaded.registry as Parameters<typeof state.invoke>[0]['registry'],
@@ -1279,11 +1287,23 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
           identity,app:'GuardOwnerFrame',source:'integration',store,memberships:identities,clock:{nowMs:()=>now},execute:async call=>{
             entered=true;
             const session=await state.beginScenarioReceiptMutation(call,store,{table:loaded.table as Parameters<typeof state.beginScenarioReceiptMutation>[2]['table'],bounds:state.readScenarioReceiptOwnerBounds(call,store)});
-            const patch:Record<string,unknown>=['wrong-prefix','mutable-write'].includes(mode)?{capacity:'3'}:{checked:true};
+            if(mode==='forged-query-value'){
+              let ran=false;
+              try{await state.executeScenarioSourceQueryValue(call,store,{source:queryValues.find(site=>site.binding==='probe_values')!,body:async()=>{ran=true;return [];},context:{}});}
+              finally{assert.equal(ran,false,'unissued callback never executes or records Values');}
+            }
+            const patch:Record<string,unknown>=['wrong-prefix','mutable-write'].includes(mode)?{capacity:'3'}:{capacity:'3',checked:true};
             const staging=session.stage({op:'update',model:target,id:sourceRow.id,data:patch},{cause:'scenario'});
-            if(mode==='mutable-write'){delete patch['capacity'];patch['checked']=true;}await staging;
+            if(mode==='mutable-write')patch['checked']=true;await staging;
             const selected=await state.executeScenarioSourceLoop(call,store,{id:loopStep.id,predicate:null});assert.equal(selected.length,1);
             for(const row of selected)await state.executeScenarioSourceLoopItem(call,store,{id:loopStep.id,row,execute:()=>session.stage({op:'update',model:childModel,id:row.id,data:mode==='loop-wrong-fields'?{active:false}:{marked:true},...(mode==='loop-extra-when'?{when:{op:'eq' as const,field:'marked',value:true}}:{})},{cause:'scenario'})});
+            if(mode==='missing-scalar-capture'){
+              const require=loaded.requireSources.get(def.name)!.find(site=>site.decision==='require')!;
+              assert.deepEqual(require.captures?.map(capture=>[capture.binding,capture.typeId]),[['original','int']]);
+              const phase=await state.openScenarioSourceRequirePhase(call,store,require.node);
+              await state.executeScenarioReceiptRequire(call,store,{original:require,checked:require,parameter:'root',phase,captures:{original:2n},
+                capture:()=>{throw new Error('unrecorded lexical input must never reach the predicate');}});
+            }
             if(mode==='forged')await state.consumeScenarioSourceRequirePhase(call,store,site.node,{kind:'source-require-phase'});
             const token=await state.openScenarioSourceRequirePhase(call,store,mode==='wrong-source'?{start:site.node.start+1,end:site.node.end}:site.node);
             if(mode==='stale')await session.stage({op:'update',model:target,id:sourceRow.id,data:{checked:false}},{cause:'scenario'});
@@ -1292,7 +1312,7 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
             catch(error){if(mode==='revision-race'){assert.equal((error as {code:string}).code,'conflict');assert.match((error as Error).message,/revision changed/);phaseRaced=true;}throw error;}
             if(mode==='reused')await state.consumeScenarioSourceRequirePhase(call,store,site.node,token);
             proven=true;throw new Error('phase proof complete; abort probe before business commit');
-          }}),mode==='valid'?/phase proof complete/:['wrong-prefix','mutable-write'].includes(mode)?/complete original SET prefix/:['loop-wrong-fields','loop-extra-when'].includes(mode)?/loop stamp differs/:mode==='wrong-source'?/quiescent original owner/:mode==='revision-race'?(error:unknown)=>{assert.equal((error as {code:string}).code,'conflict');assert.match((error as Error).message,/Stale record version/);return true;}: /forged, stale, foreign or already consumed/);
+          }}),mode==='valid'?/phase proof complete/:['wrong-prefix','mutable-write'].includes(mode)?/complete original SET prefix/:['loop-wrong-fields','loop-extra-when'].includes(mode)?/loop stamp differs/:mode==='missing-scalar-capture'?/genuine original scalar read/:mode==='forged-query-value'?/closed own data shape required/:mode==='wrong-source'?/quiescent original owner/:mode==='revision-race'?(error:unknown)=>{assert.equal((error as {code:string}).code,'conflict');assert.match((error as Error).message,/Stale record version/);return true;}: /forged, stale, foreign or already consumed/);
         assert.equal(entered,true);assert.equal(proven,mode==='valid');assert.equal(phaseRaced,mode==='revision-race','actual phase rejects the changed revision before canonical retry admission');
         assert.equal((await store.load(target,sourceRow.id))?.data.checked,false,'proof probing publishes no staged SET');
         assert.equal((await store.load(target,sourceRow.id))?.data.capacity,mode==='revision-race'?'9':'2');
@@ -2809,6 +2829,113 @@ it('keeps an original created-row parent as a staged identity across COUNT and C
       assert.equal(audits.length,allowed?1:0);
       if(allowed){assert.deepEqual(audits[0]!.parent,parent);assert.equal(audits[0]!.data['label'],'Original');}
 
+    }
+    const captureSource=join(directory,'Capture.can');
+    await writeFile(captureSource,String.raw`app ReferenceCapture
+Given
+ Customer {active:bool=true}
+ Program {active:bool=true,window:duration,visible:bool=true}
+ Advocate in Program {account:user,code:text}
+ Partner {active:bool=true,account:user,window:duration,visible:bool=true}
+ Capture in Customer {advocate:Advocate?,partner:Partner?,code:text,program:text,window:duration,source:text}
+ policy Customer read=members
+ policy Program read=members where=row.visible
+ policy Advocate read=members
+ policy Partner read=members where=row.visible
+ policy Capture read=members
+When
+ scenario capture(customer:Customer,advocate:Advocate?,partner:Partner?) -> Capture by=members
+  require customer.active
+  require (advocate!=null and partner==null) or (advocate==null and partner!=null)
+  do
+   if advocate!=null
+    require advocate.parent.active and advocate.account!=actor
+    create Capture {parent=customer,advocate,code=advocate.code,program=format("program:{id}",{id=advocate.parent.id}),window=advocate.parent.window,source=operation.id} as captured
+    return captured
+   require partner!=null
+   require partner.active and partner.account!=actor
+   create Capture {parent=customer,partner,code=partner.id,program=format("partner:{id}",{id=partner.id}),window=partner.window,source=operation.id} as captured
+   return captured
+Then
+`);
+    const captureCompiled=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,captureSource],{cwd:root,encoding:'utf8'});
+    assert.equal(captureCompiled.status,0,captureCompiled.stdout+captureCompiled.stderr);
+    const captureArtifact=JSON.parse(captureCompiled.stdout) as CompileArtifact;
+    const captureAsm=await assembleModules({artifact:captureArtifact,sourcePath:captureSource},{workDir:join(directory,'capture'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+    for(const mode of ['advocate','partner','both','neither','hidden-program','hidden-partner','grant-race']){
+      const {now,identities,identity,membership}=await member('capture-branch-'+mode);
+      const foreign=await identities.createUser({email:'foreign-'+mode+'@capture.test',password_hash:'unused',email_verified:true});
+      const {store}=createTestMemoryStorage();
+      const row=(name:string,id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({kind:'insert' as const,model:asModel('ReferenceCapture.'+name),row:{...makeRow({id:asId(id),data}),parent}});
+      await store.commit(makeBatch(await store.readRevision(),{writes:[
+        row('Customer','customer',{active:true}),
+        row('Program','program',{active:true,window:'86400000',visible:mode!=='hidden-program'}),
+        row('Advocate','advocate',{account:{id:foreign.user_id},code:'ACODE'},{model:asModel('ReferenceCapture.Program'),id:asId('program')}),
+        row('Partner','partner',{active:true,account:{id:foreign.user_id},window:'172800000',visible:mode!=='hidden-partner'})
+      ]}));
+      let raced=false;const load=store.load.bind(store);
+      store.load=async(model,id)=>{const saved=await load(model,id);if(mode==='grant-race'&&model==='ReferenceCapture.Program'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return saved;};
+      const invoker=buildInvoker(captureArtifact,captureAsm,store,{memberships:identities,now:()=>now});
+      const advocate=!['partner','neither','hidden-partner'].includes(mode),partner=['partner','both','hidden-partner'].includes(mode);
+      const request={operation:'ReferenceCapture.capture',operation_id:operationId(now),inputs:{customer:{id:'customer',version:'1'},advocate:advocate?{id:'advocate',version:'1'}:null,partner:partner?{id:'partner',version:'1'}:null}};
+      const outcome=await invoker.invokeMutation(request,identity),allowed=['advocate','partner'].includes(mode);
+      const captures=await store.query({model:asModel('ReferenceCapture.Capture'),authority:'owner'});
+      assert.equal('result'in outcome,allowed,mode+': '+JSON.stringify(outcome));assert.equal(captures.length,allowed?1:0,mode);
+      if(mode==='grant-race')assert.equal(raced,true);
+      if(allowed){
+        assert.ok('result'in outcome);assert.deepEqual(outcome.result.result,{id:captures[0]!.id});
+        assert.deepEqual(captures[0]!.parent,{model:asModel('ReferenceCapture.Customer'),id:asId('customer')});
+        assert.equal(captures[0]!.data['code'],advocate?'ACODE':'partner');
+        assert.equal(captures[0]!.data['program'],advocate?'program:program':'partner:partner');
+        const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
+        assert.deepEqual(await store.query({model:asModel('ReferenceCapture.Capture'),authority:'owner'}),captures);
+      }
+    }
+    const auxiliarySource=join(directory,'Auxiliary.can');
+    await writeFile(auxiliarySource,String.raw`app CreatedAuxiliary
+Given
+ Root {active:bool=true,visible:bool=true}
+ Primary in Root {value:int=0}
+ Policy in Root {sequence:int}
+ Evidence in Root {key:text}
+ policy Root read=members where=row.visible
+ policy Primary read=members
+ policy Policy read=members
+ policy Evidence read=members
+When
+ scenario make(root:Root,apply:bool,allowed:bool) -> Primary by=members
+  require root.active
+  do
+   create Primary {parent=root,value=1} as primary
+   create Policy {parent=primary.parent,sequence=1} as snapshot
+   create Evidence {parent=primary.parent,key=primary.id} as evidence
+   if apply
+    set primary {value=2}
+   require allowed
+   return primary
+Then
+`);
+    const auxiliaryCompiled=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,auxiliarySource],{cwd:root,encoding:'utf8'});
+    assert.equal(auxiliaryCompiled.status,0,auxiliaryCompiled.stdout+auxiliaryCompiled.stderr);
+    const auxiliaryArtifact=JSON.parse(auxiliaryCompiled.stdout) as CompileArtifact;
+    const auxiliaryAsm=await assembleModules({artifact:auxiliaryArtifact,sourcePath:auxiliarySource},{workDir:join(directory,'auxiliary'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+    for(const mode of ['plain','updated','late-refusal','hidden-root']){
+      const {now,identities,identity}=await member('created-auxiliary-'+mode);
+      const {store}=createTestMemoryStorage(),parent={model:asModel('CreatedAuxiliary.Root'),id:asId('root')};
+      await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:parent.model,row:makeRow({id:parent.id,data:{active:true,visible:mode!=='hidden-root'}})}]}));
+      const invoker=buildInvoker(auxiliaryArtifact,auxiliaryAsm,store,{memberships:identities,now:()=>now});
+      const request={operation:'CreatedAuxiliary.make',operation_id:operationId(now),inputs:{root:{id:'root',version:'1'},apply:mode!=='plain',allowed:mode!=='late-refusal'}};
+      const outcome=await invoker.invokeMutation(request,identity),allowed=['plain','updated'].includes(mode);
+      assert.equal('result'in outcome,allowed,mode+': '+JSON.stringify(outcome));
+      for(const name of ['Primary','Policy','Evidence']){
+        const rows=await store.query({model:asModel('CreatedAuxiliary.'+name),authority:'owner'});
+        assert.equal(rows.length,allowed?1:0,mode+': '+name+' remains atomic');
+        if(allowed){
+          assert.deepEqual(rows[0]!.parent,parent);
+          if(name==='Primary'){assert.equal(rows[0]!.data['value'],mode==='updated'?'2':'1');assert.ok('result'in outcome);assert.deepEqual(outcome.result.result,{id:rows[0]!.id});}
+        }
+      }
+      if(allowed){const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');assert.equal((await store.query({model:asModel('CreatedAuxiliary.Primary'),authority:'owner'})).length,1);}
     }
   }finally{await rm(directory,{recursive:true,force:true});}
 });

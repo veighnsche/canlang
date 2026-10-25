@@ -4327,6 +4327,7 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
     });
     return Object.freeze<ScenarioReceiptMutationSession>({ views, read: final.get,
       stage: (writes, options) => ownerOperation(owner, async () => {
+        if(sourceQueryValueActive.has(owner))return invalid('Original query LET capture cannot stage mutations.');
         // The engine and phase ledger consume one identical immutable input.
         // Retain only its shape in the ledger; payload data stays in staging.
         if(sourceRequirePhaseProducers.has(owner.call.def as GeneratedOperationDef))writes=deepFreeze(jsonClone(writes,'Source phase mutation writes'));
@@ -4968,6 +4969,7 @@ export interface ScenarioReceiptRequireSource {
   /** A source-sealed IF observes its current staged snapshot; ordinary Requires remain initial-stage. */
   readonly decision?: 'if' | 'require';
   readonly mutationPrefix?:ScenarioSourceRequirePhasePlan['phases'][number]['prefix'];
+  readonly captures?:readonly {readonly node:{readonly start:number;readonly end:number};readonly binding:string;readonly typeId:CanTypeId}[];
   readonly loop?:{readonly node:{readonly start:number;readonly end:number};readonly item:string;readonly model:ModelName};
   readonly source: ScenarioResultDisclosurePlan['source'];
   readonly owner: string;
@@ -4981,7 +4983,7 @@ export interface ScenarioReceiptRequireSource {
 function captureRequireSource(value:unknown):ScenarioReceiptRequireSource{
   const optional=typeof value==='object'&&value!==null?value:{};
   const source=object(value,['source','owner','node','statement','parameters','sites',
-    ...(Object.hasOwn(optional,'decision')?['decision']:[]),...(Object.hasOwn(optional,'mutationPrefix')?['mutationPrefix']:[]),...(Object.hasOwn(optional,'loop')?['loop']:[])]);
+    ...(Object.hasOwn(optional,'decision')?['decision']:[]),...(Object.hasOwn(optional,'mutationPrefix')?['mutationPrefix']:[]),...(Object.hasOwn(optional,'loop')?['loop']:[]),...(Object.hasOwn(optional,'captures')?['captures']:[])]);
   const {sites,...metadata}=source;
   const normalized=checkScenarioReceiptMembershipSites(sites);
   return Object.freeze({...deepFreeze(dataCopy(metadata)),sites:normalized}) as unknown as ScenarioReceiptRequireSource;
@@ -5301,7 +5303,8 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
   readonly phase?:ScenarioSourceRequirePhase;
   readonly checked: ScenarioReceiptRequireSource;
   readonly parameter: string;
-  readonly capture: (observer: ScenarioReceiptRequireObserver) => InstalledSourceQueryPredicate;
+  readonly captures?:Readonly<Record<string,unknown>>;
+  readonly capture: (observer: ScenarioReceiptRequireObserver, captures:Readonly<Record<string,unknown>>) => InstalledSourceQueryPredicate;
 }): Promise<boolean> {
   const state = capture(call, store), owner = ownerSessions.get(call);
   let acquired = false;
@@ -5313,7 +5316,7 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
       await consumeScenarioSourceRequirePhase(call,store,original.node,input.phase);
     }
     const staged=original.decision==='if'||original.decision==='require'&&original.mutationPrefix!==undefined;
-    if (original.decision!==undefined&&!staged) return invalid('Unknown original source decision.');
+    if (original.decision!==undefined&&!staged&&!(original.decision==='require'&&original.captures!==undefined)) return invalid('Unknown original source decision.');
     const stage=owner?.stage;
     if (owner === undefined || owner.session === null || !staged&&owner.stage !== 0 || owner.busy ||
         state.pending !== 0 || state.returnId !== null || owner.executingCall !== call ||
@@ -5347,6 +5350,27 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
         new Set(original.parameters.map(parameter => parameter.name)).size !== original.parameters.length) {
       return invalid('source Require needs its complete original parameters and admitted model slot.');
     }
+    const lexical:Record<string,unknown>=Object.create(null),captures=list(original.captures??[]).map(value=>object(value,['node','binding','typeId']));
+    if(captures.length>MAX_ITEMS)return invalid('Captured LET exceeds its finite original declaration census.');
+    if(captures.length!==0&&(original.decision!=='require'||loopItem!==undefined))return invalid('Captured primitive LET requires its exact staged source guard.');
+    const supplied=object(input.captures??{},captures.map(capture=>text(capture['binding'])));
+    if(Object.keys(supplied).length!==captures.length||new Set(captures.map(capture=>text(capture['binding']))).size!==captures.length)return invalid('Captured primitive LET census differs from the original guard.');
+    for(const raw of captures){
+      const capture=object(raw,['node','binding','typeId']),node=object(capture['node'],['start','end']);
+      const binding=text(capture['binding']),typeId=text(capture['typeId']);
+      const recorded=sourceLetValueCaptures.get(call)?.get(`${node['start']}:${node['end']}`);
+      if(!sourceSendPlainType(state.bound,typeId,new Set(),0,false)||recorded===undefined||recorded.owner!==owner||recorded.store!==store
+          ||recorded.revision!==call.revision||recorded.stage!==0||recorded.site.stage!==0||recorded.site.loop!==undefined
+          ||recorded.site.binding!==binding||recorded.site.valueType!==typeId||recorded.site.node.end>original.node.start
+          ||stableStringify(recorded.site.node)!==stableStringify(node)||recorded.site.owner!==original.owner
+          ||stableStringify(recorded.site.source)!==stableStringify(state.bound.plan.source)
+          ||recorded.site.source.path!==original.source.path||recorded.site.source.sha256!==original.source.sha256
+          ||original.parameters.some(parameter=>parameter.name===binding)
+          ||stableStringify(encodeValue(typeId,supplied[binding] as Parameters<typeof encodeValue>[1],undefined,state.bound.valueSchema))!==stableStringify(recorded.wire))
+        return invalid('Captured primitive LET differs from its genuine original scalar read.');
+      lexical[binding]=state.bound.valueSchema===undefined?decodeValue(typeId,recorded.wire):validateValue(state.bound.valueSchema,typeId,recorded.wire,'create');
+    }
+    const capturedLexical=deepFreeze(lexical);
     const occurrence = `source-require:${call.def.name}:${original.node.start}:${original.node.end}${loopItem===undefined?'':':'+loopItem.row.id}`;
     if (owner.callGuards.some(guard => guard.name === occurrence)) return invalid('source Require must execute once.');
     owner.busy = true; state.pending++; acquired = true;
@@ -5375,7 +5399,7 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
         return invalid('Invoice collection Require lacks its current direct Customer.');
       }
     }
-    const predicate = input.capture(observer);
+    const predicate = input.capture(observer,capturedLexical);
     if (typeof predicate !== 'function') return invalid('source Require needs its installed original predicate.');
     const memberships = scenarioReceiptMemberships(owner.call, store), actorUserId = call.context.actor?.userId ?? null,
       teamId = call.context.team?.teamId ?? null;
@@ -8124,6 +8148,81 @@ export type ScenarioSourceLetDataSource = {
 interface SourceLetDataProducer extends ScenarioReceiptReferenceProducer {readonly sites:readonly ScenarioSourceLetDataSource[];}
 const sourceLetDataProducers=new WeakMap<GeneratedOperationDef,SourceLetDataProducer>();
 const consumedSourceLetData=new WeakMap<AdmittedCall,Set<string>>();
+const SOURCE_PRIMITIVE_LET_TYPES=new Set(['bool','int','decimal','text','email','url','locale','date','datetime','duration','timezone','currency','money']);
+interface SourceLetValueCapture {readonly owner:ReceiptOwnerSession;readonly store:StoragePort;readonly revision:number;readonly stage:number;readonly site:Pick<ScenarioSourceLetDataSource,'source'|'owner'|'node'|'binding'|'valueType'|'loop'> & {readonly stage:0};readonly wire:unknown;}
+const sourceLetValueCaptures=new WeakMap<AdmittedCall,Map<string,SourceLetValueCapture>>();
+
+/** A compiler-issued original LET expression may complete with plain Values.
+ * This producer records its result, never a request-supplied scalar/array. */
+export interface ScenarioSourceQueryValueSource {
+ readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
+ readonly node:{readonly start:number;readonly end:number};readonly value:{readonly start:number;readonly end:number};
+ readonly binding:string;readonly typeId:CanTypeId;readonly stage:0;
+ readonly queries:readonly {readonly node:{readonly start:number;readonly end:number};readonly model:ModelName}[];
+}
+interface SourceQueryValueProducer {
+ readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
+ readonly sites:readonly ScenarioSourceQueryValueSource[];
+ /** The genuine compiled module redeems only its privately issued closures. */
+ readonly original:(body:Function)=>unknown;
+}
+const sourceQueryValueProducers=new WeakMap<GeneratedOperationDef,SourceQueryValueProducer>();
+const sourceQueryValueActive=new WeakMap<ReceiptOwnerSession,{readonly call:AdmittedCall;readonly site:ScenarioSourceQueryValueSource}>();
+export function bindScenarioSourceQueryValueProducer(def:GeneratedOperationDef,value:SourceQueryValueProducer):void{
+ const bound=boundPlans.get(def);
+ if(bound?.sourceRequireOnly!==true||invokedPlans.has(def)||sourceQueryValueProducers.has(def))return invalid('Query LET Values require their original uninvoked source-only owner.');
+ const raw=object(value,['source','owner','sites','original']),original=raw['original'];
+ if(typeof original!=='function')return invalid('Query LET Values need their original private closure verifier.');
+ const source=dataCopy(raw['source']);origin(source);
+ if(raw['owner']!==def.name||stableStringify(source)!==stableStringify(bound.plan.source))return invalid('Query LET Values differ from their original source owner.');
+ const ids=new Set<string>(),bindings=new Set<string>();
+ const sites=list(dataCopy(raw['sites'])).map(value=>{
+  const site=object(value,['source','owner','node','value','binding','typeId','stage','queries']);
+  const node=object(site['node'],['start','end']),expression=object(site['value'],['start','end']);
+  const binding=text(site['binding']),type=text(site['typeId']);
+  const valid=(span:Record<string,unknown>)=>Number.isSafeInteger(span['start'])&&Number.isSafeInteger(span['end'])&&Number(span['start'])>=0&&Number(span['start'])<Number(span['end']);
+  if(site['owner']!==def.name||stableStringify(site['source'])!==stableStringify(source)||site['stage']!==0
+      ||!valid(node)||!valid(expression)||Number(expression['start'])<Number(node['start'])||Number(expression['end'])>Number(node['end'])
+      ||bound.inputs.some(input=>input.name===binding)||bindings.has(binding)||ids.has(stableStringify(node))
+      ||!sourceSendPlainType(bound,type,new Set(),0,false))return invalid('Query LET Values lost their exact initial declaration or plain owning schema.');
+  const queries=list(site['queries']);if(queries.length>1)return invalid('Query LET Values exceed their original initial query census.');
+  for(const value of queries){const query=object(value,['node','model']),at=object(query['node'],['start','end']);
+   if(!valid(at)||Number(at['start'])<Number(expression['start'])||Number(at['end'])>Number(expression['end'])||!bound.artifactModels.has(text(query['model']) as ModelName))return invalid('Query LET Values lack their exact original model query interval.');
+  }
+  ids.add(stableStringify(node));bindings.add(binding);
+  return deepFreeze(site)as unknown as ScenarioSourceQueryValueSource;
+ });
+ if(sites.length===0||sites.length>MAX_ITEMS)return invalid('Query LET Values require a finite original declaration census.');
+ sourceQueryValueProducers.set(def,Object.freeze({source:bound.plan.source,owner:def.name,sites:Object.freeze(sites),original:original as SourceQueryValueProducer['original']}));
+}
+export async function executeScenarioSourceQueryValue(call:AdmittedCall,store:StoragePort,input:{readonly source:ScenarioSourceQueryValueSource;readonly body:Function;readonly context:unknown}):Promise<unknown>{
+ const state=capture(call,store),owner=ownerSessions.get(call);
+ try{
+  const raw=object(input,['source','body','context']),producer=sourceQueryValueProducers.get(call.def as GeneratedOperationDef);
+  if(owner===undefined||owner.session===null||owner.executingCall!==call||owner.busy||state.pending!==0||owner.stage!==0
+      ||sourceQueryValueActive.has(owner)||producer===undefined||typeof raw['body']!=='function')return invalid('Query LET Values need their genuine quiescent initial owner.');
+  const source=dataCopy(raw['source']),site=producer.sites.find(site=>stableStringify(site)===stableStringify(source));
+  if(site===undefined)return invalid('Query LET Values changed their original declaration.');
+  const issued=object(producer.original(raw['body']),['source','context']);
+  if(issued['context']!==raw['context']||stableStringify(dataCopy(issued['source']))!==stableStringify(site))return invalid('Query LET Values lack their original privately issued expression and context.');
+  const key=`${site.node.start}:${site.node.end}`;
+  if(sourceLetValueCaptures.get(call)?.has(key))return invalid('Query LET Values repeat their original declaration.');
+  const lease=Object.freeze({call,site});sourceQueryValueActive.set(owner,lease);
+  const healthy=()=>{ownerHealthy(owner);capture(call,store);if(sourceQueryValueActive.get(owner)!==lease||owner.executingCall!==call||owner.stage!==0||owner.busy||state.pending!==0)return invalid('Query LET Values crossed their original initial checkpoint.');};
+  try{
+   if(await store.readRevision()!==call.revision)throw new StateError('conflict','Query LET Values admission revision changed.');healthy();
+   const value=await Reflect.apply(raw['body'],undefined,[]);healthy();
+   const wire=deepFreeze(dataCopy(encodeValue(site.typeId,value as Parameters<typeof encodeValue>[1],undefined,state.bound.valueSchema)));
+   const decoded=state.bound.valueSchema===undefined?decodeValue(site.typeId,wire):validateValue(state.bound.valueSchema,site.typeId,wire,'create');
+   if(stableStringify(encodeValue(site.typeId,decoded,undefined,state.bound.valueSchema))!==stableStringify(wire))return invalid('Query LET Values lost their canonical original schema.');
+   if(await store.readRevision()!==call.revision)throw new StateError('conflict','Query LET Values result revision changed.');healthy();
+   let captures=sourceLetValueCaptures.get(call);if(captures===undefined){captures=new Map();sourceLetValueCaptures.set(call,captures);}
+   if(captures.size>=MAX_ITEMS||captures.has(key))return invalid('Query LET Values exceed their finite original capture census.');
+   captures.set(key,Object.freeze({owner,store,revision:call.revision,stage:0,site:Object.freeze({source:site.source,owner:site.owner,node:site.node,binding:site.binding,valueType:site.typeId,stage:0 as const}),wire}));
+   return deepFreeze(decoded);
+  }finally{sourceQueryValueActive.delete(owner);}
+ }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
+}
 export function bindScenarioSourceLetDataProducer(def:GeneratedOperationDef,producer:SourceLetDataProducer):void{
   const bound=boundPlans.get(def);
   if(!bound?.sourceRequireOnly||invokedPlans.has(def)||sourceLetDataProducers.has(def))return invalid('Scalar LET DATA requires its uninvoked original source-only owner.');
@@ -8196,6 +8295,15 @@ export async function executeScenarioSourceLetData(call:AdmittedCall,store:Stora
       }
       const authority=await observeModelQuerySourceAuthority(call,store,owner,state,model,row,[site.field.name],0,undefined,undefined,producer);
       if(await store.readRevision()!==call.revision)throw new StateError('conflict','Scalar LET DATA moved beyond its original checkpoint.');
+      ownerHealthy(owner);if(owner.stage!==stage)return invalid('Scalar LET DATA crossed its original capture checkpoint.');
+      if(site.loop===undefined&&site.stage===0&&SOURCE_PRIMITIVE_LET_TYPES.has(site.valueType)){
+        const field=Object.getOwnPropertyDescriptor(authority.record.data,site.field.name);
+        if(field===undefined||!('value'in field)||!field.enumerable)return invalid('Captured primitive LET lacks its actually granted field.');
+        const wire=deepFreeze(dataCopy(encodeValue(site.valueType,decodeValue(site.field.type,field.value))));
+        let captures=sourceLetValueCaptures.get(call);if(captures===undefined){captures=new Map();sourceLetValueCaptures.set(call,captures);}
+        if(captures.size>=MAX_ITEMS||captures.has(key))return invalid('Captured primitive LET exceeds its finite original census.');
+        captures.set(key,Object.freeze({owner,store,revision:call.revision,stage,site:Object.freeze({...site,stage:0 as const}),wire}));
+      }
       return authority.record;
     },call);
   }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
@@ -8224,7 +8332,7 @@ const sourceSendDataExecutions=new WeakMap<ReceiptOwnerSession,{readonly call:Ad
 const consumedSourceSendData=new WeakMap<AdmittedCall,Set<string>>();
 /** Whole Values only: declared Contracts recurse; Model/File/opaque leaves
  * cannot acquire authority through a copied effect argument. */
-function sourceSendPlainType(bound:BoundPlan,type:string,active=new Set<string>(),depth=0):boolean{
+function sourceSendPlainType(bound:BoundPlan,type:string,active=new Set<string>(),depth=0,allowUser=true):boolean{
   if(depth>=16)return false;
   try{
     const parsed=parseTypeId(type),base=parsed.base;
@@ -8234,11 +8342,11 @@ function sourceSendPlainType(bound:BoundPlan,type:string,active=new Set<string>(
       const contract=Object.hasOwn(schema.contracts,name)?schema.contracts[name]:undefined;
       if(contract!==undefined){
         const fields=Object.values(contract.fields);if(fields.length===0||fields.length>200)return false;
-        const next=new Set(active);next.add(name);return fields.every(field=>sourceSendPlainType(bound,field.typeId,next,depth+1));
+        const next=new Set(active);next.add(name);return fields.every(field=>sourceSendPlainType(bound,field.typeId,next,depth+1,allowUser));
       }
       return Object.hasOwn(schema.enums,name)&&schema.enums[name]!.cases.length>0&&!Object.hasOwn(schema.aliases??{},name);
     }
-    return ['scalar','stringlike','enum','user'].includes(base.kind)&&!['file','secret','member','json','bytes'].includes(type.replace(/\[\]!?|\?/g,''));
+    return (allowUser?['scalar','stringlike','enum','user']:['scalar','stringlike','enum']).includes(base.kind)&&!['file','secret','member','json','bytes'].includes(type.replace(/\[\]!?|\?/g,''));
   }catch{return false;}
 }
 function sourceSendFieldType(bound:BoundPlan,model:ModelName,name:string,type:string):boolean{

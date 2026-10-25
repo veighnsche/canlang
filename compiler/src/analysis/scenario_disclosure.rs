@@ -17373,7 +17373,7 @@ impl<'a> Closure<'a> {
         Some((clauses, archived))
     }
 
-    fn source_require_any_call(
+    fn source_require_predicate_collection(
         &self,
         scenario: &super::effects::ScenarioData,
         body: bool,
@@ -17383,7 +17383,6 @@ impl<'a> Closure<'a> {
         helper_query: &mut bool,
         supported: &mut bool,
     ) -> Option<bool> {
-        let _ = body;
         let fact = self.types.checked_collection_calls.get(&call.node)?;
         let [Some(domain_slot), Some(predicate_slot)] = call.slots.as_slice() else {
             return None;
@@ -17426,7 +17425,7 @@ impl<'a> Closure<'a> {
                 .is_none()
                 && !self.source_require_global_model_domain(call, query, fact.model)
                 && !self.source_require_reference_query(scenario, call, query)
-                && !self.source_require_contained_collection(scenario, call, "any")
+                && !self.source_require_contained_collection(scenario, call, id)
                 && !(archived
                     && self.source_require_contained_domain(
                         scenario,
@@ -17443,7 +17442,8 @@ impl<'a> Closure<'a> {
             // keeps its original flow influences and owner frame. If that
             // exact ANY profile is unavailable, the sealed whole leading
             // observer may own it beside the independently proven FIRST.
-            if !body
+            if id == "any"
+                && !body
                 && scenario.effects.iter().any(|binding| {
                     binding.verb == EffectVerb::Let
                         && self
@@ -17470,7 +17470,7 @@ impl<'a> Closure<'a> {
                 && self
                     .source_require_helper_contained_any(scenario, call, query, fact.model)
                     .is_none()
-                && !self.source_require_contained_collection(scenario, call, "any")
+                && !self.source_require_contained_collection(scenario, call, id)
                 && !(archived
                     && self.source_require_contained_domain(
                         scenario,
@@ -18014,10 +18014,10 @@ impl<'a> Closure<'a> {
         true
     }
 
-    /// A leading integer or Money SUM observes one complete original contained
+    /// A leading integer or Money SUM observes one complete original Model
     /// domain. Its checked signature and scalar projection remain exact; every
     /// reached predicate/projection read executes in the source observer.
-    fn source_require_contained_sum(
+    fn source_require_observer_sum(
         &self,
         scenario: &super::effects::ScenarioData,
         call: &CheckedDecisionCall,
@@ -18053,7 +18053,15 @@ impl<'a> Closure<'a> {
         else {
             return false;
         };
-        let clauses = query.clauses.as_slice();
+        let Some((clauses, false)) = self.source_require_query_clauses(query, call.module) else {
+            return false;
+        };
+        if query.projection.is_some()
+            || query.result != *ty
+            || self.types.node_types.get(values) != Some(ty)
+        {
+            return false;
+        }
         let select = match clauses {
             [alias, select] if matches!(alias.kind, CheckedQueryClauseKind::As { .. }) => select,
             [alias, filter, select]
@@ -18070,7 +18078,11 @@ impl<'a> Closure<'a> {
         select.kind == CheckedQueryClauseKind::Select
             && select.expressions.len() == 1
             && self.types.node_types.get(&select.expressions[0]) == Some(result)
-            && self.source_require_contained_query(scenario, call, query)
+            && (self.source_require_contained_query(scenario, call, query)
+                || matches!(&query.domain_type,
+                    ResolvedType::Array { element, ordered: true, nonempty: false }
+                    if matches!(element.as_ref(), ResolvedType::Record { symbol, stored: true }
+                        if self.source_require_global_model_domain(call, query, *symbol))))
     }
 
     /// Raw native count correspondence stays independent of observer/query
@@ -18148,7 +18160,7 @@ impl<'a> Closure<'a> {
                 }
                 let mut helper_query = false;
                 let mut supported = true;
-                self.source_require_any_call(
+                self.source_require_predicate_collection(
                     scenario,
                     false,
                     call,
@@ -18294,7 +18306,10 @@ impl<'a> Closure<'a> {
         // Pure checked Values collections run over the admitted input, never
         // through State's stored-model collection reader.
         if let CheckedDecisionCallTarget::Builtin { id, .. } = &call.target
-            && matches!(id.as_str(), "all" | "count" | "group" | "min" | "max")
+            && matches!(
+                id.as_str(),
+                "any" | "all" | "count" | "group" | "min" | "max"
+            )
             && call
                 .arguments
                 .iter()
@@ -18311,6 +18326,14 @@ impl<'a> Closure<'a> {
                     .is_none_or(|query| self.source_require_observed_value_query(query))
             })
         {
+            if call.arguments.iter().any(|(node, _)| {
+                self.types
+                    .checked_queries
+                    .get(node)
+                    .is_some_and(|query| self.source_require_observed_value_query(query))
+            }) {
+                *helper_query = true;
+            }
             return Some(true);
         }
         match &call.target {
@@ -18335,8 +18358,10 @@ impl<'a> Closure<'a> {
                 }
                 Some(valid)
             }
-            CheckedDecisionCallTarget::Builtin { id, overload } if id == "any" => self
-                .source_require_any_call(
+            CheckedDecisionCallTarget::Builtin { id, overload }
+                if id == "any" || id == "all" && *overload == 0 =>
+            {
+                self.source_require_predicate_collection(
                     scenario,
                     body,
                     call,
@@ -18344,52 +18369,17 @@ impl<'a> Closure<'a> {
                     overload,
                     helper_query,
                     supported,
-                ),
-            CheckedDecisionCallTarget::Builtin { id, overload: 0 } if id == "all" => {
-                let reference_array = (|| {
-                    let fact = self.types.checked_collection_calls.get(&call.node)?;
-                    let [(domain, domain_ty), (predicate, predicate_ty)] =
-                        call.arguments.as_slice()
-                    else {
+                )
+                .or_else(|| {
+                    if id != "all" {
                         return None;
-                    };
-                    let query = self.types.checked_queries.get(domain)?;
-                    let [alias] = query.clauses.as_slice() else {
-                        return None;
-                    };
-                    let array = ResolvedType::Array {
-                        element: Box::new(ResolvedType::Record {
-                            symbol: fact.model,
-                            stored: true,
-                        }),
-                        ordered: true,
-                        nonempty: false,
-                    };
-                    (call.slots.as_slice() == [Some(0), Some(1)]
-                        && self.source_require_any_attrs(
-                            fact,
-                            call,
-                            id,
-                            &0,
-                            domain,
-                            predicate,
-                            query,
-                            alias,
-                            &array,
-                            domain_ty,
-                            predicate_ty,
-                        )
-                        && self.source_require_reference_query(scenario, call, query))
-                    .then_some(())
-                })()
-                .is_some();
-                if !reference_array
-                    && !self.source_require_contained_collection(scenario, call, "all")
-                {
-                    *supported = false;
-                    return Some(false);
-                }
-                Some(true)
+                    }
+                    let valid = self.source_require_contained_collection(scenario, call, id);
+                    if !valid {
+                        *supported = false;
+                    }
+                    Some(valid)
+                })
             }
             CheckedDecisionCallTarget::Builtin { id, .. } if id == "first" => {
                 if !self.source_require_contained_collection(scenario, call, "first") {
@@ -18434,7 +18424,7 @@ impl<'a> Closure<'a> {
             // Model collection. The existing primitive Text-array count
             // remains separate and carries no collection-query authority.
             CheckedDecisionCallTarget::Builtin { id, .. } if id == "sum" && !body => {
-                if !self.source_require_contained_sum(scenario, call) {
+                if !self.source_require_observer_sum(scenario, call) {
                     *supported = false;
                     return Some(false);
                 }
@@ -18504,6 +18494,119 @@ impl<'a> Closure<'a> {
                 Some(false)
             }
         }
+    }
+
+    /// A staged guard may borrow an immutable primitive captured by one
+    /// earlier direct stored-field LET. Names alone never establish origin:
+    /// the resolver binding, original declaration, type and admitted parent
+    /// path must all agree before the runtime capture ledger can consume it.
+    fn source_require_captured_scalar(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        site: &CheckedDecisionSite,
+        key: NodeKey,
+    ) -> Option<()> {
+        if site.stage != CheckedDecisionStage::BodyRequire
+            || self
+                .source_require_staged_body_guard(scenario, &site.position)
+                .is_none()
+        {
+            return None;
+        }
+        let Some(Binding::Let { node }) = self.query_binding(key) else {
+            return None;
+        };
+        let (index, binding) = scenario
+            .effects
+            .iter()
+            .enumerate()
+            .find(|(_, effect)| effect.node == *node)?;
+        if binding.verb != EffectVerb::Let
+            || binding.node.end > site.node.start
+            || !scenario
+                .effects
+                .get(..index)?
+                .iter()
+                .all(|effect| self.source_require_before_write(effect))
+        {
+            return None;
+        }
+        let value = binding.value?;
+        let ty = self.types.node_types.get(&value)?;
+        if self.types.node_types.get(&key) != Some(ty)
+            || !matches!(ty, ResolvedType::Scalar(scalar) if !matches!(scalar,
+                Scalar::User | Scalar::Member | Scalar::File | Scalar::Secret | Scalar::Json | Scalar::Bytes))
+        {
+            return None;
+        }
+        let (base, name) = self.count_member(value)?;
+        let ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        } = self.types.node_types.get(&base)?
+        else {
+            return None;
+        };
+        if !scenario.params.iter().any(|parameter| {
+            self.checked_call_parent_path(base, parameter.param, 0)
+                .is_some_and(|(owner, _)| owner == *model)
+        }) {
+            return None;
+        }
+        self.effects
+            .models
+            .get(model)?
+            .fields
+            .iter()
+            .find(|field| {
+                self.types.symbol_types.get(&field.field) == Some(ty)
+                    && self
+                        .resolve
+                        .symbols
+                        .get(field.field.0 as usize)
+                        .is_some_and(|declaration| {
+                            declaration.name == name
+                                && matches!(declaration.kind,
+                        SymbolKind::Field { owner, .. } if owner == *model)
+                        })
+            })?;
+        Some(())
+    }
+
+    fn source_require_captured_value(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        site: &CheckedDecisionSite,
+        key: NodeKey,
+    ) -> Option<()> {
+        if site.stage != CheckedDecisionStage::BodyRequire
+            || self
+                .source_require_body_guard(scenario, &site.position)
+                .is_none()
+        {
+            return None;
+        }
+        let Binding::Let { node } = self.query_binding(key)? else {
+            return None;
+        };
+        let (index, binding) = scenario
+            .effects
+            .iter()
+            .enumerate()
+            .find(|(_, effect)| effect.node == *node)?;
+        let value = binding.value?;
+        (binding.verb == EffectVerb::Let
+            && binding.node.end <= site.node.start
+            && scenario.effects[..index]
+                .iter()
+                .all(|effect| self.source_require_before_write(effect))
+            && self.types.node_types.get(&key) == self.types.node_types.get(&value)
+            && self
+                .types
+                .node_types
+                .get(&value)
+                .is_some_and(|ty| self.source_require_plain_value(ty, 0)))
+        .then_some(())
     }
 
     fn source_require_walk_member(
@@ -18586,6 +18689,8 @@ impl<'a> Closure<'a> {
         if body {
             match self.query_binding(key) {
                 Some(Binding::ForItem{node}) if self.source_require_loop_condition(scenario,site).is_some_and(|(outer,_)|outer.node==*node)=>{},
+                Some(Binding::Let { .. }) if self.source_require_captured_scalar(scenario,site,key).is_some()=>{},
+                Some(Binding::Let { .. }) if self.source_require_captured_value(scenario,site,key).is_some()=>{*helper_query=true;},
                 Some(Binding::Let { .. } | Binding::CreateAs { .. } | Binding::SendAs { .. }
                     | Binding::ForItem { .. } | Binding::CallAs { .. } | Binding::CohortChild { .. }
                     | Binding::External { .. } | Binding::Error) => { *supported = false; return Some(false); }
@@ -18639,6 +18744,11 @@ impl<'a> Closure<'a> {
             && self.types.checked_queries.get(&key).is_some_and(|query| {
                 site.calls.iter().any(|call| {
                     self.source_require_contained_query(scenario, call, query)
+                        || matches!(&call.target, CheckedDecisionCallTarget::Builtin { id, .. } if id == "sum")
+                            && self.source_require_observer_sum(scenario, call)
+                            && call.slots.first().copied().flatten()
+                                .and_then(|slot| call.arguments.get(slot))
+                                .is_some_and(|(argument, _)| self.query_group(*argument) == Some(query.node))
                         || (self.source_require_archived_contained_count(scenario, call)
                             || self.source_require_archived_global_count(call))
                             && call.arguments.first().is_some_and(|(argument, _)| {
@@ -21003,22 +21113,19 @@ impl<'a> Closure<'a> {
                 ("minor", ResolvedType::Scalar(Scalar::Int))
                     | ("currency", ResolvedType::Scalar(Scalar::Currency))
             )
+            // The receiver has already passed recursive expression/LET Flow
+            // checking. A Money selector preserves that complete provenance;
+            // it neither reads a row nor creates a reference carrier. Retain
+            // any original field-origin metadata with its DATA dependencies.
             && values.iter().all(|value| {
-                value.intrinsics.iter().any(|intrinsic| {
-                    intrinsic.ty == ResolvedType::Scalar(Scalar::Money)
-                        && matches!(
-                            intrinsic.kind,
-                            DisclosureIntrinsicKind::AdmittedInput { .. }
-                        )
-                }) || value.reads.iter().any(|dependency| {
-                    // A selector over an already observed whole Money value
-                    // keeps that exact stored field dependency and authority.
-                    dependency.node == base_key
-                        && dependency.ty == ResolvedType::Scalar(Scalar::Money)
-                        && self.types.symbol_types.get(&dependency.field) == Some(&dependency.ty)
-                        && matches!(self.resolve.symbols.get(dependency.field.0 as usize).map(|field| &field.kind),
-                            Some(SymbolKind::Field { owner, .. }) if *owner == dependency.model)
-                })
+                value.record.is_none()
+                    && value.reference.is_none()
+                    && value.model_result.is_none()
+                    && value.delivery.is_none()
+                    && value.members.is_none()
+                    && value.schema.is_none()
+                    && value.contract_value.is_none()
+                    && value.query_child.is_none()
             })
         {
             return Ok(true);
@@ -21839,6 +21946,46 @@ impl<'a> Closure<'a> {
         None
     }
 
+    /// A consumed helper parent retains its original argument occurrence.
+    /// Nested forwarding must map that occurrence through the actual selected
+    /// call prefix; matching Model types alone do not establish an origin.
+    fn helper_parent_capture_matches(
+        &self,
+        argument: NodeKey,
+        parameter: SymbolId,
+        model: SymbolId,
+        depth: u8,
+        calls: &[NodeKey],
+    ) -> bool {
+        if self.checked_call_parent_path(argument, parameter, 0) == Some((model, depth)) {
+            return true;
+        }
+        calls.iter().enumerate().any(|(index, call)| {
+            if index == 0
+                || !self.types.selected_calls.get(call).is_some_and(|selected| {
+                    selected
+                        .arguments
+                        .iter()
+                        .any(|actual| self.query_group(*actual) == self.query_group(argument))
+                })
+            {
+                return false;
+            }
+            let Some(SelectedCallTarget::DeriveFn(outer)) = self
+                .types
+                .selected_calls
+                .get(&calls[index - 1])
+                .map(|selected| &selected.target)
+            else {
+                return false;
+            };
+            self.effects.derives.get(outer).is_some_and(|helper| {
+                self.original_helper_model_path(argument, helper.module, &calls[..index])
+                    == Some((parameter, model, depth))
+            })
+        })
+    }
+
     /// Resolve only an exact required helper formal through its actual selected
     /// slots. A stored reference argument retains its original field read and
     /// call prefix; a same-typed sibling or default cannot replace that source.
@@ -22063,7 +22210,7 @@ impl<'a> Closure<'a> {
                                     }) || matches!(value.reference_origin,
                                         Some(ReferenceOrigin::HelperParent {parameter: original,model: actual,depth: hops,argument})
                                             if original==parameter && actual==model && hops==depth
-                                                && self.checked_call_parent_path(argument,parameter,0)==Some((model,depth)))))
+                                                && self.helper_parent_capture_matches(argument,parameter,model,depth,calls))))
                 })
         {
             return Some(target);
@@ -25846,6 +25993,107 @@ impl<'a> Closure<'a> {
                 helper_reference_reads.extend(value.reads.iter().map(|read| read.node));
             }
         }
+        if !calls.is_empty()
+            && self.loop_node.is_none()
+            && matches!(
+                alternatives
+                    .first()
+                    .and_then(|value| value.reference_origin),
+                Some(ReferenceOrigin::Parent { .. })
+            )
+            && let SelectedCallTarget::DeriveFn(derive) = &selected.target
+            && let Some((parameter, model, depth)) =
+                self.original_helper_model_path(argument, module, calls)
+            && depth > 0
+            && self.effects.derives.get(derive).is_some_and(|helper| {
+                helper.params.len() == selected.slots.len()
+                    && helper
+                        .params
+                        .iter()
+                        .zip(&selected.slots)
+                        .any(|(formal, slot)| {
+                            *slot == Some(argument_index)
+                                && formal.default.is_none()
+                                && self.types.symbol_types.get(&formal.param)
+                                    == Some(&ResolvedType::Record {
+                                        symbol: model,
+                                        stored: true,
+                                    })
+                        })
+            })
+        {
+            for value in alternatives.iter_mut() {
+                if value.reference_origin
+                    != Some(ReferenceOrigin::Parent {
+                        parameter,
+                        model,
+                        depth,
+                    })
+                    || value.record != Some(model)
+                    || value.reads.len() != usize::from(depth)
+                    || !value.intrinsics.is_empty()
+                    || !value.decisions.is_empty()
+                {
+                    return Err(self.fail(argument, "nested helper parent observation mismatch"));
+                }
+                for (index, read) in value.reads.iter().enumerate() {
+                    let Some(SelectedCallTarget::DeriveFn(owning)) = read
+                        .calls
+                        .last()
+                        .and_then(|call| self.types.selected_calls.get(call))
+                        .map(|selected| &selected.target)
+                    else {
+                        return Err(self.fail(
+                            argument,
+                            "nested helper parent needs its actual call prefix",
+                        ));
+                    };
+                    let owning_module = self
+                        .effects
+                        .derives
+                        .get(owning)
+                        .ok_or_else(|| {
+                            self.fail(argument, "missing nested helper parent declaration")
+                        })?
+                        .module;
+                    let ResolvedType::Record {
+                        symbol: parent,
+                        stored: true,
+                    } = read.ty
+                    else {
+                        return Err(self.fail(argument, "nested helper parent type mismatch"));
+                    };
+                    if !calls.starts_with(&read.calls)
+                        || read.role != DependencyRole::Data
+                        || read.field != read.model
+                        || read.field_name != "parent"
+                        || read.query_id.is_some()
+                        || self.types.node_types.get(&read.node) != Some(&read.ty)
+                        || read.source != self.source(owning_module, read.node)?
+                        || self
+                            .resolve
+                            .symbols
+                            .get(read.model.0 as usize)
+                            .map(|symbol| &symbol.canonical)
+                            != Some(&read.model_name)
+                        || self.reference_operand_type_id(&read.ty).as_ref() != Some(&read.type_id)
+                        || self.original_helper_model_path(read.node, owning_module, &read.calls)
+                            != Some((parameter, parent, (index + 1) as u8))
+                    {
+                        return Err(
+                            self.fail(argument, "nested helper parent source edge mismatch")
+                        );
+                    }
+                    helper_reference_reads.insert(read.node);
+                }
+                value.reference_origin = Some(ReferenceOrigin::HelperParent {
+                    parameter,
+                    model,
+                    depth,
+                    argument,
+                });
+            }
+        }
         if calls.is_empty()
             && self.loop_node.is_none()
             && let SelectedCallTarget::DeriveFn(derive) = &selected.target
@@ -26668,6 +26916,7 @@ impl<'a> Closure<'a> {
                         })
                         && Self::bounded_created_result_tail(
                             &effects[position + 1..effects.len() - 1],
+                            model,
                         )
                 });
         let paired = created_pair
@@ -26731,7 +26980,7 @@ impl<'a> Closure<'a> {
                         && effect.else_effects.is_empty()
                         && effect.match_arms.is_empty()
                 })
-                && Self::bounded_created_result_tail(&body[position + 1..body.len() - 1])
+                && Self::bounded_created_result_tail(&body[position + 1..body.len() - 1], model)
                 && returned
                     .value
                     .and_then(|key| self.query_group(key))
@@ -26746,10 +26995,10 @@ impl<'a> Closure<'a> {
         branch(&effect.then_effects) && branch(&effect.else_effects)
     }
 
-    /// A finite effect tail can contain explicitly bounded loops. Nested
-    /// constructors remain confined to those loops and keep the loop walk's
-    /// original ownership, operand, iteration and write-budget checks.
-    fn bounded_created_result_tail(tail: &[Effect]) -> bool {
+    /// A finite result tail may construct auxiliary rows of other Models.
+    /// The original returned identity and each constructor's ordinary Flow
+    /// proof remain independent; loops keep their existing bounded walk.
+    fn bounded_created_result_tail(tail: &[Effect], returned_model: SymbolId) -> bool {
         let mut pending = tail
             .iter()
             .map(|effect| (effect, false, 0usize))
@@ -26779,9 +27028,9 @@ impl<'a> Closure<'a> {
                     );
                 }
                 EffectVerb::Create
-                    if in_loop
-                        && effect.binding.is_some()
-                        && matches!(effect.target, Some(EffectTarget::Model(_))) =>
+                    if effect.binding.is_some()
+                        && matches!(effect.target, Some(EffectTarget::Model(model))
+                            if in_loop || model != returned_model) =>
                 {
                     if !effect.then_effects.is_empty() || !effect.else_effects.is_empty() {
                         return false;

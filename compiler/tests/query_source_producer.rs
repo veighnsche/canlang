@@ -878,10 +878,31 @@ Then
         " contract QuotedLine {amount:money}\n Root {enabled:bool=true,currency:currency,total:money,lines:QuotedLine[]}")
         .replace("total=sum(root.Item as item select item.price*item.quantity+item.tax-item.discount,root.currency)",
             "lines=root.Item as item select QuotedLine {amount=item.price*item.quantity+item.tax-item.discount}");
+    let let_source = contract_source
+        .replace("lines:QuotedLine[]}", "lines:QuotedLine[],multiplier:int=1}")
+        .replace("fields=enabled,currency,total", "fields=enabled,currency,total,multiplier")
+        .replace("  do set root {lines=", "  do\n   let lines=")
+        .replace("item.price*item.quantity+item.tax-item.discount}}", "item.price*item.quantity*root.multiplier+item.tax-item.discount}")
+        .replace("\nThen", "\n   require count(lines)>0 and all(lines as line,line.amount.minor>0)\n   let first_line=at(lines,0)\n   require first_line!=null\n   set root {lines}\nThen");
     let scratch = tempfile::tempdir().unwrap();
     for (mode, source) in [
         ("allowed", source.to_owned()),
         ("contract", contract_source.clone()),
+        ("let-values", let_source.clone()),
+        (
+            "let-withheld",
+            let_source.replace(
+                "fields=price,quantity,tax,discount",
+                "fields=price,quantity,discount",
+            ),
+        ),
+        (
+            "let-root-withheld",
+            let_source.replace(
+                "fields=enabled,currency,total,multiplier",
+                "fields=enabled,currency,total",
+            ),
+        ),
         (
             "contract-withheld",
             contract_source.replace(
@@ -1017,29 +1038,30 @@ const {assembleModules}=await load('@canlang/cloudflare/runtime/modules');
 const {buildInvoker}=await load('@canlang/cloudflare/worker/assembly');
 const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
 const {FIXED_NOW,createMemoryIdentityStore,seedMember,makeIdentity,asModel,asId,asVersion,makeRow,makeBatch,uuidv7}=await load('@canlang/state/testing/invocation/fixtures');
-for(const mode of ['allowed','projection-withheld','currency-withheld','hidden','finalization-race','contract','contract-withheld']){
- const variant=mode==='hidden'||mode==='finalization-race'?'allowed':mode;
+for(const mode of ['allowed','projection-withheld','currency-withheld','hidden','finalization-race','contract','contract-withheld','let-values','let-withheld','let-root-withheld','let-race']){
+ const variant=mode==='let-race'?'let-values':mode==='hidden'||mode==='finalization-race'?'allowed':mode;
  const artifact=JSON.parse(readFileSync(resolve(base,variant+'.json'),'utf8'));
  const asm=await assembleModules({artifact,sourcePath:resolve(base,variant+'.can')},{workDir:resolve(base,mode),
   stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href,uiUrl:pathToFileURL(require.resolve('@canlang/ui')).href});
  const {store:backing}=createTestMemoryStorage(),memberships=createMemoryIdentityStore();
  const member=await seedMember(memberships,{isOwner:false}),identity=makeIdentity({membership:member.membership,email:member.user.email});
- const root={...makeRow({id:asId('root'),data:{enabled:true,currency:'EUR',total:{minor:'0',currency:'EUR'},...(mode.startsWith('contract')?{lines:[]}: {})}}),parent:null};
+ const root={...makeRow({id:asId('root'),data:{enabled:true,currency:'EUR',total:{minor:'0',currency:'EUR'},...(mode.startsWith('let-')?{lines:[],multiplier:'1'}:mode.startsWith('contract')?{lines:[]}: {})}}),parent:null};
  const item={...makeRow({id:asId('item'),data:{price:{minor:'100',currency:'EUR'},quantity:'2',tax:{minor:'5',currency:'EUR'},discount:{minor:'3',currency:'EUR'},visible:mode!=='hidden'}}),parent:{model:asModel('ScalarQuery.Root'),id:root.id}};
- await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'insert',model:asModel('ScalarQuery.Root'),row:root},{kind:'insert',model:asModel('ScalarQuery.Item'),row:item}]}));
+ await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'insert',model:asModel('ScalarQuery.Root'),row:root},{kind:'insert',model:asModel('ScalarQuery.Item'),row:item},...(mode.startsWith('let-')?[{kind:'insert',model:asModel('ScalarQuery.Item'),row:{...item,id:asId('item-2')}}]:[])]}));
  const history=await backing.historyFor(asModel('ScalarQuery.Root'),root.id);let raced=false;
  const store={...backing,commit:async batch=>{
   if(mode==='finalization-race'&&!raced&&batch.writes.some(write=>write.model==='ScalarQuery.Root')){
    raced=true;await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'update',model:asModel('ScalarQuery.Item'),id:item.id,expectedVersion:item.version,
     row:{...item,version:asVersion(item.version+1),data:{...item.data,price:{minor:'900',currency:'EUR'}}}}]}));
   }
+  if(mode==='let-race'&&!raced&&batch.writes.some(write=>write.model==='ScalarQuery.Root')){raced=true;await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'update',model:asModel('ScalarQuery.Item'),id:item.id,expectedVersion:item.version,row:{...item,version:asVersion(item.version+1),data:{...item.data,price:{minor:'900',currency:'EUR'}}}}]}));}
   return backing.commit(batch);
  }};
  const invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
  const outcome=await invoker.invokeMutation({operation:'ScalarQuery.summarize',operation_id:uuidv7(FIXED_NOW,1),inputs:{root:{id:root.id,version:String(root.version)}}},identity);
- const success=mode==='allowed'||mode==='hidden'||mode==='contract'||mode==='finalization-race',current=await backing.load(asModel('ScalarQuery.Root'),root.id);
+ const success=mode==='allowed'||mode==='hidden'||mode==='contract'||mode==='finalization-race'||mode==='let-values'||mode==='let-race',current=await backing.load(asModel('ScalarQuery.Root'),root.id);
  assert.ok(current);assert.equal('result'in outcome,success,mode+': '+JSON.stringify(outcome));
- if(success){assert.equal(outcome.result.status,'committed');if(mode==='contract'){assert.deepEqual(current.data.lines,[{amount:{minor:'202',currency:'EUR'}}]);assert.deepEqual(current.data.total,root.data.total);}else assert.deepEqual(current.data.total,{minor:mode==='hidden'?'0':mode==='finalization-race'?'1802':'202',currency:'EUR'});assert.equal(current.version,root.version+1);}
+ if(success){assert.equal(outcome.result.status,'committed');if(mode==='let-values'||mode==='let-race'){assert.deepEqual(current.data.lines,[{amount:{minor:mode==='let-race'?'1802':'202',currency:'EUR'}},{amount:{minor:'202',currency:'EUR'}}]);assert.deepEqual(current.data.total,root.data.total);}else if(mode==='contract'){assert.deepEqual(current.data.lines,[{amount:{minor:'202',currency:'EUR'}}]);assert.deepEqual(current.data.total,root.data.total);}else assert.deepEqual(current.data.total,{minor:mode==='hidden'?'0':mode==='finalization-race'?'1802':'202',currency:'EUR'});assert.equal(current.version,root.version+1);}
  else{assert.equal(outcome.error.code,mode==='finalization-race'?'conflict':'forbidden');assert.deepEqual(current,root);assert.deepEqual(await backing.historyFor(asModel('ScalarQuery.Root'),root.id),history);}
  assert.deepEqual(await backing.outboxPending(),[]);if(mode==='finalization-race'){assert.equal(raced,true);const completed=await backing.historyFor(asModel('ScalarQuery.Root'),root.id);assert.equal(completed.length,history.length+1);assert.deepEqual(completed.at(-1).after.total,{minor:'1802',currency:'EUR'});assert.ok(completed.every(entry=>entry.after?.total?.minor!=='202'),'retry must publish only the fresh aggregate');}
 }
@@ -1063,15 +1085,20 @@ fn source_guard_plain_collections_preserve_global_alias_lineage_and_fences() {
     let input = scratch.path().join("guard.can");
     std::fs::write(&input, r#"app GuardValues
 Given
- Root {enabled:bool=true,anchor:datetime,until:datetime}
+ contract Window {from:datetime,until:datetime}
+ Root {enabled:bool=true,anchor:datetime,until:datetime,windows:Window[]}
  Span in Root {from:datetime,until:datetime,visible:bool=true,tone:enum(day,night)=day}
- policy Root read=members
+ Rule {enabled:bool=true,visible:bool=true,units:int=1}
+ policy Rule read=members where=row.visible
+ policy Root read=members fields=enabled,anchor,until
  policy Span read=members where=row.visible
  derive eligible(span:Span):bool=format("{tone}",{tone=span.tone})!="" and any(span.parent.Span as sibling,sibling.from==span.from)
- derive covered(root:Root):bool = all([root.anchor]+flatten(root.Span as item select [item.from,item.until]) as instant,instant<root.anchor or instant>=root.until or count(Span as item where item.parent==root and eligible(item) and item.from<=instant and instant<item.until)>0)
+ derive covered(root:Root):bool = all(Rule as rule,rule.enabled) and all([root.anchor]+flatten(root.Span as item select [item.from,item.until]) as instant,instant<root.anchor or instant>=root.until or count(Span as item where item.parent==root and eligible(item) and item.from<=instant and instant<item.until)>0)
 When
  scenario confirm(root:Root) by=members
   require root.enabled
+  require any(root.windows as interval,interval.from<=root.anchor and root.until<=interval.until)
+  require sum(Rule as quota select quota.units)<=1
   do
    require covered(root)
    set root {enabled=false}
@@ -1110,28 +1137,41 @@ const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
 const {FIXED_NOW,createMemoryIdentityStore,seedMember,makeIdentity,asModel,asId,asVersion,makeRow,makeBatch,uuidv7}=await load('@canlang/state/testing/invocation/fixtures');
 const artifact=JSON.parse(readFileSync(process.argv[4],'utf8'));
 const asm=await assembleModules({artifact,sourcePath:process.argv[3]},{workDir:process.argv[5],stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href,uiUrl:pathToFileURL(require.resolve('@canlang/ui')).href});
-for(const mode of ['allowed','hidden','empty','race','nonmember']){
+for(const mode of ['allowed','hidden','empty','race','nonmember','no_rules','hidden_bad_rule','rule_race','hidden_excess','sum_race','no_window','window_race']){
  const {store}=createTestMemoryStorage(),memberships=createMemoryIdentityStore();
  const member=await seedMember(memberships,{isOwner:false}),identity=makeIdentity({membership:member.membership,email:member.user.email});
- const root={...makeRow({id:asId('root'),data:{enabled:true,anchor:'2031-01-01T00:00:00.000Z',until:'2031-01-02T00:00:00.000Z'}}),parent:null};
+ const root={...makeRow({id:asId('root'),data:{enabled:true,anchor:'2031-01-01T00:00:00.000Z',until:'2031-01-02T00:00:00.000Z',windows:mode==='no_window'?[]:[{from:'2031-01-01T00:00:00.000Z',until:'2031-01-02T00:00:00.000Z'}]}}),parent:null};
  const span={...makeRow({id:asId('span'),data:{from:root.data.anchor,until:root.data.until,visible:mode!=='hidden',tone:'day'}}),parent:{model:asModel('GuardValues.Root'),id:root.id}};
  await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:asModel('GuardValues.Root'),row:root},...(mode==='empty'?[]:[{kind:'insert',model:asModel('GuardValues.Span'),row:span}])]}));
+ const rule={...makeRow({id:asId('rule'),data:{enabled:mode!=='hidden_bad_rule',visible:!['hidden_bad_rule','hidden_excess'].includes(mode),units:mode==='hidden_excess'?'2':'1'}}),parent:null};
+ if(mode!=='no_rules')await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:asModel('GuardValues.Rule'),row:rule}]}));
  const commit=store.commit.bind(store);let raced=false;
  store.commit=async batch=>{
   if(mode==='race'&&!raced&&batch.writes.some(write=>write.model==='GuardValues.Root')){
    raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('GuardValues.Span'),id:span.id,expectedVersion:span.version,row:{...span,version:asVersion(span.version+1),data:{...span.data,until:span.data.from}}}]}));
+  }
+  if(mode==='rule_race'&&!raced&&batch.writes.some(write=>write.model==='GuardValues.Root')){
+   raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('GuardValues.Rule'),id:rule.id,expectedVersion:rule.version,row:{...rule,version:asVersion(rule.version+1),data:{...rule.data,enabled:false}}}]}));
+  }
+  if(mode==='sum_race'&&!raced&&batch.writes.some(write=>write.model==='GuardValues.Root')){
+   raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('GuardValues.Rule'),id:rule.id,expectedVersion:rule.version,row:{...rule,version:asVersion(rule.version+1),data:{...rule.data,units:'2'}}}]}));
+  }
+  if(mode==='window_race'&&!raced&&batch.writes.some(write=>write.model==='GuardValues.Root')){
+   raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('GuardValues.Root'),id:root.id,expectedVersion:root.version,row:{...root,version:asVersion(root.version+1),data:{...root.data,windows:[]}}}]}));
   }
   return commit(batch);
  };
  if(mode==='nonmember')await memberships.removeMembership(member.membership.membership_id);
  const invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
  const request={operation:'GuardValues.confirm',operation_id:uuidv7(FIXED_NOW,1),inputs:{root:{id:root.id,version:'1'}}};
- const result=await invoker.invokeMutation(request,identity),success=mode==='allowed'||mode==='hidden';
+ const result=await invoker.invokeMutation(request,identity),success=mode==='allowed'||mode==='hidden'||mode==='no_rules';
  assert.equal('result'in result,success,mode+': '+JSON.stringify(result));
  const current=await store.load(asModel('GuardValues.Root'),root.id);assert.ok(current);assert.equal(current.data.enabled,!success);
+ if(mode==='no_window')assert.deepEqual(current,root);
+ if(mode==='window_race'){assert.deepEqual(current.data,{...root.data,windows:[]});assert.equal(current.version,root.version+1);}
  assert.deepEqual(await store.outboxPending(),[]);
  if(success){const revision=await store.readRevision();const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.equal(await store.readRevision(),revision);}
- if(mode==='race')assert.equal(raced,true);
+ if(mode==='race'||mode==='rule_race'||mode==='sum_race'||mode==='window_race')assert.equal(raced,true);
 }
 "#).unwrap();
     let consumed = Command::new("node")
