@@ -52,6 +52,9 @@ pub(crate) fn source_files(root: &Path) -> Result<Vec<String>, String> {
                 }
                 walk(root, &entry.path(), out)?;
             } else if kind.is_file() && entry.path().extension().is_some_and(|e| e == "can") {
+                let bytes = entry.metadata().map_err(|e| e.to_string())?.len();
+                crate::source::admit_source_len(bytes)
+                    .map_err(|error| format!("{}: {error}", entry.path().display()))?;
                 out.push(
                     entry
                         .path()

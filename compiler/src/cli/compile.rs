@@ -110,6 +110,9 @@ pub(super) fn run_compile(
     let owned = analyzer.analyze_owned(&db, tool_version());
     let mut result = owned.result;
     result.finish();
+    if result.has_errors() {
+        return emit_diagnostics(&result, &db, format);
+    }
     let Some(mut program) = owned.program else {
         return DispatchResult::tool_error(
             "E7001",
@@ -217,6 +220,23 @@ pub(super) fn run_compile(
 
 /// Load source and saved implementation from one lease-protected snapshot.
 fn frozen_source_db(operands: &[String], roots: &[PathBuf]) -> Result<SourceDb, DispatchResult> {
+    // Validate every operand before the snapshot collector reads the owning
+    // source closure. An oversized sparse file must never be materialized.
+    for path in operands {
+        let length = std::fs::File::open(path)
+            .and_then(|file| file.metadata())
+            .map(|metadata| metadata.len())
+            .and_then(|bytes| {
+                admit_source_len(bytes)
+                    .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
+            });
+        if let Err(error) = length {
+            return Err(DispatchResult::tool_error(
+                "E7002",
+                format!("cannot read '{path}': {error}"),
+            ));
+        }
+    }
     let frozen = std::sync::Arc::new(
         crate::analysis::generation_store::FrozenGeneration::capture(roots).map_err(|error| {
             DispatchResult::tool_error("E7002", format!("cannot capture generated inputs: {error}"))
