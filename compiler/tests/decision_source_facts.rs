@@ -304,14 +304,25 @@ fn imported_query_decisions_join_actual_query_collection_and_predicate_sources()
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let output = canlang_compiler::codegen::js::emit_program(&async_ir);
     assert!(
-        output
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.code == "E6008"
-                && diagnostic.message
-                    == "cannot lower scoped predicate: Values any/all require a synchronous predicate"),
-        "an awaited derive collection predicate remains unsupported: {:?}",
+        output.diagnostics.is_empty(),
+        "checked helper predicate now lowers: {:?}",
         output.diagnostics
+    );
+    let async_owner = async_ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "QueryDecision.run")
+        .unwrap();
+    assert!(
+        serialize_decision_sources(
+            &async_program,
+            &async_ir,
+            async_owner,
+            &async_db,
+            catalog.as_ref()
+        )
+        .is_some(),
+        "helper predicate retains its actual query/source closure"
     );
 }
 
@@ -403,7 +414,7 @@ fn imported_pure_helpers_preserve_decision_sites_slots_defaults_and_chains() {
 }
 
 #[test]
-fn unsupported_selected_role_declines_only_optional_decision_inventory() {
+fn selected_role_preserves_original_role_identity_in_decision_inventory() {
     let source = "app RoleDecision\nGiven\n role reviewer label=\"Reviewer\"\nWhen\n scenario run(person:user) by=members\n  do require reviewer(person)\nThen\n";
     let (_, program, diagnostics) = check(&[("role.can", source)]);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
@@ -413,13 +424,20 @@ fn unsupported_selected_role_declines_only_optional_decision_inventory() {
         .find(|symbol| symbol.canonical == "RoleDecision.run")
         .unwrap()
         .id;
-    assert!(
-        program.scenario_disclosures()[&scenario]
-            .source_facts()
-            .unwrap()
-            .decision_sites
-            .is_none()
-    );
+    let sites = program.scenario_disclosures()[&scenario]
+        .source_facts()
+        .unwrap()
+        .decision_sites
+        .as_ref()
+        .expect("selected role has an exact checked source site");
+    assert_eq!(sites.len(), 1);
+    let role = program
+        .symbols
+        .iter()
+        .find(|symbol| symbol.canonical == "RoleDecision.reviewer")
+        .unwrap();
+    assert!(matches!(sites[0].calls[0].target, CheckedDecisionCallTarget::Role(id) if id==role.id));
+    assert_eq!(sites[0].calls[0].arguments.len(), 1);
 }
 
 #[test]
@@ -830,7 +848,16 @@ fn create_before_membership_and_guarded_send_preserves_sources_and_refuses_creat
         panic!()
     };
     assert_eq!(model, "CreateDecision.Entry");
-    assert!(when.is_some());
+    assert!(
+        when.is_none(),
+        "constant true CRUD admission needs no injected callback reference"
+    );
+    assert!(
+        lowered
+            .crud_when
+            .iter()
+            .any(|rule| rule.name == "Entry" && matches!(rule.body.expr, IrExpr::Bool(true)))
+    );
     assert_eq!(binding.as_deref(), Some("entry"));
     for mutation in 0..12 {
         let mut changed = lowered.clone();
@@ -881,7 +908,7 @@ fn create_before_membership_and_guarded_send_preserves_sources_and_refuses_creat
                     )
                 }
                 4 => input.span.start += 1,
-                5 => *when = None,
+                5 => *when = Some("Entry.create.when".into()),
                 6 => *when = Some("Other.create.when".into()),
                 7 => *binding = None,
                 8 => *binding = Some("edited".into()),
@@ -1324,9 +1351,12 @@ console.log('actual compiler v1 decision sites accepted by installed State; lowe
         .iter()
         .find(|i| i.canonical == "RoleSerial.run")
         .unwrap();
-    assert!(
-        serialize_decision_sources(&role_program, &role_ir, role, &role_db, cat.as_ref()).is_none()
-    );
+    let selected =
+        serialize_decision_sources(&role_program, &role_ir, role, &role_db, cat.as_ref())
+            .expect("original checked role now serializes its own decision");
+    assert!(matches!(&selected[0].calls[0].target,
+        canlang_compiler::codegen::scenario_decisions::SerialDecisionTarget::Role {name}
+        if name=="RoleSerial.reviewer"));
 
     // A literal default creates no nested call-origin check. Its transport
     // must still join the owning checked module, rather than trust IR labels.
@@ -1833,7 +1863,7 @@ fn original_booking_guard_requires_a_finite_literal_civil_date_domain() {
 }
 
 #[test]
-fn source_require_has_a_frame_without_fabricating_result_disclosure() {
+fn source_require_keeps_separate_controls_and_minimal_pure_result_receipt() {
     use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
     use canlang_compiler::diagnostic::DiagnosticResult;
     let mut db = SourceDb::new();
@@ -1877,9 +1907,17 @@ fn source_require_has_a_frame_without_fabricating_result_disclosure() {
         .find(|operation| operation["name"] == "GuardOwnerFrame.run")
         .unwrap();
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
-    assert!(
-        operation["result"].get("disclosure").is_none(),
-        "execution-only frame must not invent result disclosure"
+    assert_eq!(operation["result"]["type"], "date");
+    let disclosure = &operation["result"]["disclosure"];
+    assert_eq!(disclosure["version"], 1);
+    let returns = disclosure["returns"].as_array().unwrap();
+    assert_eq!(returns.len(), 1);
+    assert_eq!(returns[0]["dependencies"], serde_json::json!([]));
+    assert_eq!(returns[0]["influences"], serde_json::json!([]));
+    assert_eq!(
+        disclosure["source"]["sha256"],
+        db.get(file).unwrap().sha256,
+        "pure result receipt keeps its original source and no fabricated guard dependencies"
     );
     assert!(
         artifact["modules"]
