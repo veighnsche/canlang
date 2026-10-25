@@ -2728,22 +2728,6 @@ fn emit_program_with_sources(
         }
     }
     emitter.native_source_predicates = native_receipts;
-    if let Some(context) = decisions.source_context {
-        emitter.checked_query_helpers = ir
-            .items
-            .iter()
-            .filter(|item| {
-                super::source_correspondence::same_derive_semantics(
-                    context.program(),
-                    ir,
-                    context.fresh(),
-                    item,
-                )
-                .is_some()
-            })
-            .map(|item| item.id)
-            .collect();
-    }
     emitter.authority_queries = decisions.authority_queries;
     emitter.owner_handlers = decisions.owner_handlers.cloned().unwrap_or_default();
     emitter.private_derives = decisions.private_derives.cloned().unwrap_or_default();
@@ -4002,6 +3986,16 @@ fn emit_program_with_sources(
         emitter
             .private_derives
             .retain(|name| ordinary_safe.contains(name));
+    }
+    if let Some(context) = decisions.source_context {
+        (
+            emitter.checked_query_helpers,
+            emitter.unprepared_query_calls,
+        ) = super::read_predicates::checked_query_helpers(
+            context,
+            &emitter.native_receipts.keys().copied().collect(),
+            &emitter.source_requires.keys().copied().collect::<Vec<_>>(),
+        );
     }
     emitter.emit_identity_consts(&mut body, entry_id);
     for module in &ir.modules {
@@ -5847,9 +5841,11 @@ pub struct Emitter<'a> {
     /// Its checked stored-model query may feed pure `first(array)` without
     /// claiming an owner mutation receipt.
     viewer_read_body: bool,
-    /// Only a complete fresh-source semantic join admits contextual helper queries.
+    /// Fresh viewer-safe definitions or helpers with fully authenticated callers.
+    /// Mutation invocations still require their separate complete consumer.
     checked_query_helpers: HashSet<SymbolId>,
     checked_query_helper: bool,
+    unprepared_query_calls: HashSet<Span>,
     /// True while lowering a `scope=authority` report body (DESIGN §442
     /// decision mode): helper calls resolve to the decision variant where
     /// dual-emitted, falling back to the emitted variant otherwise.
@@ -6108,6 +6104,7 @@ impl<'a> Emitter<'a> {
             viewer_read_body: false,
             checked_query_helpers: HashSet::new(),
             checked_query_helper: false,
+            unprepared_query_calls: HashSet::new(),
             authority_body: false,
             record_page_render: false,
             native_source_predicates: false,
@@ -11846,6 +11843,19 @@ impl<'a> Emitter<'a> {
                     self.lower_receipt_derive(canonical, parts, span, await_result)
                 {
                     return specialized;
+                }
+                if self.native_source_predicates
+                    && self.unprepared_query_calls.contains(&span)
+                    && !self.boolean_body
+                    && !self.owner_handler_body
+                    && !self.source_guard_body
+                {
+                    self.unsupported(
+                        "first query",
+                        "stored FIRST helper needs its original complete mutation consumer",
+                        span,
+                    );
+                    return self.throw_expr("unproved FIRST mutation consumer");
                 }
                 if self.in_hook() && !self.hook_native() {
                     return self.hook_gap(

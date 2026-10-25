@@ -12,6 +12,192 @@ use crate::syntax::{SyntaxKind, SyntaxNode};
 
 use super::ir::{IrExpr, IrModule, IrPage, IrProgram, IrUi, TypedExpr};
 
+fn derive_call_sites(program: &CheckedProgram) -> HashMap<crate::analysis::SymbolId, Vec<Span>> {
+    use crate::analysis::types::SelectedCallTarget;
+    let mut calls = HashMap::<_, Vec<_>>::new();
+    for (node, call) in &program.types.selected_calls {
+        if let SelectedCallTarget::DeriveFn(id) = call.target {
+            calls
+                .entry(id)
+                .or_default()
+                .push(Span::new(node.file, node.start, node.end));
+        }
+    }
+    calls
+}
+
+/// Viewer-safe FIRST definitions remain usable as pure reader helpers. A
+/// mutation still needs its own complete consumer; private query helpers also
+/// require every original caller to reach an authenticated owner.
+pub(super) fn checked_query_helpers(
+    context: &super::source_context::FreshSourceContext<'_>,
+    native_owners: &HashSet<crate::analysis::SymbolId>,
+    source_requires: &[Span],
+) -> (HashSet<crate::analysis::SymbolId>, HashSet<Span>) {
+    use super::ir::IrItemKind;
+    use crate::analysis::types::SelectedCallTarget;
+    let ir = context.ir();
+    let program = context.original();
+    let mut readers = Vec::new();
+    let mut owners = source_requires.to_vec();
+    for item in &ir.items {
+        let IrItemKind::Scenario {
+            read,
+            trusted,
+            scope_authority,
+            ..
+        } = &item.kind
+        else {
+            continue;
+        };
+        let viewer = *read && !*trusted && !*scope_authority;
+        if !viewer && !native_owners.contains(&item.id) {
+            continue;
+        }
+        if context.same_scenario(ir, item).is_none() {
+            continue;
+        }
+        let Some(scenario) = program.effects.scenarios.get(&item.id) else {
+            continue;
+        };
+        let roots = if viewer { &mut readers } else { &mut owners };
+        roots.extend(
+            scenario
+                .guards
+                .iter()
+                .chain(&scenario.effects)
+                .map(|effect| Span::new(effect.node.file, effect.node.start, effect.node.end)),
+        );
+    }
+    let helpers = ir
+        .items
+        .iter()
+        .filter(|item| {
+            matches!(&item.kind, IrItemKind::DeriveFn { expr: Some(_), .. })
+                && super::source_correspondence::same_derive_semantics(
+                    context.program(),
+                    ir,
+                    context.fresh(),
+                    item,
+                )
+                .is_some()
+        })
+        .collect::<Vec<_>>();
+    let calls = derive_call_sites(program);
+    let mut first_helpers = HashSet::new();
+    let mut viewer_helpers = HashSet::new();
+    for helper in &helpers {
+        let IrItemKind::DeriveFn {
+            expr: Some(body), ..
+        } = &helper.kind
+        else {
+            continue;
+        };
+        let queries = program
+            .types
+            .checked_collection_calls
+            .values()
+            .filter(|call| {
+                call.builtin == "first"
+                    && contains(
+                        body.span,
+                        Span::new(call.node.file, call.node.start, call.node.end),
+                    )
+            })
+            .map(|call| call.query)
+            .collect::<Vec<_>>();
+        if queries.is_empty() {
+            continue;
+        }
+        first_helpers.insert(helper.id);
+        // Ordinary viewer evaluation handles direct row predicates and keys.
+        // Nested stored queries or helper calls need the owner-bound recipe.
+        if queries.iter().all(|query| {
+            let at = Span::new(query.file, query.start, query.end);
+            !program.types.checked_queries.keys().any(|other| other != query
+                && contains(at, Span::new(other.file, other.start, other.end)))
+                && program.types.selected_calls.iter().filter(|(node, _)| contains(at, Span::new(node.file, node.start, node.end)))
+                    .all(|(_, call)| matches!(&call.target, SelectedCallTarget::Builtin { id, .. }
+                        if context.catalog().and_then(|catalog| catalog.effects(id)) == Some(crate::analysis::catalog::Effects::Pure)))
+        }) { viewer_helpers.insert(helper.id); }
+    }
+    loop {
+        let before = first_helpers.len();
+        for helper in &helpers {
+            let IrItemKind::DeriveFn {
+                expr: Some(body), ..
+            } = &helper.kind
+            else {
+                continue;
+            };
+            if first_helpers.iter().any(|callee| {
+                calls
+                    .get(callee)
+                    .is_some_and(|uses| uses.iter().any(|at| contains(body.span, *at)))
+            }) {
+                first_helpers.insert(helper.id);
+            }
+        }
+        if first_helpers.len() == before {
+            break;
+        }
+    }
+    let mut unprepared_calls = HashSet::new();
+    for scenario in program
+        .effects
+        .scenarios
+        .values()
+        .filter(|scenario| !scenario.read && !native_owners.contains(&scenario.scenario))
+    {
+        for helper in &first_helpers {
+            for at in calls.get(helper).into_iter().flatten() {
+                if scenario
+                    .guards
+                    .iter()
+                    .chain(&scenario.effects)
+                    .any(|effect| {
+                        contains(
+                            Span::new(effect.node.file, effect.node.start, effect.node.end),
+                            *at,
+                        )
+                    })
+                    && !source_requires.iter().any(|root| contains(*root, *at))
+                {
+                    unprepared_calls.insert(*at);
+                }
+            }
+        }
+    }
+    let mut checked = HashSet::new();
+    let mut viewer_only = HashSet::new();
+    loop {
+        let before = checked.len();
+        for item in &helpers {
+            if checked.contains(&item.id) {
+                continue;
+            }
+            let Some(uses) = calls.get(&item.id).filter(|uses| !uses.is_empty()) else {
+                continue;
+            };
+            let viewer = |at: Span| {
+                readers.iter().any(|root| contains(*root, at)) || helpers.iter().any(|caller|
+                viewer_only.contains(&caller.id) && matches!(&caller.kind, IrItemKind::DeriveFn {expr: Some(body), ..} if contains(body.span, at)))
+            };
+            let all_viewer = uses.iter().all(|at| viewer(*at));
+            if all_viewer || !item.exported && uses.iter().all(|at|
+                viewer(*at) || owners.iter().any(|root| contains(*root, *at)) || helpers.iter().any(|caller|
+                    checked.contains(&caller.id) && matches!(&caller.kind, IrItemKind::DeriveFn {expr: Some(body), ..} if contains(body.span, *at)))) {
+                checked.insert(item.id);
+                if all_viewer { viewer_only.insert(item.id); }
+            }
+        }
+        if checked.len() == before {
+            checked.extend(viewer_helpers);
+            return (checked, unprepared_calls);
+        }
+    }
+}
+
 /// Only original checked source can construct this inventory. Every IR field
 /// is sealed before a consumer receives the immutable predicate map.
 pub(super) struct PreparedReadPredicates {
@@ -34,7 +220,6 @@ impl PreparedReadPredicates {
         owner_handlers: &HashSet<crate::analysis::resolve::SymbolId>,
     ) -> Option<HashSet<String>> {
         use super::ir::IrItemKind;
-        use crate::analysis::types::SelectedCallTarget;
         checked_context(context)?;
         if self.closure != format!("{:?}", context.ir()) {
             return None;
@@ -60,6 +245,7 @@ impl PreparedReadPredicates {
             .flatten()
             .collect::<Vec<_>>();
         let mut result = HashSet::new();
+        let call_sites = derive_call_sites(program);
         // A helper call inside another private helper keeps the same original
         // observer only after every call of that outer helper is proven private.
         loop {
@@ -71,15 +257,9 @@ impl PreparedReadPredicates {
                 {
                     continue;
                 }
-                let calls = program
-                    .types
-                    .selected_calls
-                    .iter()
-                    .filter_map(|(node, call)| {
-                        matches!(call.target, SelectedCallTarget::DeriveFn(id) if id == item.id)
-                            .then_some(*node)
-                    })
-                    .collect::<Vec<_>>();
+                let Some(calls) = call_sites.get(&item.id) else {
+                    continue;
+                };
                 // Unused unsupported source is still checked. In particular an
                 // empty census cannot turn an unsupported derive into dead code.
                 if calls.is_empty() {
