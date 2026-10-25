@@ -269,6 +269,15 @@ fn collect_membership_sites(
             if sites.insert(owner, serde_json::to_value(source).ok()?).is_some() { return None; }
         }
     }
+    for rule in &ir.crud_when {
+        if let Some(source) = super::scenario_decisions::serialize_crud_when(context, rule)
+            && source.iter().any(|site| site.calls.iter().any(|call| {
+                matches!(&call.target, super::scenario_decisions::SerialDecisionTarget::Builtin { id, .. } if id == "active_member")
+            })) {
+            let owner = source.first()?.owner.clone();
+            if sites.insert(owner, serde_json::to_value(source).ok()?).is_some() { return None; }
+        }
+    }
     Some(sites)
 }
 

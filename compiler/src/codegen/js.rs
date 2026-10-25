@@ -2477,7 +2477,7 @@ fn emit_program_with_sources(
             .cloned()
             .unwrap_or_default();
     }
-    if native_receipts {
+    {
         emitter.source_requires = decisions
             .read_predicates
             .and_then(|source| source.source_requires(ir))
@@ -2882,7 +2882,7 @@ fn emit_program_with_sources(
         body.push(entry_span, Some("canScenarioQueryPredicateSource".into()),
             "const $can$query$predicates=new WeakMap();function $can$query$issue(marker,context,predicate){$can$query$predicates.set(predicate,{marker,context});return predicate;}export function canScenarioQueryPredicateSource(predicate){const issued=$can$query$predicates.get(predicate);return issued===undefined?null:{marker:JSON.parse(issued.marker),context:issued.context};}");
     }
-    if native_receipts && let Some(context) = decisions.source_context {
+    if let Some(context) = decisions.source_context {
         for owner in &ir.items {
             if let Some(receipt) = emitter.native_receipts.get(&owner.id) {
                 if let Some(loops) = super::source_loops::collect_native(
@@ -2964,6 +2964,68 @@ fn emit_program_with_sources(
                 emitter.source_schedules.extend(schedules);
             }
         }
+    }
+    if !native_receipts {
+        // A normal artifact may expose only independently admitted source-only
+        // frames. Missing body coverage never authenticates its raw callback;
+        // the runtime refuses that guarded owner before entering it.
+        let admitted: HashSet<_> = ir
+            .items
+            .iter()
+            .filter(|owner| {
+                !source_require_missing_original_guard(
+                    ir,
+                    owner,
+                    &emitter.source_requires,
+                    decisions.source_context,
+                ) && source_require_only_body_supported(
+                    ir,
+                    owner,
+                    &emitter.source_requires,
+                    &emitter.source_data_sends,
+                    &emitter.source_let_data,
+                    &emitter.source_cancels,
+                    &emitter.source_schedules,
+                    &emitter.source_data_emits,
+                    &emitter.source_body_loops,
+                    decisions.source_context,
+                )
+            })
+            .map(|owner| owner.canonical.as_str())
+            .collect();
+        let mut unsupported: BTreeMap<String, Vec<serde_json::Value>> = BTreeMap::new();
+        for owner in &ir.items {
+            if !admitted.contains(owner.canonical.as_str())
+                && (source_require_missing_original_guard(
+                    ir,
+                    owner,
+                    &emitter.source_requires,
+                    decisions.source_context,
+                ) || emitter
+                    .source_requires
+                    .values()
+                    .any(|source| source["owner"] == owner.canonical))
+            {
+                let mut sites: Vec<_> = emitter
+                    .source_requires
+                    .values()
+                    .filter(|source| source["owner"] == owner.canonical)
+                    .cloned()
+                    .collect();
+                sites.sort_by_key(|source| source.to_string());
+                unsupported.insert(owner.canonical.clone(), sites);
+            }
+        }
+        if !unsupported.is_empty() {
+            let payload = descriptor_json(&descriptor_json(&unsupported));
+            body.push(entry_span, Some("canScenarioUnsupportedRequireSources".into()),
+                &format!("export function canScenarioUnsupportedRequireSources(){{return JSON.parse({payload});}}"));
+        }
+        emitter.source_requires.retain(|_, source| {
+            source["owner"]
+                .as_str()
+                .is_some_and(|owner| admitted.contains(owner))
+        });
     }
     if !emitter.source_body_loops.is_empty() {
         let inventory: BTreeMap<_, _> = emitter.source_body_loops.iter().collect();
@@ -3116,7 +3178,7 @@ fn emit_program_with_sources(
             ),
         );
     }
-    if native_receipts && !emitter.source_requires.is_empty() {
+    if !emitter.source_requires.is_empty() {
         body.push(entry_span,Some("canScenarioRequireSource".into()),
             "const $can$require$sources=new WeakMap();function $can$require$issue(source,predicate){$can$require$sources.set(predicate,source);return predicate;}export function canScenarioRequireSource(predicate){const source=$can$require$sources.get(predicate);return source===undefined?null:JSON.parse(source);}");
         // This source-backed census exists even when no active_member occurs.
@@ -22480,8 +22542,33 @@ impl<'a> Emitter<'a> {
         self.owner_handler_body = true;
         // Complete owners keep their original guard consumers. Only owners
         // with an explicit source bridge may borrow a generic observer frame.
-        let source_requires =
-            (!body.source_guard_bridge).then(|| std::mem::take(&mut self.source_requires));
+        let source_requires = if let Some((start, end)) = body.source_guard_site {
+            let original = std::mem::take(&mut self.source_requires);
+            self.source_requires = original
+                .iter()
+                .filter(|(span, source)| {
+                    span.file == item.span.file
+                        && span.start == start
+                        && span.end == end
+                        && source["owner"] == item.canonical
+                })
+                .map(|(span, source)| (*span, source.clone()))
+                .collect();
+            if self.source_requires.len() != 1 {
+                self.source_requires = original;
+                self.unsupported(
+                    body.context,
+                    "original source header observer is unavailable",
+                    item.span,
+                );
+                self.owner_handler_body = previous_owner;
+                self.query_capture = previous_query;
+                return;
+            }
+            Some(original)
+        } else {
+            (!body.source_guard_bridge).then(|| std::mem::take(&mut self.source_requires))
+        };
         self.enter_scope();
         let mut names = body
             .parameters

@@ -8,7 +8,7 @@ use crate::analysis::scenario_disclosure::{
     CheckedDecisionSite, CheckedDecisionStage as Stage,
 };
 use crate::analysis::types::SelectedCallTarget;
-use crate::analysis::{CheckedProgram, NodeKey, ResolvedType, Scalar};
+use crate::analysis::{CheckedProgram, ModuleId, NodeKey, ResolvedType, Scalar, SymbolId};
 use crate::source::{SourceDb, Span};
 use crate::syntax::{self, SyntaxKind, SyntaxNode};
 use std::collections::{HashMap, HashSet};
@@ -1504,20 +1504,93 @@ pub(super) fn serialize_model_rule(
         stack: HashSet::new(),
     };
     semantics.expression(&rule.pred, &expected.pred, 0)?;
+    let module = original.modules.get(origin.module.0 as usize)?;
+    let owner = format!("{}.{}", module.name, rule.id);
+    serialize_checked_policy_predicate(
+        sources,
+        origin.model,
+        origin.module,
+        predicate,
+        declaration.node,
+        &rule.pred,
+        &owner,
+    )
+}
+
+/// CRUD admission uses the original checked `when` predicate and exact fresh
+/// registry callback, with the same source-call consumer as model invariants.
+pub(super) fn serialize_crud_when(
+    sources: &FreshSourceContext<'_>,
+    rule: &IrNamedFn,
+) -> Option<Vec<SerialDecisionSite>> {
+    let original = sources.original();
+    let mut declarations = original.effects.cruds.values().filter(|crud| {
+        crud.when
+            .is_some_and(|node| Span::new(node.file, node.start, node.end) == rule.span)
+    });
+    let declaration = declarations.next()?;
+    if declarations.next().is_some() {
+        return None;
+    }
+    let predicate = declaration.when?;
+    let mut candidates = sources
+        .fresh()
+        .crud_when
+        .iter()
+        .filter(|candidate| candidate.name == rule.name && candidate.span == rule.span);
+    let expected = candidates.next()?;
+    if candidates.next().is_some() {
+        return None;
+    }
+    let mut semantics = SemanticJoin {
+        program: original,
+        actual: sources.ir(),
+        expected: sources.fresh(),
+        nodes: 0,
+        stack: HashSet::new(),
+    };
+    semantics.expression(&rule.body, &expected.body, 0)?;
+    let model = original.symbols.get(declaration.model.0 as usize)?;
+    if model.module != declaration.module {
+        return None;
+    }
+    let owner = format!("{}.crudWhen", model.canonical);
+    serialize_checked_policy_predicate(
+        sources,
+        declaration.model,
+        declaration.module,
+        predicate,
+        declaration.node,
+        &rule.body,
+        &owner,
+    )
+}
+
+fn serialize_checked_policy_predicate(
+    sources: &FreshSourceContext<'_>,
+    model: SymbolId,
+    module: ModuleId,
+    predicate: NodeKey,
+    statement: NodeKey,
+    body: &TypedExpr,
+    owner: &str,
+) -> Option<Vec<SerialDecisionSite>> {
+    let original = sources.original();
+    let ir = sources.ir();
     let collected = crate::analysis::scenario_disclosure::collect_read_calls(
         sources.db(),
         sources.trees(),
         sources.resolved(),
         &original.types,
         &original.effects,
-        origin.module,
+        module,
         predicate,
     )?;
     let sites = vec![CheckedDecisionSite {
-        owner: origin.model,
+        owner: model,
         source: collected.source,
         node: predicate,
-        statement: declaration.node,
+        statement,
         stage: Stage::ReadPolicy,
         position: Vec::new(),
         calls: collected.calls,
@@ -1534,10 +1607,8 @@ pub(super) fn serialize_model_rule(
     consumer.index_required(sources.trees(), &required_site_keys(original, &sites)?)?;
     index_helper_closure(&mut consumer, sources.trees(), original);
     consumer.steps = 0;
-    verify_rule_predicates(&mut consumer, &sites, vec![&rule.pred], origin.module)?;
-    let module = original.modules.get(origin.module.0 as usize)?;
-    let owner = format!("{}.{}", module.name, rule.id);
-    serialize_sites(original, ir, sources.db(), sites, Some(&owner))
+    verify_rule_predicates(&mut consumer, &sites, vec![body], module)?;
+    serialize_sites(original, ir, sources.db(), sites, Some(owner))
 }
 
 /// Named-page stored-model collection predicates at their original query sites.

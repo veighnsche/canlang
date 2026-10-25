@@ -274,17 +274,19 @@ pub fn emit(
     // fallback below preserves prior behavior when occurrence seals refuse.
     // SEND guards separately seal each owning scenario below; an unrelated
     // IR refusal must not erase another owner's exact guard.
-    let read_predicates = sources
-        .options
-        .native_scenario_receipts
-        .then(|| match source_context {
+    let read_predicates = if sources.options.native_scenario_receipts {
+        match source_context {
             Some(context) => read_predicates::prepare_with_context(context),
             None => query_context.and_then(|context| {
                 read_predicates::prepare_with_context(context)
                     .or_else(|| read_predicates::prepare_requires_with_context(context))
             }),
-        })
-        .flatten();
+        }
+    } else {
+        // Ordinary compilation can qualify an individual source-only guard.
+        // Native mode still requires the complete owner receipt capability.
+        query_context.and_then(read_predicates::prepare_requires_with_context)
+    };
     let send_guards = sources.options.native_scenario_receipts.then(|| {
         match source_preparation
             .as_ref()

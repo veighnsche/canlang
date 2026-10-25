@@ -125,6 +125,8 @@ pub(super) struct OwnerDecisionBody {
     /// These owners explicitly route original guards through the shared observer.
     /// Other complete owner bodies retain their private guard consumers.
     pub source_guard_bridge: bool,
+    /// A header-only bridge leaves the owner's financial guard/query ledger intact.
+    pub source_guard_site: Option<(u32, u32)>,
     pub missing_body: &'static str,
 }
 
@@ -253,6 +255,15 @@ impl ReceiptDisclosurePlan {
             ),
             _ => return None,
         };
+        let source_guard_site = if self.rent_movement_refund_decision.is_some() {
+            let node = decision.get("membershipSite")?.get("node")?;
+            Some((
+                u32::try_from(node.get("start")?.as_u64()?).ok()?,
+                u32::try_from(node.get("end")?.as_u64()?).ok()?,
+            ))
+        } else {
+            None
+        };
         Some(OwnerDecisionBody {
             decision: decision.clone(),
             runtime,
@@ -263,7 +274,10 @@ impl ReceiptDisclosurePlan {
             admission,
             first_defaults,
             source_guard_bridge: self.invoice_collect_decision.is_some()
-                || self.invoice_issue_decision.is_some(),
+                || self.invoice_issue_decision.is_some()
+                || self.leave_decide_decision.is_some()
+                || self.rent_movement_refund_decision.is_some(),
+            source_guard_site,
             missing_body,
         })
     }
