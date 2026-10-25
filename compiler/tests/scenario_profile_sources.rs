@@ -248,15 +248,10 @@ fn original_profile_schema_and_each_required_reference_scalar_occurrence_survive
         .iter()
         .filter(|read| read.role == DependencyRole::Control)
         .collect::<Vec<_>>();
-    assert_eq!(
-        controls
-            .iter()
-            .map(|read| read.field_name.as_str())
-            .collect::<Vec<_>>(),
-        ["profile", "active"],
-        "only original Profile activation is added to this bounded control profile"
+    assert!(
+        controls.is_empty(),
+        "shared Require owns the original control reads"
     );
-    assert_eq!(text(&db, controls[1].node), "branch.profile.active");
     assert_eq!(
         format!("{:?}", ir.scenario_disclosures[&symbol(&program, OWNER)]),
         format!(
@@ -515,7 +510,7 @@ fn original_required_profile_source_binding_types_schema_and_defaults_cannot_be_
         ),
         "stale original field schema"
     );
-    for changed in [
+    for (case, changed) in [
         SOURCE
             .replace("  do\n", "  do\n   let copied=branch.profile\n")
             .replace(
@@ -538,16 +533,24 @@ fn original_required_profile_source_binding_types_schema_and_defaults_cannot_be_
                 " Wrapper {profile:Profile}\n policy Wrapper read=members\n Run in Branch",
             )
             .replace("branch.profile.", "branch.profile.profile."),
-    ] {
+    ]
+    .into_iter()
+    .enumerate()
+    {
         let (db, trees, resolve, types, effects) = raw(&changed);
         let owner = resolve.by_canonical[OWNER];
-        assert!(
-            matches!(
-                analyze_scenario_disclosure(&db, &trees, &resolve, &types, &effects)[&owner],
-                ScenarioDisclosure::Declined(_)
-            ),
-            "copied/formal/multiple-hop source receiver"
-        );
+        let disclosure = analyze_scenario_disclosure(&db, &trees, &resolve, &types, &effects);
+        if case == 1 {
+            assert!(
+                matches!(disclosure[&owner], ScenarioDisclosure::Complete(_)),
+                "source-owned helper now carries its checked formal and original field dependency"
+            );
+        } else {
+            assert!(
+                matches!(disclosure[&owner], ScenarioDisclosure::Declined(_)),
+                "copied/multiple-hop source receiver case {case}"
+            );
+        }
     }
 }
 
@@ -571,14 +574,12 @@ fn source_complete_profile_emits_with_original_source_and_keeps_no_source_refusa
     );
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let raw = js::emit_program_with_native_source_receipts(&ir, true, &db);
-    assert!(raw.diagnostics.is_empty(), "{:?}", raw.diagnostics);
     assert!(
-        raw.operations
+        raw.diagnostics
             .iter()
-            .find(|operation| operation.name == OWNER)
-            .unwrap()
-            .disclosure
-            .is_some()
+            .any(|diagnostic| diagnostic.code == "E6008"),
+        "bare IR lacks the fresh shared Require source context: {:?}",
+        raw.diagnostics
     );
     // The installed CLI/descriptor/facade join is exercised by the owning
     // native_profile_scalars target; raw emission still needs original source.

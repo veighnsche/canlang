@@ -251,6 +251,9 @@ const budget=artifact.models.find(model=>model.name===descriptor.model),account=
 assert.equal(account.field.kind,'user');
 const assembly=await assembleModules({artifact,sourcePath},{workDir:resolve(base,'modules'),stdlibUrl:pathToFileURL(ownerRequire.resolve('@canlang/cloudflare/runtime/stdlib')).href});
 const module=await importVerifiedAssemblyModule(assembly,descriptor.module,artifact),registry=module.canApp();
+const origins=module.appDefinition.modelRuleOrigins.filter(origin=>origin.model===descriptor.model&&['invariant','lock'].includes(origin.kind));
+assert.equal(origins.length,2);
+for(const origin of origins) assert.deepEqual(origin.source,{path:sourcePath,sha256:hash,module:descriptor.ownerPackage});
 const expected=descriptor.rules.map(rule=>({id:rule.id,kind:rule.kind,module:descriptor.module,ownerPackage:descriptor.ownerPackage,model:descriptor.model}));
 assert.equal(registry.modelPolicyBindings.length,2);
 assert.deepEqual(registry.modelPolicyBindings.map(({evaluate,...identity})=>identity),expected);
@@ -287,28 +290,40 @@ console.log('Original bounded Budget: verified native CLI emits complete ordered
 }
 
 #[test]
-fn unsupported_dependencies_do_not_publish_partial_or_empty_certificates() {
-    for predicate in ["count(Item)>0", "positive(row.quantity)", "row.version>0"] {
+fn checked_query_derive_and_context_rules_keep_complete_certificates() {
+    for predicate in ["count(Item)>0", "positive(row.quantity)", "actor==actor"] {
         let scratch = tempfile::tempdir().unwrap();
         let source = SOURCE.replace(
             " invariant Item: row.quantity>=0",
             &format!(" derive positive(value:int):bool = value>0\n invariant Item: {predicate}"),
         );
         let artifact = compile(&source, scratch.path());
-        assert!(artifact.get("modelPolicies").is_none());
-        assert!(
-            !artifact["modules"][0]["js"]
-                .as_str()
-                .unwrap()
-                .contains("modelPolicyBindings:")
-        );
-        assert!(
-            artifact["modules"][0]["js"]
-                .as_str()
-                .unwrap()
-                .contains("invariants:["),
-            "declared unsupported rules remain visible to activation refusal"
-        );
+        let js = artifact["modules"][0]["js"].as_str().unwrap();
+        let policies = artifact["modelPolicies"]
+            .as_array()
+            .expect("checked source profile");
+        if predicate == "actor==actor" {
+            assert_eq!(policies.len(), 1);
+            assert_eq!(
+                policies[0]["model"], "PolicyProducer.Other",
+                "unrelated complete policy survives an unsupported Item context rule"
+            );
+            assert!(
+                js.contains("invariants:["),
+                "unsupported Item rule remains visible for activation refusal"
+            );
+            continue;
+        }
+        assert_eq!(policies.len(), 2);
+        assert_eq!(policies[0]["rules"].as_array().unwrap().len(), 3);
+        assert!(js.contains("modelPolicyBindings:"));
+        if predicate.starts_with("count") {
+            assert_eq!(
+                policies[0]["rules"][0]["dependencies"][0]["model"],
+                "PolicyProducer.Item"
+            );
+            assert!(js.contains("queryModels:[\"PolicyProducer.Item\"]"));
+        }
     }
 }
 
@@ -376,12 +391,14 @@ const {decodeValue}=await load('@canlang/values');
 const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
 const hash=createHash('sha256').update(readFileSync(sourcePath)).digest('hex');assert.equal(hash,process.argv[5]);
 const [descriptor]=artifact.modelPolicies;
-const origin=artifact.operations.find(operation=>operation.name==='SourceProfileScalars.ask').result.disclosure.source;
-assert.deepEqual(origin,{path:sourcePath,sha256:hash,module:descriptor.module});
+assert.equal(artifact.sources.filter(source=>source.path===sourcePath&&source.sha256===hash).length,1);
 const profile=artifact.models.find(model=>model.name===descriptor.model);
 assert.equal(profile.fields.find(field=>field.name==='duration').field.kind,'duration');
 const assembly=await assembleModules({artifact,sourcePath},{workDir:resolve(base,'modules'),stdlibUrl:pathToFileURL(ownerRequire.resolve('@canlang/cloudflare/runtime/stdlib')).href});
 const module=await importVerifiedAssemblyModule(assembly,descriptor.module,artifact),registry=module.canApp();
+const origins=module.appDefinition.modelRuleOrigins.filter(origin=>origin.model===descriptor.model&&['invariant','lock'].includes(origin.kind));
+assert.equal(origins.length,2);
+for(const origin of origins) assert.deepEqual(origin.source,{path:sourcePath,sha256:hash,module:descriptor.ownerPackage});
 const expected=descriptor.rules.map(rule=>({id:rule.id,kind:rule.kind,module:descriptor.module,ownerPackage:descriptor.ownerPackage,model:descriptor.model}));
 assert.deepEqual(registry.modelPolicyBindings.map(({evaluate,...identity})=>identity),expected);
 const [invariant,lock]=registry.modelPolicyBindings;
@@ -415,16 +432,26 @@ assert.equal(await lock.evaluate(undefined,Object.freeze({})),true);
 }
 
 #[test]
-fn protected_lock_targets_obey_the_same_native_field_profile() {
+fn stored_lock_targets_retain_the_complete_checked_field_profile() {
     for field in ["text?", "money", "Other"] {
         let scratch = tempfile::tempdir().unwrap();
         let artifact = compile(
             &SOURCE.replace("label:text", &format!("label:{field}")),
             scratch.path(),
         );
-        assert!(artifact.get("modelPolicies").is_none(), "{field}");
+        let policies = artifact["modelPolicies"]
+            .as_array()
+            .expect("source-sealed stored lock profile");
+        assert_eq!(policies.len(), 2, "{field}");
+        let lock = policies[0]["rules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|rule| rule["kind"] == "lock")
+            .unwrap();
+        assert_eq!(lock["fields"], serde_json::json!(["label"]), "{field}");
         assert!(
-            !artifact["modules"][0]["js"]
+            artifact["modules"][0]["js"]
                 .as_str()
                 .unwrap()
                 .contains("modelPolicyBindings:")
@@ -451,7 +478,8 @@ fn checked_hook_policy_reuses_original_callback_and_state_snapshot_shape() {
     );
     let js = artifact["modules"][0]["js"].as_str().unwrap();
     assert!(js.contains("($candidate,$hookCtx,c)"));
-    assert!(js.contains("version:$hookCtx.after.version"));
+    assert!(js.contains("const {data,...meta}=row;return {...data,...meta};"));
+    assert!(js.contains("after:$hookRow($hookCtx.after)"));
     assert!(!js.contains("before.version+1"));
     assert!(!js.contains("$hookCtx.before.data"));
     let runner = scratch.path().join("hook-projection.mjs");

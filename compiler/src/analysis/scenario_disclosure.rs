@@ -21845,8 +21845,8 @@ impl<'a> Closure<'a> {
         let required_reference = self
             .expr_member_required_reference(key, module, calls, base_key, model, field.id, value);
         let required_scalar = self.checked_required_reference_scalar(key, module);
-        if let Some((_, source, reference, target, scalar)) = required_scalar {
-            if !calls.is_empty()
+        if let Some((_, source, reference, target, scalar)) = required_scalar
+            && (!calls.is_empty()
                 || self.loop_node.is_some()
                 || model != target
                 || field.id != scalar
@@ -21864,13 +21864,12 @@ impl<'a> Closure<'a> {
                             }
                         && read.calls.is_empty()
                         && read.query_id.is_none()
-                })
-            {
-                return Err(self.fail(
-                    key,
-                    "scalar needs its original required stored reference receiver",
-                ));
-            }
+                }))
+        {
+            return Err(self.fail(
+                key,
+                "scalar needs its original required stored reference receiver",
+            ));
         }
         self.expr_member_profile_scalar_leaf(
             key,
