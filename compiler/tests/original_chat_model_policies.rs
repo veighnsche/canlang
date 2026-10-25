@@ -6,7 +6,7 @@ const SOURCE: &str = include_str!("fixtures/original-a850/CanChat.can");
 const SOURCE_HASH: &str = "8eb79dd397aa801d97692aa195e24ad9ee29977b4e102e7cbc35e21c9fdd0ad3";
 
 #[test]
-fn unchanged_chat_retains_exact_policy_outputs_while_full_compilation_refuses() {
+fn unchanged_chat_compiles_whole_artifact_with_exact_policies_and_pure_callbacks() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     assert_eq!(
         canlang_compiler::source::sha256_hex(SOURCE.as_bytes()),
@@ -28,72 +28,30 @@ fn unchanged_chat_retains_exact_policy_outputs_while_full_compilation_refuses() 
         .env_remove("CAN_CATALOG")
         .output()
         .unwrap();
-    // The public CLI retains the unrelated whole-app native refusals and
-    // must not publish an artifact with only a subset of its checked behavior.
-    assert_eq!(
-        compiled.status.code(),
-        Some(10),
-        "{}",
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
         String::from_utf8_lossy(&compiled.stderr)
     );
-    let refusal: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
-    assert!(refusal.get("modules").is_none());
-    let refusal_diagnostics = refusal["diagnostics"].as_array().unwrap();
-    assert!(!refusal_diagnostics.is_empty());
-    assert!(
-        refusal_diagnostics
-            .iter()
-            .all(|diagnostic| diagnostic["code"] == "E6008")
-    );
-    assert!(
-        refusal_diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic["message"].as_str().unwrap().contains("chat.ask"))
-    );
-
-    // Exercise only this test's policy-producer boundary. The emitter retains
-    // sibling policy outputs for diagnostics/editor consumers even when an
-    // unrelated scenario refuses; these scratch modules are never published.
-    use canlang_compiler::analysis::catalog::{CatalogRequest, load_catalog};
-    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
-    use canlang_compiler::diagnostic::DiagnosticResult;
-    use canlang_compiler::source::{SourceDb, Span};
-    let mut db = SourceDb::new();
-    let file = db.add(input.to_string_lossy().into_owned(), SOURCE.into());
-    let catalog_path = root.join("packages/cloudflare/dist/native-catalog.json");
-    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
-        flag: Some(&catalog_path),
-        env: None,
-        cwd: root,
-        primary: Span::new(file, 0, 0),
-    });
-    assert!(diagnostics.is_empty(), "{diagnostics:?}");
-    let catalog = catalog.unwrap();
-    let (program, diagnostics) =
-        canlang_compiler::analysis::check_program(&db, &[file], Some(&catalog));
-    assert!(diagnostics.is_empty(), "{diagnostics:?}");
-    let mut result = DiagnosticResult::new(env!("CARGO_PKG_VERSION"), "1.0", 1);
-    result.add_sources(&db);
-    let mut options = EmitOptions::new();
-    options.native_scenario_receipts = true;
-    let (partial, diagnostics) = emit(
-        &program,
-        &EmitSources {
-            db: &db,
-            result: &result,
-            catalog: Some(&catalog),
-            options,
-        },
-    );
-    assert!(!diagnostics.is_empty());
-    assert!(
-        diagnostics
-            .iter()
-            .all(|diagnostic| diagnostic.code == "E6008"),
-        "{diagnostics:?}"
-    );
-    let policy_output = canlang_compiler::codegen::artifact::to_json(&partial);
+    let policy_output = String::from_utf8(compiled.stdout).unwrap();
     let artifact: serde_json::Value = serde_json::from_str(&policy_output).unwrap();
+    assert!(
+        artifact.get("diagnostics").is_none(),
+        "successful artifact contains no diagnostic envelope"
+    );
+    assert_eq!(artifact["sources"][0]["sha256"], SOURCE_HASH);
+    assert!(!artifact["modules"].as_array().unwrap().is_empty());
+    let ask = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "chat.ask")
+        .expect("original checked ask operation");
+    assert_eq!(ask["result"]["disclosure"]["version"], 1);
+
+    // Verify the policy census and pure callbacks from the complete artifact
+    // published by the real native CLI, retaining every original source byte.
     let module = artifact["modelPolicies"][0]["module"]
         .as_str()
         .expect("complete original Chat policy census");
