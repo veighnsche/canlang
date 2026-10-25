@@ -52,7 +52,7 @@ interface Frame {
   readonly call?: AdmittedCall;
   readonly store?: StoragePort;
   readonly observation?: Observation;
-  readonly authorityReport?: AdmittedReadScenarioCall;
+  readonly readScenario?: AdmittedReadScenarioCall;
   readonly sourceSend?: { readonly predicate: string; readonly node: string };
   readonly dispatch?: {
     readonly execution: DispatchGuardExecution;
@@ -70,7 +70,7 @@ interface Frame {
   captured: { readonly occurrence: Occurrence; readonly person: UserRef; readonly team: TeamScope } | null;
 }
 const owners = new WeakMap<GeneratedOperationDef, Binding>();
-const authorityReports = new WeakMap<GeneratedOperationDef, Binding>();
+const readScenarios = new WeakMap<GeneratedOperationDef, Binding>();
 const reads = new WeakMap<Read, ReadonlyMap<string, Binding>>();
 const frames = new WeakMap<HandlerContext, Frame>();
 const calls = new WeakMap<AdmittedCall, Frame>();
@@ -145,7 +145,7 @@ export function bindNativeInvoiceIssueRole(c: HandlerContext,
   return () => { eventRoles.delete(c); };
 }
 export function hasNativeOwnerMembership(def: GeneratedOperationDef): boolean { return owners.has(def); }
-export function hasNativeAuthorityReportMembership(def: GeneratedOperationDef): boolean { return authorityReports.has(def); }
+export function hasNativeReadScenarioMembership(def: GeneratedOperationDef): boolean { return readScenarios.has(def); }
 const refuse = (message: string): never => { throw new StateError('validation', `Native membership: ${message}`); };
 function fail(frame: Frame, error: unknown): never {
   if (!frame.failed) {
@@ -256,24 +256,24 @@ export function bindNativeOwnerMembership(def: GeneratedOperationDef, input: {
   owners.set(def, binding(input.sites, handles));
 }
 
-/** The verified authority-report module supplies the exact active_member
- * occurrence inventory; State's admitted read decision supplies live Identity. */
-export function bindNativeAuthorityReportMembership(def: GeneratedOperationDef, input: {
+/** The verified read module supplies the exact active_member occurrence
+ * inventory; State's admitted read supplies its live Identity observation ledger. */
+export function bindNativeReadScenarioMembership(def: GeneratedOperationDef, input: {
   readonly source: ScenarioReceiptSourceOrigin;
   readonly sites: readonly ScenarioReceiptMembershipSite[];
 }): void {
-  if (authorityReports.has(def) || def.descriptor.kind !== 'read') return refuse('one exact authority report membership owner required.');
+  if (readScenarios.has(def) || def.descriptor.kind !== 'read') return refuse('one exact read scenario membership owner required.');
   const sites = checkScenarioReceiptMembershipSites(input.sites);
   if (sites.length === 0 || sites.some(site => site.owner !== def.name ||
       stableStringify(site.source) !== stableStringify(input.source) ||
       site.stage !== 'leading-require' && site.calls.some(call =>
         call.target.kind === 'builtin' && call.target.id === 'active_member'))) {
-    return refuse('authority report membership must belong to its original leading Require.');
+    return refuse('read scenario membership must belong to its original leading Require.');
   }
   const count = sites.reduce((sum, site) => sum + site.calls.filter(call =>
     call.target.kind === 'builtin' && call.target.id === 'active_member').length, 0);
-  if (count === 0) return refuse('authority report membership needs its checked source occurrence.');
-  authorityReports.set(def, binding(sites));
+  if (count === 0) return refuse('read scenario membership needs its checked source occurrence.');
+  readScenarios.set(def, binding(sites));
 }
 
 /** Bind once after State's exact framework SEND inventory. Each source guard
@@ -435,17 +435,17 @@ export function openNativeOwnerMembershipFrame(c: HandlerContext, call: Admitted
   const lifecycle = open(c, frame); calls.set(call, frame); return lifecycle;
 }
 
-export function openNativeAuthorityReportMembershipFrame(c: HandlerContext, call: AdmittedReadScenarioCall,
+export function openNativeReadScenarioMembershipFrame(c: HandlerContext, call: AdmittedReadScenarioCall,
   actualTeam: TeamScope | null, failure: (error: unknown) => void): NativeMembershipFrame {
-  const installed = authorityReports.get(call.def);
-  if (installed === undefined || call.decision?.scope !== 'authority' ||
+  const installed = readScenarios.get(call.def);
+  if (installed === undefined || call.def.descriptor.kind !== 'read' || typeof call.activeMember !== 'function' ||
       (actualTeam === null ? c.team != null || call.teamId !== null : c.team == null ||
         actualTeam.teamId !== call.teamId || c.team.id !== actualTeam.teamId ||
         c.team.timezone !== actualTeam.timezone)) {
-    return refuse('actual admitted authority report and corresponding native Team required.');
+    return refuse('actual admitted read scenario and corresponding native Team required.');
   }
   const frame: Frame = { binding: installed, nativeTeam: c.team, team: actualTeam,
-    teamSnapshot: stableStringify(actualTeam), authorityReport: call, failure,
+    teamSnapshot: stableStringify(actualTeam), readScenario: call, failure,
     active: true, pending: false, failed: false, error: undefined, captured: null };
   return open(c, frame);
 }
@@ -538,11 +538,11 @@ async function resolveMemberValue(frame: Frame, matches: Frame['binding']['occur
     frame.dispatch.captured = { occurrence, person, team: frame.dispatch.team };
     return frame.dispatch.observer.evaluate({ site: occurrence.handle });
   }
-  if (frame.authorityReport !== undefined) {
-    if (frame.authorityReport.decision?.scope !== 'authority' || frame.team === null) {
-      return refuse('authority report lost its admitted Identity decision.');
+  if (frame.readScenario !== undefined) {
+    if (frame.team === null) {
+      return refuse('read scenario lost its admitted Identity observation.');
     }
-    return frame.authorityReport.decision.activeMember(person.id);
+    return frame.readScenario.activeMember(person.id);
   }
   if (occurrence.handle === undefined) return refuse('membership lacks its checked State handle.');
   frame.captured = { occurrence, person, team: frame.team! };

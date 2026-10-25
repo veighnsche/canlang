@@ -369,7 +369,7 @@ fn source_recipe_emits_and_matches_installed_state_owning_inventory() {
     assert_eq!(deps[0]["field"], "location");
     assert_eq!(deps[0]["role"], "control");
     assert_eq!(deps[0]["type"], "rent_catalog.Location?");
-    assert_eq!(deps[4]["type"], "todo.Task.priority");
+    assert_eq!(deps[4]["type"], "enum(low,normal,high)");
     assert_eq!(
         emitted["returns"][0]["influences"]
             .as_array()
@@ -405,17 +405,19 @@ fn source_recipe_emits_and_matches_installed_state_owning_inventory() {
         .env_remove("CAN_CATALOG")
         .output()
         .unwrap();
-    // The genuine membership producer remains catalog-external. Preserve its
-    // shipping refusal; source transport must not silently make it available.
-    assert!(!compiled.status.success());
-    let refused: Value = serde_json::from_slice(&compiled.stdout).unwrap();
+    // The original StateRead guard now has a sealed membership producer.
     assert!(
-        refused["diagnostics"]
-            .as_array()
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    let published: Value = serde_json::from_slice(&compiled.stdout).unwrap();
+    assert!(
+        published["modules"][0]["js"]
+            .as_str()
             .unwrap()
-            .iter()
-            .any(|d| d["code"] == "E6007"
-                && d["message"].as_str().unwrap().contains("active_member"))
+            .contains("canMembershipSources")
     );
     let mut result =
         canlang_compiler::diagnostic::DiagnosticResult::new("query-source-test", "1.0", 1);
@@ -432,14 +434,14 @@ fn source_recipe_emits_and_matches_installed_state_owning_inventory() {
             },
         },
     );
-    assert_eq!(diags.len(), 1, "{diags:?}");
-    assert_eq!(diags[0].code, "E6007");
+    assert!(diags.is_empty(), "{diags:?}");
     let artifact: Value =
         serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
-    std::fs::write(&artifact_path, serde_json::to_vec(&artifact).unwrap()).unwrap();
+    // Preserve the complete shipping descriptor representation for the runtime join.
+    std::fs::write(&artifact_path, &compiled.stdout).unwrap();
     let module = artifact["modules"][0]["js"].as_str().unwrap();
     // Nongrant source data cannot enter a private runtime frame. In particular,
-    // a declined read must keep its existing generic viewer query lowering.
+    // a source-only guarded read keeps its existing generic viewer query lowering.
     for helper in [
         "executeScenarioReceiptQuery",
         "bindScenarioReceiptQueryResult",
@@ -463,8 +465,7 @@ fn source_recipe_emits_and_matches_installed_state_owning_inventory() {
             options: canlang_compiler::codegen::EmitOptions::new(),
         },
     );
-    assert_eq!(ds.len(), 1);
-    assert_eq!(ds[0].code, "E6007");
+    assert!(ds.is_empty(), "{ds:?}");
     assert!(!ordinary.modules[0].js.contains("canScenarioQuerySources"));
     assert!(
         !ordinary.modules[0]
@@ -479,12 +480,12 @@ fn source_recipe_emits_and_matches_installed_state_owning_inventory() {
         .unwrap();
     assert!(
         context["result"].get("disclosure").is_none(),
-        "query facts must not admit the unqualified guard/profile"
+        "source facts alone must not admit a complete query receipt"
     );
     let runner = scratch.path().join("query-consumer.mjs");
     std::fs::write(&runner,r#"
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync,writeFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {dirname,resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
@@ -494,11 +495,35 @@ const {loadArtifactDescriptors}=await import(pathToFileURL(require.resolve('@can
 const state=dirname(require.resolve('@canlang/state'));
 const {checkScenarioResultDisclosurePlan}=await import(pathToFileURL(resolve(state,'invocation/scenario-receipt.js')));
 const {checkQueryInventory}=await import(pathToFileURL(resolve(state,'invocation/scenario-query-plan.js')));
-// Only the generated nongrant data export is executed. The membership guard
-// remains unavailable and CLI publication refuses the complete module above.
-const line=artifact.modules[0].js.split('\n').find(line=>line.startsWith('export function canScenarioQuerySources()'));
-assert.ok(line);
-const entry=await import('data:text/javascript,'+encodeURIComponent(line));
+// Import the whole genuine assembled module, including the State-issued
+// membership guard. Query inventory alone still grants no private DATA frame.
+const load=specifier=>import(pathToFileURL(require.resolve(specifier)));
+const {assembleModules}=await load('@canlang/cloudflare/runtime/modules');
+const {buildInvoker}=await load('@canlang/cloudflare/worker/assembly');
+const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
+const {FIXED_NOW,createMemoryIdentityStore,seedMember,makeIdentity,asModel,asId,makeRow,makeBatch}=await load('@canlang/state/testing/invocation/fixtures');
+const stdlib=pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href;
+const shim=resolve(dirname(process.argv[3]),'observed-stdlib.mjs');
+writeFileSync(shim,`export * from ${JSON.stringify(stdlib)};
+import {active_member as actualMember,records as actualRecords} from ${JSON.stringify(stdlib)};
+export async function active_member(...args){
+ if(globalThis.poisonMembership){delete globalThis.poisonMembership;try{await actualMember(...args.slice(0,3),{...args[3],source:{...args[3].source,sha256:'0'.repeat(64)}});}catch{}}
+ const value=await actualMember(...args);globalThis.guardObserved=true;return value;}
+export async function records(...args){const rows=await actualRecords(...args);if(globalThis.guardObserved&&globalThis.afterMembershipObservation)await globalThis.afterMembershipObservation();return rows;}`);
+const asm=await assembleModules({artifact,sourcePath:process.argv[4]},{workDir:resolve(dirname(process.argv[3]),'modules'),
+ stdlibUrl:pathToFileURL(shim).href,uiUrl:pathToFileURL(require.resolve('@canlang/ui')).href});
+const entry=await import(asm.moduleUrls[artifact.modules[0].path]);
+const membership=entry.canMembershipSources()['workbench.context'];
+assert.equal(membership.length,2);
+assert.equal(membership[0].owner,'workbench.context');
+assert.equal(membership[0].stage,'leading-require');
+assert.deepEqual(membership[0].calls[0].target,{id:'active_member',kind:'builtin',overload:0});
+assert.deepEqual(membership[0].calls[0].slots,[0,1]);
+assert.deepEqual(membership[0].calls[0].arguments.map(argument=>argument.type),['user','Team']);
+assert.equal(membership[0].source.sha256,artifact.sources[0].sha256);
+assert.equal(membership[0].source.path,artifact.sources[0].path);
+const copied=entry.canMembershipSources();copied['workbench.context'][0].owner='foreign.context';
+assert.equal(entry.canMembershipSources()['workbench.context'][0].owner,'workbench.context');
 assert.equal(typeof entry.canScenarioQuerySources,'function');
 const recipes=entry.canScenarioQuerySources();
 assert.deepEqual(Object.keys(recipes),['workbench.context']);
@@ -508,9 +533,9 @@ assert.deepEqual(checked,produced);assert.ok(Object.isFrozen(checked));
 const loaded=loadArtifactDescriptors(artifact,{by:{role:'members'}});
 checkQueryInventory(checked,'workbench.Fact[]',artifact.models,loaded.valueSchema);
 assert.equal(checked.source.module,artifact.modules[0].path);
-assert.equal(checked.queries[0].source.path,'query-sources.can');
+assert.equal(checked.queries[0].source.path,process.argv[4]);
 assert.equal(checked.queries[0].dependencies[0].type,'rent_catalog.Location?');
-assert.equal(checked.queries[0].dependencies[4].type,'todo.Task.priority');
+assert.equal(checked.queries[0].dependencies[4].type,'enum(low,normal,high)');
 const names=checked.queries[0].dependencies.map(dep=>[dep.role,dep.field]);
 assert.deepEqual(names,[['control','location'],['data','title'],['data','description'],['data','due'],['data','priority'],['data','done']]);
 // Native query/authorization is not admitted by publishing source data.
@@ -528,7 +553,35 @@ for(const alter of [
  p=>p.returns[0].influences[0].queryId='foreign',
  p=>p.queries[0].order=[{field:'done',direction:'desc'}],
 ]){const changed=structuredClone(checked);alter(changed);reject(changed);}
-console.log('emitted source query recipe accepted by actual installed State owning schema; tampered inventories refused');
+const {store}=createTestMemoryStorage(),memberships=createMemoryIdentityStore();
+const member=await seedMember(memberships,{isOwner:false});
+const identity=makeIdentity({membership:member.membership,email:member.user.email});
+const location=makeRow({id:asId('location'),data:{name:'Selected workplace'}});
+const task=makeRow({id:asId('task'),data:{location:{id:location.id},title:'Original task',description:null,due:null,priority:'normal',done:false}});
+await store.commit(makeBatch(await store.readRevision(),{writes:[
+ {kind:'insert',model:asModel('rent_catalog.Location'),row:location},
+ {kind:'insert',model:asModel('todo.Task'),row:task}]}));
+const revision=await store.readRevision(),history=await store.historyFor(asModel('todo.Task'),task.id);
+const invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
+const request={operation:'workbench.context',inputs:{location:{id:location.id},targets:[{id:task.id}]}};
+const outcome=await invoker.invokeRead(request,identity);
+assert.ok('result'in outcome,JSON.stringify(outcome));
+assert.deepEqual(outcome.result,{result:[{task:{id:task.id,version:String(task.version)},version:String(task.version),
+ title:'Original task',description:null,due:null,priority:'normal',done:false}],revision});
+globalThis.poisonMembership=true;
+const poisoned=await invoker.invokeRead(request,identity);assert.ok('error'in poisoned,JSON.stringify(poisoned));assert.equal(poisoned.error.code,'validation');
+assert.ok('result'in await invoker.invokeRead(request,identity),'poison cannot contaminate a separate fresh read lifetime');
+const outsider=makeIdentity({userId:'outsider',team:member.team,membership:null});
+const denied=await invoker.invokeRead(request,outsider);assert.ok('error'in denied);assert.equal(denied.error.code,'forbidden');
+let observed=false;globalThis.guardObserved=false;
+globalThis.afterMembershipObservation=async()=>{observed=true;delete globalThis.afterMembershipObservation;await memberships.removeMembership(member.membership.membership_id);};
+const raced=await invoker.invokeRead(request,identity);assert.equal(observed,true);
+assert.ok('error'in raced,JSON.stringify(raced));assert.equal(raced.error.code,'forbidden');
+const revoked=await invoker.invokeRead(request,identity);assert.ok('error'in revoked);assert.equal(revoked.error.code,'forbidden');
+assert.equal(await store.readRevision(),revision);
+assert.deepEqual(await store.historyFor(asModel('todo.Task'),task.id),history);
+assert.deepEqual(await store.outboxPending(),[]);
+console.log('genuine guarded source query runs through installed State; source forgery, outsider and revoked membership refused');
 "#).unwrap();
     let consumed = Command::new("node")
         .arg(runner)

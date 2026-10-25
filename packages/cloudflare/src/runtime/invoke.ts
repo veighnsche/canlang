@@ -145,7 +145,7 @@ import { prepareObserveVenueScanQuery, stableStringify } from '@canlang/state/in
 import { hasRole as stateSubjectRole } from '@canlang/state/policy/roles';
 import { openReadScenarioQueryFrame, openScenarioReceiptFrame, type ScenarioReceiptFrame } from './scenario-receipt-frame.js';
 import { bindNativeDispatchMembership, openNativeDispatchMembershipFrame, bindNativeSourceSendMembership, openNativeSourceSendMembershipFrame, bindNativeOwnerMembership, bindNativeReadMembership, bindNativeReadRoleContext,
-  bindNativeAuthorityReportMembership, hasNativeAuthorityReportMembership, openNativeAuthorityReportMembershipFrame,
+  bindNativeReadScenarioMembership, hasNativeReadScenarioMembership, openNativeReadScenarioMembershipFrame,
   bindNativeEventDecisionRole, bindNativeLeaveRequestRole, bindNativeReferRejectRole,
   bindNativeRentMovementRefundRole, bindNativeInvoiceCollectRole, bindNativeInvoiceIssueRole,
   hasNativeOwnerMembership, openNativeOwnerMembershipFrame, openNativeReadMembershipFrame,
@@ -1320,6 +1320,7 @@ interface StateInvokeProducer {
   readonly stageScenarioReceiptDelivery?: typeof import('@canlang/state/invocation').stageScenarioReceiptDelivery;
   readonly bindScenarioReceiptQueryProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptQueryProducer;
   readonly bindScenarioReceiptReferenceProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptReferenceProducer;
+  readonly needsScenarioReceiptReferenceProducer?: typeof import('@canlang/state/invocation').needsScenarioReceiptReferenceProducer;
   readonly bindScenarioReceiptFileProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptFileProducer;
   readonly observeScenarioReceiptFileAssignment?: typeof import('@canlang/state/invocation').observeScenarioReceiptFileAssignment;
   readonly projectReadScenarioQueryResult?: typeof import('@canlang/state/invocation').projectReadScenarioQueryResult;
@@ -1685,6 +1686,9 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
 
 function scenarioReceiptBindingsTail(scenarioMod: Record<string, unknown>) {
   return {
+    ...(typeof scenarioMod['needsScenarioReceiptReferenceProducer'] !== 'function' ? {} : {
+      needsScenarioReceiptReferenceProducer: scenarioMod['needsScenarioReceiptReferenceProducer'] as NonNullable<StateInvokeProducer['needsScenarioReceiptReferenceProducer']>,
+    }),
     ...(typeof scenarioMod['bindScenarioReceiptReferenceProducer'] !== 'function' ? {} : {
       bindScenarioReceiptReferenceProducer: scenarioMod['bindScenarioReceiptReferenceProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptReferenceProducer']>,
     }),
@@ -6094,9 +6098,7 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
   const sourceReads = context === undefined ? undefined : createSourceReadPolicyAdapter({ loaded,
     opts: context.opts, now: context.now,
     ...(context.preferences === undefined ? {} : { preferences: context.preferences }) });
-  const nominalAssignments = await bindFileStagingCensus(loaded, artifact);
-  const hasNominalAssignments = artifact.models?.some(model => model.fields.some(field =>
-    field.default?.kind !== 'derived' && nominalAssignments?.fields.get(model.name as ModelName)?.has(field.name))) === true;
+  await bindFileStagingCensus(loaded, artifact);
   for (const value of loaded.registry.values()) {
     const def = generatedScenarioDef({ def: value }), plan = def?.descriptor.result?.disclosure;
     if (def === undefined || plan === undefined) continue;
@@ -6147,13 +6149,11 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
     const rawExecution = isUnknownRecord(operation) ? readMetadataMember(operation, 'executionDependencies', where)?.value : undefined;
     const executionDependencies = rawExecution === undefined ? undefined : captureDispatchPreclaimData(nativeCallArray(rawExecution, 200)) as
       NonNullable<Parameters<typeof bind>[1]['executionDependencies']>;
-    // Query models select the invocation source reader, but an execution-only
-    // query does not itself consume the separate stored-reference producer.
-    if (executionDependencies === undefined && !loaded.models.some(model => model.name === def.descriptor.result?.type) &&
-        plan.returns.every(returned => returned.dependencies.length === 0 && (returned.intrinsics?.length ?? 0) === 0) &&
-        !plan.queries?.some(query => query.parent !== undefined || query.dependencies.some(dependency => dependency.field === 'parent')) &&
-        !def.descriptor.inputs.some(input => input.kind === 'ref' || input.kind === 'nominal') &&
-        !hasNominalAssignments) continue;
+    // State's actual bound plan owns this census. Query-only references and
+    // another model's assignments cannot invent a reference-consumer binding.
+    const needsReference = loaded.producers.invoke.needsScenarioReceiptReferenceProducer;
+    if (needsReference === undefined) throw new AssemblyCorrespondenceError('Scenario references require their installed State consumer census.');
+    if (!needsReference(def, executionDependencies !== undefined)) continue;
     const executionSites = executionDependencies === undefined ? undefined : (loaded.membershipSources.get(def.name) ?? [])
       .filter(site => site.stage !== 'read-policy' && site.stage !== 'read-predicate' && site.stage !== 'send-dispatch');
     if (executionSites !== undefined) {
@@ -6787,7 +6787,15 @@ async function loadCanonicalDescriptorsInternal(
           ownerSites.some(site => stableStringify(site.source) !== stableStringify(source))) {
         throw new AssemblyCorrespondenceError('Authority report membership differs from its checked query source.');
       }
-      bindNativeAuthorityReportMembership(def, { source, sites: ownerSites });
+      bindNativeReadScenarioMembership(def, { source, sites: ownerSites });
+      continue;
+    }
+    if (def.descriptor.kind === 'read') {
+      const source = ownerSites[0]!.source;
+      if (!artifact.sources.some(original => original.path === source.path && original.sha256 === source.sha256)) {
+        throw new AssemblyCorrespondenceError('Read scenario membership lacks its original checked source.');
+      }
+      bindNativeReadScenarioMembership(def, { source, sites: ownerSites });
       continue;
     }
     // The SEND-guard binding already associated this def's logical site
@@ -19928,14 +19936,14 @@ async function runReadScenarioSeam(
   }, (queryId, returnId, selected) => projector!(call.def, queryId, returnId, selected), error => {
     if (error instanceof Error) navigationFailures.set(error.message, error);
   });
-  const authorityMembership = decision !== undefined && hasNativeAuthorityReportMembership(call.def)
-    ? openNativeAuthorityReportMembershipFrame(ctx, call,
+  const readMembership = hasNativeReadScenarioMembership(call.def)
+    ? openNativeReadScenarioMembershipFrame(ctx, call,
       opts.identity.team === null ? null : { teamId: opts.identity.team.team_id, timezone: opts.identity.team.timezone },
       error => { if (error instanceof Error) navigationFailures.set(error.message, error); }) : undefined;
   try {
     const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx, [parameters], true);
     queryFrame?.assertCompleted();
-    authorityMembership?.assertCompleted();
+    readMembership?.assertCompleted();
     if (!outcome.ok) {
       const recorded = typeof outcome.error === 'string' ? navigationFailures.get(outcome.error) : undefined;
       if (recorded !== undefined) throw recorded;
@@ -19983,7 +19991,7 @@ async function runReadScenarioSeam(
     queryFrame?.assertCompleted();
     queryFrame?.result(outcome.value);
     return result;
-  } finally { authorityMembership?.close(); queryFrame?.close(); }
+  } finally { readMembership?.close(); queryFrame?.close(); }
 }
 
 export async function invokeReadCanonical(

@@ -783,6 +783,8 @@ export interface AdmittedReadScenarioCall {
   readonly teamId: string | null;
   /** Live identity-store facts; caller-supplied membership claims never enter here. */
   readonly membership: Membership | null;
+  /** State-owned current Identity observation; conveys no owner query authority. */
+  readonly activeMember: (person: string) => Promise<boolean>;
   /**
    * Present only on admitted authority-report executions. Ordinary read
    * scenario calls omit this member entirely, keeping their exact shape.
@@ -915,7 +917,7 @@ export async function invokeReadScenario<Result = unknown>(input: InvokeReadScen
     readonly model: ModelName; readonly parent?: RecordParent; readonly where?: QueryPredicate;
     readonly order?: ReadonlyArray<OrderTerm>; readonly limit: number; readonly projection: string;
   }> = [];
-  const decisionMemberships = new Map<string, Membership | null>();
+  const observedMemberships = new Map<string, Membership | null>();
   const runDecisionQuery = async (
     model: ModelName, parent?: RecordParent, where?: QueryPredicate, order?: ReadonlyArray<OrderTerm>, limit?: number,
   ): Promise<DecisionReadResult> => {
@@ -943,6 +945,35 @@ export async function invokeReadScenario<Result = unknown>(input: InvokeReadScen
     }
     return { rows: served.rows, revision: served.revision };
   };
+  let membershipActive = true;
+  let membershipFailed = false;
+  let membershipFailure: unknown;
+  const assertMembershipActive = (): void => {
+    if (membershipFailed) throw membershipFailure;
+    if (!membershipActive) throw new StateError('validation', 'Read membership requires its live State execution.');
+  };
+  const activeMember = async (person: string): Promise<boolean> => {
+    try {
+      assertMembershipActive();
+      if (typeof person !== 'string' || person === '' || person.length > 4096 || teamId === null ||
+          observedMemberships.size >= MAX_MEMBERSHIP_SNAPSHOT_USERS && !observedMemberships.has(person)) {
+        throw new StateError('validation', 'Read scenario membership needs its bounded current Team and person.');
+      }
+      const fact = checkedMembershipFact(await input.memberships.findMembership(teamId, person), teamId, person);
+      assertMembershipActive();
+      if (await input.store.readRevision() !== revision) throw new StateError('conflict', 'State changed during read membership observation.');
+      assertMembershipActive();
+      const previous = observedMemberships.get(person);
+      if (observedMemberships.has(person) && JSON.stringify(previous) !== JSON.stringify(fact)) {
+        throw new StateError('forbidden', 'Read membership changed during its source decision.');
+      }
+      observedMemberships.set(person, fact);
+      return fact?.status === 'active';
+    } catch (error) {
+      if (!membershipFailed) { membershipFailed = true; membershipFailure = error; }
+      throw membershipFailure;
+    }
+  };
   const decision = authority === undefined ? undefined : {
     scope: 'authority' as const,
     description: authority.description,
@@ -957,29 +988,20 @@ export async function invokeReadScenario<Result = unknown>(input: InvokeReadScen
       });
       return observed;
     },
-    activeMember: async (person: string): Promise<boolean> => {
-      if (typeof person !== 'string' || person === '' || person.length > 4096 || teamId === null ||
-          decisionMemberships.size >= MAX_MEMBERSHIP_SNAPSHOT_USERS && !decisionMemberships.has(person)) {
-        throw new StateError('validation', 'Authority report membership needs its bounded current Team and person.');
-      }
-      const fact = checkedMembershipFact(await input.memberships.findMembership(teamId, person), teamId, person);
-      if (await input.store.readRevision() !== revision) throw new StateError('conflict', 'State changed during report membership observation.');
-      const previous = decisionMemberships.get(person);
-      if (decisionMemberships.has(person) && JSON.stringify(previous) !== JSON.stringify(fact)) {
-        throw new StateError('forbidden', 'Report membership changed during its source decision.');
-      }
-      decisionMemberships.set(person, fact);
-      return fact?.status === 'active';
-    },
+    activeMember,
   } satisfies DecisionReadCapability;
   // The typed result serves as the explicit grant to the admitted `by`
   // (DESIGN §522): no viewer projection touches it; the fence, membership,
   // and observation rechecks below void it on any authority change.
-  const result = await input.execute({
-    def, inputs: validated.normalized, recordRefs, revision,
-    actorUserId, teamId, membership,
-    ...(decision === undefined ? {} : { decision }),
-  });
+  let result: Result;
+  try {
+    result = await input.execute({
+      def, inputs: validated.normalized, recordRefs, revision,
+      actorUserId, teamId, membership, activeMember,
+      ...(decision === undefined ? {} : { decision }),
+    });
+    if (membershipFailed) throw membershipFailure;
+  } finally { membershipActive = false; }
   const assertRevision = async (): Promise<void> => {
     if (await input.store.readRevision() !== revision) {
       throw new StateError('conflict', 'State changed during the read scenario.');
@@ -991,13 +1013,13 @@ export async function invokeReadScenario<Result = unknown>(input: InvokeReadScen
   if (JSON.stringify(live) !== membershipSnapshot) {
     throw new StateError('forbidden', 'Caller authority changed during the read scenario.');
   }
-  if (decisionMemberships.size > 0) {
+  if (observedMemberships.size > 0) {
     if (teamId === null) throw new StateError('validation', 'Report membership lost its admitted Team.');
-    const users = [...decisionMemberships.keys()];
+    const users = [...observedMemberships.keys()];
     if (users.length === 1) {
       const person = users[0]!;
       const current = checkedMembershipFact(await input.memberships.findMembership(teamId, person), teamId, person);
-      if (JSON.stringify(current) !== JSON.stringify(decisionMemberships.get(person))) {
+      if (JSON.stringify(current) !== JSON.stringify(observedMemberships.get(person))) {
         throw new StateError('forbidden', 'Report membership changed during its source decision.');
       }
     } else {
@@ -1005,7 +1027,7 @@ export async function invokeReadScenario<Result = unknown>(input: InvokeReadScen
       if (typeof snapshot !== 'function') throw new StateError('validation', 'Report membership requires a coherent Identity snapshot.');
       const facts = checkedAuthoritySnapshot(await snapshot.call(input.memberships, teamId, users), teamId, users);
       if (users.some(person => JSON.stringify(facts.get(JSON.stringify([teamId, person]))) !==
-          JSON.stringify(decisionMemberships.get(person)))) {
+          JSON.stringify(observedMemberships.get(person)))) {
         throw new StateError('forbidden', 'Report membership changed during its source decision.');
       }
     }
