@@ -28299,11 +28299,15 @@ impl<'a> Closure<'a> {
         let (model, inputs) = self.create(effect, module, &flow.env, calls)?;
         self.effect_visits += 1;
         for input in inputs {
+            if !compatible(&flow.evaluated, &input.decisions) {
+                continue;
+            }
             let mut path = flow.clone();
             path.executed_effect = true;
             path.writes.join(&path.effect_guards);
             path.writes.join(&path.controls);
             path.writes.join(&input);
+            path.observe_value(&input);
             path.env.insert(
                 Local::Create(effect.node),
                 ValuePath {

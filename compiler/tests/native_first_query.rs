@@ -2490,6 +2490,48 @@ fn parent_timezone_keeps_its_original_stored_dependency() {
         "real native constructor receipt required"
     );
 
+    // Reusing the same optional input after a prior CREATE cannot select
+    // a different presence branch for the second constructor.
+    let constructor = nullable
+        .lines()
+        .find(|line| line.trim_start().starts_with("create Booking"))
+        .unwrap();
+    let repeated = nullable
+        .replace(
+            constructor,
+            &format!(
+                "{}\n{constructor}",
+                constructor.replace("as booking", "as first_booking")
+            ),
+        )
+        .replace(" -> Booking by=members", " by=members")
+        .replace("   return booking\n", "");
+    let (repeated_db, repeated_program, repeated_ir, repeated_catalog) =
+        fixture_source("repeated-nullable-constructor.can", &repeated);
+    let repeated_owner = item(&repeated_ir, "NullableCapture.copy");
+    let ScenarioDisclosure::Complete(repeated_proof) =
+        &repeated_ir.scenario_disclosures[&repeated_owner.id]
+    else {
+        panic!("{:?}", repeated_ir.scenario_disclosures[&repeated_owner.id]);
+    };
+    assert_eq!(
+        repeated_proof.returns.len(),
+        2,
+        "successive constructors share original presence"
+    );
+    let (repeated_artifact, repeated_diagnostics) =
+        prepared_artifact(&repeated_program, &repeated_db, &repeated_catalog);
+    assert!(repeated_diagnostics.is_empty(), "{repeated_diagnostics:?}");
+    assert!(
+        repeated_artifact["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|operation| operation["name"] == "NullableCapture.copy")
+            .unwrap()["result"]["disclosure"]
+            .is_object()
+    );
+
     for (name, source) in [
         (
             "native-parent-timezone.can",
