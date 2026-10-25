@@ -286,23 +286,15 @@ When
   do create Booking {parent=room,title} as booking
  scenario touch(room:Room) by=members
   do require room.name!=""
- scenario countRooms() by=members
-  do require roomCount()>=0
+ scenario countRooms() read=true -> int by=members
+  do return roomCount()
 Then
 "#;
     let (success, artifact) = compile(scratch.path(), source);
     assert!(success, "{artifact}");
     let expected = serde_json::json!({"binding":"Rooted.Rooms","model":"Rooted.Room"});
     let operations = artifact["operations"].as_array().unwrap();
-    for operation in [
-        "make",
-        "wrapped",
-        "rename",
-        "book",
-        "touch",
-        "countRooms",
-        "Room.create",
-    ] {
+    for operation in ["make", "wrapped", "rename", "book", "touch", "Room.create"] {
         let operation = operations
             .iter()
             .find(|entry| entry["name"] == format!("Rooted.{operation}"))
@@ -316,6 +308,16 @@ Then
         }
         assert_eq!(operation["rootAuthority"], expected, "{operation}");
     }
+    let read = operations
+        .iter()
+        .find(|operation| operation["name"] == "Rooted.countRooms")
+        .unwrap();
+    assert_eq!(read["kind"], "read");
+    assert_eq!(read["result"]["type"], "int");
+    assert!(
+        read.get("rootAuthority").is_none(),
+        "a read query does not obtain mutation authority: {read}"
+    );
     let js = artifact["modules"][0]["js"].as_str().unwrap();
     assert!(js.contains("rootAuthority:{\"binding\":\"Rooted.Rooms\",\"model\":\"Rooted.Room\"}"));
 }

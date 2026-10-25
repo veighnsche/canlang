@@ -95,7 +95,7 @@ const handlerRoleView={memberships:auditorMembership.roles.map(grant=>grant.role
 for(const absent of [null,undefined]){
  let reads=0;
  const row={get optional(){reads++;return absent;}};
- assert.equal(nullableRule(handlerRoleView,row),false,'actual compiled nullable rule never falls back to the auditor actor');
+ assert.equal(await nullableRule(handlerRoleView,row),false,'actual compiled nullable rule never falls back to the auditor actor');
  assert.equal(reads,1,'actual compiled nullable subject is evaluated once');
 }
 assert.equal(await hasRole({actorUserId:caller.user_id,teamId:team.team_id,memberships:identity},role.role),false);
