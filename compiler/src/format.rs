@@ -707,20 +707,18 @@ impl<'a> Emitter<'a> {
         }
         // Current-token rules: gaps that never take a space (plus the
         // loose `=`, `(`, `[`, `{`, `}` handled below).
-        if let TokenKind::Punct(punct) = current.kind {
-            if let Some(current_gap) =
+        if let TokenKind::Punct(punct) = current.kind
+            && let Some(current_gap) =
                 self.gap_for_current(context, previous, punct, line, index, current_depth)
-            {
-                return current_gap;
-            }
+        {
+            return current_gap;
         }
         // Previous-token rules, then the default single space.
-        if let TokenKind::Punct(punct) = previous.kind {
-            if let Some(previous_gap) =
+        if let TokenKind::Punct(punct) = previous.kind
+            && let Some(previous_gap) =
                 self.gap_after_previous(context, punct, current, index, previous_depth)
-            {
-                return previous_gap;
-            }
+        {
+            return previous_gap;
         }
         " "
     }

@@ -315,10 +315,18 @@ fn return_possible(
         // Their exact compulsory source predicate is independently executed by
         // the initial-stage runtime observer. Treat its value as unknown here;
         // never infer impossible paths from absent static decisions.
-        if original.source_facts.as_deref().and_then(|facts| facts.source_requires.as_deref())
-            .is_some_and(|sites| sites.iter().any(|observed|
-                observed.node == site.node && observed.statement == site.statement))
-        { continue; }
+        if original
+            .source_facts
+            .as_deref()
+            .and_then(|facts| facts.source_requires.as_deref())
+            .is_some_and(|sites| {
+                sites.iter().any(|observed| {
+                    observed.node == site.node && observed.statement == site.statement
+                })
+            })
+        {
+            continue;
+        }
         // A conditional requirement constrains only a return whose actual
         // original branch choices prove that this requirement was reached.
         if (returned.node == original.node
@@ -760,20 +768,18 @@ fn possibly_true(
             op: IrBinOp::And,
             left,
             right,
-        } => {
-            eval_and(
-                (program, ir, fresh),
-                expression,
-                returned,
-                site,
-                chain,
-                stack,
-                depth,
-                steps,
-                left,
-                right,
-            )
-        }
+        } => eval_and(
+            (program, ir, fresh),
+            expression,
+            returned,
+            site,
+            chain,
+            stack,
+            depth,
+            steps,
+            left,
+            right,
+        ),
         IrExpr::Call {
             target: IrCallTarget::DeriveFn(name),
             args,
@@ -782,20 +788,18 @@ fn possibly_true(
             target: IrCallTarget::DeriveFn(name),
             args,
             ..
-        } => {
-            eval_derive_call(
-                (program, ir, fresh),
-                expression,
-                site,
-                returned,
-                chain,
-                stack,
-                depth,
-                steps,
-                name,
-                args,
-            )
-        }
+        } => eval_derive_call(
+            (program, ir, fresh),
+            expression,
+            site,
+            returned,
+            chain,
+            stack,
+            depth,
+            steps,
+            name,
+            args,
+        ),
         // Member/equality/builtin values, OR/NOT and other shapes remain
         // unknown: either value is possible. No leaf is evaluated or promoted.
         _ => Some(true),
@@ -990,4 +994,3 @@ fn same_stored_schema(a: &CheckedStoredContractSchema, b: &CheckedStoredContract
                 && a.max == b.max
         })
 }
-

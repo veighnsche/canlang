@@ -378,4 +378,3 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 
     format!("{:x}", sha2::Sha256::digest(bytes))
 }
-

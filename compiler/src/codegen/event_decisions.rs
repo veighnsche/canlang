@@ -15,11 +15,11 @@ use crate::source::{SourceDb, Span, sha256_hex};
 use crate::syntax::SyntaxKind;
 
 use super::ir::{IrExpr, IrItem, IrItemKind, IrStmt, TypedExpr};
-use super::source_context::FreshSourceContext;
 use super::scenario_receipts::{
     NativeReturn, NativeScenarioReceipt, ReceiptDisclosurePlan, ReceiptReturn, transport_source,
 };
 use super::send_guards::{PreparedSendEventSource, PreparedSendGuard, PreparedSendInput};
+use super::source_context::FreshSourceContext;
 
 const GUARD: &str = "inspection_pending(inspection) and inspection.template_version==event.revision and inspection.parent.revision==event.revision and inspection.inspector==inspection.parent.assignee and local_instant(inspection.due,\"09:00\",inspection.parent.parent.location.timezone,fold=earlier)<=now and plan_eligible(inspection.parent) and inspection.asset_epoch==inspection.parent.asset_epoch";
 const PENDING: &str = "inspection.result==pending and not inspection.cancelled and not inspection_superseded(inspection)";
@@ -29,7 +29,7 @@ const CANCELLATION: &str = "change.parent==inspection.parent.parent and inspecti
 const ELIGIBLE: &str = "plan.active and not plan.parent.retired and plan.asset_epoch==plan.parent.inspection_epoch and technician(plan.assignee) and can_work(plan.assignee,plan.parent.location)";
 const CAN_WORK: &str = "any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))";
 
-fn slice<'a>(db: &'a SourceDb, key: NodeKey) -> Option<&'a str> {
+fn slice(db: &SourceDb, key: NodeKey) -> Option<&str> {
     db.get(key.file)?
         .text
         .get(key.start as usize..key.end as usize)
@@ -561,10 +561,7 @@ pub(super) fn prepare_maintain_remind(
         &["user", "rent_catalog.Location"],
     )?;
     let role = symbol(program, "maintain.technician")?;
-    if !matches!(
-        program.symbols.get(role.0 as usize)?.kind,
-        SymbolKind::Role { .. }
-    ) {
+    if !matches!(program.symbols.get(role.0 as usize)?.kind, SymbolKind::Role) {
         return None;
     }
     let pending_inner = unique_call(program, pending_expr, superseded)?;
@@ -860,13 +857,27 @@ pub(super) fn collect_maintain_receipt(
         projection: None,
     };
     Some(NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
+        plan: ReceiptDisclosurePlan {
+            retained_guarded_handler: None,
+            source_loops: None,
+            source_emissions: None,
             version: 1,
             source,
             event_decision: Some(decision),
             term_decision: None,
-            leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None,
-            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,queries: Vec::new(),
+            leave_request_decision: None,
+            leave_decide_decision: None,
+            refer_reject_decision: None,
+            member_retry_decision: None,
+            rent_movement_refund_decision: None,
+            invoice_collect_decision: None,
+            rent_notice_decision: None,
+            invoice_issue_decision: None,
+            observe_venue_decision: None,
+            success_renewal_decision: None,
+            purchase_receive_all: None,
+            event_notice_audit: None,
+            queries: Vec::new(),
             returns: vec![returned],
         },
         dependencies: HashMap::new(),

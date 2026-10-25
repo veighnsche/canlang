@@ -12,12 +12,12 @@ use crate::analysis::{CheckedProgram, NodeKey, ResolvedType, Scalar};
 use crate::source::{SourceDb, Span, sha256_hex};
 
 use super::ir::{IrItem, IrItemKind, IrStmt};
-use super::source_context::FreshSourceContext;
 use super::scenario_receipts::{
     NativeReturn, NativeScenarioReceipt, NativeSite, ReceiptDisclosurePlan, ReceiptReturn,
     transport_source,
 };
 use super::send_guards::PreparedSendGuard;
+use super::source_context::FreshSourceContext;
 use super::term_decisions as t;
 
 const HEADER: &str = "invoice.state==issued and invoice.balance.minor>0 and (has_role(actor,invoice.parent,billing) or owns(actor,invoice.parent) or (finance and can_work(actor,invoice.location)))";
@@ -802,7 +802,10 @@ pub(super) fn collect_collect_receipt(
     })
     .collect::<Option<HashMap<_, _>>>()?;
     Some(NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
+        plan: ReceiptDisclosurePlan {
+            retained_guarded_handler: None,
+            source_loops: None,
+            source_emissions: None,
             version: 1,
             source: source.clone(),
             event_decision: None,
@@ -812,7 +815,13 @@ pub(super) fn collect_collect_receipt(
             refer_reject_decision: None,
             member_retry_decision: None,
             rent_movement_refund_decision: None,
-            invoice_collect_decision: Some(decision), rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,
+            invoice_collect_decision: Some(decision),
+            rent_notice_decision: None,
+            invoice_issue_decision: None,
+            observe_venue_decision: None,
+            success_renewal_decision: None,
+            purchase_receive_all: None,
+            event_notice_audit: None,
             queries: Vec::new(),
             returns: vec![ReceiptReturn {
                 id: id.clone(),

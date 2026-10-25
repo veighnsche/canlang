@@ -74,8 +74,8 @@ fn prepared_artifact(
     db: &SourceDb,
     catalog: &Catalog,
 ) -> (serde_json::Value, Vec<Diagnostic>) {
+    use canlang_compiler::codegen::artifact::to_json;
     use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
-use canlang_compiler::codegen::artifact::to_json;
     let mut result = DiagnosticResult::new("stored-query-profile", "1.0", 1);
     result.add_sources(db);
     let (artifact, diagnostics) = emit(
@@ -216,7 +216,8 @@ fn foreign_provider_path_refuses_first_query_source_correspondence() {
     });
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let catalog = catalog.unwrap();
-    let (program, diagnostics) = check_program(&db, &[lib_file, shop_file, app_file], Some(&catalog));
+    let (program, diagnostics) =
+        check_program(&db, &[lib_file, shop_file, app_file], Some(&catalog));
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
@@ -227,7 +228,9 @@ fn foreign_provider_path_refuses_first_query_source_correspondence() {
     db.add("import-lib.can".into(), "package lib\n".into());
     let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
     assert!(
-        diagnostics.iter().any(|diagnostic| diagnostic.code == "E6008"),
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008"),
         "foreign provider-path source must still refuse"
     );
 }
@@ -269,7 +272,10 @@ fn contained_domain_first_query_same_module() {
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let text = artifact["modules"][0]["js"].as_str().unwrap();
     assert!(text.contains("executionDependencies:["));
-    assert!(text.contains("firstQuery("), "contained first lowers natively");
+    assert!(
+        text.contains("firstQuery("),
+        "contained first lowers natively"
+    );
     assert!(
         text.contains("\"field\":\"active\",\"type\":\"bool\""),
         "contained row field keeps its checked bool profile"
@@ -277,10 +283,7 @@ fn contained_domain_first_query_same_module() {
     let plan = &contained_operation(&artifact)["result"]["disclosure"];
     assert_eq!(plan["queries"][0]["model"], "DomainProbe.Seat");
     assert_eq!(plan["queries"][0]["parent"]["model"], "DomainProbe.Term");
-    assert_eq!(
-        plan["queries"][0]["parent"]["origin"]["parameter"],
-        "term"
-    );
+    assert_eq!(plan["queries"][0]["parent"]["origin"]["parameter"], "term");
     assert_eq!(
         plan["queries"][0]["order"],
         serde_json::json!([{"field":"id","direction":"asc"}])
@@ -299,13 +302,13 @@ fn contained_domain_first_query_same_module_without_order() {
     let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let text = artifact["modules"][0]["js"].as_str().unwrap();
-    assert!(text.contains("firstQuery("), "contained first lowers natively");
+    assert!(
+        text.contains("firstQuery("),
+        "contained first lowers natively"
+    );
     let plan = &contained_operation(&artifact)["result"]["disclosure"];
     assert_eq!(plan["queries"][0]["parent"]["model"], "DomainProbe.Term");
-    assert_eq!(
-        plan["queries"][0]["parent"]["origin"]["parameter"],
-        "term"
-    );
+    assert_eq!(plan["queries"][0]["parent"]["origin"]["parameter"], "term");
     assert_eq!(plan["queries"][0]["order"], serde_json::json!([]));
 }
 
@@ -322,7 +325,9 @@ fn contained_domain_first_query_refusals_stay_fail_closed() {
     let (db, program, _, catalog) = fixture_source("contained-first-let-receiver.can", source);
     let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
     assert!(
-        diagnostics.iter().any(|diagnostic| diagnostic.code == "E6008"),
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008"),
         "let-bound receiver must refuse"
     );
     // IR tampering: dropping the admitted parent lets an unscoped scan ride

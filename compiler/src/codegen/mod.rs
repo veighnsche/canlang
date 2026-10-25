@@ -39,20 +39,29 @@
 //!   check time. Emission refuses before lowering, including in test-only mode.
 
 pub mod artifact;
+mod authority_query_sites;
 pub mod bdd;
 mod defaults;
+mod event_decisions;
+mod event_notice_audit;
+mod event_send_decisions;
+mod invoice_collect_decisions;
+mod invoice_issue_decisions;
 pub mod ir;
 pub mod js;
-mod authority_query_sites;
+mod leave_decisions;
 mod mailbox_events;
-mod payments_events;
-mod standard_terminal_events;
+mod member_retry_decisions;
 mod membership;
 pub mod model_policies;
 pub mod model_policy_profile;
 pub mod model_unique_conditions;
-mod read_predicates;
+mod payments_events;
 mod purchase_all;
+mod read_predicates;
+mod refer_decisions;
+mod rent_movement_refund_decisions;
+mod rent_notice_decisions;
 pub mod runtime_bindings;
 pub mod scenario_calls;
 mod scenario_create_sources;
@@ -60,24 +69,15 @@ mod scenario_current_revision;
 mod scenario_feasibility;
 pub mod scenario_queries;
 mod scenario_receipts;
-mod event_decisions;
-mod event_notice_audit;
-mod event_send_decisions;
-mod success_send_decisions;
-mod term_decisions;
-mod leave_decisions;
-mod refer_decisions;
-mod rent_movement_refund_decisions;
-mod member_retry_decisions;
-mod invoice_collect_decisions;
-mod rent_notice_decisions;
-mod invoice_issue_decisions;
 mod send_guards;
-mod source_send_data;
-mod source_loops;
 mod source_created_rows;
 mod source_let_data;
+mod source_loops;
+mod source_send_data;
 pub mod sourcemap;
+mod standard_terminal_events;
+mod success_send_decisions;
+mod term_decisions;
 pub mod then_views;
 
 use crate::analysis::CheckedProgram;
@@ -186,7 +186,9 @@ pub fn emit(
     };
     let needs_source_context = sources.options.native_scenario_receipts
         || !program.payments_changed_handlers().is_empty()
-        || ir.standard_completion_sources.is_private_terminal_candidate()
+        || ir
+            .standard_completion_sources
+            .is_private_terminal_candidate()
         || program.types.selected_calls.values().any(|call| {
             matches!(
                 &call.target, crate::analysis::types::SelectedCallTarget::Builtin { id, .. }
@@ -309,12 +311,19 @@ pub fn emit(
             sources.db,
             sources.catalog,
         );
-    let owner_handlers = ir.items.iter().filter_map(|owner| {
-        scenario_decisions::owner_handler_queries(query_context?, owner).map(|()| owner.id)
-    }).collect::<std::collections::HashSet<_>>();
+    let owner_handlers = ir
+        .items
+        .iter()
+        .filter_map(|owner| {
+            scenario_decisions::owner_handler_queries(query_context?, owner).map(|()| owner.id)
+        })
+        .collect::<std::collections::HashSet<_>>();
     let authority_queries = query_context.and_then(authority_query_sites::prepare_with_context);
-    let private_derives = query_context.and_then(|context|
-        read_predicates.as_ref()?.private_only_derives(context, &owner_handlers));
+    let private_derives = query_context.and_then(|context| {
+        read_predicates
+            .as_ref()?
+            .private_only_derives(context, &owner_handlers)
+    });
     let js_out = js::emit_program_with_feasible_query_sources(
         &ir,
         sources.options.native_scenario_receipts,

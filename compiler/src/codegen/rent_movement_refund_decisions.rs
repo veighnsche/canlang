@@ -16,11 +16,11 @@ use crate::analysis::{CheckedProgram, NodeKey, ResolvedType, Scalar};
 use crate::source::{SourceDb, sha256_hex};
 
 use super::ir::{IrGuard, IrItem, IrItemKind, IrStmt};
-use super::source_context::FreshSourceContext;
 use super::scenario_receipts::{
     NativeReturn, NativeScenarioReceipt, NativeSite, ReceiptDisclosurePlan, ReceiptReturn,
     transport_source,
 };
+use super::source_context::FreshSourceContext;
 use super::term_decisions as t;
 
 const HEADER: &str = "can_work(actor,movement.parent.parent.location) and movement.state==adopted and movement.credit_due!=null and amount.currency==movement.credit_due.currency and amount.minor>0 and trim(reason)!=\"\"";
@@ -640,7 +640,10 @@ pub(super) fn collect_refund_receipt(
         .as_bytes(),
     );
     Some(NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
+        plan: ReceiptDisclosurePlan {
+            retained_guarded_handler: None,
+            source_loops: None,
+            source_emissions: None,
             version: 1,
             source: source.clone(),
             event_decision: None,
@@ -650,7 +653,14 @@ pub(super) fn collect_refund_receipt(
             refer_reject_decision: None,
             member_retry_decision: None,
             rent_movement_refund_decision: Some(decision),
-            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,queries: Vec::new(),
+            invoice_collect_decision: None,
+            rent_notice_decision: None,
+            invoice_issue_decision: None,
+            observe_venue_decision: None,
+            success_renewal_decision: None,
+            purchase_receive_all: None,
+            event_notice_audit: None,
+            queries: Vec::new(),
             returns: vec![ReceiptReturn {
                 id: id.clone(),
                 source,

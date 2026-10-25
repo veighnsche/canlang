@@ -1879,21 +1879,11 @@ fn zero_run_limits_refuse_before_recipe() {
     // Admission refuses zero on every recipe-bearing operation.
     for operation in ["doctor", "inspect", "generate", "refine", "retry"] {
         let body = match operation {
-            "doctor" => format!(
-                r#"{{"version":1,"request_id":"z","operation":"doctor","max_attempts":0,"timeout_seconds":0}}"#
-            ),
-            "inspect" => format!(
-                r#"{{"version":1,"request_id":"z","operation":"inspect","root":".","unit_id":"u1","max_attempts":0}}"#
-            ),
-            "generate" => format!(
-                r#"{{"version":1,"request_id":"z","operation":"generate","root":".","files":["a.can"],"mode":"fresh","timeout_seconds":0}}"#
-            ),
-            "refine" => format!(
-                r#"{{"version":1,"request_id":"z","operation":"refine","root":".","unit_id":"u1","instruction":"x","max_attempts":0}}"#
-            ),
-            _ => format!(
-                r#"{{"version":1,"request_id":"z","operation":"retry","root":".","files":["a.can"],"timeout_seconds":0}}"#
-            ),
+            "doctor" => r#"{"version":1,"request_id":"z","operation":"doctor","max_attempts":0,"timeout_seconds":0}"#.to_string(),
+            "inspect" => r#"{"version":1,"request_id":"z","operation":"inspect","root":".","unit_id":"u1","max_attempts":0}"#.to_string(),
+            "generate" => r#"{"version":1,"request_id":"z","operation":"generate","root":".","files":["a.can"],"mode":"fresh","timeout_seconds":0}"#.to_string(),
+            "refine" => r#"{"version":1,"request_id":"z","operation":"refine","root":".","unit_id":"u1","instruction":"x","max_attempts":0}"#.to_string(),
+            _ => r#"{"version":1,"request_id":"z","operation":"retry","root":".","files":["a.can"],"timeout_seconds":0}"#.to_string(),
         };
         let err = parse_request(&body).unwrap_err();
         assert_eq!(err.code, "invalid-param", "{operation}");

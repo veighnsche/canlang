@@ -10,9 +10,9 @@
 //! `expected:` / `error:` — with no example-scoped `E6006`/`E6008`
 //! omission. Emission only; the testkit runner is a later packet.
 
-use canlang_compiler::analysis::catalog::{load_catalog, Catalog, CatalogRequest};
-use canlang_compiler::analysis::{check_program, CheckedProgram};
-use canlang_compiler::codegen::{emit, EmitOptions, EmitSources};
+use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
+use canlang_compiler::analysis::{CheckedProgram, check_program};
+use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
 use canlang_compiler::diagnostic::{Diagnostic, DiagnosticResult};
 use canlang_compiler::source::{SourceDb, SourceId, Span};
 use canlang_compiler::{LANGUAGE_VERSION, SCHEMA_VERSION};
@@ -292,7 +292,10 @@ fn lexical_request_model_preserves_fixture_observation_and_input_channel() {
             "same fixture identity lowers: {emitted:?}"
         );
         let js = &artifact.tests[0].module.js;
-        assert!(js.contains("provider:\"Probe\",member:\"one\",alias:\"Probe.one\""), "canonical linked fixture: {js}");
+        assert!(
+            js.contains("provider:\"Probe\",member:\"one\",alias:\"Probe.one\""),
+            "canonical linked fixture: {js}"
+        );
         assert!(
             js.contains(&format!(
                 "selectors:[\"as\",\"{name}.state\"],selectorChannels:[\"caller\",\"input\"]"
@@ -300,7 +303,9 @@ fn lexical_request_model_preserves_fixture_observation_and_input_channel() {
             "full lexical selector: {js}"
         );
         assert!(
-            js.contains(&format!("inputs:async(c,s)=>({{{name}:s[\"Probe.one\"],state:")),
+            js.contains(&format!(
+                "inputs:async(c,s)=>({{{name}:s[\"Probe.one\"],state:"
+            )),
             "original fixture-bound input: {js}"
         );
         assert!(
@@ -382,7 +387,10 @@ fn lexical_request_fixture_observation_keeps_declared_fixture_identity() {
         "fixture observation lowers: {emitted:?}"
     );
     let js = &artifact.tests[0].module.js;
-    assert!(js.contains("provider:\"Probe\",member:\"request\",alias:\"Probe.request\""), "canonical linked fixture: {js}");
+    assert!(
+        js.contains("provider:\"Probe\",member:\"request\",alias:\"Probe.request\""),
+        "canonical linked fixture: {js}"
+    );
     assert!(js.contains("observations:[async(c,s)=>s[\"Probe.request\"].state]"));
 }
 
@@ -1093,13 +1101,22 @@ fn expected_values_are_typed_in_tables_and_sequences_without_typing_negative_inp
         "  examples\n   as -> 1\n   self -> \"wrong\"\n",
         "  examples\n   do\n    call probe {} by=self\n    1 -> \"wrong\"\n",
     ] {
-        let source = format!("app Expectations\nGiven\nWhen\n scenario probe() read=true -> int by=members\n  do return 1\n{examples}Then\n");
+        let source = format!(
+            "app Expectations\nGiven\nWhen\n scenario probe() read=true -> int by=members\n  do return 1\n{examples}Then\n"
+        );
         let (_, diagnostics) = check_src(&source, None);
         assert_eq!(diagnostics.len(), 1, "{source}\n{diagnostics:?}");
         assert_eq!(diagnostics[0].code, "E3001", "{diagnostics:?}");
-        assert!(diagnostics[0].message.contains("example expected value: expected int, found text"));
+        assert!(
+            diagnostics[0]
+                .message
+                .contains("example expected value: expected int, found text")
+        );
         let (start, end) = span_of(&source, "\"wrong\"", 1);
-        assert_eq!((diagnostics[0].primary.start, diagnostics[0].primary.end), (start, end));
+        assert_eq!(
+            (diagnostics[0].primary.start, diagnostics[0].primary.end),
+            (start, end)
+        );
     }
     // Contextual enum and numeric inference remains legal in expected cells;
     // deliberately invalid submitted input remains a runner rejection case.

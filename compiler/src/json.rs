@@ -370,4 +370,3 @@ fn render_into(out: &mut String, value: &Json) {
         }
     }
 }
-

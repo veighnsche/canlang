@@ -54,7 +54,9 @@ pub fn local_hook_supported(program: &IrProgram, scenario: SymbolId) -> bool {
     }
     let mut locals = HashMap::new();
     let mut aliases: HashMap<String, (SymbolId, EventAlias)> = HashMap::new();
-    profile.statements(guards, &mut locals, &mut aliases, 0).is_some()
+    profile
+        .statements(guards, &mut locals, &mut aliases, 0)
+        .is_some()
         && profile
             .statements(effects, &mut locals, &mut aliases, 0)
             .is_some()
@@ -177,16 +179,22 @@ impl HookProfile<'_> {
         match ty {
             // Candidate cloning carries already checked scalar wire values.
             // This does not admit their arithmetic, comparison or member reads.
-            ResolvedType::Scalar(Scalar::File | Scalar::Currency | Scalar::Decimal | Scalar::Money) => true,
+            ResolvedType::Scalar(
+                Scalar::File | Scalar::Currency | Scalar::Decimal | Scalar::Money,
+            ) => true,
             // Candidate snapshots carry the original opaque delivery identity.
             // This admits no envelope/result observation or non-null assignment;
             // declared nullable fields may still be cleared by the literal-null
             // path below, under the normal field and State mutation checks.
-            ResolvedType::StdDelivery { capability, op } =>
-                crate::analysis::catalog::std_operation(capability, op.name) == Some(*op),
+            ResolvedType::StdDelivery { capability, op } => {
+                crate::analysis::catalog::std_operation(capability, op.name) == Some(*op)
+            }
             ResolvedType::Nullable(inner) => self.supported_field_type(inner),
             ResolvedType::Array { element, .. } => self.supported_field_type(element),
-            ResolvedType::Record { symbol, stored: false } => self
+            ResolvedType::Record {
+                symbol,
+                stored: false,
+            } => self
                 .program
                 .items
                 .get(symbol.0 as usize)
@@ -256,8 +264,7 @@ impl HookProfile<'_> {
                     .items
                     .get(symbol.0 as usize)
                     .is_some_and(|item| {
-                        item.id == *symbol
-                            && matches!(&item.kind, IrItemKind::Contract { .. })
+                        item.id == *symbol && matches!(&item.kind, IrItemKind::Contract { .. })
                     }),
                 ty => profile.leaf(ty),
             }
@@ -364,11 +371,7 @@ impl HookProfile<'_> {
         }
         Some((*parent, EventAlias::ParentIdentity))
     }
-    fn event_reference_target(
-        &self,
-        base_model: SymbolId,
-        field: &str,
-    ) -> Option<SymbolId> {
+    fn event_reference_target(&self, base_model: SymbolId, field: &str) -> Option<SymbolId> {
         // Declared singular stored reference on the base model.
         // Cross-package targets allowed (e.g. success `Account`
         // → rent_catalog `Location`); the runtime edge check
@@ -392,12 +395,18 @@ impl HookProfile<'_> {
                 continue;
             }
             match field_ty {
-                ResolvedType::Record { symbol, stored: true } => {
+                ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                } => {
                     target_opt = Some(*symbol);
                     break;
                 }
                 ResolvedType::Nullable(inner) => match &**inner {
-                    ResolvedType::Record { symbol, stored: true } => {
+                    ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    } => {
                         target_opt = Some(*symbol);
                         break;
                     }
@@ -476,12 +485,7 @@ impl HookProfile<'_> {
         }
         if matches!(
             name,
-            "parent"
-                | "created"
-                | "updated"
-                | "createdBy"
-                | "updatedBy"
-                | "archivedAt"
+            "parent" | "created" | "updated" | "createdBy" | "updatedBy" | "archivedAt"
         ) {
             return false;
         }
@@ -509,13 +513,13 @@ impl HookProfile<'_> {
                 owner,
                 ty: IrType::Known(field_ty),
                 modifiers,
-                server: _,
                 ..
             } = &item.kind
             else {
                 continue;
             };
-            if *owner != model || modifiers.machine || !Self::snapshot_read_compatible(field_ty, ty) {
+            if *owner != model || modifiers.machine || !Self::snapshot_read_compatible(field_ty, ty)
+            {
                 continue;
             }
             if self.leaf(ty)
@@ -565,12 +569,21 @@ impl HookProfile<'_> {
             // the same shared binary lowering as every other equality here.
             (
                 ResolvedType::Scalar(
-                    Scalar::Int | Scalar::Date | Scalar::Datetime | Scalar::Duration | Scalar::Bool | Scalar::Text | Scalar::Email,
+                    Scalar::Int
+                    | Scalar::Date
+                    | Scalar::Datetime
+                    | Scalar::Duration
+                    | Scalar::Bool
+                    | Scalar::Text
+                    | Scalar::Email,
                 ),
                 ResolvedType::Scalar(_),
             ) => stripped(left) == stripped(right),
             (ResolvedType::Enum { .. }, ResolvedType::Enum { .. }) => true,
-            (ResolvedType::Record { stored: true, .. }, ResolvedType::Record { stored: true, .. }) => true,
+            (
+                ResolvedType::Record { stored: true, .. },
+                ResolvedType::Record { stored: true, .. },
+            ) => true,
             (
                 ResolvedType::Array { element: left, .. },
                 ResolvedType::Array { element: right, .. },
@@ -637,13 +650,16 @@ impl HookProfile<'_> {
         // Only the exact parent may expose issued revision metadata;
         // undeclared business fields never become `undefined`.
         if field == "version" {
-            return self.parent_version_metadata(base, model, ty, aliases).then_some(());
+            return self
+                .parent_version_metadata(base, model, ty, aliases)
+                .then_some(());
         }
-        if self
-            .event_class(base, aliases)
-            .is_some_and(|(_, class)| matches!(class,
-                EventAlias::ParentIdentity | EventAlias::ReferenceIdentity))
-            && self.hook_snapshot_field(model, field, ty)
+        if self.event_class(base, aliases).is_some_and(|(_, class)| {
+            matches!(
+                class,
+                EventAlias::ParentIdentity | EventAlias::ReferenceIdentity
+            )
+        }) && self.hook_snapshot_field(model, field, ty)
         {
             return Some(());
         }
@@ -686,7 +702,8 @@ impl HookProfile<'_> {
         // Reserved identity/version are readonly views of the
         // event-pathed row. Mutation inputs still use field(..., true),
         // which refuses every metadata name.
-        self.hook_snapshot_field(model, field, &expr.ty).then_some(())
+        self.hook_snapshot_field(model, field, &expr.ty)
+            .then_some(())
     }
     fn hook_collection_expr(
         &mut self,
@@ -696,9 +713,7 @@ impl HookProfile<'_> {
         depth: usize,
     ) -> Option<bool> {
         match &expr.expr {
-            IrExpr::Array(items)
-                if matches!(&expr.ty, ResolvedType::Array { .. }) =>
-            {
+            IrExpr::Array(items) if matches!(&expr.ty, ResolvedType::Array { .. }) => {
                 for item in items {
                     self.expr(item, locals, aliases, depth + 1)?;
                 }
@@ -724,25 +739,16 @@ impl HookProfile<'_> {
         let int_ty = ResolvedType::Scalar(Scalar::Int);
         match op {
             IrBinOp::Eq | IrBinOp::Ne => {
-                *ty == bool_ty
-                    && (null_test || Self::hook_eq_family(left, right))
+                *ty == bool_ty && (null_test || Self::hook_eq_family(left, right))
             }
             IrBinOp::Lt | IrBinOp::Le | IrBinOp::Gt | IrBinOp::Ge => {
                 *ty == bool_ty && Self::hook_ordered(left, right)
             }
-            IrBinOp::And | IrBinOp::Or => {
-                *ty == bool_ty && *left == bool_ty && *right == bool_ty
-            }
-            IrBinOp::Add | IrBinOp::Sub => {
-                Self::hook_additive(ty, left, right, *op)
-            }
-            IrBinOp::Mul => {
-                *ty == int_ty && *left == int_ty && *right == int_ty
-            }
+            IrBinOp::And | IrBinOp::Or => *ty == bool_ty && *left == bool_ty && *right == bool_ty,
+            IrBinOp::Add | IrBinOp::Sub => Self::hook_additive(ty, left, right, *op),
+            IrBinOp::Mul => *ty == int_ty && *left == int_ty && *right == int_ty,
             IrBinOp::Coalesce => {
-                *right == *ty
-                    && (*left == *ty
-                        || left.nullable_inner() == Some(ty))
+                *right == *ty && (*left == *ty || left.nullable_inner() == Some(ty))
             }
             _ => false,
         }
@@ -757,8 +763,7 @@ impl HookProfile<'_> {
         aliases: &HashMap<String, (SymbolId, EventAlias)>,
         depth: usize,
     ) -> Option<()> {
-        let null_test = (left.ty == ResolvedType::Null
-            && right.ty.nullable_inner().is_some())
+        let null_test = (left.ty == ResolvedType::Null && right.ty.nullable_inner().is_some())
             || (right.ty == ResolvedType::Null && left.ty.nullable_inner().is_some());
         if !Self::hook_binary_allowed(&expr.ty, op, &left.ty, &right.ty, null_test) {
             return None;
@@ -817,13 +822,20 @@ impl HookProfile<'_> {
 
     /// Only the exact trigger parent carries issued revision metadata. A
     /// declared data field named version is a different source/type boundary.
-    fn parent_version_metadata(&self, base: &TypedExpr, model: SymbolId, ty: &ResolvedType,
-        aliases: &HashMap<String, (SymbolId, EventAlias)>) -> bool {
+    fn parent_version_metadata(
+        &self,
+        base: &TypedExpr,
+        model: SymbolId,
+        ty: &ResolvedType,
+        aliases: &HashMap<String, (SymbolId, EventAlias)>,
+    ) -> bool {
         *ty == ResolvedType::Scalar(Scalar::Int)
             && self.hook_direct_parent() == Some(model)
             && self.event_class(base, aliases) == Some((model, EventAlias::ParentIdentity))
-            && !self.program.items.iter().any(|item| item.name == "version"
-                && matches!(&item.kind, IrItemKind::Field { owner, .. } if *owner == model))
+            && !self.program.items.iter().any(|item| {
+                item.name == "version"
+                    && matches!(&item.kind, IrItemKind::Field { owner, .. } if *owner == model)
+            })
     }
 
     /// Classify a member-access base inside hooks: bound rows (with their
@@ -845,15 +857,19 @@ impl HookProfile<'_> {
                 ),
             ));
         }
-        if let IrExpr::Name(name) = &base.expr {
-            if let Some(ty) = locals.get(name) {
-                let mut ty = ty;
-                while let ResolvedType::Nullable(inner) = ty {
-                    ty = inner;
-                }
-                if let ResolvedType::Record { symbol, stored: true } = ty {
-                    return Some((*symbol, false));
-                }
+        if let IrExpr::Name(name) = &base.expr
+            && let Some(ty) = locals.get(name)
+        {
+            let mut ty = ty;
+            while let ResolvedType::Nullable(inner) = ty {
+                ty = inner;
+            }
+            if let ResolvedType::Record {
+                symbol,
+                stored: true,
+            } = ty
+            {
+                return Some((*symbol, false));
             }
         }
         None
@@ -883,7 +899,12 @@ impl HookProfile<'_> {
     /// Additive shapes admitted in hooks: exact `int64` integer arithmetic
     /// plus the emitted duration helpers (`now + 1ms`, duration sums, and
     /// `datetime - datetime` spans). Money and decimal stay out.
-    fn hook_additive(result: &ResolvedType, left: &ResolvedType, right: &ResolvedType, op: IrBinOp) -> bool {
+    fn hook_additive(
+        result: &ResolvedType,
+        left: &ResolvedType,
+        right: &ResolvedType,
+        op: IrBinOp,
+    ) -> bool {
         let int_ty = ResolvedType::Scalar(Scalar::Int);
         let datetime_ty = ResolvedType::Scalar(Scalar::Datetime);
         let duration_ty = ResolvedType::Scalar(Scalar::Duration);
@@ -1042,7 +1063,11 @@ impl HookProfile<'_> {
             };
             match self.event_class(arg, aliases) {
                 Some((model, EventAlias::ParentIdentity)) => {
-                    let ResolvedType::Record { symbol, stored: true } = ty else {
+                    let ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    } = ty
+                    else {
                         return None;
                     };
                     if *symbol != model || model != direct_parent {
@@ -1051,7 +1076,11 @@ impl HookProfile<'_> {
                     inner_aliases.insert(param.name.clone(), (model, EventAlias::ParentIdentity));
                 }
                 Some((model, EventAlias::ReferenceIdentity)) => {
-                    let ResolvedType::Record { symbol, stored: true } = ty else {
+                    let ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    } = ty
+                    else {
                         return None;
                     };
                     if *symbol != model {
@@ -1065,7 +1094,8 @@ impl HookProfile<'_> {
                     // refused below via the emitter's kind check — the
                     // profile admits each linkage kind here so single-kind
                     // helpers lower.
-                    inner_aliases.insert(param.name.clone(), (model, EventAlias::ReferenceIdentity));
+                    inner_aliases
+                        .insert(param.name.clone(), (model, EventAlias::ReferenceIdentity));
                 }
                 Some((_, EventAlias::Staged)) => return None,
                 _ => {
@@ -1095,7 +1125,9 @@ impl HookProfile<'_> {
                 Self::hook_body_has_closure(left) || Self::hook_body_has_closure(right)
             }
             IrExpr::Array(items) => items.iter().any(Self::hook_body_has_closure),
-            IrExpr::Object(entries) => entries.iter().any(|(_, value)| Self::hook_body_has_closure(value)),
+            IrExpr::Object(entries) => entries
+                .iter()
+                .any(|(_, value)| Self::hook_body_has_closure(value)),
             IrExpr::JudgmentSpecification { options, .. } => options
                 .as_ref()
                 .is_some_and(|option| Self::hook_body_has_closure(option)),
@@ -1272,12 +1304,7 @@ impl HookProfile<'_> {
     /// Owning State resolves the omission/default. Only the null literal
     /// qualifies: server-owned, machine, undeclared, or non-nullable
     /// fields refuse, exactly like any non-null staged reference.
-    fn nullable_reference_null(
-        &self,
-        model: SymbolId,
-        name: &str,
-        value: &TypedExpr,
-    ) -> bool {
+    fn nullable_reference_null(&self, model: SymbolId, name: &str, value: &TypedExpr) -> bool {
         if !matches!(&value.expr, IrExpr::Null) || value.ty != ResolvedType::Null {
             return false;
         }
@@ -1347,7 +1374,11 @@ impl HookProfile<'_> {
             return Some(false);
         }
         let want = value.ty.nullable_inner().unwrap_or(&value.ty);
-        let ResolvedType::Record { symbol, stored: true } = want else {
+        let ResolvedType::Record {
+            symbol,
+            stored: true,
+        } = want
+        else {
             return Some(false);
         };
         let mut declared = false;
@@ -1507,9 +1538,10 @@ impl HookProfile<'_> {
             // qualify as set targets. A staged update leaves no
             // local state behind, so the alias no longer offers
             // its created data to reads.
-            if aliases.get(name).is_some_and(|(_, class)| {
-                *class != EventAlias::Staged
-            }) {
+            if aliases
+                .get(name)
+                .is_some_and(|(_, class)| *class != EventAlias::Staged)
+            {
                 return None;
             }
             self.staged_data.remove(name);
@@ -1517,7 +1549,10 @@ impl HookProfile<'_> {
             while let ResolvedType::Nullable(inner) = row_ty {
                 row_ty = inner;
             }
-            let ResolvedType::Record { symbol, stored: true } = row_ty
+            let ResolvedType::Record {
+                symbol,
+                stored: true,
+            } = row_ty
             else {
                 return None;
             };
@@ -1535,7 +1570,11 @@ impl HookProfile<'_> {
         depth: usize,
     ) -> Option<bool> {
         let IrStmt::For {
-            item, domain, limit, body, ..
+            item,
+            domain,
+            limit,
+            body,
+            ..
         } = statement
         else {
             return Some(false);
@@ -1594,10 +1633,7 @@ impl HookProfile<'_> {
             item.canonical == *model && matches!(item.kind, IrItemKind::Model { .. })
         });
         let target = targets.next()?;
-        if targets.next().is_some()
-            || target.id == self.model
-            || !self.model_supported(target.id)
-        {
+        if targets.next().is_some() || target.id == self.model || !self.model_supported(target.id) {
             return None;
         }
         self.input(target.id, input, locals, aliases, depth + 1)?;
@@ -1910,8 +1946,8 @@ pub(crate) fn required_model_rule_fields(
     fn collect_comparison_paths(
         program: &IrProgram,
         model: SymbolId,
-        left: &Box<TypedExpr>,
-        right: &Box<TypedExpr>,
+        left: &TypedExpr,
+        right: &TypedExpr,
         minor_bound: bool,
         fields: &mut Vec<SymbolId>,
     ) -> Option<()> {
@@ -1919,11 +1955,10 @@ pub(crate) fn required_model_rule_fields(
         for operand in [left, right] {
             // The other operand must still establish an exact owning stored
             // path. A case literal alone cannot certify a dependency or rule.
-            if let ResolvedType::Enum { cases, .. } = &operand.ty {
-                if matches!(&operand.expr, IrExpr::Name(case) | IrExpr::Text(case) if cases.contains(case))
-                {
-                    continue;
-                }
+            if let ResolvedType::Enum { cases, .. } = &operand.ty
+                && matches!(&operand.expr, IrExpr::Name(case) | IrExpr::Text(case) if cases.contains(case))
+            {
+                continue;
             }
             if minor_bound && matches!(operand.expr, IrExpr::Int(_)) {
                 continue;
@@ -2139,7 +2174,13 @@ fn join_template_presence<'r>(
     program: &IrProgram,
     model: &super::ir::IrItem,
     relation: &'r TypedExpr,
-) -> Option<(&'r TypedExpr, SymbolId, SymbolId, &'r TypedExpr, &'r TypedExpr)> {
+) -> Option<(
+    &'r TypedExpr,
+    SymbolId,
+    SymbolId,
+    &'r TypedExpr,
+    &'r TypedExpr,
+)> {
     let (absent, present) = policy_binary(relation, IrBinOp::Or)?;
     let (presence, null) = policy_binary(absent, IrBinOp::Eq)?;
     if !matches!(null.expr, IrExpr::Null) || null.ty != ResolvedType::Null {
@@ -2184,12 +2225,14 @@ fn join_template_current_read(
 ) -> Option<()> {
     if selected.ty != presence.ty
         && !matches!(&presence.ty, ResolvedType::Nullable(inner) if inner.as_ref() == &selected.ty)
-    { return None; }
+    {
+        return None;
+    }
     policy_row_member(selected, model, "current", &selected.ty)
 }
 
 fn join_template_parent(
-    program: &IrProgram,
+    _program: &IrProgram,
     model: &super::ir::IrItem,
     presence: &TypedExpr,
     same_parent: &TypedExpr,
@@ -2626,7 +2669,10 @@ pub(crate) fn checked_stored_lock_target(
         return policy_field_with_flags(program, model, name, ty, false, true) == Some(field);
     }
     if let ResolvedType::Array { element, .. } = base
-        && let ResolvedType::Record { symbol, stored: true } = element.as_ref()
+        && let ResolvedType::Record {
+            symbol,
+            stored: true,
+        } = element.as_ref()
         && policy_model(program, *symbol).is_some()
     {
         // State's existing typed reference-array comparator owns identity;
@@ -2637,7 +2683,9 @@ pub(crate) fn checked_stored_lock_target(
     // Files remain opaque identity leaves; this grants no byte read, ordinary
     // expression equality, scalar result or disclosure/observation capability.
     fn lock_value(program: &IrProgram, ty: &ResolvedType, depth: usize) -> bool {
-        if depth > 16 { return false; }
+        if depth > 16 {
+            return false;
+        }
         match ty {
             ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => lock_value(program, inner, depth + 1),
             ResolvedType::Scalar(scalar) => *scalar == Scalar::File ||
@@ -2658,8 +2706,14 @@ pub(crate) fn checked_stored_lock_target(
             _ => false,
         }
     }
-    let element = match base { ResolvedType::Array { element, .. } => element.as_ref(), value => value };
-    if (matches!(base, ResolvedType::Array { .. } | ResolvedType::StdNominal { .. }) || matches!(element, ResolvedType::Record { symbol, stored: true }
+    let element = match base {
+        ResolvedType::Array { element, .. } => element.as_ref(),
+        value => value,
+    };
+    if (matches!(
+        base,
+        ResolvedType::Array { .. } | ResolvedType::StdNominal { .. }
+    ) || matches!(element, ResolvedType::Record { symbol, stored: true }
         if program.items.get(symbol.0 as usize).is_some_and(|item| matches!(item.kind, IrItemKind::Contract { .. }))))
         && lock_value(program, ty, 0)
     {
@@ -2713,7 +2767,8 @@ fn visit_null_comparison(
         op: IrBinOp::Eq | IrBinOp::Ne,
         left,
         right,
-    } = &expr.expr else {
+    } = &expr.expr
+    else {
         return Some(false);
     };
     if !(matches!(left.expr, IrExpr::Null) || matches!(right.expr, IrExpr::Null)) {
@@ -2762,12 +2817,7 @@ fn visit_date_comparison(
     if expr.ty != ResolvedType::Scalar(Scalar::Bool)
         || !matches!(
             op,
-            IrBinOp::Eq
-                | IrBinOp::Ne
-                | IrBinOp::Lt
-                | IrBinOp::Le
-                | IrBinOp::Gt
-                | IrBinOp::Ge
+            IrBinOp::Eq | IrBinOp::Ne | IrBinOp::Lt | IrBinOp::Le | IrBinOp::Gt | IrBinOp::Ge
         )
     {
         return None;
@@ -2896,7 +2946,9 @@ fn visit_plain_expr(
             visit(program, model, left, fields, false)?;
             visit(program, model, right, fields, false).map(|_| true)
         }
-        IrExpr::Unary { operand, .. } => visit(program, model, operand, fields, false).map(|_| true),
+        IrExpr::Unary { operand, .. } => {
+            visit(program, model, operand, fields, false).map(|_| true)
+        }
         IrExpr::Array(items) => {
             for item in items {
                 visit(program, model, item, fields, false)?;
@@ -3040,7 +3092,8 @@ pub(crate) fn checked_query_rule_fields(
     catalog: Option<&crate::analysis::catalog::Catalog>,
 ) -> Option<CheckedQueryRuleProfile> {
     if checked_local_rule_fields(checked, program, model, predicate, db, catalog).is_some()
-        || required_model_rule_fields(program, model, predicate).is_some() {
+        || required_model_rule_fields(program, model, predicate).is_some()
+    {
         return None;
     }
     // The caller seals this entire policy closure against freshly lowered source,
@@ -3065,97 +3118,173 @@ pub(crate) fn checked_query_rule_fields(
         }
         fn leaf(ty: &ResolvedType) -> bool {
             match ty {
-                ResolvedType::Scalar(_) | ResolvedType::Enum { .. }
-                | ResolvedType::Record { stored: true, .. } | ResolvedType::Null => true,
+                ResolvedType::Scalar(_)
+                | ResolvedType::Enum { .. }
+                | ResolvedType::Record { stored: true, .. }
+                | ResolvedType::Null => true,
                 ResolvedType::Nullable(inner) => Self::leaf(inner),
                 ResolvedType::Array { element, .. } => Self::leaf(element),
-                ResolvedType::Object(fields) => fields.len()<=200 && fields.iter().all(|(_,ty)|Self::leaf(ty)),
+                ResolvedType::Object(fields) => {
+                    fields.len() <= 200 && fields.iter().all(|(_, ty)| Self::leaf(ty))
+                }
                 _ => false,
             }
         }
         fn contract(&self, symbol: SymbolId) -> Option<&super::ir::IrItem> {
             let item = self.program.items.get(symbol.0 as usize)?;
             let module = self.program.modules.get(item.module.0 as usize)?;
-            (item.id == symbol && module.id == item.module
-                && item.span.file == module.file && contains_span(module.span, item.span)
+            (item.id == symbol
+                && module.id == item.module
+                && item.span.file == module.file
+                && contains_span(module.span, item.span)
                 && item.canonical == format!("{}.{}", module.name, item.name)
-                && matches!(item.kind, IrItemKind::Contract { .. })).then_some(item)
+                && matches!(item.kind, IrItemKind::Contract { .. }))
+            .then_some(item)
         }
         /// Resolve a Contract value member entirely within its sealed owning
         /// declaration; it never creates stored row dependencies or identities.
-        fn contract_member(&self, contract: &super::ir::IrItem, field: &str, ty: &ResolvedType) -> Option<()> {
-            let IrItemKind::Contract { fields, .. } = &contract.kind else { return None; };
-            let mut matching = fields.iter().filter_map(|id| self.program.items.get(id.0 as usize)
-                .filter(|item| item.id == *id && item.name == field));
+        fn contract_member(
+            &self,
+            contract: &super::ir::IrItem,
+            field: &str,
+            ty: &ResolvedType,
+        ) -> Option<()> {
+            let IrItemKind::Contract { fields, .. } = &contract.kind else {
+                return None;
+            };
+            let mut matching = fields.iter().filter_map(|id| {
+                self.program
+                    .items
+                    .get(id.0 as usize)
+                    .filter(|item| item.id == *id && item.name == field)
+            });
             let item = matching.next()?;
-            if matching.next().is_some() || item.module != contract.module
+            if matching.next().is_some()
+                || item.module != contract.module
                 || item.span.file != contract.span.file
                 || item.canonical != format!("{}.{}", contract.canonical, field)
                 || !matches!(&item.kind, IrItemKind::Field { owner, ty: IrType::Known(actual), server: None, modifiers, .. }
                     if *owner == contract.id && !modifiers.machine
-                        && (actual == ty || actual.nullable_inner() == Some(ty))) { return None; }
+                        && (actual == ty || actual.nullable_inner() == Some(ty)))
+            {
+                return None;
+            }
             Some(())
         }
         /// A bare model name has no authored query clause/alias carrier. Its
         /// checked node type and non-lexical resolved source retain the exact model.
         fn bare_model_symbol(&self, value: &TypedExpr, canonical: &str) -> Option<SymbolId> {
-            let ResolvedType::Array { element, ordered: true, nonempty: false } = &value.ty else { return None; };
-            let ResolvedType::Record { symbol, stored: true } = element.as_ref() else { return None; };
+            let ResolvedType::Array {
+                element,
+                ordered: true,
+                nonempty: false,
+            } = &value.ty
+            else {
+                return None;
+            };
+            let ResolvedType::Record {
+                symbol,
+                stored: true,
+            } = element.as_ref()
+            else {
+                return None;
+            };
             let model = policy_model(self.program, *symbol)?;
-            let key = NodeKey { file: value.span.file, start: value.span.start, end: value.span.end,
-                kind: crate::syntax::SyntaxKind::NameRef as u8 };
+            let key = NodeKey {
+                file: value.span.file,
+                start: value.span.start,
+                end: value.span.end,
+                kind: crate::syntax::SyntaxKind::NameRef as u8,
+            };
             (model.canonical == canonical
                 && self.checked.types.node_types.get(&key) == Some(&value.ty)
                 && self.checked.types.bound_names.contains(&key)
                 && !self.checked.types.lexical_value_references.contains(&key)
-                && !self.checked.types.contextual_references.contains_key(&key)).then_some(*symbol)
+                && !self.checked.types.contextual_references.contains_key(&key))
+            .then_some(*symbol)
         }
         /// Only a checked count call can supply this clause-free global root.
         /// The existing owner query path still owns completeness and authority.
         fn bare_model_count(&mut self, value: &TypedExpr, depth: usize) -> Option<()> {
-            if depth > 64 || self.remaining == 0 { return None; }
-            let IrExpr::Query(query) = &value.expr else { return None; };
-            let super::ir::IrQueryDomain::Model(canonical) = &query.domain else { return None; };
-            if query.source.is_some() || query.parent.is_some() || query.where_pred.is_some()
-                || query.where_async || !query.order.is_empty() || query.value_order.is_some()
-                || query.limit.is_some() || query.archived.is_some() || query.select.is_some()
-                || query.select_param.is_some() || query.collection_call.is_some()
-                || query.contract_collection_call.is_some() { return None; }
+            if depth > 64 || self.remaining == 0 {
+                return None;
+            }
+            let IrExpr::Query(query) = &value.expr else {
+                return None;
+            };
+            let super::ir::IrQueryDomain::Model(canonical) = &query.domain else {
+                return None;
+            };
+            if query.source.is_some()
+                || query.parent.is_some()
+                || query.where_pred.is_some()
+                || query.where_async
+                || !query.order.is_empty()
+                || query.value_order.is_some()
+                || query.limit.is_some()
+                || query.archived.is_some()
+                || query.select.is_some()
+                || query.select_param.is_some()
+                || query.collection_call.is_some()
+                || query.contract_collection_call.is_some()
+            {
+                return None;
+            }
             let model = self.bare_model_symbol(value, canonical)?;
             self.remaining -= 1;
-            if !self.profile.query_models.contains(&model) { self.profile.query_models.push(model); }
+            if !self.profile.query_models.contains(&model) {
+                self.profile.query_models.push(model);
+            }
             self.dependency(model);
             Some(())
         }
         /// Check the selected pure builtin, exact authored arguments and slot
         /// order separately from the expression grammar that consumes them.
-        fn call_arguments<'b>(&self, value: &TypedExpr, id: &str, args: &'b [TypedExpr]) -> Option<Vec<&'b TypedExpr>> {
-            let key = NodeKey { file: value.span.file, start: value.span.start, end: value.span.end, kind: crate::syntax::SyntaxKind::Call as u8 };
+        fn call_arguments<'b>(
+            &self,
+            value: &TypedExpr,
+            id: &str,
+            args: &'b [TypedExpr],
+        ) -> Option<Vec<&'b TypedExpr>> {
+            let key = NodeKey {
+                file: value.span.file,
+                start: value.span.start,
+                end: value.span.end,
+                kind: crate::syntax::SyntaxKind::Call as u8,
+            };
             let selected = self.checked.types.selected_calls.get(&key)?;
-            let SelectedCallTarget::Builtin { id: actual, overload } = &selected.target else { return None; };
-            let slots = match &value.expr { IrExpr::BoundCall { slots, .. } => slots.clone(), _ => (0..args.len()).map(Some).collect() };
+            let SelectedCallTarget::Builtin {
+                id: actual,
+                overload,
+            } = &selected.target
+            else {
+                return None;
+            };
+            let slots = match &value.expr {
+                IrExpr::BoundCall { slots, .. } => slots.clone(),
+                _ => (0..args.len()).map(Some).collect(),
+            };
             let catalog = self.catalog?;
-            if actual != id || selected.arguments.len() != args.len() || selected.slots != slots
+            if actual != id
+                || selected.arguments.len() != args.len()
+                || selected.slots != slots
                 || catalog.lookup(id)?.effects != Some(crate::analysis::catalog::Effects::Pure)
-                || catalog.overloads(id)?.get(*overload as usize)?.params.len() != args.len()
-                || self.checked.types.node_types.get(&key) != Some(&value.ty) { return None; }
-            for (key, arg) in selected.arguments.iter().zip(args) { argument(self.db, *key, arg)?; }
+                || catalog.overloads(id)?.get(*overload)?.params.len() != args.len()
+                || self.checked.types.node_types.get(&key) != Some(&value.ty)
+            {
+                return None;
+            }
+            for (key, arg) in selected.arguments.iter().zip(args) {
+                argument(self.db, *key, arg)?;
+            }
             let mut used = HashSet::new();
-            slots.iter().map(|slot| { let index = (*slot)?; used.insert(index).then(|| args.get(index)).flatten() }).collect()
-        }
-        fn leaf_expr(value: &TypedExpr) -> bool {
-            matches!(
-                &value.expr,
-                IrExpr::Int(_)
-                    | IrExpr::Decimal(_)
-                    | IrExpr::Text(_)
-                    | IrExpr::Bool(_)
-                    | IrExpr::Null
-                    | IrExpr::Money { .. }
-                    | IrExpr::DurationMs(_)
-                    | IrExpr::Date(_)
-                    | IrExpr::Datetime(_)
-            )
+            slots
+                .iter()
+                .map(|slot| {
+                    let index = (*slot)?;
+                    used.insert(index).then(|| args.get(index)).flatten()
+                })
+                .collect()
         }
         fn visit_array(&mut self, value: &TypedExpr, depth: usize) -> Option<bool> {
             let IrExpr::Array(values) = &value.expr else {
@@ -3164,8 +3293,12 @@ pub(crate) fn checked_query_rule_fields(
             let ResolvedType::Array { element, .. } = &value.ty else {
                 return None;
             };
-            let key = NodeKey { file: value.span.file, start: value.span.start, end: value.span.end,
-                kind: crate::syntax::SyntaxKind::Array as u8 };
+            let key = NodeKey {
+                file: value.span.file,
+                start: value.span.start,
+                end: value.span.end,
+                kind: crate::syntax::SyntaxKind::Array as u8,
+            };
             if self.checked.types.node_types.get(&key) != Some(&value.ty) {
                 return None;
             }
@@ -3189,11 +3322,18 @@ pub(crate) fn checked_query_rule_fields(
             {
                 return Some(false);
             }
-            let key = NodeKey { file: value.span.file, start: value.span.start, end: value.span.end,
-                kind: crate::syntax::SyntaxKind::NameRef as u8 };
+            let key = NodeKey {
+                file: value.span.file,
+                start: value.span.start,
+                end: value.span.end,
+                kind: crate::syntax::SyntaxKind::NameRef as u8,
+            };
             (self.checked.types.node_types.get(&key) == Some(&value.ty)
-                && matches!(self.checked.types.contextual_references.get(&key),
-                    Some(crate::analysis::resolve::ContextVar::Now))).then_some(true)
+                && matches!(
+                    self.checked.types.contextual_references.get(&key),
+                    Some(crate::analysis::resolve::ContextVar::Now)
+                ))
+            .then_some(true)
         }
         fn visit_name(&mut self, value: &TypedExpr) -> Option<bool> {
             let IrExpr::Name(name) = &value.expr else {
@@ -3202,7 +3342,12 @@ pub(crate) fn checked_query_rule_fields(
             if matches!(&value.ty, ResolvedType::Enum { cases, .. } if cases.contains(name)) {
                 return Some(true);
             }
-            let ty = &self.bindings.iter().rev().find(|(bound, _)| bound == name)?.1;
+            let ty = &self
+                .bindings
+                .iter()
+                .rev()
+                .find(|(bound, _)| bound == name)?
+                .1;
             (value.ty == *ty).then_some(true)
         }
         fn visit_special_member(
@@ -3220,12 +3365,20 @@ pub(crate) fn checked_query_rule_fields(
                 return (value.ty == ResolvedType::Scalar(Scalar::Text)).then_some(true);
             }
             if field == "parent" {
-                let IrItemKind::Model { owner: IrOwner::ChildOf(parent), .. } = source.kind else {
+                let IrItemKind::Model {
+                    owner: IrOwner::ChildOf(parent),
+                    ..
+                } = source.kind
+                else {
                     return None;
                 };
                 policy_model(self.program, parent)?;
-                return (value.ty == ResolvedType::Record { symbol: parent, stored: true })
-                    .then_some(true);
+                return (value.ty
+                    == ResolvedType::Record {
+                        symbol: parent,
+                        stored: true,
+                    })
+                .then_some(true);
             }
             Some(false)
         }
@@ -3244,7 +3397,10 @@ pub(crate) fn checked_query_rule_fields(
                 return None;
             }
             match &item.kind {
-                IrItemKind::Field { ty: IrType::Known(ty), .. } => {
+                IrItemKind::Field {
+                    ty: IrType::Known(ty),
+                    ..
+                } => {
                     if ty != &value.ty && ty.nullable_inner() != Some(&value.ty) {
                         return None;
                     }
@@ -3254,10 +3410,21 @@ pub(crate) fn checked_query_rule_fields(
                     }
                     Some(true)
                 }
-                IrItemKind::DeriveField { ty: IrType::Known(ty), expr: Some(body), .. }
-                    if ty == &value.ty && body.ty == *ty && self.derives.insert(item.id) =>
-                {
-                    let previous = std::mem::replace(&mut self.bindings, vec![("row".into(), ResolvedType::Record { symbol: *symbol, stored: true })]);
+                IrItemKind::DeriveField {
+                    ty: IrType::Known(ty),
+                    expr: Some(body),
+                    ..
+                } if ty == &value.ty && body.ty == *ty && self.derives.insert(item.id) => {
+                    let previous = std::mem::replace(
+                        &mut self.bindings,
+                        vec![(
+                            "row".into(),
+                            ResolvedType::Record {
+                                symbol: *symbol,
+                                stored: true,
+                            },
+                        )],
+                    );
                     let result = self.expr(body, depth + 1);
                     self.bindings = previous;
                     self.derives.remove(&item.id);
@@ -3301,11 +3468,13 @@ pub(crate) fn checked_query_rule_fields(
             self.expr(base, depth + 1)?;
             let ty = base.ty.nullable_inner().unwrap_or(&base.ty);
             match ty {
-                ResolvedType::Record { symbol, stored: true } => {
-                    self.visit_record_member(symbol, field, value, depth)
-                }
+                ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                } => self.visit_record_member(symbol, field, value, depth),
                 ResolvedType::Scalar(Scalar::Money) => match (field, &value.ty) {
-                    ("currency", ResolvedType::Scalar(Scalar::Currency)) | ("minor", ResolvedType::Scalar(Scalar::Int)) => Some(true),
+                    ("currency", ResolvedType::Scalar(Scalar::Currency))
+                    | ("minor", ResolvedType::Scalar(Scalar::Int)) => Some(true),
                     _ => None,
                 },
                 _ => None,
@@ -3342,8 +3511,11 @@ pub(crate) fn checked_query_rule_fields(
                 return None;
             };
             match element.as_ref() {
-                ResolvedType::Scalar(Scalar::Int) => {},
-                ResolvedType::Record { symbol, stored: true } => {
+                ResolvedType::Scalar(Scalar::Int) => {}
+                ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                } => {
                     if self.contract(*symbol).is_none() {
                         policy_model(self.program, *symbol)?;
                     }
@@ -3354,40 +3526,54 @@ pub(crate) fn checked_query_rule_fields(
                 || Self::value_domain_mismatch(query, value, base)
                 || !matches!(source.clauses.first().map(|clause|&clause.kind),
                     Some(crate::analysis::types::CheckedQueryClauseKind::As {name}) if name == alias)
-                || match (&query.select,&query.select_param,source.clauses.as_slice()) {
-                    (None,None,[_]) => false,
-                    (Some(body),Some(param),[_,selection]) => param != alias
-                        || selection.kind != crate::analysis::types::CheckedQueryClauseKind::Select
-                        || selection.expressions.len()!=1
-                        || !contains_span(crate::source::Span::new(selection.node.file,selection.node.start,selection.node.end),body.span)
-                        || self.checked.types.node_types.get(&selection.expressions[0]) != Some(&body.ty),
+                || match (
+                    &query.select,
+                    &query.select_param,
+                    source.clauses.as_slice(),
+                ) {
+                    (None, None, [_]) => false,
+                    (Some(body), Some(param), [_, selection]) => {
+                        param != alias
+                            || selection.kind
+                                != crate::analysis::types::CheckedQueryClauseKind::Select
+                            || selection.expressions.len() != 1
+                            || !contains_span(
+                                crate::source::Span::new(
+                                    selection.node.file,
+                                    selection.node.start,
+                                    selection.node.end,
+                                ),
+                                body.span,
+                            )
+                            || self.checked.types.node_types.get(&selection.expressions[0])
+                                != Some(&body.ty)
+                    }
                     _ => true,
                 }
             {
                 return None;
             }
-            if let Some(call) = &query.collection_call {
-                if self.checked.types.checked_collection_calls.get(&call.node) != Some(call.as_ref())
+            if let Some(call) = &query.collection_call
+                && (self.checked.types.checked_collection_calls.get(&call.node)
+                    != Some(call.as_ref())
                     || call.query != source.node
-                    || !matches!(element.as_ref(), ResolvedType::Record { symbol, stored: true } if *symbol == call.model)
-                {
-                    return None;
-                }
+                    || !matches!(element.as_ref(), ResolvedType::Record { symbol, stored: true } if *symbol == call.model))
+            {
+                return None;
             }
             self.expr(base, depth + 1)?;
-            if let (Some(body),Some(param)) = (&query.select,&query.select_param) {
-                self.bindings.push((param.clone(),element.as_ref().clone()));
-                self.expr(body,depth+1)?;
+            if let (Some(body), Some(param)) = (&query.select, &query.select_param) {
+                self.bindings
+                    .push((param.clone(), element.as_ref().clone()));
+                self.expr(body, depth + 1)?;
                 self.bindings.pop()?;
             }
             Some(())
         }
-        fn join_model_candidate(
-            &mut self,
-            query: &IrQuery,
-            canonical: &str,
-        ) -> Option<SymbolId> {
-            let mut matches = self.program.items.iter().filter(|item| item.canonical == *canonical && matches!(item.kind, IrItemKind::Model { .. }));
+        fn join_model_candidate(&mut self, query: &IrQuery, canonical: &str) -> Option<SymbolId> {
+            let mut matches = self.program.items.iter().filter(|item| {
+                item.canonical == *canonical && matches!(item.kind, IrItemKind::Model { .. })
+            });
             let candidate = matches.next()?;
             if matches.next().is_some() {
                 return None;
@@ -3395,10 +3581,15 @@ pub(crate) fn checked_query_rule_fields(
             policy_model(self.program, candidate.id)?;
             if let Some(parent) = &query.parent {
                 self.expr(parent, 1)?;
-                let ResolvedType::Record { symbol, stored: true } = parent.ty else {
+                let ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                } = parent.ty
+                else {
                     return None;
                 };
-                if !matches!(candidate.kind, IrItemKind::Model { owner: IrOwner::ChildOf(actual), .. } if actual == symbol) {
+                if !matches!(candidate.kind, IrItemKind::Model { owner: IrOwner::ChildOf(actual), .. } if actual == symbol)
+                {
                     return None;
                 }
             }
@@ -3415,17 +3606,29 @@ pub(crate) fn checked_query_rule_fields(
             }
             self.dependency(candidate);
             if let Some(filter) = &query.where_pred {
-                self.bindings.push((query.where_param.clone(), ResolvedType::Record { symbol: candidate, stored: true }));
+                self.bindings.push((
+                    query.where_param.clone(),
+                    ResolvedType::Record {
+                        symbol: candidate,
+                        stored: true,
+                    },
+                ));
                 self.expr(filter, depth + 1)?;
                 self.bindings.pop()?;
             }
             match (&query.select, &query.select_param) {
                 (Some(body), Some(param)) => {
-                    self.bindings.push((param.clone(), ResolvedType::Record { symbol: candidate, stored: true }));
+                    self.bindings.push((
+                        param.clone(),
+                        ResolvedType::Record {
+                            symbol: candidate,
+                            stored: true,
+                        },
+                    ));
                     self.expr(body, depth + 1)?;
                     self.bindings.pop()?;
                 }
-                (None, None) => {},
+                (None, None) => {}
                 _ => return None,
             }
             Some(())
@@ -3436,8 +3639,11 @@ pub(crate) fn checked_query_rule_fields(
             value: &TypedExpr,
             depth: usize,
         ) -> Option<()> {
-            if !query.order.is_empty() || query.value_order.is_some() || query.limit.is_some()
-                || query.archived.is_some() || query.contract_collection_call.is_some()
+            if !query.order.is_empty()
+                || query.value_order.is_some()
+                || query.limit.is_some()
+                || query.archived.is_some()
+                || query.contract_collection_call.is_some()
             {
                 return None;
             }
@@ -3446,20 +3652,36 @@ pub(crate) fn checked_query_rule_fields(
             };
             let candidate = self.join_model_candidate(query, canonical)?;
             if let Some(source) = &query.source {
-                if self.checked.types.checked_queries.get(&source.node) != Some(source.as_ref()) || source.result != value.ty {
+                if self.checked.types.checked_queries.get(&source.node) != Some(source.as_ref())
+                    || source.result != value.ty
+                {
                     return None;
                 }
-            } else if query.parent.is_none() || query.where_pred.is_some() || query.select.is_some() || query.collection_call.is_some() {
+            } else if query.parent.is_none()
+                || query.where_pred.is_some()
+                || query.select.is_some()
+                || query.collection_call.is_some()
+            {
                 return None;
             }
-            if let Some(call) = &query.collection_call {
-                if !self.checked.types.checked_collection_calls.values().any(|fact| fact == call.as_ref()) {
-                    return None;
-                }
+            if let Some(call) = &query.collection_call
+                && !self
+                    .checked
+                    .types
+                    .checked_collection_calls
+                    .values()
+                    .any(|fact| fact == call.as_ref())
+            {
+                return None;
             }
             self.record_model_query_parts(query, candidate, depth)
         }
-        fn visit_query(&mut self, query: &IrQuery, value: &TypedExpr, depth: usize) -> Option<bool> {
+        fn visit_query(
+            &mut self,
+            query: &IrQuery,
+            value: &TypedExpr,
+            depth: usize,
+        ) -> Option<bool> {
             if matches!(&query.domain, super::ir::IrQueryDomain::Value { .. }) {
                 self.visit_value_domain_query(query, value, depth)?;
                 Some(true)
@@ -3471,7 +3693,12 @@ pub(crate) fn checked_query_rule_fields(
         fn resolve_any_domain(&self, query: &IrQuery) -> Option<ResolvedType> {
             match &query.domain {
                 super::ir::IrQueryDomain::Model(canonical) => Some(ResolvedType::Record {
-                    symbol: self.program.items.iter().find(|item| item.canonical == *canonical)?.id,
+                    symbol: self
+                        .program
+                        .items
+                        .iter()
+                        .find(|item| item.canonical == *canonical)?
+                        .id,
                     stored: true,
                 }),
                 super::ir::IrQueryDomain::Value { base, .. } => {
@@ -3499,7 +3726,13 @@ pub(crate) fn checked_query_rule_fields(
             let IrExpr::Query(query) = &formal[0].expr else {
                 return None;
             };
-            super::scenario_decisions::checked_collection_lambda(self.checked, args, formal[1], value.span, self.db)?;
+            super::scenario_decisions::checked_collection_lambda(
+                self.checked,
+                args,
+                formal[1],
+                value.span,
+                self.db,
+            )?;
             let candidate = self.resolve_any_domain(query)?;
             self.bindings.push((param.clone(), candidate));
             self.expr(body, depth + 1)?;
@@ -3586,11 +3819,28 @@ pub(crate) fn checked_query_rule_fields(
             let IrCallTarget::Builtin { id, awaited: false } = target else {
                 return Some(false);
             };
-            if !matches!(id.as_str(), "any" | "all" | "group" | "min" | "max" | "sum" | "count" | "money" | "trim" | "starts_with" | "local_instant" | "add_days" | "date" | "overlaps") {
+            if !matches!(
+                id.as_str(),
+                "any"
+                    | "all"
+                    | "group"
+                    | "min"
+                    | "max"
+                    | "sum"
+                    | "count"
+                    | "money"
+                    | "trim"
+                    | "starts_with"
+                    | "local_instant"
+                    | "add_days"
+                    | "date"
+                    | "overlaps"
+            ) {
                 return None;
             }
             let formal = self.call_arguments(value, id, args)?;
-            if id == "count" && matches!(formal.as_slice(), [domain]
+            if id == "count"
+                && matches!(formal.as_slice(), [domain]
                 if matches!(&domain.expr, IrExpr::Query(query) if query.source.is_none() && query.parent.is_none()))
             {
                 return self.bare_model_count(formal[0], depth + 1).map(|_| true);
@@ -3606,9 +3856,10 @@ pub(crate) fn checked_query_rule_fields(
         }
         fn visit_unary_binary(&mut self, value: &TypedExpr, depth: usize) -> Option<bool> {
             match &value.expr {
-                IrExpr::Unary { op: IrUnOp::Not | IrUnOp::Neg, operand } => {
-                    self.expr(operand, depth + 1).map(|_| true)
-                }
+                IrExpr::Unary {
+                    op: IrUnOp::Not | IrUnOp::Neg,
+                    operand,
+                } => self.expr(operand, depth + 1).map(|_| true),
                 IrExpr::Binary { left, right, .. } => {
                     // Operators have their original checked types in the fresh
                     // source join; neither an opaque value nor a call can enter.
@@ -3659,10 +3910,30 @@ pub(crate) fn checked_query_rule_fields(
         }
     }
     policy_model(program, model)?;
-    if predicate.ty != ResolvedType::Scalar(Scalar::Bool) { return None; }
-    let mut rule = Rule { checked, program, db, catalog, owner: model,
-        profile: CheckedQueryRuleProfile { fields: Vec::new(), query_models: Vec::new(), dependencies: Vec::new() },
-        bindings: vec![("row".into(), ResolvedType::Record { symbol: model, stored: true })], derives: HashSet::new(), remaining: 4096 };
+    if predicate.ty != ResolvedType::Scalar(Scalar::Bool) {
+        return None;
+    }
+    let mut rule = Rule {
+        checked,
+        program,
+        db,
+        catalog,
+        owner: model,
+        profile: CheckedQueryRuleProfile {
+            fields: Vec::new(),
+            query_models: Vec::new(),
+            dependencies: Vec::new(),
+        },
+        bindings: vec![(
+            "row".into(),
+            ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            },
+        )],
+        derives: HashSet::new(),
+        remaining: 4096,
+    };
     rule.expr(predicate, 0)?;
     Some(rule.profile)
 }
@@ -3723,7 +3994,12 @@ pub(crate) fn checked_local_rule_fields(
             {
                 return None;
             }
-            if let IrExpr::Binary { op: IrBinOp::Coalesce, left, right } = &args[0].expr {
+            if let IrExpr::Binary {
+                op: IrBinOp::Coalesce,
+                left,
+                right,
+            } = &args[0].expr
+            {
                 if left.ty != ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::Text)))
                     || right.ty != ResolvedType::Scalar(Scalar::Text)
                     || !matches!(right.expr, IrExpr::Text(_))
@@ -3802,7 +4078,12 @@ pub(crate) fn checked_local_rule_fields(
         };
         let ty = read.ty.nullable_inner().unwrap_or(&read.ty);
         match ty {
-            ResolvedType::Record { symbol, stored: true } => { policy_model(program, *symbol)?; }
+            ResolvedType::Record {
+                symbol,
+                stored: true,
+            } => {
+                policy_model(program, *symbol)?;
+            }
             // Presence is a local owning-row fact. Decoding the exact declared
             // delivery wire grants no delivery status or result observation.
             ResolvedType::StdDelivery { .. } | ResolvedType::Scalar(Scalar::Text)
@@ -3915,4 +4196,3 @@ pub(crate) fn checked_local_rule_fields(
     )?;
     Some(fields)
 }
-

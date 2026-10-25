@@ -24,10 +24,6 @@ use crate::diagnostic::Diagnostic;
 use crate::source::Span;
 use std::collections::{BTreeMap, BTreeSet};
 
-/// Unit pins for checker branches the parser makes unreachable from
-/// source (hand-built tables still route through them): missing `from`,
-/// target-less renames, non-`before` sources, and empty invalidates.
-
 /// One desired (declared) model of the migration owner module: local
 /// name plus local field names. `None` at [`check_migration`] means the
 /// owner names no module (an [`E6010`]); target-existence checks then

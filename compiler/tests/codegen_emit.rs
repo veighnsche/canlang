@@ -7,8 +7,8 @@
 
 use canlang_compiler::analysis::types::{ResolvedType, Scalar};
 use canlang_compiler::codegen::ir::{
-    expr_uses_async, is_structural, scalar_family, IrCallTarget, IrExpr, IrQuery, IrQueryDomain,
-    IrUnOp, ScalarFamily, TypedExpr,
+    IrCallTarget, IrExpr, IrQuery, IrQueryDomain, IrUnOp, ScalarFamily, TypedExpr, expr_uses_async,
+    is_structural, scalar_family,
 };
 use canlang_compiler::codegen::js;
 use canlang_compiler::source::{SourceId, Span};

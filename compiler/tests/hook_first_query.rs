@@ -9,9 +9,9 @@
 //! Everything else keeps its exact current E6008 refusal.
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::{CheckedProgram, check_program};
+use canlang_compiler::codegen::artifact::to_json;
 use canlang_compiler::codegen::ir::IrProgram;
 use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
-use canlang_compiler::codegen::artifact::to_json;
 use canlang_compiler::diagnostic::{Diagnostic, DiagnosticResult};
 use canlang_compiler::source::{SourceDb, Span};
 use std::path::{Path, PathBuf};
@@ -129,7 +129,10 @@ fn hook_event_first_query_admits_single_text_shape() {
     let queries = plan["queries"].as_array().unwrap();
     assert_eq!(queries.len(), 1);
     assert_eq!(queries[0]["model"], "HookFirst.Budget");
-    assert!(queries[0].get("parent").is_none(), "unscoped hook scan keeps no parent");
+    assert!(
+        queries[0].get("parent").is_none(),
+        "unscoped hook scan keeps no parent"
+    );
     assert_eq!(queries[0]["order"], serde_json::json!([]));
     assert_eq!(queries[0]["archived"], "exclude");
     let dependencies = queries[0]["dependencies"].as_array().unwrap();

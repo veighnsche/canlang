@@ -14,7 +14,8 @@ use canlang_compiler::source::{SourceDb, Span, sha256_hex};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const SOURCE: &str = include_str!("../../packages/cloudflare/test/fixtures/native-generation-receiving.can");
+const SOURCE: &str =
+    include_str!("../../packages/cloudflare/test/fixtures/native-generation-receiving.can");
 const OWNER: &str = "NativeGenerationReceiving.generate";
 
 fn root() -> PathBuf {
@@ -666,7 +667,12 @@ fn cli_builtin_call_in_body_keeps_first_query_receipt() {
     let source = "app T3\nGiven\n Budget {account:user,active:bool,running:int=0,parallel:int=1}\n Run {budget:Budget,label:text}\n policy Budget read=members\n policy Run read=members\nWhen\n crud Budget by=members fields=account,active,running,parallel\n crud Run by=members fields=budget,label\n scenario pick(label:text=\"x\") -> Run by=members\n  do\n   let budget=first(Budget as row where row.account==actor order=row.id)\n   require budget!=null and budget.active\n   let note=trim(label)\n   create Run {budget,label=note} as run\n   return run\nThen\n";
     std::fs::write(&source_path, source.as_bytes()).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_can"))
-        .args(["compile", "--native-scenario-receipts", "--format=json", "--catalog"])
+        .args([
+            "compile",
+            "--native-scenario-receipts",
+            "--format=json",
+            "--catalog",
+        ])
         .arg(native_catalog())
         .arg(&source_path)
         .current_dir(root())
@@ -688,7 +694,12 @@ fn cli_derive_call_in_body_keeps_first_query_receipt() {
     let source = "app T4\nGiven\n Conversation {account:user,active:bool}\n Budget {account:user,active:bool,running:int=0,parallel:int=1}\n Run {budget:Budget,conversation:Conversation,label:text}\n policy Conversation read=members\n policy Budget read=members\n policy Run read=members\n derive can_use(person:user?,conversation:Conversation):bool = person!=null and conversation.account==person and conversation.active\nWhen\n crud Conversation by=members fields=account,active\n crud Budget by=members fields=account,active,running,parallel\n crud Run by=members fields=budget,conversation,label\n scenario pick(conversation:Conversation,label:text=\"x\") -> Run by=members\n  require can_use(actor,conversation)\n  do\n   let budget=first(Budget as row where row.account==actor order=row.id)\n   require budget!=null and budget.active\n   create Run {budget,conversation,label} as run\n   return run\nThen\n";
     std::fs::write(&source_path, source.as_bytes()).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_can"))
-        .args(["compile", "--native-scenario-receipts", "--format=json", "--catalog"])
+        .args([
+            "compile",
+            "--native-scenario-receipts",
+            "--format=json",
+            "--catalog",
+        ])
         .arg(native_catalog())
         .arg(&source_path)
         .current_dir(root())

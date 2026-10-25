@@ -84,7 +84,9 @@ fn checked_table_time_reaches_native_identity_queries_and_rows() {
     let artifact = scratch.path().join("artifact.json");
     std::fs::write(&artifact, compiled.stdout).unwrap();
     let consumer = Command::new("node")
-        .arg(root.join("docs/implementation/compiler-completion/view-reuse/table-time-consumer.mjs"))
+        .arg(
+            root.join("docs/implementation/compiler-completion/view-reuse/table-time-consumer.mjs"),
+        )
         .arg(root)
         .arg(&artifact)
         .arg(scratch.path().join("staged"))
@@ -107,7 +109,9 @@ fn checked_table_time_reaches_native_identity_queries_and_rows() {
     let gated_artifact = scratch.path().join("gated-artifact.json");
     std::fs::write(&gated_artifact, compiled_gate.stdout).unwrap();
     let gated_consumer = Command::new("node")
-        .arg(root.join("docs/implementation/compiler-completion/view-reuse/table-time-consumer.mjs"))
+        .arg(
+            root.join("docs/implementation/compiler-completion/view-reuse/table-time-consumer.mjs"),
+        )
         .arg(root)
         .arg(&gated_artifact)
         .arg(scratch.path().join("gated-staged"))

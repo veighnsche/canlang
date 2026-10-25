@@ -86,7 +86,10 @@ fn disclosure<'a>(program: &'a CheckedProgram, name: &str) -> &'a ScenarioDisclo
 fn nested_any_query_completes_with_sealed_lineage() {
     let program = checked();
     assert!(
-        matches!(disclosure(&program, "probe.try"), ScenarioDisclosure::Complete(_)),
+        matches!(
+            disclosure(&program, "probe.try"),
+            ScenarioDisclosure::Complete(_)
+        ),
         "derive-nested navigation query completes"
     );
     assert!(
@@ -116,7 +119,9 @@ fn nested_any_query_completes_with_sealed_lineage() {
         panic!("parameter field against a derive result must not complete");
     };
     assert!(
-        decline.reason.contains("nullable reference selection or comparison"),
+        decline
+            .reason
+            .contains("nullable reference selection or comparison"),
         "unsealed parameter-field comparison keeps the refusal, got: {}",
         decline.reason
     );

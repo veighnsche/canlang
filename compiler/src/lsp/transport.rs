@@ -341,4 +341,3 @@ pub fn notification(method: &str, params: Json) -> String {
         ("params".to_string(), params),
     ]))
 }
-

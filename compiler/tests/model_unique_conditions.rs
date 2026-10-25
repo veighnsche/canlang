@@ -523,7 +523,12 @@ fn coordinated_checked_unique_fields_and_rebuilt_ir_cannot_replace_original_sour
         let (db, mut program, original) = checked(&source);
         assert!(collect_checked_model_rule_origins(&program, &original, &db, None).is_some());
         assert!(collect_checked_unique_conditions(&program, &original, &db, None).is_some());
-        let model = program.symbols.iter().find(|s| s.canonical == "Office.Item").unwrap().id;
+        let model = program
+            .symbols
+            .iter()
+            .find(|s| s.canonical == "Office.Item")
+            .unwrap()
+            .id;
         let unique = &mut program.effects.models.get_mut(&model).unwrap().uniques[0];
         if composite {
             unique.fields.reverse();
@@ -537,7 +542,12 @@ fn coordinated_checked_unique_fields_and_rebuilt_ir_cannot_replace_original_sour
     }
     for changed_anchor in ["fields", "where"] {
         let (db, mut program, _) = checked(SOURCE);
-        let model = program.symbols.iter().find(|s| s.canonical == "Office.Item").unwrap().id;
+        let model = program
+            .symbols
+            .iter()
+            .find(|s| s.canonical == "Office.Item")
+            .unwrap()
+            .id;
         let data = program.effects.models.get_mut(&model).unwrap();
         if changed_anchor == "fields" {
             data.uniques[0].fields_node = data.locks[0].fields_node;

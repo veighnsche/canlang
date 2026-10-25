@@ -124,7 +124,10 @@ fn emit_hookrem(
     db: &SourceDb,
     result: &DiagnosticResult,
     catalog: &Catalog,
-) -> (canlang_compiler::codegen::artifact::CompileArtifact, Vec<Diagnostic>) {
+) -> (
+    canlang_compiler::codegen::artifact::CompileArtifact,
+    Vec<Diagnostic>,
+) {
     let sources = EmitSources {
         db,
         result,
@@ -274,7 +277,10 @@ fn hookrem_plan_reference_traversal_refused() {
         js.contains("transitive.openScope(\"value\")"),
         "value-site scope for body copies:\n{js}"
     );
-    assert!(!js.contains("has no lowering"), "no fail-closed placeholder:\n{js}");
+    assert!(
+        !js.contains("has no lowering"),
+        "no fail-closed placeholder:\n{js}"
+    );
 }
 
 /// File 14 shape (spans 8978..9007, 9331..9360):
@@ -302,7 +308,10 @@ fn hookrem_child_location_reference_refused() {
         js.contains("transitive.openScope(\"value\")"),
         "value-site scope for body copies:\n{js}"
     );
-    assert!(!js.contains("has no lowering"), "no fail-closed placeholder:\n{js}");
+    assert!(
+        !js.contains("has no lowering"),
+        "no fail-closed placeholder:\n{js}"
+    );
 }
 
 /// File 20 retire_asset shape (span 15653..15682):
@@ -330,7 +339,10 @@ fn hookrem_toplevel_location_reference_refused() {
         js.contains("transitive.openScope(\"value\")"),
         "value-site scope for body copies:\n{js}"
     );
-    assert!(!js.contains("has no lowering"), "no fail-closed placeholder:\n{js}");
+    assert!(
+        !js.contains("has no lowering"),
+        "no fail-closed placeholder:\n{js}"
+    );
 }
 
 /// File 8 shape (spans 59122..59148, 59519..59545):

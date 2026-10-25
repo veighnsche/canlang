@@ -5,6 +5,7 @@ use canlang_compiler::analysis::scenario_disclosure::{
     ScenarioDisclosure,
 };
 use canlang_compiler::analysis::{CheckedProgram, NodeKey, ResolvedType, Scalar, check_program};
+use canlang_compiler::codegen::artifact::to_json;
 use canlang_compiler::codegen::ir::{
     self, IrExpr, IrItem, IrItemKind, IrProgram, IrStmt, TypedExpr,
 };
@@ -12,7 +13,6 @@ use canlang_compiler::codegen::scenario_decisions::{
     collect_decision_sources, serialize_decision_sources,
 };
 use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, js};
-use canlang_compiler::codegen::artifact::to_json;
 use canlang_compiler::diagnostic::DiagnosticResult;
 use canlang_compiler::source::{SourceDb, Span, sha256_hex};
 use serde_json::Value;

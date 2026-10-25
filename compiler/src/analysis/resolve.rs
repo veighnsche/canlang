@@ -1364,8 +1364,7 @@ impl<'a> Resolver<'a> {
         let has_runtime = items
             .iter()
             .any(|item| Self::judgment_runtime_marker(item, text));
-        let options_record =
-            self.ensure_judgment_options_record(owner, node, has_runtime)?;
+        let options_record = self.ensure_judgment_options_record(owner, node, has_runtime)?;
         let version = Self::judgment_version(text, node);
         for (name, scalar) in [
             ("specification_revision", Scalar::Text),
@@ -1473,8 +1472,7 @@ impl<'a> Resolver<'a> {
         else {
             return Ok(());
         };
-        let Some((captions, instructions, options)) =
-            Self::read_judgment_evidence(text, &parts)
+        let Some((captions, instructions, options)) = Self::read_judgment_evidence(text, &parts)
         else {
             return Ok(());
         };
@@ -1568,7 +1566,11 @@ impl<'a> Resolver<'a> {
     fn read_judgment_evidence<'x>(
         text: &str,
         parts: &[&'x SyntaxNode],
-    ) -> Option<(Vec<&'x SyntaxNode>, &'x SyntaxNode, Vec<CheckedJudgmentOption>)> {
+    ) -> Option<(
+        Vec<&'x SyntaxNode>,
+        &'x SyntaxNode,
+        Vec<CheckedJudgmentOption>,
+    )> {
         let captions: Vec<_> = parts
             .iter()
             .copied()
@@ -5928,22 +5930,14 @@ impl<'a> Resolver<'a> {
             }
             if is_expression(part.kind) && (index != 0 || expected) {
                 // Caller selectors (roles, predicates and arrays) have their own E5 profile.
-                let caller_column =
-                    self.is_caller_column(text, rows, row, part, index, expected);
+                let caller_column = self.is_caller_column(text, rows, row, part, index, expected);
                 if !caller_column {
                     let expression_scope = if index == 0 && expected {
                         observation_scope
                     } else {
                         scope
                     };
-                    self.walk_expr(
-                        module,
-                        expression_scope,
-                        part,
-                        text,
-                        ExprCtx::bare(),
-                        diags,
-                    )?;
+                    self.walk_expr(module, expression_scope, part, text, ExprCtx::bare(), diags)?;
                 }
             }
         }
@@ -5960,9 +5954,7 @@ impl<'a> Resolver<'a> {
     ) -> Result<(), Diagnostic> {
         let mut root_node = part;
         while root_node.kind == SyntaxKind::Member {
-            if let Some(base) =
-                kids(root_node).into_iter().find(|n| is_expression(n.kind))
-            {
+            if let Some(base) = kids(root_node).into_iter().find(|n| is_expression(n.kind)) {
                 root_node = base;
             } else {
                 break;
@@ -7169,7 +7161,11 @@ impl<'a> Resolver<'a> {
             | SyntaxKind::Form => {
                 self.walk_container_ui(text, module, scope, node, diags)?;
             }
-            SyntaxKind::Edit | SyntaxKind::UiLeaf | SyntaxKind::Slot | SyntaxKind::PreferencePanel | SyntaxKind::CatalogItem => {
+            SyntaxKind::Edit
+            | SyntaxKind::UiLeaf
+            | SyntaxKind::Slot
+            | SyntaxKind::PreferencePanel
+            | SyntaxKind::CatalogItem => {
                 self.walk_leaf_ui(text, module, scope, node, diags)?;
             }
             _ => {}
@@ -7246,8 +7242,8 @@ impl<'a> Resolver<'a> {
             .into_iter()
             .filter_map(|n| name_text(n, text))
             .find(|name| *name != "show");
-        if let Some(target) = name
-            .and_then(|name| self.tables.views.get(&(module, name.to_string())).copied())
+        if let Some(target) =
+            name.and_then(|name| self.tables.views.get(&(module, name.to_string())).copied())
         {
             self.tables.show_views.insert(NodeKey::of(node), target);
         } else {
@@ -7428,17 +7424,14 @@ impl<'a> Resolver<'a> {
             .iter()
             .find_map(|n| name_text(n, text))
             .is_some_and(|word| matches!(word, "primary" | "secondary"))
+            && let Some(target) = attribute_value(node, "action", text)
         {
-            if let Some(target) = attribute_value(node, "action", text) {
-                self.walk_expr(module, scope, target, text, ExprCtx::bare(), diags)?;
-                let segments = expr_path_segments(target, text);
-                if let Some(operation) =
-                    self.resolve_op_path(module, &segments, target, text, diags)
-                {
-                    self.tables
-                        .node_symbol
-                        .insert(NodeKey::of(target), operation);
-                }
+            self.walk_expr(module, scope, target, text, ExprCtx::bare(), diags)?;
+            let segments = expr_path_segments(target, text);
+            if let Some(operation) = self.resolve_op_path(module, &segments, target, text, diags) {
+                self.tables
+                    .node_symbol
+                    .insert(NodeKey::of(target), operation);
             }
         }
         Ok(())
@@ -7460,9 +7453,7 @@ impl<'a> Resolver<'a> {
                 self.walk_object_values(module, scope, value, text, diags)?;
             } else if word == "review" && value.kind == SyntaxKind::Path {
                 let segments = path_segments(value, text);
-                if let Some(op) =
-                    self.resolve_op_path(module, &segments, value, text, diags)
-                {
+                if let Some(op) = self.resolve_op_path(module, &segments, value, text, diags) {
                     self.tables.node_symbol.insert(NodeKey::of(value), op);
                 }
             }
@@ -7523,9 +7514,7 @@ impl<'a> Resolver<'a> {
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
     ) -> Result<(), Diagnostic> {
-        if let Some((domain, model)) =
-            self.unknown_collection_presentation(module, text, node)
-        {
+        if let Some((domain, model)) = self.unknown_collection_presentation(module, text, node) {
             self.walk_catalog_presentation(text, module, scope, node, domain, model, diags)?;
             return Ok(());
         }
@@ -7601,7 +7590,9 @@ impl<'a> Resolver<'a> {
             self.walk_expr(module, scope, open, text, ExprCtx::bare(), diags)?;
         }
         // Destination controls carry real expressions, not catalog words.
-        if kids(node).iter().find_map(|n| name_text(n, text))
+        if kids(node)
+            .iter()
+            .find_map(|n| name_text(n, text))
             .is_some_and(|word| matches!(word, "button" | "link"))
             && (attribute_value(node, "target", text).is_some()
                 || attribute_value(node, "caption", text).is_some())
@@ -7840,9 +7831,7 @@ impl<'a> Resolver<'a> {
                         .unwrap_or(node.span);
                     diags.push(Diagnostic::error(
                         "E2006",
-                        format!(
-                            "helper '{name}' is codegen-only and cannot be called from source"
-                        ),
+                        format!("helper '{name}' is codegen-only and cannot be called from source"),
                         span,
                     ));
                     self.tables
@@ -7955,14 +7944,7 @@ impl<'a> Resolver<'a> {
                 } else {
                     for value in kids(part) {
                         if is_expression(value.kind) {
-                            self.walk_expr(
-                                module,
-                                extended,
-                                value,
-                                text,
-                                ExprCtx::bare(),
-                                diags,
-                            )?;
+                            self.walk_expr(module, extended, value, text, ExprCtx::bare(), diags)?;
                         }
                     }
                 }
@@ -8594,15 +8576,13 @@ pub fn check_given_application_refs(
                                 )),
                             }
                         }
-                        "operation" => {
-                            if !given_operation_known(&refs, &d.owner, value) {
-                                diags.push(dangling_given_reference(
-                                    "keyword operation argument",
-                                    value,
-                                    "scenario or CRUD operation",
-                                    arg.span,
-                                ));
-                            }
+                        "operation" if !given_operation_known(&refs, &d.owner, value) => {
+                            diags.push(dangling_given_reference(
+                                "keyword operation argument",
+                                value,
+                                "scenario or CRUD operation",
+                                arg.span,
+                            ));
                         }
                         _ => {}
                     }

@@ -1,8 +1,8 @@
 //! Source-owned required reference and Money paths in native owner invariants.
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::{CheckedProgram, check_program};
-use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
 use canlang_compiler::codegen::artifact::to_json;
+use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
 use canlang_compiler::diagnostic::DiagnosticResult;
 use canlang_compiler::source::{SourceDb, Span};
 use std::path::Path;

@@ -20,7 +20,10 @@ use std::process::Command;
 const SOURCE: &str = include_str!("fixtures/native-first-replay.can");
 
 fn root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().into()
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .into()
 }
 
 fn native_owner_root() -> PathBuf {
@@ -59,8 +62,8 @@ fn prepared_artifact(
     db: &SourceDb,
     catalog: &Catalog,
 ) -> (Value, Vec<Diagnostic>) {
+    use canlang_compiler::codegen::artifact::to_json;
     use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
-use canlang_compiler::codegen::artifact::to_json;
     let mut result = DiagnosticResult::new("first-query-replay", "1.0", 1);
     result.add_sources(db);
     let (artifact, diagnostics) = emit(
@@ -83,7 +86,7 @@ use canlang_compiler::codegen::artifact::to_json;
 
 use canlang_compiler::diagnostic::DiagnosticResult;
 
-fn operation<'a>(artifact: &'a Value) -> &'a Value {
+fn operation(artifact: &Value) -> &Value {
     artifact["operations"]
         .as_array()
         .unwrap()
@@ -177,16 +180,14 @@ fn replay_mutants_refuse() {
                 let IrStmt::Let { value, .. } = &mut effects[0] else {
                     panic!()
                 };
-                let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) =
-                    &mut value.expr
+                let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &mut value.expr
                 else {
                     panic!()
                 };
                 let IrExpr::Query(query) = &mut args[0].expr else {
                     panic!()
                 };
-                let IrExpr::Binary { right, .. } =
-                    &mut query.where_pred.as_mut().unwrap().expr
+                let IrExpr::Binary { right, .. } = &mut query.where_pred.as_mut().unwrap().expr
                 else {
                     panic!()
                 };
@@ -204,16 +205,14 @@ fn replay_mutants_refuse() {
                 let IrStmt::Let { value, .. } = &mut effects[0] else {
                     panic!()
                 };
-                let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) =
-                    &mut value.expr
+                let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &mut value.expr
                 else {
                     panic!()
                 };
                 let IrExpr::Query(query) = &mut args[0].expr else {
                     panic!()
                 };
-                let IrExpr::Binary { left, .. } =
-                    &mut query.where_pred.as_mut().unwrap().expr
+                let IrExpr::Binary { left, .. } = &mut query.where_pred.as_mut().unwrap().expr
                 else {
                     panic!()
                 };
@@ -234,8 +233,7 @@ fn replay_mutants_refuse() {
                 let IrStmt::Let { value, .. } = &mut effects[0] else {
                     panic!()
                 };
-                let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) =
-                    &mut value.expr
+                let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &mut value.expr
                 else {
                     panic!()
                 };
@@ -258,8 +256,7 @@ fn replay_mutants_refuse() {
                     if let IrStmt::If { then_branch, .. } = statement {
                         for nested in then_branch.iter_mut() {
                             if let IrStmt::Return {
-                                value: Some(value),
-                                ..
+                                value: Some(value), ..
                             } = nested
                             {
                                 value.expr = IrExpr::Name("receipt".into());
@@ -325,8 +322,12 @@ fn other_shapes_stay_refused() {
         let (db, program, _, catalog) = fixture_source("refused-replay.can", &source);
         let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
         assert!(
-            diagnostics.iter().any(|diagnostic| diagnostic.code == "E6008"
-                && diagnostic.message.contains("original native query correspondence")),
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"
+                    && diagnostic
+                        .message
+                        .contains("original native query correspondence")),
             "{mode}: expected loud first-query refusal, got {diagnostics:?}"
         );
     }
@@ -354,19 +355,29 @@ When
    create Payable {parent=order,invoice,amount,location_id=order.location.id} as payable
    return payable
 Then
-"#.to_string();
+"#
+    .to_string();
     let (db, program, _, catalog) = fixture_source("contained-replay.can", &contained);
     let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
-    let operation = artifact["operations"].as_array().unwrap().iter()
-        .find(|operation| operation["name"] == "ContainedSources.record").unwrap();
+    let operation = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "ContainedSources.record")
+        .unwrap();
     let plan = &operation["result"]["disclosure"];
-    assert_eq!(plan["queries"][0]["parent"]["model"], "ContainedSources.Order");
+    assert_eq!(
+        plan["queries"][0]["parent"]["model"],
+        "ContainedSources.Order"
+    );
     assert_eq!(plan["queries"][0]["parent"]["origin"]["parameter"], "order");
     assert_eq!(plan["returns"].as_array().unwrap().len(), 2);
     let emitted = artifact["modules"][0]["js"].as_str().unwrap();
-    assert!(emitted.contains("(await readScenarioReceiptStoredReference(c,"),
-        "original stored reference.id must promote its exact observed source before the id marker");
+    assert!(
+        emitted.contains("(await readScenarioReceiptStoredReference(c,"),
+        "original stored reference.id must promote its exact observed source before the id marker"
+    );
 }
 
 #[test]
@@ -409,7 +420,10 @@ fn genuine_cli_replay_keeps_source_order() {
         serde_json::json!([{ "field": "id", "direction": "asc" }])
     );
     assert_eq!(
-        operation["result"]["disclosure"]["returns"].as_array().unwrap().len(),
+        operation["result"]["disclosure"]["returns"]
+            .as_array()
+            .unwrap()
+            .len(),
         2
     );
     assert_eq!(
@@ -445,9 +459,17 @@ When
 Then
 "#;
     let (db, program, ir, catalog) = fixture_source("parent-replay.can", source);
-    let owner = ir.items.iter().find(|item| item.canonical == "ParentReplay.receive").unwrap();
-    let recipe = serialize_complete_query_receipt(&program, &ir, owner, &db, Some(&catalog), "parent.mjs");
-    assert!(recipe.is_some(), "parent SET requires a complete source/executable receipt");
+    let owner = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "ParentReplay.receive")
+        .unwrap();
+    let recipe =
+        serialize_complete_query_receipt(&program, &ir, owner, &db, Some(&catalog), "parent.mjs");
+    assert!(
+        recipe.is_some(),
+        "parent SET requires a complete source/executable receipt"
+    );
     let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let emitted = artifact["modules"][0]["js"].as_str().unwrap();
@@ -455,21 +477,42 @@ Then
     assert!(emitted.contains("await set(c,"));
     let owner_id = owner.id;
     let mut changed = ir.clone();
-    let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner_id.0 as usize].kind else { panic!() };
-    let record = effects.iter_mut().find_map(|statement| match statement {
-        IrStmt::Set { record, .. } => Some(record), _ => None,
-    }).unwrap();
-    let IrExpr::Member { base, .. } = &mut record.expr else { panic!() };
+    let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner_id.0 as usize].kind else {
+        panic!()
+    };
+    let record = effects
+        .iter_mut()
+        .find_map(|statement| match statement {
+            IrStmt::Set { record, .. } => Some(record),
+            _ => None,
+        })
+        .unwrap();
+    let IrExpr::Member { base, .. } = &mut record.expr else {
+        panic!()
+    };
     base.expr = IrExpr::Name("other".into());
-    assert!(serialize_complete_query_receipt(&program, &changed, &changed.items[owner_id.0 as usize],
-        &db, Some(&catalog), "parent.mjs").is_none(), "same-typed parent row swap must refuse");
+    assert!(
+        serialize_complete_query_receipt(
+            &program,
+            &changed,
+            &changed.items[owner_id.0 as usize],
+            &db,
+            Some(&catalog),
+            "parent.mjs"
+        )
+        .is_none(),
+        "same-typed parent row swap must refuse"
+    );
     // Parent mutation is a reusable prerequisite, not permission to lower an
     // unobserved post-write sibling domain through the same first receipt.
     let all_source = source.replace("   return receipt\nThen", "   if all(line.parent.Line as item,item.sku==\"one\")\n    set line.parent {state=\"done\"}\n   return receipt\nThen");
-    let (all_db, all_program, _, all_catalog) = fixture_source("parent-all-refusal.can", &all_source);
+    let (all_db, all_program, _, all_catalog) =
+        fixture_source("parent-all-refusal.can", &all_source);
     let (_, refused) = prepared_artifact(&all_program, &all_db, &all_catalog);
-    assert!(refused.iter().any(|diagnostic| diagnostic.code == "E6008"),
-        "post-write ALL needs an independent receipt/runtime profile");
+    assert!(
+        refused.iter().any(|diagnostic| diagnostic.code == "E6008"),
+        "post-write ALL needs an independent receipt/runtime profile"
+    );
 }
 
 #[test]
@@ -478,18 +521,57 @@ fn purchase_post_write_all_seals_aggregate_bodies_and_emits_its_distinct_frame()
     let (db, program, _, catalog) = fixture_source("purchase-receive-all.can", source);
     let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
-    let owner = artifact["operations"].as_array().unwrap().iter().find(|op| op["name"] == "purchase.receive").unwrap();
-    assert_eq!(owner["result"]["disclosure"]["purchaseReceiveAll"]["stage"], 3);
-    assert!(artifact["modules"].as_array().unwrap().iter().any(|module| module["js"].as_str().unwrap().contains("await evaluateScenarioReceiptPurchaseAll(c,")));
-    let unrelated = format!("{source}\npackage unrelated\n Given\n  Row {{label:text}}\n  policy Row read=members\n When\n  scenario unsupported() -> Row? by=members\n   do\n    return first(Row as row order=row.id)\n Then\n");
-    let (unrelated_db, unrelated_program, _, unrelated_catalog) = fixture_source("purchase-unrelated.can", &unrelated);
-    let (partial, unrelated_diagnostics) = prepared_artifact(&unrelated_program, &unrelated_db, &unrelated_catalog);
-    assert!(unrelated_diagnostics.iter().any(|diagnostic| diagnostic.code == "E6008"));
-    let retained = partial["operations"].as_array().unwrap().iter().find(|op| op["name"] == "purchase.receive").unwrap();
-    assert_eq!(retained["result"]["disclosure"]["purchaseReceiveAll"]["stage"], 3,
-        "an unrelated lowering refusal cannot orphan the exact Receipt rules");
-    let changed = source.replace("row.quantity+sum(row.Amendment as amendment select amendment.quantity)", "row.quantity");
+    let owner = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|op| op["name"] == "purchase.receive")
+        .unwrap();
+    assert_eq!(
+        owner["result"]["disclosure"]["purchaseReceiveAll"]["stage"],
+        3
+    );
+    assert!(
+        artifact["modules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|module| module["js"]
+                .as_str()
+                .unwrap()
+                .contains("await evaluateScenarioReceiptPurchaseAll(c,"))
+    );
+    let unrelated = format!(
+        "{source}\npackage unrelated\n Given\n  Row {{label:text}}\n  policy Row read=members\n When\n  scenario unsupported() -> Row? by=members\n   do\n    return first(Row as row order=row.id)\n Then\n"
+    );
+    let (unrelated_db, unrelated_program, _, unrelated_catalog) =
+        fixture_source("purchase-unrelated.can", &unrelated);
+    let (partial, unrelated_diagnostics) =
+        prepared_artifact(&unrelated_program, &unrelated_db, &unrelated_catalog);
+    assert!(
+        unrelated_diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008")
+    );
+    let retained = partial["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|op| op["name"] == "purchase.receive")
+        .unwrap();
+    assert_eq!(
+        retained["result"]["disclosure"]["purchaseReceiveAll"]["stage"], 3,
+        "an unrelated lowering refusal cannot orphan the exact Receipt rules"
+    );
+    let changed = source.replace(
+        "row.quantity+sum(row.Amendment as amendment select amendment.quantity)",
+        "row.quantity",
+    );
     let (db, program, _, catalog) = fixture_source("purchase-all-altered.can", &changed);
     let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
-    assert!(diagnostics.iter().any(|diagnostic| diagnostic.code == "E6008"));
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008")
+    );
 }

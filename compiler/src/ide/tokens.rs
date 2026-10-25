@@ -141,10 +141,7 @@ fn walk_inner(
     }
 }
 
-fn classify_binding_use(
-    tables: &ResolveTables,
-    binding: &Binding,
-) -> Option<(&'static str, u32)> {
+fn classify_binding_use(tables: &ResolveTables, binding: &Binding) -> Option<(&'static str, u32)> {
     match binding {
         Binding::Symbol(id) => {
             let symbol = tables.symbols.get(id.0 as usize)?;

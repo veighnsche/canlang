@@ -118,10 +118,7 @@ fn unknown_completion_op_and_bare_operation_still_refuse() {
     );
     // A bare operation name is not a completion source: the checker points
     // at the `.completed` form instead of admitting a trigger.
-    let bare = SOURCE.replace(
-        "on=BillV1.reconcile.completed",
-        "on=BillV1.reconcile",
-    );
+    let bare = SOURCE.replace("on=BillV1.reconcile.completed", "on=BillV1.reconcile");
     let mut db = SourceDb::new();
     let id = db.add("delivery-completion-bare.can".into(), bare);
     let (_, diagnostics) = check_program(&db, &[id], Some(&catalog));

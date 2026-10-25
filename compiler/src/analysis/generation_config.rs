@@ -1066,18 +1066,17 @@ pub fn preflight_recipe(recipe: &EffectiveRecipe) -> Result<(), ConfigError> {
             ));
         }
     }
-    if recipe.runner == "codex" {
-        if let Some(value) = recipe.native.get("model_reasoning_effort") {
-            if !matches!(
-                value.as_str(),
-                Some("low" | "medium" | "high" | "xhigh" | "max" | "ultra")
-            ) {
-                return Err(ConfigError::new(
-                    "invalid-native-option",
-                    "Codex model_reasoning_effort must be low, medium, high, xhigh, max or ultra",
-                ));
-            }
-        }
+    if recipe.runner == "codex"
+        && let Some(value) = recipe.native.get("model_reasoning_effort")
+        && !matches!(
+            value.as_str(),
+            Some("low" | "medium" | "high" | "xhigh" | "max" | "ultra")
+        )
+    {
+        return Err(ConfigError::new(
+            "invalid-native-option",
+            "Codex model_reasoning_effort must be low, medium, high, xhigh, max or ultra",
+        ));
     }
     check_launch_capability(
         &recipe.runner,

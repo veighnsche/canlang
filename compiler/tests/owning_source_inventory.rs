@@ -59,9 +59,8 @@ fn load_test_catalog() -> (tempfile::TempDir, Catalog) {
 fn load_catalog_text(entries: &str) -> (tempfile::TempDir, Catalog) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("catalog.json");
-    let document = format!(
-        r#"{{"language_version":"1.0","catalog_version":"0.1.0","entries":[{entries}]}}"#
-    );
+    let document =
+        format!(r#"{{"language_version":"1.0","catalog_version":"0.1.0","entries":[{entries}]}}"#);
     std::fs::write(&path, document).unwrap();
     let mut anchor = SourceDb::new();
     let id = anchor.add("anchor.can".into(), String::new());
@@ -108,12 +107,15 @@ fn membership_calls(program: &CheckedProgram) -> usize {
         .count()
 }
 
-fn call_targets(site: &canlang_compiler::codegen::scenario_decisions::SerialDecisionSite) -> Vec<String> {
+fn call_targets(
+    site: &canlang_compiler::codegen::scenario_decisions::SerialDecisionSite,
+) -> Vec<String> {
     site.calls
         .iter()
         .map(|call| match &call.target {
             SerialDecisionTarget::Builtin { id, overload } => format!("builtin:{id}#{overload}"),
             SerialDecisionTarget::Derive { name } => format!("derive:{name}"),
+            SerialDecisionTarget::Role { name } => format!("role:{name}"),
         })
         .collect()
 }
@@ -166,8 +168,10 @@ fn assert_policy_inventory(
             "site node belongs to its statement: {site:?}"
         );
         let targets = call_targets(site);
-        let expected_targets: Vec<String> =
-            expected.iter().map(|(target, _)| target.to_string()).collect();
+        let expected_targets: Vec<String> = expected
+            .iter()
+            .map(|(target, _)| target.to_string())
+            .collect();
         assert_eq!(targets, expected_targets, "exact helper-transitive chain");
         assert_eq!(site.calls.len(), expected.len());
         for (call, (_, call_module)) in site.calls.iter().zip(expected.iter()) {
@@ -248,19 +252,30 @@ fn assert_membership_owners(
     for (owner, entries) in sites.as_object().unwrap() {
         for entry in entries.as_array().unwrap() {
             let map = entry.as_object().unwrap();
-            let mut keys: Vec<&str> =
-                map.keys().map(|key| key.as_str()).collect();
+            let mut keys: Vec<&str> = map.keys().map(|key| key.as_str()).collect();
             keys.sort();
             assert_eq!(
                 keys,
-                ["calls", "node", "owner", "position", "source", "stage", "statement", "version"],
+                [
+                    "calls",
+                    "node",
+                    "owner",
+                    "position",
+                    "source",
+                    "stage",
+                    "statement",
+                    "version"
+                ],
                 "closed State inventory shape for {owner}"
             );
             assert_eq!(map["version"].as_u64(), Some(1));
             assert_eq!(map["owner"].as_str(), Some(owner.as_str()));
             assert_eq!(map["position"], serde_json::Value::Array(Vec::new()));
             assert!(
-                matches!(map["stage"].as_str(), Some("read-policy" | "read-predicate")),
+                matches!(
+                    map["stage"].as_str(),
+                    Some("read-policy" | "read-predicate")
+                ),
                 "closed stage for {owner}"
             );
             let entry_source = &map["source"];
@@ -269,10 +284,16 @@ fn assert_membership_owners(
             assert!(entry_source["module"].is_string(), "{owner}");
             for call in map["calls"].as_array().unwrap() {
                 assert_eq!(call["source"]["path"].as_str(), Some(PATH));
-                assert_eq!(call["source"]["sha256"].as_str(), Some(fixture.sha.as_str()));
+                assert_eq!(
+                    call["source"]["sha256"].as_str(),
+                    Some(fixture.sha.as_str())
+                );
                 for frame in call["chain"].as_array().unwrap() {
                     assert_eq!(frame["source"]["path"].as_str(), Some(PATH));
-                    assert_eq!(frame["source"]["sha256"].as_str(), Some(fixture.sha.as_str()));
+                    assert_eq!(
+                        frame["source"]["sha256"].as_str(),
+                        Some(fixture.sha.as_str())
+                    );
                 }
             }
         }
@@ -295,7 +316,13 @@ fn helper_shapes_carry_exact_owning_sources() {
             &catalog,
             "Entry.read.1",
             module,
-            &[vec![], vec![(derive.as_str(), module), ("builtin:active_member#0", defining)]],
+            &[
+                vec![],
+                vec![
+                    (derive.as_str(), module),
+                    ("builtin:active_member#0", defining),
+                ],
+            ],
         );
         let predicates = serialize_read_predicate_sources(
             &fixture.program,
@@ -399,7 +426,11 @@ fn nonbool_derived_field_publishes_owning_source() {
     );
     let tag = &sites["Inv.Entry.tag"];
     let entries = tag.as_array().unwrap();
-    assert_eq!(entries.len(), 1, "one field site, never duplicated: {entries:?}");
+    assert_eq!(
+        entries.len(),
+        1,
+        "one field site, never duplicated: {entries:?}"
+    );
     let entry = &entries[0];
     assert_eq!(entry["stage"].as_str(), Some("read-predicate"));
     assert_eq!(entry["owner"].as_str(), Some("Inv.Entry.tag"));
@@ -422,7 +453,11 @@ fn nonbool_derived_field_publishes_owning_source() {
         .collect();
     assert_eq!(
         calls,
-        vec!["derive:Inv.ok", "builtin:active_member#0", "builtin:choose#0"]
+        vec![
+            "derive:Inv.ok",
+            "builtin:active_member#0",
+            "builtin:choose#0"
+        ]
     );
 }
 
@@ -442,7 +477,10 @@ fn unbound_page_require_publishes_owning_source_without_model() {
     let entry = &entries[0];
     assert_eq!(entry["stage"].as_str(), Some("read-predicate"));
     assert_eq!(entry["owner"].as_str(), Some("Inv.InvEntriesPage"));
-    assert!(entry.get("model").is_none(), "no invented row owner: {entry:?}");
+    assert!(
+        entry.get("model").is_none(),
+        "no invented row owner: {entry:?}"
+    );
     let calls: Vec<String> = entry["calls"]
         .as_array()
         .unwrap()
@@ -486,7 +524,7 @@ fn tampered_source_refuses_inventory() {
     let tampered = HELPER.replacen("app Inv", "app  Inv", 1);
     assert_ne!(tampered, HELPER);
     let mut db = SourceDb::new();
-    let id = db.add(PATH.into(), tampered.into());
+    let id = db.add(PATH.into(), tampered);
     let (program, diagnostics) = check_program(&db, &[id], Some(&catalog));
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let rule = fixture
@@ -528,8 +566,13 @@ fn mismatched_program_and_ir_refuse_inventory() {
         "foreign owning program refuses"
     );
     assert!(
-        serialize_read_predicate_sources(&helper.program, &imported.ir, &imported.db, Some(&catalog))
-            .is_none(),
+        serialize_read_predicate_sources(
+            &helper.program,
+            &imported.ir,
+            &imported.db,
+            Some(&catalog)
+        )
+        .is_none(),
         "foreign owning program refuses predicates"
     );
 }
@@ -542,7 +585,9 @@ fn forged_catalog_signature_refuses_membership() {
     let id = db.add(PATH.into(), HELPER.into());
     let (program, diagnostics) = check_program(&db, &[id], Some(&catalog));
     assert!(
-        diagnostics.iter().any(|diagnostic| diagnostic.code == "E3010"),
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E3010"),
         "forged person type refuses checking: {diagnostics:?}"
     );
     let (ir, _) = ir::build(&program, &db, Some(&catalog));

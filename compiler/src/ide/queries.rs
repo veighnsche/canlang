@@ -521,7 +521,7 @@ impl<'a> Snapshot<'a> {
     fn check_rename_identities(
         &self,
         candidate: &Snapshot<'_>,
-        rename: &Rename,
+        _rename: &Rename,
         translate: &impl Fn(SourceId, u32) -> u32,
         original_name: &str,
     ) -> bool {
@@ -1045,11 +1045,13 @@ impl<'a> Snapshot<'a> {
                 let path = kids(owner)
                     .into_iter()
                     .find(|n| n.kind == SyntaxKind::Path)?;
-                Some(self.program
-                    .types
-                    .node_types
-                    .get(&NodeKey::of(path))?
-                    .clone())
+                Some(
+                    self.program
+                        .types
+                        .node_types
+                        .get(&NodeKey::of(path))?
+                        .clone(),
+                )
             }
             SyntaxKind::Create => {
                 let path = kids(owner)
@@ -1060,12 +1062,13 @@ impl<'a> Snapshot<'a> {
                     stored: true,
                 })
             }
-            SyntaxKind::Construct => Some(self
-                .program
-                .types
-                .node_types
-                .get(&NodeKey::of(owner))?
-                .clone()),
+            SyntaxKind::Construct => Some(
+                self.program
+                    .types
+                    .node_types
+                    .get(&NodeKey::of(owner))?
+                    .clone(),
+            ),
             _ => None,
         }
     }
@@ -1453,7 +1456,11 @@ impl<'a> Snapshot<'a> {
         None
     }
 
-    fn typeref_target(typeref: &TypeRef, segments: &[&SyntaxNode], here: usize) -> Option<Resolved> {
+    fn typeref_target(
+        typeref: &TypeRef,
+        segments: &[&SyntaxNode],
+        here: usize,
+    ) -> Option<Resolved> {
         match typeref {
             TypeRef::Symbol(id) => {
                 if here == segments.len() - 1 {
@@ -2206,9 +2213,7 @@ fn signature_collection_type(ty: &SigType) -> Option<String> {
         SigType::NonemptyCollection(inner) => {
             Some(format!("nonempty C<{}>", signature_type(inner)))
         }
-        SigType::OrderedCollection(inner) => {
-            Some(format!("ordered C<{}>", signature_type(inner)))
-        }
+        SigType::OrderedCollection(inner) => Some(format!("ordered C<{}>", signature_type(inner))),
         SigType::Nullable(inner) | SigType::Array(inner) => {
             let rendered = signature_type(inner);
             let rendered = if matches!(**inner, SigType::Union(_)) {
@@ -2405,9 +2410,7 @@ fn action_group_keywords(
                 | SyntaxKind::Tab
                 | SyntaxKind::Show
         ) && !kids(node).first().is_some_and(|head| {
-            head.kind == SyntaxKind::Name
-                && head.span.start <= offset
-                && offset <= head.span.end
+            head.kind == SyntaxKind::Name && head.span.start <= offset && offset <= head.span.end
         })
     });
     let word = |node: &SyntaxNode| {
@@ -2419,12 +2422,9 @@ fn action_group_keywords(
     let active_form = chain.iter().any(|node| {
         node.kind == SyntaxKind::Edit || (node.kind == SyntaxKind::Form && word(node) == "form")
     });
-    let Some(host) = host else {
-        return None;
-    };
+    let host = host?;
     if active_form {
-        if host.kind == SyntaxKind::Edit
-            || (host.kind == SyntaxKind::Form && word(host) == "form")
+        if host.kind == SyntaxKind::Edit || (host.kind == SyntaxKind::Form && word(host) == "form")
         {
             return Some(vec!["primary"]);
         }
@@ -2452,8 +2452,7 @@ fn action_group_keywords(
             .and_then(|index| index.checked_sub(1))
             .and_then(|index| chain.get(index))
             .is_some_and(|parent| {
-                parent.kind == SyntaxKind::CatalogItem
-                    && matches!(word(parent), "modal" | "drawer")
+                parent.kind == SyntaxKind::CatalogItem && matches!(word(parent), "modal" | "drawer")
             });
     if matches!(host.kind, SyntaxKind::Page | SyntaxKind::Card)
         || (host.kind == SyntaxKind::Collection && matches!(word(host), "list" | "table"))

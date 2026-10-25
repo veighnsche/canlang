@@ -737,70 +737,184 @@ fn standard_completion_projection_refuses_partial_skewed_raw_or_unknown_sources(
 #[test]
 fn full_driver_seals_original_invoice_terminal_census_body_and_catalog() {
     use canlang_compiler::analysis::{ResolvedType, Scalar};
-    use canlang_compiler::codegen::{emit, EmitOptions, EmitSources};
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
     use canlang_compiler::diagnostic::DiagnosticResult;
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    let source = std::fs::read_to_string(root.join(
-        "packages/cloudflare/test/fixtures/invoice-terminal-owner-probe.can")).unwrap();
+    let source = std::fs::read_to_string(
+        root.join("packages/cloudflare/test/fixtures/invoice-terminal-owner-probe.can"),
+    )
+    .unwrap();
     let mut db = SourceDb::new();
     let id = db.add("invoice-terminals.can".into(), source.clone());
     let path = root.join("packages/cloudflare/dist/native-catalog.json");
-    let (catalog, diagnostics) = load_catalog(&CatalogRequest { flag: Some(&path), env: None,
-        cwd: root, primary: Span::new(id,0,0) });
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(id, 0, 0),
+    });
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
-    let (original, diagnostics) = check_program(&db,&[id],catalog.as_ref());
+    let (original, diagnostics) = check_program(&db, &[id], catalog.as_ref());
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
-    let mut result = DiagnosticResult::new("terminal-source","1.0",1);
+    let mut result = DiagnosticResult::new("terminal-source", "1.0", 1);
     result.complete = true;
     let run = |program: &canlang_compiler::analysis::CheckedProgram, db: &SourceDb| {
-        emit(program,&EmitSources {db,result:&result,catalog:catalog.as_ref(),
-            options:EmitOptions {allow_incomplete_test_only:false,native_scenario_receipts:true}})
+        emit(
+            program,
+            &EmitSources {
+                db,
+                result: &result,
+                catalog: catalog.as_ref(),
+                options: EmitOptions {
+                    allow_incomplete_test_only: false,
+                    native_scenario_receipts: true,
+                },
+            },
+        )
     };
-    let (artifact, diagnostics) = run(&original,&db);
+    let (artifact, diagnostics) = run(&original, &db);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
-    let handlers = artifact.callables.iter().filter(|callable| callable.kind=="handler")
-        .map(|callable|callable.id.as_str()).collect::<std::collections::BTreeSet<_>>();
-    assert_eq!(handlers, std::collections::BTreeSet::from(["invoice.collected", "invoice.refunded",
-        "invoice.checkout_cancelled", "invoice.reconciled", "invoice.observe_commercial_payment"]));
+    let handlers = artifact
+        .callables
+        .iter()
+        .filter(|callable| callable.kind == "handler")
+        .map(|callable| callable.id.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        handlers,
+        std::collections::BTreeSet::from([
+            "invoice.collected",
+            "invoice.refunded",
+            "invoice.checkout_cancelled",
+            "invoice.reconciled",
+            "invoice.observe_commercial_payment"
+        ])
+    );
     // The older independent IR API retains its bounded body contract. Its
     // refusal cannot be promoted by standalone JS, even with source receipts.
-    let (legacy, diagnostics) = ir::build(&original,&db,catalog.as_ref());
-    assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"));
-    let standalone = js::emit_program_with_native_source_receipts(&legacy,true,&db);
-    assert!(standalone.diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"));
+    let (legacy, diagnostics) = ir::build(&original, &db, catalog.as_ref());
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008")
+    );
+    let standalone = js::emit_program_with_native_source_receipts(&legacy, true, &db);
+    assert!(
+        standalone
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008")
+    );
     for mutation in 0..9 {
-        let (mut changed, diagnostics) = check_program(&db,&[id],catalog.as_ref());
+        let (mut changed, diagnostics) = check_program(&db, &[id], catalog.as_ref());
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
-        let handler = changed.symbols.iter().find(|symbol|symbol.canonical=="invoice.collected").unwrap().id;
+        let handler = changed
+            .symbols
+            .iter()
+            .find(|symbol| symbol.canonical == "invoice.collected")
+            .unwrap()
+            .id;
         match mutation {
             0 => changed.effects.scenarios.get_mut(&handler).unwrap().on = None,
-            1 => {changed.effects.scenarios.remove(&handler);},
+            1 => {
+                changed.effects.scenarios.remove(&handler);
+            }
             2 => changed.types.std_delivery_completion_handlers.clear(),
-            3 => changed.types.std_delivery_completion_handlers.values_mut().find(|fact|fact.op=="collect").unwrap().canonical_operation="std.PaymentsV1.cancel".into(),
-            4 => changed.types.std_delivery_completion_handlers.values_mut().find(|fact|fact.op=="collect").unwrap().result_type="EmailAccepted".into(),
-            5 => changed.modules.iter_mut().flat_map(|module|&mut module.imports).find(|import|import.from.is_some()).unwrap().from=Some("deployment.other".into()),
-            6 => changed.effects.scenarios.get_mut(&handler).unwrap().effects.clear(),
-            7 => { let fact=changed.types.std_delivery_completion_handlers.values_mut().find(|fact|fact.op=="collect").unwrap(); fact.payload=ResolvedType::Scalar(Scalar::Text); },
-            8 => { let helper=changed.symbols.iter().find(|symbol|symbol.canonical=="invoice.settlement").unwrap().id;
-                changed.types.symbol_results.insert(helper,Some(ResolvedType::Scalar(Scalar::Text))); },
+            3 => {
+                changed
+                    .types
+                    .std_delivery_completion_handlers
+                    .values_mut()
+                    .find(|fact| fact.op == "collect")
+                    .unwrap()
+                    .canonical_operation = "std.PaymentsV1.cancel".into()
+            }
+            4 => {
+                changed
+                    .types
+                    .std_delivery_completion_handlers
+                    .values_mut()
+                    .find(|fact| fact.op == "collect")
+                    .unwrap()
+                    .result_type = "EmailAccepted".into()
+            }
+            5 => {
+                changed
+                    .modules
+                    .iter_mut()
+                    .flat_map(|module| &mut module.imports)
+                    .find(|import| import.from.is_some())
+                    .unwrap()
+                    .from = Some("deployment.other".into())
+            }
+            6 => changed
+                .effects
+                .scenarios
+                .get_mut(&handler)
+                .unwrap()
+                .effects
+                .clear(),
+            7 => {
+                let fact = changed
+                    .types
+                    .std_delivery_completion_handlers
+                    .values_mut()
+                    .find(|fact| fact.op == "collect")
+                    .unwrap();
+                fact.payload = ResolvedType::Scalar(Scalar::Text);
+            }
+            8 => {
+                let helper = changed
+                    .symbols
+                    .iter()
+                    .find(|symbol| symbol.canonical == "invoice.settlement")
+                    .unwrap()
+                    .id;
+                changed
+                    .types
+                    .symbol_results
+                    .insert(helper, Some(ResolvedType::Scalar(Scalar::Text)));
+            }
             _ => unreachable!(),
         }
-        let (_, diagnostics) = run(&changed,&db);
-        assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),
-            "edited source mutation {mutation} cannot prepare terminal handlers: {diagnostics:?}");
+        let (_, diagnostics) = run(&changed, &db);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"),
+            "edited source mutation {mutation} cannot prepare terminal handlers: {diagnostics:?}"
+        );
     }
-    let mut stale=SourceDb::new();
-    stale.add("invoice-terminals.can".into(),source.replace("limit=1","limit=2"));
-    let (_, diagnostics)=run(&original,&stale);
-    assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6011"),"{diagnostics:?}");
+    let mut stale = SourceDb::new();
+    stale.add(
+        "invoice-terminals.can".into(),
+        source.replace("limit=1", "limit=2"),
+    );
+    let (_, diagnostics) = run(&original, &stale);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6011"),
+        "{diagnostics:?}"
+    );
     // An independently unsupported declaration must keep its precise diagnostic;
     // the terminal candidate never filters other lowering errors.
-    let mut unrelated=SourceDb::new();
+    let mut unrelated = SourceDb::new();
     let bad=unrelated.add("invoice-terminals.can".into(),source.replace("  role finance", "  role finance\n  corpus Unsupported model=Invoice scope=source title=source content=source where=true from=deployment.knowledge"));
-    let (checked, diagnostics)=check_program(&unrelated,&[bad],catalog.as_ref());
-    assert!(diagnostics.is_empty(),"{diagnostics:?}");
-    let (partial, diagnostics)=run(&checked,&unrelated);
-    assert!(partial.modules.iter().any(|module|module.js.contains("standardCompletions:")),
-        "unrelated IR refusal must retain independent terminal preparation");
-    assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008" && diagnostic.message.contains("corpus")),"{diagnostics:?}");
+    let (checked, diagnostics) = check_program(&unrelated, &[bad], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (partial, diagnostics) = run(&checked, &unrelated);
+    assert!(
+        partial
+            .modules
+            .iter()
+            .any(|module| module.js.contains("standardCompletions:")),
+        "unrelated IR refusal must retain independent terminal preparation"
+    );
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008" && diagnostic.message.contains("corpus")),
+        "{diagnostics:?}"
+    );
 }

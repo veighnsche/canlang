@@ -116,7 +116,11 @@ fn decimal_range_refusals_and_action_target_construction() {
 #[test]
 fn isolated_decimal_helpers_pin_their_family_through_real_artifact_compatibility() {
     let scratch = tempfile::tempdir().unwrap();
-    std::os::unix::fs::symlink(root().join("node_modules"), scratch.path().join("node_modules")).unwrap();
+    std::os::unix::fs::symlink(
+        root().join("node_modules"),
+        scratch.path().join("node_modules"),
+    )
+    .unwrap();
     let helpers = [
         ("parseDecimal", "decimal", "1.5"),
         ("addDecimal", "decimal", "a+b"),
@@ -128,28 +132,69 @@ fn isolated_decimal_helpers_pin_their_family_through_real_artifact_compatibility
     ];
     let mut artifacts = Vec::new();
     for (helper, result, expression) in helpers {
-        let source = format!("app DecimalRequirement\nGiven\n derive value(a:decimal,b:decimal):{result} = {expression}\nWhen\nThen\n");
+        let source = format!(
+            "app DecimalRequirement\nGiven\n derive value(a:decimal,b:decimal):{result} = {expression}\nWhen\nThen\n"
+        );
         let output = compile(scratch.path(), helper, &source);
-        assert!(output.status.success(), "{helper}: {}", String::from_utf8_lossy(&output.stdout));
+        assert!(
+            output.status.success(),
+            "{helper}: {}",
+            String::from_utf8_lossy(&output.stdout)
+        );
         let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
         let js = artifact["modules"][0]["js"].as_str().unwrap();
         assert!(js.contains(helper), "{helper}: {js}");
         for (other, _, _) in helpers {
             if other != helper {
-                assert!(!js.contains(other), "{helper} must not acquire its requirement through {other}");
+                assert!(
+                    !js.contains(other),
+                    "{helper} must not acquire its requirement through {other}"
+                );
             }
         }
         let requires = artifact["requires"].as_array().unwrap();
-        assert_eq!(requires.iter().filter(|r| r["capability"] == "values.decimal").count(), 1);
-        assert!(requires.iter().any(|r| r["capability"] == "values.decimal" && r["min_version"] == 1));
-        assert!(requires.iter().any(|r| r["capability"] == "canlang.builtins"));
+        assert_eq!(
+            requires
+                .iter()
+                .filter(|r| r["capability"] == "values.decimal")
+                .count(),
+            1
+        );
+        assert!(
+            requires
+                .iter()
+                .any(|r| r["capability"] == "values.decimal" && r["min_version"] == 1)
+        );
+        assert!(
+            requires
+                .iter()
+                .any(|r| r["capability"] == "canlang.builtins")
+        );
         artifacts.push(artifact);
     }
-    let plain = compile(scratch.path(), "plain", "app Plain\nGiven\n derive value():bool = true\nWhen\nThen\n");
-    assert!(plain.status.success(), "{}", String::from_utf8_lossy(&plain.stdout));
+    let plain = compile(
+        scratch.path(),
+        "plain",
+        "app Plain\nGiven\n derive value():bool = true\nWhen\nThen\n",
+    );
+    assert!(
+        plain.status.success(),
+        "{}",
+        String::from_utf8_lossy(&plain.stdout)
+    );
     let plain: serde_json::Value = serde_json::from_slice(&plain.stdout).unwrap();
-    assert!(!plain["requires"].as_array().unwrap().iter().any(|r| r["capability"] == "values.decimal"));
-    std::fs::write(scratch.path().join("artifacts.json"), serde_json::to_vec(&artifacts).unwrap()).unwrap();
+    assert!(
+        !plain["requires"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|r| r["capability"] == "values.decimal")
+    );
+    std::fs::write(
+        scratch.path().join("artifacts.json"),
+        serde_json::to_vec(&artifacts).unwrap(),
+    )
+    .unwrap();
     let runner = scratch.path().join("compatibility.mjs");
     std::fs::write(&runner, r#"
 import assert from 'node:assert/strict';
@@ -171,6 +216,15 @@ for(const artifact of JSON.parse(readFileSync(new URL('./artifacts.json',import.
   {compatible:false,reasons:[{code:'missing-capability',detail:'values.decimal'}]});
 }
 "#).unwrap();
-    let executed = Command::new("node").arg(runner).current_dir(scratch.path()).output().unwrap();
-    assert!(executed.status.success(), "{}\n{}", String::from_utf8_lossy(&executed.stdout), String::from_utf8_lossy(&executed.stderr));
+    let executed = Command::new("node")
+        .arg(runner)
+        .current_dir(scratch.path())
+        .output()
+        .unwrap();
+    assert!(
+        executed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&executed.stdout),
+        String::from_utf8_lossy(&executed.stderr)
+    );
 }

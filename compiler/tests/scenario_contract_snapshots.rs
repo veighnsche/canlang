@@ -1,8 +1,8 @@
 //! Whole required Contract parameters at their original native Create sites.
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::{CheckedProgram, check_program};
-use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, ir, js};
 use canlang_compiler::codegen::artifact::to_json;
+use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, ir, js};
 use canlang_compiler::diagnostic::DiagnosticResult;
 use canlang_compiler::source::{SourceDb, Span};
 use std::path::{Path, PathBuf};

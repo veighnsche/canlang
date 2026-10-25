@@ -85,7 +85,9 @@ Then
             .any(|binding| binding["kind"] == "service" && binding["capability"] == "std.EmailV1")
     );
     let js = artifact["modules"][0]["js"].as_str().unwrap();
-    assert!(js.contains("\"Resources.Jobs\":{inputs:{value:{type:\"Resources.Work\"}},inputFields:["));
+    assert!(
+        js.contains("\"Resources.Jobs\":{inputs:{value:{type:\"Resources.Work\"}},inputFields:[")
+    );
     let serialized = js.split_once("runtimeBindings:").unwrap().1;
     let emitted_inventory = serde_json::Deserializer::from_str(serialized)
         .into_iter::<serde_json::Value>()
@@ -353,9 +355,14 @@ fn root_queue_contract_fields_are_values_not_storage_models() {
     let source = "app RootQueue\ncontext\n binding Schedule DurableObject key=RootQueue.Calendar\n queue Jobs type=BookingJob\nGiven\n Calendar at=Schedule {name:text,processed:int=0}\n Booking in Calendar {title:text}\n contract BookingJob {calendar:Calendar,title:text}\n policy Calendar read=members\n policy Booking read=members\nWhen\n crud Calendar by=members fields=name\n crud Booking by=members fields=title\n scenario submit(calendar:Calendar,title:text,accept:bool) by=members\n  do\n   send Jobs.publish {value=BookingJob {calendar,title}} as queued\n   require accept\n scenario consume on=Jobs\n  do\n   require actor==null\n   create Booking {parent=event.calendar,title=event.title} as booking\n   set event.calendar {processed=event.calendar.processed+1}\nThen\n";
     let (success, artifact) = compile(scratch.path(), source);
     assert!(success, "{artifact}");
-    assert_eq!(artifact["runtimeBindings"][1]["type"], "RootQueue.BookingJob");
+    assert_eq!(
+        artifact["runtimeBindings"][1]["type"],
+        "RootQueue.BookingJob"
+    );
     let js = artifact["modules"][0]["js"].as_str().unwrap();
-    assert!(js.contains("rootAuthority:{\"binding\":\"RootQueue.Schedule\",\"model\":\"RootQueue.Calendar\"}"));
+    assert!(js.contains(
+        "rootAuthority:{\"binding\":\"RootQueue.Schedule\",\"model\":\"RootQueue.Calendar\"}"
+    ));
 }
 
 #[test]
@@ -380,7 +387,9 @@ Then
     let (success, artifact) = compile(scratch.path(), source);
     assert!(success, "{artifact}");
     let js = artifact["modules"][0]["js"].as_str().unwrap();
-    assert!(js.contains("rootAuthority:{\"binding\":\"EventRoot.Rooms\",\"model\":\"EventRoot.Room\"}"));
+    assert!(
+        js.contains("rootAuthority:{\"binding\":\"EventRoot.Rooms\",\"model\":\"EventRoot.Room\"}")
+    );
 
     let mixed = source.replace(
         "  do set event.room {name=\"updated\"}",

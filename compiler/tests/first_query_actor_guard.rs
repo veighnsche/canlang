@@ -37,10 +37,7 @@ fn native_catalog_path() -> PathBuf {
     root().join("packages/cloudflare/dist/native-catalog.json")
 }
 
-fn check_source(
-    path: &str,
-    source: &str,
-) -> (SourceDb, CheckedProgram, Catalog, Vec<Diagnostic>) {
+fn check_source(path: &str, source: &str) -> (SourceDb, CheckedProgram, Catalog, Vec<Diagnostic>) {
     let mut db = SourceDb::new();
     let file = db.add(path.into(), source.into());
     let catalog_path = native_catalog_path();
@@ -69,8 +66,8 @@ fn prepared_artifact(
     db: &SourceDb,
     catalog: &Catalog,
 ) -> (Value, Vec<Diagnostic>) {
+    use canlang_compiler::codegen::artifact::to_json;
     use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
-use canlang_compiler::codegen::artifact::to_json;
     use canlang_compiler::diagnostic::DiagnosticResult;
     let mut result = DiagnosticResult::new("first-query-actor-guard", "1.0", 1);
     result.add_sources(db);
@@ -122,9 +119,15 @@ fn actor_guard_fixture_admits_with_facts_carrier() {
         "navigation-parent first query retained"
     );
     let js = emitted_js(&prepared);
-    assert!(js.contains("c.actorFacts.email_verified"), "verified guard carrier");
+    assert!(
+        js.contains("c.actorFacts.email_verified"),
+        "verified guard carrier"
+    );
     assert!(js.contains("c.actorFacts.email"), "email guard carrier");
-    assert!(!js.contains("c.actor.email"), "no direct actor row read emitted");
+    assert!(
+        !js.contains("c.actor.email"),
+        "no direct actor row read emitted"
+    );
     let _ = db;
 }
 

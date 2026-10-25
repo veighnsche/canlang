@@ -404,9 +404,7 @@ fn lower_child_control(
                 .or_else(|| {
                     significant(child)
                         .iter()
-                        .find(|c| {
-                            !matches!(c.kind, SyntaxKind::Name | SyntaxKind::Attribute)
-                        })
+                        .find(|c| !matches!(c.kind, SyntaxKind::Name | SyntaxKind::Attribute))
                         .copied()
                 })
                 .map(|c| operation_text(c, text))

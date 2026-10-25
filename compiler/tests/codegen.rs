@@ -4127,7 +4127,7 @@ await render();assert.deepEqual(prepared,['RoleControls.Note.create']);assert.de
         output.status.success(),
         "{}\n{}",
         String::from_utf8_lossy(&output.stdout),
-        format!(
+        format_args!(
             "{}\n{}",
             String::from_utf8_lossy(&output.stderr),
             expressions
@@ -7764,8 +7764,9 @@ fn t31_hook_judgment_specification_unsupported() {
         );
         let (diags, _, _, _) = emitter.finish();
         assert!(
-            diags.iter().any(|d| d.code == "E6008"
-                && d.message.contains("judgment specification")),
+            diags
+                .iter()
+                .any(|d| d.code == "E6008" && d.message.contains("judgment specification")),
             "hook gap (native={native}): {diags:?}"
         );
     }

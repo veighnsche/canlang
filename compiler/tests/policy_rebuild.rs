@@ -14,14 +14,14 @@
 //! catalog like its siblings (producer capabilities need pinning);
 //! fixtures use no imports so no `E6007` can fire elsewhere.
 
-use canlang_compiler::analysis::catalog::{load_catalog, CatalogRequest};
+use canlang_compiler::analysis::NodeKey;
+use canlang_compiler::analysis::catalog::{CatalogRequest, load_catalog};
 use canlang_compiler::analysis::check_program;
 use canlang_compiler::analysis::effects::MigrationData;
-use canlang_compiler::analysis::migrate_check::{check_migration, OwnerModelView};
-use canlang_compiler::analysis::NodeKey;
+use canlang_compiler::analysis::migrate_check::{OwnerModelView, check_migration};
 use canlang_compiler::codegen::ir::{self, IrProgram};
 use canlang_compiler::codegen::model_policies::ModelRule;
-use canlang_compiler::codegen::{emit, EmitOptions, EmitSources};
+use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
 use canlang_compiler::diagnostic::DiagnosticResult;
 use canlang_compiler::source::{SourceDb, SourceId};
 use std::path::Path;
@@ -126,14 +126,18 @@ fn emit_seals_policy_closure_through_checked_rebuild() {
         .find(|p| p.model == "Shop.Item")
         .expect("owning Shop.Item descriptor");
     assert_eq!(policy.owner_package, "Shop");
-    assert!(policy
-        .rules
-        .iter()
-        .any(|r| matches!(r, ModelRule::Invariant { .. })));
-    assert!(policy
-        .rules
-        .iter()
-        .any(|r| matches!(r, ModelRule::Lock { .. })));
+    assert!(
+        policy
+            .rules
+            .iter()
+            .any(|r| matches!(r, ModelRule::Invariant { .. }))
+    );
+    assert!(
+        policy
+            .rules
+            .iter()
+            .any(|r| matches!(r, ModelRule::Lock { .. }))
+    );
 }
 
 // --- E6010: check_migration predecessor problems ------------------------------

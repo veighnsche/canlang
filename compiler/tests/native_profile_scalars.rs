@@ -3,9 +3,9 @@
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::scenario_disclosure::{DependencyRole, ScenarioDisclosure};
 use canlang_compiler::analysis::{CheckedProgram, ResolvedType, Scalar, check_program};
+use canlang_compiler::codegen::artifact::to_json;
 use canlang_compiler::codegen::ir::{self, IrExpr, IrItem, IrItemKind, IrProgram, IrStmt, IrType};
 use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, js};
-use canlang_compiler::codegen::artifact::to_json;
 use canlang_compiler::diagnostic::DiagnosticResult;
 use canlang_compiler::source::{SourceDb, Span, sha256_hex};
 use serde_json::Value;

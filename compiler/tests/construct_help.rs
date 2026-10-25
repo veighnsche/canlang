@@ -658,9 +658,7 @@ fn first_profile_compiler_cards_have_checked_source_and_emitted_owners() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap();
-    let consumer =
-        std::fs::read_to_string(root.join("dev-server/src/construct.rs"))
-            .unwrap();
+    let consumer = std::fs::read_to_string(root.join("dev-server/src/construct.rs")).unwrap();
     let inventory = consumer
         .split("const INCLUDED: &[&str] = &[")
         .nth(1)

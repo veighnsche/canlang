@@ -2407,9 +2407,7 @@ impl<'a> Cx<'a> {
         traversed: &mut Option<&'static str>,
     ) -> Traverse {
         match &current {
-            ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => {
-                Traverse::Dead
-            }
+            ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => Traverse::Dead,
             ResolvedType::Record { symbol, .. } => {
                 match self.traverse_record_step(*symbol, segment) {
                     Some(next) => Traverse::Next(next),
@@ -2436,11 +2434,7 @@ impl<'a> Cx<'a> {
         }
     }
 
-    fn traverse_record_step(
-        &self,
-        symbol: SymbolId,
-        segment: &str,
-    ) -> Option<ResolvedType> {
+    fn traverse_record_step(&self, symbol: SymbolId, segment: &str) -> Option<ResolvedType> {
         if !matches!(
             self.tables.symbols[symbol.0 as usize].kind,
             SymbolKind::Contract { .. } | SymbolKind::Event { .. }
@@ -3141,11 +3135,10 @@ impl<'a> Cx<'a> {
 
     fn decode_on_every(&self, text: &str, on: &SyntaxNode) -> HandlerSource {
         let parts = kids(on);
-        let head = parts.iter().find(|n| is_expression(n.kind)).and_then(|n| {
-            kids(n)
-                .iter()
-                .find_map(|m| name_text(m, text))
-        });
+        let head = parts
+            .iter()
+            .find(|n| is_expression(n.kind))
+            .and_then(|n| kids(n).iter().find_map(|m| name_text(m, text)));
         if head != Some("every") {
             return HandlerSource::Unknown {
                 source: slice_trimmed(text, on),
@@ -3154,12 +3147,7 @@ impl<'a> Cx<'a> {
         let arg = parts
             .iter()
             .filter(|n| n.kind == SyntaxKind::Argument)
-            .filter_map(|a| {
-                kids(a)
-                    .iter()
-                    .find(|n| is_expression(n.kind))
-                    .copied()
-            })
+            .filter_map(|a| kids(a).iter().find(|n| is_expression(n.kind)).copied())
             .next();
         HandlerSource::Every {
             duration: arg.map(|a| slice_trimmed(text, a)).unwrap_or_default(),
@@ -3548,7 +3536,8 @@ impl<'a> Cx<'a> {
         effect.target_node = target.map(NodeKey::of);
         effect.target = target.and_then(|t| self.operation_target(module, text, t));
         effect.when = bare_keyword_value(node, "when", text).map(NodeKey::of);
-        effect.when_at_source = bare_slot_value(node,"when_at",text).is_some_and(|mode|is_name(mode,text,"source"));
+        effect.when_at_source = bare_slot_value(node, "when_at", text)
+            .is_some_and(|mode| is_name(mode, text, "source"));
         effect.args = effect_args(text, node);
         effect.binding = as_binding(text, node);
     }
@@ -3574,8 +3563,7 @@ impl<'a> Cx<'a> {
                 event_path = parts.get(i + 2).copied();
             }
         }
-        let event =
-            event_path.and_then(|p| self.tables.node_symbol.get(&NodeKey::of(p)).copied());
+        let event = event_path.and_then(|p| self.tables.node_symbol.get(&NodeKey::of(p)).copied());
         if let Some(event) = event
             && matches!(
                 self.tables.symbols[event.0 as usize].kind,
@@ -3609,12 +3597,7 @@ impl<'a> Cx<'a> {
         }
     }
 
-    fn walk_return_effect(
-        &mut self,
-        text: &str,
-        parts: &[&SyntaxNode],
-        effect: &mut Effect,
-    ) {
+    fn walk_return_effect(&mut self, text: &str, parts: &[&SyntaxNode], effect: &mut Effect) {
         effect.verb = EffectVerb::Return;
         let value = parts.iter().find(|n| is_expression(n.kind)).copied();
         effect.value = value.map(NodeKey::of);
@@ -3766,10 +3749,15 @@ impl<'a> Cx<'a> {
         let segments = path_segments(target, text);
         // An ordinary declared Model parameter may itself be named `event`.
         // Only the contextual event binding owns the hook event.after target.
-        let declared_event_parameter = self.tables.expr_scope.get(&NodeKey::of(target))
+        let declared_event_parameter = self
+            .tables
+            .expr_scope
+            .get(&NodeKey::of(target))
             .and_then(|scope| self.tables.resolve_name(*scope, "event", self.catalog))
-            .is_some_and(|binding| matches!(binding, Binding::Symbol(id)
-                if matches!(self.tables.symbols[id.0 as usize].kind, SymbolKind::Param { .. })));
+            .is_some_and(|binding| {
+                matches!(binding, Binding::Symbol(id)
+                if matches!(self.tables.symbols[id.0 as usize].kind, SymbolKind::Param { .. }))
+            });
         if segments.first() == Some(&"event") && !declared_event_parameter {
             if segments == ["event", "after"]
                 && let Some((model, _)) = self.current_hook
@@ -4249,10 +4237,7 @@ impl<'a> Cx<'a> {
     /// model record. Unresolvable domains stay silent (the types
     /// pass owns those diagnostics).
     fn check_collection_leaf_grants(&mut self, text: &str, node: &SyntaxNode) {
-        let domain = kids(node)
-            .iter()
-            .find(|n| is_expression(n.kind))
-            .copied();
+        let domain = kids(node).iter().find(|n| is_expression(n.kind)).copied();
         let Some(domain) = domain else {
             return;
         };
@@ -4495,11 +4480,7 @@ impl<'a> Cx<'a> {
         let Some(callee) = callee else { return };
         let mut target = callee;
         while target.kind == SyntaxKind::Group {
-            let Some(inner) = kids(target)
-                .iter()
-                .find(|n| is_expression(n.kind))
-                .copied()
-            else {
+            let Some(inner) = kids(target).iter().find(|n| is_expression(n.kind)).copied() else {
                 return;
             };
             target = inner;
@@ -4544,11 +4525,7 @@ impl<'a> Cx<'a> {
         let Some(value) = value else { return };
         let mut target = value;
         while target.kind == SyntaxKind::Group {
-            let Some(inner) = kids(target)
-                .iter()
-                .find(|n| is_expression(n.kind))
-                .copied()
-            else {
+            let Some(inner) = kids(target).iter().find(|n| is_expression(n.kind)).copied() else {
                 return;
             };
             target = inner;
@@ -4871,15 +4848,14 @@ impl<'a> Cx<'a> {
             op: CrudOp::Create,
             ..
         } = self.tables.symbols[callable.0 as usize].kind
+            && let Some(model) = self.out.models.get(&model)
         {
-            if let Some(model) = self.out.models.get(&model) {
-                pending.extend(
-                    model
-                        .fields
-                        .iter()
-                        .filter_map(|field| field.server.or(field.default)),
-                );
-            }
+            pending.extend(
+                model
+                    .fields
+                    .iter()
+                    .filter_map(|field| field.server.or(field.default)),
+            );
         }
         let mut visited = HashSet::new();
         while let Some(key) = pending.pop() {
@@ -5038,9 +5014,6 @@ impl<'a> Cx<'a> {
 // unavailable here by design); the coordinator can switch them over when
 // wiring this module into `analysis`.
 
-/// Significant children: skips `Trivia`/`Comment` leaves.
-
-
 /// Text of a `Name` leaf, if `node` is one.
 fn name_text<'a>(node: &SyntaxNode, text: &'a str) -> Option<&'a str> {
     if node.kind == SyntaxKind::Name {
@@ -5118,9 +5091,6 @@ fn decl_name<'a>(text: &'a str, node: &SyntaxNode, heads: &[&str]) -> Option<&'a
     })
 }
 
-/// Tight span of `node`: leading/trailing trivia trimmed.
-
-
 /// Trimmed source slice of `node`.
 fn slice_trimmed(text: &str, node: &SyntaxNode) -> String {
     text.get(node.span.start as usize..node.span.end as usize)
@@ -5134,9 +5104,6 @@ fn has_error(node: &SyntaxNode) -> bool {
     node.descendants()
         .any(|n| matches!(n.kind, SyntaxKind::Error | SyntaxKind::BadToken))
 }
-
-/// Whether this CST kind is a value-expression node.
-
 
 /// Whether this CST kind is a type node.
 fn is_type_node(kind: SyntaxKind) -> bool {
@@ -5214,9 +5181,6 @@ fn bare_slot_value<'a>(node: &'a SyntaxNode, key: &str, text: &str) -> Option<&'
     }
     None
 }
-
-/// Word of a `NameRef` node.
-
 
 /// `-> type` result annotation following parameters/attributes.
 fn result_annotation<'a>(text: &str, node: &'a SyntaxNode) -> Option<&'a SyntaxNode> {
@@ -6023,16 +5987,11 @@ fn collect_subtree_models(
 }
 
 fn collect_call_models(tables: &ResolveTables, node: &SyntaxNode, calls: &mut Vec<SymbolId>) {
-    let mut callee = kids(node)
-        .into_iter()
-        .find(|n| is_expression(n.kind));
+    let mut callee = kids(node).into_iter().find(|n| is_expression(n.kind));
     while let Some(group) = callee.filter(|n| n.kind == SyntaxKind::Group) {
-        callee = kids(group)
-            .into_iter()
-            .find(|n| is_expression(n.kind));
+        callee = kids(group).into_iter().find(|n| is_expression(n.kind));
     }
-    if let Some(Binding::Symbol(id)) =
-        callee.and_then(|n| tables.node_binding.get(&NodeKey::of(n)))
+    if let Some(Binding::Symbol(id)) = callee.and_then(|n| tables.node_binding.get(&NodeKey::of(n)))
         && matches!(
             tables.symbols[id.0 as usize].kind,
             SymbolKind::DeriveFn { .. }
@@ -6085,8 +6044,7 @@ fn collect_write_models(
         .find(|n| n.kind == SyntaxKind::Path)
         .copied();
     if let Some(path) = path
-        && let Some(ResolvedType::Record { symbol, .. }) =
-            types.node_types.get(&NodeKey::of(path))
+        && let Some(ResolvedType::Record { symbol, .. }) = types.node_types.get(&NodeKey::of(path))
         && matches!(
             tables.symbols[symbol.0 as usize].kind,
             SymbolKind::Model { .. }
@@ -6115,7 +6073,10 @@ fn collect_member_models(
             symbol,
             stored: true,
         }) = ty
-            && matches!(tables.symbols[symbol.0 as usize].kind, SymbolKind::Model { .. })
+            && matches!(
+                tables.symbols[symbol.0 as usize].kind,
+                SymbolKind::Model { .. }
+            )
         {
             collect_member_field_models(tables, *symbol, name, out, calls);
         }
@@ -6150,10 +6111,7 @@ fn collect_query_models(
     node: &SyntaxNode,
     out: &mut Vec<SymbolId>,
 ) {
-    let base = kids(node)
-        .iter()
-        .find(|n| is_expression(n.kind))
-        .copied();
+    let base = kids(node).iter().find(|n| is_expression(n.kind)).copied();
     if let Some(base) = base {
         let mut pushed = false;
         if base.kind == SyntaxKind::NameRef

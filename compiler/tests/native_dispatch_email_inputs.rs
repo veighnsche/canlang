@@ -51,9 +51,11 @@ fn native_catalog() -> PathBuf {
     native_owner_root().join("packages/cloudflare/dist/native-catalog.json")
 }
 
-fn fixture() -> (SourceDb, CheckedProgram, IrProgram, Catalog) {fixture_for(SOURCE)}
+fn fixture() -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
+    fixture_for(SOURCE)
+}
 
-fn fixture_for(source:&str) -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
+fn fixture_for(source: &str) -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
     let mut db = SourceDb::new();
     let file = db.add("dispatch-email-inputs.can".into(), source.into());
     let path = native_catalog();
@@ -330,7 +332,7 @@ fn email_dependency_keeps_checked_scalar_identity() {
 
 #[test]
 fn trusted_model_loop_send_captures_original_versioned_item_and_refuses_changed_bindings() {
-    let source=r#"app LoopDispatch
+    let source = r#"app LoopDispatch
 use std {EmailV1 as Mail} from=deployment.mail
 Given
  Member {email:email,active:bool=true}
@@ -342,66 +344,194 @@ When
     send Mail.send {to=person.email,subject="Original",body="Source bound"} when=person.active as delivery
 Then
 "#;
-    let (db,program,original_ir,catalog)=fixture_for(source);
-    let owner=item(&original_ir,"LoopDispatch.notify").id;
-    assert!(collect_decision_sources(&program,&original_ir,&original_ir.items[owner.0 as usize],&db,Some(&catalog)).is_some());
-    for mode in ["raw","loop-binding","guard","payload","trigger","header"] {
-        let mut changed=original_ir.clone();
-        let IrItemKind::Scenario {trusted,event_source,effects,..}=&mut changed.items[owner.0 as usize].kind else {panic!("owner");};
-        if mode=="trigger" {*event_source=Some(ir::IrEventSource::Declared("LoopDispatch.Foreign".into()));}
-        if mode=="header" {*trusted=false;}
-        let IrStmt::For {item,body,..}=&mut effects[0] else {panic!("loop");};
-        if mode=="loop-binding" {*item="foreign".into();}
-        let IrStmt::Send {when,args,..}=&mut body[0] else {panic!("send");};
-        if mode=="guard" {when.as_mut().unwrap().expr=IrExpr::Bool(true);}
-        if mode=="payload" {
-            let IrExpr::Object(fields)=&mut args.expr else {panic!("payload");};
-            fields.iter_mut().find(|(name,_)|name=="to").unwrap().1.expr=IrExpr::Text("foreign@example.test".into());
+    let (db, program, original_ir, catalog) = fixture_for(source);
+    let owner = item(&original_ir, "LoopDispatch.notify").id;
+    assert!(
+        collect_decision_sources(
+            &program,
+            &original_ir,
+            &original_ir.items[owner.0 as usize],
+            &db,
+            Some(&catalog)
+        )
+        .is_some()
+    );
+    for mode in [
+        "raw",
+        "loop-binding",
+        "guard",
+        "payload",
+        "trigger",
+        "header",
+    ] {
+        let mut changed = original_ir.clone();
+        let IrItemKind::Scenario {
+            trusted,
+            event_source,
+            effects,
+            ..
+        } = &mut changed.items[owner.0 as usize].kind
+        else {
+            panic!("owner");
+        };
+        if mode == "trigger" {
+            *event_source = Some(ir::IrEventSource::Declared("LoopDispatch.Foreign".into()));
         }
-        if !["raw","trigger","header"].contains(&mode) {assert!(collect_decision_sources(&program,&changed,&changed.items[owner.0 as usize],&db,Some(&catalog)).is_none(),"{mode}");}
-        let raw=js::emit_program_with_native_source_receipts(&changed,true,&db);
-        assert!(raw.diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: unprepared private source must refuse");
+        if mode == "header" {
+            *trusted = false;
+        }
+        let IrStmt::For { item, body, .. } = &mut effects[0] else {
+            panic!("loop");
+        };
+        if mode == "loop-binding" {
+            *item = "foreign".into();
+        }
+        let IrStmt::Send { when, args, .. } = &mut body[0] else {
+            panic!("send");
+        };
+        if mode == "guard" {
+            when.as_mut().unwrap().expr = IrExpr::Bool(true);
+        }
+        if mode == "payload" {
+            let IrExpr::Object(fields) = &mut args.expr else {
+                panic!("payload");
+            };
+            fields
+                .iter_mut()
+                .find(|(name, _)| name == "to")
+                .unwrap()
+                .1
+                .expr = IrExpr::Text("foreign@example.test".into());
+        }
+        if !["raw", "trigger", "header"].contains(&mode) {
+            assert!(
+                collect_decision_sources(
+                    &program,
+                    &changed,
+                    &changed.items[owner.0 as usize],
+                    &db,
+                    Some(&catalog)
+                )
+                .is_none(),
+                "{mode}"
+            );
+        }
+        let raw = js::emit_program_with_native_source_receipts(&changed, true, &db);
+        assert!(
+            raw.diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"),
+            "{mode}: unprepared private source must refuse"
+        );
     }
-    let mut changed_source=SourceDb::new();
-    changed_source.add("dispatch-email-inputs.can".into(),source.replace("Source bound","Substituted body"));
-    assert!(collect_decision_sources(&program,&original_ir,&original_ir.items[owner.0 as usize],&changed_source,Some(&catalog)).is_none());
+    let mut changed_source = SourceDb::new();
+    changed_source.add(
+        "dispatch-email-inputs.can".into(),
+        source.replace("Source bound", "Substituted body"),
+    );
+    assert!(
+        collect_decision_sources(
+            &program,
+            &original_ir,
+            &original_ir.items[owner.0 as usize],
+            &changed_source,
+            Some(&catalog)
+        )
+        .is_none()
+    );
     // Header and trigger correspondence belong to the complete private
     // preparation, not the narrower individual decision-site collector.
     // No editable raw IR acquires that prepared frame, even when its decisions
     // still match. A substituted original source is also rejected by the full
     // production emit driver before a private recipe can be installed.
-    let mut result=canlang_compiler::diagnostic::DiagnosticResult::new("retained-send-source","1.0",1);
+    let mut result =
+        canlang_compiler::diagnostic::DiagnosticResult::new("retained-send-source", "1.0", 1);
     result.add_sources(&changed_source);
-    let (_,diagnostics)=canlang_compiler::codegen::emit(&program,&canlang_compiler::codegen::EmitSources {
-        db:&changed_source,result:&result,catalog:Some(&catalog),
-        options:canlang_compiler::codegen::EmitOptions {allow_incomplete_test_only:false,native_scenario_receipts:true},
-    });
-    assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6011"),"{diagnostics:?}");
-    let scratch=tempfile::tempdir().unwrap();
-    let path=scratch.path().join("loop-dispatch.can");
-    for (name,text,accepted) in [
-        ("original",source.to_string(),true),
-        ("renamed",source.replace("person","selected").replace("candidate","row"),true),
-        ("unbounded",source.replace(" limit=1",""),false),
-        ("over-bound",source.replace("limit=1","limit=201"),false),
-        ("public",source.replace("scenario notify on=Notice","scenario notify(address:email) by=members")
-            .replace("event.email","address"),false),
+    let (_, diagnostics) = canlang_compiler::codegen::emit(
+        &program,
+        &canlang_compiler::codegen::EmitSources {
+            db: &changed_source,
+            result: &result,
+            catalog: Some(&catalog),
+            options: canlang_compiler::codegen::EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6011"),
+        "{diagnostics:?}"
+    );
+    let scratch = tempfile::tempdir().unwrap();
+    let path = scratch.path().join("loop-dispatch.can");
+    for (name, text, accepted) in [
+        ("original", source.to_string(), true),
+        (
+            "renamed",
+            source
+                .replace("person", "selected")
+                .replace("candidate", "row"),
+            true,
+        ),
+        ("unbounded", source.replace(" limit=1", ""), false),
+        ("over-bound", source.replace("limit=1", "limit=201"), false),
+        (
+            "public",
+            source
+                .replace(
+                    "scenario notify on=Notice",
+                    "scenario notify(address:email) by=members",
+                )
+                .replace("event.email", "address"),
+            false,
+        ),
     ] {
-        std::fs::write(&path,&text).unwrap();
-        let output=std::process::Command::new(env!("CARGO_BIN_EXE_can"))
-            .args(["compile","--native-scenario-receipts","--format=json","--catalog"])
-            .arg(native_catalog()).arg(&path).current_dir(root()).env_remove("CAN_CATALOG").output().unwrap();
-        assert_eq!(output.status.success(),accepted,"{name}: {}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+        std::fs::write(&path, &text).unwrap();
+        let output = std::process::Command::new(env!("CARGO_BIN_EXE_can"))
+            .args([
+                "compile",
+                "--native-scenario-receipts",
+                "--format=json",
+                "--catalog",
+            ])
+            .arg(native_catalog())
+            .arg(&path)
+            .current_dir(root())
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap();
+        assert_eq!(
+            output.status.success(),
+            accepted,
+            "{name}: {}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
         if accepted {
-            let artifact:serde_json::Value=serde_json::from_slice(&output.stdout).unwrap();
-            assert!(artifact["operations"].as_array().unwrap().is_empty(),"private source publishes no operation");
-            let js=artifact["modules"][0]["js"].as_str().unwrap();
-            let captured=if name=="renamed" {"selected"}else{"person"};
+            let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+            assert!(
+                artifact["operations"].as_array().unwrap().is_empty(),
+                "private source publishes no operation"
+            );
+            let js = artifact["modules"][0]["js"].as_str().unwrap();
+            let captured = if name == "renamed" {
+                "selected"
+            } else {
+                "person"
+            };
             assert!(js.contains(&format!("\"kind\":\"ref\",\"model\":\"LoopDispatch.Member\",\"name\":\"{captured}\",\"required\":true,\"versioned\":true")),"exact canonical versioned loop input");
             assert!(js.contains("retainedGuardedHandler"));
-            assert!(js.contains("\"returns\":[]"),"source-only frame has no return path");
-            assert!(!js.contains("$receiptChoices"),"original owner body does not capture a result");
-
+            assert!(
+                js.contains("\"returns\":[]"),
+                "source-only frame has no return path"
+            );
+            assert!(
+                !js.contains("$receiptChoices"),
+                "original owner body does not capture a result"
+            );
         }
     }
 }

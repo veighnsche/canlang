@@ -1716,7 +1716,6 @@ fn original_chat_transcript_decision_serializes_only_the_sealed_text_message_arr
     }
 }
 
-
 #[test]
 fn imported_contained_require_follows_only_original_required_stored_reference() {
     use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
@@ -1724,44 +1723,112 @@ fn imported_contained_require_follows_only_original_required_stored_reference() 
     let helpers = "package sites\n Given\n  export Location {active:bool=true}\n  export Hours in Location {open:bool=true}\n  export derive open(location:Location):bool=location.active and any(location.Hours as hours,hours.open)\n When\n Then\n";
     let app = "app LinkedSite\nuse sites {Location,open}\nGiven\n Calendar {location:Location,other:Location}\n derive available(calendar:Calendar):bool=open(calendar.location)\nWhen\n scenario run(calendar:Calendar) -> bool by=members\n  require available(calendar)\n  do return true\nThen\n";
     let compile = |app: &str| {
-        let mut db=SourceDb::new();
-        let files=[db.add("linked-site.can".into(),app.into()),db.add("sites.can".into(),helpers.into())];
-        let root=std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-        let path=root.join("packages/cloudflare/dist/native-catalog.json");
-        let(catalog,diagnostics)=load_catalog(&CatalogRequest{flag:Some(&path),env:None,cwd:root,primary:Span::new(files[0],0,0)});
-        assert!(diagnostics.is_empty(),"{diagnostics:?}");
-        let(program,diagnostics)=check_program(&db,&files,catalog.as_ref());
-        assert!(diagnostics.is_empty(),"{diagnostics:?}");
-        let mut result=DiagnosticResult::new("linked-site","1.0",1);result.add_sources(&db);
-        let(_,diagnostics)=emit(&program,&EmitSources{db:&db,result:&result,catalog:catalog.as_ref(),options:EmitOptions{allow_incomplete_test_only:false,native_scenario_receipts:true}});
+        let mut db = SourceDb::new();
+        let files = [
+            db.add("linked-site.can".into(), app.into()),
+            db.add("sites.can".into(), helpers.into()),
+        ];
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let path = root.join("packages/cloudflare/dist/native-catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(files[0], 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (program, diagnostics) = check_program(&db, &files, catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let mut result = DiagnosticResult::new("linked-site", "1.0", 1);
+        result.add_sources(&db);
+        let (_, diagnostics) = emit(
+            &program,
+            &EmitSources {
+                db: &db,
+                result: &result,
+                catalog: catalog.as_ref(),
+                options: EmitOptions {
+                    allow_incomplete_test_only: false,
+                    native_scenario_receipts: true,
+                },
+            },
+        );
         diagnostics
     };
-    assert!(compile(app).is_empty(),"original singular stored reference must retain its source query domain");
+    assert!(
+        compile(app).is_empty(),
+        "original singular stored reference must retain its source query domain"
+    );
     // A same-type derived result has no checked stored-field receiver path.
-    let unowned=app.replace(" derive available", " derive arbitrary(calendar:Calendar):Location=calendar.other\n derive available")
-        .replace("open(calendar.location)","open(arbitrary(calendar))");
-    assert!(compile(&unowned).iter().any(|diagnostic|diagnostic.code=="E6008"));
+    let unowned = app
+        .replace(
+            " derive available",
+            " derive arbitrary(calendar:Calendar):Location=calendar.other\n derive available",
+        )
+        .replace("open(calendar.location)", "open(arbitrary(calendar))");
+    assert!(
+        compile(&unowned)
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008")
+    );
 }
 
 #[test]
 fn original_booking_guard_requires_a_finite_literal_civil_date_domain() {
     use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
     use canlang_compiler::diagnostic::DiagnosticResult;
-    let original=include_str!("fixtures/book-available-source.can");
-    for bound in ["1000","0","1001","(500+500)"] {
-        let source=original.replace(",1000)",&format!(",{bound})"));
-        let mut db=SourceDb::new();let file=db.add("book-available.can".into(),source);
-        let root=std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-        let path=root.join("packages/cloudflare/dist/native-catalog.json");
-        let(catalog,diagnostics)=load_catalog(&CatalogRequest{flag:Some(&path),env:None,cwd:root,primary:Span::new(file,0,0)});
-        assert!(diagnostics.is_empty(),"{diagnostics:?}");
-        let(program,diagnostics)=check_program(&db,&[file],catalog.as_ref());
-        if bound=="0" {assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E3001"));continue;}
-        assert!(diagnostics.is_empty(),"{bound}: {diagnostics:?}");
-        let mut result=DiagnosticResult::new("booking","1.0",1);result.add_sources(&db);
-        let(_,diagnostics)=emit(&program,&EmitSources{db:&db,result:&result,catalog:catalog.as_ref(),options:EmitOptions{allow_incomplete_test_only:false,native_scenario_receipts:true}});
-        if bound=="1000" {assert!(diagnostics.is_empty(),"{diagnostics:?}");}
-        else {assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{bound} admitted an unproved date allocation");}
+    let original = include_str!("fixtures/book-available-source.can");
+    for bound in ["1000", "0", "1001", "(500+500)"] {
+        let source = original.replace(",1000)", &format!(",{bound})"));
+        let mut db = SourceDb::new();
+        let file = db.add("book-available.can".into(), source);
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let path = root.join("packages/cloudflare/dist/native-catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        if bound == "0" {
+            assert!(
+                diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "E3001")
+            );
+            continue;
+        }
+        assert!(diagnostics.is_empty(), "{bound}: {diagnostics:?}");
+        let mut result = DiagnosticResult::new("booking", "1.0", 1);
+        result.add_sources(&db);
+        let (_, diagnostics) = emit(
+            &program,
+            &EmitSources {
+                db: &db,
+                result: &result,
+                catalog: catalog.as_ref(),
+                options: EmitOptions {
+                    allow_incomplete_test_only: false,
+                    native_scenario_receipts: true,
+                },
+            },
+        );
+        if bound == "1000" {
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        } else {
+            assert!(
+                diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "E6008"),
+                "{bound} admitted an unproved date allocation"
+            );
+        }
     }
 }
 
@@ -1769,37 +1836,99 @@ fn original_booking_guard_requires_a_finite_literal_civil_date_domain() {
 fn source_require_has_a_frame_without_fabricating_result_disclosure() {
     use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
     use canlang_compiler::diagnostic::DiagnosticResult;
-    let mut db=SourceDb::new();
-    let file=db.add("missing-owner.can".into(),include_str!("fixtures/native-require-missing-owner-frame.can").into());
-    let root=std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    let path=root.join("packages/cloudflare/dist/native-catalog.json");
-    let(catalog,diagnostics)=load_catalog(&CatalogRequest{flag:Some(&path),env:None,cwd:root,primary:Span::new(file,0,0)});
-    assert!(diagnostics.is_empty(),"{diagnostics:?}");
-    let(program,diagnostics)=check_program(&db,&[file],catalog.as_ref());
-    assert!(diagnostics.is_empty(),"{diagnostics:?}");
-    let mut result=DiagnosticResult::new("owner-frame","1.0",1);result.add_sources(&db);
-    let(artifact,diagnostics)=emit(&program,&EmitSources{db:&db,result:&result,catalog:catalog.as_ref(),options:EmitOptions{allow_incomplete_test_only:false,native_scenario_receipts:true}});
-    let artifact:serde_json::Value=serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
-    let operation=artifact["operations"].as_array().unwrap().iter()
-        .find(|operation|operation["name"]=="GuardOwnerFrame.run").unwrap();
-    assert!(diagnostics.is_empty(),"{diagnostics:?}");
-    assert!(operation["result"].get("disclosure").is_none(), "execution-only frame must not invent result disclosure");
-    assert!(artifact["modules"].to_string().contains("canScenarioRequireSources"), "source guards need their original verified execution inventory");
+    let mut db = SourceDb::new();
+    let file = db.add(
+        "missing-owner.can".into(),
+        include_str!("fixtures/native-require-missing-owner-frame.can").into(),
+    );
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/cloudflare/dist/native-catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let mut result = DiagnosticResult::new("owner-frame", "1.0", 1);
+    result.add_sources(&db);
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    let artifact: serde_json::Value =
+        serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
+    let operation = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "GuardOwnerFrame.run")
+        .unwrap();
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert!(
+        operation["result"].get("disclosure").is_none(),
+        "execution-only frame must not invent result disclosure"
+    );
+    assert!(
+        artifact["modules"]
+            .to_string()
+            .contains("canScenarioRequireSources"),
+        "source guards need their original verified execution inventory"
+    );
 
     // A frame for boolean decisions cannot make an unsupported body getter
     // executable. The original derived value still needs its own consumer.
-    let unsupported=include_str!("fixtures/native-require-missing-owner-frame.can")
+    let unsupported = include_str!("fixtures/native-require-missing-owner-frame.can")
         .replace("-> date by=members", "-> int by=members")
-        .replace("return add_days(local_date(now,\"UTC\"),1)", "return root.remaining");
-    let mut db=SourceDb::new();
-    let file=db.add("unsupported-body.can".into(),unsupported);
-    let(program,diagnostics)=check_program(&db,&[file],catalog.as_ref());
-    assert!(diagnostics.is_empty(),"{diagnostics:?}");
-    let mut result=DiagnosticResult::new("owner-body","1.0",1);result.add_sources(&db);
-    let(_,diagnostics)=emit(&program,&EmitSources{db:&db,result:&result,catalog:catalog.as_ref(),options:EmitOptions{allow_incomplete_test_only:false,native_scenario_receipts:true}});
-    let diagnostic=diagnostics.iter().find(|diagnostic|diagnostic.code=="E6008" && diagnostic.message.contains("checked owner receipt is unavailable"))
-        .unwrap_or_else(||panic!("{diagnostics:?}"));
-    let [related]=diagnostic.related.as_slice() else {panic!("owner refusal must locate its unsupported expression: {diagnostic:?}")};
-    let source=&db.get(related.span.file).unwrap().text;
-    assert_eq!(source[related.span.start as usize..related.span.end as usize].trim(),"root.remaining");
+        .replace(
+            "return add_days(local_date(now,\"UTC\"),1)",
+            "return root.remaining",
+        );
+    let mut db = SourceDb::new();
+    let file = db.add("unsupported-body.can".into(), unsupported);
+    let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let mut result = DiagnosticResult::new("owner-body", "1.0", 1);
+    result.add_sources(&db);
+    let (_, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    let diagnostic = diagnostics
+        .iter()
+        .find(|diagnostic| {
+            diagnostic.code == "E6008"
+                && diagnostic
+                    .message
+                    .contains("checked owner receipt is unavailable")
+        })
+        .unwrap_or_else(|| panic!("{diagnostics:?}"));
+    let [related] = diagnostic.related.as_slice() else {
+        panic!("owner refusal must locate its unsupported expression: {diagnostic:?}")
+    };
+    let source = &db.get(related.span.file).unwrap().text;
+    assert_eq!(
+        source[related.span.start as usize..related.span.end as usize].trim(),
+        "root.remaining"
+    );
 }

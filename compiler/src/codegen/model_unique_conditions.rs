@@ -111,8 +111,7 @@ fn collect_unique_condition(
     if format!("{value:?}") != format!("{original_value:?}") {
         return None;
     }
-    let registry_id =
-        unique_registry_id(actual, fresh, model, unique.span, original_value, index)?;
+    let registry_id = unique_registry_id(actual, fresh, model, unique.span, original_value, index)?;
     let constrained = field(actual, model.id, &declared.fields[0])?;
     let mut work = 0;
     let predicate = query_predicate(actual, model.id, value, 0, &mut work)?;
@@ -163,21 +162,13 @@ fn collect_model_uniques(
     }
     for (index, (unique, declared)) in uniques.iter().zip(&declaration.uniques).enumerate() {
         collect_unique_condition(
-            actual,
-            fresh,
-            model,
-            module,
-            source,
-            unique,
-            declared,
-            index,
-            result,
+            actual, fresh, model, module, source, unique, declared, index, result,
         )?;
     }
     Some(())
 }
 
-/// Only the released singular primitive conditional-unique profile is emitted.
+/// Only singular scalar and opaque user-identity conditional keys are emitted.
 /// No inferred unconditional key, invariant or composite-key transport exists.
 pub fn collect_checked_unique_conditions(
     program: &CheckedProgram,
@@ -271,8 +262,7 @@ fn fresh_items_match(actual: &IrProgram, fresh: &IrProgram) -> bool {
 
 fn fresh_rules_match(actual: &IrProgram, fresh: &IrProgram) -> bool {
     format!("{:?}", actual.read_rules) == format!("{:?}", fresh.read_rules)
-        && format!("{:?}", actual.callback_read_rules)
-            == format!("{:?}", fresh.callback_read_rules)
+        && format!("{:?}", actual.callback_read_rules) == format!("{:?}", fresh.callback_read_rules)
         && format!("{:?}", actual.invariants) == format!("{:?}", fresh.invariants)
         && format!("{:?}", actual.locks) == format!("{:?}", fresh.locks)
         && format!("{:?}", actual.retention) == format!("{:?}", fresh.retention)
@@ -680,11 +670,11 @@ fn add_model_origins(
         return None;
     };
     let prefix = ir::ir_model_rule_prefix(actual, owner);
-    add_policy_origins(original_nodes, actual, db, output, model, &prefix)?;
-    add_invariant_origins(original_nodes, actual, db, output, model, &prefix)?;
-    add_unique_origins(original_nodes, actual, db, output, model, &prefix)?;
-    add_lock_origins(original_nodes, actual, db, output, model, &prefix)?;
-    add_retain_origins(original_nodes, actual, db, output, model, &prefix)?;
+    add_policy_origins(original_nodes, actual, db, output, model, prefix)?;
+    add_invariant_origins(original_nodes, actual, db, output, model, prefix)?;
+    add_unique_origins(original_nodes, actual, db, output, model, prefix)?;
+    add_lock_origins(original_nodes, actual, db, output, model, prefix)?;
+    add_retain_origins(original_nodes, actual, db, output, model, prefix)?;
     Some(())
 }
 
@@ -793,7 +783,7 @@ fn field(ir: &IrProgram, model: SymbolId, name: &str) -> Option<SymbolId> {
         != 1
         || selected.module != owning.module
         || selected.canonical != format!("{}.{}", owning.canonical, name)
-        || !matches!(&selected.kind, IrItemKind::Field { owner, ty: IrType::Known(ResolvedType::Scalar(Scalar::Int | Scalar::Text | Scalar::Bool)), required_array: false, .. } if *owner == model)
+        || !matches!(&selected.kind, IrItemKind::Field { owner, ty: IrType::Known(ResolvedType::Scalar(Scalar::Int | Scalar::Text | Scalar::Bool | Scalar::User)), required_array: false, .. } if *owner == model)
     {
         return None;
     }

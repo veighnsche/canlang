@@ -71,8 +71,8 @@ fn prepared(
     db: &SourceDb,
     catalog: &Catalog,
 ) -> (Value, Vec<Diagnostic>) {
+    use canlang_compiler::codegen::artifact::to_json;
     use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
-use canlang_compiler::codegen::artifact::to_json;
     let mut result = DiagnosticResult::new("count-query-source", "1.0", 1);
     result.add_sources(db);
     let (artifact, diagnostics) = emit(

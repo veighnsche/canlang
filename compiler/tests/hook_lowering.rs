@@ -82,7 +82,10 @@ fn emit_hook(
     db: &SourceDb,
     result: &DiagnosticResult,
     catalog: &Catalog,
-) -> (canlang_compiler::codegen::artifact::CompileArtifact, Vec<Diagnostic>) {
+) -> (
+    canlang_compiler::codegen::artifact::CompileArtifact,
+    Vec<Diagnostic>,
+) {
     let sources = EmitSources {
         db,
         result,
@@ -214,7 +217,13 @@ fn hook_model_derive_read_stays_legacy() {
             && (d.primary.start as usize) <= at
             && d.primary.end == (at + "event.after.over".len()) as u32),
         "derive read fails closed at its source span: {:?}",
-        diags.iter().map(|d| format!("{}@{}-{}:{}", d.code, d.primary.start, d.primary.end, d.message)).collect::<Vec<_>>()
+        diags
+            .iter()
+            .map(|d| format!(
+                "{}@{}-{}:{}",
+                d.code, d.primary.start, d.primary.end, d.message
+            ))
+            .collect::<Vec<_>>()
     );
 }
 
@@ -349,8 +358,9 @@ fn hook_parent_undeclared_stays_refused() {
     let (artifact, diags) = emit_hook(&program, &db, &result, &catalog);
     let js = artifact.modules[0].js.clone();
     assert!(
-        diags.iter().any(|d| d.code == "E6008"
-            && d.message.contains("hook parent content")),
+        diags
+            .iter()
+            .any(|d| d.code == "E6008" && d.message.contains("hook parent content")),
         "undeclared parent content refuses loud: {}",
         codes(&diags).join("\n")
     );
@@ -415,7 +425,14 @@ fn hook_hp_alias_parent_load_drives_owner_pipeline() {
     let models = root.join("packages/state/src/mutation/models.ts");
     let bindings = root.join("packages/state/src/mutation/model-policies.ts");
     let pipeline = root.join("packages/state/src/mutation/pipeline.ts");
-    for path in [&fixtures, &invocation_fixtures, &memory, &models, &bindings, &pipeline] {
+    for path in [
+        &fixtures,
+        &invocation_fixtures,
+        &memory,
+        &models,
+        &bindings,
+        &pipeline,
+    ] {
         assert!(path.exists(), "engine source: {}", path.display());
     }
     let driver = r##"
@@ -483,8 +500,7 @@ console.log(JSON.stringify(verdict));
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
-    let verdict: serde_json::Value =
-        serde_json::from_str(stdout.trim()).expect("verdict parses");
+    let verdict: serde_json::Value = serde_json::from_str(stdout.trim()).expect("verdict parses");
     assert_eq!(
         verdict.get("ok").and_then(|v| v.as_bool()),
         Some(true),
@@ -541,10 +557,7 @@ fn hook_hp_helper_parent_load_with_ambient_drives_owner_pipeline() {
         js.contains("(c,"),
         "helper invoked with ambient context (same equivalence as outside hooks):\n{js}"
     );
-    assert!(
-        js.contains("c.now"),
-        "ambient clock read:\n{js}"
-    );
+    assert!(js.contains("c.now"), "ambient clock read:\n{js}");
     assert!(
         !js.contains("has no lowering"),
         "no fail-closed placeholder:\n{js}"
@@ -566,7 +579,14 @@ fn hook_hp_helper_parent_load_with_ambient_drives_owner_pipeline() {
     let models = root.join("packages/state/src/mutation/models.ts");
     let bindings = root.join("packages/state/src/mutation/model-policies.ts");
     let pipeline = root.join("packages/state/src/mutation/pipeline.ts");
-    for path in [&fixtures, &invocation_fixtures, &memory, &models, &bindings, &pipeline] {
+    for path in [
+        &fixtures,
+        &invocation_fixtures,
+        &memory,
+        &models,
+        &bindings,
+        &pipeline,
+    ] {
         assert!(path.exists(), "engine source: {}", path.display());
     }
     let driver = r##"
@@ -634,8 +654,7 @@ console.log(JSON.stringify(verdict));
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
-    let verdict: serde_json::Value =
-        serde_json::from_str(stdout.trim()).expect("verdict parses");
+    let verdict: serde_json::Value = serde_json::from_str(stdout.trim()).expect("verdict parses");
     assert_eq!(
         verdict.get("ok").and_then(|v| v.as_bool()),
         Some(true),
@@ -745,7 +764,14 @@ fn hook_hp_record_helper_linkage_drives_owner_pipeline() {
     let models = root.join("packages/state/src/mutation/models.ts");
     let bindings = root.join("packages/state/src/mutation/model-policies.ts");
     let pipeline = root.join("packages/state/src/mutation/pipeline.ts");
-    for path in [&fixtures, &invocation_fixtures, &memory, &models, &bindings, &pipeline] {
+    for path in [
+        &fixtures,
+        &invocation_fixtures,
+        &memory,
+        &models,
+        &bindings,
+        &pipeline,
+    ] {
         assert!(path.exists(), "engine source: {}", path.display());
     }
     let driver = r##"
@@ -825,8 +851,7 @@ console.log(JSON.stringify(verdict));
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
-    let verdict: serde_json::Value =
-        serde_json::from_str(stdout.trim()).expect("verdict parses");
+    let verdict: serde_json::Value = serde_json::from_str(stdout.trim()).expect("verdict parses");
     assert_eq!(
         verdict.get("ok").and_then(|v| v.as_bool()),
         Some(true),
@@ -869,8 +894,9 @@ fn hook_record_helper_staged_linkage_refused_loud() {
     let (js, diags, path) = hook_js(src);
     let _ = std::fs::remove_file(&path);
     assert!(
-        diags.iter().any(|d| d.code == "E6008"
-            && d.message.contains("hook derive call")),
+        diags
+            .iter()
+            .any(|d| d.code == "E6008" && d.message.contains("hook derive call")),
         "staged linkage refuses loud: {}",
         codes(&diags).join("\n")
     );
@@ -923,10 +949,7 @@ fn hook_nullable_date_equality_null_safe() {
     let (js, diags, path) = hook_js(src);
     let _ = std::fs::remove_file(&path);
     assert!(diags.is_empty(), "nullable hook lowers: {diags:?}");
-    assert!(
-        js.contains("equalValue"),
-        "null-safe equality:\n{js}"
-    );
+    assert!(js.contains("equalValue"), "null-safe equality:\n{js}");
     assert!(
         !js.contains("compareDate"),
         "no throwing scalar comparator on nulls:\n{js}"
@@ -943,10 +966,7 @@ fn hook_same_model_staging_still_barred() {
     let (_db, _program, result) = check_hook(src, &catalog);
     let _ = std::fs::remove_file(&path);
     assert!(
-        result
-            .diagnostics
-            .iter()
-            .any(|d| d.code == "E4052"),
+        result.diagnostics.iter().any(|d| d.code == "E4052"),
         "same-model bar intact: {:?}",
         result.diagnostics
     );
@@ -1020,7 +1040,14 @@ fn hook_native_runner_drives_owner_pipeline() {
     let models = root.join("packages/state/src/mutation/models.ts");
     let bindings = root.join("packages/state/src/mutation/model-policies.ts");
     let pipeline = root.join("packages/state/src/mutation/pipeline.ts");
-    for path in [&fixtures, &invocation_fixtures, &memory, &models, &bindings, &pipeline] {
+    for path in [
+        &fixtures,
+        &invocation_fixtures,
+        &memory,
+        &models,
+        &bindings,
+        &pipeline,
+    ] {
         assert!(path.exists(), "engine source: {}", path.display());
     }
     let driver = r##"
@@ -1125,8 +1152,7 @@ console.log(JSON.stringify(verdict));
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
-    let verdict: serde_json::Value =
-        serde_json::from_str(stdout.trim()).expect("verdict parses");
+    let verdict: serde_json::Value = serde_json::from_str(stdout.trim()).expect("verdict parses");
     assert_eq!(
         verdict.get("ok").and_then(|v| v.as_bool()),
         Some(true),
@@ -1244,7 +1270,14 @@ fn hook_repeat_update_stages_distinct_children() {
     let models = root.join("packages/state/src/mutation/models.ts");
     let bindings = root.join("packages/state/src/mutation/model-policies.ts");
     let pipeline = root.join("packages/state/src/mutation/pipeline.ts");
-    for path in [&fixtures, &invocation_fixtures, &memory, &models, &bindings, &pipeline] {
+    for path in [
+        &fixtures,
+        &invocation_fixtures,
+        &memory,
+        &models,
+        &bindings,
+        &pipeline,
+    ] {
         assert!(path.exists(), "engine source: {}", path.display());
     }
     let driver = r##"
@@ -1337,8 +1370,7 @@ console.log(JSON.stringify(verdict));
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
-    let verdict: serde_json::Value =
-        serde_json::from_str(stdout.trim()).expect("verdict parses");
+    let verdict: serde_json::Value = serde_json::from_str(stdout.trim()).expect("verdict parses");
     assert_eq!(
         verdict.get("ok").and_then(|v| v.as_bool()),
         Some(true),
@@ -1551,8 +1583,7 @@ console.log(JSON.stringify(verdict));
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
-    let verdict: serde_json::Value =
-        serde_json::from_str(stdout.trim()).expect("verdict parses");
+    let verdict: serde_json::Value = serde_json::from_str(stdout.trim()).expect("verdict parses");
     assert_eq!(
         verdict.get("ok").and_then(|v| v.as_bool()),
         Some(true),
@@ -1660,7 +1691,14 @@ fn hook_create_then_update_stages_distinct_children() {
     let models = root.join("packages/state/src/mutation/models.ts");
     let bindings = root.join("packages/state/src/mutation/model-policies.ts");
     let pipeline = root.join("packages/state/src/mutation/pipeline.ts");
-    for path in [&fixtures, &invocation_fixtures, &memory, &models, &bindings, &pipeline] {
+    for path in [
+        &fixtures,
+        &invocation_fixtures,
+        &memory,
+        &models,
+        &bindings,
+        &pipeline,
+    ] {
         assert!(path.exists(), "engine source: {}", path.display());
     }
     let driver = r##"
@@ -1777,8 +1815,7 @@ console.log(JSON.stringify(verdict));
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
-    let verdict: serde_json::Value =
-        serde_json::from_str(stdout.trim()).expect("verdict parses");
+    let verdict: serde_json::Value = serde_json::from_str(stdout.trim()).expect("verdict parses");
     assert_eq!(
         verdict.get("ok").and_then(|v| v.as_bool()),
         Some(true),
@@ -1961,8 +1998,9 @@ fn hook_global_scan_stays_refused() {
     let (js, diags, path) = hook_js(src);
     let _ = std::fs::remove_file(&path);
     assert!(
-        diags.iter().any(|d| d.code == "E6008"
-            && d.message.contains("hook query")),
+        diags
+            .iter()
+            .any(|d| d.code == "E6008" && d.message.contains("hook query")),
         "global scan keeps its exact refusal: {}",
         codes(&diags).join("\n")
     );
@@ -2042,7 +2080,9 @@ fn hook_nullable_contract_create_input_stages_supplied_data() {
 #[test]
 fn hook_nullable_stored_reference_input_stays_legacy() {
     for field in ["buddy:R", "buddy:R?"] {
-        let src = format!("app T\nGiven\n R {{ name:text }}\n C in R {{ note:text }}\n Audit in R {{ note:text,{field} }}\nWhen\n crud R by=members fields=name\n crud C by=members fields=note\n scenario snap on=C.create\n  do\n   create Audit {{parent=event.after.parent,note=\"x\",buddy=event.after.parent}} as a2\nThen\n");
+        let src = format!(
+            "app T\nGiven\n R {{ name:text }}\n C in R {{ note:text }}\n Audit in R {{ note:text,{field} }}\nWhen\n crud R by=members fields=name\n crud C by=members fields=note\n scenario snap on=C.create\n  do\n   create Audit {{parent=event.after.parent,note=\"x\",buddy=event.after.parent}} as a2\nThen\n"
+        );
         let (js, diags, path) = hook_js(&src);
         let _ = std::fs::remove_file(&path);
         assert!(
@@ -2066,10 +2106,7 @@ fn hook_cross_package_mutation_still_barred() {
     let (_db, _program, result) = check_hook(src, &catalog);
     let _ = std::fs::remove_file(&path);
     assert!(
-        result
-            .diagnostics
-            .iter()
-            .any(|d| d.code == "E4001"),
+        result.diagnostics.iter().any(|d| d.code == "E4001"),
         "foreign-owner bar intact: {:?}",
         result.diagnostics
     );

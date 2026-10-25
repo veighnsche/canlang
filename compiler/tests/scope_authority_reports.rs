@@ -96,12 +96,13 @@ fn authority_scope_lowers_without_e6008_after_host_seam() {
         js_out.entry.js
     );
     assert!(
+        js_out.operations.iter().any(|op| op.name == "T.totals"),
+        "grant is advertised: {:?}",
         js_out
             .operations
             .iter()
-            .any(|op| op.name == "T.totals"),
-        "grant is advertised: {:?}",
-        js_out.operations.iter().map(|op| &op.name).collect::<Vec<_>>()
+            .map(|op| &op.name)
+            .collect::<Vec<_>>()
     );
 }
 
@@ -231,7 +232,9 @@ fn js_emits_decision_body_and_advertises_grant() {
         "grant carries its identifying description"
     );
     assert!(
-        op.result.as_deref().is_some_and(|result| result.contains("T.Total")),
+        op.result
+            .as_deref()
+            .is_some_and(|result| result.contains("T.Total")),
         "grant carries its typed result: {:?}",
         op.result
     );

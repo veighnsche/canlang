@@ -18,11 +18,11 @@ use crate::source::{Span, sha256_hex};
 use crate::syntax::SyntaxKind;
 
 use super::ir::{IrExpr, IrItem, IrItemKind, IrStmt, TypedExpr};
-use super::source_context::FreshSourceContext;
 use super::scenario_receipts::{
     NativeReturn, NativeScenarioReceipt, ReceiptDisclosurePlan, ReceiptReturn, transport_source,
 };
 use super::send_guards::{PreparedSendGuard, PreparedSendInput};
+use super::source_context::FreshSourceContext;
 use super::term_decisions as t;
 
 fn site(
@@ -46,7 +46,9 @@ fn site(
         )
         .as_bytes(),
     );
-    Some(json!({"id":id,"source":source,"node":t::interval(node),"statement":t::interval(statement)}))
+    Some(
+        json!({"id":id,"source":source,"node":t::interval(node),"statement":t::interval(statement)}),
+    )
 }
 
 const WHEN: &str = "change.parent.pending_change==change and not change.parent.cancelled and change.state==confirming";
@@ -62,11 +64,11 @@ fn same_item(context: &FreshSourceContext<'_>, id: SymbolId) -> Option<()> {
 
 /// Walk checked source effects through `for`/`if` nesting to the single
 /// guarded SEND. Sibling emits, sets and schedules stay untouched.
-fn source_send<'a>(
-    effects: &'a [crate::analysis::effects::Effect],
+fn source_send(
+    effects: &[crate::analysis::effects::Effect],
 ) -> Option<(
-    &'a crate::analysis::effects::Effect,
-    Vec<&'a crate::analysis::effects::Effect>,
+    &crate::analysis::effects::Effect,
+    Vec<&crate::analysis::effects::Effect>,
 )> {
     fn visit<'a>(
         effects: &'a [crate::analysis::effects::Effect],
@@ -97,7 +99,7 @@ fn source_send<'a>(
     Some((send, ancestors.clone()))
 }
 
-fn ir_send<'a>(statements: &'a [IrStmt]) -> Option<&'a IrStmt> {
+fn ir_send(statements: &[IrStmt]) -> Option<&IrStmt> {
     // Complete inventory: collect every guarded SEND, then require exactly
     // one. The earlier reset-to-None walk returned from its frame on the
     // second SEND while the outer loop continued, so a third guarded SEND
@@ -106,7 +108,11 @@ fn ir_send<'a>(statements: &'a [IrStmt]) -> Option<&'a IrStmt> {
         for statement in statements {
             match statement {
                 IrStmt::Send { when: Some(_), .. } => out.push(statement),
-                IrStmt::If { then_branch, else_branch, .. } => {
+                IrStmt::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } => {
                     visit(then_branch, out);
                     visit(else_branch, out);
                 }
@@ -173,7 +179,9 @@ pub(super) fn prepare_observe_venue_send_guard(
         "change.parent.pending_change==change and not change.parent.cancelled and change.base_revision==change.parent.revision",
         "event.value.state==pending and change.state==holding and change.resource!=null",
     ];
-    let mut fors = ancestors.iter().filter(|effect| effect.verb == EffectVerb::For);
+    let mut fors = ancestors
+        .iter()
+        .filter(|effect| effect.verb == EffectVerb::For);
     let for_effect = fors.next()?;
     let ifs: Vec<&&crate::analysis::effects::Effect> = ancestors
         .iter()
@@ -228,7 +236,11 @@ pub(super) fn prepare_observe_venue_send_guard(
     else {
         return None;
     };
-    if ir_event != "events.VenueObserved" || !by.is_empty() || !params.is_empty() || !ir_guards.is_empty() {
+    if ir_event != "events.VenueObserved"
+        || !by.is_empty()
+        || !params.is_empty()
+        || !ir_guards.is_empty()
+    {
         return None;
     }
     let ir = ir_send(ir_effects)?;
@@ -257,7 +269,7 @@ pub(super) fn prepare_observe_venue_send_guard(
     let tree = &trees.iter().find(|(file, _)| *file == predicate.file)?.1;
     let predicate_node = tree
         .descendants()
-        .find(|node| NodeKey::of(*node) == predicate)?;
+        .find(|node| NodeKey::of(node) == predicate)?;
     let mut change_uses = Vec::new();
     for node in predicate_node
         .descendants()
@@ -289,8 +301,7 @@ pub(super) fn prepare_observe_venue_send_guard(
         return None;
     }
     let declaration = change_uses[0].1;
-    if declaration != for_effect.node
-        || change_uses.iter().any(|(_, other)| other != &declaration)
+    if declaration != for_effect.node || change_uses.iter().any(|(_, other)| other != &declaration)
     {
         return None;
     }
@@ -437,7 +448,10 @@ pub(super) fn collect_observe_receipt(
         .as_bytes(),
     );
     Some(NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
+        plan: ReceiptDisclosurePlan {
+            retained_guarded_handler: None,
+            source_loops: None,
+            source_emissions: None,
             version: 1,
             source: source.clone(),
             event_decision: None,
@@ -451,7 +465,9 @@ pub(super) fn collect_observe_receipt(
             rent_notice_decision: None,
             invoice_issue_decision: None,
             observe_venue_decision: Some(decision),
-            success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,
+            success_renewal_decision: None,
+            purchase_receive_all: None,
+            event_notice_audit: None,
             queries: Vec::new(),
             returns: vec![ReceiptReturn {
                 id: id.clone(),

@@ -72,7 +72,10 @@ fn completed_mutation_context_preserves_correlation_and_native_rejections() {
     );
     std::fs::write(scratch.path().join("expected.json"), unavailable.stdout).unwrap();
     let forbidden = compile(
-        &SOURCE.replace("call saved {} by=self", "call saved {} by=public -> error(forbidden)"),
+        &SOURCE.replace(
+            "call saved {} by=self",
+            "call saved {} by=public -> error(forbidden)",
+        ),
         &scratch.path().join("forbidden.can"),
     );
     assert!(

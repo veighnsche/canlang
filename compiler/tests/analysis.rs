@@ -2043,17 +2043,31 @@ fn retention_context_dependencies_follow_helpers_members_imports_and_selected_de
     for (declarations, until) in [
         ("", "now+30d"),
         (" derive deadline():datetime = now+30d\n", "deadline()"),
-        (" derive deadline():datetime = now+30d\n derive indirect():datetime = deadline()\n", "indirect()"),
-        (" derive Entry.deadline:datetime = now+30d\n", "row.deadline"),
-        (" derive deadline(at:datetime=now):datetime = at+30d\n", "deadline()"),
+        (
+            " derive deadline():datetime = now+30d\n derive indirect():datetime = deadline()\n",
+            "indirect()",
+        ),
+        (
+            " derive Entry.deadline:datetime = now+30d\n",
+            "row.deadline",
+        ),
+        (
+            " derive deadline(at:datetime=now):datetime = at+30d\n",
+            "deadline()",
+        ),
     ] {
-        let source = format!("app Retention\nGiven\n Entry {{at:datetime}}\n{declarations} retain Entry until={until}\nWhen\nThen\n");
+        let source = format!(
+            "app Retention\nGiven\n Entry {{at:datetime}}\n{declarations} retain Entry until={until}\nWhen\nThen\n"
+        );
         let diagnostics = check(&source, None);
         assert_eq!(diagnostics.len(), 1, "{source}\n{diagnostics:?}");
         assert_eq!(diagnostics[0].code, "E3017", "{diagnostics:?}");
         assert_eq!(diagnostics[0].message, "retain until= cannot use now");
         let (start, end) = span_of(&source, &format!("until={until}"), 1);
-        assert_eq!((diagnostics[0].primary.start, diagnostics[0].primary.end), (start + 6, end));
+        assert_eq!(
+            (diagnostics[0].primary.start, diagnostics[0].primary.end),
+            (start + 6, end)
+        );
     }
     let imported = "package Clock\n Given\n  export derive deadline():datetime = now+30d\n When\n Then\npackage Records\n use Clock {deadline as expiry}\n Given\n  Entry {at:datetime}\n  retain Entry until=expiry()\n When\n Then\n";
     let diagnostics = check(imported, None);
@@ -2061,11 +2075,22 @@ fn retention_context_dependencies_follow_helpers_members_imports_and_selected_de
     assert_eq!(diagnostics[0].code, "E3017");
     for (declarations, until) in [
         ("", "row.now+30d"),
-        (" derive deadline(at:datetime=now):datetime = at+30d\n", "deadline(row.now)"),
-        (" derive deadline(at:datetime):datetime = at+30d\n", "deadline(row.now)"),
-        (" derive Entry.deadline:datetime = row.now+30d\n", "row.deadline"),
+        (
+            " derive deadline(at:datetime=now):datetime = at+30d\n",
+            "deadline(row.now)",
+        ),
+        (
+            " derive deadline(at:datetime):datetime = at+30d\n",
+            "deadline(row.now)",
+        ),
+        (
+            " derive Entry.deadline:datetime = row.now+30d\n",
+            "row.deadline",
+        ),
     ] {
-        let source = format!("app Retention\nGiven\n Entry {{now:datetime}}\n{declarations} retain Entry until={until}\nWhen\nThen\n");
+        let source = format!(
+            "app Retention\nGiven\n Entry {{now:datetime}}\n{declarations} retain Entry until={until}\nWhen\nThen\n"
+        );
         let diagnostics = check(&source, None);
         assert!(diagnostics.is_empty(), "{source}\n{diagnostics:?}");
     }

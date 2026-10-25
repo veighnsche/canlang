@@ -35,7 +35,7 @@ fn codes(diags: &[Diagnostic]) -> Vec<String> {
 /// node (catches factory-table and prop-admission gaps too).
 fn emit_all(source: &str) -> Vec<String> {
     let mut db = SourceDb::new();
-    let file = db.add("probe.can".into(), source.into());
+    let file = db.add("probe.can".into(), source.to_owned());
     let (checked, check_diags) = check_program(&db, &[file], None);
     let mut out: Vec<String> = codes(&check_diags);
     if !check_diags.is_empty() {
@@ -77,7 +77,7 @@ fn desk_unassigned_rejected_defaults_leave_no_receipt() {
     );
     assert!(source != UNASSIGNED_PROBE, "mutant must differ");
     let mut db = SourceDb::new();
-    let file = db.add("probe.can".into(), source.into());
+    let file = db.add("probe.can".into(), source);
     let (checked, check_diags) = check_program(&db, &[file], None);
     assert!(
         check_diags.is_empty(),
@@ -108,7 +108,7 @@ fn assert_refuses(source: &str, code: &str, fragment: &str) {
 /// the returned text is the admitted emission).
 fn emit_js(source: &str) -> String {
     let mut db = SourceDb::new();
-    let file = db.add("probe.can".into(), source.into());
+    let file = db.add("probe.can".into(), source.to_owned());
     let (checked, check_diags) = check_program(&db, &[file], None);
     assert!(
         check_diags.is_empty(),
@@ -335,9 +335,7 @@ fn extract_filter_profile(js: &str) -> (String, String, String) {
     let occurrence_key = "occurrence:\"";
     let occurrence_at = js.find(occurrence_key).expect("missing occurrence");
     let name_start = occurrence_at + occurrence_key.len();
-    let name_end = js[name_start..]
-        .find('"')
-        .expect("unterminated occurrence");
+    let name_end = js[name_start..].find('"').expect("unterminated occurrence");
     let occurrence = js[name_start..name_start + name_end].to_string();
 
     let filter_key = "filter:[";
@@ -389,14 +387,14 @@ fn extract_filter_profile(js: &str) -> (String, String, String) {
 /// diagnostic-free. No prebuilt binary or dist file is assumed.
 fn compile_probe_artifact(scratch: &std::path::Path, source: &str, name: &str) {
     use canlang_compiler::analysis::catalog::{CatalogRequest, load_catalog};
-    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
     use canlang_compiler::codegen::artifact::to_json;
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
     use canlang_compiler::diagnostic::DiagnosticResult;
     use canlang_compiler::source::Span;
     // Same db path as the in-process descriptor leg so the sealed
     // marker path matches the artifact census entry exactly.
     let mut db = SourceDb::new();
-    let file = db.add("probe.can".into(), source.into());
+    let file = db.add("probe.can".into(), source.to_owned());
     // Emission pins producer capabilities, so a checked catalog is
     // required. This hermetic fixture catalog (codegen.rs pattern)
     // carries exactly the builtins the sealed probe needs and no
@@ -456,7 +454,7 @@ fn desk_unassigned_chain_runtime() {
         .to_path_buf();
     let lowered = emit_js(UNASSIGNED_PROBE);
     let (occurrence, filter_src, defaults_src) = extract_filter_profile(&lowered);
-        assert!(
+    assert!(
         filter_src.contains("expansion:\"unassigned\""),
         "sealed expansion missing from descriptor"
     );
@@ -491,7 +489,11 @@ fn desk_unassigned_chain_runtime() {
     .unwrap();
     std::fs::write(
         scratch.path().join("plan-overdue.json"),
-        serde_json_like(&overdue_occurrence, &overdue_filter_src, &overdue_defaults_src),
+        serde_json_like(
+            &overdue_occurrence,
+            &overdue_filter_src,
+            &overdue_defaults_src,
+        ),
     )
     .unwrap();
     std::fs::write(

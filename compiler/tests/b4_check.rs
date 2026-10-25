@@ -4230,17 +4230,32 @@ fn page_refresh_cli_checks_repeatable_same_page_mutations() {
         ),
         (
             "static contract defaults",
-            source(" contract Input { label:text=\"ready\" }\n", "input:Input", "", page),
+            source(
+                " contract Input { label:text=\"ready\" }\n",
+                "input:Input",
+                "",
+                page,
+            ),
             None,
         ),
         (
             "contextual contract default",
-            source(" contract Input { at:datetime=now }\n", "input:Input", "", page),
+            source(
+                " contract Input { at:datetime=now }\n",
+                "input:Input",
+                "",
+                page,
+            ),
             Some("repeatable non-secret"),
         ),
         (
             "server contract input",
-            source(" contract Input { at:datetime server=now }\n", "input:Input", "", page),
+            source(
+                " contract Input { at:datetime server=now }\n",
+                "input:Input",
+                "",
+                page,
+            ),
             Some("repeatable non-secret"),
         ),
         (

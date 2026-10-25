@@ -29,7 +29,12 @@ fn source_command_help_and_flag_scopes() {
         vec!["gen", "source.can", "--settings"],
         vec!["gen", "source.can", "--settings="],
         vec!["gen", "source.can", "--settings", "--dry-run"],
-        vec!["gen", "source.can", "--settings=one.toml", "--settings=two.toml"],
+        vec![
+            "gen",
+            "source.can",
+            "--settings=one.toml",
+            "--settings=two.toml",
+        ],
     ] {
         let output = can().args(&args).output().unwrap();
         assert_eq!(output.status.code(), Some(2), "{args:?}");
@@ -50,7 +55,11 @@ fn source_settings_preserve_caller_relative_path_in_both_flag_forms() {
     std::fs::write(app.join("App.can"), "app Example\n").unwrap();
     let platform = scratch.path().join("platform");
     let capture = scratch.path().join("capture");
-    std::fs::write(&platform, "#!/bin/sh\nprintf '%s\\n' \"$PWD\" \"$@\" > \"$SOURCE_CLI_CAPTURE\"\nexit 0\n").unwrap();
+    std::fs::write(
+        &platform,
+        "#!/bin/sh\nprintf '%s\\n' \"$PWD\" \"$@\" > \"$SOURCE_CLI_CAPTURE\"\nexit 0\n",
+    )
+    .unwrap();
     std::fs::set_permissions(&platform, std::fs::Permissions::from_mode(0o755)).unwrap();
     for flags in [
         vec!["--settings=shared ; $literal.toml"],
@@ -64,13 +73,35 @@ fn source_settings_preserve_caller_relative_path_in_both_flag_forms() {
             .env("SOURCE_CLI_CAPTURE", &capture)
             .output()
             .unwrap();
-        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
         let captured = std::fs::read_to_string(&capture).unwrap();
         let lines: Vec<_> = captured.lines().collect();
-        assert_eq!(lines[0], scratch.path().canonicalize().unwrap().to_str().unwrap());
+        assert_eq!(
+            lines[0],
+            scratch.path().canonicalize().unwrap().to_str().unwrap()
+        );
         assert_eq!(lines[1], "generate");
-        assert_eq!(lines[2], app.join("App.can").canonicalize().unwrap().to_str().unwrap());
-        assert_eq!(&lines[3..], ["--retry", "--dry-run", "--settings=shared ; $literal.toml", "--format=text"]);
+        assert_eq!(
+            lines[2],
+            app.join("App.can")
+                .canonicalize()
+                .unwrap()
+                .to_str()
+                .unwrap()
+        );
+        assert_eq!(
+            &lines[3..],
+            [
+                "--retry",
+                "--dry-run",
+                "--settings=shared ; $literal.toml",
+                "--format=text"
+            ]
+        );
     }
 }
 

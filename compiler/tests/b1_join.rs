@@ -203,7 +203,9 @@ fn b1_teamtasks_artifact() {
         ));
     }
     if e6008 != 0 {
-        failures.push(format!("expected E6008=0 with the E5 conjunction, got {e6008}"));
+        failures.push(format!(
+            "expected E6008=0 with the E5 conjunction, got {e6008}"
+        ));
     }
     for (profile, expected) in [
         ("cannot lower tooltip:", 0),

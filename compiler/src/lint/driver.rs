@@ -526,6 +526,3 @@ fn declared_names(program: &CheckedProgram) -> HashSet<String> {
     }
     names
 }
-
-
-

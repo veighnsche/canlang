@@ -69,12 +69,13 @@ use super::{
 mod given;
 
 pub use given::{
-    CheckedKeywordApplication, CheckedKeywordContract, CheckedTraitApplication, CheckedTraitContract,
-    GIVEN_FIELD_VALIDATION_EXPORT, GIVEN_FIELD_VALIDATION_LIFECYCLE, GIVEN_PRODUCER_FIELD_VALIDATION,
-    GIVEN_PRODUCER_UNIQUE_KEY, GIVEN_UNIQUE_KEY_EXPORT, GIVEN_UNIQUE_KEY_LIFECYCLE,
-    GIVEN_UNIQUE_KEY_SEMANTICS, GivenContractTables, GivenContributedField, GivenFieldSchema,
-    GivenSavedDeclaration, GivenSavedImport, GivenSavedUnit, check_given_contract_tables,
-    given_closure_fingerprint, given_declaration_for_source, given_producer_known,
+    CheckedKeywordApplication, CheckedKeywordContract, CheckedTraitApplication,
+    CheckedTraitContract, GIVEN_FIELD_VALIDATION_EXPORT, GIVEN_FIELD_VALIDATION_LIFECYCLE,
+    GIVEN_PRODUCER_FIELD_VALIDATION, GIVEN_PRODUCER_UNIQUE_KEY, GIVEN_UNIQUE_KEY_EXPORT,
+    GIVEN_UNIQUE_KEY_LIFECYCLE, GIVEN_UNIQUE_KEY_SEMANTICS, GivenContractTables,
+    GivenContributedField, GivenFieldSchema, GivenSavedDeclaration, GivenSavedImport,
+    GivenSavedUnit, check_given_contract_tables, given_closure_fingerprint,
+    given_declaration_for_source, given_producer_known,
 };
 pub(crate) use given::{parse_given_carrier, split_given_consts};
 
@@ -1782,10 +1783,10 @@ impl<'a> Typer<'a> {
         }
         for (module, declarations) in &self.types.runtime_bindings {
             for declaration in declarations {
-                if let CheckedRuntimeBinding::DurableObject { name, key } = declaration {
-                    if !placed.contains(&(*module, name.clone(), *key)) {
-                        self.diags.push(Diagnostic::error("E3001", format!("DurableObject binding '{name}' requires its keyed root model to declare at={name}"), self.tables.symbols[key.0 as usize].span));
-                    }
+                if let CheckedRuntimeBinding::DurableObject { name, key } = declaration
+                    && !placed.contains(&(*module, name.clone(), *key))
+                {
+                    self.diags.push(Diagnostic::error("E3001", format!("DurableObject binding '{name}' requires its keyed root model to declare at={name}"), self.tables.symbols[key.0 as usize].span));
                 }
             }
         }
@@ -2026,7 +2027,15 @@ impl<'a> Typer<'a> {
         let cx = Self::body_cx(module, file, text, &narrow);
         // One occurrence of each modifier (when the parser lets a
         // duplicate through, the checker still rejects it).
-        self.check_field_modifiers(&cx, field, text, &name, &expected, &init.modifiers, in_prefs);
+        self.check_field_modifiers(
+            &cx,
+            field,
+            text,
+            &name,
+            &expected,
+            &init.modifiers,
+            in_prefs,
+        );
         self.check_min_max_order(&cx, field, &name, &init.modifiers);
         if let Some(label) = init.label {
             self.check_field_label(&cx, field, &name, &expected, label);
@@ -3601,9 +3610,7 @@ impl<'a> Typer<'a> {
         let Some(target) = target else {
             return;
         };
-        if target.kind == SyntaxKind::Member
-            && self.stmt_declared_sink(cx, node, target, object)
-        {
+        if target.kind == SyntaxKind::Member && self.stmt_declared_sink(cx, node, target, object) {
             return;
         }
         let ty = self.expr(cx, target, None);
@@ -3672,7 +3679,9 @@ impl<'a> Typer<'a> {
         object: Option<&SyntaxNode>,
     ) -> bool {
         let parts = kids(target);
-        let head = parts.first().and_then(|head| name_or_ref_word(head, cx.text));
+        let head = parts
+            .first()
+            .and_then(|head| name_or_ref_word(head, cx.text));
         let member = parts.last().and_then(|member| name_text(member, cx.text));
         let shadowed = parts
             .first()
@@ -3685,9 +3694,7 @@ impl<'a> Typer<'a> {
             .flatten()
             .filter(|_| !shadowed)
             .find_map(|binding| match binding {
-                CheckedRuntimeBinding::Queue { name, payload }
-                    if Some(name.as_str()) == head =>
-                {
+                CheckedRuntimeBinding::Queue { name, payload } if Some(name.as_str()) == head => {
                     Some(("publish", vec![("value".to_string(), payload.clone())]))
                 }
                 CheckedRuntimeBinding::Analytics { name, fields }
@@ -3743,9 +3750,7 @@ impl<'a> Typer<'a> {
             .map(|(_, ty)| ty.clone());
         let (actual, span) = self.entry_value(cx, key_node, value, expected.clone());
         match expected {
-            Some(expected)
-                if !actual.is_error() && !self.types_compatible(&actual, &expected) =>
-            {
+            Some(expected) if !actual.is_error() && !self.types_compatible(&actual, &expected) => {
                 self.diags.push(Diagnostic::error(
                     "E3001",
                     format!(
@@ -3827,7 +3832,9 @@ impl<'a> Typer<'a> {
     fn external_target_name(&self, cx: &Ctx<'_, '_>, target: &SyntaxNode) -> Option<String> {
         match target.kind {
             SyntaxKind::NameRef => match self.tables.node_binding.get(&NodeKey::of(target)) {
-                Some(Binding::External { .. }) => name_or_ref_word(target, cx.text).map(str::to_string),
+                Some(Binding::External { .. }) => {
+                    name_or_ref_word(target, cx.text).map(str::to_string)
+                }
                 _ => None,
             },
             SyntaxKind::Member => {
@@ -4921,8 +4928,8 @@ impl<'a> Typer<'a> {
             return Some(event.payload.clone());
         }
         let segments = path_segments(on, text);
-        if let [name] = segments.as_slice() {
-            if let Some(payload) = self
+        if let [name] = segments.as_slice()
+            && let Some(payload) = self
                 .types
                 .runtime_bindings
                 .get(&module)
@@ -4935,9 +4942,8 @@ impl<'a> Typer<'a> {
                     } if declared == name => Some(payload.clone()),
                     _ => None,
                 })
-            {
-                return Some(payload);
-            }
+        {
+            return Some(payload);
         }
         if segments == ["teams", "member_removed"] {
             // TeamsMemberRemovedEvent retains the removed subject. Remover and
@@ -5461,7 +5467,11 @@ impl<'a> Typer<'a> {
             }
         }
         let (value, labels) = self.check_choice_value_labels(
-            text, entry("value"), entry("labels"), candidate, assisted,
+            text,
+            entry("value"),
+            entry("labels"),
+            candidate,
+            assisted,
         )?;
         Ok(CheckedInputChoice {
             read_operation,
@@ -5612,7 +5622,7 @@ impl<'a> Typer<'a> {
     /// object against the candidate's declared fields.
     fn check_choice_value_labels(
         &self,
-        text: &str,
+        _text: &str,
         value: Option<&SyntaxNode>,
         labels_node: Option<&SyntaxNode>,
         candidate: SymbolId,
@@ -6372,9 +6382,15 @@ impl<'a> Typer<'a> {
     ) {
         let actual = self.expr(cx, value, expected.clone());
         if let Some(expected) = expected {
-            let strict = Ctx { strict: true, ..*cx };
+            let strict = Ctx {
+                strict: true,
+                ..*cx
+            };
             self.assign_ok(
-                &strict, tight_span(cx.text, value), &actual, &expected,
+                &strict,
+                tight_span(cx.text, value),
+                &actual,
+                &expected,
                 "example expected value",
             );
         }
@@ -7697,15 +7713,7 @@ impl<'a> Typer<'a> {
             selectors
         };
         for child in kids(selectors) {
-            self.check_selector_child(
-                cx,
-                node,
-                model,
-                what,
-                allow_reserved,
-                child,
-                &mut selected,
-            );
+            self.check_selector_child(cx, node, model, what, allow_reserved, child, &mut selected);
         }
         selected
     }
@@ -8461,9 +8469,15 @@ impl<'a> Typer<'a> {
                     continue;
                 }
                 match self.tables.node_binding.get(&NodeKey::of(node)) {
-                    Some(Binding::Context(ContextVar::Actor(_))) => { banned.insert("actor"); }
-                    Some(Binding::Context(ContextVar::Now)) => { banned.insert("now"); }
-                    Some(Binding::Context(ContextVar::Operation)) => { banned.insert("operation"); }
+                    Some(Binding::Context(ContextVar::Actor(_))) => {
+                        banned.insert("actor");
+                    }
+                    Some(Binding::Context(ContextVar::Now)) => {
+                        banned.insert("now");
+                    }
+                    Some(Binding::Context(ContextVar::Operation)) => {
+                        banned.insert("operation");
+                    }
                     _ => {}
                 }
                 if let Some(id) = self.membership_derive_at(node) {
@@ -8489,7 +8503,9 @@ impl<'a> Typer<'a> {
             for name in ["actor", "now", "operation"] {
                 if banned.contains(name) {
                     self.diags.push(Diagnostic::error(
-                        "E3017", format!("retain until= cannot use {name}"), span,
+                        "E3017",
+                        format!("retain until= cannot use {name}"),
+                        span,
                     ));
                 }
             }
@@ -8608,14 +8624,12 @@ impl<'a> Typer<'a> {
         }
         if let Some(ty) = attribute_value(decl, "type", text) {
             let payload = self.resolve_type_node(file, text, module, ty, None);
-            self.types
-                .runtime_bindings
-                .entry(module)
-                .or_default()
-                .push(CheckedRuntimeBinding::Queue {
+            self.types.runtime_bindings.entry(module).or_default().push(
+                CheckedRuntimeBinding::Queue {
                     name: decl_name.to_string(),
                     payload,
-                });
+                },
+            );
         }
     }
 
@@ -8639,14 +8653,12 @@ impl<'a> Typer<'a> {
                     ..
                 }
             ) {
-                self.types
-                    .runtime_bindings
-                    .entry(module)
-                    .or_default()
-                    .push(CheckedRuntimeBinding::DurableObject {
+                self.types.runtime_bindings.entry(module).or_default().push(
+                    CheckedRuntimeBinding::DurableObject {
                         name: decl_name.to_string(),
                         key,
-                    });
+                    },
+                );
             } else {
                 self.diags.push(Diagnostic::error(
                     "E3001",
@@ -8687,12 +8699,19 @@ impl<'a> Typer<'a> {
     /// Check a duration-typed `cache ttl=`: static, positive literals bind.
     fn context_cache_ttl(&mut self, module: ModuleId, text: &str, ttl: &SyntaxNode) {
         if let Some(ttl_milliseconds) = duration_value(ttl, text).filter(|ms| *ms > 0) {
-            self.types.runtime_bindings.entry(module)
+            self.types
+                .runtime_bindings
+                .entry(module)
                 .or_default()
                 .push(CheckedRuntimeBinding::Cache { ttl_milliseconds });
         }
         if duration_value(ttl, text).is_none() {
-            self.diags.push(Diagnostic::error("E6008", "cache ttl requires a static duration literal in the current runtime profile".into(), tight_span(text, ttl)));
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cache ttl requires a static duration literal in the current runtime profile"
+                    .into(),
+                tight_span(text, ttl),
+            ));
         }
         if duration_value(ttl, text).is_some_and(|ms| ms <= 0) {
             self.diags.push(Diagnostic::error(
@@ -8795,14 +8814,12 @@ impl<'a> Typer<'a> {
                 self.check_field_label(cx, field, name, &ty, label);
             }
         }
-        self.types
-            .runtime_bindings
-            .entry(module)
-            .or_default()
-            .push(CheckedRuntimeBinding::Analytics {
+        self.types.runtime_bindings.entry(module).or_default().push(
+            CheckedRuntimeBinding::Analytics {
                 name: decl_name.to_string(),
                 fields,
-            });
+            },
+        );
     }
 
     /// Check one `locale` context declaration: the default must be a
@@ -8843,8 +8860,7 @@ impl<'a> Typer<'a> {
                 self.diags.push(Diagnostic::error("E2002", format!("runtime binding '{resource_name}' conflicts with another declaration or import"), tight_span(text, decl)));
             }
         }
-        if !matches!(head, "" | "queue")
-            && !seen.insert((head.to_string(), decl_name.to_string()))
+        if !matches!(head, "" | "queue") && !seen.insert((head.to_string(), decl_name.to_string()))
         {
             self.diags.push(Diagnostic::error(
                 "E2002",
@@ -9797,17 +9813,14 @@ impl<'a> Typer<'a> {
     /// Register top-level page admission guards for team-authority reads.
     fn register_page_guards(&mut self, node: &SyntaxNode, text: &str) {
         for child in kids(node) {
-            if child.kind == SyntaxKind::Require
+            if (child.kind == SyntaxKind::Require
                 || child.kind == SyntaxKind::UiLeaf
-                    && kids(child).iter().find_map(|part| name_text(part, text))
-                        == Some("require")
-            {
-                if let Some(pred) = kids(child)
+                    && kids(child).iter().find_map(|part| name_text(part, text)) == Some("require"))
+                && let Some(pred) = kids(child)
                     .into_iter()
                     .find(|part| is_expression(part.kind))
-                {
-                    self.membership_page_guards.insert(NodeKey::of(pred));
-                }
+            {
+                self.membership_page_guards.insert(NodeKey::of(pred));
             }
         }
     }
@@ -9991,7 +10004,10 @@ impl<'a> Typer<'a> {
                     }
                 }
                 ResolvedType::Union(arms) => {
-                    pending.extend(arms.into_iter().map(|symbol| ResolvedType::Record { symbol, stored: false }));
+                    pending.extend(arms.into_iter().map(|symbol| ResolvedType::Record {
+                        symbol,
+                        stored: false,
+                    }));
                 }
                 ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => {
                     pending.extend(fields.into_iter().map(|(_, ty)| ty))
@@ -10026,13 +10042,15 @@ impl<'a> Typer<'a> {
                         return false;
                     }
                 }
-                SyntaxKind::Group | SyntaxKind::Unary | SyntaxKind::Binary | SyntaxKind::Array
-                | SyntaxKind::Object | SyntaxKind::ObjectEntry => {
-                    pending.extend(
-                        kids(node)
-                            .into_iter()
-                            .filter(|child| is_expression(child.kind) || child.kind == SyntaxKind::ObjectEntry),
-                    );
+                SyntaxKind::Group
+                | SyntaxKind::Unary
+                | SyntaxKind::Binary
+                | SyntaxKind::Array
+                | SyntaxKind::Object
+                | SyntaxKind::ObjectEntry => {
+                    pending.extend(kids(node).into_iter().filter(|child| {
+                        is_expression(child.kind) || child.kind == SyntaxKind::ObjectEntry
+                    }));
                 }
                 _ => return false,
             }
@@ -10377,7 +10395,10 @@ impl<'a> Typer<'a> {
 
     /// Parse one catalog source line to its id and notes-stripped shape:
     /// well-formed component entries with fresh ids only.
-    fn parse_catalog_line<'n>(line: &'n str, words: &mut HashSet<String>) -> Option<(String, &'n str)> {
+    fn parse_catalog_line<'n>(
+        line: &'n str,
+        words: &mut HashSet<String>,
+    ) -> Option<(String, &'n str)> {
         if !line.starts_with("{ id: \"") || !line.ends_with(" },") {
             return None;
         }
@@ -10396,11 +10417,7 @@ impl<'a> Typer<'a> {
 
     /// Verify one collection catalog line against its expected shape and
     /// record its id.
-    fn verify_collection_line(
-        shape: &str,
-        id: &str,
-        collections: &mut HashSet<String>,
-    ) -> bool {
+    fn verify_collection_line(shape: &str, id: &str, collections: &mut HashSet<String>) -> bool {
         let Some((js, header, attributes, item_slot)) = Self::expected_collection_shape(id) else {
             return false;
         };
@@ -10440,11 +10457,7 @@ impl<'a> Typer<'a> {
 
     /// Verify one compiler-catalog entry against the expected collection
     /// shape: non-collections stay out, collections match exactly.
-    fn verify_catalog_entry(
-        catalog: &Catalog,
-        id: &str,
-        collections: &HashSet<String>,
-    ) -> bool {
+    fn verify_catalog_entry(catalog: &Catalog, id: &str, collections: &HashSet<String>) -> bool {
         let Some(entry) = catalog.lookup(id) else {
             return false;
         };
@@ -10593,14 +10606,14 @@ impl<'a> Typer<'a> {
                     .find_map(|n| name_text(n, cx.text))
                     .is_some_and(|word| matches!(word, "primary" | "secondary"))
         }) {
-            if let Some(target) = attribute_value(primitive, "opens", cx.text) {
-                if !spelling(target).is_some_and(|name| panels.contains(&name)) {
-                    self.diags.push(Diagnostic::error(
-                        "E3001",
-                        "action opens must name a declared local modal or drawer id".into(),
-                        target.span,
-                    ));
-                }
+            if let Some(target) = attribute_value(primitive, "opens", cx.text)
+                && !spelling(target).is_some_and(|name| panels.contains(&name))
+            {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    "action opens must name a declared local modal or drawer id".into(),
+                    target.span,
+                ));
             }
         }
     }
@@ -10608,7 +10621,12 @@ impl<'a> Typer<'a> {
     /// Details widgets type their domain and `open=` binding; `display=`
     /// base values are unspecified (only the drawer exception is
     /// documented): no check.
-    fn check_details_widget(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, domain: Option<&SyntaxNode>) {
+    fn check_details_widget(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        domain: Option<&SyntaxNode>,
+    ) {
         if let Some(domain) = domain {
             let _ = self.expr(cx, domain, None);
         }
@@ -10621,29 +10639,65 @@ impl<'a> Typer<'a> {
     /// Inline selectors are vocabulary, so bind them explicitly instead of
     /// treating a same-spelled expression or a foreign field as an editor.
     fn check_preference_panel(&mut self, cx: &Ctx<'_, '_>, panel: &SyntaxNode) {
-        for node in kids(panel).into_iter().filter(|node| node.kind != SyntaxKind::Name) {
+        for node in kids(panel)
+            .into_iter()
+            .filter(|node| node.kind != SyntaxKind::Name)
+        {
             if let Some(fact) = self.preference_control_fact(cx, panel, node) {
-                self.types.preference_controls.insert(NodeKey::of(node), fact);
+                self.types
+                    .preference_controls
+                    .insert(NodeKey::of(node), fact);
             } else {
-                self.diags.push(Diagnostic::error("E3001",
-                    "preferences controls require one local bool toggle or text/int input field".into(), node.span));
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    "preferences controls require one local bool toggle or text/int input field"
+                        .into(),
+                    node.span,
+                ));
             }
         }
     }
 
-    fn preference_control_fact(&mut self, cx: &Ctx<'_, '_>, panel: &SyntaxNode,
-        node: &SyntaxNode) -> Option<CheckedPreferenceControl> {
-        if node.kind != SyntaxKind::CatalogItem { return None; }
+    fn preference_control_fact(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        panel: &SyntaxNode,
+        node: &SyntaxNode,
+    ) -> Option<CheckedPreferenceControl> {
+        if node.kind != SyntaxKind::CatalogItem {
+            return None;
+        }
         let parts = kids(node);
         let control = parts.iter().find_map(|part| name_text(part, cx.text))?;
-        if !matches!(control, "toggle" | "input") || parts.iter().any(|part|
-            !matches!(part.kind, SyntaxKind::Name | SyntaxKind::NameRef)) { return None; }
-        let headers: Vec<_> = parts.iter().filter(|part| part.kind == SyntaxKind::NameRef).copied().collect();
-        let [selector] = headers.as_slice() else { return None; };
+        if !matches!(control, "toggle" | "input")
+            || parts
+                .iter()
+                .any(|part| !matches!(part.kind, SyntaxKind::Name | SyntaxKind::NameRef))
+        {
+            return None;
+        }
+        let headers: Vec<_> = parts
+            .iter()
+            .filter(|part| part.kind == SyntaxKind::NameRef)
+            .copied()
+            .collect();
+        let [selector] = headers.as_slice() else {
+            return None;
+        };
         let name = name_or_ref_word(selector, cx.text)?;
-        let owner = self.tables.symbols.iter().find(|symbol|
-            symbol.module == cx.module && matches!(symbol.kind, SymbolKind::Preferences { .. }))?.clone();
-        let field = owner.fields_of().iter().find(|field| self.tables.symbols[field.0 as usize].name == name).copied()?;
+        let owner = self
+            .tables
+            .symbols
+            .iter()
+            .find(|symbol| {
+                symbol.module == cx.module && matches!(symbol.kind, SymbolKind::Preferences { .. })
+            })?
+            .clone();
+        let field = owner
+            .fields_of()
+            .iter()
+            .find(|field| self.tables.symbols[field.0 as usize].name == name)
+            .copied()?;
         let ty = self.decl_type(field);
         let base = ty.nullable_inner().unwrap_or(&ty);
         let valid = match control {
@@ -10651,8 +10705,16 @@ impl<'a> Typer<'a> {
             "input" => matches!(base, ResolvedType::Scalar(Scalar::Text | Scalar::Int)),
             _ => false,
         };
-        valid.then(|| CheckedPreferenceControl { panel: NodeKey::of(panel), node: NodeKey::of(node),
-            selector: NodeKey::of(selector), field, owner: owner.id, module: cx.module, control: control.to_string(), ty })
+        valid.then(|| CheckedPreferenceControl {
+            panel: NodeKey::of(panel),
+            node: NodeKey::of(node),
+            selector: NodeKey::of(selector),
+            field,
+            owner: owner.id,
+            module: cx.module,
+            control: control.to_string(),
+            ty,
+        })
     }
 
     /// Walk one presentation widget: type the domain, validate closed
@@ -10799,9 +10861,7 @@ impl<'a> Typer<'a> {
         form_owner: bool,
         action_owner: UiActionOwner,
     ) -> UiActionOwner {
-        if let Some(owner) =
-            Self::child_region_owner(node, text, word, form_owner, action_owner)
-        {
+        if let Some(owner) = Self::child_region_owner(node, text, word, form_owner, action_owner) {
             return owner;
         }
         match node.kind {
@@ -10848,10 +10908,7 @@ impl<'a> Typer<'a> {
             SyntaxKind::Slot
                 if !form_owner
                     && action_owner == UiActionOwner::Panel
-                    && kids(node)
-                        .iter()
-                        .filter_map(|n| name_text(n, text))
-                        .nth(1)
+                    && kids(node).iter().filter_map(|n| name_text(n, text)).nth(1)
                         == Some("actions") =>
             {
                 Some(UiActionOwner::PanelActions)
@@ -10920,11 +10977,7 @@ impl<'a> Typer<'a> {
     }
 
     /// Walk a `require` node: a pure boolean predicate.
-    fn walk_require_node(
-        &mut self,
-        cx: &Ctx<'_, '_>,
-        domain: Option<&SyntaxNode>,
-    ) {
+    fn walk_require_node(&mut self, cx: &Ctx<'_, '_>, domain: Option<&SyntaxNode>) {
         if let Some(pred) = domain {
             let ty = self.expr(cx, pred, None);
             self.expect_bool(cx, tight_span(cx.text, pred), &ty, "`require`");
@@ -11048,12 +11101,7 @@ impl<'a> Typer<'a> {
     }
 
     /// Walk a `card` node: type its domain and check its layout.
-    fn walk_card_node(
-        &mut self,
-        cx: &Ctx<'_, '_>,
-        node: &SyntaxNode,
-        domain: Option<&SyntaxNode>,
-    ) {
+    fn walk_card_node(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, domain: Option<&SyntaxNode>) {
         if let Some(domain) = domain {
             let _ = self.expr(cx, domain, None);
         }
@@ -11122,13 +11170,18 @@ impl<'a> Typer<'a> {
                     stored: true,
                 });
         }
-        // WorkflowInspection's nested fields are readonly values.
-        // Seed only their exact transcribed element schema, never a
-        // stored model, under this collection's own shadowing row key.
-        if head == Some("list")
-            && let Some(d) = domain
+        // Bound arrays carry their checked element owner into the nested
+        // collection's own row slot. Contract rows remain readonly values:
+        // preserve their stored flag instead of inventing a model fetch or
+        // inheriting the enclosing collection's row. Inspection fields keep
+        // their exact standard nominal schema through the same mechanism.
+        if let Some(d) = domain
             && let Some(ResolvedType::Array { element, .. }) = domain_type
-            && element.as_ref() == &std_nominal_leaf_type("WorkflowField")
+            && (matches!(element.as_ref(), ResolvedType::Record { symbol, .. }
+                if self.tables.symbols.get(symbol.0 as usize).is_some_and(|owner|
+                    matches!(owner.kind, SymbolKind::Model { .. } | SymbolKind::Contract { .. })))
+                || head == Some("list")
+                    && element.as_ref() == &std_nominal_leaf_type("WorkflowField"))
         {
             self.rows
                 .entry(NodeKey::of(d))
@@ -11220,12 +11273,7 @@ impl<'a> Typer<'a> {
 
     /// Check a collection's selectors against its domain model:
     /// `columns=`/`search=`/`filter=`, `order=` and text-like searches.
-    fn check_collection_selectors(
-        &mut self,
-        cx: &Ctx<'_, '_>,
-        node: &SyntaxNode,
-        model: SymbolId,
-    ) {
+    fn check_collection_selectors(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, model: SymbolId) {
         for key in ["columns", "search", "filter"] {
             if let Some(sel) = attribute_value(node, key, cx.text) {
                 self.check_selectors(cx, node, model, sel, key, true);
@@ -11256,12 +11304,7 @@ impl<'a> Typer<'a> {
 
     /// Walk a `form` node: action captions and targets, field
     /// selectors and display/import/review attributes.
-    fn walk_form_node(
-        &mut self,
-        cx: &Ctx<'_, '_>,
-        node: &SyntaxNode,
-        domain: Option<&SyntaxNode>,
-    ) {
+    fn walk_form_node(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, domain: Option<&SyntaxNode>) {
         let primitive = kids(node)
             .iter()
             .find_map(|n| name_text(n, cx.text))
@@ -11269,8 +11312,7 @@ impl<'a> Typer<'a> {
         if primitive {
             if let Some(caption) = kids(node)
                 .into_iter()
-                .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
-                .next()
+                .find(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
             {
                 self.check_caption(cx, caption, "action caption", None);
                 let _ = self.expr(cx, caption, None);
@@ -11289,11 +11331,21 @@ impl<'a> Typer<'a> {
             }
             if let ResolvedType::Operation(operation) = ty {
                 let inputs = match self.tables.symbols[operation.0 as usize].kind {
-                    SymbolKind::CrudOp { model, .. } => self.model_fields(model).iter()
-                        .map(|field| (self.tables.symbols[field.0 as usize].name.clone(), self.decl_type(*field)))
+                    SymbolKind::CrudOp { model, .. } => self
+                        .model_fields(model)
+                        .iter()
+                        .map(|field| {
+                            (
+                                self.tables.symbols[field.0 as usize].name.clone(),
+                                self.decl_type(*field),
+                            )
+                        })
                         .collect(),
-                    _ => self.action_inputs(operation).into_iter()
-                        .filter_map(|input| input.expected.map(|ty| (input.name, ty))).collect(),
+                    _ => self
+                        .action_inputs(operation)
+                        .into_iter()
+                        .filter_map(|input| input.expected.map(|ty| (input.name, ty)))
+                        .collect(),
                 };
                 self.check_form_text_controls(cx, node, &inputs);
             }
@@ -11317,29 +11369,59 @@ impl<'a> Typer<'a> {
     ) {
         let mut pending = kids(owner);
         while let Some(node) = pending.pop() {
-            if matches!(node.kind, SyntaxKind::Form | SyntaxKind::Edit | SyntaxKind::PreferencePanel) {
+            if matches!(
+                node.kind,
+                SyntaxKind::Form | SyntaxKind::Edit | SyntaxKind::PreferencePanel
+            ) {
                 continue;
             }
-            let word = kids(node).iter().find_map(|part| name_text(part, cx.text)).unwrap_or("");
+            let word = kids(node)
+                .iter()
+                .find_map(|part| name_text(part, cx.text))
+                .unwrap_or("");
             if node.kind == SyntaxKind::CatalogItem && matches!(word, "input" | "textarea") {
-                let headers: Vec<_> = kids(node).into_iter().filter(|part| is_expression(part.kind)).collect();
+                let headers: Vec<_> = kids(node)
+                    .into_iter()
+                    .filter(|part| is_expression(part.kind))
+                    .collect();
                 if let [selector] = headers.as_slice()
                     && let Some(name) = name_or_ref_word(selector, cx.text)
                     && let Some(ty) = inputs.get(name)
                 {
                     let base = ty.nullable_inner().unwrap_or(ty);
                     let accepted = match base {
-                        ResolvedType::Scalar(scalar) => scalar.is_string_like()
-                            || (word == "input" && matches!(scalar,
-                                Scalar::Int | Scalar::Decimal | Scalar::Money | Scalar::Duration | Scalar::Date | Scalar::Datetime)),
-                        ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => true,
+                        ResolvedType::Scalar(scalar) => {
+                            scalar.is_string_like()
+                                || (word == "input"
+                                    && matches!(
+                                        scalar,
+                                        Scalar::Int
+                                            | Scalar::Decimal
+                                            | Scalar::Money
+                                            | Scalar::Duration
+                                            | Scalar::Date
+                                            | Scalar::Datetime
+                                    ))
+                        }
+                        ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => {
+                            true
+                        }
                         _ => false,
                     };
                     if !accepted {
-                        self.diags.push(Diagnostic::error("E3001", format!(
-                            "field '{name}': {word} needs a text-like{} input, got {}",
-                            if word == "input" { ", numeric, duration, date or datetime" } else { "" },
-                            ty.display(self.tables, cx.module)), selector.span));
+                        self.diags.push(Diagnostic::error(
+                            "E3001",
+                            format!(
+                                "field '{name}': {word} needs a text-like{} input, got {}",
+                                if word == "input" {
+                                    ", numeric, duration, date or datetime"
+                                } else {
+                                    ""
+                                },
+                                ty.display(self.tables, cx.module)
+                            ),
+                            selector.span,
+                        ));
                     }
                 }
             }
@@ -11399,7 +11481,9 @@ impl<'a> Typer<'a> {
         if schema.is_empty()
             && !matches!(
                 self.tables.symbols[operation.0 as usize].kind,
-                SymbolKind::Scenario { .. } | SymbolKind::CrudOp { .. } | SymbolKind::CapabilityOp { .. }
+                SymbolKind::Scenario { .. }
+                    | SymbolKind::CrudOp { .. }
+                    | SymbolKind::CapabilityOp { .. }
             )
         {
             self.diags.push(Diagnostic::error(
@@ -11408,14 +11492,14 @@ impl<'a> Typer<'a> {
                 target.span,
             ));
         }
-        if let SymbolKind::CrudOp { model, op } = self.tables.symbols[operation.0 as usize].kind {
-            if !self.crud_op_enabled(model, op) {
-                self.diags.push(Diagnostic::error(
-                    "E3001",
-                    "action CRUD operation is disabled".into(),
-                    target.span,
-                ));
-            }
+        if let SymbolKind::CrudOp { model, op } = self.tables.symbols[operation.0 as usize].kind
+            && !self.crud_op_enabled(model, op)
+        {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "action CRUD operation is disabled".into(),
+                target.span,
+            ));
         }
         let bound: HashSet<_> = attribute_value(node, "arguments", cx.text)
             .map(|arguments| {
@@ -11435,7 +11519,14 @@ impl<'a> Typer<'a> {
             ) && input.name == "record"
                 && !bound.contains(input.name.as_str())
             {
-                self.diags.push(Diagnostic::error("E3001", format!("action requires explicit protected record argument '{}'", input.name), target.span));
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    format!(
+                        "action requires explicit protected record argument '{}'",
+                        input.name
+                    ),
+                    target.span,
+                ));
             }
         }
         if let Some(arguments) = attribute_value(node, "arguments", cx.text) {
@@ -11473,8 +11564,7 @@ impl<'a> Typer<'a> {
                 self.check_leaf_action_attr(cx, node, name);
             }
         }
-        let require_leaf =
-            kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("require");
+        let require_leaf = kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("require");
         for child in kids(node) {
             if is_expression(child.kind) {
                 let _ = self.expr(cx, child, None);
@@ -11482,12 +11572,11 @@ impl<'a> Typer<'a> {
                 // skipped below. Standalone page/form require leaves
                 // retain the same pure gate, including helper closures.
                 if require_leaf {
-                    let forbidden =
-                        if self.membership_page_guards.contains(&NodeKey::of(child)) {
-                            self.bounded_membership_effectful_calls(child, cx.text)
-                        } else {
-                            self.effectful_calls(child, cx.text)
-                        };
+                    let forbidden = if self.membership_page_guards.contains(&NodeKey::of(child)) {
+                        self.bounded_membership_effectful_calls(child, cx.text)
+                    } else {
+                        self.effectful_calls(child, cx.text)
+                    };
                     for (name, span) in forbidden {
                         self.diags.push(Diagnostic::error(
                             "E3010",
@@ -11565,9 +11654,7 @@ impl<'a> Typer<'a> {
         {
             self.diags.push(Diagnostic::error("E3001", "tooltip is noninteractive and cannot contain primary or secondary actions, including nested owners".into(), node.span));
         }
-        if unknown_presentation
-            && let Some(empty) = attribute_value(node, "empty", cx.text)
-        {
+        if unknown_presentation && let Some(empty) = attribute_value(node, "empty", cx.text) {
             self.check_page_static_text(cx, empty, "collection empty");
         }
         // Collapse shares Details' expression-valued open option;
@@ -11619,8 +11706,7 @@ impl<'a> Typer<'a> {
         if !submit_owner && let Some(submit) = attribute_value(node, "submit", cx.text) {
             self.diags.push(Diagnostic::error(
                 "E3001",
-                "button submit requires an owning canonical form, edit or preferences panel"
-                    .into(),
+                "button submit requires an owning canonical form, edit or preferences panel".into(),
                 tight_span(cx.text, submit),
             ));
         }
@@ -11976,7 +12062,17 @@ impl<'a> Typer<'a> {
             unreachable!()
         };
         let (panels, nodes, seen) = self.collect_bound_tab_panels(cx, node, &ty, cases);
-        self.record_bound_tabs(cx, node, domain, ty.clone(), cases, *owner, panels, nodes, seen);
+        self.record_bound_tabs(
+            cx,
+            node,
+            domain,
+            ty.clone(),
+            cases,
+            *owner,
+            panels,
+            nodes,
+            seen,
+        );
     }
 
     /// Collect bound tab panels: each tab header must name an exact case
@@ -13616,9 +13712,6 @@ impl<'a> Typer<'a> {
 /// Tight span of `node`: leading/trailing trivia trimmed so primary
 /// spans point at significant source (interior CST nodes union their
 /// children's spans, so a `NameRef` after a space can cover `" trim"`).
-/// Byte trims split on char boundaries, so the span stays valid.
-
-
 /// Append fixpoint-round diagnostics, skipping ones already present
 /// (order-free phase-1 findings re-fire identically every round).
 fn merge_round_diags(into: &mut Vec<Diagnostic>, extra: Vec<Diagnostic>) {
@@ -13994,8 +14087,7 @@ impl<'a> Typer<'a> {
     ) {
         if let Some(cap) = self.decl_symbol(module, text, node, &["export", "capability"]) {
             for child in node.children.iter().filter(|c| {
-                matches!(c.kind, SyntaxKind::CapabilityOp | SyntaxKind::Event)
-                    && !has_error(c)
+                matches!(c.kind, SyntaxKind::CapabilityOp | SyntaxKind::Event) && !has_error(c)
             }) {
                 if child.kind == SyntaxKind::CapabilityOp {
                     if let Some(op) = self.member_symbol(cap, text, child) {
@@ -14038,8 +14130,7 @@ impl<'a> Typer<'a> {
                 if let Some(field) = found
                     && let Some(ty) = parts.iter().find(|n| is_type_node(n.kind))
                 {
-                    let resolved =
-                        self.resolve_type_node(file, text, module, ty, Some(field));
+                    let resolved = self.resolve_type_node(file, text, module, ty, Some(field));
                     self.decl.insert(field, resolved);
                 }
             }
@@ -14068,8 +14159,7 @@ impl<'a> Typer<'a> {
                     && let Some(next) = parts.get(i + 1)
                     && is_type_node(next.kind)
                 {
-                    result =
-                        Some(self.resolve_type_node(file, text, module, next, None));
+                    result = Some(self.resolve_type_node(file, text, module, next, None));
                 }
             }
             self.results.insert(id, result);
@@ -14374,16 +14464,10 @@ impl<'a> Typer<'a> {
                     None => ResolvedType::Error,
                 }
             }
-            SyntaxKind::NullableType => {
-                self.resolve_nullable_type(file, text, module, node, owner)
-            }
-            SyntaxKind::ArrayType => {
-                self.resolve_array_type(file, text, module, node, owner)
-            }
+            SyntaxKind::NullableType => self.resolve_nullable_type(file, text, module, node, owner),
+            SyntaxKind::ArrayType => self.resolve_array_type(file, text, module, node, owner),
             SyntaxKind::UnionType => self.resolve_union(file, text, module, node),
-            SyntaxKind::EnumType => {
-                Self::resolve_enum_type_node(node, text, owner)
-            }
+            SyntaxKind::EnumType => Self::resolve_enum_type_node(node, text, owner),
             SyntaxKind::ActionType => self.resolve_action(file, text, module, node),
             SyntaxKind::DeliveryType => self.resolve_delivery(file, text, module, node),
             SyntaxKind::InvocationType => self.resolve_invocation(file, text, module, node),
@@ -15342,13 +15426,7 @@ impl<'a> Typer<'a> {
 
     /// Whether two record shapes are compatible: same symbol, and a
     /// detached construct never stands in for stored model rows.
-    fn records_compatible(
-        &self,
-        a: &SymbolId,
-        sa: bool,
-        b: &SymbolId,
-        sb: bool,
-    ) -> bool {
+    fn records_compatible(&self, a: &SymbolId, sa: bool, b: &SymbolId, sb: bool) -> bool {
         if a != b {
             return false;
         }
@@ -15366,11 +15444,7 @@ impl<'a> Typer<'a> {
     /// Whether two composite shapes are compatible: action/invocation
     /// containment, std-delivery association, structural element, union,
     /// nominal and object width rules.
-    fn types_compatible_composite(
-        &self,
-        actual: &ResolvedType,
-        expected: &ResolvedType,
-    ) -> bool {
+    fn types_compatible_composite(&self, actual: &ResolvedType, expected: &ResolvedType) -> bool {
         match (actual, expected) {
             (
                 ResolvedType::Action {
@@ -15415,9 +15489,7 @@ impl<'a> Typer<'a> {
                     fields: bf,
                 },
             ) => a == b && af == bf,
-            (ResolvedType::Object(a), ResolvedType::Object(b)) => {
-                self.objects_compatible(a, b)
-            }
+            (ResolvedType::Object(a), ResolvedType::Object(b)) => self.objects_compatible(a, b),
             _ => false,
         }
     }
@@ -15430,12 +15502,13 @@ impl<'a> Typer<'a> {
         a: &[(String, ResolvedType)],
         b: &[(String, ResolvedType)],
     ) -> bool {
-        b.iter().all(|(k, t)| match a.iter().find(|(ak, _)| ak == k) {
-            Some((_, at)) => self.types_compatible(at, t),
-            // Published std object schemas use nullable fields
-            // for omissible entries, like contract/event fields.
-            None => matches!(t, ResolvedType::Nullable(_)),
-        })
+        b.iter()
+            .all(|(k, t)| match a.iter().find(|(ak, _)| ak == k) {
+                Some((_, at)) => self.types_compatible(at, t),
+                // Published std object schemas use nullable fields
+                // for omissible entries, like contract/event fields.
+                None => matches!(t, ResolvedType::Nullable(_)),
+            })
     }
 
     /// Whether `actual` fits a `bool` slot (`E3007` otherwise).
@@ -15483,7 +15556,7 @@ impl<'a> Typer<'a> {
                 // `decimalFromInteger`). Only this literal arm (plus `-` and
                 // groups forwarding the expectation) inhabits decimal, so
                 // int-typed variables and computed values never coerce.
-                return self.type_integer_literal(cx, node, slice, expect);
+                self.type_integer_literal(cx, node, slice, expect)
             }
             SyntaxKind::Decimal => {
                 if cx.strict
@@ -15520,9 +15593,7 @@ impl<'a> Typer<'a> {
                 }
                 ResolvedType::Scalar(Scalar::Bytes)
             }
-            SyntaxKind::String => {
-                return self.type_string_literal(cx, node, expect);
-            }
+            SyntaxKind::String => self.type_string_literal(cx, node, expect),
             SyntaxKind::Name => match slice {
                 "true" | "false" => ResolvedType::Scalar(Scalar::Bool),
                 "null" => ResolvedType::Null,
@@ -15933,8 +16004,7 @@ impl<'a> Typer<'a> {
         };
         // An explicit case is a checked declaration path, never a runtime
         // field read. Resolve the root through the ordinary lexical binding.
-        if let Some(ty) = self.type_enum_case_member(cx, node, receiver, name_node, name, safe)
-        {
+        if let Some(ty) = self.type_enum_case_member(cx, node, receiver, name_node, name, safe) {
             return ty;
         }
         if name == "callback_diagnostics" {
@@ -16000,24 +16070,12 @@ impl<'a> Typer<'a> {
             && let Some(field_name) = name_text(field_parts[2], cx.text)
         {
             let Some(field) = self.record_field_named(owner, field_name) else {
-                self.unknown_member(
-                    cx,
-                    receiver,
-                    field_parts[2],
-                    field_name,
-                    "enum case owner",
-                );
+                self.unknown_member(cx, receiver, field_parts[2], field_name, "enum case owner");
                 return Some(ResolvedType::Error);
             };
             let ty = self.decl_type(field);
             let ResolvedType::Enum { cases, .. } = &ty else {
-                self.unknown_member(
-                    cx,
-                    node,
-                    name_node,
-                    name,
-                    "singular nonnullable enum field",
-                );
+                self.unknown_member(cx, node, name_node, name, "singular nonnullable enum field");
                 return Some(ResolvedType::Error);
             };
             if !cases.iter().any(|case| case == name) {
@@ -16158,7 +16216,12 @@ impl<'a> Typer<'a> {
                         stored: true,
                     };
                 }
-                self.diags.push(Diagnostic::error("E6006", "static judgment specification requires the consumed std.JudgmentSpec schema".to_string(), tight_span(cx.text, node)));
+                self.diags.push(Diagnostic::error(
+                    "E6006",
+                    "static judgment specification requires the consumed std.JudgmentSpec schema"
+                        .to_string(),
+                    tight_span(cx.text, node),
+                ));
                 return ResolvedType::Error;
             }
         }
@@ -16242,14 +16305,8 @@ impl<'a> Typer<'a> {
             ResolvedType::Record { symbol, stored } => {
                 self.record_member(cx, node, name_node, name, *symbol, *stored)
             }
-            ResolvedType::Scalar(_)
-            | ResolvedType::Team
-            | ResolvedType::OperationContext => {
+            ResolvedType::Scalar(_) | ResolvedType::Team | ResolvedType::OperationContext => {
                 self.scalar_member(cx, node, name_node, name, base)
-            }
-            ResolvedType::Scalar(other) => {
-                self.unknown_member(cx, node, name_node, name, other.as_str());
-                None
             }
             ResolvedType::Array { .. } => {
                 self.unknown_member(cx, node, name_node, name, "array");
@@ -16265,11 +16322,9 @@ impl<'a> Typer<'a> {
                     }
                 }
             }
-            ResolvedType::Delivery { op } => {
-                self.delivery_member(cx, node, name_node, name, *op)
-            }
+            ResolvedType::Delivery { op } => self.delivery_member(cx, node, name_node, name, *op),
             ResolvedType::StdDelivery { capability, op } => {
-                self.std_delivery_member(cx, node, name_node, name, *capability, *op)
+                self.std_delivery_member(cx, node, name_node, name, capability, op)
             }
             other => {
                 let base_name = self.show(cx.module, other);
@@ -16321,10 +16376,6 @@ impl<'a> Typer<'a> {
                     None
                 }
             },
-            ResolvedType::Scalar(other) => {
-                self.unknown_member(cx, node, name_node, name, other.as_str());
-                None
-            }
             _ => {
                 let base_name = self.show(cx.module, base);
                 self.unknown_member(cx, node, name_node, name, &base_name);
@@ -16418,10 +16469,7 @@ impl<'a> Typer<'a> {
             // nominals stay opaque, never guessed.
             "result" => Some(std_delivery_result_type(op)),
             "progress"
-                if delivery_progress_alias(&ResolvedType::StdDelivery {
-                    capability,
-                    op,
-                }) =>
+                if delivery_progress_alias(&ResolvedType::StdDelivery { capability, op }) =>
             {
                 Some(std_delivery_result_type(op))
             }
@@ -16889,8 +16937,6 @@ fn strip_nullable(ty: &ResolvedType) -> (ResolvedType, bool) {
     }
 }
 
-
-
 /// Root `NameRef` node of a member chain (through groups). `None`
 /// for non-name roots.
 fn chain_root(node: &SyntaxNode) -> Option<&SyntaxNode> {
@@ -17068,7 +17114,7 @@ impl<'a> Typer<'a> {
 
     fn binary_step_eval<'n>(
         &mut self,
-        cx: &Ctx<'_, '_>,
+        _cx: &Ctx<'_, '_>,
         local: &Ctx<'_, '_>,
         current: &'n SyntaxNode,
         parts: &[&'n SyntaxNode],
@@ -17131,7 +17177,12 @@ impl<'a> Typer<'a> {
         value: &mut ResolvedType,
     ) {
         if op == "is" {
-            *value = self.type_is(local, current, parts[2], std::mem::replace(value, ResolvedType::Error));
+            *value = self.type_is(
+                local,
+                current,
+                parts[2],
+                std::mem::replace(value, ResolvedType::Error),
+            );
             self.record(current, value.clone());
             return;
         }
@@ -17635,13 +17686,8 @@ impl<'a> Typer<'a> {
                 ResolvedType::Scalar(Scalar::Money),
             ) => Self::arith_scaled_money(op),
             (ResolvedType::Scalar(left), ResolvedType::Scalar(right))
-                if matches!(
-                    left,
-                    Scalar::Duration | Scalar::Datetime | Scalar::Int
-                ) && matches!(
-                    right,
-                    Scalar::Duration | Scalar::Datetime | Scalar::Int
-                ) =>
+                if matches!(left, Scalar::Duration | Scalar::Datetime | Scalar::Int)
+                    && matches!(right, Scalar::Duration | Scalar::Datetime | Scalar::Int) =>
             {
                 Self::arith_temporal(op, left, right)
             }
@@ -17722,7 +17768,7 @@ impl<'a> Typer<'a> {
         }
     }
 
-    fn arith_concat(a: &Box<ResolvedType>, b: &Box<ResolvedType>) -> Option<ResolvedType> {
+    fn arith_concat(a: &ResolvedType, b: &ResolvedType) -> Option<ResolvedType> {
         let (a, _) = strip_nullable(a);
         let (b, _) = strip_nullable(b);
         if loose_equal(&a, &b) {
@@ -19004,12 +19050,12 @@ impl<'a> Typer<'a> {
         id: SymbolId,
     ) -> Option<ResolvedType> {
         match &self.tables.symbols[id.0 as usize].kind {
-            SymbolKind::Model { .. }
-            | SymbolKind::Contract { .. }
-            | SymbolKind::Event { .. } => Some(ResolvedType::Record {
-                symbol: id,
-                stored: false,
-            }),
+            SymbolKind::Model { .. } | SymbolKind::Contract { .. } | SymbolKind::Event { .. } => {
+                Some(ResolvedType::Record {
+                    symbol: id,
+                    stored: false,
+                })
+            }
             SymbolKind::Message { params } => {
                 if cx.strict {
                     let guidance = if params.is_empty() {
@@ -19563,9 +19609,7 @@ impl<'a> Typer<'a> {
                 return None;
             }
             let parts = kids(node);
-            if parts.len() != 3
-                || !is_punct(parts[1], cx.text, ".")
-                || !is_row(grouped(parts[0])?)
+            if parts.len() != 3 || !is_punct(parts[1], cx.text, ".") || !is_row(grouped(parts[0])?)
             {
                 return None;
             }
@@ -19660,9 +19704,7 @@ impl<'a> Typer<'a> {
     ) -> Result<ResolvedType, ResolvedType> {
         match base_ty {
             ResolvedType::Array { element, .. } => Ok((*element).clone()),
-            ResolvedType::Error | ResolvedType::Opaque(_) | ResolvedType::Unknown => {
-                Err(base_ty)
-            }
+            ResolvedType::Error | ResolvedType::Opaque(_) | ResolvedType::Unknown => Err(base_ty),
             other => {
                 if cx.strict {
                     self.diags.push(Diagnostic::error(
@@ -19726,9 +19768,7 @@ impl<'a> Typer<'a> {
                 };
                 let ty = self.expr(&clause_cx, key, None);
                 if !std::ptr::eq(key, value) {
-                    self.types
-                        .node_types
-                        .insert(NodeKey::of(value), ty.clone());
+                    self.types.node_types.insert(NodeKey::of(value), ty.clone());
                 }
                 self.check_order_key(&clause_cx, value, &ty);
             }
@@ -20267,15 +20307,7 @@ impl<'a> Typer<'a> {
             // Failure precedence: precise literal shape (`E3001`) >
             // precise case expectation (`E3005`) > generic mismatch
             // (`E3005`, suppressed when an unbound name explains it).
-            self.report_overload_failure(
-                cx,
-                node,
-                id,
-                args,
-                &typed,
-                literal_fail,
-                cases_fail,
-            );
+            self.report_overload_failure(cx, node, id, args, &typed, literal_fail, cases_fail);
         }
         ResolvedType::Error
     }
@@ -20347,8 +20379,7 @@ impl<'a> Typer<'a> {
         let mut best: Option<(usize, ResolvedType, usize, Trial, Vec<usize>)> = None;
         for (index, overload) in overloads.iter().enumerate() {
             let mut trial = Trial::default();
-            if let Some((result, slots)) =
-                self.try_overload(cx, overload, args, typed, &mut trial)
+            if let Some((result, slots)) = self.try_overload(cx, overload, args, typed, &mut trial)
             {
                 let score: usize = overload
                     .params
@@ -20418,8 +20449,7 @@ impl<'a> Typer<'a> {
             && !self.diags[diagnostic_start..]
                 .iter()
                 .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
-            && let Some(fact) =
-                self.checked_collection_call(node, &overloads[index], &ordered_args)
+            && let Some(fact) = self.checked_collection_call(node, &overloads[index], &ordered_args)
         {
             self.types
                 .checked_collection_calls
@@ -20429,12 +20459,8 @@ impl<'a> Typer<'a> {
             && !self.diags[diagnostic_start..]
                 .iter()
                 .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
-            && let Some(fact) = self.checked_contract_collection_call(
-                cx,
-                node,
-                &overloads[index],
-                &ordered_args,
-            )
+            && let Some(fact) =
+                self.checked_contract_collection_call(cx, node, &overloads[index], &ordered_args)
         {
             self.types
                 .checked_contract_collection_calls
@@ -20505,8 +20531,7 @@ impl<'a> Typer<'a> {
                 span,
             ));
         } else if !self.any_unclaimed_name(args) {
-            let actuals: Vec<String> =
-                typed.iter().map(|t| self.show(cx.module, t)).collect();
+            let actuals: Vec<String> = typed.iter().map(|t| self.show(cx.module, t)).collect();
             self.diags.push(Diagnostic::error(
                 "E3005",
                 format!("no overload of '{id}' matches ({})", actuals.join(", ")),
@@ -20762,7 +20787,12 @@ impl<'a> Typer<'a> {
     fn contract_call_query<'n, 's>(
         &'s self,
         ordered_args: &[CallArg<'n>],
-    ) -> Option<(&'n SyntaxNode, &'s CheckedQuery, &'s CheckedQueryClause, SymbolId)> {
+    ) -> Option<(
+        &'n SyntaxNode,
+        &'s CheckedQuery,
+        &'s CheckedQueryClause,
+        SymbolId,
+    )> {
         let query_node = ungroup(ordered_args[0].value)?;
         if query_node.kind != SyntaxKind::Query {
             return None;
@@ -20861,11 +20891,7 @@ impl<'a> Typer<'a> {
         }
     }
 
-    fn contract_predicate_suspends(
-        &self,
-        predicate: &SyntaxNode,
-        boolean: &ResolvedType,
-    ) -> bool {
+    fn contract_predicate_suspends(&self, predicate: &SyntaxNode, boolean: &ResolvedType) -> bool {
         let mut pending = vec![predicate];
         let mut visits = 0;
         while let Some(expression) = pending.pop() {
@@ -20890,17 +20916,14 @@ impl<'a> Typer<'a> {
                 let Some(nested_query) = self.types.checked_queries.get(&nested.query) else {
                     return false;
                 };
-                let Some(nested_domain_key) = nested.arguments.get(nested.slots[0]).copied()
-                else {
+                let Some(nested_domain_key) = nested.arguments.get(nested.slots[0]).copied() else {
                     return false;
                 };
-                let Some(nested_domain) =
-                    kids(expression).into_iter().find_map(|argument| {
-                        kids(argument)
-                            .into_iter()
-                            .find(|value| NodeKey::of(value) == nested_domain_key)
-                    })
-                else {
+                let Some(nested_domain) = kids(expression).into_iter().find_map(|argument| {
+                    kids(argument)
+                        .into_iter()
+                        .find(|value| NodeKey::of(value) == nested_domain_key)
+                }) else {
                     return false;
                 };
                 let Some(nested_query_node) = ungroup(nested_domain) else {
@@ -20919,13 +20942,11 @@ impl<'a> Typer<'a> {
                     return false;
                 };
                 pending.push(domain);
-                let Some(predicate) =
-                    kids(expression).into_iter().find_map(|argument| {
-                        kids(argument)
-                            .into_iter()
-                            .find(|value| NodeKey::of(value) == nested.predicate.node)
-                    })
-                else {
+                let Some(predicate) = kids(expression).into_iter().find_map(|argument| {
+                    kids(argument)
+                        .into_iter()
+                        .find(|value| NodeKey::of(value) == nested.predicate.node)
+                }) else {
                     return false;
                 };
                 pending.push(predicate);
@@ -21728,15 +21749,13 @@ impl<'a> Typer<'a> {
             SigType::Collection(inner)
             | SigType::OrderedCollection(inner)
             | SigType::NonemptyCollection(inner)
-            | SigType::Array(inner) => self.match_collection_shape(cx, arg, actual, shape, inner, trial),
-            SigType::Nullable(inner) => {
-                self.match_nullable_shape(cx, arg, actual, inner, trial)
+            | SigType::Array(inner) => {
+                self.match_collection_shape(cx, arg, actual, shape, inner, trial)
             }
+            SigType::Nullable(inner) => self.match_nullable_shape(cx, arg, actual, inner, trial),
             SigType::Union(arms) => self.match_union_shape(cx, arg, actual, arms, trial),
             SigType::EnumCases(cases) => self.match_enum_claim(cx, arg, actual, cases, trial),
-            SigType::Object(fields) => {
-                self.match_object_shape(cx, arg, actual, fields, trial)
-            }
+            SigType::Object(fields) => self.match_object_shape(cx, arg, actual, fields, trial),
             SigType::ClosedDisplayObject => self.match_display_object(actual),
             SigType::Message => self.match_message_shape(arg, actual),
             SigType::ActionTarget => self.match_action_target(cx, arg, actual, trial),
@@ -21813,7 +21832,8 @@ impl<'a> Typer<'a> {
         // sets: each possible value inhabits the shape);
         // anything else falls through to literal claiming.
         if let ResolvedType::Enum {
-            cases: actual_cases, ..
+            cases: actual_cases,
+            ..
         } = actual
         {
             return actual_cases.iter().all(|c| cases.contains(c));
@@ -23176,8 +23196,6 @@ fn valid_currency(value: &str) -> Option<String> {
     }
     Some("unknown ISO 4217 code".to_string())
 }
-
-
 
 /// The 13 ISO 4217 codes with N.A. minor units (metals, bond-market
 /// units, supranationals, testing, no-currency): shaped but excluded.

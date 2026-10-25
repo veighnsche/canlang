@@ -762,4 +762,3 @@ fn display_compound_type(
     };
     Some(text)
 }
-

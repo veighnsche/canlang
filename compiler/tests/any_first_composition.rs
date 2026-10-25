@@ -15,11 +15,11 @@
 //! (`any_first_retained_tests`), not re-proven here.
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::{CheckedProgram, check_program};
+use canlang_compiler::codegen::artifact::to_json;
 use canlang_compiler::codegen::ir;
+use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
 use canlang_compiler::diagnostic::{Diagnostic, DiagnosticResult};
 use canlang_compiler::source::{SourceDb, Span};
-use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
-use canlang_compiler::codegen::artifact::to_json;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
@@ -77,15 +77,29 @@ fn load(path: &str, source: &str) -> Loaded {
     let catalog = catalog.unwrap();
     let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
     if !diagnostics.is_empty() {
-        return Loaded { db, catalog, diagnostics, checked: None };
+        return Loaded {
+            db,
+            catalog,
+            diagnostics,
+            checked: None,
+        };
     }
     let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let _ = ir;
-    Loaded { db, catalog, diagnostics: Vec::new(), checked: Some(program) }
+    Loaded {
+        db,
+        catalog,
+        diagnostics: Vec::new(),
+        checked: Some(program),
+    }
 }
 
-fn prepared(program: &CheckedProgram, db: &SourceDb, catalog: &Catalog) -> (Value, Vec<Diagnostic>) {
+fn prepared(
+    program: &CheckedProgram,
+    db: &SourceDb,
+    catalog: &Catalog,
+) -> (Value, Vec<Diagnostic>) {
     let mut result = DiagnosticResult::new("any-first-composition", "1.0", 1);
     result.add_sources(db);
     let (artifact, diagnostics) = emit(
@@ -139,9 +153,17 @@ fn emitted_predicate(prepared: &Value) -> String {
 
 #[test]
 fn any_first_composition_admits_sealed_conjunction() {
-    let loaded = load("any-first-composition-unit.can", &source("AnyFirstProbe", GRANT));
+    let loaded = load(
+        "any-first-composition-unit.can",
+        &source("AnyFirstProbe", GRANT),
+    );
     assert!(loaded.diagnostics.is_empty(), "{:?}", loaded.diagnostics);
-    let Loaded { db, catalog, checked, .. } = loaded;
+    let Loaded {
+        db,
+        catalog,
+        checked,
+        ..
+    } = loaded;
     let program = checked.unwrap();
     let (prepared, diagnostics) = prepared(&program, &db, &catalog);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
@@ -163,11 +185,19 @@ fn any_first_composition_admits_sealed_conjunction() {
 
 #[test]
 fn authenticated_by_admits_same_sealed_composition() {
-    let src = source("AnyFirstAuthProbe", GRANT)
-        .replacen("scenario accept(invitation:I) by=members", "scenario accept(invitation:I) by=authenticated", 1);
+    let src = source("AnyFirstAuthProbe", GRANT).replacen(
+        "scenario accept(invitation:I) by=members",
+        "scenario accept(invitation:I) by=authenticated",
+        1,
+    );
     let loaded = load("any-first-authenticated-unit.can", &src);
     assert!(loaded.diagnostics.is_empty(), "{:?}", loaded.diagnostics);
-    let Loaded { db, catalog, checked, .. } = loaded;
+    let Loaded {
+        db,
+        catalog,
+        checked,
+        ..
+    } = loaded;
     let program = checked.unwrap();
     let (prepared, diagnostics) = prepared(&program, &db, &catalog);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
@@ -199,7 +229,12 @@ fn reordered_conjunction_admits_with_same_census() {
         ),
     );
     assert!(loaded.diagnostics.is_empty(), "{:?}", loaded.diagnostics);
-    let Loaded { db, catalog, checked, .. } = loaded;
+    let Loaded {
+        db,
+        catalog,
+        checked,
+        ..
+    } = loaded;
     let (prepared, diagnostics) = prepared(&checked.unwrap(), &db, &catalog);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let queries = accept_queries(&prepared, "AnyFirstReorder");
@@ -213,10 +248,18 @@ fn conjunct_subset_admits_smaller_census() {
     // admission is shape-generic, not hardcoded to three conjuncts.
     let loaded = load(
         "any-first-subset.can",
-        &source("AnyFirstSubset", "grant.account==actor and grant.role==invitation.role"),
+        &source(
+            "AnyFirstSubset",
+            "grant.account==actor and grant.role==invitation.role",
+        ),
     );
     assert!(loaded.diagnostics.is_empty(), "{:?}", loaded.diagnostics);
-    let Loaded { db, catalog, checked, .. } = loaded;
+    let Loaded {
+        db,
+        catalog,
+        checked,
+        ..
+    } = loaded;
     let (prepared, diagnostics) = prepared(&checked.unwrap(), &db, &catalog);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let queries = accept_queries(&prepared, "AnyFirstSubset");
@@ -235,7 +278,12 @@ fn positive_polarity_any_admits_same_composition() {
         &source("AnyFirstPositive", GRANT).replace("require not any(", "require any("),
     );
     assert!(loaded.diagnostics.is_empty(), "{:?}", loaded.diagnostics);
-    let Loaded { db, catalog, checked, .. } = loaded;
+    let Loaded {
+        db,
+        catalog,
+        checked,
+        ..
+    } = loaded;
     let program = checked.unwrap();
     let (prepared, diagnostics) = prepared(&program, &db, &catalog);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
@@ -259,10 +307,16 @@ fn positive_polarity_any_admits_same_composition() {
 fn operand_type_mismatch_refuses_at_check() {
     let loaded = load(
         "any-first-typemismatch.can",
-        &source("AnyFirstTypemismatch", "grant.account==invitation.role and grant.active"),
+        &source(
+            "AnyFirstTypemismatch",
+            "grant.account==invitation.role and grant.active",
+        ),
     );
     assert!(
-        loaded.diagnostics.iter().any(|diagnostic| diagnostic.code == "E3002"),
+        loaded
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E3002"),
         "user/enum operand confusion must refuse, got {:?}",
         loaded.diagnostics
     );
@@ -274,14 +328,27 @@ fn cross_model_composition_refuses() {
     // the narrow profile composes one shared domain, not mixed models.
     let loaded = load(
         "any-first-foreign.can",
-        &source("AnyFirstForeign", "grant.account==actor and grant.role==invitation.role")
-            .replace("invitation.parent.C as grant", "invitation.parent.D as grant"),
+        &source(
+            "AnyFirstForeign",
+            "grant.account==actor and grant.role==invitation.role",
+        )
+        .replace(
+            "invitation.parent.C as grant",
+            "invitation.parent.D as grant",
+        ),
     );
     assert!(loaded.diagnostics.is_empty(), "{:?}", loaded.diagnostics);
-    let Loaded { db, catalog, checked, .. } = loaded;
+    let Loaded {
+        db,
+        catalog,
+        checked,
+        ..
+    } = loaded;
     let (_, diagnostics) = prepared(&checked.unwrap(), &db, &catalog);
     assert!(
-        diagnostics.iter().any(|diagnostic| diagnostic.code == "E6008"),
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008"),
         "cross-model any/first must keep the refusal, got {diagnostics:?}"
     );
     let _ = db;

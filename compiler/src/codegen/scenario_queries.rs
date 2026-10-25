@@ -18,15 +18,18 @@ use crate::analysis::types::{
 use crate::analysis::{CheckedProgram, NodeKey, ResolvedType};
 use crate::source::{SourceDb, Span};
 
-use super::ir::{IrExpr, IrItem, IrItemKind, IrProgram, IrQuery, IrQueryDomain, IrOwner, IrStmt, IrType, TypedExpr};
+use super::ir::{
+    IrExpr, IrItem, IrItemKind, IrOwner, IrProgram, IrQuery, IrQueryDomain, IrStmt, IrType,
+    TypedExpr,
+};
 use super::scenario_decisions::serial_type;
-use super::source_correspondence::same_scenario_semantics;
 use super::scenario_receipts::{
     NativeIntrinsicKind, NativeReturn, NativeScenarioReceipt, ReceiptDependency,
     ReceiptDisclosurePlan, ReceiptInfluence, ReceiptIntrinsic, ReceiptQuery,
     ReceiptQueryDependency, ReceiptQueryOrder, ReceiptQueryParent, ReceiptQueryParentOrigin,
     ReceiptQueryProjection, ReceiptQueryProjectionField, ReceiptReturn, ReceiptRole, ReceiptSource,
 };
+use super::source_correspondence::same_scenario_semantics;
 
 /// Fresh lowering and successful-requirement correspondence for exactly one
 /// immutable query input cohort. Standalone consumers construct their own;
@@ -53,23 +56,46 @@ fn declaration_span(program: &CheckedProgram, id: SymbolId) -> Option<Span> {
             Some(program.effects.derives.get(&id)?.node)
         }
         SymbolKind::Model { .. } => Some(program.effects.models.get(&id)?.node),
-        SymbolKind::Contract { .. } | SymbolKind::Event { .. }
-        | SymbolKind::Preferences { .. } => Some(program.effects.records.get(&id)?.node),
+        SymbolKind::Contract { .. } | SymbolKind::Event { .. } | SymbolKind::Preferences { .. } => {
+            Some(program.effects.records.get(&id)?.node)
+        }
         SymbolKind::Field { owner, .. } => {
-            let fields = program.effects.models.get(owner).map(|model| &model.fields)
-                .or_else(|| program.effects.records.get(owner).map(|record| &record.fields))?;
+            let fields = program
+                .effects
+                .models
+                .get(owner)
+                .map(|model| &model.fields)
+                .or_else(|| {
+                    program
+                        .effects
+                        .records
+                        .get(owner)
+                        .map(|record| &record.fields)
+                })?;
             Some(fields.iter().find(|field| field.field == id)?.node)
         }
         SymbolKind::Param { owner, .. } => {
-            let params = program.effects.scenarios.get(owner).map(|scenario| &scenario.params)
-                .or_else(|| program.effects.derives.get(owner).map(|derive| &derive.params))?;
+            let params = program
+                .effects
+                .scenarios
+                .get(owner)
+                .map(|scenario| &scenario.params)
+                .or_else(|| {
+                    program
+                        .effects
+                        .derives
+                        .get(owner)
+                        .map(|derive| &derive.params)
+                })?;
             Some(params.iter().find(|parameter| parameter.param == id)?.node)
         }
         _ => None,
     };
     if let Some(node) = node {
-        if node.file != symbol.span.file || node.start > symbol.span.start
-            || node.end < symbol.span.end {
+        if node.file != symbol.span.file
+            || node.start > symbol.span.start
+            || node.end < symbol.span.end
+        {
             return None;
         }
         Some(Span::new(node.file, node.start, node.end))
@@ -214,7 +240,11 @@ fn checked_owner_diagnostics(
         .source_facts()?;
     // Symbol/IR spans cover declaration names only. A refusal inside an
     // original initializer or helper body belongs to the consumed closure too.
-    let mut spans = vec![Span::new(source.node.file, source.node.start, source.node.end)];
+    let mut spans = vec![Span::new(
+        source.node.file,
+        source.node.start,
+        source.node.end,
+    )];
     declare_fact_symbols(program, source, &mut spans, require_queries)?;
     declare_schema_symbols(program, source, &mut spans)?;
     let overlaps = |a: Span, b: Span| a.file == b.file && a.start <= b.end && b.start <= a.end;
@@ -277,9 +307,7 @@ impl<'a> PreparedQuerySources<'a> {
         })
     }
 
-    pub(super) fn from_context(
-        context: &'a super::source_context::FreshSourceContext<'a>,
-    ) -> Self {
+    pub(super) fn from_context(context: &'a super::source_context::FreshSourceContext<'a>) -> Self {
         let program = context.program();
         let ir = context.ir();
         let db = context.db();
@@ -450,10 +478,9 @@ pub fn serialize_query_sources(
 
 /// Retain the authenticated transcript plan for the native collector. The
 /// source plan alone still cannot admit capture or a created-model result.
-
+///
 /// Literal intermediate selection metadata, authenticated through the same
 /// source query path. This does not bind a result or activate native capture.
-
 fn selection_metadata(ir: &IrProgram, owner: &IrItem) -> Option<serde_json::Value> {
     let source = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
     let transcripts = source.transcripts.as_deref()?;
@@ -471,7 +498,6 @@ fn selection_metadata(ir: &IrProgram, owner: &IrItem) -> Option<serde_json::Valu
 
 /// The literal existential selector belongs to its original checked collection
 /// call. Publishing it does not admit the scenario or a native query lifetime.
-
 fn any_query_gate(program: &CheckedProgram, owner: &IrItem) -> Option<()> {
     if !matches!(
         owner.kind,
@@ -555,9 +581,7 @@ fn select_any_call(
     call: &crate::analysis::scenario_disclosure::CheckedDecisionCall,
     call_index: usize,
 ) -> Option<(usize, usize)> {
-    use crate::analysis::scenario_disclosure::{
-        CheckedDecisionCallTarget, CheckedDecisionStage,
-    };
+    use crate::analysis::scenario_disclosure::{CheckedDecisionCallTarget, CheckedDecisionStage};
     (site.owner == owner.id && (site.stage == CheckedDecisionStage::LeadingRequire
         || mixed && site.stage == CheckedDecisionStage::BodyRequire)
         && (site.node == outer || mixed) && call.chain.len() == 1 && call.chain[0].node == outer
@@ -579,7 +603,8 @@ fn native_any_metadata(
     prepared: Option<&PreparedQuerySources<'_>>,
 ) -> Option<Option<serde_json::Value>> {
     use crate::analysis::scenario_disclosure::CheckedDecisionStage;
-    let Some(plan) = super::scenario_receipts::checked_native_helper_any_query_plan(ir, owner, db, entry_module)
+    let Some(plan) =
+        super::scenario_receipts::checked_native_helper_any_query_plan(ir, owner, db, entry_module)
             .or_else(|| {
                 super::scenario_receipts::checked_native_mixed_helper_query_plan(
                     ir,
@@ -621,9 +646,16 @@ fn native_any_metadata(
                 )
             })
             .collect();
-        let mut selected = sites.iter().enumerate().flat_map(|(site_index,site)|
-        site.calls.iter().enumerate().filter_map(move |(call_index,call)|
-            select_any_call(mixed, owner, outer, query, site, site_index, call, call_index)));
+        let mut selected = sites.iter().enumerate().flat_map(|(site_index, site)| {
+            site.calls
+                .iter()
+                .enumerate()
+                .filter_map(move |(call_index, call)| {
+                    select_any_call(
+                        mixed, owner, outer, query, site, site_index, call, call_index,
+                    )
+                })
+        });
         let (site_index, call_index) = selected.next()?;
         if selected.next().is_some() {
             return None;
@@ -641,7 +673,7 @@ fn resolve_composed_call(
     owner: &IrItem,
     db: &SourceDb,
     guards: &[IrStmt],
-    source: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+    _source: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
     q: &DisclosureQuery,
 ) -> Option<Option<(Span, Span, SymbolId, Span)>> {
     use super::ir::IrUnOp;
@@ -667,16 +699,13 @@ fn resolve_composed_call(
             } => operand.as_ref(),
             _ => cond,
         };
-        same_span(collection.node, operand.span)
-            .then_some((operand, cond.span, *span))
+        same_span(collection.node, operand.span).then_some((operand, cond.span, *span))
     });
     let (call, cond_span, guard_span) = actual_calls.next()?;
     if actual_calls.next().is_some() {
         return None;
     }
-    if super::scenario_receipts::checked_any_first_query_ir(ir, owner, call, db)
-        != Some(q)
-    {
+    if super::scenario_receipts::checked_any_first_query_ir(ir, owner, call, db) != Some(q) {
         return Some(None);
     }
     let parent = super::scenario_receipts::checked_any_first_parent(ir, owner, q, call, db);
@@ -787,7 +816,7 @@ fn resolve_composed_domain(
 }
 
 fn push_composed_metadata(
-    program: &CheckedProgram,
+    _program: &CheckedProgram,
     ir: &IrProgram,
     owner: &IrItem,
     db: &SourceDb,
@@ -878,9 +907,23 @@ fn match_composed_query(
     let (domain_model, predicate_bool, domain_node, predicate_node) =
         resolve_composed_domain(program, q, original_call)?;
     push_composed_metadata(
-        program, ir, owner, db, entry_module, source, q, parent_model,
-        site_index, call_index, original_call, domain_model, predicate_bool,
-        domain_node, predicate_node, metadata, composed,
+        program,
+        ir,
+        owner,
+        db,
+        entry_module,
+        source,
+        q,
+        parent_model,
+        site_index,
+        call_index,
+        original_call,
+        domain_model,
+        predicate_bool,
+        domain_node,
+        predicate_node,
+        metadata,
+        composed,
     )
 }
 
@@ -902,8 +945,16 @@ fn collect_composed_metadata(
         .filter(|q| q.first.is_none() && q.count.is_none() && q.projection.is_none())
     {
         match_composed_query(
-            program, ir, owner, db, entry_module, source, guards, q,
-            &mut metadata, &mut composed,
+            program,
+            ir,
+            owner,
+            db,
+            entry_module,
+            source,
+            guards,
+            q,
+            &mut metadata,
+            &mut composed,
         )?;
     }
     Some((metadata, composed))
@@ -975,8 +1026,18 @@ fn resolve_bool_call<'p, 'g>(
         return None;
     };
     Some((
-        collection, selected, call, predicate_node, target, args, slots,
-        domain, predicate, query, param, body,
+        collection,
+        selected,
+        call,
+        predicate_node,
+        target,
+        args,
+        slots,
+        domain,
+        predicate,
+        query,
+        param,
+        body,
     ))
 }
 
@@ -1037,8 +1098,17 @@ fn resolve_bool_model<'i, 'g>(
         nonempty: false,
     };
     Some((
-        checked, alias_name, alias.node, model, parameter, *parameter_owner,
-        *parent_id, *parent_node, parent, dependency, array,
+        checked,
+        alias_name,
+        alias.node,
+        model,
+        parameter,
+        *parameter_owner,
+        *parent_id,
+        *parent_node,
+        parent,
+        dependency,
+        array,
     ))
 }
 
@@ -1108,10 +1178,7 @@ fn single_bool_checked_mismatch(
         || query.contract_collection_call.is_some()
 }
 
-fn single_bool_flags_mismatch(
-    q: &DisclosureQuery,
-    query: &super::ir::IrQuery,
-) -> bool {
+fn single_bool_flags_mismatch(q: &DisclosureQuery, query: &super::ir::IrQuery) -> bool {
     query.where_pred.is_some()
         || query.where_async
         || query.select.is_some()
@@ -1154,18 +1221,20 @@ fn single_bool_dependency_mismatch(
     boolean: &ResolvedType,
 ) -> Option<bool> {
     use crate::analysis::scenario_disclosure::DependencyRole;
-    Some(dependency.id.is_empty()
-        || dependency.role != DependencyRole::Control
-        || dependency.field_name != "unfinished"
-        || dependency.model != model.id
-        || dependency.model_name != model.canonical
-        || dependency.node != predicate_node
-        || dependency.ty != *boolean
-        || dependency.type_id != "bool"
-        || dependency.source != q.source
-        || !dependency.calls.is_empty()
-        || dependency.query_id.is_some()
-        || field_type(program, ir, dependency.field, model.id)? != boolean)
+    Some(
+        dependency.id.is_empty()
+            || dependency.role != DependencyRole::Control
+            || dependency.field_name != "unfinished"
+            || dependency.model != model.id
+            || dependency.model_name != model.canonical
+            || dependency.node != predicate_node
+            || dependency.ty != *boolean
+            || dependency.type_id != "bool"
+            || dependency.source != q.source
+            || !dependency.calls.is_empty()
+            || dependency.query_id.is_some()
+            || field_type(program, ir, dependency.field, model.id)? != boolean,
+    )
 }
 
 fn match_single_bool_query(
@@ -1179,21 +1248,72 @@ fn match_single_bool_query(
     boolean: &ResolvedType,
     metadata: &mut Vec<serde_json::Value>,
 ) -> Option<()> {
-    use super::ir::IrOwner;
-    let (collection, selected, call, predicate_node, target, _args, slots,
-        domain, predicate, query, param, body) =
-        resolve_bool_call(program, guards, q)?;
-    let (checked, alias_name, alias_node, model, parameter, parameter_owner,
-        parent_id, parent_node, parent, dependency, array) =
-        resolve_bool_model(program, ir, q, query)?;
+    let (
+        collection,
+        selected,
+        call,
+        predicate_node,
+        target,
+        _args,
+        slots,
+        domain,
+        predicate,
+        query,
+        param,
+        body,
+    ) = resolve_bool_call(program, guards, q)?;
+    let (
+        checked,
+        alias_name,
+        alias_node,
+        model,
+        parameter,
+        parameter_owner,
+        parent_id,
+        parent_node,
+        parent,
+        dependency,
+        array,
+    ) = resolve_bool_model(program, ir, q, query)?;
     if single_bool_identity_mismatch(
-        q, source, collection, selected, predicate_node, target, slots, &call.ty, boolean,
+        q,
+        source,
+        collection,
+        selected,
+        predicate_node,
+        target,
+        slots,
+        &call.ty,
+        boolean,
     ) || single_bool_shape_mismatch(
-        predicate, body, predicate_node, param, alias_name, alias_node, collection.alias, boolean,
+        predicate,
+        body,
+        predicate_node,
+        param,
+        alias_name,
+        alias_node,
+        collection.alias,
+        boolean,
     ) || single_bool_checked_mismatch(program, q, query, checked, &array, domain, collection)
         || single_bool_flags_mismatch(q, query)
-        || single_bool_model_mismatch(owner, model, parameter_owner, parent_id, parameter, parent_node, query)
-        || single_bool_dependency_mismatch(program, ir, dependency, model, q, predicate_node, boolean)?
+        || single_bool_model_mismatch(
+            owner,
+            model,
+            parameter_owner,
+            parent_id,
+            parameter,
+            parent_node,
+            query,
+        )
+        || single_bool_dependency_mismatch(
+            program,
+            ir,
+            dependency,
+            model,
+            q,
+            predicate_node,
+            boolean,
+        )?
     {
         return None;
     }
@@ -1226,7 +1346,15 @@ fn serialize_query_any_prepared(
     let (source, fresh) =
         prepare_any_fresh(program, ir, owner, db, catalog, entry_module, prepared)?;
     if let Some(metadata) = native_any_metadata(
-        program, ir, owner, db, catalog, entry_module, source, &fresh, prepared,
+        program,
+        ir,
+        owner,
+        db,
+        catalog,
+        entry_module,
+        source,
+        &fresh,
+        prepared,
     )? {
         return Some(metadata);
     }
@@ -1260,7 +1388,17 @@ fn serialize_query_any_prepared(
         if composed_ids.iter().any(|id| id == &q.id) {
             continue;
         }
-        match_single_bool_query(program, ir, owner, db, source, guards, q, &boolean, &mut metadata)?;
+        match_single_bool_query(
+            program,
+            ir,
+            owner,
+            db,
+            source,
+            guards,
+            q,
+            &boolean,
+            &mut metadata,
+        )?;
     }
     metadata.extend(composed_metadata);
     (!metadata.is_empty()).then_some(serde_json::Value::Array(metadata))
@@ -1291,8 +1429,10 @@ pub(super) fn collect_complete_query_receipt(
     catalog: Option<&Catalog>,
     entry_module: &str,
 ) -> Option<NativeScenarioReceipt> {
-    let context=super::source_context::FreshSourceContext::prepare_queries(program,ir,db,catalog).ok()?;
-    let prepared=PreparedQuerySources::from_context(&context);
+    let context =
+        super::source_context::FreshSourceContext::prepare_queries(program, ir, db, catalog)
+            .ok()?;
+    let prepared = PreparedQuerySources::from_context(&context);
     let plan = prepared.plan(owner, entry_module)?;
     collect_complete_query_receipt_prepared(program, ir, owner, &prepared, plan)
 }
@@ -1302,10 +1442,7 @@ fn complete_expected_influences(
     helper_plan: &Option<ReceiptDisclosurePlan>,
     queries: &[DisclosureQuery],
     query: &DisclosureQuery,
-) -> Option<(
-    Vec<DisclosureInfluence>,
-    bool,
-)> {
+) -> Option<(Vec<DisclosureInfluence>, bool)> {
     let expected = if mixed_plan.is_some() {
         Vec::new()
     } else if helper_plan.is_some() {
@@ -1327,32 +1464,64 @@ fn match_complete_returned(
     returned: &DisclosureReturn,
     emitted: &ReceiptReturn,
 ) -> Option<()> {
-    let target_pair = original.source_facts()?.queries.as_deref().is_some_and(|queries|
-        super::scenario_receipts::checked_any_first_target_return_order(
-            queries, expected_influences, &returned.influences)
-            || super::scenario_receipts::checked_assign_count_first_target_return_order(
-                queries, expected_influences, &returned.influences));
-    let constructor_return=super::scenario_receipts::constructor_count_queries(original.source_facts()?).is_some();
-    if constructor_return {
-        if returned.influences.iter().any(|value|!expected_influences.contains(value))
-            ||returned.influences.len()!=emitted.influences.len()
-            ||returned.influences.iter().zip(&emitted.influences).any(|(actual,emitted)|
-                actual.id!=emitted.id||actual.query_id!=emitted.query_id||match actual.kind {
-                    InfluenceKind::QueryExistence=>emitted.kind!="query-existence",
-                    InfluenceKind::QueryCardinality=>emitted.kind!="query-cardinality",
-                    InfluenceKind::QueryMembership=>emitted.kind!="query-membership",
-                    InfluenceKind::QueryOrder=>emitted.kind!="query-order",
-                    _=>true,
-                }){return None;}
+    let target_pair = original
+        .source_facts()?
+        .queries
+        .as_deref()
+        .is_some_and(|queries| {
+            super::scenario_receipts::checked_any_first_target_return_order(
+                queries,
+                expected_influences,
+                &returned.influences,
+            ) || super::scenario_receipts::checked_assign_count_first_target_return_order(
+                queries,
+                expected_influences,
+                &returned.influences,
+            )
+        });
+    let constructor_return =
+        super::scenario_receipts::constructor_count_queries(original.source_facts()?).is_some();
+    if constructor_return
+        && (returned
+            .influences
+            .iter()
+            .any(|value| !expected_influences.contains(value))
+            || returned.influences.len() != emitted.influences.len()
+            || returned
+                .influences
+                .iter()
+                .zip(&emitted.influences)
+                .any(|(actual, emitted)| {
+                    actual.id != emitted.id
+                        || actual.query_id != emitted.query_id
+                        || match actual.kind {
+                            InfluenceKind::QueryExistence => emitted.kind != "query-existence",
+                            InfluenceKind::QueryCardinality => emitted.kind != "query-cardinality",
+                            InfluenceKind::QueryMembership => emitted.kind != "query-membership",
+                            InfluenceKind::QueryOrder => emitted.kind != "query-order",
+                            _ => true,
+                        }
+                }))
+    {
+        return None;
     }
     if !standalone_first
         && !void_tail
         && super::scenario_receipts::checked_created_model_result(ir, owner).is_none()
         || returned.id != emitted.id
         || returned.source != original.source_facts()?.source
-        || !standalone_first && !void_tail && returned.model_result.is_none()
-            && super::scenario_receipts::checked_purchase_helper_query_influences(original.source_facts()?).is_none()
-        || !mixed && !standalone_first && !target_pair && !constructor_return && returned.influences != expected_influences
+        || !standalone_first
+            && !void_tail
+            && returned.model_result.is_none()
+            && super::scenario_receipts::checked_purchase_helper_query_influences(
+                original.source_facts()?,
+            )
+            .is_none()
+        || !mixed
+            && !standalone_first
+            && !target_pair
+            && !constructor_return
+            && returned.influences != expected_influences
         || standalone_first
             && returned
                 .influences
@@ -1365,9 +1534,7 @@ fn match_complete_returned(
     Some(())
 }
 
-fn build_native_returns(
-    selected_returns: &[&DisclosureReturn],
-) -> Vec<NativeReturn> {
+fn build_native_returns(selected_returns: &[&DisclosureReturn]) -> Vec<NativeReturn> {
     selected_returns
         .iter()
         .map(|returned| NativeReturn {
@@ -1392,8 +1559,7 @@ fn verify_complete_disclosure(
     mixed: bool,
     expected_influences: &[DisclosureInfluence],
 ) -> Option<Vec<NativeReturn>> {
-    let ScenarioDisclosure::Complete(checked) = disclosure
-    else {
+    let ScenarioDisclosure::Complete(checked) = disclosure else {
         return None;
     };
     if checked.scenario != owner.id
@@ -1436,9 +1602,19 @@ fn complete_helper_receipt(
     mixed_plan: Option<ReceiptDisclosurePlan>,
     standalone_first: bool,
 ) -> Option<NativeScenarioReceipt> {
-    let (expected_influences, mixed) = if let Some(counts)=super::scenario_receipts::constructor_count_queries(original.source_facts()?) {
-        (counts.into_iter().flat_map(|query|query.influences.clone()).collect(),false)
-    }else{complete_expected_influences(&mixed_plan, &helper_plan, queries, query)?};
+    let (expected_influences, mixed) = if let Some(counts) =
+        super::scenario_receipts::constructor_count_queries(original.source_facts()?)
+    {
+        (
+            counts
+                .into_iter()
+                .flat_map(|query| query.influences.clone())
+                .collect(),
+            false,
+        )
+    } else {
+        complete_expected_influences(&mixed_plan, &helper_plan, queries, query)?
+    };
     if let Some(mut expected) = mixed_plan {
         let selected = prepared.returns.as_ref()?.returns(ir, owner.id)?;
         super::scenario_receipts::project_plan_returns(&mut expected, &selected)?;
@@ -1622,8 +1798,11 @@ fn checked_query_plan(
     entry_module: &str,
     source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
-    PreparedQuerySources::standalone(program, ir, db, catalog)?
-        .plan_with_context(owner, entry_module, source_context)
+    PreparedQuerySources::standalone(program, ir, db, catalog)?.plan_with_context(
+        owner,
+        entry_module,
+        source_context,
+    )
 }
 
 fn check_full_transcript_influences(
@@ -1668,8 +1847,12 @@ fn any_helper_plan(
     db: &SourceDb,
     entry_module: &str,
 ) -> Option<ReceiptDisclosurePlan> {
-    let plan =
-        super::scenario_receipts::checked_native_helper_any_query_plan(ir, owner, db, entry_module)?;
+    let plan = super::scenario_receipts::checked_native_helper_any_query_plan(
+        ir,
+        owner,
+        db,
+        entry_module,
+    )?;
     prepared.decisions(owner)?;
     Some(plan)
 }
@@ -1686,15 +1869,7 @@ fn plan_single_query(
     if query.first.is_some() {
         checked_first_query_plan(program, ir, owner, query, db, entry_module)
     } else if query.count.is_some() {
-        checked_count_query_plan(
-            program,
-            ir,
-            owner,
-            query,
-            db,
-            entry_module,
-            source_context,
-        )
+        checked_count_query_plan(program, ir, owner, query, db, entry_module, source_context)
     } else {
         super::scenario_receipts::checked_native_any_direct_query_plan(
             ir,
@@ -1716,18 +1891,20 @@ fn combine_query_plans(
     source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
     if super::scenario_receipts::checked_native_query_influences(queries).is_none() {
-        let facts=ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
-        let counts=super::scenario_receipts::constructor_count_queries(facts)?;
-        if !counts.iter().copied().eq(queries.iter()){return None;}
-        source_context?.same_scenario(ir,owner)?;
+        let facts = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
+        let counts = super::scenario_receipts::constructor_count_queries(facts)?;
+        if !counts.iter().copied().eq(queries.iter()) {
+            return None;
+        }
+        source_context?.same_scenario(ir, owner)?;
         super::scenario_receipts::constructor_count_influences(facts)?;
     }
-    let mut plans = queries
-        .iter()
-        .map(|query| plan_single_query(program, ir, owner, query, db, entry_module, source_context));
+    let mut plans = queries.iter().map(|query| {
+        plan_single_query(program, ir, owner, query, db, entry_module, source_context)
+    });
     let mut combined = plans.next()??;
     for next in plans {
-        combined=super::scenario_receipts::merge_native_query_plans(combined,next?)?;
+        combined = super::scenario_receipts::merge_native_query_plans(combined, next?)?;
     }
     Some(combined)
 }
@@ -1747,7 +1924,10 @@ fn split_direct_effects(effects: &[IrStmt]) -> Option<(&TypedExpr, &Span, &Typed
     Some((scan, guard, selected, returned))
 }
 
-fn split_direct_queries<'e>(scan: &'e TypedExpr, selected: &'e TypedExpr) -> Option<(&'e IrQuery, &'e IrQuery)> {
+fn split_direct_queries<'e>(
+    scan: &'e TypedExpr,
+    selected: &'e TypedExpr,
+) -> Option<(&'e IrQuery, &'e IrQuery)> {
     let (IrExpr::Query(scan), IrExpr::Query(select)) = (&scan.expr, &selected.expr) else {
         return None;
     };
@@ -2046,9 +2226,26 @@ fn plan_direct_query(
     }
     let dependencies = assemble_direct_dependencies(program, ir, q, model, entry_module)?;
     let influences = assemble_direct_influences(q)?;
-    Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
-        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: origin(&source.source, entry_module),
+    Some(ReceiptDisclosurePlan {
+        retained_guarded_handler: None,
+        source_loops: None,
+        source_emissions: None,
+        version: 1,
+        event_decision: None,
+        term_decision: None,
+        leave_request_decision: None,
+        leave_decide_decision: None,
+        refer_reject_decision: None,
+        member_retry_decision: None,
+        rent_movement_refund_decision: None,
+        invoice_collect_decision: None,
+        rent_notice_decision: None,
+        invoice_issue_decision: None,
+        observe_venue_decision: None,
+        success_renewal_decision: None,
+        purchase_receive_all: None,
+        event_notice_audit: None,
+        source: origin(&source.source, entry_module),
         queries: vec![ReceiptQuery {
             id: q.id.clone(),
             source: origin(&q.source, entry_module),
@@ -2200,7 +2397,7 @@ fn checked_query_plan_full(
     // Public callers may pass a detached owner. Its valid body cannot cover
     // a different executable scenario stored in the supplied IR.
     same_scenario_semantics(program, ir, fresh, ir.items.get(owner.id.0 as usize)?)?;
-    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+    let IrItemKind::Scenario { .. } = &owner.kind else {
         return None;
     };
     if let Some(plan) = mixed_helper_plan(prepared, ir, owner, db, entry_module) {
@@ -2209,11 +2406,29 @@ fn checked_query_plan_full(
     if let Some(plan) = any_helper_plan(prepared, ir, owner, db, entry_module) {
         return Some(plan);
     }
-    if let Some(counts)=super::scenario_receipts::constructor_count_queries(source) {
+    if let Some(counts) = super::scenario_receipts::constructor_count_queries(source) {
         prepared.decisions(owner)?;
-        if let [count]=counts.as_slice(){return checked_count_query_plan(program,ir,owner,count,db,entry_module,source_context);}
-        let counts:Vec<_>=counts.into_iter().cloned().collect();
-        return combine_query_plans(program,ir,owner,&counts,db,entry_module,source_context);
+        if let [count] = counts.as_slice() {
+            return checked_count_query_plan(
+                program,
+                ir,
+                owner,
+                count,
+                db,
+                entry_module,
+                source_context,
+            );
+        }
+        let counts: Vec<_> = counts.into_iter().cloned().collect();
+        return combine_query_plans(
+            program,
+            ir,
+            owner,
+            &counts,
+            db,
+            entry_module,
+            source_context,
+        );
     }
     if queries
         .iter()
@@ -2357,9 +2572,7 @@ fn assemble_inline_query(
     })
 }
 
-fn assemble_return_influences(
-    returned: &DisclosureReturn,
-) -> Option<Vec<ReceiptInfluence>> {
+fn assemble_return_influences(returned: &DisclosureReturn) -> Option<Vec<ReceiptInfluence>> {
     use crate::analysis::scenario_disclosure::InfluenceKind;
     let mut influences = Vec::new();
     for influence in &returned.influences {
@@ -2384,13 +2597,37 @@ fn assemble_return_intrinsics(
     entry: &str,
 ) -> Option<Vec<ReceiptIntrinsic>> {
     use crate::analysis::scenario_disclosure::{DependencyRole, DisclosureIntrinsicKind};
-    returned.intrinsics.iter().map(|read|Some(ReceiptIntrinsic{id:read.id.clone(),source:origin(&read.source,entry),
-        role:match read.role {DependencyRole::Data=>ReceiptRole::Data,DependencyRole::Control=>ReceiptRole::Control},type_id:read.type_id.clone(),
-        kind:match &read.kind {
-            DisclosureIntrinsicKind::OperationId=>NativeIntrinsicKind::OperationId,
-            DisclosureIntrinsicKind::AdmittedInput{parameter_name,..}=>NativeIntrinsicKind::AdmittedInput{parameter:parameter_name.clone()},
-            DisclosureIntrinsicKind::AdmittedReferenceVersion{parameter_name,model_name,..}=>NativeIntrinsicKind::AdmittedReferenceVersion{parameter:parameter_name.clone(),model:model_name.clone()},
-        }})).collect::<Option<Vec<_>>>()
+    returned
+        .intrinsics
+        .iter()
+        .map(|read| {
+            Some(ReceiptIntrinsic {
+                id: read.id.clone(),
+                source: origin(&read.source, entry),
+                role: match read.role {
+                    DependencyRole::Data => ReceiptRole::Data,
+                    DependencyRole::Control => ReceiptRole::Control,
+                },
+                type_id: read.type_id.clone(),
+                kind: match &read.kind {
+                    DisclosureIntrinsicKind::OperationId => NativeIntrinsicKind::OperationId,
+                    DisclosureIntrinsicKind::AdmittedInput { parameter_name, .. } => {
+                        NativeIntrinsicKind::AdmittedInput {
+                            parameter: parameter_name.clone(),
+                        }
+                    }
+                    DisclosureIntrinsicKind::AdmittedReferenceVersion {
+                        parameter_name,
+                        model_name,
+                        ..
+                    } => NativeIntrinsicKind::AdmittedReferenceVersion {
+                        parameter: parameter_name.clone(),
+                        model: model_name.clone(),
+                    },
+                },
+            })
+        })
+        .collect::<Option<Vec<_>>>()
 }
 
 fn assemble_inline_returns(
@@ -2503,9 +2740,26 @@ fn checked_inline_selection_query_plan(
     check_inline_fields(fact, query)?;
     let query = assemble_inline_query(entry, source, query, model, parent, fact)?;
     let returns = assemble_inline_returns(checked, fact, source, entry)?;
-    Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
-        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: origin(&source.source, entry),
+    Some(ReceiptDisclosurePlan {
+        retained_guarded_handler: None,
+        source_loops: None,
+        source_emissions: None,
+        version: 1,
+        event_decision: None,
+        term_decision: None,
+        leave_request_decision: None,
+        leave_decide_decision: None,
+        refer_reject_decision: None,
+        member_retry_decision: None,
+        rent_movement_refund_decision: None,
+        invoice_collect_decision: None,
+        rent_notice_decision: None,
+        invoice_issue_decision: None,
+        observe_venue_decision: None,
+        success_renewal_decision: None,
+        purchase_receive_all: None,
+        event_notice_audit: None,
+        source: origin(&source.source, entry),
         queries: vec![query],
         returns,
     })
@@ -2816,8 +3070,7 @@ fn assemble_transcript_subplans(
     let any = super::scenario_receipts::checked_native_any_query_plan(ir, owner, any, db, entry)?;
     let mut ancestor =
         checked_count_query_plan(program, ir, owner, ancestor, db, entry, source_context)?.queries;
-    let mut selected =
-        checked_first_query_plan(program, ir, owner, selected, db, entry)?.queries;
+    let mut selected = checked_first_query_plan(program, ir, owner, selected, db, entry)?.queries;
     let mut counted =
         checked_count_query_plan(program, ir, owner, count, db, entry, source_context)?.queries;
     if ancestor.len() != 1 || selected.len() != 1 || counted.len() != 1 {
@@ -2859,14 +3112,7 @@ fn enrich_transcript_queries(
     }
     let later = queries.pop()?;
     let early = queries.pop()?;
-    queries = vec![
-        early,
-        any,
-        ancestor,
-        selected,
-        later,
-        counted,
-    ];
+    queries = vec![early, any, ancestor, selected, later, counted];
     let mut ids = HashSet::new();
     if queries.iter().any(|query| !ids.insert(query.id.as_str())) {
         return None;
@@ -2899,7 +3145,10 @@ fn load_transcript_disclosures<'i, 'p, 'f>(
     Some((checked, original, rebuilt))
 }
 
-fn transcript_intrinsic_matches(actual: &DisclosureIntrinsic, expected: &DisclosureIntrinsic) -> bool {
+fn transcript_intrinsic_matches(
+    actual: &DisclosureIntrinsic,
+    expected: &DisclosureIntrinsic,
+) -> bool {
     actual.id == expected.id
         && actual.source == expected.source
         && actual.node == expected.node
@@ -2910,10 +3159,7 @@ fn transcript_intrinsic_matches(actual: &DisclosureIntrinsic, expected: &Disclos
         && actual.type_id == expected.type_id
 }
 
-fn transcript_return_matches(
-    returned: &DisclosureReturn,
-    expected: &DisclosureReturn,
-) -> bool {
+fn transcript_return_matches(returned: &DisclosureReturn, expected: &DisclosureReturn) -> bool {
     returned.id == expected.id
         && returned.node == expected.node
         && returned.source == expected.source
@@ -2975,10 +3221,7 @@ fn check_transcript_return_coverage(
     Some(())
 }
 
-fn build_transcript_return(
-    returned: &DisclosureReturn,
-    entry: &str,
-) -> Option<ReceiptReturn> {
+fn build_transcript_return(returned: &DisclosureReturn, entry: &str) -> Option<ReceiptReturn> {
     Some(ReceiptReturn {
         id: returned.id.clone(),
         source: origin(&returned.source, entry),
@@ -3066,10 +3309,28 @@ fn checked_transcript_query_plan(
     let mut influences = Vec::new();
     let mut ids = HashSet::new();
     for fact in [first, later] {
-        queries.push(assemble_transcript_query(program, ir, owner, entry, fact, &mut ids, &mut influences)?);
+        queries.push(assemble_transcript_query(
+            program,
+            ir,
+            owner,
+            entry,
+            fact,
+            &mut ids,
+            &mut influences,
+        )?);
     }
     if !source.queries.as_deref()?.is_empty() {
-        (queries, influences) = enrich_transcript_queries(program, ir, owner, db, entry, prepared, source, source_context, queries)?;
+        (queries, influences) = enrich_transcript_queries(
+            program,
+            ir,
+            owner,
+            db,
+            entry,
+            prepared,
+            source,
+            source_context,
+            queries,
+        )?;
     }
     let fresh = prepared.fresh.as_ref();
     let (checked, original, rebuilt) = load_transcript_disclosures(ir, program, fresh, owner)?;
@@ -3096,9 +3357,26 @@ fn checked_transcript_query_plan(
         check_transcript_return_coverage(returned, first, later)?;
         returns.push(build_transcript_return(returned, entry)?);
     }
-    Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
-        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: origin(&source.source, entry),
+    Some(ReceiptDisclosurePlan {
+        retained_guarded_handler: None,
+        source_loops: None,
+        source_emissions: None,
+        version: 1,
+        event_decision: None,
+        term_decision: None,
+        leave_request_decision: None,
+        leave_decide_decision: None,
+        refer_reject_decision: None,
+        member_retry_decision: None,
+        rent_movement_refund_decision: None,
+        invoice_collect_decision: None,
+        rent_notice_decision: None,
+        invoice_issue_decision: None,
+        observe_venue_decision: None,
+        success_renewal_decision: None,
+        purchase_receive_all: None,
+        event_notice_audit: None,
+        source: origin(&source.source, entry),
         queries,
         returns,
     })
@@ -3124,10 +3402,7 @@ fn check_count_shape(
     }
     if contained {
         if program.types.checked_queries.contains_key(&query.node)
-            || program
-                .types
-                .checked_collection_calls
-                .contains_key(&call)
+            || program.types.checked_collection_calls.contains_key(&call)
         {
             return None;
         }
@@ -3176,11 +3451,17 @@ fn checked_count_query_plan(
         let checked = program.types.checked_queries.get(&query.node)?;
         if !matches!(&selected.target, SelectedCallTarget::Builtin {id,overload}
             if id == "count" && *overload == count.overload)
-            || selected.slots != count.slots || selected.arguments.as_slice() != [query.node]
-            || fact.node != count.call || fact.query != query.node
-            || fact.model != query.model || fact.builtin != "count"
-            || checked.node != query.node || checked.domain != query.domain
-        { return None; }
+            || selected.slots != count.slots
+            || selected.arguments.as_slice() != [query.node]
+            || fact.node != count.call
+            || fact.query != query.node
+            || fact.model != query.model
+            || fact.builtin != "count"
+            || checked.node != query.node
+            || checked.domain != query.domain
+        {
+            return None;
+        }
         return Some(plan);
     }
     check_count_shape(
@@ -3211,17 +3492,17 @@ fn archived_first_matches(disclosed: bool, ir: &Option<Box<TypedExpr>>) -> bool 
     }
 }
 
-fn resolve_first_call<'e>(
-    effects: &'e [IrStmt],
+fn resolve_first_call(
+    effects: &[IrStmt],
     binding: NodeKey,
     call_span: NodeKey,
 ) -> Option<(
-    &'e super::ir::IrQuery,
-    &'e super::ir::IrCallTarget,
-    &'e [TypedExpr],
-    Option<&'e [Option<usize>]>,
-    &'e ResolvedType,
-    &'e TypedExpr,
+    &super::ir::IrQuery,
+    &super::ir::IrCallTarget,
+    &[TypedExpr],
+    Option<&[Option<usize>]>,
+    &ResolvedType,
+    &TypedExpr,
 )> {
     let mut bindings = effects.iter().filter_map(|effect| match effect {
         IrStmt::Let { value, span, .. } if same_span(binding, *span) => Some(value),
@@ -3383,8 +3664,6 @@ fn first_query_shape_mismatch(
     array: &ResolvedType,
     first_parent: bool,
 ) -> bool {
-    use super::ir::IrOwner;
-    use crate::analysis::Scalar;
     domain_ty != array
         || *call_ty != ResolvedType::Nullable(Box::new(record.clone()))
         || !matches!(&query.domain,IrQueryDomain::Model(name) if name==&model.canonical)
@@ -3404,10 +3683,12 @@ fn check_first_dependencies<'i, 'g>(
     q: &'g DisclosureQuery,
     model: &IrItem,
     declared: &[SymbolId],
-) -> Option<Vec<(
-    &'g crate::analysis::scenario_disclosure::DisclosureDependency,
-    &'i IrItem,
-)>> {
+) -> Option<
+    Vec<(
+        &'g crate::analysis::scenario_disclosure::DisclosureDependency,
+        &'i IrItem,
+    )>,
+> {
     use crate::analysis::scenario_disclosure::DependencyRole;
     // An order-only first carries no predicate and no transported inputs,
     // so empty dependencies are its honest state; a where-query with no
@@ -3452,9 +3733,7 @@ fn check_first_dependencies<'i, 'g>(
     Some(conjuncts)
 }
 
-fn check_first_influences(
-    q: &DisclosureQuery,
-) -> Option<Vec<ReceiptInfluence>> {
+fn check_first_influences(q: &DisclosureQuery) -> Option<Vec<ReceiptInfluence>> {
     use crate::analysis::scenario_disclosure::InfluenceKind;
     let mut kinds = HashSet::new();
     let mut ids = HashSet::new();
@@ -3570,11 +3849,32 @@ fn checked_first_query_plan(
     super::scenario_receipts::checked_first_query_predicate(ir, owner, q, query)?;
     let first_parent = first_parent_ok(ir, owner, q, query, db)?;
     if first_identity_mismatch(
-        q, model, declared, actual, target, selected, slots, first.overload,
+        q,
+        model,
+        declared,
+        actual,
+        target,
+        selected,
+        slots,
+        first.overload,
     ) || first_collection_mismatch(
-        program, q, checked, &array, collection, first.call, first.overload, alias,
+        program,
+        q,
+        checked,
+        &array,
+        collection,
+        first.call,
+        first.overload,
+        alias,
     ) || first_query_shape_mismatch(
-        q, query, model, &domain.ty, call_ty, &record, &array, first_parent,
+        q,
+        query,
+        model,
+        &domain.ty,
+        call_ty,
+        &record,
+        &array,
+        first_parent,
     ) {
         return None;
     }
@@ -3582,9 +3882,31 @@ fn checked_first_query_plan(
     let influences = check_first_influences(q)?;
     let checked_returns = check_first_returns(ir, owner, q, &expected_influences)?;
     let parent = first_query_parent(ir, owner, q, query, db, entry)?;
-    Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: super::scenario_receipts::checked_source_emissions(ir,owner,checked_returns,entry),
-        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: origin(&q.source, entry),
+    Some(ReceiptDisclosurePlan {
+        retained_guarded_handler: None,
+        source_loops: None,
+        source_emissions: super::scenario_receipts::checked_source_emissions(
+            ir,
+            owner,
+            checked_returns,
+            entry,
+        ),
+        version: 1,
+        event_decision: None,
+        term_decision: None,
+        leave_request_decision: None,
+        leave_decide_decision: None,
+        refer_reject_decision: None,
+        member_retry_decision: None,
+        rent_movement_refund_decision: None,
+        invoice_collect_decision: None,
+        rent_notice_decision: None,
+        invoice_issue_decision: None,
+        observe_venue_decision: None,
+        success_renewal_decision: None,
+        purchase_receive_all: None,
+        event_notice_audit: None,
+        source: origin(&q.source, entry),
         queries: vec![ReceiptQuery {
             id: q.id.clone(),
             source: origin(&q.source, entry),
@@ -3682,4 +4004,3 @@ fn field_type<'a>(
     let original = program.types.symbol_types.get(&id)?;
     (owner == *original_owner && owner == *actual_owner && original == ty).then_some(original)
 }
-

@@ -90,8 +90,8 @@ fn prepared_artifact(
     db: &SourceDb,
     catalog: &Catalog,
 ) -> (Value, Vec<Diagnostic>) {
+    use canlang_compiler::codegen::artifact::to_json;
     use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
-use canlang_compiler::codegen::artifact::to_json;
     let mut result = DiagnosticResult::new("created-guarded-source", "1.0", 1);
     result.add_sources(db);
     let (artifact, diagnostics) = emit(
@@ -114,58 +114,122 @@ use canlang_compiler::codegen::artifact::to_json;
 
 #[test]
 fn void_created_guarded_send_keeps_order_and_does_not_invent_model_return() {
-    let source = SOURCE.replace(" -> Entry", "").replace("   return entry\n", "");
+    let source = SOURCE
+        .replace(" -> Entry", "")
+        .replace("   return entry\n", "");
     let source = source.replace("attempt:delivery", "link:Entry?,fresh_link:Entry?,attempt:delivery")
         .replace("deliver(enabled", "deliver(existing:Entry,enabled")
         .replace("count=entry.count+1", "count=entry.count+1,link=existing,fresh_link=entry")
         .replace("subject=\"Created guarded Email\"", "subject=format(\"Created guarded Email\"@{nl=\"Oorspronkelijke melding\"},locale=null)");
     let (db, program, ir, catalog) = fixture_source(&source);
     let owner = item(&ir, OWNER);
-    assert!(matches!(&owner.kind, IrItemKind::Scenario { result: None, .. }));
+    assert!(matches!(
+        &owner.kind,
+        IrItemKind::Scenario { result: None, .. }
+    ));
     let ScenarioDisclosure::Complete(checked) = &ir.scenario_disclosures[&owner.id] else {
         panic!("{:?}", ir.scenario_disclosures[&owner.id]);
     };
     assert!(checked.source_facts.as_ref().unwrap().result.is_none());
     let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
-    let operation = artifact["operations"].as_array().unwrap().iter()
-        .find(|operation| operation["name"] == OWNER).unwrap();
-    assert_ne!(operation["result"]["type"], MODEL, "no automatic created-model return: {operation}");
+    let operation = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == OWNER)
+        .unwrap();
+    assert_ne!(
+        operation["result"]["type"], MODEL,
+        "no automatic created-model return: {operation}"
+    );
     for mode in ["variant", "source-language", "formal"] {
         let mut changed = ir.clone();
         let effects = effects_mut(&mut changed.items[owner.id.0 as usize]);
-        let IrStmt::Send { args, .. } = &mut effects[2] else { panic!("Send") };
-        let subject = &mut object_mut(args).iter_mut().find(|(name, _)| name == "subject").unwrap().1;
-        let IrExpr::Format { args, descriptor_index, locale_index, schemas } = &mut subject.expr else { panic!("Format") };
+        let IrStmt::Send { args, .. } = &mut effects[2] else {
+            panic!("Send")
+        };
+        let subject = &mut object_mut(args)
+            .iter_mut()
+            .find(|(name, _)| name == "subject")
+            .unwrap()
+            .1;
+        let IrExpr::Format {
+            args,
+            descriptor_index,
+            locale_index,
+            schemas,
+        } = &mut subject.expr
+        else {
+            panic!("Format")
+        };
         match mode {
             "formal" => std::mem::swap(descriptor_index, locale_index),
             "source-language" => schemas[0].source_lang = "fr".into(),
             _ => {
-                let IrExpr::Message(message) = &mut args[*descriptor_index].expr else { panic!("Message") };
+                let IrExpr::Message(message) = &mut args[*descriptor_index].expr else {
+                    panic!("Message")
+                };
                 message.variants[0].1 = Some("Changed subject".into());
             }
         }
-        assert!(collect_decision_sources(&program, &changed,
-            &changed.items[owner.id.0 as usize], &db, Some(&catalog)).is_none(), "{mode}");
+        assert!(
+            collect_decision_sources(
+                &program,
+                &changed,
+                &changed.items[owner.id.0 as usize],
+                &db,
+                Some(&catalog)
+            )
+            .is_none(),
+            "{mode}"
+        );
     }
-    let copied = source.replace("   create Entry {count=0} as entry", "   let copied=existing\n   create Entry {count=0} as entry")
+    let copied = source
+        .replace(
+            "   create Entry {count=0} as entry",
+            "   let copied=existing\n   create Entry {count=0} as entry",
+        )
         .replace("link=existing", "link=copied");
     let (_, _, copied_ir, _) = fixture_source(&copied);
-    assert!(matches!(copied_ir.scenario_disclosures.get(&item(&copied_ir, OWNER).id),
-        Some(ScenarioDisclosure::Declined(_))), "copied model input cannot become a SET reference");
-    let linked = source.replace("   require accept", "   create Entry {count=0,link=entry} as receipt\n   require accept");
+    assert!(
+        matches!(
+            copied_ir
+                .scenario_disclosures
+                .get(&item(&copied_ir, OWNER).id),
+            Some(ScenarioDisclosure::Declined(_))
+        ),
+        "copied model input cannot become a SET reference"
+    );
+    let linked = source.replace(
+        "   require accept",
+        "   create Entry {count=0,link=entry} as receipt\n   require accept",
+    );
     let (db, program, ir, catalog) = fixture_source(&linked);
     let owner = item(&ir, OWNER);
     assert!(collect_decision_sources(&program, &ir, owner, &db, Some(&catalog)).is_some());
     let mut changed = ir.clone();
     let effects = effects_mut(&mut changed.items[owner.id.0 as usize]);
-    let IrStmt::Create { input, .. } = &mut effects[4] else { panic!("second Create") };
-    let link = &mut object_mut(input).iter_mut().find(|(name, _)| name == "link").unwrap().1;
+    let IrStmt::Create { input, .. } = &mut effects[4] else {
+        panic!("second Create")
+    };
+    let link = &mut object_mut(input)
+        .iter_mut()
+        .find(|(name, _)| name == "link")
+        .unwrap()
+        .1;
     link.expr = IrExpr::Name("existing".into());
-    assert!(collect_decision_sources(&program, &changed,
-        &changed.items[owner.id.0 as usize], &db, Some(&catalog)).is_none(),
-        "same-type parameter cannot replace original earlier CreateAs");
-
+    assert!(
+        collect_decision_sources(
+            &program,
+            &changed,
+            &changed.items[owner.id.0 as usize],
+            &db,
+            Some(&catalog)
+        )
+        .is_none(),
+        "same-type parameter cannot replace original earlier CreateAs"
+    );
 }
 
 #[test]

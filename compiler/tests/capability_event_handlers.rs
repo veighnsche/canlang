@@ -118,7 +118,9 @@ fn unknown_capability_event_and_foreign_payload_leaves_still_refuse() {
         diagnostics
             .iter()
             .any(|diagnostic| diagnostic.code == "E3010"
-                && diagnostic.message.contains("unknown event source 'BoxV1.missing'")),
+                && diagnostic
+                    .message
+                    .contains("unknown event source 'BoxV1.missing'")),
         "unknown event refuses: {diagnostics:?}"
     );
     // Foreign payload leaf: the checked contract boundary still refuses.

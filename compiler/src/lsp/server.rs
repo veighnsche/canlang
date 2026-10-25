@@ -1305,8 +1305,7 @@ impl<A: LanguageAnalysis> Server<A> {
                     let declarations = self.analysis.definition(&self.db, doc_id, &uri, pos);
                     references.retain(|reference| {
                         !declarations.iter().any(|declaration| {
-                            declaration.uri == reference.uri
-                                && declaration.range == reference.range
+                            declaration.uri == reference.uri && declaration.range == reference.range
                         })
                     });
                 }
@@ -1346,7 +1345,9 @@ impl<A: LanguageAnalysis> Server<A> {
         });
         match target {
             Some((uri, doc_id, _version, pos, name)) => {
-                let edits = self.analysis.rename_files(&self.db, doc_id, &uri, pos, name);
+                let edits = self
+                    .analysis
+                    .rename_files(&self.db, doc_id, &uri, pos, name);
                 if self.rename_refused(&uri, doc_id, &edits) {
                     t::response_ok(id, Json::Null)
                 } else {
@@ -1375,18 +1376,14 @@ impl<A: LanguageAnalysis> Server<A> {
 
     fn respond_doc_method(&self, id: &Json, method: &str, params: &Json) -> String {
         match method {
-            "textDocument/foldingRange" => {
-                match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
-                    Some(doc_id) => {
-                        output::response(id, self.analysis.folding_ranges(&self.db, doc_id))
-                    }
-                    None => t::response_err(
-                        Some(id),
-                        t::error_code::INVALID_PARAMS,
-                        "unknown document",
-                    ),
+            "textDocument/foldingRange" => match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
+                Some(doc_id) => {
+                    output::response(id, self.analysis.folding_ranges(&self.db, doc_id))
                 }
-            }
+                None => {
+                    t::response_err(Some(id), t::error_code::INVALID_PARAMS, "unknown document")
+                }
+            },
             "textDocument/selectionRange" => {
                 match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
                     Some(doc_id) => output::response(
@@ -1398,11 +1395,9 @@ impl<A: LanguageAnalysis> Server<A> {
                                 .expect("validated selection positions"),
                         ),
                     ),
-                    None => t::response_err(
-                        Some(id),
-                        t::error_code::INVALID_PARAMS,
-                        "unknown document",
-                    ),
+                    None => {
+                        t::response_err(Some(id), t::error_code::INVALID_PARAMS, "unknown document")
+                    }
                 }
             }
             "textDocument/documentSymbol" => {
@@ -1410,34 +1405,28 @@ impl<A: LanguageAnalysis> Server<A> {
                     Some(doc_id) => {
                         output::response(id, self.analysis.document_symbols(&self.db, doc_id))
                     }
-                    None => t::response_err(
-                        Some(id),
-                        t::error_code::INVALID_PARAMS,
-                        "unknown document",
-                    ),
-                }
-            }
-            "textDocument/formatting" => {
-                match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
-                    Some(doc_id) => {
-                        let edits: Vec<_> = self
-                            .analysis
-                            .formatting(&self.db, doc_id)
-                            .into_iter()
-                            .map(|edit| lsp::TextEdit {
-                                range: output::range(edit.range),
-                                new_text: edit.new_text,
-                            })
-                            .collect();
-                        output::response(id, edits)
+                    None => {
+                        t::response_err(Some(id), t::error_code::INVALID_PARAMS, "unknown document")
                     }
-                    None => t::response_err(
-                        Some(id),
-                        t::error_code::INVALID_PARAMS,
-                        "unknown document",
-                    ),
                 }
             }
+            "textDocument/formatting" => match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
+                Some(doc_id) => {
+                    let edits: Vec<_> = self
+                        .analysis
+                        .formatting(&self.db, doc_id)
+                        .into_iter()
+                        .map(|edit| lsp::TextEdit {
+                            range: output::range(edit.range),
+                            new_text: edit.new_text,
+                        })
+                        .collect();
+                    output::response(id, edits)
+                }
+                None => {
+                    t::response_err(Some(id), t::error_code::INVALID_PARAMS, "unknown document")
+                }
+            },
             "textDocument/semanticTokens/full" => {
                 match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
                     Some(doc_id) => output::response(
@@ -1446,11 +1435,9 @@ impl<A: LanguageAnalysis> Server<A> {
                             data: self.analysis.semantic_tokens(&self.db, doc_id),
                         },
                     ),
-                    None => t::response_err(
-                        Some(id),
-                        t::error_code::INVALID_PARAMS,
-                        "unknown document",
-                    ),
+                    None => {
+                        t::response_err(Some(id), t::error_code::INVALID_PARAMS, "unknown document")
+                    }
                 }
             }
             _ => match doc_of(params).and_then(|uri| {
@@ -2089,8 +2076,11 @@ fn valid_params(method: &str, params: Option<&Json>) -> bool {
         }
         "initialized" => true,
         "$/cancelRequest" => params.get("id").is_some_and(t::valid_id),
-        "textDocument/hover" | "textDocument/completion" | "textDocument/definition"
-        | "textDocument/references" | "textDocument/rename" => valid_pos_params(method, params),
+        "textDocument/hover"
+        | "textDocument/completion"
+        | "textDocument/definition"
+        | "textDocument/references"
+        | "textDocument/rename" => valid_pos_params(method, params),
         "textDocument/semanticTokens/full"
         | "textDocument/didClose"
         | "textDocument/foldingRange"
@@ -2237,4 +2227,3 @@ pub fn run_stdio() -> i32 {
         }
     }
 }
-

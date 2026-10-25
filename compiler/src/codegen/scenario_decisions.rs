@@ -170,7 +170,14 @@ fn verify_decision_sites(
             return None;
         }
         let mut matched = HashSet::new();
-        cx.expression(expr, &[], &mut HashSet::new(), &proof.calls, &mut matched, 0)?;
+        cx.expression(
+            expr,
+            &[],
+            &mut HashSet::new(),
+            &proof.calls,
+            &mut matched,
+            0,
+        )?;
         if matched.len() != proof.calls.len() {
             return None;
         }
@@ -273,9 +280,7 @@ pub(super) fn find_page_root<'t>(
     steps: &mut usize,
 ) -> Option<&'t SyntaxNode> {
     let contains = |node: &SyntaxNode| {
-        node.span.file == page.file
-            && node.span.start <= page.start
-            && node.span.end >= page.end
+        node.span.file == page.file && node.span.start <= page.start && node.span.end >= page.end
     };
     if !contains(tree) {
         return None;
@@ -655,8 +660,7 @@ impl Consumer<'_> {
         if used.len() != args.len() {
             return None;
         }
-        for ((a, (key, ty)), selected_key) in
-            args.iter().zip(&p.arguments).zip(&selected.arguments)
+        for ((a, (key, ty)), selected_key) in args.iter().zip(&p.arguments).zip(&selected.arguments)
         {
             if key != selected_key
                 || !self.same(*key, a.span)
@@ -747,8 +751,7 @@ impl Consumer<'_> {
                 let d = match default {
                     IrDefault::Literal(d) | IrDefault::Computed { expr: d, .. } => d,
                 };
-                if !self.same(*key, d.span)
-                    || self.program.types.node_types.get(key) != Some(&d.ty)
+                if !self.same(*key, d.span) || self.program.types.node_types.get(key) != Some(&d.ty)
                 {
                     return None;
                 }
@@ -809,14 +812,7 @@ impl Consumer<'_> {
             derive: *id,
         });
         let defaults = self.join_derive_defaults(
-            params,
-            declared,
-            &p.slots,
-            *id,
-            stack,
-            calls,
-            matched,
-            &frame,
+            params, declared, &p.slots, *id, stack, calls, matched, &frame,
         )?;
         if defaults != p.defaults {
             return None;
@@ -834,14 +830,22 @@ impl Consumer<'_> {
         matched: &mut HashSet<usize>,
         depth: usize,
     ) -> Option<()> {
-        let IrExpr::Query(query) = &expression.expr else { return None; };
+        let IrExpr::Query(query) = &expression.expr else {
+            return None;
+        };
         if query.source.is_some() {
             checked_query(self.program, query)?;
         } else {
             // A bare parent.Child domain has no Query syntax. Reuse the
             // exact containment/type/source proof used by SemanticJoin;
             // this carries no collection receipt or query authority.
-            checked_contained_query(self.program, self.ir, query, expression.span, &expression.ty)?;
+            checked_contained_query(
+                self.program,
+                self.ir,
+                query,
+                expression.span,
+                &expression.ty,
+            )?;
         }
         if let IrQueryDomain::Value { base, .. } = &query.domain {
             self.expression(base, chain, stack, calls, matched, depth + 1)?;
@@ -855,12 +859,19 @@ impl Consumer<'_> {
         ]
         .into_iter()
         .flatten()
-        .map(Box::as_ref).collect::<Vec<_>>();
+        .map(Box::as_ref)
+        .collect::<Vec<_>>();
         expressions.extend(query.value_order.iter().map(|order| order.key.as_ref()));
         // The original call census follows authored clause order. An order
         // key may itself call a helper after a WHERE helper; visiting the
         // key first would reject their genuine, independently sealed IR.
-        expressions.sort_by_key(|expression| (expression.span.file, expression.span.start, expression.span.end));
+        expressions.sort_by_key(|expression| {
+            (
+                expression.span.file,
+                expression.span.start,
+                expression.span.end,
+            )
+        });
         for expression in expressions {
             if let IrExpr::Lambda { body, .. } = &expression.expr {
                 self.expression(body, chain, stack, calls, matched, depth + 1)?;
@@ -904,12 +915,17 @@ impl Consumer<'_> {
                 self.expression(operand, chain, stack, calls, matched, depth + 1)?;
                 Some(true)
             }
-            IrExpr::DeliveryRead { record, field, props, callback } => {
+            IrExpr::DeliveryRead {
+                record,
+                field,
+                props,
+                callback,
+            } => {
                 self.expression(record, chain, stack, calls, matched, depth + 1)?;
-                if let Some(callback) = callback {
-                    if !callback.matches(self.ir, e, record, field, props) {
-                        return None;
-                    }
+                if let Some(callback) = callback
+                    && !callback.matches(self.ir, e, record, field, props)
+                {
+                    return None;
                 }
                 Some(true)
             }
@@ -948,19 +964,34 @@ impl Consumer<'_> {
             return None;
         }
         match &e.expr {
-            IrExpr::HasRole{role,person:Some(person)}=>{
-                self.expression(person,chain,stack,calls,matched,depth+1)?;
-                let index=self.find_consumed_call(e,chain,calls,matched)?;
-                let call=&calls[index];self.count+=1;
-                let CheckedDecisionCallTarget::Role(id)=call.target else{return None;};
-                let selected=self.program.types.selected_calls.get(&call.node)?;
-                if self.count>200||!self.origin(&call.source,call.node,call.module)
-                    ||!matches!(selected.target,SelectedCallTarget::Role(actual)if actual==id)
-                    ||!matches!(self.program.symbols.get(id.0 as usize),Some(symbol)if symbol.canonical==*role&&matches!(symbol.kind,crate::analysis::resolve::SymbolKind::Role))
-                    ||!matches!(self.ir.items.get(id.0 as usize),Some(item)if item.canonical==*role&&matches!(item.kind,IrItemKind::Role{..}))
-                    ||!call.defaults.is_empty(){return None;}
-                self.check_consumed_shape(e,std::slice::from_ref(person.as_ref()),call,selected)?;
-            },
+            IrExpr::HasRole {
+                role,
+                person: Some(person),
+            } => {
+                self.expression(person, chain, stack, calls, matched, depth + 1)?;
+                let index = self.find_consumed_call(e, chain, calls, matched)?;
+                let call = &calls[index];
+                self.count += 1;
+                let CheckedDecisionCallTarget::Role(id) = call.target else {
+                    return None;
+                };
+                let selected = self.program.types.selected_calls.get(&call.node)?;
+                if self.count > 200
+                    || !self.origin(&call.source, call.node, call.module)
+                    || !matches!(selected.target,SelectedCallTarget::Role(actual)if actual==id)
+                    || !matches!(self.program.symbols.get(id.0 as usize),Some(symbol)if symbol.canonical==*role&&matches!(symbol.kind,crate::analysis::resolve::SymbolKind::Role))
+                    || !matches!(self.ir.items.get(id.0 as usize),Some(item)if item.canonical==*role&&matches!(item.kind,IrItemKind::Role{..}))
+                    || !call.defaults.is_empty()
+                {
+                    return None;
+                }
+                self.check_consumed_shape(
+                    e,
+                    std::slice::from_ref(person.as_ref()),
+                    call,
+                    selected,
+                )?;
+            }
             IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
                 self.visit_call_args(args, e, chain, stack, calls, matched, depth)?;
                 let index = self.find_consumed_call(e, chain, calls, matched)?;
@@ -971,11 +1002,18 @@ impl Consumer<'_> {
                 }
                 let selected = self.program.types.selected_calls.get(&p.node)?;
                 self.check_consumed_shape(e, args, p, selected)?;
-                if self.check_builtin_target(p, &selected.target, target)? {
-                } else if self.join_derive_call(
-                    &p.target, &selected.target, target, p, chain, stack, calls, matched,
-                )? {
-                } else {
+                if !(self.check_builtin_target(p, &selected.target, target)?
+                    || self.join_derive_call(
+                        &p.target,
+                        &selected.target,
+                        target,
+                        p,
+                        chain,
+                        stack,
+                        calls,
+                        matched,
+                    )?)
+                {
                     return None;
                 }
             }
@@ -997,26 +1035,54 @@ impl Consumer<'_> {
 /// ordered query arrays may feed the existing owner mutation frame when the
 /// complete executable owner still matches independently checked source.
 /// Keep the older read-only C23 receipt family on its original path.
-pub(super) fn owner_handler_queries(context: &FreshSourceContext<'_>, owner: &IrItem) -> Option<()> {
+pub(super) fn owner_handler_queries(
+    context: &FreshSourceContext<'_>,
+    owner: &IrItem,
+) -> Option<()> {
     // Recurring ticks qualify alongside declared payload events: a tick
     // carries no event inputs (DESIGN §6), so there is no payload schema
     // for Declared-ness to vouch for, and the same-semantics re-lowering
     // below re-verifies the whole handler either way.
-    let IrItemKind::Scenario { params, trusted: true, result: None, read: false,
-        expose_excluded: false, by, effects, event_source: Some(IrEventSource::Declared(_) | IrEventSource::Every { .. }),
-        hook: None, cohort: None, .. } = &owner.kind else { return None; };
-    if !params.is_empty() || !by.is_empty() { return None; }
+    let IrItemKind::Scenario {
+        params,
+        trusted: true,
+        result: None,
+        read: false,
+        expose_excluded: false,
+        by,
+        effects,
+        event_source: Some(IrEventSource::Declared(_) | IrEventSource::Every { .. }),
+        hook: None,
+        cohort: None,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    if !params.is_empty() || !by.is_empty() {
+        return None;
+    }
     fn mutation(statements: &[IrStmt]) -> bool {
         statements.iter().any(|statement| match statement {
-            IrStmt::Create { .. } | IrStmt::Set { .. } | IrStmt::Send { .. } | IrStmt::Emit { .. } |
-            IrStmt::Schedule { .. } | IrStmt::Cancel { .. } => true,
-            IrStmt::If { then_branch, else_branch, .. } => mutation(then_branch) || mutation(else_branch),
+            IrStmt::Create { .. }
+            | IrStmt::Set { .. }
+            | IrStmt::Send { .. }
+            | IrStmt::Emit { .. }
+            | IrStmt::Schedule { .. }
+            | IrStmt::Cancel { .. } => true,
+            IrStmt::If {
+                then_branch,
+                else_branch,
+                ..
+            } => mutation(then_branch) || mutation(else_branch),
             IrStmt::For { body, .. } => mutation(body),
             IrStmt::Match { arms, .. } => arms.iter().any(|arm| mutation(&arm.body)),
             _ => false,
         })
     }
-    if !mutation(effects) { return None; }
+    if !mutation(effects) {
+        return None;
+    }
     context.same_scenario(context.ir(), owner)
 }
 
@@ -1059,12 +1125,24 @@ pub struct SerialDecisionArgument {
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum SerialDecisionValueShape {
-    Type { #[serde(rename="type")] type_id: String },
-    Array { element: Box<SerialDecisionValueShape>, ordered: bool, nonempty: bool },
-    Object { fields: Vec<SerialDecisionValueField> },
+    Type {
+        #[serde(rename = "type")]
+        type_id: String,
+    },
+    Array {
+        element: Box<SerialDecisionValueShape>,
+        ordered: bool,
+        nonempty: bool,
+    },
+    Object {
+        fields: Vec<SerialDecisionValueField>,
+    },
 }
 #[derive(Debug, Clone, serde::Serialize)]
-pub struct SerialDecisionValueField { pub name: String, pub shape: SerialDecisionValueShape }
+pub struct SerialDecisionValueField {
+    pub name: String,
+    pub shape: SerialDecisionValueShape,
+}
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SerialDecisionDefault {
     pub parameter: String,
@@ -1439,9 +1517,7 @@ fn resolve_page_node<'t>(
     };
     // The sealed page subtree carries this owner's CST; a missing
     // anchor refuses exactly like the previous whole-tree lookup did.
-    let Some((_, tree)) = trees.iter().find(|(file, _)| *file == page_span.file) else {
-        return None;
-    };
+    let (_, tree) = trees.iter().find(|(file, _)| *file == page_span.file)?;
     let page_node = find_page_root(tree, page_key, &mut consumer.steps)?;
     if page_node.kind != SyntaxKind::Page {
         return None;
@@ -1500,7 +1576,9 @@ fn verify_predicate_site(
     Some(())
 }
 
-pub(super) fn serialize_read_predicates(sources: &FreshSourceContext<'_>) -> Option<Vec<SerialDecisionSite>> {
+pub(super) fn serialize_read_predicates(
+    sources: &FreshSourceContext<'_>,
+) -> Option<Vec<SerialDecisionSite>> {
     let ir = sources.ir();
     let db = sources.db();
     let catalog = sources.catalog();
@@ -1577,9 +1655,9 @@ pub(super) fn serialize_read_predicates(sources: &FreshSourceContext<'_>) -> Opt
                 if output.len() >= 200 || call_count > 200 {
                     return None;
                 }
-                match serialize_sites(original, ir, db, vec![site], Some(&owner)) {
-                    Some(sites) => output.extend(sites),
-                    None => return None,
+                {
+                    let sites = serialize_sites(original, ir, db, vec![site], Some(&owner))?;
+                    output.extend(sites)
                 }
             }
         }
@@ -1597,19 +1675,14 @@ fn resolve_page_predicate<'g>(
     let IrGuard::Expr(expr) = guard else {
         return None;
     };
-    let Some(statement) = crate::analysis::kids(page_node).into_iter().find(|n| {
+    let statement = crate::analysis::kids(page_node).into_iter().find(|n| {
         matches!(n.kind, SyntaxKind::Require | SyntaxKind::UiLeaf)
             && n.span.start <= expr.span.start
             && n.span.end >= expr.span.end
-    }) else {
-        return None;
-    };
-    let Some(predicate) = crate::analysis::kids(statement).into_iter().find(|n| {
-        original.types.node_types.get(&NodeKey::of(n))
-            == Some(&ResolvedType::Scalar(Scalar::Bool))
-    }) else {
-        return None;
-    };
+    })?;
+    let predicate = crate::analysis::kids(statement).into_iter().find(|n| {
+        original.types.node_types.get(&NodeKey::of(n)) == Some(&ResolvedType::Scalar(Scalar::Bool))
+    })?;
     if !crate::analysis::scenario_disclosure::expression_reads_membership(
         &original.types,
         &original.effects,
@@ -1660,9 +1733,7 @@ fn push_page_candidate<'e>(
         .iter()
         .filter(|n| n.kind == SyntaxKind::RouteRecord)
         .collect::<Vec<_>>();
-    let has_scalar = route_kids
-        .iter()
-        .any(|n| n.kind == SyntaxKind::RouteScalar);
+    let has_scalar = route_kids.iter().any(|n| n.kind == SyntaxKind::RouteScalar);
     if records.len() == 1 && !has_scalar {
         let path = crate::analysis::kids(records[0])
             .into_iter()
@@ -1857,9 +1928,7 @@ fn serialize_stateless_observers(
         // prior units must not spend its finite expression budget.
         // Total output stays capped below.
         consumer.steps = 0;
-        if !consumer.same(key, expr.span)
-            || !consumer.origin(&collected.source, key, module)
-        {
+        if !consumer.same(key, expr.span) || !consumer.origin(&collected.source, key, module) {
             return None;
         }
         let mut matched = HashSet::new();
@@ -1932,7 +2001,14 @@ pub(super) fn serialize_read_booleans(
         collect_page_candidates(ir, sources, original, &mut consumer)?;
     collect_derive_candidates(original, ir, &mut candidates)?;
     let mut output = Vec::new();
-    serialize_candidate_observers(sources, original, ir, &mut consumer, candidates, &mut output)?;
+    serialize_candidate_observers(
+        sources,
+        original,
+        ir,
+        &mut consumer,
+        candidates,
+        &mut output,
+    )?;
     serialize_stateless_observers(sources, original, ir, &mut consumer, stateless, &mut output)?;
     Some(output)
 }
@@ -1950,7 +2026,14 @@ fn serialize_sites(
     for site in &sites {
         let mut calls = Vec::new();
         for call in &site.calls {
-            calls.push(serialize_call(program, ir, db, call, &mut count, &mut values)?);
+            calls.push(serialize_call(
+                program,
+                ir,
+                db,
+                call,
+                &mut count,
+                &mut values,
+            )?);
         }
         let position = site
             .position
@@ -2027,48 +2110,122 @@ fn join_require_statements<'o>(
         ([CheckedDecisionPosition::Guard(index)], CheckedDecisionStage::LeadingRequire) => {
             (guards.get(*index)?, expected_guards.get(*index)?)
         }
-        ([CheckedDecisionPosition::Body(index),nested @ ..], CheckedDecisionStage::BodyRequire) => {
-            let mut actual=effects.get(*index)?;
-            let mut expected=expected_effects.get(*index)?;
-            if !nested.is_empty(){semantic.statements(&effects[..*index],&expected_effects[..*index],0)?;}
-            for position in nested {
-                let (IrStmt::If{cond:ac,then_branch:a,else_branch:b,span:at},IrStmt::If{cond:bc,then_branch:x,else_branch:y,span:bt})=(actual,expected) else{return None;};
-                if at!=bt{return None;}semantic.expression(ac,bc,0)?;
-                let (left,right,index)=match position {
-                    CheckedDecisionPosition::Then(index)=>(a,x,*index),
-                    CheckedDecisionPosition::Else(index)=>(b,y,*index),
-                    _=>return None,
-                };
-                semantic.statements(left.get(..index)?,right.get(..index)?,0)?;
-                actual=left.get(index)?;expected=right.get(index)?;
+        (
+            [CheckedDecisionPosition::Body(index), nested @ ..],
+            CheckedDecisionStage::BodyRequire,
+        ) => {
+            let mut actual = effects.get(*index)?;
+            let mut expected = expected_effects.get(*index)?;
+            if !nested.is_empty() {
+                semantic.statements(&effects[..*index], &expected_effects[..*index], 0)?;
             }
-            (actual,expected)
+            for position in nested {
+                let (
+                    IrStmt::If {
+                        cond: ac,
+                        then_branch: a,
+                        else_branch: b,
+                        span: at,
+                    },
+                    IrStmt::If {
+                        cond: bc,
+                        then_branch: x,
+                        else_branch: y,
+                        span: bt,
+                    },
+                ) = (actual, expected)
+                else {
+                    return None;
+                };
+                if at != bt {
+                    return None;
+                }
+                semantic.expression(ac, bc, 0)?;
+                let (left, right, index) = match position {
+                    CheckedDecisionPosition::Then(index) => (a, x, *index),
+                    CheckedDecisionPosition::Else(index) => (b, y, *index),
+                    _ => return None,
+                };
+                semantic.statements(left.get(..index)?, right.get(..index)?, 0)?;
+                actual = left.get(index)?;
+                expected = right.get(index)?;
+            }
+            (actual, expected)
         }
         ([CheckedDecisionPosition::Body(index)], CheckedDecisionStage::BodyCondition) => {
-            semantic.statements(effects.get(..*index)?,expected_effects.get(..*index)?,0)?;
-            (effects.get(*index)?,expected_effects.get(*index)?)
+            semantic.statements(effects.get(..*index)?, expected_effects.get(..*index)?, 0)?;
+            (effects.get(*index)?, expected_effects.get(*index)?)
         }
-        ([CheckedDecisionPosition::Body(index),CheckedDecisionPosition::Loop(child)], CheckedDecisionStage::BodyCondition) => {
-            semantic.statements(effects.get(..*index)?,expected_effects.get(..*index)?,0)?;
-            let (IrStmt::For{body:a,span:at,..},IrStmt::For{body:b,span:bt,..})=(effects.get(*index)?,expected_effects.get(*index)?)else{return None;};
-            if at!=bt{return None;}
-            if *child!=0||a.len()!=1||b.len()!=1{
-                let work=semantic.program.scenario_disclosures().get(&owner.id)?.source_facts()?.member_work_loops.as_deref()?;
-                if !work.iter().any(|plan|plan.node.file==at.file&&plan.node.start==at.start&&plan.node.end==at.end
-                    &&plan.condition==site.node&&plan.condition_statement==site.statement){return None;}
+        (
+            [
+                CheckedDecisionPosition::Body(index),
+                CheckedDecisionPosition::Loop(child),
+            ],
+            CheckedDecisionStage::BodyCondition,
+        ) => {
+            semantic.statements(effects.get(..*index)?, expected_effects.get(..*index)?, 0)?;
+            let (
+                IrStmt::For {
+                    body: a, span: at, ..
+                },
+                IrStmt::For {
+                    body: b, span: bt, ..
+                },
+            ) = (effects.get(*index)?, expected_effects.get(*index)?)
+            else {
+                return None;
+            };
+            if at != bt {
+                return None;
+            }
+            if *child != 0 || a.len() != 1 || b.len() != 1 {
+                let work = semantic
+                    .program
+                    .scenario_disclosures()
+                    .get(&owner.id)?
+                    .source_facts()?
+                    .member_work_loops
+                    .as_deref()?;
+                if !work.iter().any(|plan| {
+                    plan.node.file == at.file
+                        && plan.node.start == at.start
+                        && plan.node.end == at.end
+                        && plan.condition == site.node
+                        && plan.condition_statement == site.statement
+                }) {
+                    return None;
+                }
                 // The independently checked Work shape retains its entire
                 // selection and prefix, including optional SET and CANCEL.
-                semantic.statements(std::slice::from_ref(effects.get(*index)?),
-                    std::slice::from_ref(expected_effects.get(*index)?),0)?;
+                semantic.statements(
+                    std::slice::from_ref(effects.get(*index)?),
+                    std::slice::from_ref(expected_effects.get(*index)?),
+                    0,
+                )?;
             }
-            (a.get(*child)?,b.get(*child)?)
+            (a.get(*child)?, b.get(*child)?)
         }
         _ => return None,
     };
-    let (cond,span,expected_cond,expected_span)=match(actual,expected,site.stage) {
-        (IrStmt::Require{cond,span},IrStmt::Require{cond:other,span:at},CheckedDecisionStage::LeadingRequire|CheckedDecisionStage::BodyRequire)=>(cond,span,other,at),
-        (IrStmt::If{cond,span,..},IrStmt::If{cond:other,span:at,..},CheckedDecisionStage::BodyCondition)=>(cond,span,other,at),
-        _=>return None,
+    let (cond, span, expected_cond, expected_span) = match (actual, expected, site.stage) {
+        (
+            IrStmt::Require { cond, span },
+            IrStmt::Require {
+                cond: other,
+                span: at,
+            },
+            CheckedDecisionStage::LeadingRequire | CheckedDecisionStage::BodyRequire,
+        ) => (cond, span, other, at),
+        (
+            IrStmt::If { cond, span, .. },
+            IrStmt::If {
+                cond: other,
+                span: at,
+                ..
+            },
+            CheckedDecisionStage::BodyCondition,
+        ) => (cond, span, other, at),
+        _ => return None,
     };
     if site.owner != owner.id
         || *span != *expected_span
@@ -2090,15 +2247,29 @@ fn join_require_statements<'o>(
 }
 
 fn plain_source_value(ir: &IrProgram, ty: &ResolvedType, depth: usize) -> bool {
-    if depth >= 16 { return false; }
+    if depth >= 16 {
+        return false;
+    }
     match ty {
         ResolvedType::Scalar(scalar) => *scalar != Scalar::File,
-        ResolvedType::Nullable(inner) | ResolvedType::Array {element:inner,ordered:true,..} => plain_source_value(ir,inner,depth+1),
-        ResolvedType::Object(fields) => fields.len() <= 200 && fields.iter().all(|(_,ty)|plain_source_value(ir,ty,depth+1)),
-        ResolvedType::Record {symbol,..} => matches!(ir.items.get(symbol.0 as usize).map(|item|&item.kind),
+        ResolvedType::Nullable(inner)
+        | ResolvedType::Array {
+            element: inner,
+            ordered: true,
+            ..
+        } => plain_source_value(ir, inner, depth + 1),
+        ResolvedType::Object(fields) => {
+            fields.len() <= 200
+                && fields
+                    .iter()
+                    .all(|(_, ty)| plain_source_value(ir, ty, depth + 1))
+        }
+        ResolvedType::Record { symbol, .. } => {
+            matches!(ir.items.get(symbol.0 as usize).map(|item|&item.kind),
             Some(IrItemKind::Contract {fields,..}) if !fields.is_empty() && fields.len()<=200
                 && fields.iter().all(|id|matches!(ir.items.get(id.0 as usize).map(|item|&item.kind),
-                    Some(IrItemKind::Field {ty:IrType::Known(ty),..}) if plain_source_value(ir,ty,depth+1)))),
+                    Some(IrItemKind::Field {ty:IrType::Known(ty),..}) if plain_source_value(ir,ty,depth+1))))
+        }
         _ => false,
     }
 }
@@ -2132,17 +2303,21 @@ fn serialize_require_params(
         // Consume the original analysis proof once; never infer unreadness
         // from absence in a lowered body or a user-supplied wire flag.
         let unread = facts.unread_parameters.contains(id);
-        if unread { sources.same_scenario(ir, owner)?; }
+        if unread {
+            sources.same_scenario(ir, owner)?;
+        }
         let exact_unread_file_array = unread
             && matches!(ty, ResolvedType::Array { element, ordered: true, nonempty: false }
                 if element.as_ref() == &ResolvedType::Scalar(Scalar::File))
             && default_copy_source.is_none()
             && match (default, default_node, checked.default) {
                 (None, None, None) => true,
-                (Some(IrDefault::Literal(value)), Some(node), Some(original_node)) =>
-                    *node == original_node && value.ty == *ty
+                (Some(IrDefault::Literal(value)), Some(node), Some(original_node)) => {
+                    *node == original_node
+                        && value.ty == *ty
                         && matches!(&value.expr, IrExpr::Array(elements) if elements.is_empty())
-                        && value.span == Span::new(node.file, node.start, node.end),
+                        && value.span == Span::new(node.file, node.start, node.end)
+                }
                 _ => false,
             };
         let exact_null_default = matches!(ty,
@@ -2154,7 +2329,8 @@ fn serialize_require_params(
                     if *node == original_node && value.ty == ResolvedType::Null
                         && matches!(value.expr, IrExpr::Null)
                         && value.span == Span::new(node.file, node.start, node.end))
-            && default_copy_source.is_none() && checked.constraints.is_none();
+            && default_copy_source.is_none()
+            && checked.constraints.is_none();
         let exact_empty_text_array = matches!(ty, ResolvedType::Array { element, ordered: true, nonempty: false }
             if element.as_ref() == &ResolvedType::Scalar(Scalar::Text))
             && matches!((default, default_node, checked.default),
@@ -2162,25 +2338,45 @@ fn serialize_require_params(
                     if *node == original_node && value.ty == *ty
                         && matches!(&value.expr, IrExpr::Array(elements) if elements.is_empty())
                         && value.span == Span::new(node.file, node.start, node.end))
-            && default_copy_source.is_none() && checked.constraints.is_none();
+            && default_copy_source.is_none()
+            && checked.constraints.is_none();
         // An owning field enum keeps its declared case domain. Only the
         // original resolved case default crosses this parameter census.
-        let exact_owned_enum_default = match (ty, default, default_node, checked.default,
-            original.types.field_reuse_sources.get(id)) {
-            (ResolvedType::Enum{cases,..}, Some(IrDefault::Literal(value)), Some(node), Some(expected), Some(field)) =>
-                *node == expected && (node.kind == SyntaxKind::NameRef as u8 || node.kind == SyntaxKind::Member as u8)
+        let exact_owned_enum_default = match (
+            ty,
+            default,
+            default_node,
+            checked.default,
+            original.types.field_reuse_sources.get(id),
+        ) {
+            (
+                ResolvedType::Enum { cases, .. },
+                Some(IrDefault::Literal(value)),
+                Some(node),
+                Some(expected),
+                Some(field),
+            ) => {
+                *node == expected
+                    && (node.kind == SyntaxKind::NameRef as u8
+                        || node.kind == SyntaxKind::Member as u8)
                     && original.types.resolved_cases.contains(node)
                     && original.types.node_types.get(node) == Some(ty)
                     && original.types.symbol_types.get(field) == Some(ty)
                     && matches!(ir.items.get(field.0 as usize).map(|item|&item.kind), Some(IrItemKind::Field{ty:IrType::Known(actual),..}) if actual==ty)
-                    && value.ty == *ty && matches!(&value.expr,IrExpr::Text(case) if cases.contains(case))
-                    && value.span == Span::new(node.file,node.start,node.end)
-                    && default_copy_source.is_none() && checked.constraints.is_none()
-                    && sources.same_scenario(ir,owner).is_some(),
+                    && value.ty == *ty
+                    && matches!(&value.expr,IrExpr::Text(case) if cases.contains(case))
+                    && value.span == Span::new(node.file, node.start, node.end)
+                    && default_copy_source.is_none()
+                    && checked.constraints.is_none()
+                    && sources.same_scenario(ir, owner).is_some()
+            }
             _ => false,
         };
-        let exact_stored_scalar_default = super::scenario_receipts::checked_stored_scalar_parameter_default(
-            sources, ir, owner, *id).is_some();
+        let exact_stored_scalar_default =
+            super::scenario_receipts::checked_stored_scalar_parameter_default(
+                sources, ir, owner, *id,
+            )
+            .is_some();
         let source_value_default = plain_source_value(ir,ty,0) && checked.constraints.is_none()
             && checked.default.is_some() && *default_node == checked.default
             && sources.same_scenario(ir, owner).is_some()
@@ -2199,12 +2395,21 @@ fn serialize_require_params(
             || *declared_owner != owner.id
             || *declared_index != index
             || *ty != checked.ty
-            || !(default.is_none() && checked.default.is_none() || exact_null_default || exact_empty_text_array || source_value_default || exact_unread_file_array || exact_owned_enum_default || exact_stored_scalar_default)
+            || !(default.is_none() && checked.default.is_none()
+                || exact_null_default
+                || exact_empty_text_array
+                || source_value_default
+                || exact_unread_file_array
+                || exact_owned_enum_default
+                || exact_stored_scalar_default)
         {
             return None;
         }
-        let mut parameter = serde_json::json!({"name":item.name,"typeId":serial_type(ty,original,ir,0)?});
-        if unread { parameter["unread"] = serde_json::json!(true); }
+        let mut parameter =
+            serde_json::json!({"name":item.name,"typeId":serial_type(ty,original,ir,0)?});
+        if unread {
+            parameter["unread"] = serde_json::json!(true);
+        }
         parameters.push(parameter);
     }
     Some(parameters)
@@ -2246,30 +2451,81 @@ fn serialize_require_observer(
     let mut identity = serde_json::json!({"source":serial_source(site.source.clone()),
         "owner":owner.canonical,"node":serial_node(site.node),"statement":serial_node(site.statement),
         "parameters":parameters,"sites":serialized});
-    if site.stage==crate::analysis::scenario_disclosure::CheckedDecisionStage::BodyCondition {
-        identity["decision"]=serde_json::json!("if");
+    if site.stage == crate::analysis::scenario_disclosure::CheckedDecisionStage::BodyCondition {
+        identity["decision"] = serde_json::json!("if");
     }
-    if let [crate::analysis::scenario_disclosure::CheckedDecisionPosition::Body(index),crate::analysis::scenario_disclosure::CheckedDecisionPosition::Loop(child)]=site.position.as_slice(){
-        let IrItemKind::Scenario{effects,..}=&owner.kind else{return None;};
-        let IrStmt::For{item,domain,body,span,..}=effects.get(*index)?else{return None;};
-        if *child!=0||body.len()!=1{
-            let plans=original.scenario_disclosures().get(&owner.id)?.source_facts()?.member_work_loops.as_deref()?;
-            if !plans.iter().any(|plan|plan.node.file==span.file&&plan.node.start==span.start&&plan.node.end==span.end
-                &&plan.condition==site.node&&plan.condition_statement==site.statement){return None;}
+    if let [
+        crate::analysis::scenario_disclosure::CheckedDecisionPosition::Body(index),
+        crate::analysis::scenario_disclosure::CheckedDecisionPosition::Loop(child),
+    ] = site.position.as_slice()
+    {
+        let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+            return None;
+        };
+        let IrStmt::For {
+            item,
+            domain,
+            body,
+            span,
+            ..
+        } = effects.get(*index)?
+        else {
+            return None;
+        };
+        if *child != 0 || body.len() != 1 {
+            let plans = original
+                .scenario_disclosures()
+                .get(&owner.id)?
+                .source_facts()?
+                .member_work_loops
+                .as_deref()?;
+            if !plans.iter().any(|plan| {
+                plan.node.file == span.file
+                    && plan.node.start == span.start
+                    && plan.node.end == span.end
+                    && plan.condition == site.node
+                    && plan.condition_statement == site.statement
+            }) {
+                return None;
+            }
         }
-        let ResolvedType::Array{element,..}=&domain.ty else{return None;};
-        let ResolvedType::Record{symbol,stored:true}=element.as_ref() else{return None;};
-        let mut ancestor=*symbol;let mut visited=HashSet::new();
-        loop{
-            if !visited.insert(ancestor)||visited.len()>32{return None;}
-            super::source_loops::model_corresponds(sources,ancestor)?;
-            let IrItemKind::Model{owner,..}=&ir.items.get(ancestor.0 as usize)?.kind else{return None;};
-            if let super::ir::IrOwner::ChildOf(parent)=owner{ancestor=*parent;}else{break;}
+        let ResolvedType::Array { element, .. } = &domain.ty else {
+            return None;
+        };
+        let ResolvedType::Record {
+            symbol,
+            stored: true,
+        } = element.as_ref()
+        else {
+            return None;
+        };
+        let mut ancestor = *symbol;
+        let mut visited = HashSet::new();
+        loop {
+            if !visited.insert(ancestor) || visited.len() > 32 {
+                return None;
+            }
+            super::source_loops::model_corresponds(sources, ancestor)?;
+            let IrItemKind::Model { owner, .. } = &ir.items.get(ancestor.0 as usize)?.kind else {
+                return None;
+            };
+            if let super::ir::IrOwner::ChildOf(parent) = owner {
+                ancestor = *parent;
+            } else {
+                break;
+            }
         }
-        identity["loop"]=serde_json::json!({"node":{"start":span.start,"end":span.end},"item":item,"model":ir.items.get(symbol.0 as usize)?.canonical});
-        let parameters=identity["parameters"].as_array_mut()?;
-        if parameters.iter().any(|parameter|parameter["name"]==*item){return None;}
-        parameters.push(serde_json::json!({"name":item,"typeId":ir.items.get(symbol.0 as usize)?.canonical}));
+        identity["loop"] = serde_json::json!({"node":{"start":span.start,"end":span.end},"item":item,"model":ir.items.get(symbol.0 as usize)?.canonical});
+        let parameters = identity["parameters"].as_array_mut()?;
+        if parameters
+            .iter()
+            .any(|parameter| parameter["name"] == *item)
+        {
+            return None;
+        }
+        parameters.push(
+            serde_json::json!({"name":item,"typeId":ir.items.get(symbol.0 as usize)?.canonical}),
+        );
     }
     if output.len() >= 200 {
         return None;
@@ -2337,16 +2593,19 @@ pub(super) fn serialize_scenario_requires(
         };
         let required = collect_require_keys(original, sites)?;
         consumer.index_required(sources.trees(), &required)?;
-        let mut staged_owner_sealed=false;
+        let mut staged_owner_sealed = false;
         // State binds each operation's observer inventory independently.
         // Keep the existing finite site bound on that owner, not the corpus.
-        let mut owner_output=Vec::new();
+        let mut owner_output = Vec::new();
         for site in sites {
-            if site.stage==crate::analysis::scenario_disclosure::CheckedDecisionStage::BodyCondition && !staged_owner_sealed {
+            if site.stage
+                == crate::analysis::scenario_disclosure::CheckedDecisionStage::BodyCondition
+                && !staged_owner_sealed
+            {
                 // A staged branch must retain its original prefix and both
                 // arms, not only the condition that borrows owner control.
                 sources.same_scenario(ir, owner)?;
-                staged_owner_sealed=true;
+                staged_owner_sealed = true;
             }
             let cond = join_require_statements(
                 &mut semantic,
@@ -2411,10 +2670,14 @@ fn serialize_call_target(
     call: &crate::analysis::scenario_disclosure::CheckedDecisionCall,
 ) -> Option<SerialDecisionTarget> {
     Some(match &call.target {
-        crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Role(id)=>{
-            if !matches!(ir.items.get(id.0 as usize)?.kind,IrItemKind::Role{..}){return None;}
-            SerialDecisionTarget::Role{name:serialize_canonical(program,ir,*id)?}
-        },
+        crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Role(id) => {
+            if !matches!(ir.items.get(id.0 as usize)?.kind, IrItemKind::Role { .. }) {
+                return None;
+            }
+            SerialDecisionTarget::Role {
+                name: serialize_canonical(program, ir, *id)?,
+            }
+        }
         crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Builtin {
             id,
             overload,
@@ -2500,10 +2763,18 @@ fn serialize_call(
     for (node, ty) in &call.arguments {
         let type_id = serial_type(ty, program, ir, 0);
         let value_shape = if type_id.is_none() {
-            if !plain_source_value(ir,ty,0) { return None; }
-            Some(serial_value_shape(ty,program,ir,0)?)
-        } else { None };
-        arguments.push(SerialDecisionArgument { node: serial_node(*node), type_id, value_shape });
+            if !plain_source_value(ir, ty, 0) {
+                return None;
+            }
+            Some(serial_value_shape(ty, program, ir, 0)?)
+        } else {
+            None
+        };
+        arguments.push(SerialDecisionArgument {
+            node: serial_node(*node),
+            type_id,
+            value_shape,
+        });
     }
     let defaults = serialize_call_defaults(program, ir, db, call)?;
     let mut chain = Vec::new();
@@ -2524,18 +2795,48 @@ fn serialize_call(
         chain,
     })
 }
-fn serial_value_shape(ty: &ResolvedType, program: &CheckedProgram, ir: &IrProgram,
-    depth: usize) -> Option<SerialDecisionValueShape> {
-    if depth >= 16 || matches!(ty, ResolvedType::Scalar(Scalar::File | Scalar::Secret | Scalar::Member | Scalar::Json | Scalar::Bytes)) { return None; }
-    if let Some(type_id) = serial_type(ty,program,ir,0) {
-        return Some(SerialDecisionValueShape::Type {type_id});
+fn serial_value_shape(
+    ty: &ResolvedType,
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    depth: usize,
+) -> Option<SerialDecisionValueShape> {
+    if depth >= 16
+        || matches!(
+            ty,
+            ResolvedType::Scalar(
+                Scalar::File | Scalar::Secret | Scalar::Member | Scalar::Json | Scalar::Bytes
+            )
+        )
+    {
+        return None;
+    }
+    if let Some(type_id) = serial_type(ty, program, ir, 0) {
+        return Some(SerialDecisionValueShape::Type { type_id });
     }
     Some(match ty {
-        ResolvedType::Array {element,ordered,nonempty} => SerialDecisionValueShape::Array {
-            element:Box::new(serial_value_shape(element,program,ir,depth+1)?), ordered:*ordered, nonempty:*nonempty },
-        ResolvedType::Object(fields) if !fields.is_empty() && fields.len()<=200 => SerialDecisionValueShape::Object {
-            fields:fields.iter().map(|(name,ty)| Some(SerialDecisionValueField {name:name.clone(),
-                shape:serial_value_shape(ty,program,ir,depth+1)?})).collect::<Option<_>>()? },
+        ResolvedType::Array {
+            element,
+            ordered,
+            nonempty,
+        } => SerialDecisionValueShape::Array {
+            element: Box::new(serial_value_shape(element, program, ir, depth + 1)?),
+            ordered: *ordered,
+            nonempty: *nonempty,
+        },
+        ResolvedType::Object(fields) if !fields.is_empty() && fields.len() <= 200 => {
+            SerialDecisionValueShape::Object {
+                fields: fields
+                    .iter()
+                    .map(|(name, ty)| {
+                        Some(SerialDecisionValueField {
+                            name: name.clone(),
+                            shape: serial_value_shape(ty, program, ir, depth + 1)?,
+                        })
+                    })
+                    .collect::<Option<_>>()?,
+            }
+        }
         _ => return None,
     })
 }
@@ -2558,7 +2859,11 @@ fn serial_record_type(item: &IrItem) -> Option<String> {
     Some(item.canonical.clone())
 }
 
-fn serial_enum_type(item: &IrItem, id: &crate::analysis::resolve::SymbolId, cases: &Vec<String>) -> Option<String> {
+fn serial_enum_type(
+    item: &IrItem,
+    id: &crate::analysis::resolve::SymbolId,
+    cases: &Vec<String>,
+) -> Option<String> {
     let IrItemKind::Field {
         ty:
             IrType::Known(ResolvedType::Enum {
@@ -2759,8 +3064,7 @@ fn contained_parent_ok(
 pub(super) fn checked_query(program: &CheckedProgram, query: &IrQuery) -> Option<()> {
     let source = query.source.as_deref()?;
     if query.value_order.is_some()
-        && (!query.order.is_empty()
-            || query.contract_collection_call.is_some())
+        && (!query.order.is_empty() || query.contract_collection_call.is_some())
     {
         return None;
     }
@@ -2905,4 +3209,3 @@ fn collection_lambda_arguments(
     }
     Some(())
 }
-

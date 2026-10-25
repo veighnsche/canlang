@@ -282,8 +282,7 @@ fn compile_saved_roots(operands: &[String]) -> Vec<std::path::PathBuf> {
 /// diagnose instead of compiling silently without them.
 struct GivenJoin {
     tables: crate::analysis::types::GivenContractTables,
-    groups:
-        std::collections::HashMap<String, crate::analysis::generation_intake::SavedGroup>,
+    groups: std::collections::HashMap<String, crate::analysis::generation_intake::SavedGroup>,
     units: std::collections::HashMap<
         crate::analysis::generation_intake::AssociationKey,
         crate::analysis::types::GivenSavedUnit,
@@ -576,19 +575,18 @@ fn attach_saved_given(
             });
         }
         for instance in &contracts.traits {
-            if instance.target.split('.').count() == 2 {
-                if let Some(model) = artifact
+            if instance.target.split('.').count() == 2
+                && let Some(model) = artifact
                     .models
                     .iter_mut()
                     .find(|model| model.name == instance.target)
-                {
-                    model.fields.retain(|field| {
-                        !instance
-                            .fields
-                            .iter()
-                            .any(|contributed| contributed.name == field.name)
-                    });
-                }
+            {
+                model.fields.retain(|field| {
+                    !instance
+                        .fields
+                        .iter()
+                        .any(|contributed| contributed.name == field.name)
+                });
             }
         }
         art::merge_given_trait_fields(&mut artifact.models, &contracts.traits)
@@ -770,7 +768,7 @@ fn attach_saved_then(
             return Err(fail(format!("view `{unit_id}` must export render")));
         }
         let module =
-            art::saved_unit_module_path(group.record.source.kind, unit_id).map_err(&fail)?;
+            art::saved_unit_module_path(group.record.source.kind, unit_id).map_err(fail)?;
         let mut names: Vec<String> = join
             .resolved_shows()
             .filter(|show| show.unit_id == *unit_id)

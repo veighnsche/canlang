@@ -999,12 +999,7 @@ pub fn discover_generation(tree: &SyntaxNode, text: &str) -> GenerationDiscovery
     }
 }
 
-fn discovery_error(
-    diagnostics: &mut Vec<Diagnostic>,
-    code: &'static str,
-    msg: String,
-    span: Span,
-) {
+fn discovery_error(diagnostics: &mut Vec<Diagnostic>, code: &'static str, msg: String, span: Span) {
     diagnostics.push(Diagnostic::error(code, msg, span));
 }
 
@@ -1231,8 +1226,7 @@ fn record_style_use(
         let _ = t;
     }
     // Self-reference is the only cycle the v1 grammar can form.
-    if d.anchor.contains(&format!(":{}", label)) && d.kind == GenerationKind::ViewRootStyleNamed
-    {
+    if d.anchor.contains(&format!(":{}", label)) && d.kind == GenerationKind::ViewRootStyleNamed {
         // view name is in the anchor target slot; a view that
         // styles its root with a style of its own name and
         // that style is itself is diagnosed via duplicate/
@@ -1302,10 +1296,7 @@ fn check_keyword_application(
     }
 }
 
-fn check_style_cycles(
-    style_edges: &[(String, String, Span)],
-    diagnostics: &mut Vec<Diagnostic>,
-) {
+fn check_style_cycles(style_edges: &[(String, String, Span)], diagnostics: &mut Vec<Diagnostic>) {
     let mut graph: HashMap<String, Vec<String>> = HashMap::new();
     for (from, to, _) in style_edges {
         graph.entry(from.clone()).or_default().push(to.clone());
@@ -1315,14 +1306,23 @@ fn check_style_cycles(
     for k in keys {
         if state.get(&k).copied().unwrap_or(0) == 0 && style_dfs(&k, &graph, &mut state) {
             if let Some((_, _, span)) = style_edges.iter().find(|(f, _, _)| f == &k) {
-                discovery_error(diagnostics, "E2002", "cyclic style reference".to_string(), *span);
+                discovery_error(
+                    diagnostics,
+                    "E2002",
+                    "cyclic style reference".to_string(),
+                    *span,
+                );
             }
             break;
         }
     }
 }
 
-fn style_dfs(n: &str, graph: &HashMap<String, Vec<String>>, state: &mut HashMap<String, u8>) -> bool {
+fn style_dfs(
+    n: &str,
+    graph: &HashMap<String, Vec<String>>,
+    state: &mut HashMap<String, u8>,
+) -> bool {
     state.insert(n.to_string(), 1);
     if let Some(nexts) = graph.get(n) {
         for m in nexts.clone() {

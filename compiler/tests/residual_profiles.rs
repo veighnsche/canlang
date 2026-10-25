@@ -67,12 +67,6 @@ fn assert_refuses(source: &str, code: &str, fragment: &str) {
     );
 }
 
-/// CanDesk triage filters (assignee/unassigned/overdue) intentionally have
-/// no test here: clearing them by deleting UI controls is rejected by
-/// review gate 20261022_04. They need an exact checked filter profile with
-/// positive runtime-backed coverage; the two Desk diagnostics stay refused
-/// until that profile lands.
-
 /// Recorded CanField shape: the pending-confirmation collapse carries a
 /// `loading` placeholder (the renderState loading visual) instead of the
 /// profile-less bare `skeleton`.

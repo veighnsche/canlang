@@ -526,20 +526,32 @@ Then
         BTreeSet::from(["DeliveryError", "WorkflowField", "WorkflowInspection"])
     );
     let contracts = artifact["valueTypes"]["contracts"].as_array().unwrap();
-    let inspection = contracts.iter().find(|value| value["name"] == "WorkflowInspection").unwrap();
+    let inspection = contracts
+        .iter()
+        .find(|value| value["name"] == "WorkflowInspection")
+        .unwrap();
     assert_eq!(inspection["fields"][0]["name"], "fields");
     assert_eq!(inspection["fields"][0]["type"], "WorkflowField[]");
-    let field = contracts.iter().find(|value| value["name"] == "WorkflowField").unwrap();
-    assert_eq!(field["fields"], json!([
-        {"name":"node","type":"text"}, {"name":"key","type":"text"},
-        {"name":"kind","type":"text"}, {"name":"label","type":"text"}
-    ]));
+    let field = contracts
+        .iter()
+        .find(|value| value["name"] == "WorkflowField")
+        .unwrap();
+    assert_eq!(
+        field["fields"],
+        json!([
+            {"name":"node","type":"text"}, {"name":"key","type":"text"},
+            {"name":"kind","type":"text"}, {"name":"label","type":"text"}
+        ])
+    );
     // These are schema/binding facts only. The installed Images adapter's
     // submit/control admission, not compilation, owns provider availability.
     let (db, ir) = build(source);
     let emitted = js::emit_program_with_native_source_receipts(&ir, false, &db);
     assert!(emitted.diagnostics.is_empty(), "{:?}", emitted.diagnostics);
-    assert_eq!(serde_json::to_value(emitted.value_types.unwrap()).unwrap(), artifact["valueTypes"]);
+    assert_eq!(
+        serde_json::to_value(emitted.value_types.unwrap()).unwrap(),
+        artifact["valueTypes"]
+    );
     assert!(emitted.entry.js.contains("std.ImagesV1.inspect"));
     assert!(emitted.entry.js.contains("deployment.images"));
 }
@@ -650,7 +662,10 @@ fn versioned_bound_declaration_publishes_its_contract_without_provider_execution
     let scratch = tempfile::tempdir().unwrap();
     let output = compile(VERSIONED_OUTCOME, &scratch.path().join("versioned.can"));
     let artifact = successful_artifact(&output);
-    assert_eq!(names(&artifact["valueTypes"]), BTreeSet::from(["OperationOutcome"]));
+    assert_eq!(
+        names(&artifact["valueTypes"]),
+        BTreeSet::from(["OperationOutcome"])
+    );
     let (db, ir) = build(VERSIONED_OUTCOME);
     let emitted = js::emit_program_with_native_source_receipts(&ir, false, &db);
     assert!(emitted.diagnostics.is_empty(), "{:?}", emitted.diagnostics);
@@ -671,7 +686,8 @@ fn unrelated_lowering_refusals_preserve_only_source_owned_standard_metadata() {
     assert!(
         diagnostics
             .iter()
-            .any(|diagnostic| diagnostic.code == "E6008" && diagnostic.message.contains("corpus outcome.Handbook")),
+            .any(|diagnostic| diagnostic.code == "E6008"
+                && diagnostic.message.contains("corpus outcome.Handbook")),
         "retain actual unsupported Corpus refusal: {diagnostics:?}"
     );
     let output = js::emit_program_with_native_source_receipts(&ir, false, &db);

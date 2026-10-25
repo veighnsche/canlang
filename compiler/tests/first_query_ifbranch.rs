@@ -152,8 +152,8 @@ fn prepared_artifact(
     db: &SourceDb,
     catalog: &Catalog,
 ) -> (Value, Vec<Diagnostic>) {
+    use canlang_compiler::codegen::artifact::to_json;
     use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
-use canlang_compiler::codegen::artifact::to_json;
     use canlang_compiler::diagnostic::DiagnosticResult;
     let mut result = DiagnosticResult::new("first-query-ifbranch", "1.0", 1);
     result.add_sources(db);
@@ -367,4 +367,3 @@ fn genuine_cli_refused_ifbranch_tails_emit_no_operations() {
         );
     }
 }
-

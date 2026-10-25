@@ -49,4 +49,3 @@ pub(super) fn display_path(uri: &str) -> String {
         .and_then(|path| path.into_os_string().into_string().ok())
         .unwrap_or_else(|| uri.to_owned())
 }
-

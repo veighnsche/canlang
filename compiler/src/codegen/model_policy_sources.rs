@@ -37,8 +37,11 @@ fn modules_match(actual: &IrProgram, fresh: &IrProgram) -> bool {
 fn owned_item_kind(kind: &IrItemKind) -> bool {
     matches!(
         kind,
-        IrItemKind::Model { .. } | IrItemKind::Contract { .. } | IrItemKind::Field { .. }
-            | IrItemKind::DeriveField { .. } | IrItemKind::DeriveFn { .. }
+        IrItemKind::Model { .. }
+            | IrItemKind::Contract { .. }
+            | IrItemKind::Field { .. }
+            | IrItemKind::DeriveField { .. }
+            | IrItemKind::DeriveFn { .. }
             | IrItemKind::Scenario { hook: Some(_), .. }
     )
 }
@@ -53,9 +56,9 @@ fn invariant_matches(
     let matching = rules
         .iter()
         .filter(|rule| {
-            rule.origin.as_ref().is_some_and(|origin| {
-                origin.model == model && origin.node == declared.node
-            })
+            rule.origin
+                .as_ref()
+                .is_some_and(|origin| origin.model == model && origin.node == declared.node)
         })
         .collect::<Vec<_>>();
     let [rule] = matching.as_slice() else {

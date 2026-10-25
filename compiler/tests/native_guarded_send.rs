@@ -12,7 +12,8 @@ use canlang_compiler::source::{SourceDb, Span, sha256_hex};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const SOURCE: &str = include_str!("../../packages/cloudflare/test/fixtures/native-guarded-email.can");
+const SOURCE: &str =
+    include_str!("../../packages/cloudflare/test/fixtures/native-guarded-email.can");
 const CONDITION: &str = "enabled and (note==null or note!=\"deny\") and count(values)>=0 and active_member(person,team)";
 
 fn root() -> PathBuf {
@@ -436,7 +437,12 @@ fn compile_venue_source(source: &str) -> (bool, String) {
     let path = scratch.path().join("venue-observe.can");
     std::fs::write(&path, source).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_can"))
-        .args(["compile", "--native-scenario-receipts", "--format=json", "--catalog"])
+        .args([
+            "compile",
+            "--native-scenario-receipts",
+            "--format=json",
+            "--catalog",
+        ])
         .arg(root().join("packages/cloudflare/dist/native-catalog.json"))
         .arg(&path)
         .current_dir(root())
@@ -453,7 +459,7 @@ fn compile_venue_source(source: &str) -> (bool, String) {
 /// own delivery binding and suite. Byte-exact block surgery: the anchor
 /// block must occur exactly once.
 fn venue_with_extra_sends(extra: usize) -> String {
-    let mut src = VENUE_FIXTURE.to_string();
+    let src = VENUE_FIXTURE.to_string();
     let anchor = "        send Rooms.confirm {source=change.source,resource=resource.id} when=change.parent.pending_change==change and not change.parent.cancelled and change.state==confirming as delivery\n        set change {confirm_delivery=delivery.id,confirm_status=pending}";
     assert_eq!(src.matches(anchor).count(), 1);
     let mut blocks = vec![anchor.to_string()];

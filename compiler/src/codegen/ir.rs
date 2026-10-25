@@ -888,7 +888,8 @@ fn build_with_terminal_mode(
         ).collect::<Vec<_>>();
         if !payments_diagnostics.is_empty() {
             let mut ir = empty_program(&program.catalog_version);
-            ir.committed_sources.payments_changed_event_handlers = program.payments_changed_handlers().to_vec();
+            ir.committed_sources.payments_changed_event_handlers =
+                program.payments_changed_handlers().to_vec();
             return (ir, payments_diagnostics);
         }
     }
@@ -909,13 +910,18 @@ fn build_with_terminal_mode(
             .unwrap_or("index");
         let hooks_supported = !has_hooks
             || super::model_policies::collect_checked_policies(
-                program, &ir, db, catalog, &super::js::module_path(entry),
+                program,
+                &ir,
+                db,
+                catalog,
+                &super::js::module_path(entry),
             )
-                .is_some_and(|policies| !policies.hook_bindings.is_empty());
+            .is_some_and(|policies| !policies.hook_bindings.is_empty());
         if hooks_supported
-            && (terminal_candidate || ir
-                .standard_completion_sources
-                .valid_public_standard_completions(&ir, db))
+            && (terminal_candidate
+                || ir
+                    .standard_completion_sources
+                    .valid_public_standard_completions(&ir, db))
         {
             return (ir, diagnostics);
         }
@@ -937,9 +943,13 @@ fn build_with_terminal_mode(
             .map(|id| ir.module(id).name.as_str())
             .unwrap_or("index");
         if super::model_policies::collect_checked_policies(
-            program, &ir, db, catalog, &super::js::module_path(entry),
+            program,
+            &ir,
+            db,
+            catalog,
+            &super::js::module_path(entry),
         )
-            .is_some_and(|policies| !policies.hook_bindings.is_empty())
+        .is_some_and(|policies| !policies.hook_bindings.is_empty())
         {
             return (ir, diagnostics);
         }
@@ -963,9 +973,16 @@ pub(crate) fn rebuild_policy_source(
             Some(crate::analysis::effects::HandlerSource::Hook { .. })
         )
     });
-    fresh.native_standard_completion = actual.standard_completion_sources.public_admission.is_some()
-        || actual.standard_completion_sources.is_private_terminal_candidate();
-    fresh.private_standard_terminal_candidate = actual.standard_completion_sources.is_private_terminal_candidate();
+    fresh.native_standard_completion = actual
+        .standard_completion_sources
+        .public_admission
+        .is_some()
+        || actual
+            .standard_completion_sources
+            .is_private_terminal_candidate();
+    fresh.private_standard_terminal_candidate = actual
+        .standard_completion_sources
+        .is_private_terminal_candidate();
     fresh.build_program()
 }
 
@@ -2684,18 +2701,15 @@ impl CheckedEmptyValueInventory {
         if server.is_some() {
             return None;
         }
-        let literal =
-            |value: &Option<TypedExpr>| -> Option<Option<EmptyEventLiteral>> {
-                match value {
-                    None => Some(None),
-                    Some(value) => Some(Some(EmptyEventLiteral::capture(value)?)),
-                }
-            };
+        let literal = |value: &Option<TypedExpr>| -> Option<Option<EmptyEventLiteral>> {
+            match value {
+                None => Some(None),
+                Some(value) => Some(Some(EmptyEventLiteral::capture(value)?)),
+            }
+        };
         let default = match default {
             None => None,
-            Some(IrDefault::Literal(value)) => {
-                Some(EmptyEventLiteral::capture(value)?)
-            }
+            Some(IrDefault::Literal(value)) => Some(EmptyEventLiteral::capture(value)?),
             _ => return None,
         };
         row.event_field = Some(EmptyEventField {
@@ -2713,10 +2727,7 @@ impl CheckedEmptyValueInventory {
                         .values
                         .iter()
                         .map(|(name, message)| {
-                            Some((
-                                name.clone(),
-                                EmptyEventMessage::capture(message)?,
-                            ))
+                            Some((name.clone(), EmptyEventMessage::capture(message)?))
                         })
                         .collect::<Option<_>>()?,
                 )),
@@ -2726,11 +2737,7 @@ impl CheckedEmptyValueInventory {
         Some(())
     }
 
-    fn census_row_rest(
-        ir: &IrProgram,
-        item: &IrItem,
-        row: &mut EmptyValueItem,
-    ) -> Option<()> {
+    fn census_row_rest(ir: &IrProgram, item: &IrItem, row: &mut EmptyValueItem) -> Option<()> {
         match &item.kind {
             IrItemKind::Param {
                 owner, index, ty, ..
@@ -2838,12 +2845,7 @@ impl CheckedEmptyValueInventory {
                 IrItemKind::Event { fields } => {
                     Self::event_row(ir, item, &mut row, fields)?;
                 }
-                IrItemKind::Model {
-                    fields,
-                    owner,
-                    crud,
-                    ..
-                } => {
+                IrItemKind::Model { fields, owner, .. } => {
                     has_file_model |= Self::model_row(ir, item, &mut row, fields, owner)?;
                 }
                 IrItemKind::Field { .. } => {
@@ -2927,9 +2929,7 @@ impl CheckedCommittedSources {
     ) -> Option<(Vec<(SourceId, SyntaxNode)>, SyntaxNode, &'d str)> {
         let mut trees = Vec::new();
         for (id, path, hash) in &self.sources {
-            let Some(source) = db.get(*id) else {
-                return None;
-            };
+            let source = db.get(*id)?;
             if source.path != *path
                 || source.sha256 != *hash
                 || sha256_hex(source.text.as_bytes()) != *hash
@@ -2942,29 +2942,20 @@ impl CheckedCommittedSources {
             }
             trees.push((*id, tree));
         }
-        let Some(tree) = trees
+        let tree = trees
             .iter()
             .find(|(id, _)| *id == module.file)
-            .map(|(_, tree)| tree.clone())
-        else {
-            return None;
-        };
-        let Some(source) = db.get(module.file) else {
-            return None;
-        };
-        let Some(declaration) = tree.descendants().find(|node| {
+            .map(|(_, tree)| tree.clone())?;
+        let source = db.get(module.file)?;
+        let declaration = tree.descendants().find(|node| {
             node.kind == SyntaxKind::Scenario
                 && kids(node).iter().any(|part| {
                     part.kind == SyntaxKind::Name
                         && part.span == handler.span
                         && name_text(db, part).as_deref() == Some(handler.name.as_str())
                 })
-        }) else {
-            return None;
-        };
-        let Some(on) = crate::analysis::attribute_value(declaration, "on", &source.text) else {
-            return None;
-        };
+        })?;
+        let on = crate::analysis::attribute_value(declaration, "on", &source.text)?;
         if on.kind != SyntaxKind::Path
             || crate::analysis::path_segments(on, &source.text) != ["teams", "member_removed"]
         {
@@ -3239,8 +3230,7 @@ impl CheckedCommittedSources {
         let Some((module, guards, effects)) = Self::member_removed_scope(ir, handler) else {
             return false;
         };
-        let Some((trees, declaration, _)) = self.member_removed_source(db, module, handler)
-        else {
+        let Some((trees, declaration, _)) = self.member_removed_source(db, module, handler) else {
             return false;
         };
         // Lexical resolution supplies only contextual identity here. Builtin
@@ -3704,8 +3694,7 @@ impl PublicCompletionProfile<'_> {
         left: &TypedExpr,
         right: &TypedExpr,
     ) -> Option<PublicCompletionValue> {
-        let null_test = (left.ty == ResolvedType::Null
-            && right.ty.nullable_inner().is_some())
+        let null_test = (left.ty == ResolvedType::Null && right.ty.nullable_inner().is_some())
             || (right.ty == ResolvedType::Null && left.ty.nullable_inner().is_some());
         let same_comparable = left.ty == right.ty
             && matches!(
@@ -3749,18 +3738,18 @@ impl PublicCompletionProfile<'_> {
         &mut self,
         expr: &TypedExpr,
         base: &TypedExpr,
-        field: &String,
+        field: &str,
     ) -> Option<PublicCompletionValue> {
         if self.envelope_type(expr).is_some() {
             return Some(PublicCompletionValue::Member(
                 Box::new(self.expression_node(base, true)?),
-                field.clone(),
+                field.to_owned(),
             ));
         }
         if self.row_leaf(base, field) == Some(&expr.ty) {
             return Some(PublicCompletionValue::Member(
                 Box::new(self.expression(base)?),
-                field.clone(),
+                field.to_owned(),
             ));
         }
         None
@@ -3793,9 +3782,7 @@ impl PublicCompletionProfile<'_> {
                     .collect::<Option<Vec<_>>>()?,
             ),
             IrExpr::Name(name) => self.completion_name_value(expr, name)?,
-            IrExpr::Member { base, field } => {
-                self.completion_member_value(expr, base, field)?
-            }
+            IrExpr::Member { base, field } => self.completion_member_value(expr, base, field)?,
             IrExpr::Binary { op, left, right } => {
                 self.completion_binary_value(expr, op, left, right)?
             }
@@ -3865,14 +3852,14 @@ impl PublicCompletionProfile<'_> {
 
     fn statement_let(
         &mut self,
-        name: &String,
+        name: &str,
         value: &TypedExpr,
         span: Span,
     ) -> Option<PublicCompletionStatement> {
         let value_snapshot = self.expression(value)?;
-        self.locals.insert(name.clone(), value.ty.clone());
+        self.locals.insert(name.to_owned(), value.ty.clone());
         Some(PublicCompletionStatement::Let(
-            name.clone(),
+            name.to_owned(),
             value_snapshot,
             span,
         ))
@@ -3891,14 +3878,14 @@ impl PublicCompletionProfile<'_> {
 
     fn statement_create(
         &mut self,
-        model: &String,
+        model: &str,
         input: &TypedExpr,
         binding: &Option<String>,
         span: Span,
     ) -> Option<PublicCompletionStatement> {
         let model_id = self.model(model)?.id;
         Some(PublicCompletionStatement::Create(
-            model.clone(),
+            model.to_owned(),
             self.input(model_id, input)?,
             binding.clone(),
             span,
@@ -4216,21 +4203,21 @@ impl PublicCompletionBody {
             }
             let item = ir.items.get(fact.id.0 as usize)?;
             let IrItemKind::Scenario {
-                params,
+                params: _,
                 trusted: true,
                 event_source:
                     Some(
                         source @ IrEventSource::StandardCompleted {
-                            source: event,
-                            canonical_operation,
-                            result_type,
-                            binding,
-                            from,
+                            source: _event,
+                            canonical_operation: _,
+                            result_type: _,
+                            binding: _,
+                            from: _,
                         },
                     ),
                 hook: None,
                 result: None,
-                by,
+                by: _,
                 cohort,
                 guards,
                 effects,
@@ -5169,7 +5156,7 @@ impl<'a> Cx<'a> {
         original_event: &crate::analysis::types::CheckedStdCapabilityEvent,
         module_name: &str,
         alias: &str,
-        event: &str,
+        _event: &str,
         value: &String,
         email: &crate::analysis::types::ResolvedType,
         data_on: &Option<crate::analysis::effects::HandlerSource>,
@@ -5282,7 +5269,14 @@ impl<'a> Cx<'a> {
             || Self::mailbox_declared_identity_matches(data, on, module, original)
             || Self::capability_event_scenario_shape_matches(symbol, data, id, &module.name)
             || Self::capability_event_syntax_identity_matches(
-                owner, header, on, data, module.file, symbol, &source.text, event,
+                owner,
+                header,
+                on,
+                data,
+                module.file,
+                symbol,
+                &source.text,
+                event,
                 NativeCapabilityEvent::MailboxReceived,
             )
             || Self::mailbox_fact_envelope_matches(
@@ -5298,8 +5292,12 @@ impl<'a> Cx<'a> {
         {
             return None;
         }
-        let (import, member, from, from_node, original_alias) =
-            self.capability_event_route(module, alias, source, NativeCapabilityEvent::MailboxReceived)?;
+        let (import, member, from, from_node, original_alias) = self.capability_event_route(
+            module,
+            alias,
+            source,
+            NativeCapabilityEvent::MailboxReceived,
+        )?;
         Self::capability_event_route_valid(
             import,
             member,
@@ -5395,7 +5393,7 @@ impl<'a> Cx<'a> {
         original_event: &crate::analysis::types::CheckedStdCapabilityEvent,
         module_name: &str,
         alias: &str,
-        event: &str,
+        _event: &str,
         data_on: &Option<crate::analysis::effects::HandlerSource>,
     ) -> bool {
         fact.capability != original_event.capability
@@ -5420,7 +5418,14 @@ impl<'a> Cx<'a> {
             || Self::payments_changed_declared_identity_matches(data, on, module, original)
             || Self::capability_event_scenario_shape_matches(symbol, data, id, &module.name)
             || Self::capability_event_syntax_identity_matches(
-                owner, header, on, data, module.file, symbol, &source.text, event,
+                owner,
+                header,
+                on,
+                data,
+                module.file,
+                symbol,
+                &source.text,
+                event,
                 NativeCapabilityEvent::PaymentsChanged,
             )
             || Self::payments_changed_fact_envelope_matches(
@@ -5434,8 +5439,12 @@ impl<'a> Cx<'a> {
         {
             return None;
         }
-        let (import, member, from, from_node, original_alias) =
-            self.capability_event_route(module, alias, source, NativeCapabilityEvent::PaymentsChanged)?;
+        let (import, member, from, from_node, original_alias) = self.capability_event_route(
+            module,
+            alias,
+            source,
+            NativeCapabilityEvent::PaymentsChanged,
+        )?;
         Self::capability_event_route_valid(
             import,
             member,
@@ -6466,10 +6475,7 @@ impl<'a> Cx<'a> {
 
     /// Decode one symbol's item kind plus its PR5 payload.
     #[allow(clippy::too_many_lines)]
-    fn build_tail_item_kind(
-        &mut self,
-        symbol: &crate::analysis::resolve::Symbol,
-    ) -> IrItemKind {
+    fn build_tail_item_kind(&mut self, symbol: &crate::analysis::resolve::Symbol) -> IrItemKind {
         match &symbol.kind {
             SymbolKind::Fixture { target } => {
                 let recipe = self.decode_fixture(symbol, target);
@@ -6716,8 +6722,7 @@ impl<'a> Cx<'a> {
                 .no
                 .as_ref()
                 .and_then(|key| self.decode_message_value(symbol.module, key));
-            if yes.is_some() != question.yes.is_some() || no.is_some() != question.no.is_some()
-            {
+            if yes.is_some() != question.yes.is_some() || no.is_some() != question.no.is_some() {
                 self.gap(
                     format!(
                         "judgment {}: checked NOUL criterion has no static message descriptor",
@@ -6726,8 +6731,9 @@ impl<'a> Cx<'a> {
                     symbol.span,
                 );
             }
-            let mut decode_options = |options: &[crate::analysis::resolve::CheckedJudgmentOption]| {
-                options.iter().filter_map(|option| {
+            let mut decode_options =
+                |options: &[crate::analysis::resolve::CheckedJudgmentOption]| {
+                    options.iter().filter_map(|option| {
                     match self.decode_message_value(symbol.module, &option.description) {
                         Some(description) => Some(IrJudgmentOption { id: option.id.clone(), description }),
                         None => {
@@ -6736,12 +6742,12 @@ impl<'a> Cx<'a> {
                         }
                     }
                 }).collect()
-            };
+                };
             let options = decode_options(&question.options);
             let levels = decode_options(&question.levels);
             questions.push(IrJudgmentQuestion {
                 name: question.name.clone(),
-                runtime: question.runtime.clone(),
+                runtime: question.runtime,
                 kind: match question.kind {
                     CheckedJudgmentKind::Noul => IrJudgmentKind::Noul,
                     CheckedJudgmentKind::Choice => IrJudgmentKind::Choice,
@@ -7394,7 +7400,12 @@ impl<'a> Cx<'a> {
         }
     }
 
-    fn adjust_expr_ty(&mut self, scope: &Scope, expr: &IrExpr, mut ty: ResolvedType) -> ResolvedType {
+    fn adjust_expr_ty(
+        &mut self,
+        scope: &Scope,
+        expr: &IrExpr,
+        mut ty: ResolvedType,
+    ) -> ResolvedType {
         // Table-derived types for scope slots the types pass never sees
         // (runner-typed example cells): `s` fixture slots take their
         // recipe target type.
@@ -7742,9 +7753,7 @@ impl<'a> Cx<'a> {
             // this same diagnostic, so no undefined read can leak into
             // a legacy two-argument runner. The refusal rebuild
             // preserves exact source spans.
-            "actor" | "team" | "operation"
-                if scope.in_hook && !self.native_hook_context =>
-            {
+            "actor" | "team" | "operation" if scope.in_hook && !self.native_hook_context => {
                 let why = "no complete native owner-policy plan binds the hook context";
                 self.diags.push(Diagnostic::error(
                     "E6008",
@@ -8045,7 +8054,9 @@ impl<'a> Cx<'a> {
         // shadows retain their own Name and hook context gates stay intact.
         let expr = if self.program.types.contextual_references.contains_key(&key) {
             self.decode_bare_name(scope, name, &ty, span)
-        } else { IrExpr::Name(name.to_string()) };
+        } else {
+            IrExpr::Name(name.to_string())
+        };
         TypedExpr::new(expr, ty, span)
     }
 
@@ -8145,11 +8156,7 @@ impl<'a> Cx<'a> {
                     IrExpr::Binary {
                         op: IrBinOp::Coalesce,
                         left: Box::new(observed),
-                        right: Box::new(TypedExpr::new(
-                            IrExpr::Null,
-                            ResolvedType::Null,
-                            span,
-                        )),
+                        right: Box::new(TypedExpr::new(IrExpr::Null, ResolvedType::Null, span)),
                     },
                     ty.clone(),
                     span,
@@ -8197,12 +8204,10 @@ impl<'a> Cx<'a> {
             return self.decode_callback_read(scope, node, ty, observation);
         }
         let parts = kids(node);
-        if let Some(base) = parts.iter().find(|part| is_expression(part.kind)).copied() {
-            if let Some(expr) =
-                self.callback_diagnostic_member(scope, base, &parts, ty, node.span)
-            {
-                return expr;
-            }
+        if let Some(base) = parts.iter().find(|part| is_expression(part.kind)).copied()
+            && let Some(expr) = self.callback_diagnostic_member(scope, base, &parts, ty, node.span)
+        {
+            return expr;
         }
         if let Some((child, parent)) = self.contained_collection_head(node) {
             let parent = self.decode_expr(scope, parent);
@@ -8284,10 +8289,18 @@ impl<'a> Cx<'a> {
                         inferred
                     } else if outermost && !matches!(ty, ResolvedType::Unknown) {
                         ty.clone()
-                    } else if let Some(checked) = self.program.types.node_types.get(&NodeKey {
-                        file: field_span.file, start: field_span.start, end: field_span.end,
-                        kind: SyntaxKind::Member as u8,
-                    }).filter(|checked| !matches!(checked, ResolvedType::Unknown)) {
+                    } else if let Some(checked) = self
+                        .program
+                        .types
+                        .node_types
+                        .get(&NodeKey {
+                            file: field_span.file,
+                            start: field_span.start,
+                            end: field_span.end,
+                            kind: SyntaxKind::Member as u8,
+                        })
+                        .filter(|checked| !matches!(checked, ResolvedType::Unknown))
+                    {
                         // A flattened chain still owns every original checked
                         // getter type, including a flow-narrowed reference.
                         checked.clone()
@@ -8364,9 +8377,7 @@ impl<'a> Cx<'a> {
         {
             return None;
         }
-        let Some(domain_slot) = selected.slots.first().copied().flatten() else {
-            return None;
-        };
+        let domain_slot = selected.slots.first().copied().flatten()?;
         // Keep the owning query refusal when its source profile cannot lower.
         // No query proof or modules can be published from this unsupported node.
         if args
@@ -8383,16 +8394,11 @@ impl<'a> Cx<'a> {
         else {
             return None;
         };
-        let Some(source) = query.source.as_deref() else {
-            return None;
-        };
-        let Some(alias) = source
+        let source = query.source.as_deref()?;
+        let alias = source
             .clauses
             .iter()
-            .find(|clause| matches!(clause.kind, CheckedQueryClauseKind::As { .. }))
-        else {
-            return None;
-        };
+            .find(|clause| matches!(clause.kind, CheckedQueryClauseKind::As { .. }))?;
         let CheckedQueryClauseKind::As { name } = &alias.kind else {
             return None;
         };
@@ -8435,12 +8441,8 @@ impl<'a> Cx<'a> {
         args: &[TypedExpr],
         name: &str,
     ) -> Option<bool> {
-        let Some(predicate) = fact.predicate.as_ref() else {
-            return None;
-        };
-        let Some(slot) = selected.slots.get(1).copied().flatten() else {
-            return None;
-        };
+        let predicate = fact.predicate.as_ref()?;
+        let slot = selected.slots.get(1).copied().flatten()?;
         // An async/unsupported predicate keeps its own source-profile
         // refusal; it cannot publish a collection correspondence proof.
         if args
@@ -8457,9 +8459,7 @@ impl<'a> Cx<'a> {
         else {
             return None;
         };
-        let Some(mut predicate_node) = self.node(&predicate.node) else {
-            return None;
-        };
+        let mut predicate_node = self.node(&predicate.node)?;
         for depth in 0..=64 {
             if predicate_node.kind != SyntaxKind::Group {
                 break;
@@ -8467,12 +8467,9 @@ impl<'a> Cx<'a> {
             if depth == 64 {
                 return None;
             }
-            let Some(inner) = kids(predicate_node)
+            let inner = kids(predicate_node)
                 .into_iter()
-                .find(|child| is_expression(child.kind))
-            else {
-                return None;
-            };
+                .find(|child| is_expression(child.kind))?;
             predicate_node = inner;
         }
         let boolean = ResolvedType::Scalar(Scalar::Bool);
@@ -8510,7 +8507,14 @@ impl<'a> Cx<'a> {
         let has_predicate = matches!(id, "any" | "all");
         let arity = if has_predicate { 2 } else { 1 };
         let (stop, domain_slot, name) = match self.join_collection_domain(
-            node, id, overload, fact, selected, args, has_predicate, arity,
+            node,
+            id,
+            overload,
+            fact,
+            selected,
+            args,
+            has_predicate,
+            arity,
         ) {
             None => return false,
             Some(joined) => joined,
@@ -8568,10 +8572,10 @@ impl<'a> Cx<'a> {
         ContractCallFact::Valid(fact)
     }
 
-    fn contract_call_query<'q>(
-        args: &'q [TypedExpr],
+    fn contract_call_query(
+        args: &[TypedExpr],
         slot: usize,
-    ) -> Result<(&'q IrQuery, &'q ResolvedType), bool> {
+    ) -> Result<(&IrQuery, &ResolvedType), bool> {
         let Some(TypedExpr {
             expr: IrExpr::Query(query),
             ty,
@@ -8592,7 +8596,7 @@ impl<'a> Cx<'a> {
         &crate::analysis::types::CheckedQuery,
         &crate::analysis::types::CheckedQueryClause,
         &String,
-        &Box<TypedExpr>,
+        &TypedExpr,
         &String,
     )> {
         let source = query.source.as_deref()?;
@@ -8659,13 +8663,10 @@ impl<'a> Cx<'a> {
                 if domain_node.kind != SyntaxKind::Member || parts.len() != 3 {
                     return None;
                 }
-                let Some(text) = self
+                let text = self
                     .db
                     .get(domain_node.span.file)
-                    .map(|source| source.text.as_str())
-                else {
-                    return None;
-                };
+                    .map(|source| source.text.as_str())?;
                 if text.get(parts[1].span.start as usize..parts[1].span.end as usize) != Some(".") {
                     return None;
                 }
@@ -8682,17 +8683,13 @@ impl<'a> Cx<'a> {
                 else {
                     return None;
                 };
-                let Some(name) = name_text(self.db, parts[2]) else {
-                    return None;
-                };
-                let Some(field) = fields.iter().find(|field| {
+                let name = name_text(self.db, parts[2])?;
+                let field = fields.iter().find(|field| {
                     self.program
                         .symbols
                         .get(field.0 as usize)
                         .is_some_and(|symbol| symbol.name == name)
-                }) else {
-                    return None;
-                };
+                })?;
                 Some(
                     matches!(self.program.symbols.get(field.0 as usize).map(|symbol| &symbol.kind),
                         Some(SymbolKind::Field {owner: field_owner, ..}) if field_owner == owner)
@@ -8750,10 +8747,10 @@ impl<'a> Cx<'a> {
             && self.program.types.checked_queries.get(&fact.query) == Some(source)
     }
 
-    fn contract_call_lambda<'q>(
-        args: &'q [TypedExpr],
+    fn contract_call_lambda(
+        args: &[TypedExpr],
         slot: usize,
-    ) -> Result<(&'q String, &'q Box<TypedExpr>, &'q ResolvedType), bool> {
+    ) -> Result<(&String, &TypedExpr, &ResolvedType), bool> {
         let Some(TypedExpr {
             expr: IrExpr::Lambda { param, body },
             ty,
@@ -8773,15 +8770,12 @@ impl<'a> Cx<'a> {
         fact: &crate::analysis::types::CheckedContractCollectionCall,
         name: &String,
         param: &String,
-        body: &Box<TypedExpr>,
+        body: &TypedExpr,
         ty: &ResolvedType,
     ) -> Option<()> {
-        let Some(predicate_node) = self
+        let predicate_node = self
             .node(&fact.predicate.node)
-            .and_then(Self::grouped_expression)
-        else {
-            return None;
-        };
+            .and_then(Self::grouped_expression)?;
         let boolean = ResolvedType::Scalar(Scalar::Bool);
         if selected.arguments.get(fact.slots[1]) != Some(&fact.predicate.node)
             || fact.predicate.ty != boolean
@@ -8816,15 +8810,12 @@ impl<'a> Cx<'a> {
             Ok(parts) => parts,
             Err(pass) => return pass,
         };
-        let (source, alias, name, base, live_alias) =
-            match Self::contract_call_source_parts(query) {
-                Some(parts) => parts,
-                None => return false,
-            };
-        let Some(domain_node) = self
-            .node(&fact.domain)
-            .and_then(Self::grouped_expression)
-        else {
+        let (source, alias, name, base, live_alias) = match Self::contract_call_source_parts(query)
+        {
+            Some(parts) => parts,
+            None => return false,
+        };
+        let Some(domain_node) = self.node(&fact.domain).and_then(Self::grouped_expression) else {
             return false;
         };
         let Some(domain_matches) =
@@ -9163,9 +9154,7 @@ impl<'a> Cx<'a> {
         id: SymbolId,
         selected: &crate::analysis::types::SelectedCall,
     ) -> Option<IrExpr> {
-        let Some(data) = self.program.effects.messages.get(&id).cloned() else {
-            return None;
-        };
+        let data = self.program.effects.messages.get(&id).cloned()?;
         if data.params.len() != selected.slots.len() {
             return None;
         }
@@ -9403,8 +9392,9 @@ impl<'a> Cx<'a> {
                     })
                     .collect();
                 if !self.join_collection_call(node, &id, overload, &selected, &mut args)
-                    || !self
-                        .join_contract_collection_call(scope, node, &id, overload, &selected, &mut args)
+                    || !self.join_contract_collection_call(
+                        scope, node, &id, overload, &selected, &mut args,
+                    )
                 {
                     return IrExpr::Unsupported {
                         what: "collection call source facts".into(),
@@ -9794,8 +9784,7 @@ impl<'a> Cx<'a> {
                 .iter()
                 .find_map(|part| name_text(self.db, part))
                 .is_some_and(|name| {
-                    !bound.contains(&name)
-                        && scope.row_rewrite.get(&name).unwrap_or(&name) == "row"
+                    !bound.contains(&name) && scope.row_rewrite.get(&name).unwrap_or(&name) == "row"
                 });
         }
         let query_alias = (node.kind == SyntaxKind::Query).then(|| {
@@ -9867,22 +9856,29 @@ impl<'a> Cx<'a> {
         model_id: Option<SymbolId>,
         alias: &Option<String>,
     ) -> QueryOrderLowered {
-        let direct_order = if value_domain { None } else {
-            clause_parts.iter().find(|n| is_expression(n.kind)).and_then(|value|
-                model_id.zip(alias.as_deref()).and_then(|(model, alias)| self.decode_query_field_order(value, model, alias)))
+        let direct_order = if value_domain {
+            None
+        } else {
+            clause_parts
+                .iter()
+                .find(|n| is_expression(n.kind))
+                .and_then(|value| {
+                    model_id.zip(alias.as_deref()).and_then(|(model, alias)| {
+                        self.decode_query_field_order(value, model, alias)
+                    })
+                })
         };
         if value_domain || direct_order.is_none() {
-            let Some(value) = clause_parts.iter().find(|n| is_expression(n.kind))
-            else {
+            let Some(value) = clause_parts.iter().find(|n| is_expression(n.kind)) else {
                 return QueryOrderLowered::Refused(IrExpr::Unsupported {
                     what: "value query order".into(),
                     why: "checked ordering expression is required".into(),
                 });
             };
             let descending = value.kind == SyntaxKind::Unary
-                && kids(value).iter().any(|part| {
-                    part.kind == SyntaxKind::Punct && self.text(part.span) == "-"
-                });
+                && kids(value)
+                    .iter()
+                    .any(|part| part.kind == SyntaxKind::Punct && self.text(part.span) == "-");
             let key_node = if descending {
                 kids(value)
                     .into_iter()
@@ -10145,8 +10141,7 @@ impl<'a> Cx<'a> {
             match keyword.as_str() {
                 "as" => {}
                 "where" => {
-                    if let Some((async_pred, pred)) =
-                        self.decode_query_where(&inner, &clause_parts)
+                    if let Some((async_pred, pred)) = self.decode_query_where(&inner, &clause_parts)
                     {
                         where_async = async_pred;
                         where_pred = Some(Box::new(pred));
@@ -10190,7 +10185,8 @@ impl<'a> Cx<'a> {
                     let Some(selection) = self.collection_archive(node, clause) else {
                         return IrExpr::Unsupported {
                             what: "query archived".to_string(),
-                            why: "archive selection lacks its exact checked source clause".to_string(),
+                            why: "archive selection lacks its exact checked source clause"
+                                .to_string(),
                         };
                     };
                     archived = Some(Box::new(selection));
@@ -10331,8 +10327,7 @@ impl<'a> Cx<'a> {
         parameter: &str,
     ) -> Option<()> {
         let is_row = |value: &TypedExpr| {
-            value.ty == *row_type
-                && matches!(&value.expr, IrExpr::Name(name) if name == parameter)
+            value.ty == *row_type && matches!(&value.expr, IrExpr::Name(name) if name == parameter)
         };
         match mapping {
             CheckedQueryProjectionMapping::StoredReference if is_row(value) => {}
@@ -10411,7 +10406,8 @@ impl<'a> Cx<'a> {
         let projection = projection?;
         let parameter = parameter?;
         let alias = Self::projection_alias_clause(query)?;
-        let row_type = self.projection_head_validates(query, proof, projection, parameter, alias)?;
+        let row_type =
+            self.projection_head_validates(query, proof, projection, parameter, alias)?;
         let IrExpr::Object(entries) = &projection.expr else {
             return None;
         };
@@ -10914,11 +10910,7 @@ impl<'a> Cx<'a> {
             _ => String::new(),
         };
         if event.is_empty() {
-            return unsupported_stmt(
-                "emit statement",
-                "no event target is published",
-                span,
-            );
+            return unsupported_stmt("emit statement", "no event target is published", span);
         }
         IrStmt::Emit {
             event,
@@ -10954,11 +10946,7 @@ impl<'a> Cx<'a> {
             _ => String::new(),
         };
         if event.is_empty() {
-            return unsupported_stmt(
-                "schedule statement",
-                "no event target is published",
-                span,
-            );
+            return unsupported_stmt("schedule statement", "no event target is published", span);
         }
         // The payload is the schedule object's entries (T31: the
         // value slot was never published for schedules, so every
@@ -11201,21 +11189,46 @@ impl<'a> Cx<'a> {
             let text = path_text(self.db, node);
             let segments: Vec<&str> = text.split('.').collect();
             if let [name, "parent"] = segments.as_slice()
-                && let Some(parameter) = self.program.effects.scenarios.values()
-                    .find(|scenario| scenario.module == scope.module && scenario.node.file == node.span.file
-                        && scenario.node.start <= node.span.start && scenario.node.end >= node.span.end)
-                    .and_then(|scenario| scenario.params.iter().find(|input|
-                        self.program.symbols.get(input.param.0 as usize).is_some_and(|symbol| symbol.name == *name)))
+                && let Some(parameter) = self
+                    .program
+                    .effects
+                    .scenarios
+                    .values()
+                    .find(|scenario| {
+                        scenario.module == scope.module
+                            && scenario.node.file == node.span.file
+                            && scenario.node.start <= node.span.start
+                            && scenario.node.end >= node.span.end
+                    })
+                    .and_then(|scenario| {
+                        scenario.params.iter().find(|input| {
+                            self.program
+                                .symbols
+                                .get(input.param.0 as usize)
+                                .is_some_and(|symbol| symbol.name == *name)
+                        })
+                    })
                 && let Some(ty @ ResolvedType::Record { stored: true, .. }) =
                     self.program.types.symbol_types.get(&parameter.param)
-                && let Some(head) = node.children.iter().find(|part| part.kind == SyntaxKind::Name)
+                && let Some(head) = node
+                    .children
+                    .iter()
+                    .find(|part| part.kind == SyntaxKind::Name)
             {
                 // Retain the root's checked row type and its own source span.
                 // Native receipts re-prove the declared containment and parameter.
-                return TypedExpr::new(IrExpr::Member {
-                    base: Box::new(TypedExpr::new(IrExpr::Name((*name).into()), ty.clone(), Span::new(node.span.file, node.span.start, head.span.end))),
-                    field: "parent".into(),
-                }, self.node_type(node), node.span);
+                return TypedExpr::new(
+                    IrExpr::Member {
+                        base: Box::new(TypedExpr::new(
+                            IrExpr::Name((*name).into()),
+                            ty.clone(),
+                            Span::new(node.span.file, node.span.start, head.span.end),
+                        )),
+                        field: "parent".into(),
+                    },
+                    self.node_type(node),
+                    node.span,
+                );
             }
             if segments.len() > 1 {
                 let span = node.span;
@@ -11404,7 +11417,7 @@ impl<'a> Cx<'a> {
             .first()
             .copied()
             .ok_or("checked external target import is unavailable")?;
-        if &import.provider != provider || &imported.name != name || import.from.is_none() {
+        if import.provider != provider || imported.name != name || import.from.is_none() {
             return Err("checked external target import provenance disagrees");
         }
         let cap = (provider == "std")
@@ -11476,13 +11489,7 @@ impl<'a> Cx<'a> {
         let external = self.program.types.target_bindings.get(&NodeKey::of(head));
         if let Some(crate::analysis::resolve::Binding::External { provider, name }) = external {
             return self.external_send_target(
-                provider,
-                name,
-                &imports,
-                &member,
-                &selected,
-                &host.name,
-                &alias,
+                provider, name, &imports, &member, &selected, &host.name, &alias,
             );
         }
         let operation = selected.ok_or("no operation target is published")?;
@@ -11588,7 +11595,8 @@ impl<'a> Cx<'a> {
                     .value
                     .as_ref()
                     .map(|key| self.decode_anchored(scope, key, "effect argument"));
-                let value = value.unwrap_or_else(|| self.shorthand_value(scope, &arg.key, arg.key_node));
+                let value =
+                    value.unwrap_or_else(|| self.shorthand_value(scope, &arg.key, arg.key_node));
                 (arg.key.clone(), value)
             })
             .collect();
@@ -11952,8 +11960,8 @@ impl<'a> Cx<'a> {
                 .name_types
                 .insert("event".into(), fact.payload.clone());
         }
-        if let Some(crate::analysis::effects::HandlerSource::Queue { name }) = &data.on {
-            if let Some(payload) = self
+        if let Some(crate::analysis::effects::HandlerSource::Queue { name }) = &data.on
+            && let Some(payload) = self
                 .program
                 .types
                 .runtime_bindings
@@ -11967,9 +11975,8 @@ impl<'a> Cx<'a> {
                     } if declared == name => Some(payload.clone()),
                     _ => None,
                 })
-            {
-                scope.name_types.insert("event".into(), payload);
-            }
+        {
+            scope.name_types.insert("event".into(), payload);
         }
         // Adapter completions carry the DESIGN §8 envelope even when the
         // member checker does not retain a contextual receiver node.
@@ -12015,8 +12022,7 @@ impl<'a> Cx<'a> {
         event: &SymbolId,
     ) -> Option<IrEventSource> {
         if let Some(bind) = data.cohort.as_ref().and_then(|cohort| cohort.bind.as_ref())
-            && let SymbolKind::Event { fields } =
-                &self.program.symbols[event.0 as usize].kind
+            && let SymbolKind::Event { fields } = &self.program.symbols[event.0 as usize].kind
             && fields
                 .iter()
                 .any(|field| self.program.symbols[field.0 as usize].name == *bind)
@@ -12046,11 +12052,8 @@ impl<'a> Cx<'a> {
         self.standard_completion_source(symbol.id)
     }
 
-    fn scenario_committed_event_source(
-        model: &SymbolId,
-        event: &String,
-    ) -> Option<IrEventSource> {
-        let change = match event.as_str() {
+    fn scenario_committed_event_source(model: &SymbolId, event: &str) -> Option<IrEventSource> {
+        let change = match event {
             "created" => Some(IrCommittedChange::Create),
             "updated" => Some(IrCommittedChange::Update),
             "deleted" => Some(IrCommittedChange::Delete),
@@ -12188,10 +12191,9 @@ impl<'a> Cx<'a> {
             // payload as declared events (both lower to `Event` items);
             // the `owner.Cap.event` identity preserves the §13.4
             // provider-routed form for ingress enrollment downstream.
-            Some(crate::analysis::effects::HandlerSource::CapabilityEvent {
-                event,
-                ..
-            }) => Some(IrEventSource::Declared(self.canonical(*event))),
+            Some(crate::analysis::effects::HandlerSource::CapabilityEvent { event, .. }) => {
+                Some(IrEventSource::Declared(self.canonical(*event)))
+            }
             Some(crate::analysis::effects::HandlerSource::Committed { model, event }) => {
                 Self::scenario_committed_event_source(model, event)
             }
@@ -13088,9 +13090,7 @@ impl<'a> Cx<'a> {
         source: &CheckedGenerationCallbackSource,
     ) -> Option<(&'static str, &'static str)> {
         let ty = self.program.types.symbol_types.get(&source.field)?;
-        let ResolvedType::StdDelivery { capability, op } =
-            ty.nullable_inner().unwrap_or(ty)
-        else {
+        let ResolvedType::StdDelivery { capability, op } = ty.nullable_inner().unwrap_or(ty) else {
             return None;
         };
         if format!("{capability}.{}", op.name) != source.canonical_operation
@@ -13109,16 +13109,11 @@ impl<'a> Cx<'a> {
         source: &CheckedGenerationCallbackSource,
     ) -> Option<(String, String, &'a str)> {
         let db = self.db;
-        let Some(mut syntax) = self.node(&source.type_node) else {
-            return None;
-        };
+        let mut syntax = self.node(&source.type_node)?;
         if syntax.kind == SyntaxKind::NullableType {
-            let Some(inner) = kids(syntax)
+            let inner = kids(syntax)
                 .into_iter()
-                .find(|node| node.kind == SyntaxKind::DeliveryType)
-            else {
-                return None;
-            };
+                .find(|node| node.kind == SyntaxKind::DeliveryType)?;
             syntax = inner;
         }
         if syntax.kind != SyntaxKind::DeliveryType {
@@ -13131,9 +13126,7 @@ impl<'a> Cx<'a> {
         let [path] = paths.as_slice() else {
             return None;
         };
-        let Some(text) = db.get(path.span.file).map(|file| file.text.as_str()) else {
-            return None;
-        };
+        let text = db.get(path.span.file).map(|file| file.text.as_str())?;
         let segments = crate::analysis::path_segments(path, text);
         let [alias, operation] = segments.as_slice() else {
             return None;
@@ -13162,18 +13155,14 @@ impl<'a> Cx<'a> {
         if crate::analysis::path_segments(on, text) != [alias, operation, "progressed"] {
             return Some(None);
         }
-        let Some(handler) = self.program.symbols.iter().find(|symbol| {
+        let handler = self.program.symbols.iter().find(|symbol| {
             symbol.module == source.module
                 && matches!(symbol.kind, SymbolKind::Scenario { trusted: true, .. })
                 && symbol.span.file == node.span.file
                 && symbol.span.start >= node.span.start
                 && symbol.span.end <= node.span.end
-        }) else {
-            return None;
-        };
-        let Some(data) = self.program.effects.scenarios.get(&handler.id) else {
-            return None;
-        };
+        })?;
+        let data = self.program.effects.scenarios.get(&handler.id)?;
         if data.node != NodeKey::of(node)
             || data.on_node != Some(NodeKey::of(on))
             || data.cohort.is_some()
@@ -13265,8 +13254,7 @@ impl<'a> Cx<'a> {
         {
             return false;
         }
-        let Some(census) =
-            self.callback_handler_census(source, module, text, &alias, &operation)
+        let Some(census) = self.callback_handler_census(source, module, text, &alias, &operation)
         else {
             return false;
         };
@@ -13408,8 +13396,7 @@ impl<'a> Cx<'a> {
         {
             return None;
         }
-        let (entries, ordinary) =
-            self.callback_policy_entries(selectors, model, policy, rule)?;
+        let (entries, ordinary) = self.callback_policy_entries(selectors, model, policy, rule)?;
         let paths = entries
             .iter()
             .map(|entry| format!("{}.callback_diagnostics", entry.field))
@@ -13589,11 +13576,8 @@ impl<'a> Cx<'a> {
         };
         let pred = match policy.where_predicate.as_ref() {
             Some(key) => {
-                let where_pred = self.decode_anchored(
-                    scope,
-                    key,
-                    &format!("policy on {}", symbol.canonical),
-                );
+                let where_pred =
+                    self.decode_anchored(scope, key, &format!("policy on {}", symbol.canonical));
                 TypedExpr::new(
                     IrExpr::Binary {
                         op: IrBinOp::And,
@@ -13610,7 +13594,7 @@ impl<'a> Cx<'a> {
             read_rules.push(IrRuleFn {
                 id: format!(
                     "{}.read.{}",
-                    model_rule_prefix(self.program, &symbol),
+                    model_rule_prefix(self.program, symbol),
                     index + 1
                 ),
                 pred: pred.clone(),
@@ -13621,7 +13605,7 @@ impl<'a> Cx<'a> {
         if !policy.callback_fields.is_empty() {
             let id = format!(
                 "{}.callbackRead.{}",
-                model_rule_prefix(self.program, &symbol),
+                model_rule_prefix(self.program, symbol),
                 index + 1
             );
             if let Some(entries) = self.checked_callback_policy(symbol, policy, &id) {
@@ -13636,7 +13620,13 @@ impl<'a> Cx<'a> {
                     origin: None,
                 });
             } else {
-                self.gap(format!("callback policy on {} does not match its original checked source", symbol.canonical), span);
+                self.gap(
+                    format!(
+                        "callback policy on {} does not match its original checked source",
+                        symbol.canonical
+                    ),
+                    span,
+                );
             }
         }
     }
@@ -13649,9 +13639,7 @@ impl<'a> Cx<'a> {
     ) {
         if matches!(
             &symbol.kind,
-            SymbolKind::Preferences { .. }
-                | SymbolKind::Contract { .. }
-                | SymbolKind::Event { .. }
+            SymbolKind::Preferences { .. } | SymbolKind::Contract { .. } | SymbolKind::Event { .. }
         ) && let Some(data) = self.program.effects.records.get(&symbol.id).cloned()
             && !data.invariants.is_empty()
         {
@@ -13664,11 +13652,7 @@ impl<'a> Cx<'a> {
                     invariant.node.end,
                 );
                 let pred = invariant.predicate.as_ref().map(|key| {
-                    self.decode_anchored(
-                        &scope,
-                        key,
-                        &format!("invariant on {}", symbol.canonical),
-                    )
+                    self.decode_anchored(&scope, key, &format!("invariant on {}", symbol.canonical))
                 });
                 let Some(pred) = pred else {
                     self.gap(
@@ -13852,7 +13836,11 @@ impl<'a> Cx<'a> {
                     }
                 }
             }
-            self.build_record_preferences_rules(&symbol, preferences_valid, &mut preference_modules);
+            self.build_record_preferences_rules(
+                &symbol,
+                preferences_valid,
+                &mut preference_modules,
+            );
         }
         // Shared `crudWhen` admission, keyed by model-local name, in
         // declaration order.
@@ -14546,20 +14534,18 @@ impl<'a> Cx<'a> {
                     }
                 }
             }
-            "refresh" => {
-                match value.and_then(|v| self.resolve_operation_target(module, v)) {
-                    Some(op) => *refresh = Some(self.canonical(op)),
-                    None => {
-                        let at = value.map(|v| v.span).unwrap_or(child.span);
-                        self.diags.push(Diagnostic::error(
-                            "E6008",
-                            "cannot lower page refresh: only a canonical user mutation lowers"
-                                .to_string(),
-                            at,
-                        ));
-                    }
+            "refresh" => match value.and_then(|v| self.resolve_operation_target(module, v)) {
+                Some(op) => *refresh = Some(self.canonical(op)),
+                None => {
+                    let at = value.map(|v| v.span).unwrap_or(child.span);
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower page refresh: only a canonical user mutation lowers"
+                            .to_string(),
+                        at,
+                    ));
                 }
-            }
+            },
             _ => {}
         }
     }
@@ -14688,7 +14674,12 @@ impl<'a> Cx<'a> {
             .filter(|child| is_ui_node(child.kind) && !is_gate_leaf(self.db, child))
         {
             if child.kind != SyntaxKind::Tab {
-                self.diags.push(Diagnostic::error("E6008", "cannot lower tabs: only tab item children have an owning factory profile".to_string(), child.span));
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower tabs: only tab item children have an owning factory profile"
+                        .to_string(),
+                    child.span,
+                ));
             }
         }
     }
@@ -14714,9 +14705,9 @@ impl<'a> Cx<'a> {
                 )
             })
         });
-        let bare = !kids(node).into_iter().any(|child| {
-            is_expression(child.kind) || child.kind == SyntaxKind::MessageValue
-        });
+        let bare = !kids(node)
+            .into_iter()
+            .any(|child| is_expression(child.kind) || child.kind == SyntaxKind::MessageValue);
         if !(callback_scope
             && bare
             && ui_attributes(self.db, node).is_empty()
@@ -14752,15 +14743,12 @@ impl<'a> Cx<'a> {
         Some(None)
     }
 
-    fn decode_card_props(
-        &mut self,
-        scope: &Scope,
-        node: &SyntaxNode,
-    ) -> Vec<(String, TypedExpr)> {
+    fn decode_card_props(&mut self, scope: &Scope, node: &SyntaxNode) -> Vec<(String, TypedExpr)> {
         let mut props = Vec::new();
-        if kids(node).into_iter().any(|child| {
-            is_expression(child.kind) || child.kind == SyntaxKind::MessageValue
-        }) && let Some(caption) = self.decode_single_ui_caption(scope, node, "card")
+        if kids(node)
+            .into_iter()
+            .any(|child| is_expression(child.kind) || child.kind == SyntaxKind::MessageValue)
+            && let Some(caption) = self.decode_single_ui_caption(scope, node, "card")
         {
             props.push(("title".to_string(), caption));
         }
@@ -15103,6 +15091,23 @@ impl<'a> Cx<'a> {
                 return None;
             }
         }
+        // Optional body text is ordinary absent content. Coalescing at the
+        // typed value boundary preserves a single evaluation and still sends
+        // only text through the escaping content renderer.
+        if word == "content"
+            && matches!(&value.ty, ResolvedType::Nullable(inner)
+                if inner.as_ref() == &ResolvedType::Scalar(Scalar::Text))
+        {
+            return Some(TypedExpr::new(
+                IrExpr::Binary {
+                    op: IrBinOp::Coalesce,
+                    left: Box::new(value),
+                    right: Box::new(Self::filter_text_expr(String::new(), header.span)),
+                },
+                ResolvedType::Scalar(Scalar::Text),
+                header.span,
+            ));
+        }
         if !matches!(
             value.ty,
             ResolvedType::Scalar(Scalar::Text)
@@ -15111,7 +15116,10 @@ impl<'a> Cx<'a> {
         ) {
             self.diags.push(Diagnostic::error(
                 "E6008",
-                format!("cannot lower {word}: caption has no checked text profile"),
+                format!(
+                    "cannot lower {word}: caption has no checked text profile ({:?})",
+                    value.ty
+                ),
                 header.span,
             ));
             return None;
@@ -15610,16 +15618,36 @@ impl<'a> Cx<'a> {
     /// Preference panels group independently versioned saved controls; they
     /// are not CRUD forms and carry no domain-record write authority.
     fn decode_preference_panel(&mut self, scope: &Scope, panel: &SyntaxNode) -> Option<IrUi> {
-        let children = kids(panel).into_iter().filter(|node| is_ui_node(node.kind))
-            .filter_map(|node| self.decode_preference_control(scope, panel, node)).collect();
-        Some(IrUi { view: None, factory: "fieldset".into(), props: Vec::new(), children,
-            row_scope: None, gate: None, span: panel.span })
+        let children = kids(panel)
+            .into_iter()
+            .filter(|node| is_ui_node(node.kind))
+            .filter_map(|node| self.decode_preference_control(scope, panel, node))
+            .collect();
+        Some(IrUi {
+            view: None,
+            factory: "fieldset".into(),
+            props: Vec::new(),
+            children,
+            row_scope: None,
+            gate: None,
+            span: panel.span,
+        })
     }
 
-    fn checked_preference_control(&self, scope: &Scope, panel: &SyntaxNode, node: &SyntaxNode)
-        -> Option<crate::analysis::types::CheckedPreferenceControl> {
-        let fact = self.program.types.preference_controls.get(&NodeKey::of(node))?;
-        let selector = kids(node).into_iter().find(|part| part.kind == SyntaxKind::NameRef)?;
+    fn checked_preference_control(
+        &self,
+        scope: &Scope,
+        panel: &SyntaxNode,
+        node: &SyntaxNode,
+    ) -> Option<crate::analysis::types::CheckedPreferenceControl> {
+        let fact = self
+            .program
+            .types
+            .preference_controls
+            .get(&NodeKey::of(node))?;
+        let selector = kids(node)
+            .into_iter()
+            .find(|part| part.kind == SyntaxKind::NameRef)?;
         let field = self.program.symbols.get(fact.field.0 as usize)?;
         let owner = self.program.symbols.get(fact.owner.0 as usize)?;
         (fact.panel == NodeKey::of(panel) && fact.node == NodeKey::of(node)
@@ -15635,7 +15663,11 @@ impl<'a> Cx<'a> {
     /// Preference default spellings stay literal and editor-typed: a null
     /// or missing default clears only a nullable control, anything else
     /// refuses the editor. Outer `None` refuses; inner `None` clears.
-    fn inline_preference_default_value(editor: &str, default: Option<IrDefault>, nullable: bool) -> Option<Option<String>> {
+    fn inline_preference_default_value(
+        editor: &str,
+        default: Option<IrDefault>,
+        nullable: bool,
+    ) -> Option<Option<String>> {
         match default {
             Some(IrDefault::Literal(value)) => match value.expr {
                 IrExpr::Bool(value) if editor == "bool" => Some(Some(value.to_string())),
@@ -15649,7 +15681,10 @@ impl<'a> Cx<'a> {
         }
     }
 
-    fn inline_preference_field(&mut self, fact: &crate::analysis::types::CheckedPreferenceControl) -> Option<IrPreferenceField> {
+    fn inline_preference_field(
+        &mut self,
+        fact: &crate::analysis::types::CheckedPreferenceControl,
+    ) -> Option<IrPreferenceField> {
         let symbol = self.program.symbols.get(fact.field.0 as usize)?.clone();
         let editor = match fact.ty.nullable_inner().unwrap_or(&fact.ty) {
             ResolvedType::Scalar(Scalar::Bool) if fact.control == "toggle" => "bool",
@@ -15659,51 +15694,172 @@ impl<'a> Cx<'a> {
         };
         let nullable = fact.ty.nullable_inner().is_some();
         let (_, default, server, _, _, _) = self.decode_field(&symbol, fact.owner);
-        if server.is_some() { return None; }
+        if server.is_some() {
+            return None;
+        }
         let default_value = Self::inline_preference_default_value(editor, default, nullable)?;
         let label = self.decode_reused_field_label_parts(&symbol);
-        let field = IrPreferenceField { name: symbol.name, options: if editor == "bool" { vec!["true".into(), "false".into()] } else { Vec::new() },
-            default_value, nullable, caption: label.as_ref().and_then(|label| label.text.clone()),
-            option_labels: label.map(|label| label.values).unwrap_or_default(), reference: false, date: false,
-            scalar_type: (editor == "int").then(|| "int".into()), editable: Some(editor.into()) };
-        if let Some(current) = self.page_preference_fields.iter_mut().find(|current| current.name == field.name) {
+        let field = IrPreferenceField {
+            name: symbol.name,
+            options: if editor == "bool" {
+                vec!["true".into(), "false".into()]
+            } else {
+                Vec::new()
+            },
+            default_value,
+            nullable,
+            caption: label.as_ref().and_then(|label| label.text.clone()),
+            option_labels: label.map(|label| label.values).unwrap_or_default(),
+            reference: false,
+            date: false,
+            scalar_type: (editor == "int").then(|| "int".into()),
+            editable: Some(editor.into()),
+        };
+        if let Some(current) = self
+            .page_preference_fields
+            .iter_mut()
+            .find(|current| current.name == field.name)
+        {
             current.editable = field.editable.clone();
-        } else { self.page_preference_fields.push(field.clone()); }
+        } else {
+            self.page_preference_fields.push(field.clone());
+        }
         Some(field)
     }
 
-    fn decode_preference_control(&mut self, scope: &Scope, panel: &SyntaxNode, node: &SyntaxNode) -> Option<IrUi> {
-        let result = self.checked_preference_control(scope, panel, node)
-            .and_then(|fact| self.inline_preference_field(&fact).map(|field| (fact, field)));
+    fn decode_preference_control(
+        &mut self,
+        scope: &Scope,
+        panel: &SyntaxNode,
+        node: &SyntaxNode,
+    ) -> Option<IrUi> {
+        let result = self
+            .checked_preference_control(scope, panel, node)
+            .and_then(|fact| {
+                self.inline_preference_field(&fact)
+                    .map(|field| (fact, field))
+            });
         let Some((fact, field)) = result else {
-            self.diags.push(Diagnostic::error("E6008", "inline preference needs its original checked field/control binding".into(), node.span));
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "inline preference needs its original checked field/control binding".into(),
+                node.span,
+            ));
             return None;
         };
         let binding = self.inline_preference_binding(scope, &fact, &field, node.span);
         let mut props = vec![("binding".into(), binding)];
-        if let Some(caption) = field.caption { props.push(("caption".into(), TypedExpr::new(
-            IrExpr::Message(caption), ResolvedType::Scalar(Scalar::Text), node.span))); }
-        Some(IrUi { view: None, factory: "filter".into(), props, children: Vec::new(),
-            row_scope: None, gate: None, span: node.span })
+        if let Some(caption) = field.caption {
+            props.push((
+                "caption".into(),
+                TypedExpr::new(
+                    IrExpr::Message(caption),
+                    ResolvedType::Scalar(Scalar::Text),
+                    node.span,
+                ),
+            ));
+        }
+        Some(IrUi {
+            view: None,
+            factory: "filter".into(),
+            props,
+            children: Vec::new(),
+            row_scope: None,
+            gate: None,
+            span: node.span,
+        })
     }
 
-    fn inline_preference_binding(&self, scope: &Scope, fact: &crate::analysis::types::CheckedPreferenceControl,
-        field: &IrPreferenceField, span: Span) -> TypedExpr {
-        let text = |value: String| TypedExpr::new(IrExpr::Text(value), ResolvedType::Scalar(Scalar::Text), span);
-        let member = |base: TypedExpr, field: String| TypedExpr::new(IrExpr::Member { base: Box::new(base), field }, ResolvedType::Unknown, span);
+    fn inline_preference_binding(
+        &self,
+        scope: &Scope,
+        fact: &crate::analysis::types::CheckedPreferenceControl,
+        field: &IrPreferenceField,
+        span: Span,
+    ) -> TypedExpr {
+        let text = |value: String| {
+            TypedExpr::new(
+                IrExpr::Text(value),
+                ResolvedType::Scalar(Scalar::Text),
+                span,
+            )
+        };
+        let member = |base: TypedExpr, field: String| {
+            TypedExpr::new(
+                IrExpr::Member {
+                    base: Box::new(base),
+                    field,
+                },
+                ResolvedType::Unknown,
+                span,
+            )
+        };
         let context = TypedExpr::new(IrExpr::Name("c".into()), ResolvedType::Unknown, span);
-        let mut current = member(TypedExpr::new(IrExpr::Name("preferences".into()), ResolvedType::Unknown, span), field.name.clone());
+        let mut current = member(
+            TypedExpr::new(
+                IrExpr::Name("preferences".into()),
+                ResolvedType::Unknown,
+                span,
+            ),
+            field.name.clone(),
+        );
         current.ty = fact.ty.clone();
-        let options = field.options.iter().map(|value| TypedExpr::new(IrExpr::Object(vec![
-            ("value".into(), text(value.clone())), ("label".into(), text(value.clone()))]), ResolvedType::Unknown, span)).collect();
-        let version = member(member(member(context.clone(), "preferenceVersions".into()), self.program.modules[scope.module.0 as usize].name.clone()), field.name.clone());
-        let post_to = TypedExpr::new(IrExpr::Binary { op: IrBinOp::Coalesce,
-            left: Box::new(member(context.clone(), "pollUrl".into())), right: Box::new(member(context, "path".into())) }, ResolvedType::Scalar(Scalar::Text), span);
-        TypedExpr::new(IrExpr::Object(vec![("name".into(), text(field.name.clone())),
-            ("options".into(), TypedExpr::new(IrExpr::Array(options), ResolvedType::Unknown, span)),
-            ("current".into(), current), ("version".into(), version), ("postTo".into(), post_to),
-            ("editor".into(), text(field.editable.clone().unwrap_or_default())),
-            ("nullable".into(), TypedExpr::new(IrExpr::Bool(field.nullable), ResolvedType::Scalar(Scalar::Bool), span))]), ResolvedType::Unknown, span)
+        let options = field
+            .options
+            .iter()
+            .map(|value| {
+                TypedExpr::new(
+                    IrExpr::Object(vec![
+                        ("value".into(), text(value.clone())),
+                        ("label".into(), text(value.clone())),
+                    ]),
+                    ResolvedType::Unknown,
+                    span,
+                )
+            })
+            .collect();
+        let version = member(
+            member(
+                member(context.clone(), "preferenceVersions".into()),
+                self.program.modules[scope.module.0 as usize].name.clone(),
+            ),
+            field.name.clone(),
+        );
+        let post_to = TypedExpr::new(
+            IrExpr::Binary {
+                op: IrBinOp::Coalesce,
+                left: Box::new(member(context.clone(), "pollUrl".into())),
+                right: Box::new(member(context, "path".into())),
+            },
+            ResolvedType::Scalar(Scalar::Text),
+            span,
+        );
+        TypedExpr::new(
+            IrExpr::Object(vec![
+                ("name".into(), text(field.name.clone())),
+                (
+                    "options".into(),
+                    TypedExpr::new(IrExpr::Array(options), ResolvedType::Unknown, span),
+                ),
+                ("current".into(), current),
+                ("version".into(), version),
+                ("postTo".into(), post_to),
+                (
+                    "editor".into(),
+                    text(field.editable.clone().unwrap_or_default()),
+                ),
+                (
+                    "nullable".into(),
+                    TypedExpr::new(
+                        IrExpr::Bool(field.nullable),
+                        ResolvedType::Scalar(Scalar::Bool),
+                        span,
+                    ),
+                ),
+            ]),
+            ResolvedType::Unknown,
+            span,
+        )
     }
 
     /// Both authored disclosure spellings share the existing Details contract.
@@ -15837,8 +15993,7 @@ impl<'a> Cx<'a> {
             }
             match slot_name(self.db, child) {
                 Some(name)
-                    if (required.contains(&name.as_str())
-                        || optional.contains(&name.as_str()))
+                    if (required.contains(&name.as_str()) || optional.contains(&name.as_str()))
                         && !seen.contains(&name) =>
                 {
                     seen.push(name)
@@ -15903,7 +16058,15 @@ impl<'a> Cx<'a> {
             ));
             return None;
         }
-        let mut group = self.decode_slotted_group_inner(scope, node, row_ctx, "swap", &["off", "on"], &[], true)?;
+        let mut group = self.decode_slotted_group_inner(
+            scope,
+            node,
+            row_ctx,
+            "swap",
+            &["off", "on"],
+            &[],
+            true,
+        )?;
         group.props.push(("active".to_string(), state));
         Some(group)
     }
@@ -15946,7 +16109,9 @@ impl<'a> Cx<'a> {
             || kids(node)
                 .into_iter()
                 .filter(|n| is_ui_node(n.kind))
-                .any(|n| n.kind != SyntaxKind::Slot || slot_name(self.db, n).as_deref() != Some("item"))
+                .any(|n| {
+                    n.kind != SyntaxKind::Slot || slot_name(self.db, n).as_deref() != Some("item")
+                })
         {
             self.diags.push(Diagnostic::error(
                 "E6008",
@@ -15988,9 +16153,7 @@ impl<'a> Cx<'a> {
                     ));
                     return None;
                 }
-                let Some(stage) = self.decode_status(scope, texts[0], row_ctx.clone()) else {
-                    return None;
-                };
+                let stage = self.decode_status(scope, texts[0], row_ctx.clone())?;
                 if stage.gate.is_some() {
                     self.diags.push(Diagnostic::error(
                         "E6008",
@@ -15999,7 +16162,8 @@ impl<'a> Cx<'a> {
                     ));
                     return None;
                 }
-                let Some((_, value)) = stage.props.into_iter().find(|(key, _)| key == "value") else {
+                let Some((_, value)) = stage.props.into_iter().find(|(key, _)| key == "value")
+                else {
                     self.diags.push(Diagnostic::error(
                         "E6008",
                         "cannot lower steps: each item slot takes one text stage".to_string(),
@@ -16070,9 +16234,11 @@ impl<'a> Cx<'a> {
             ));
             return None;
         }
-        if kids(node).into_iter().filter(|n| is_ui_node(n.kind)).any(|n| {
-            n.kind != SyntaxKind::CatalogItem || ui_word(self.db, n) != "collapse"
-        }) {
+        if kids(node)
+            .into_iter()
+            .filter(|n| is_ui_node(n.kind))
+            .any(|n| n.kind != SyntaxKind::CatalogItem || ui_word(self.db, n) != "collapse")
+        {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 "cannot lower accordion: accordion takes collapse children only".to_string(),
@@ -16129,7 +16295,10 @@ impl<'a> Cx<'a> {
                 ));
                 return None;
             };
-            props.push(("caption".to_string(), self.decode_ui_header_value(scope, value)));
+            props.push((
+                "caption".to_string(),
+                self.decode_ui_header_value(scope, value),
+            ));
         }
         if kids(node).into_iter().any(|n| is_ui_node(n.kind)) {
             self.diags.push(Diagnostic::error(
@@ -16357,11 +16526,27 @@ impl<'a> Cx<'a> {
         match word {
             "calendar" => self.decode_date_calendar(scope, node, row_ctx),
             "collapse" => self.decode_disclosure(scope, node, word, row_ctx),
-            "dropdown" => self.decode_slotted_group(scope, node, row_ctx, "dropdown", &["trigger", "content"], &[]),
+            "dropdown" => self.decode_slotted_group(
+                scope,
+                node,
+                row_ctx,
+                "dropdown",
+                &["trigger", "content"],
+                &[],
+            ),
             "filter" => self.decode_standalone_filter(scope, node, word),
-            "indicator" => self.decode_slotted_group(scope, node, row_ctx, "indicator", &["content", "indicator"], &[]),
+            "indicator" => self.decode_slotted_group(
+                scope,
+                node,
+                row_ctx,
+                "indicator",
+                &["content", "indicator"],
+                &[],
+            ),
             "swap" => self.decode_swap(scope, node, row_ctx),
-            "diff" => self.decode_slotted_group(scope, node, row_ctx, "diff", &["before", "after"], &[]),
+            "diff" => {
+                self.decode_slotted_group(scope, node, row_ctx, "diff", &["before", "after"], &[])
+            }
             "steps" => self.decode_steps(scope, node, row_ctx),
             "accordion" => self.decode_accordion(scope, node, row_ctx),
             _ => self.decode_catalog_overlays(scope, node, word, row_ctx),
@@ -17833,7 +18018,7 @@ impl<'a> Cx<'a> {
             return None;
         }
         let param = records[0];
-        if self.program.types.symbol_types.get(&param) != Some(&host_ty) {
+        if self.program.types.symbol_types.get(param) != Some(&host_ty) {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 "cannot lower button action: protected record input does not match the owning row"
@@ -18454,13 +18639,16 @@ impl<'a> Cx<'a> {
         let slotted = kids(node).iter().any(|n| n.kind == SyntaxKind::Slot);
         if slotted {
             if !headers.is_empty() {
-                self.diags.push(Diagnostic::error("E6008", "cannot lower stat: a slotted stat takes no value header".to_string(), node.span));
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower stat: a slotted stat takes no value header".to_string(),
+                    node.span,
+                ));
                 return None;
             }
-            if let Some(value) = self.decode_stat_slot(scope, node, "value", row_ctx.clone()) {
+            {
+                let value = self.decode_stat_slot(scope, node, "value", row_ctx.clone())?;
                 props.push(("value".to_string(), value));
-            } else {
-                return None;
             }
             for slot in ["title", "description"] {
                 if let Some(caption) = self.decode_stat_slot(scope, node, slot, row_ctx.clone()) {
@@ -18469,9 +18657,16 @@ impl<'a> Cx<'a> {
             }
             if kids(node).iter().any(|n| {
                 n.kind == SyntaxKind::Slot
-                    && slot_name(self.db, n).is_some_and(|name| !matches!(name.as_str(), "value" | "title" | "description"))
+                    && slot_name(self.db, n).is_some_and(|name| {
+                        !matches!(name.as_str(), "value" | "title" | "description")
+                    })
             }) {
-                self.diags.push(Diagnostic::error("E6008", "cannot lower stat: stat admits only value, title and description slots".to_string(), node.span));
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower stat: stat admits only value, title and description slots"
+                        .to_string(),
+                    node.span,
+                ));
                 return None;
             }
             if kids(node)
@@ -18479,7 +18674,11 @@ impl<'a> Cx<'a> {
                 .filter(|n| is_ui_node(n.kind))
                 .any(|n| n.kind != SyntaxKind::Slot || slot_name(self.db, n).is_none())
             {
-                self.diags.push(Diagnostic::error("E6008", "cannot lower stat: a slotted stat takes only its named slots".to_string(), node.span));
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower stat: a slotted stat takes only its named slots".to_string(),
+                    node.span,
+                ));
                 return None;
             }
             return Some(IrUi {
@@ -18494,7 +18693,10 @@ impl<'a> Cx<'a> {
         }
         let children = self.decode_ui_children(scope, node, row_ctx);
         match headers.as_slice() {
-            [header] if children.is_empty() => props.push(("value".to_string(), self.decode_ui_header_value(scope, header))),
+            [header] if children.is_empty() => props.push((
+                "value".to_string(),
+                self.decode_ui_header_value(scope, header),
+            )),
             // `stat a,b,...` shares the metrics visual-join contract: each
             // value header lowers through the single-value stat profile.
             // Money is excluded: the owning stat factory renders TextValue
@@ -18637,11 +18839,7 @@ impl<'a> Cx<'a> {
     /// Decode a `content` leaf: one text value or message, preserving
     /// plain-text paragraphs. A null value renders as empty (no invented
     /// absent wording); other types keep their existing refusal.
-    fn decode_content_value(
-        &mut self,
-        scope: &Scope,
-        node: &SyntaxNode,
-    ) -> Option<TypedExpr> {
+    fn decode_content_value(&mut self, scope: &Scope, node: &SyntaxNode) -> Option<TypedExpr> {
         let headers: Vec<&SyntaxNode> = kids(node)
             .into_iter()
             .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
@@ -19407,15 +19605,26 @@ impl<'a> Cx<'a> {
 
     /// Parentheses preserve the checked query and its clauses, rather than
     /// turning its domain into a second model lookup or dropping its predicate.
-    fn collection_source<'n>(&self, node: &'n SyntaxNode) -> Option<(&'n SyntaxNode, Option<&'n SyntaxNode>)> {
-        let mut head = kids(node).into_iter().find(|child| is_expression(child.kind) || child.kind == SyntaxKind::Path)?;
+    fn collection_source<'n>(
+        &self,
+        node: &'n SyntaxNode,
+    ) -> Option<(&'n SyntaxNode, Option<&'n SyntaxNode>)> {
+        let mut head = kids(node)
+            .into_iter()
+            .find(|child| is_expression(child.kind) || child.kind == SyntaxKind::Path)?;
         let mut query = None;
         for _ in 0..64 {
             match head.kind {
-                SyntaxKind::Group => head = kids(head).into_iter().find(|child| is_expression(child.kind))?,
+                SyntaxKind::Group => {
+                    head = kids(head)
+                        .into_iter()
+                        .find(|child| is_expression(child.kind))?
+                }
                 SyntaxKind::Query if query.is_none() => {
                     query = Some(head);
-                    head = kids(head).into_iter().find(|child| is_expression(child.kind))?;
+                    head = kids(head)
+                        .into_iter()
+                        .find(|child| is_expression(child.kind))?;
                 }
                 SyntaxKind::Query => return None,
                 _ => return Some((head, query)),
@@ -19521,9 +19730,9 @@ impl<'a> Cx<'a> {
             .first()
             .filter(|_| names.len() == 1 && path.kind == SyntaxKind::Path)
             .cloned();
-        let field_id =
-            name.as_ref()
-                .and_then(|name| self.fields.get(&(model, name.clone())).copied());
+        let field_id = name
+            .as_ref()
+            .and_then(|name| self.fields.get(&(model, name.clone())).copied());
         let owned = name.as_ref().is_some_and(|name| {
             field_id.is_some_and(|field_id| {
                 self.program.symbols.get(field_id.0 as usize).is_some_and(|symbol| {
@@ -20010,9 +20219,7 @@ impl<'a> Cx<'a> {
     fn filter_decode_fail(&mut self, word: &str, span: Span) {
         self.diags.push(Diagnostic::error(
             "E6008",
-            format!(
-                "{word} filters need distinct checked owned enum fields and matching defaults"
-            ),
+            format!("{word} filters need distinct checked owned enum fields and matching defaults"),
             span,
         ));
     }
@@ -20089,11 +20296,21 @@ impl<'a> Cx<'a> {
         Some(body)
     }
 
-    fn filter_derived_bool_expansion(&mut self, symbol: &crate::analysis::resolve::Symbol, model: SymbolId) -> Option<&'static str> {
-        if !matches!(&symbol.kind, SymbolKind::DeriveField { model: owner, .. } if *owner == model) {
+    fn filter_derived_bool_expansion(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+        model: SymbolId,
+    ) -> Option<&'static str> {
+        if !matches!(&symbol.kind, SymbolKind::DeriveField { model: owner, .. } if *owner == model)
+        {
             return None;
         }
-        if self.program.symbols.get(model.0 as usize).is_none_or(|item| item.module != symbol.module) {
+        if self
+            .program
+            .symbols
+            .get(model.0 as usize)
+            .is_none_or(|item| item.module != symbol.module)
+        {
             return None;
         }
         let body = self.derived_bool_body(symbol)?;
@@ -20101,13 +20318,15 @@ impl<'a> Cx<'a> {
             return None;
         }
         let body = &body;
-        if symbol.name == "unassigned" && symbol.canonical == "desk.Ticket.unassigned"
+        if symbol.name == "unassigned"
+            && symbol.canonical == "desk.Ticket.unassigned"
             && Self::derived_bool_is_null_member(body, "row", "assignee")
             && self.filter_derived_bool_backing_field(
                 model,
                 "assignee",
                 &ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::User))),
-            ) {
+            )
+        {
             return Some("unassigned");
         }
         // `overdue` is exactly `row.state!=resolved and
@@ -20117,8 +20336,10 @@ impl<'a> Cx<'a> {
         // the checked datetime `now`. Every member type must equal
         // the exact backing-field type (enum owner included), so a
         // same-spelled field of another model or type cannot ride.
-        if symbol.name == "overdue" && symbol.canonical == "desk.Ticket.overdue"
-            && self.filter_derived_bool_overdue(body, model) {
+        if symbol.name == "overdue"
+            && symbol.canonical == "desk.Ticket.overdue"
+            && self.filter_derived_bool_overdue(body, model)
+        {
             return Some("overdue");
         }
         None
@@ -20156,13 +20377,15 @@ impl<'a> Cx<'a> {
             };
             if field.name == "state" {
                 if !matches!(ty, ResolvedType::Enum { cases, owner }
-                    if cases.iter().any(|case| case == "resolved") && *owner == Some(field.id)) {
+                    if cases.iter().any(|case| case == "resolved") && *owner == Some(field.id))
+                {
                     return false;
                 }
                 state_ty = Some(ty);
             } else if field.name == "due" {
                 if !matches!(ty, ResolvedType::Nullable(inner)
-                    if inner.as_ref() == &ResolvedType::Scalar(Scalar::Datetime)) {
+                    if inner.as_ref() == &ResolvedType::Scalar(Scalar::Datetime))
+                {
                     return false;
                 }
                 due_ty = Some(ty);
@@ -20245,11 +20468,14 @@ impl<'a> Cx<'a> {
             return false;
         };
         fields.iter().any(|id| {
-            self.program.symbols.get(id.0 as usize).is_some_and(|field| {
-                field.name == name
-                    && matches!(&field.kind, SymbolKind::Field { owner, .. } if *owner == model)
-                    && self.program.types.symbol_types.get(&field.id) == Some(ty)
-            })
+            self.program
+                .symbols
+                .get(id.0 as usize)
+                .is_some_and(|field| {
+                    field.name == name
+                        && matches!(&field.kind, SymbolKind::Field { owner, .. } if *owner == model)
+                        && self.program.types.symbol_types.get(&field.id) == Some(ty)
+                })
         })
     }
 
@@ -20262,7 +20488,12 @@ impl<'a> Cx<'a> {
         if expr.ty != ResolvedType::Scalar(Scalar::Bool) {
             return false;
         }
-        let IrExpr::Binary { op: IrBinOp::Eq, left, right } = &expr.expr else {
+        let IrExpr::Binary {
+            op: IrBinOp::Eq,
+            left,
+            right,
+        } = &expr.expr
+        else {
             return false;
         };
         if !matches!(&right.expr, IrExpr::Null) {
@@ -20281,7 +20512,8 @@ impl<'a> Cx<'a> {
         symbol: &crate::analysis::resolve::Symbol,
         model: SymbolId,
     ) -> bool {
-        if !matches!(&symbol.kind, SymbolKind::DeriveField { model: owner, .. } if *owner == model) {
+        if !matches!(&symbol.kind, SymbolKind::DeriveField { model: owner, .. } if *owner == model)
+        {
             return false;
         }
         let Some(model_symbol) = self.program.symbols.get(model.0 as usize) else {
@@ -20298,7 +20530,7 @@ impl<'a> Cx<'a> {
     /// declaration source for the runtime gate.
     fn push_filter_derived_expansion(
         &mut self,
-        columns: &mut Vec<TypedExpr>,
+        columns: &mut [TypedExpr],
         symbol: &crate::analysis::resolve::Symbol,
         expansion: &str,
         path_span: Span,
@@ -20336,14 +20568,34 @@ impl<'a> Cx<'a> {
             TypedExpr::new(
                 IrExpr::Object(vec![
                     ("path".to_string(), Self::filter_text_expr(path, path_span)),
-                    ("sha256".to_string(), Self::filter_text_expr(sha256, path_span)),
-                    ("module".to_string(), Self::filter_text_expr(module, path_span)),
+                    (
+                        "sha256".to_string(),
+                        Self::filter_text_expr(sha256, path_span),
+                    ),
+                    (
+                        "module".to_string(),
+                        Self::filter_text_expr(module, path_span),
+                    ),
                     (
                         "node".to_string(),
                         TypedExpr::new(
                             IrExpr::Object(vec![
-                                ("start".to_string(), TypedExpr::new(IrExpr::Int(symbol.span.start as i128), ResolvedType::Scalar(Scalar::Int), path_span)),
-                                ("end".to_string(), TypedExpr::new(IrExpr::Int(symbol.span.end as i128), ResolvedType::Scalar(Scalar::Int), path_span)),
+                                (
+                                    "start".to_string(),
+                                    TypedExpr::new(
+                                        IrExpr::Int(symbol.span.start as i128),
+                                        ResolvedType::Scalar(Scalar::Int),
+                                        path_span,
+                                    ),
+                                ),
+                                (
+                                    "end".to_string(),
+                                    TypedExpr::new(
+                                        IrExpr::Int(symbol.span.end as i128),
+                                        ResolvedType::Scalar(Scalar::Int),
+                                        path_span,
+                                    ),
+                                ),
                             ]),
                             ResolvedType::Unknown,
                             path_span,
@@ -20357,7 +20609,12 @@ impl<'a> Cx<'a> {
     }
 
     fn collect_and_conjuncts<'e>(expr: &'e TypedExpr, out: &mut Vec<&'e TypedExpr>) {
-        if let IrExpr::Binary { op: IrBinOp::And, left, right } = &expr.expr {
+        if let IrExpr::Binary {
+            op: IrBinOp::And,
+            left,
+            right,
+        } = &expr.expr
+        {
             Self::collect_and_conjuncts(left, out);
             Self::collect_and_conjuncts(right, out);
         } else {
@@ -20379,19 +20636,44 @@ impl<'a> Cx<'a> {
             self.filter_decode_fail(word, path.span);
             return None;
         };
-        let implicit_parent = if name == "parent" && !self.fields.contains_key(&(model, "parent".into())) {
-            match self.program.symbols.get(model.0 as usize).map(|item| &item.kind) {
-                Some(SymbolKind::Model { owner: ModelOwner::ChildOf(parent), .. }) => Some(*parent),
-                _ => None,
-            }
-        } else { None };
-        let money_currency = name.strip_suffix(".currency").filter(|base| !base.contains('.'));
+        let implicit_parent =
+            if name == "parent" && !self.fields.contains_key(&(model, "parent".into())) {
+                match self
+                    .program
+                    .symbols
+                    .get(model.0 as usize)
+                    .map(|item| &item.kind)
+                {
+                    Some(SymbolKind::Model {
+                        owner: ModelOwner::ChildOf(parent),
+                        ..
+                    }) => Some(*parent),
+                    _ => None,
+                }
+            } else {
+                None
+            };
+        let money_currency = name
+            .strip_suffix(".currency")
+            .filter(|base| !base.contains('.'));
         let source_name = money_currency.unwrap_or(name).to_string();
-        let field_id = if let Some(parent) = implicit_parent { parent }
-            else if let Some(id) = self.fields.get(&(model, source_name.to_string())).copied() { id }
-            else if let Some(id) = self.filter_derived_bool_selector(model, &source_name) { id }
-            else { self.filter_decode_fail(word, path.span); return None; };
-        Some((name.clone(), source_name, field_id, implicit_parent, money_currency.is_some()))
+        let field_id = if let Some(parent) = implicit_parent {
+            parent
+        } else if let Some(id) = self.fields.get(&(model, source_name.to_string())).copied() {
+            id
+        } else if let Some(id) = self.filter_derived_bool_selector(model, &source_name) {
+            id
+        } else {
+            self.filter_decode_fail(word, path.span);
+            return None;
+        };
+        Some((
+            name.clone(),
+            source_name,
+            field_id,
+            implicit_parent,
+            money_currency.is_some(),
+        ))
     }
 
     fn filter_selector_type(
@@ -20407,7 +20689,10 @@ impl<'a> Cx<'a> {
             return None;
         };
         let ty = if let Some(parent) = implicit_parent {
-            ResolvedType::Record { symbol: parent, stored: true }
+            ResolvedType::Record {
+                symbol: parent,
+                stored: true,
+            }
         } else {
             let Some(actual) = self.program.types.symbol_types.get(&field_id).cloned() else {
                 self.filter_decode_fail(word, path_span);
@@ -20419,7 +20704,9 @@ impl<'a> Cx<'a> {
                     return None;
                 }
                 ResolvedType::Scalar(Scalar::Currency)
-            } else { actual }
+            } else {
+                actual
+            }
         };
         Some((symbol, ty))
     }
@@ -20451,9 +20738,11 @@ impl<'a> Cx<'a> {
                 vec!["true".to_string(), "false".to_string()],
             ),
             ResolvedType::Record { symbol, .. }
-                if self.program.symbols.get(symbol.0 as usize).is_some_and(|item| {
-                    matches!(&item.kind, SymbolKind::Model { .. })
-                }) =>
+                if self
+                    .program
+                    .symbols
+                    .get(symbol.0 as usize)
+                    .is_some_and(|item| matches!(&item.kind, SymbolKind::Model { .. })) =>
             {
                 (format!("ref:{}", self.type_id(ty)), Vec::new())
             }
@@ -20491,7 +20780,9 @@ impl<'a> Cx<'a> {
             // keeps the exact E6008 below: no symmetry
             // generalization from civil dates to instants.
             ResolvedType::Scalar(Scalar::Date) => ("date".to_string(), Vec::new()),
-            ResolvedType::Scalar(scalar @ (Scalar::Int | Scalar::Datetime | Scalar::Currency)) => (scalar.as_str().to_string(), Vec::new()),
+            ResolvedType::Scalar(scalar @ (Scalar::Int | Scalar::Datetime | Scalar::Currency)) => {
+                (scalar.as_str().to_string(), Vec::new())
+            }
             _ => {
                 self.filter_decode_fail(word, path_span);
                 return None;
@@ -20508,19 +20799,21 @@ impl<'a> Cx<'a> {
         implicit_parent: Option<SymbolId>,
         name: &str,
         ty: &ResolvedType,
-        cases: &Vec<String>,
+        cases: &[String],
         selected: &mut HashMap<String, (ResolvedType, Vec<String>)>,
     ) -> bool {
         let declared = if let Some(parent) = implicit_parent {
-            symbol.id == parent && matches!(symbol.kind, SymbolKind::Model { .. })
+            symbol.id == parent
+                && matches!(symbol.kind, SymbolKind::Model { .. })
                 && !self.fields.contains_key(&(model, "parent".into()))
         } else {
             symbol.name == source_name && matches!(symbol.kind, SymbolKind::Field { owner, .. } if owner == model)
-                && self.program.symbols.get(model.0 as usize).is_some_and(|item| item.module == symbol.module && matches!(&item.kind, SymbolKind::Model { fields, .. } if fields.contains(&field_id)))
+                && self.program.symbols.get(model.0 as usize).is_some_and(|item| item.module == symbol.module && matches!(&item.kind, SymbolKind::Model { fields, .. } | SymbolKind::Contract { fields } if fields.contains(&field_id)))
         };
-        symbol.id != field_id || !declared
+        symbol.id != field_id
+            || !declared
             || selected
-                .insert(name.to_string(), (ty.clone(), cases.clone()))
+                .insert(name.to_string(), (ty.clone(), cases.to_owned()))
                 .is_some()
     }
 
@@ -20530,7 +20823,7 @@ impl<'a> Cx<'a> {
         symbol: &crate::analysis::resolve::Symbol,
         name: &str,
         type_text: String,
-        cases: &Vec<String>,
+        cases: &[String],
         path_span: Span,
     ) {
         let label = self.decode_reused_field_label_parts(symbol);
@@ -20564,9 +20857,15 @@ impl<'a> Cx<'a> {
             .collect();
         columns.push(TypedExpr::new(
             IrExpr::Object(vec![
-                ("field".to_string(), Self::filter_text_expr(name.to_string(), path_span)),
+                (
+                    "field".to_string(),
+                    Self::filter_text_expr(name.to_string(), path_span),
+                ),
                 ("label".to_string(), caption),
-                ("type".to_string(), Self::filter_text_expr(type_text, path_span)),
+                (
+                    "type".to_string(),
+                    Self::filter_text_expr(type_text, path_span),
+                ),
                 (
                     "valueLabels".to_string(),
                     TypedExpr::new(
@@ -20595,8 +20894,12 @@ impl<'a> Cx<'a> {
             }
             let (name, source_name, field_id, implicit_parent, money) =
                 self.resolve_filter_selector(model, path, word)?;
-            let (symbol, ty) =
+            let (symbol, declared_ty) =
                 self.filter_selector_type(field_id, implicit_parent, money, path.span, word)?;
+            // Filtering selects present values. A cleared filter is absence of
+            // restriction, so nullable fields use their checked inner scalar
+            // or reference control without inventing a null case or a grant.
+            let ty = declared_ty.nullable_inner().unwrap_or(&declared_ty).clone();
             // Sealed derived-bool filters bypass the stored-field type
             // table: the expansion id is pinned to the exact authored
             // derive body above, never to a spelling alone.
@@ -20619,7 +20922,10 @@ impl<'a> Cx<'a> {
                 return None;
             }
             let (type_text, cases) = match derived_expansion {
-                Some(_) => ("derived-bool".to_string(), vec!["true".to_string(), "false".to_string()]),
+                Some(_) => (
+                    "derived-bool".to_string(),
+                    vec!["true".to_string(), "false".to_string()],
+                ),
                 None => self.filter_type_cases(&ty, path.span, word)?,
             };
             // Derived-bool filters take a distinct gate before the
@@ -20636,7 +20942,14 @@ impl<'a> Cx<'a> {
                         .is_some()
             } else {
                 self.filter_selector_rejected(
-                    &symbol, &source_name, model, field_id, implicit_parent, &name, &ty, &cases,
+                    &symbol,
+                    &source_name,
+                    model,
+                    field_id,
+                    implicit_parent,
+                    &name,
+                    &ty,
+                    &cases,
                     selected,
                 )
             };
@@ -20705,14 +21018,7 @@ impl<'a> Cx<'a> {
 
     fn decode_filter_default_kind(
         expected: &ResolvedType,
-    ) -> (
-        bool,
-        bool,
-        Option<&Vec<String>>,
-        bool,
-        bool,
-        Option<Scalar>,
-    ) {
+    ) -> (bool, bool, Option<&Vec<String>>, bool, bool, Option<Scalar>) {
         let bool_filter = matches!(expected, ResolvedType::Scalar(Scalar::Bool));
         // A reference filter compares by typed opaque identity
         // (DESIGN 977), never enum spellings: no literal or
@@ -20720,21 +21026,23 @@ impl<'a> Cx<'a> {
         // reference read (or null) below.
         let ref_filter = matches!(
             expected,
-            ResolvedType::Record { .. }
-                | ResolvedType::Scalar(Scalar::User | Scalar::Member)
+            ResolvedType::Record { .. } | ResolvedType::Scalar(Scalar::User | Scalar::Member)
         );
         let enum_cases = match expected {
             ResolvedType::Enum { cases, .. } => Some(cases),
             ResolvedType::Scalar(Scalar::Bool) => None,
-            ResolvedType::Record { .. }
-            | ResolvedType::Scalar(Scalar::User | Scalar::Member) => None,
+            ResolvedType::Record { .. } | ResolvedType::Scalar(Scalar::User | Scalar::Member) => {
+                None
+            }
             // C2 text-equality rule: no case inventory (None, like
             // references); any other shape keeps the refusal.
             ResolvedType::Scalar(Scalar::Text) => None,
             // C3 civil-date equality rule: no case inventory
             // (None, like text/references); any other shape keeps
             // the refusal.
-            ResolvedType::Scalar(Scalar::Date | Scalar::Int | Scalar::Datetime | Scalar::Currency) => None,
+            ResolvedType::Scalar(
+                Scalar::Date | Scalar::Int | Scalar::Datetime | Scalar::Currency,
+            ) => None,
             _ => None,
         };
         // C2 text-equality rule (DESIGN 975 scalar): a text-typed
@@ -20748,10 +21056,19 @@ impl<'a> Cx<'a> {
         // literal, a direct saved date read, or null below.
         let date_filter = matches!(expected, ResolvedType::Scalar(Scalar::Date));
         let scalar_filter = match expected {
-            ResolvedType::Scalar(scalar @ (Scalar::Int | Scalar::Datetime | Scalar::Currency)) => Some(*scalar),
+            ResolvedType::Scalar(scalar @ (Scalar::Int | Scalar::Datetime | Scalar::Currency)) => {
+                Some(*scalar)
+            }
             _ => None,
         };
-        (bool_filter, ref_filter, enum_cases, text_filter, date_filter, scalar_filter)
+        (
+            bool_filter,
+            ref_filter,
+            enum_cases,
+            text_filter,
+            date_filter,
+            scalar_filter,
+        )
     }
 
     fn decode_filter_literal(
@@ -20790,7 +21107,7 @@ impl<'a> Cx<'a> {
         decoded: &TypedExpr,
         bool_filter: bool,
         literal: bool,
-        field_cases: &Vec<String>,
+        field_cases: &[String],
         value_span: Span,
     ) -> Option<(bool, bool)> {
         // B13: a computed bool default over decoded bool
@@ -20821,12 +21138,7 @@ impl<'a> Cx<'a> {
         let mut enum_nested = Vec::new();
         let enum_computed = !bool_filter
             && !literal
-            && self.collect_enum_preference_leaves(
-                scope,
-                decoded,
-                expected,
-                &mut enum_nested,
-            );
+            && self.collect_enum_preference_leaves(scope, decoded, expected, &mut enum_nested);
         if enum_computed {
             for (field_id, owner, nullable) in enum_nested {
                 self.register_enum_filter_preference(
@@ -20869,8 +21181,7 @@ impl<'a> Cx<'a> {
             self.filter_decode_fail(word, value.span);
             return None;
         };
-        let Some(symbol) = self.program.symbols.get(field_id.0 as usize).cloned()
-        else {
+        let Some(symbol) = self.program.symbols.get(field_id.0 as usize).cloned() else {
             self.filter_decode_fail(word, value.span);
             return None;
         };
@@ -20878,7 +21189,8 @@ impl<'a> Cx<'a> {
             self.filter_decode_fail(word, value.span);
             return None;
         };
-        let nullable = matches!(&decoded.ty, ResolvedType::Nullable(inner) if inner.as_ref() == expected);
+        let nullable =
+            matches!(&decoded.ty, ResolvedType::Nullable(inner) if inner.as_ref() == expected);
         Some((field_id, symbol, owner, nullable))
     }
 
@@ -20915,7 +21227,7 @@ impl<'a> Cx<'a> {
             IrExpr::Text(wire) => Some(Some(wire.clone())),
             _ => {
                 self.filter_decode_fail(word, value_span);
-                return None;
+                None
             }
         }
     }
@@ -20932,9 +21244,7 @@ impl<'a> Cx<'a> {
         word: &str,
     ) -> Option<Option<String>> {
         match value.expr {
-            IrExpr::Text(case)
-                if enum_cases.is_some_and(|known| known.contains(&case)) =>
-            {
+            IrExpr::Text(case) if enum_cases.is_some_and(|known| known.contains(&case)) => {
                 Some(Some(case))
             }
             // C2 text-equality rule (DESIGN 975
@@ -20957,13 +21267,15 @@ impl<'a> Cx<'a> {
             {
                 self.decode_date_call_default(&args, value_span, word)
             }
-            IrExpr::Int(value) if scalar_filter == Some(Scalar::Int) => Some(Some(value.to_string())),
+            IrExpr::Int(value) if scalar_filter == Some(Scalar::Int) => {
+                Some(Some(value.to_string()))
+            }
             IrExpr::Text(value) if scalar_filter == Some(Scalar::Currency) => Some(Some(value)),
             IrExpr::Datetime(value) if scalar_filter == Some(Scalar::Datetime) => Some(Some(value)),
             IrExpr::Null if nullable => Some(None),
             _ => {
                 self.filter_decode_fail(word, value_span);
-                return None;
+                None
             }
         }
     }
@@ -20981,13 +21293,19 @@ impl<'a> Cx<'a> {
     ) -> Option<Option<String>> {
         match default {
             Some(IrDefault::Literal(value)) => self.decode_literal_default_value(
-                value, enum_cases, text_filter, date_filter, scalar_filter, nullable,
-                value_span, word,
+                value,
+                enum_cases,
+                text_filter,
+                date_filter,
+                scalar_filter,
+                nullable,
+                value_span,
+                word,
             ),
             None if nullable => Some(None),
             _ => {
                 self.filter_decode_fail(word, value_span);
-                return None;
+                None
             }
         }
     }
@@ -20995,13 +21313,13 @@ impl<'a> Cx<'a> {
     fn push_filter_preference_field(
         &mut self,
         symbol: &crate::analysis::resolve::Symbol,
-        owner: SymbolId,
-        field_cases: &Vec<String>,
+        _owner: SymbolId,
+        field_cases: &[String],
         default_value: Option<String>,
         nullable: bool,
         date_filter: bool,
         scalar_filter: Option<Scalar>,
-        value_span: Span,
+        _value_span: Span,
     ) {
         if !self
             .page_preference_fields
@@ -21011,7 +21329,7 @@ impl<'a> Cx<'a> {
             let label = self.decode_reused_field_label_parts(symbol);
             self.page_preference_fields.push(IrPreferenceField {
                 name: symbol.name.clone(),
-                options: field_cases.clone(),
+                options: field_cases.to_owned(),
                 default_value,
                 nullable,
                 caption: label.as_ref().and_then(|label| label.text.clone()),
@@ -21038,12 +21356,14 @@ impl<'a> Cx<'a> {
         text_filter: bool,
         date_filter: bool,
         scalar_filter: Option<Scalar>,
-        field_cases: &Vec<String>,
+        field_cases: &[String],
         module: ModuleId,
     ) -> Option<()> {
         let (field_id, symbol, owner, nullable) =
             self.resolve_filter_identity(value, decoded, expected, word)?;
-        if self.filter_identity_rejected(&symbol, field_id, module, owner, decoded, expected, nullable) {
+        if self.filter_identity_rejected(
+            &symbol, field_id, module, owner, decoded, expected, nullable,
+        ) {
             self.filter_decode_fail(word, value.span);
             return None;
         }
@@ -21062,26 +21382,32 @@ impl<'a> Cx<'a> {
             // Direct reference reads share the direct-read
             // descriptor contract with no spellings: the saved
             // identity stays opaque end to end.
-            self.register_reference_filter_preference(
-                word,
-                field_id,
-                owner,
-                nullable,
-                value.span,
-            )?;
+            self.register_reference_filter_preference(word, field_id, owner, nullable, value.span)?;
         } else {
             let (_, default, server, _, _, _) = self.decode_field(&symbol, owner);
             let default_value = self.decode_filter_default_value(
-                default, enum_cases, text_filter, date_filter, scalar_filter, nullable,
-                value.span, word,
+                default,
+                enum_cases,
+                text_filter,
+                date_filter,
+                scalar_filter,
+                nullable,
+                value.span,
+                word,
             )?;
             if server.is_some() {
                 self.filter_decode_fail(word, value.span);
                 return None;
             }
             self.push_filter_preference_field(
-                &symbol, owner, field_cases, default_value, nullable, date_filter,
-                scalar_filter, value.span,
+                &symbol,
+                owner,
+                field_cases,
+                default_value,
+                nullable,
+                date_filter,
+                scalar_filter,
+                value.span,
             );
         }
         Some(())
@@ -21111,17 +21437,38 @@ impl<'a> Cx<'a> {
             let (bool_filter, ref_filter, enum_cases, text_filter, date_filter, scalar_filter) =
                 Self::decode_filter_default_kind(expected);
             let literal = Self::decode_filter_literal(
-                expected, &decoded, enum_cases, bool_filter, text_filter, date_filter,
+                expected,
+                &decoded,
+                enum_cases,
+                bool_filter,
+                text_filter,
+                date_filter,
                 scalar_filter,
             );
             let (computed, enum_computed) = self.decode_filter_computed(
-                scope, word, expected, &decoded, bool_filter, literal, field_cases,
+                scope,
+                word,
+                expected,
+                &decoded,
+                bool_filter,
+                literal,
+                field_cases,
                 value.span,
             )?;
             if !literal && !computed && !enum_computed {
                 self.decode_filter_direct_default(
-                    word, value, &decoded, expected, bool_filter, ref_filter, enum_cases,
-                    text_filter, date_filter, scalar_filter, field_cases, scope.module,
+                    word,
+                    value,
+                    &decoded,
+                    expected,
+                    bool_filter,
+                    ref_filter,
+                    enum_cases,
+                    text_filter,
+                    date_filter,
+                    scalar_filter,
+                    field_cases,
+                    scope.module,
                 )?;
             }
             entries.push((name, decoded));
@@ -21173,15 +21520,16 @@ impl<'a> Cx<'a> {
                     return None;
                 };
                 let text = |entries: &[(String, TypedExpr)], key: &str| {
-                    entries.iter().find(|(name, _)| name == key).and_then(
-                        |(_, value)| {
+                    entries
+                        .iter()
+                        .find(|(name, _)| name == key)
+                        .and_then(|(_, value)| {
                             if let IrExpr::Text(text) = &value.expr {
                                 Some(text.clone())
                             } else {
                                 None
                             }
-                        },
-                    )
+                        })
                 };
                 if text(entries, "type").as_deref() != Some("derived-bool") {
                     return None;
@@ -21207,15 +21555,16 @@ impl<'a> Cx<'a> {
                     return None;
                 };
                 let at = |key: &str| {
-                    range.iter().find(|(name, _)| name == key).and_then(
-                        |(_, value)| {
+                    range
+                        .iter()
+                        .find(|(name, _)| name == key)
+                        .and_then(|(_, value)| {
                             if let IrExpr::Int(number) = &value.expr {
                                 u32::try_from(*number).ok()
                             } else {
                                 None
                             }
-                        },
-                    )
+                        })
                 };
                 let (node_start, node_end) = (at("start")?, at("end")?);
                 Some(IrDerivedBoolColumn {
@@ -21248,13 +21597,14 @@ impl<'a> Cx<'a> {
         let Some(model_symbol) = self.program.symbols.get(model.0 as usize) else {
             return;
         };
-        self.pending_derived_bool_receipts.push(IrDerivedBoolReceipt {
-            file: node.span.file.0,
-            start: node.span.start,
-            page_path: String::new(),
-            model: model_symbol.canonical.clone(),
-            columns: receipt_columns,
-        });
+        self.pending_derived_bool_receipts
+            .push(IrDerivedBoolReceipt {
+                file: node.span.file.0,
+                start: node.span.start,
+                page_path: String::new(),
+                model: model_symbol.canonical.clone(),
+                columns: receipt_columns,
+            });
     }
 
     /// Decode a standalone saved-preference control. It reuses the owned
@@ -21262,8 +21612,7 @@ impl<'a> Cx<'a> {
     /// binding; sibling collections retain independent request selectors.
     /// Unsupported declarations keep the exact E6008 below.
     fn standalone_filter_head_valid(&self, node: &SyntaxNode) -> bool {
-        ui_attributes(self.db, node).is_empty()
-            && !kids(node).iter().any(|n| is_ui_node(n.kind))
+        ui_attributes(self.db, node).is_empty() && !kids(node).iter().any(|n| is_ui_node(n.kind))
     }
 
     fn standalone_pref_valid(
@@ -21365,12 +21714,14 @@ impl<'a> Cx<'a> {
             fail(self, header.span);
             return None;
         };
-        let SymbolKind::Field { owner: pref_owner, .. } = pref_symbol.kind else {
+        let SymbolKind::Field {
+            owner: pref_owner, ..
+        } = pref_symbol.kind
+        else {
             fail(self, header.span);
             return None;
         };
-        if !self.standalone_pref_valid(&pref_symbol, pref_id, scope.module, &decoded, &pref_owner)
-        {
+        if !self.standalone_pref_valid(&pref_symbol, pref_id, scope.module, &decoded, &pref_owner) {
             fail(self, header.span);
             return None;
         }
@@ -21395,12 +21746,18 @@ impl<'a> Cx<'a> {
             fail(self, header.span);
             return None;
         };
-        let Some(model_ty) = self.program.types.symbol_types.get(&model_field_id).cloned()
+        let Some(model_ty) = self
+            .program
+            .types
+            .symbol_types
+            .get(&model_field_id)
+            .cloned()
         else {
             fail(self, header.span);
             return None;
         };
-        let nullable = matches!(&decoded.ty, ResolvedType::Nullable(inner) if inner.as_ref() == &model_ty);
+        let nullable =
+            matches!(&decoded.ty, ResolvedType::Nullable(inner) if inner.as_ref() == &model_ty);
         if !self.standalone_model_valid(
             &model_symbol,
             model_field_id,
@@ -21452,13 +21809,16 @@ impl<'a> Cx<'a> {
                 )
             })
             .collect::<Vec<_>>();
-        let binding_caption = pref_label.as_ref().and_then(|label| label.text.clone()).map(|caption| {
-            TypedExpr::new(
-                IrExpr::Message(caption),
-                ResolvedType::Scalar(Scalar::Text),
-                header.span,
-            )
-        });
+        let binding_caption = pref_label
+            .as_ref()
+            .and_then(|label| label.text.clone())
+            .map(|caption| {
+                TypedExpr::new(
+                    IrExpr::Message(caption),
+                    ResolvedType::Scalar(Scalar::Text),
+                    header.span,
+                )
+            });
         // The saved default registers the owning page preference exactly as
         // a collection default does; the shell renders both from the same
         // preference fields.
@@ -21471,9 +21831,7 @@ impl<'a> Cx<'a> {
         };
         let default_value = match default {
             Some(IrDefault::Literal(value)) => match value.expr {
-                IrExpr::Text(case)
-                    if enum_cases.is_some_and(|known| known.contains(&case)) =>
-                {
+                IrExpr::Text(case) if enum_cases.is_some_and(|known| known.contains(&case)) => {
                     Some(case)
                 }
                 IrExpr::Bool(selected) if bool_filter => Some(selected.to_string()),
@@ -21557,7 +21915,10 @@ impl<'a> Cx<'a> {
         );
         let binding = TypedExpr::new(
             IrExpr::Object(vec![
-                ("name".to_string(), text(pref_symbol.name.clone(), header.span)),
+                (
+                    "name".to_string(),
+                    text(pref_symbol.name.clone(), header.span),
+                ),
                 (
                     "options".to_string(),
                     TypedExpr::new(IrExpr::Array(options), ResolvedType::Unknown, header.span),
@@ -22291,9 +22652,7 @@ impl<'a> Cx<'a> {
                 span,
             )
         };
-        let Some(default_order) = self.preference_order_strings(default) else {
-            return None;
-        };
+        let default_order = self.preference_order_strings(default)?;
         let mut cases = Vec::new();
         for case in kids(case_map)
             .into_iter()
@@ -22315,9 +22674,7 @@ impl<'a> Cx<'a> {
                 );
                 return None;
             };
-            let Some(strings) = self.preference_order_strings(list) else {
-                return None;
-            };
+            let strings = self.preference_order_strings(list)?;
             cases.push((key, text_array(strings, list.span)));
         }
         Some(TypedExpr::new(
@@ -22341,27 +22698,50 @@ impl<'a> Cx<'a> {
     /// Keep its checked clause correspondence rather than dropping the option.
     fn collection_archive(&mut self, query: &SyntaxNode, clause: &SyntaxNode) -> Option<TypedExpr> {
         let parts = kids(clause);
-        let fact = self.program.types.checked_queries.get(&NodeKey::of(query))
-            .and_then(|query| query.clauses.iter().find(|fact| fact.node == NodeKey::of(clause)));
+        let fact = self
+            .program
+            .types
+            .checked_queries
+            .get(&NodeKey::of(query))
+            .and_then(|query| {
+                query
+                    .clauses
+                    .iter()
+                    .find(|fact| fact.node == NodeKey::of(clause))
+            });
         if parts.len() == 3
             && name_text(self.db, parts[0]).as_deref() == Some("archived")
-            && parts[1].kind == SyntaxKind::Punct && self.text(parts[1].span) == "="
+            && parts[1].kind == SyntaxKind::Punct
+            && self.text(parts[1].span) == "="
             && name_text(self.db, parts[2]).as_deref() == Some("include")
-            && fact.is_some_and(|fact| matches!(fact.kind, CheckedQueryClauseKind::Archived)
-                && fact.expressions.is_empty())
+            && fact.is_some_and(|fact| {
+                matches!(fact.kind, CheckedQueryClauseKind::Archived) && fact.expressions.is_empty()
+            })
         {
-            return Some(TypedExpr::new(IrExpr::Text("include".into()),
-                ResolvedType::Scalar(Scalar::Text), clause.span));
+            return Some(TypedExpr::new(
+                IrExpr::Text("include".into()),
+                ResolvedType::Scalar(Scalar::Text),
+                clause.span,
+            ));
         }
-        self.diags.push(Diagnostic::error("E6008",
-            "collection archive selection requires its checked archived=include clause".into(), clause.span));
+        self.diags.push(Diagnostic::error(
+            "E6008",
+            "collection archive selection requires its checked archived=include clause".into(),
+            clause.span,
+        ));
         None
     }
 
     /// Query clauses own their alias scope and source predicate independently
     /// of collection presentation attributes and row rendering.
-    fn collection_query_props(&mut self, scope: &Scope, node: &SyntaxNode,
-        query: &SyntaxNode, model: SymbolId, word: &str) -> (Vec<(String, TypedExpr)>, Option<String>) {
+    fn collection_query_props(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        query: &SyntaxNode,
+        model: SymbolId,
+        word: &str,
+    ) -> (Vec<(String, TypedExpr)>, Option<String>) {
         let mut props = Vec::new();
         let mut as_name: Option<String> = None;
         let parts = kids(query);
@@ -22449,7 +22829,10 @@ impl<'a> Cx<'a> {
         node: &SyntaxNode,
         word: &str,
     ) -> Option<&'static [&'static str]> {
-        if !matches!(word, "list" | "table" | "calendar" | "gallery" | "board" | "timeline") {
+        if !matches!(
+            word,
+            "list" | "table" | "calendar" | "gallery" | "board" | "timeline"
+        ) {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 format!(
@@ -22482,8 +22865,8 @@ impl<'a> Cx<'a> {
             ]
         } else if word == "board" {
             &[
-                "parent", "empty", "limit", "cursor", "by", "columns", "order", "search",
-                "filter", "defaults",
+                "parent", "empty", "limit", "cursor", "by", "columns", "order", "search", "filter",
+                "defaults",
             ]
         } else {
             &[
@@ -22541,11 +22924,13 @@ impl<'a> Cx<'a> {
                     return None;
                 };
                 let candidate = self.program.symbols.get(symbol.0 as usize)?;
-                (matches!(candidate.kind, crate::analysis::resolve::SymbolKind::Model { .. })
-                    || matches!(
-                        candidate.kind,
-                        crate::analysis::resolve::SymbolKind::Contract { .. }
-                    ))
+                (matches!(
+                    candidate.kind,
+                    crate::analysis::resolve::SymbolKind::Model { .. }
+                ) || matches!(
+                    candidate.kind,
+                    crate::analysis::resolve::SymbolKind::Contract { .. }
+                ))
                 .then_some((*symbol, *stored))
             });
         if let Some((_, parent)) = containment {
@@ -22673,9 +23058,7 @@ impl<'a> Cx<'a> {
             }
         }
         if word == "board" {
-            let Some(group) = self.decode_board_grouping(scope, node, id) else {
-                return None;
-            };
+            let group = self.decode_board_grouping(scope, node, id)?;
             props.push(("by".to_string(), group));
         }
         Some(())
@@ -22710,42 +23093,41 @@ impl<'a> Cx<'a> {
         }
     }
 
-fn push_text_array_prop(
-    props: &mut Vec<(String, TypedExpr)>,
-    name: String,
-    strings: Vec<String>,
-    span: Span,
-) {
-    props.push((
-        name,
-        TypedExpr::new(
-            IrExpr::Array(
-                strings
-                    .iter()
-                    .map(|s| {
-                        TypedExpr::new(
-                            IrExpr::Text(s.clone()),
-                            ResolvedType::Scalar(Scalar::Text),
-                            span,
-                        )
-                    })
-                    .collect(),
+    fn push_text_array_prop(
+        props: &mut Vec<(String, TypedExpr)>,
+        name: String,
+        strings: Vec<String>,
+        span: Span,
+    ) {
+        props.push((
+            name,
+            TypedExpr::new(
+                IrExpr::Array(
+                    strings
+                        .iter()
+                        .map(|s| {
+                            TypedExpr::new(
+                                IrExpr::Text(s.clone()),
+                                ResolvedType::Scalar(Scalar::Text),
+                                span,
+                            )
+                        })
+                        .collect(),
+                ),
+                ResolvedType::Unknown,
+                span,
             ),
-            ResolvedType::Unknown,
-            span,
-        ),
-    ));
-}
+        ));
+    }
 
-    fn decode_collection_order_strings(
-        &mut self,
-        name: &str,
-        value: &SyntaxNode,
-    ) -> Vec<String> {
+    fn decode_collection_order_strings(&mut self, name: &str, value: &SyntaxNode) -> Vec<String> {
         if value.kind == SyntaxKind::Selectors {
             kids(value)
                 .iter()
-                .filter(|path| name != "order" || matches!(path.kind, SyntaxKind::Path | SyntaxKind::Descending))
+                .filter(|path| {
+                    name != "order"
+                        || matches!(path.kind, SyntaxKind::Path | SyntaxKind::Descending)
+                })
                 .flat_map(|path| {
                     if name == "order" {
                         let key = if path.kind == SyntaxKind::Descending {
@@ -22757,16 +23139,14 @@ fn push_text_array_prop(
                         };
                         return key
                             .and_then(|key| {
-                                self.program
-                                    .types
-                                    .ui_order_selectors
-                                    .get(&NodeKey::of(key))
+                                self.program.types.ui_order_selectors.get(&NodeKey::of(key))
                             })
                             .cloned()
                             .map(|canonical| vec![canonical])
                             .unwrap_or_else(|| {
                                 self.gap(
-                                    "UI order selector has no checked field-relative path".to_string(),
+                                    "UI order selector has no checked field-relative path"
+                                        .to_string(),
                                     path.span,
                                 );
                                 Vec::new()
@@ -22799,9 +23179,9 @@ fn push_text_array_prop(
         let mut key_node = value.clone();
         let mut descending = false;
         if key_node.kind == SyntaxKind::Unary
-            && kids(&key_node).iter().any(|part| {
-                part.kind == SyntaxKind::Punct && self.text(part.span) == "-"
-            })
+            && kids(&key_node)
+                .iter()
+                .any(|part| part.kind == SyntaxKind::Punct && self.text(part.span) == "-")
         {
             let parts = kids(&key_node);
             if let Some(operand) = parts
@@ -22820,18 +23200,16 @@ fn push_text_array_prop(
         } else {
             String::new()
         };
-        if !field.is_empty()
-            && self.fields.get(&(id, field.clone())).is_some()
-        {
-            let order =
-                format!("{}{}", if descending { "-" } else { "" }, field);
+        if !field.is_empty() && self.fields.contains_key(&(id, field.clone())) {
+            let order = format!("{}{}", if descending { "-" } else { "" }, field);
             let span = value.span;
             Self::push_text_array_prop(props, name, vec![order], span);
             return;
         }
         self.diags.push(Diagnostic::error(
             "E6008",
-            "cannot lower collection order: preference-dispatched ordering has no query profile".to_string(),
+            "cannot lower collection order: preference-dispatched ordering has no query profile"
+                .to_string(),
             value.span,
         ));
     }
@@ -22920,7 +23298,8 @@ fn push_text_array_prop(
                 continue;
             }
             match name.as_str() {
-                "filter" | "defaults" if matches!(word, "calendar" | "table" | "gallery" | "list" | "board") => {}
+                "filter" | "defaults"
+                    if matches!(word, "calendar" | "table" | "gallery" | "list" | "board") => {}
                 "order" | "search" | "filter" | "columns" => {
                     self.decode_collection_sort_prop(scope, id, word, name, value, props);
                 }
@@ -23052,8 +23431,7 @@ fn push_text_array_prop(
                 && let Some(model) = model_id
                 && let IrExpr::Lambda { param, body } = &value.expr
                 && param == source_alias
-                && let Some(predicate) =
-                    self.checked_page_bool_predicate(model, source_alias, body)
+                && let Some(predicate) = self.checked_page_bool_predicate(model, source_alias, body)
             {
                 value.expr = predicate;
             }
@@ -23250,12 +23628,14 @@ fn push_text_array_prop(
 
     fn decode_collection(&mut self, scope: &Scope, node: &SyntaxNode, word: &str) -> Option<IrUi> {
         let mut props = Vec::new();
-        let (head, query) = self.collection_source(node)
-            .map(|(head, query)| (Some(head), query)).unwrap_or((None, None));
-        if word == "list" {
-            if let Some(ui) = self.decode_collection_list_value(scope, node, head, query) {
-                return Some(ui);
-            }
+        let (head, query) = self
+            .collection_source(node)
+            .map(|(head, query)| (Some(head), query))
+            .unwrap_or((None, None));
+        if word == "list"
+            && let Some(ui) = self.decode_collection_list_value(scope, node, head, query)
+        {
+            return Some(ui);
         }
         let admitted = self.decode_collection_admitted(node, word)?;
         let (id, stored) = self.decode_collection_domain(scope, node, head, &mut props)?;
@@ -23266,7 +23646,7 @@ fn push_text_array_prop(
         let as_name =
             self.decode_collection_query_alias(scope, node, head, query, id, word, &mut props);
         self.decode_collection_attrs(scope, node, id, word, admitted, &mut props);
-        return self.decode_collection_body(scope, node, word, Some(id), stored, as_name, props);
+        self.decode_collection_body(scope, node, word, Some(id), stored, as_name, props)
     }
 
     /// Decode a bare `delete` leaf to the `deleteRecord`
@@ -23570,10 +23950,7 @@ fn push_text_array_prop(
         let value = self.decode_ui_header_value(scope, header);
         // Copy renders a string-carried value: text, or a URL (the recorded
         // `app_url(...)` shapes), each plain or nullable.
-        let plain_text = matches!(
-            value.ty,
-            ResolvedType::Scalar(Scalar::Text | Scalar::Url)
-        );
+        let plain_text = matches!(value.ty, ResolvedType::Scalar(Scalar::Text | Scalar::Url));
         let nullable_text = matches!(
             &value.ty,
             ResolvedType::Nullable(inner)
@@ -23789,12 +24166,11 @@ fn bind_external_panel_triggers(nodes: &mut [IrUi]) {
             if private_scope(node) {
                 continue;
             }
-            if node.factory == "button" {
-                if let Some((_, value)) = node.props.iter().find(|(key, _)| key == "opens") {
-                    if let IrExpr::Text(target) = &value.expr {
-                        targets.insert(target.clone());
-                    }
-                }
+            if node.factory == "button"
+                && let Some((_, value)) = node.props.iter().find(|(key, _)| key == "opens")
+                && let IrExpr::Text(target) = &value.expr
+            {
+                targets.insert(target.clone());
             }
             collect(&node.children, targets);
         }
@@ -25090,11 +25466,15 @@ impl<'a> Cx<'a> {
                 // canonical s-slot keys, including imported aliases. Rejoin
                 // that exact declaration instead of resolving the key as a
                 // second source-level spelling in the consumer module.
-                self.program.symbols.iter().find_map(|symbol| {
-                    (matches!(symbol.kind, SymbolKind::Fixture { .. })
-                        && self.canonical(symbol.id) == *name)
-                        .then_some(symbol.id)
-                }).or_else(|| self.fixture_in_scope(module, name))
+                self.program
+                    .symbols
+                    .iter()
+                    .find_map(|symbol| {
+                        (matches!(symbol.kind, SymbolKind::Fixture { .. })
+                            && self.canonical(symbol.id) == *name)
+                            .then_some(symbol.id)
+                    })
+                    .or_else(|| self.fixture_in_scope(module, name))
             })
             .collect()
     }
@@ -25276,16 +25656,18 @@ fn collect_s_refs_rest(expr: &IrExpr, out: &mut Vec<String>) {
                 collect_s_refs(&arg.expr, out);
             }
         }
-        IrExpr::HasRole { person, .. } => {
-            if let Some(person) = person {
-                collect_s_refs(&person.expr, out);
-            }
+        IrExpr::HasRole {
+            person: Some(person),
+            ..
+        } => {
+            collect_s_refs(&person.expr, out);
         }
         IrExpr::Lambda { body, .. } => collect_s_refs(&body.expr, out),
-        IrExpr::JudgmentSpecification { options, .. } => {
-            if let Some(options) = options {
-                collect_s_refs(&options.expr, out);
-            }
+        IrExpr::JudgmentSpecification {
+            options: Some(options),
+            ..
+        } => {
+            collect_s_refs(&options.expr, out);
         }
         _ => {}
     }
@@ -25561,4 +25943,3 @@ pub fn lower_given_contracts(
     out.keywords.sort_by_key(|i| (i.span.file.0, i.span.start));
     out
 }
-

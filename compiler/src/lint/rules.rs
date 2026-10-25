@@ -1151,7 +1151,11 @@ fn shadow_duplicate(
         .count()
         != 1
         || other_binding_named(block, text, name)
-        || top.iter().filter(|(top_name, _, _)| *top_name == name).count() != 1
+        || top
+            .iter()
+            .filter(|(top_name, _, _)| *top_name == name)
+            .count()
+            != 1
 }
 
 fn rule_shadowing(ctx: &RuleCtx<'_>, tree: &SyntaxNode, out: &mut Vec<Finding>) {
@@ -1221,8 +1225,15 @@ fn rule_shadowing(ctx: &RuleCtx<'_>, tree: &SyntaxNode, out: &mut Vec<Finding>) 
             let Some(suite) = enclosing_suite(block, inner) else {
                 continue;
             };
-            let nearby =
-                shadow_nearby(match_affected, &match_reads, outer, &reads, name, suite, inner);
+            let nearby = shadow_nearby(
+                match_affected,
+                &match_reads,
+                outer,
+                &reads,
+                name,
+                suite,
+                inner,
+            );
             if nearby {
                 push(
                     out,

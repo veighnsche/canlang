@@ -23,15 +23,17 @@
 //! `deleteRecord` modes, bound `send`, `schedule` with `on:{every}` and
 //! CRUD `create`/`set` with `when`.
 
-use super::source_send_data::{plain_value,send_value,source_only_data_sends,source_only_data_emits};
+use super::source_send_data::{
+    plain_value, send_value, source_only_data_emits, source_only_data_sends,
+};
 use crate::analysis::catalog::{nominal_schema, std_capability};
 use crate::analysis::resolve::{CrudOp, ModuleKind, SymbolId};
 use crate::analysis::types::{ResolvedType, Scalar, std_schema_type};
 use crate::codegen::ir::{
     CheckedStandardCompletionHandler, IrBinOp, IrCallTarget, IrCohort, IrDefault,
-    IrEffectCallTarget, IrEventSource, IrExpr, IrFieldLabel, IrGuard, IrHook,
-    IrItem, IrItemKind, IrJudgmentGenerated, IrMessage, IrModule, IrOwner, IrPage, IrProgram,
-    IrQueryDomain, IrServer, IrStmt, IrType, IrUi, IrUnOp, IrViewUse, ReferencedBuiltin, ScalarFamily, TypedExpr,
+    IrEffectCallTarget, IrEventSource, IrExpr, IrFieldLabel, IrGuard, IrHook, IrItem, IrItemKind,
+    IrJudgmentGenerated, IrMessage, IrModule, IrOwner, IrPage, IrProgram, IrQueryDomain, IrServer,
+    IrStmt, IrType, IrUi, IrUnOp, IrViewUse, ReferencedBuiltin, ScalarFamily, TypedExpr,
     expr_uses_async, is_structural, scalar_family,
 };
 use crate::codegen::model_policies::{LocalPolicies, ModelPolicies, collect_local_policies};
@@ -146,15 +148,12 @@ fn invocation_base(ty: &ResolvedType) -> bool {
 mod descriptors;
 
 pub use descriptors::{
-    JsLine, JsModule, JsCallable, JsCallableKind,
-    JsPage, JsOperationKind, JsMcpField, JsNominalLeaf,
-    JsValueConstraints, JsNominalResult, JsValueTypes, JsValueAlias,
-    JsNamedEnum, JsDeliveryDescriptor, JsJudgmentDeliveryDescriptor, delivery_descriptor,
-    JsServerInit, JsFieldDefault, js_server_init, js_field_default,
-    literal_json, parent_path, JsOperationField, JsInputChoiceBinding,
-    JsChoiceArgument, JsChoiceValue, JsOperation, operations_json,
-    JsModelFieldType, JsModelField, JsMachine, JsMachineTransition,
-    JsModel, models_json,
+    JsCallable, JsCallableKind, JsChoiceArgument, JsChoiceValue, JsDeliveryDescriptor,
+    JsFieldDefault, JsInputChoiceBinding, JsJudgmentDeliveryDescriptor, JsLine, JsMachine,
+    JsMachineTransition, JsMcpField, JsModel, JsModelField, JsModelFieldType, JsModule,
+    JsNamedEnum, JsNominalLeaf, JsNominalResult, JsOperation, JsOperationField, JsOperationKind,
+    JsPage, JsServerInit, JsValueAlias, JsValueConstraints, JsValueTypes, delivery_descriptor,
+    js_field_default, js_server_init, literal_json, models_json, operations_json, parent_path,
 };
 use descriptors::{descriptor_json, has_duplicate_names, is_random_secret_call, wire_literal};
 
@@ -383,54 +382,112 @@ fn missing_source_checked_send_rule(
     fn collect(statements: &[IrStmt], spans: &mut Vec<Span>) {
         for statement in statements {
             match statement {
-                IrStmt::Send { when: Some(_), span, .. } => spans.push(*span),
-                IrStmt::If { then_branch, else_branch, .. } => {
+                IrStmt::Send {
+                    when: Some(_),
+                    span,
+                    ..
+                } => spans.push(*span),
+                IrStmt::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } => {
                     collect(then_branch, spans);
                     collect(else_branch, spans);
                 }
                 IrStmt::For { body, .. } => collect(body, spans),
                 IrStmt::Match { arms, .. } => {
-                    for arm in arms { collect(&arm.body, spans); }
+                    for arm in arms {
+                        collect(&arm.body, spans);
+                    }
                 }
                 _ => {}
             }
         }
     }
-    let IrItemKind::Scenario { guards, effects, hook: None, .. } = &owner.kind else {
+    let IrItemKind::Scenario {
+        guards,
+        effects,
+        hook: None,
+        ..
+    } = &owner.kind
+    else {
         return false;
     };
-    let Some(source_sites) = ir.scenario_disclosures.get(&owner.id)
+    let Some(source_sites) = ir
+        .scenario_disclosures
+        .get(&owner.id)
         .and_then(|disclosure| disclosure.source_facts())
         .and_then(|facts| facts.decision_sites.as_ref())
-    else { return false; };
-    let source_sites: Vec<Span> = source_sites.iter().filter(|site| {
-        site.owner == owner.id
-            && site.stage == crate::analysis::scenario_disclosure::CheckedDecisionStage::SendDispatch
-    }).map(|site| Span::new(site.statement.file, site.statement.start, site.statement.end)).collect();
-    if source_sites.is_empty() { return false; }
+    else {
+        return false;
+    };
+    let source_sites: Vec<Span> = source_sites
+        .iter()
+        .filter(|site| {
+            site.owner == owner.id
+                && site.stage
+                    == crate::analysis::scenario_disclosure::CheckedDecisionStage::SendDispatch
+        })
+        .map(|site| {
+            Span::new(
+                site.statement.file,
+                site.statement.start,
+                site.statement.end,
+            )
+        })
+        .collect();
+    if source_sites.is_empty() {
+        return false;
+    }
     let source_unique: HashSet<Span> = source_sites.iter().copied().collect();
-    if source_unique.len() != source_sites.len() { return false; }
+    if source_unique.len() != source_sites.len() {
+        return false;
+    }
     let mut executable = Vec::new();
     collect(guards, &mut executable);
     collect(effects, &mut executable);
     let executable_unique: HashSet<Span> = executable.iter().copied().collect();
     executable.len() == source_sites.len()
         && executable_unique == source_unique
-        && executable.iter().any(|span| prepared.is_none_or(|guards| !guards.contains_key(span)))
+        && executable
+            .iter()
+            .any(|span| prepared.is_none_or(|guards| !guards.contains_key(span)))
 }
 
 // A source-only frame has no saved-result, query, child-call or File
 // authority. Its Work effects and scalar DATA consumption require their
 // independently installed original owner joins; ordinary CRUD and scalar
 // evaluation retain their existing caller grants and mutation pipeline.
-fn source_event_payload(ir:&IrProgram,owner:&IrItem,event:&str,payload:&TypedExpr,
-        values:&BTreeSet<String>,records:&BTreeMap<String,ResolvedType>,context:Option<&super::source_context::FreshSourceContext<'_>>)->bool{
-        if context.is_none_or(|context|context.same_event_schema(event).is_none()){return false;}
-        let Some(declaration)=ir.items.iter().find(|item|item.canonical==event&&item.module==owner.module)else{return false;};
-        let IrItemKind::Event{fields}=&declaration.kind else{return false;};
-        let IrExpr::Object(entries)=&payload.expr else{return false;};
-        if fields.len()!=entries.len()||entries.len()>200{return false;}
-        entries.iter().all(|(name,value)|{
+fn source_event_payload(
+    ir: &IrProgram,
+    owner: &IrItem,
+    event: &str,
+    payload: &TypedExpr,
+    values: &BTreeSet<String>,
+    records: &BTreeMap<String, ResolvedType>,
+    context: Option<&super::source_context::FreshSourceContext<'_>>,
+) -> bool {
+    if context.is_none_or(|context| context.same_event_schema(event).is_none()) {
+        return false;
+    }
+    let Some(declaration) = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == event && item.module == owner.module)
+    else {
+        return false;
+    };
+    let IrItemKind::Event { fields } = &declaration.kind else {
+        return false;
+    };
+    let IrExpr::Object(entries) = &payload.expr else {
+        return false;
+    };
+    if fields.len() != entries.len() || entries.len() > 200 {
+        return false;
+    }
+    entries.iter().all(|(name,value)|{
             let Some(field)=fields.iter().filter_map(|id|ir.items.get(id.0 as usize)).find(|field|field.name==*name)else{return false;};
             let IrItemKind::Field{ty:IrType::Known(expected),..}=&field.kind else{return false;};
             // An event may retain the exact original admitted model identity,
@@ -440,137 +497,399 @@ fn source_event_payload(ir:&IrProgram,owner:&IrItem,event:&str,payload:&TypedExp
                     if symbol==target&&records.get(name)==Some(&value.ty));
             send_value(ir,value,values,0)||root_reference
         })
-    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum SourceWorkKind { Cancel, Schedule }
+enum SourceWorkKind {
+    Cancel,
+    Schedule,
+}
 
 #[derive(Clone)]
 struct SourceWorkBindings {
-    roots:BTreeMap<String,ResolvedType>,
-    values:BTreeSet<String>,
-    created:BTreeMap<String,serde_json::Value>,
-    loop_root:Option<(String,String)>,
+    roots: BTreeMap<String, ResolvedType>,
+    values: BTreeSet<String>,
+    created: BTreeMap<String, serde_json::Value>,
+    loop_root: Option<(String, String)>,
 }
 
 /// CANCEL and SCHEDULE share source ownership, identity keys and lexical
 /// traversal. Their existing key dialect and created-row authority stay explicit.
-struct SourceWorkCollector<'a,'s> {
-    ir:&'a IrProgram,
-    owner:&'a IrItem,
-    context:&'a super::source_context::FreshSourceContext<'s>,
-    source:serde_json::Value,
-    module:&'a str,
-    kind:SourceWorkKind,
-    creates:Vec<serde_json::Value>,
-    loans:&'a HashMap<Span,serde_json::Value>,
-    loops:Option<&'a serde_json::Value>,
-    output:HashMap<Span,serde_json::Value>,
+struct SourceWorkCollector<'a, 's> {
+    ir: &'a IrProgram,
+    owner: &'a IrItem,
+    context: &'a super::source_context::FreshSourceContext<'s>,
+    source: serde_json::Value,
+    module: &'a str,
+    kind: SourceWorkKind,
+    creates: Vec<serde_json::Value>,
+    loans: &'a HashMap<Span, serde_json::Value>,
+    loops: Option<&'a serde_json::Value>,
+    output: HashMap<Span, serde_json::Value>,
 }
-impl SourceWorkCollector<'_,'_> {
-    fn identity<'a>(value:&'a TypedExpr,roots:&BTreeMap<String,ResolvedType>)->Option<&'a str>{
-        let IrExpr::Member{base,field}=&value.expr else{return None;};let IrExpr::Name(name)=&base.expr else{return None;};
-        (field=="id"&&value.ty==ResolvedType::Scalar(Scalar::Text)&&roots.get(name)==Some(&base.ty)).then_some(name.as_str())
-    }
-    fn key<'a>(&self,value:&'a TypedExpr,roots:&BTreeMap<String,ResolvedType>)->Option<(&'a str,Option<String>)>{
-        if let Some(name)=Self::identity(value,roots){return Some((name,None));}
-        let args=match &value.expr{
-            IrExpr::Call{target:IrCallTarget::Builtin{id,awaited:false},args}if id=="format"=>args,
-            IrExpr::BoundCall{target:IrCallTarget::Builtin{id,awaited:false},args,slots}if id=="format"&&slots.as_slice()==[Some(0),Some(1)]=>args,
-            _=>return None,
+impl SourceWorkCollector<'_, '_> {
+    fn identity<'a>(
+        value: &'a TypedExpr,
+        roots: &BTreeMap<String, ResolvedType>,
+    ) -> Option<&'a str> {
+        let IrExpr::Member { base, field } = &value.expr else {
+            return None;
         };
-        let [template,fields]=args.as_slice()else{return None;};
-        let IrExpr::Text(template)=&template.expr else{return None;};
-        let IrExpr::Object(fields)=&fields.expr else{return None;};let [(field,id)]=fields.as_slice()else{return None;};
-        if self.kind==SourceWorkKind::Schedule&&field!="id"{return None;}
-        let token=format!("{{{field}}}");let(prefix,suffix)=template.split_once(&token)?;
-        if value.ty!=ResolvedType::Scalar(Scalar::Text)||template.len()>512||prefix.contains(['{','}'])||suffix.contains(['{','}']){return None;}
-        Some((Self::identity(id,roots)?,Some(format!("{prefix}{{id}}{suffix}"))))
+        let IrExpr::Name(name) = &base.expr else {
+            return None;
+        };
+        (field == "id"
+            && value.ty == ResolvedType::Scalar(Scalar::Text)
+            && roots.get(name) == Some(&base.ty))
+        .then_some(name.as_str())
     }
-    fn site(&self,span:Span,parameter:&str,template:Option<String>,roots:&BTreeMap<String,ResolvedType>,package:&str)->Option<serde_json::Value>{
-        let ResolvedType::Record{symbol,stored:true}=roots.get(parameter)?else{return None;};
-        if self.owner.canonical.rsplit_once('.').map(|(package,_)|package)!=Some(package){return None;}
-        let mut site=serde_json::json!({"source":{"module":self.module,"path":self.source["path"],"sha256":self.source["sha256"]},
+    fn key<'a>(
+        &self,
+        value: &'a TypedExpr,
+        roots: &BTreeMap<String, ResolvedType>,
+    ) -> Option<(&'a str, Option<String>)> {
+        if let Some(name) = Self::identity(value, roots) {
+            return Some((name, None));
+        }
+        let args = match &value.expr {
+            IrExpr::Call {
+                target: IrCallTarget::Builtin { id, awaited: false },
+                args,
+            } if id == "format" => args,
+            IrExpr::BoundCall {
+                target: IrCallTarget::Builtin { id, awaited: false },
+                args,
+                slots,
+            } if id == "format" && slots.as_slice() == [Some(0), Some(1)] => args,
+            _ => return None,
+        };
+        let [template, fields] = args.as_slice() else {
+            return None;
+        };
+        let IrExpr::Text(template) = &template.expr else {
+            return None;
+        };
+        let IrExpr::Object(fields) = &fields.expr else {
+            return None;
+        };
+        let [(field, id)] = fields.as_slice() else {
+            return None;
+        };
+        if self.kind == SourceWorkKind::Schedule && field != "id" {
+            return None;
+        }
+        let token = format!("{{{field}}}");
+        let (prefix, suffix) = template.split_once(&token)?;
+        if value.ty != ResolvedType::Scalar(Scalar::Text)
+            || template.len() > 512
+            || prefix.contains(['{', '}'])
+            || suffix.contains(['{', '}'])
+        {
+            return None;
+        }
+        Some((
+            Self::identity(id, roots)?,
+            Some(format!("{prefix}{{id}}{suffix}")),
+        ))
+    }
+    fn site(
+        &self,
+        span: Span,
+        parameter: &str,
+        template: Option<String>,
+        roots: &BTreeMap<String, ResolvedType>,
+        package: &str,
+    ) -> Option<serde_json::Value> {
+        let ResolvedType::Record {
+            symbol,
+            stored: true,
+        } = roots.get(parameter)?
+        else {
+            return None;
+        };
+        if self
+            .owner
+            .canonical
+            .rsplit_once('.')
+            .map(|(package, _)| package)
+            != Some(package)
+        {
+            return None;
+        }
+        let mut site = serde_json::json!({"source":{"module":self.module,"path":self.source["path"],"sha256":self.source["sha256"]},
             "owner":self.owner.canonical,"node":{"start":span.start,"end":span.end},"parameter":parameter,"model":self.ir.items[symbol.0 as usize].canonical,
             "ownerPackage":package});
-        if let Some(template)=template{site["key"]=serde_json::json!({"template":template});}
+        if let Some(template) = template {
+            site["key"] = serde_json::json!({"template":template});
+        }
         Some(site)
     }
-    fn walk(&mut self,body:&[IrStmt],mut bindings:SourceWorkBindings){
-        for statement in body{match statement{
-            IrStmt::Let{name,value,..}=>{
-                let pure=self.kind==SourceWorkKind::Schedule&&(send_value(self.ir,value,&bindings.values,0)
-                    ||super::source_send_data::observed_scalar_value(self.ir,value,self.loans,&bindings.values));
-                bindings.roots.remove(name);bindings.created.remove(name);bindings.values.remove(name);
-                if pure{bindings.values.insert(name.clone());}
-            },
-            IrStmt::Create{model,binding:Some(binding),span,..}if self.kind==SourceWorkKind::Schedule=>{
-                bindings.roots.remove(binding);bindings.created.remove(binding);bindings.values.remove(binding);
-                if let Some(created)=self.creates.iter().find(|created|created["binding"]==*binding&&created["model"]==*model
-                    &&created["node"]["start"]==span.start&&created["node"]["end"]==span.end)
-                    &&let Some(target)=self.ir.items.iter().find(|item|item.canonical==*model){
-                    bindings.roots.insert(binding.clone(),ResolvedType::Record{symbol:target.id,stored:true});bindings.created.insert(binding.clone(),created.clone());
+    fn walk(&mut self, body: &[IrStmt], mut bindings: SourceWorkBindings) {
+        for statement in body {
+            match statement {
+                IrStmt::Let { name, value, .. } => {
+                    let pure = self.kind == SourceWorkKind::Schedule
+                        && (send_value(self.ir, value, &bindings.values, 0)
+                            || super::source_send_data::observed_scalar_value(
+                                self.ir,
+                                value,
+                                self.loans,
+                                &bindings.values,
+                            ));
+                    bindings.roots.remove(name);
+                    bindings.created.remove(name);
+                    bindings.values.remove(name);
+                    if pure {
+                        bindings.values.insert(name.clone());
+                    }
                 }
-            },
-            IrStmt::Cancel{owner_package,key,span}if self.kind==SourceWorkKind::Cancel=>{
-                let Some((parameter,template))=self.key(key,&bindings.roots)else{continue;};
-                if let Some(mut site)=self.site(*span,parameter,template,&bindings.roots,owner_package){
-                    if let Some((id,item))=&bindings.loop_root{if parameter!=item{continue;}site["loop"]=serde_json::json!(id);}
-                    self.output.insert(*span,site);
+                IrStmt::Create {
+                    model,
+                    binding: Some(binding),
+                    span,
+                    ..
+                } if self.kind == SourceWorkKind::Schedule => {
+                    bindings.roots.remove(binding);
+                    bindings.created.remove(binding);
+                    bindings.values.remove(binding);
+                    if let Some(created) = self.creates.iter().find(|created| {
+                        created["binding"] == *binding
+                            && created["model"] == *model
+                            && created["node"]["start"] == span.start
+                            && created["node"]["end"] == span.end
+                    }) && let Some(target) =
+                        self.ir.items.iter().find(|item| item.canonical == *model)
+                    {
+                        bindings.roots.insert(
+                            binding.clone(),
+                            ResolvedType::Record {
+                                symbol: target.id,
+                                stored: true,
+                            },
+                        );
+                        bindings.created.insert(binding.clone(), created.clone());
+                    }
                 }
-            },
-            IrStmt::Schedule{owner_package,key,at,event,payload,span}if self.kind==SourceWorkKind::Schedule=>{
-                let Some((parameter,template))=self.key(key,&bindings.roots)else{continue;};
-                let static_time=source_work_time(at);
-                let dynamic=static_time.is_none()||!source_event_payload(self.ir,self.owner,event,payload,&bindings.values,&bindings.roots,Some(self.context));
-                if dynamic&&(!source_work_value(self.ir,at,&bindings.values,&bindings.roots,self.loans,self.context,0)
-                    ||at.ty!=ResolvedType::Scalar(Scalar::Datetime)
-                    ||!source_work_payload(self.ir,self.owner,event,payload,&bindings.values,&bindings.roots,self.loans,self.context)){continue;}
-                let time=static_time.filter(|_|!dynamic).unwrap_or_else(||serde_json::json!({"expression":{"start":at.span.start,"end":at.span.end}}));
-                let Some(mut site)=self.site(*span,parameter,template,&bindings.roots,owner_package)else{continue;};
-                if let Some((id,item))=&bindings.loop_root{if parameter!=item{continue;}site["loop"]=serde_json::json!(id);}
-                site["event"]=serde_json::json!(event);site["at"]=time;
-                if let Some(created)=bindings.created.get(parameter){site["created"]=created.clone();}
-                self.output.insert(*span,site);
-            },
-            IrStmt::For{item,domain,body,span,..}=>{
-                let Some(entry)=self.loops.and_then(|source|source["loops"].as_array()).and_then(|entries|entries.iter().find(|entry|
-                    entry["node"]["start"]==span.start&&entry["node"]["end"]==span.end&&entry.get("work").is_some()))else{continue;};
-                let ResolvedType::Array{element,..}=&domain.ty else{continue;};
-                let ResolvedType::Record{symbol,stored:true}=element.as_ref()else{continue;};
-                if entry["item"]!=*item||entry["model"]!=self.ir.items[symbol.0 as usize].canonical{continue;}
-                let mut nested=bindings.clone();nested.roots.insert(item.clone(),element.as_ref().clone());nested.values.remove(item);nested.created.remove(item);
-                nested.loop_root=Some((entry["id"].as_str().expect("sealed loop id").into(),item.clone()));
-                self.walk(body,nested);
-            },
-            IrStmt::If{then_branch,else_branch,..}=>{self.walk(then_branch,bindings.clone());self.walk(else_branch,bindings.clone());},
-            IrStmt::Match{arms,..}=>for arm in arms{self.walk(&arm.body,bindings.clone());},
-            _=>{},
-        }}
+                IrStmt::Cancel {
+                    owner_package,
+                    key,
+                    span,
+                } if self.kind == SourceWorkKind::Cancel => {
+                    let Some((parameter, template)) = self.key(key, &bindings.roots) else {
+                        continue;
+                    };
+                    if let Some(mut site) =
+                        self.site(*span, parameter, template, &bindings.roots, owner_package)
+                    {
+                        if let Some((id, item)) = &bindings.loop_root {
+                            if parameter != item {
+                                continue;
+                            }
+                            site["loop"] = serde_json::json!(id);
+                        }
+                        self.output.insert(*span, site);
+                    }
+                }
+                IrStmt::Schedule {
+                    owner_package,
+                    key,
+                    at,
+                    event,
+                    payload,
+                    span,
+                } if self.kind == SourceWorkKind::Schedule => {
+                    let Some((parameter, template)) = self.key(key, &bindings.roots) else {
+                        continue;
+                    };
+                    let static_time = source_work_time(at);
+                    let dynamic = static_time.is_none()
+                        || !source_event_payload(
+                            self.ir,
+                            self.owner,
+                            event,
+                            payload,
+                            &bindings.values,
+                            &bindings.roots,
+                            Some(self.context),
+                        );
+                    if dynamic
+                        && (!source_work_value(
+                            self.ir,
+                            at,
+                            &bindings.values,
+                            &bindings.roots,
+                            self.loans,
+                            self.context,
+                            0,
+                        ) || at.ty != ResolvedType::Scalar(Scalar::Datetime)
+                            || !source_work_payload(
+                                self.ir,
+                                self.owner,
+                                event,
+                                payload,
+                                &bindings.values,
+                                &bindings.roots,
+                                self.loans,
+                                self.context,
+                            ))
+                    {
+                        continue;
+                    }
+                    let time=static_time.filter(|_|!dynamic).unwrap_or_else(||serde_json::json!({"expression":{"start":at.span.start,"end":at.span.end}}));
+                    let Some(mut site) =
+                        self.site(*span, parameter, template, &bindings.roots, owner_package)
+                    else {
+                        continue;
+                    };
+                    if let Some((id, item)) = &bindings.loop_root {
+                        if parameter != item {
+                            continue;
+                        }
+                        site["loop"] = serde_json::json!(id);
+                    }
+                    site["event"] = serde_json::json!(event);
+                    site["at"] = time;
+                    if let Some(created) = bindings.created.get(parameter) {
+                        site["created"] = created.clone();
+                    }
+                    self.output.insert(*span, site);
+                }
+                IrStmt::For {
+                    item,
+                    domain,
+                    body,
+                    span,
+                    ..
+                } => {
+                    let Some(entry) = self
+                        .loops
+                        .and_then(|source| source["loops"].as_array())
+                        .and_then(|entries| {
+                            entries.iter().find(|entry| {
+                                entry["node"]["start"] == span.start
+                                    && entry["node"]["end"] == span.end
+                                    && entry.get("work").is_some()
+                            })
+                        })
+                    else {
+                        continue;
+                    };
+                    let ResolvedType::Array { element, .. } = &domain.ty else {
+                        continue;
+                    };
+                    let ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    } = element.as_ref()
+                    else {
+                        continue;
+                    };
+                    if entry["item"] != *item
+                        || entry["model"] != self.ir.items[symbol.0 as usize].canonical
+                    {
+                        continue;
+                    }
+                    let mut nested = bindings.clone();
+                    nested.roots.insert(item.clone(), element.as_ref().clone());
+                    nested.values.remove(item);
+                    nested.created.remove(item);
+                    nested.loop_root = Some((
+                        entry["id"].as_str().expect("sealed loop id").into(),
+                        item.clone(),
+                    ));
+                    self.walk(body, nested);
+                }
+                IrStmt::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } => {
+                    self.walk(then_branch, bindings.clone());
+                    self.walk(else_branch, bindings.clone());
+                }
+                IrStmt::Match { arms, .. } => {
+                    for arm in arms {
+                        self.walk(&arm.body, bindings.clone());
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 }
 
-fn source_work_value(ir:&IrProgram,value:&TypedExpr,values:&BTreeSet<String>,roots:&BTreeMap<String,ResolvedType>,
-    loans:&HashMap<Span,serde_json::Value>,context:&super::source_context::FreshSourceContext<'_>,depth:usize)->bool{
-    if depth>32{return false;}
-    if send_value(ir,value,values,0)||loans.contains_key(&value.span)||source_work_now(value){return true;}
-    let child=|value:&TypedExpr|source_work_value(ir,value,values,roots,loans,context,depth+1);
-    match &value.expr{
-        IrExpr::Member{base,field}if matches!(field.as_str(),"id"|"version")=>
+fn source_work_value(
+    ir: &IrProgram,
+    value: &TypedExpr,
+    values: &BTreeSet<String>,
+    roots: &BTreeMap<String, ResolvedType>,
+    loans: &HashMap<Span, serde_json::Value>,
+    context: &super::source_context::FreshSourceContext<'_>,
+    depth: usize,
+) -> bool {
+    if depth > 32 {
+        return false;
+    }
+    if send_value(ir, value, values, 0) || loans.contains_key(&value.span) || source_work_now(value)
+    {
+        return true;
+    }
+    let child =
+        |value: &TypedExpr| source_work_value(ir, value, values, roots, loans, context, depth + 1);
+    match &value.expr {
+        IrExpr::Member { base, field } if matches!(field.as_str(), "id" | "version") => {
             matches!(&base.expr,IrExpr::Name(name)if roots.get(name)==Some(&base.ty))
-                &&value.ty==ResolvedType::Scalar(if field=="id"{Scalar::Text}else{Scalar::Int}),
-        IrExpr::Binary{left,right,..}=>child(left)&&child(right),IrExpr::Unary{operand,..}=>child(operand),
-        IrExpr::Call{target:IrCallTarget::Builtin{id,awaited:false},args}
-        |IrExpr::BoundCall{target:IrCallTarget::Builtin{id,awaited:false},args,..}=>
-            context.catalog().and_then(|catalog|catalog.effects(id))==Some(crate::analysis::catalog::Effects::Pure)&&args.iter().all(child),
-        _=>false,
+                && value.ty
+                    == ResolvedType::Scalar(if field == "id" {
+                        Scalar::Text
+                    } else {
+                        Scalar::Int
+                    })
+        }
+        IrExpr::Binary { left, right, .. } => child(left) && child(right),
+        IrExpr::Unary { operand, .. } => child(operand),
+        IrExpr::Call {
+            target: IrCallTarget::Builtin { id, awaited: false },
+            args,
+        }
+        | IrExpr::BoundCall {
+            target: IrCallTarget::Builtin { id, awaited: false },
+            args,
+            ..
+        } => {
+            context.catalog().and_then(|catalog| catalog.effects(id))
+                == Some(crate::analysis::catalog::Effects::Pure)
+                && args.iter().all(child)
+        }
+        _ => false,
     }
 }
-fn source_work_payload(ir:&IrProgram,owner:&IrItem,event:&str,payload:&TypedExpr,values:&BTreeSet<String>,roots:&BTreeMap<String,ResolvedType>,
-    loans:&HashMap<Span,serde_json::Value>,context:&super::source_context::FreshSourceContext<'_>)->bool{
-    if context.same_event_schema(event).is_none(){return false;}
-    let Some(IrItem{kind:IrItemKind::Event{fields},..})=ir.items.iter().find(|item|item.canonical==event&&item.module==owner.module)else{return false;};
-    let IrExpr::Object(entries)=&payload.expr else{return false;};
+fn source_work_payload(
+    ir: &IrProgram,
+    owner: &IrItem,
+    event: &str,
+    payload: &TypedExpr,
+    values: &BTreeSet<String>,
+    roots: &BTreeMap<String, ResolvedType>,
+    loans: &HashMap<Span, serde_json::Value>,
+    context: &super::source_context::FreshSourceContext<'_>,
+) -> bool {
+    if context.same_event_schema(event).is_none() {
+        return false;
+    }
+    let Some(IrItem {
+        kind: IrItemKind::Event { fields },
+        ..
+    }) = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == event && item.module == owner.module)
+    else {
+        return false;
+    };
+    let IrExpr::Object(entries) = &payload.expr else {
+        return false;
+    };
     fields.len()==entries.len()&&entries.len()<=200&&entries.iter().map(|(name,_)|name).collect::<HashSet<_>>().len()==entries.len()
         &&entries.iter().all(|(name,value)|fields.iter().filter_map(|id|ir.items.get(id.0 as usize)).any(|field|field.name==*name
             &&matches!(&field.kind,IrItemKind::Field{ty:IrType::Known(expected),..}if expected==&value.ty
@@ -578,119 +897,352 @@ fn source_work_payload(ir:&IrProgram,owner:&IrItem,event:&str,payload:&TypedExpr
                     ||source_work_value(ir,value,values,roots,loans,context,0)))))
 }
 
-fn source_work_now(value:&TypedExpr)->bool{
-        value.ty==ResolvedType::Scalar(Scalar::Datetime)&&matches!(&value.expr,IrExpr::Member{base,field}
+fn source_work_now(value: &TypedExpr) -> bool {
+    value.ty == ResolvedType::Scalar(Scalar::Datetime)
+        && matches!(&value.expr,IrExpr::Member{base,field}
             if field=="now"&&base.ty==ResolvedType::Unknown&&base.span==value.span&&matches!(&base.expr,IrExpr::Name(name)if name=="c"))
+}
+fn source_work_time(value: &TypedExpr) -> Option<serde_json::Value> {
+    if source_work_now(value) {
+        return Some(serde_json::json!("now"));
     }
-fn source_work_time(value:&TypedExpr)->Option<serde_json::Value>{
-        if source_work_now(value){return Some(serde_json::json!("now"));}
-        let IrExpr::Binary{op:IrBinOp::Add,left,right}=&value.expr else{return None;};
-        let IrExpr::DurationMs(offset)=&right.expr else{return None;};
-        if !source_work_now(left)||right.ty!=ResolvedType::Scalar(Scalar::Duration)||value.ty!=ResolvedType::Scalar(Scalar::Datetime)
-            ||i64::try_from(*offset).is_err(){return None;}
-        Some(serde_json::json!({"offset":offset.to_string()}))
+    let IrExpr::Binary {
+        op: IrBinOp::Add,
+        left,
+        right,
+    } = &value.expr
+    else {
+        return None;
+    };
+    let IrExpr::DurationMs(offset) = &right.expr else {
+        return None;
+    };
+    if !source_work_now(left)
+        || right.ty != ResolvedType::Scalar(Scalar::Duration)
+        || value.ty != ResolvedType::Scalar(Scalar::Datetime)
+        || i64::try_from(*offset).is_err()
+    {
+        return None;
     }
+    Some(serde_json::json!({"offset":offset.to_string()}))
+}
 
-fn source_only_work(ir:&IrProgram,owner:&IrItem,context:&super::source_context::FreshSourceContext<'_>,
-    requires:&HashMap<Span,serde_json::Value>,module:&str,kind:SourceWorkKind,loans:&HashMap<Span,serde_json::Value>,loops:Option<&serde_json::Value>)->Option<HashMap<Span,serde_json::Value>>{
-    let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
-    let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
-    fn contains_schedule(body:&[IrStmt])->bool{body.iter().any(|statement|match statement{
-        IrStmt::Schedule{..}=>true,IrStmt::If{then_branch,else_branch,..}=>contains_schedule(then_branch)||contains_schedule(else_branch),
-        IrStmt::Match{arms,..}=>arms.iter().any(|arm|contains_schedule(&arm.body)),IrStmt::For{body,..}=>contains_schedule(body),_=>false})}
+fn source_only_work(
+    ir: &IrProgram,
+    owner: &IrItem,
+    context: &super::source_context::FreshSourceContext<'_>,
+    requires: &HashMap<Span, serde_json::Value>,
+    module: &str,
+    kind: SourceWorkKind,
+    loans: &HashMap<Span, serde_json::Value>,
+    loops: Option<&serde_json::Value>,
+) -> Option<HashMap<Span, serde_json::Value>> {
+    let source = requires
+        .values()
+        .find(|source| source["owner"] == owner.canonical)?["source"]
+        .clone();
+    let IrItemKind::Scenario {
+        params,
+        effects,
+        hook: None,
+        read: false,
+        trusted: false,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    fn contains_schedule(body: &[IrStmt]) -> bool {
+        body.iter().any(|statement| match statement {
+            IrStmt::Schedule { .. } => true,
+            IrStmt::If {
+                then_branch,
+                else_branch,
+                ..
+            } => contains_schedule(then_branch) || contains_schedule(else_branch),
+            IrStmt::Match { arms, .. } => arms.iter().any(|arm| contains_schedule(&arm.body)),
+            IrStmt::For { body, .. } => contains_schedule(body),
+            _ => false,
+        })
+    }
     // Preserve SCHEDULE's no-site return: no created-row or fresh-owner proof
     // is requested when its original traversal contains no schedule.
-    if kind==SourceWorkKind::Schedule&&!contains_schedule(effects){return Some(HashMap::new());}
-    context.same_scenario(ir,owner)?;
-    let roots=params.iter().filter_map(|id|{let param=ir.items.get(id.0 as usize)?;
-        let IrItemKind::Param{ty:IrType::Known(ty@ResolvedType::Record{symbol,stored:true}),..}=&param.kind else{return None;};
-        matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..}).then(||(param.name.clone(),ty.clone()))}).collect();
-    let values=if kind==SourceWorkKind::Schedule{params.iter().filter_map(|id|{let item=ir.items.get(id.0 as usize)?;
-        matches!(&item.kind,IrItemKind::Param{ty:IrType::Known(ty),..}if plain_value(ir,ty,0)).then(||item.name.clone())}).collect()}else{BTreeSet::new()};
-    let creates=if kind==SourceWorkKind::Schedule{super::source_created_rows::collect(ir,owner,context,&source)?}else{Vec::new()};
-    let mut collector=SourceWorkCollector{ir,owner,context,source,module,kind,creates,loans,loops,output:HashMap::new()};
-    collector.walk(effects,SourceWorkBindings{roots,values,created:BTreeMap::new(),loop_root:None});Some(collector.output)
+    if kind == SourceWorkKind::Schedule && !contains_schedule(effects) {
+        return Some(HashMap::new());
+    }
+    context.same_scenario(ir, owner)?;
+    let roots = params
+        .iter()
+        .filter_map(|id| {
+            let param = ir.items.get(id.0 as usize)?;
+            let IrItemKind::Param {
+                ty:
+                    IrType::Known(
+                        ty @ ResolvedType::Record {
+                            symbol,
+                            stored: true,
+                        },
+                    ),
+                ..
+            } = &param.kind
+            else {
+                return None;
+            };
+            matches!(
+                ir.items.get(symbol.0 as usize)?.kind,
+                IrItemKind::Model { .. }
+            )
+            .then(|| (param.name.clone(), ty.clone()))
+        })
+        .collect();
+    let values = if kind == SourceWorkKind::Schedule {
+        params.iter().filter_map(|id|{let item=ir.items.get(id.0 as usize)?;
+        matches!(&item.kind,IrItemKind::Param{ty:IrType::Known(ty),..}if plain_value(ir,ty,0)).then(||item.name.clone())}).collect()
+    } else {
+        BTreeSet::new()
+    };
+    let creates = if kind == SourceWorkKind::Schedule {
+        super::source_created_rows::collect(ir, owner, context, &source)?
+    } else {
+        Vec::new()
+    };
+    let mut collector = SourceWorkCollector {
+        ir,
+        owner,
+        context,
+        source,
+        module,
+        kind,
+        creates,
+        loans,
+        loops,
+        output: HashMap::new(),
+    };
+    collector.walk(
+        effects,
+        SourceWorkBindings {
+            roots,
+            values,
+            created: BTreeMap::new(),
+            loop_root: None,
+        },
+    );
+    Some(collector.output)
 }
 // Independently inspect original public guards when optional observer
 // preparation is unavailable. A missing inventory cannot erase a model scan.
-fn source_require_missing_original_guard(ir:&IrProgram,owner:&IrItem,sources:&HashMap<Span,serde_json::Value>,context:Option<&super::source_context::FreshSourceContext<'_>>)->bool {
-    if source_require_missing_guard_tree(ir,owner,sources){return true;}
-    let Some(context)=context else{return false;};
-    let original=context.fresh().items.get(owner.id.0 as usize).filter(|original|
-        original.id==owner.id&&original.canonical==owner.canonical&&original.module==owner.module&&original.span==owner.span);
-    let Some(original)=original else{return matches!(owner.kind,IrItemKind::Scenario{read:false,trusted:false,hook:None,event_source:None,cohort:None,..});};
-    source_require_missing_guard_tree(context.fresh(),original,sources)
+fn source_require_missing_original_guard(
+    ir: &IrProgram,
+    owner: &IrItem,
+    sources: &HashMap<Span, serde_json::Value>,
+    context: Option<&super::source_context::FreshSourceContext<'_>>,
+) -> bool {
+    if source_require_missing_guard_tree(ir, owner, sources) {
+        return true;
+    }
+    let Some(context) = context else {
+        return false;
+    };
+    let original = context
+        .fresh()
+        .items
+        .get(owner.id.0 as usize)
+        .filter(|original| {
+            original.id == owner.id
+                && original.canonical == owner.canonical
+                && original.module == owner.module
+                && original.span == owner.span
+        });
+    let Some(original) = original else {
+        return matches!(
+            owner.kind,
+            IrItemKind::Scenario {
+                read: false,
+                trusted: false,
+                hook: None,
+                event_source: None,
+                cohort: None,
+                ..
+            }
+        );
+    };
+    source_require_missing_guard_tree(context.fresh(), original, sources)
 }
 
-fn source_require_missing_guard_tree(ir:&IrProgram,owner:&IrItem,sources:&HashMap<Span,serde_json::Value>)->bool {
-    let IrItemKind::Scenario{guards,effects,read:false,trusted:false,hook:None,event_source:None,cohort:None,..}=&owner.kind else{return false;};
-    fn domain(ir:&IrProgram,value:&TypedExpr,seen:&mut HashSet<SymbolId>,depth:usize)->bool {
-        if depth>=64{return true;}
-        let mut child=|value:&TypedExpr|domain(ir,value,seen,depth+1);
-        match &value.expr{
-            IrExpr::Query(query)=>matches!(query.domain,IrQueryDomain::Model(_))
-                ||matches!(&query.domain,IrQueryDomain::Value{base,..} if child(base))
-                ||query.parent.iter().chain(query.where_pred.iter()).chain(query.limit.iter()).chain(query.archived.iter()).chain(query.select.iter()).any(|value|child(value))
-                ||query.value_order.as_ref().is_some_and(|order|child(&order.key)),
-            IrExpr::Call{target,args}|IrExpr::BoundCall{target,args,..}=>{
-                if args.iter().any(child){return true;}
-                if let IrCallTarget::DeriveFn(name)=target
-                    &&let Some(helper)=ir.items.iter().find(|item|item.canonical==*name){
-                    if !seen.insert(helper.id){return true;}
-                    let result=matches!(&helper.kind,IrItemKind::DeriveFn{expr:Some(body),..}if domain(ir,body,seen,depth+1));
-                    seen.remove(&helper.id);return result;
-                }false
-            },
-            IrExpr::Member{base,field}=>{
-                if child(base){return true;}
-                let mut ty=&base.ty;while let ResolvedType::Nullable(inner)=ty{ty=inner;}
-                if let ResolvedType::Record{symbol,..}=ty
-                    &&let Some(helper)=ir.items.iter().find(|item|matches!(&item.kind,IrItemKind::DeriveField{model,..}if model==symbol)&&item.name==*field){
-                    if !seen.insert(helper.id){return true;}
-                    let result=matches!(&helper.kind,IrItemKind::DeriveField{expr:Some(body),..}if domain(ir,body,seen,depth+1));
-                    seen.remove(&helper.id);return result;
-                }false
-            },
-            IrExpr::Binary{left,right,..}=>child(left)||child(right),
-            IrExpr::Unary{operand,..}|IrExpr::Lambda{body:operand,..}=>child(operand),
-            IrExpr::Array(values)=>values.iter().any(child),
-            IrExpr::Object(fields)=>fields.iter().any(|(_,value)|child(value)),
-            IrExpr::HasRole{person,..}=>person.as_deref().is_some_and(child),
-            _=>false,
+fn source_require_missing_guard_tree(
+    ir: &IrProgram,
+    owner: &IrItem,
+    sources: &HashMap<Span, serde_json::Value>,
+) -> bool {
+    let IrItemKind::Scenario {
+        guards,
+        effects,
+        read: false,
+        trusted: false,
+        hook: None,
+        event_source: None,
+        cohort: None,
+        ..
+    } = &owner.kind
+    else {
+        return false;
+    };
+    fn domain(
+        ir: &IrProgram,
+        value: &TypedExpr,
+        seen: &mut HashSet<SymbolId>,
+        depth: usize,
+    ) -> bool {
+        if depth >= 64 {
+            return true;
+        }
+        let mut child = |value: &TypedExpr| domain(ir, value, seen, depth + 1);
+        match &value.expr {
+            IrExpr::Query(query) => {
+                matches!(query.domain, IrQueryDomain::Model(_))
+                    || matches!(&query.domain,IrQueryDomain::Value{base,..} if child(base))
+                    || query
+                        .parent
+                        .iter()
+                        .chain(query.where_pred.iter())
+                        .chain(query.limit.iter())
+                        .chain(query.archived.iter())
+                        .chain(query.select.iter())
+                        .any(|value| child(value))
+                    || query
+                        .value_order
+                        .as_ref()
+                        .is_some_and(|order| child(&order.key))
+            }
+            IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                if args.iter().any(child) {
+                    return true;
+                }
+                if let IrCallTarget::DeriveFn(name) = target
+                    && let Some(helper) = ir.items.iter().find(|item| item.canonical == *name)
+                {
+                    if !seen.insert(helper.id) {
+                        return true;
+                    }
+                    let result = matches!(&helper.kind,IrItemKind::DeriveFn{expr:Some(body),..}if domain(ir,body,seen,depth+1));
+                    seen.remove(&helper.id);
+                    return result;
+                }
+                false
+            }
+            IrExpr::Member { base, field } => {
+                if child(base) {
+                    return true;
+                }
+                let mut ty = &base.ty;
+                while let ResolvedType::Nullable(inner) = ty {
+                    ty = inner;
+                }
+                if let ResolvedType::Record { symbol, .. } = ty
+                    && let Some(helper) = ir.items.iter().find(|item| {
+                        matches!(&item.kind,IrItemKind::DeriveField{model,..}if model==symbol)
+                            && item.name == *field
+                    })
+                {
+                    if !seen.insert(helper.id) {
+                        return true;
+                    }
+                    let result = matches!(&helper.kind,IrItemKind::DeriveField{expr:Some(body),..}if domain(ir,body,seen,depth+1));
+                    seen.remove(&helper.id);
+                    return result;
+                }
+                false
+            }
+            IrExpr::Binary { left, right, .. } => child(left) || child(right),
+            IrExpr::Unary { operand, .. } | IrExpr::Lambda { body: operand, .. } => child(operand),
+            IrExpr::Array(values) => values.iter().any(child),
+            IrExpr::Object(fields) => fields.iter().any(|(_, value)| child(value)),
+            IrExpr::HasRole { person, .. } => person.as_deref().is_some_and(child),
+            _ => false,
         }
     }
-    let mut pending=guards.iter().chain(effects).collect::<Vec<_>>();
-    while let Some(statement)=pending.pop(){
-        let condition=match statement{IrStmt::Require{cond,..}|IrStmt::If{cond,..}=>Some(cond),_=>None};
-        if condition.is_some_and(|cond|sources.get(&cond.span).is_none_or(|source|source["owner"]!=owner.canonical)
-            &&domain(ir,cond,&mut HashSet::new(),0)){return true;}
-        match statement{
-            IrStmt::If{then_branch,else_branch,..}=>{pending.extend(then_branch);pending.extend(else_branch);},
-            IrStmt::For{body,..}=>pending.extend(body),
-            IrStmt::Match{arms,..}=>for arm in arms{pending.extend(&arm.body);},_=>{},
+    let mut pending = guards.iter().chain(effects).collect::<Vec<_>>();
+    while let Some(statement) = pending.pop() {
+        let condition = match statement {
+            IrStmt::Require { cond, .. } | IrStmt::If { cond, .. } => Some(cond),
+            _ => None,
+        };
+        if condition.is_some_and(|cond| {
+            sources
+                .get(&cond.span)
+                .is_none_or(|source| source["owner"] != owner.canonical)
+                && domain(ir, cond, &mut HashSet::new(), 0)
+        }) {
+            return true;
         }
-    }false
+        match statement {
+            IrStmt::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                pending.extend(then_branch);
+                pending.extend(else_branch);
+            }
+            IrStmt::For { body, .. } => pending.extend(body),
+            IrStmt::Match { arms, .. } => {
+                for arm in arms {
+                    pending.extend(&arm.body);
+                }
+            }
+            _ => {}
+        }
+    }
+    false
 }
 
-fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&HashMap<Span,serde_json::Value>,data_sends:&HashMap<Span,serde_json::Value>,let_data:&HashMap<Span,serde_json::Value>,cancels:&HashMap<Span,serde_json::Value>,schedules:&HashMap<Span,serde_json::Value>,data_emits:&HashMap<Span,serde_json::Value>,loops:&HashMap<String,serde_json::Value>,context:Option<&super::source_context::FreshSourceContext<'_>>) -> bool {
+fn source_require_only_body_supported(
+    ir: &IrProgram,
+    owner: &IrItem,
+    sources: &HashMap<Span, serde_json::Value>,
+    data_sends: &HashMap<Span, serde_json::Value>,
+    let_data: &HashMap<Span, serde_json::Value>,
+    cancels: &HashMap<Span, serde_json::Value>,
+    schedules: &HashMap<Span, serde_json::Value>,
+    data_emits: &HashMap<Span, serde_json::Value>,
+    loops: &HashMap<String, serde_json::Value>,
+    context: Option<&super::source_context::FreshSourceContext<'_>>,
+) -> bool {
     fn expression(ir: &IrProgram, value: &TypedExpr, depth: usize) -> bool {
-        if depth > 64 { return false; }
+        if depth > 64 {
+            return false;
+        }
         let child = |value: &TypedExpr| expression(ir, value, depth + 1);
         match &value.expr {
-            IrExpr::Int(_) | IrExpr::Decimal(_) | IrExpr::Text(_) | IrExpr::Bool(_)
-            | IrExpr::Null | IrExpr::Money { .. } | IrExpr::DurationMs(_)
-            | IrExpr::Date(_) | IrExpr::Datetime(_) | IrExpr::Name(_) => true,
+            IrExpr::Int(_)
+            | IrExpr::Decimal(_)
+            | IrExpr::Text(_)
+            | IrExpr::Bool(_)
+            | IrExpr::Null
+            | IrExpr::Money { .. }
+            | IrExpr::DurationMs(_)
+            | IrExpr::Date(_)
+            | IrExpr::Datetime(_)
+            | IrExpr::Name(_) => true,
             IrExpr::Member { base, field } => {
                 let mut ty = &base.ty;
-                while let ResolvedType::Nullable(inner) = ty { ty = inner; }
+                while let ResolvedType::Nullable(inner) = ty {
+                    ty = inner;
+                }
                 let derived = matches!(ty, ResolvedType::Record { symbol, .. } if
                     ir.items.iter().any(|item| matches!(&item.kind, IrItemKind::DeriveField { model, .. }
                         if model == symbol && item.canonical.rsplit('.').next() == Some(field.as_str()))));
                 !derived && child(base)
             }
-            IrExpr::Call { target: IrCallTarget::Builtin { awaited: false, .. }, args }
-            | IrExpr::BoundCall { target: IrCallTarget::Builtin { awaited: false, .. }, args, .. }
-                => args.iter().all(child),
+            IrExpr::Call {
+                target: IrCallTarget::Builtin { awaited: false, .. },
+                args,
+            }
+            | IrExpr::BoundCall {
+                target: IrCallTarget::Builtin { awaited: false, .. },
+                args,
+                ..
+            } => args.iter().all(child),
             IrExpr::Binary { left, right, .. } => child(left) && child(right),
             IrExpr::Unary { operand, .. } => child(operand),
             IrExpr::Array(values) => values.iter().all(child),
@@ -699,42 +1251,116 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
             _ => false,
         }
     }
-    fn constructor_reference(ir:&IrProgram,value:&TypedExpr,records:&BTreeMap<String,ResolvedType>,depth:usize)->bool{
-        if depth>=16{return false;}
-        let ResolvedType::Record{symbol:target,stored:true}=&value.ty else{return false;};
-        match &value.expr{
-            IrExpr::Name(name)=>records.get(name)==Some(&value.ty),
-            IrExpr::Member{base,field}=>{
-                let ResolvedType::Record{symbol:owner,stored:true}=&base.ty else{return false;};
-                constructor_reference(ir,base,records,depth+1)&&if field=="parent"{
-                    matches!(ir.items.get(owner.0 as usize).map(|item|&item.kind),Some(IrItemKind::Model{owner:IrOwner::ChildOf(parent),..})if parent==target)
-                }else{false}
-            },_=>false,
+    fn constructor_reference(
+        ir: &IrProgram,
+        value: &TypedExpr,
+        records: &BTreeMap<String, ResolvedType>,
+        depth: usize,
+    ) -> bool {
+        if depth >= 16 {
+            return false;
+        }
+        let ResolvedType::Record {
+            symbol: target,
+            stored: true,
+        } = &value.ty
+        else {
+            return false;
+        };
+        match &value.expr {
+            IrExpr::Name(name) => records.get(name) == Some(&value.ty),
+            IrExpr::Member { base, field } => {
+                let ResolvedType::Record {
+                    symbol: owner,
+                    stored: true,
+                } = &base.ty
+                else {
+                    return false;
+                };
+                constructor_reference(ir, base, records, depth + 1)
+                    && if field == "parent" {
+                        matches!(ir.items.get(owner.0 as usize).map(|item|&item.kind),Some(IrItemKind::Model{owner:IrOwner::ChildOf(parent),..})if parent==target)
+                    } else {
+                        false
+                    }
+            }
+            _ => false,
         }
     }
-    fn constructor_data(ir:&IrProgram,value:&TypedExpr,loans:&HashMap<Span,serde_json::Value>,values:&BTreeSet<String>,records:&BTreeMap<String,ResolvedType>,depth:usize)->bool{
-        if depth>64{return false;}
-        if send_value(ir,value,values,0){return true;}
-        let child=|value:&TypedExpr|constructor_data(ir,value,loans,values,records,depth+1);
-        match &value.expr{
-            IrExpr::Name(name)=>values.contains(name)||records.get(name)==Some(&value.ty)
-                ||matches!(value.ty.nullable_inner().unwrap_or(&value.ty),ResolvedType::Record{stored:true,..}|ResolvedType::StdDelivery{..}|ResolvedType::Delivery{..})
-                ||matches!(&value.ty,ResolvedType::Enum{cases,..}if cases.contains(name))
-                ||name=="c"&&value.ty==ResolvedType::Unknown,
-            IrExpr::Member{base,field}if matches!(base.ty.nullable_inner().unwrap_or(&base.ty),ResolvedType::Record{stored:true,..})=>loans.contains_key(&value.span)
-                ||matches!(field.as_str(),"id"|"version")&&constructor_reference(ir,base,records,0)
-                    &&value.ty==ResolvedType::Scalar(if field=="id"{Scalar::Text}else{Scalar::Int}),
-            IrExpr::Member{base,..}=>child(base),
-            IrExpr::Object(fields)=>fields.iter().all(|(_,value)|child(value)),
-            IrExpr::Array(values)|IrExpr::Call{args:values,..}|IrExpr::BoundCall{args:values,..}=>values.iter().all(child),
-            IrExpr::Binary{left,right,..}=>child(left)&&child(right),
-            IrExpr::Unary{operand,..}=>child(operand),
-            _=>true,
+    fn constructor_data(
+        ir: &IrProgram,
+        value: &TypedExpr,
+        loans: &HashMap<Span, serde_json::Value>,
+        values: &BTreeSet<String>,
+        records: &BTreeMap<String, ResolvedType>,
+        depth: usize,
+    ) -> bool {
+        if depth > 64 {
+            return false;
+        }
+        if send_value(ir, value, values, 0) {
+            return true;
+        }
+        let child =
+            |value: &TypedExpr| constructor_data(ir, value, loans, values, records, depth + 1);
+        match &value.expr {
+            IrExpr::Name(name) => {
+                values.contains(name)
+                    || records.get(name) == Some(&value.ty)
+                    || matches!(
+                        value.ty.nullable_inner().unwrap_or(&value.ty),
+                        ResolvedType::Record { stored: true, .. }
+                            | ResolvedType::StdDelivery { .. }
+                            | ResolvedType::Delivery { .. }
+                    )
+                    || matches!(&value.ty,ResolvedType::Enum{cases,..}if cases.contains(name))
+                    || name == "c" && value.ty == ResolvedType::Unknown
+            }
+            IrExpr::Member { base, field }
+                if matches!(
+                    base.ty.nullable_inner().unwrap_or(&base.ty),
+                    ResolvedType::Record { stored: true, .. }
+                ) =>
+            {
+                loans.contains_key(&value.span)
+                    || matches!(field.as_str(), "id" | "version")
+                        && constructor_reference(ir, base, records, 0)
+                        && value.ty
+                            == ResolvedType::Scalar(if field == "id" {
+                                Scalar::Text
+                            } else {
+                                Scalar::Int
+                            })
+            }
+            IrExpr::Member { base, .. } => child(base),
+            IrExpr::Object(fields) => fields.iter().all(|(_, value)| child(value)),
+            IrExpr::Array(values)
+            | IrExpr::Call { args: values, .. }
+            | IrExpr::BoundCall { args: values, .. } => values.iter().all(child),
+            IrExpr::Binary { left, right, .. } => child(left) && child(right),
+            IrExpr::Unary { operand, .. } => child(operand),
+            _ => true,
         }
     }
-    fn statements(ir: &IrProgram,owner:&IrItem, body: &[IrStmt], depth: usize,
-        values:&mut BTreeSet<String>,records:&mut BTreeMap<String,ResolvedType>,consumed:&HashSet<Span>,data_sends:&HashMap<Span,serde_json::Value>,let_data:&HashMap<Span,serde_json::Value>,cancels:&HashMap<Span,serde_json::Value>,schedules:&HashMap<Span,serde_json::Value>,data_emits:&HashMap<Span,serde_json::Value>,loops:&HashMap<String,serde_json::Value>,context:Option<&super::source_context::FreshSourceContext<'_>>) -> bool {
-        if depth > 64 { return false; }
+    fn statements(
+        ir: &IrProgram,
+        owner: &IrItem,
+        body: &[IrStmt],
+        depth: usize,
+        values: &mut BTreeSet<String>,
+        records: &mut BTreeMap<String, ResolvedType>,
+        consumed: &HashSet<Span>,
+        data_sends: &HashMap<Span, serde_json::Value>,
+        let_data: &HashMap<Span, serde_json::Value>,
+        cancels: &HashMap<Span, serde_json::Value>,
+        schedules: &HashMap<Span, serde_json::Value>,
+        data_emits: &HashMap<Span, serde_json::Value>,
+        loops: &HashMap<String, serde_json::Value>,
+        context: Option<&super::source_context::FreshSourceContext<'_>>,
+    ) -> bool {
+        if depth > 64 {
+            return false;
+        }
         body.iter().all(|statement| match statement {
             IrStmt::For{span,body,..}=>loops.get(&owner.canonical).and_then(|source|source["loops"].as_array()).is_some_and(|entries|
                 entries.iter().any(|entry|entry["node"]["start"]==span.start&&entry["node"]["end"]==span.end))
@@ -766,28 +1392,108 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
             _ => false,
         })
     }
-    let IrItemKind::Scenario{params,guards,effects,hook:None,..}=&owner.kind else{return false;};
-    let mut values=params.iter().filter_map(|id|{
-        let param=ir.items.get(id.0 as usize)?;
-        let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};
-        plain_value(ir,ty,0).then(||param.name.clone())
-    }).collect();
-    let consumed=sources.iter().filter_map(|(span,source)|
-        (source["owner"]==owner.canonical && source["node"]["start"]==span.start && source["node"]["end"]==span.end).then_some(*span)).collect();
-    let mut records=params.iter().filter_map(|id|{
-        let param=ir.items.get(id.0 as usize)?;
-        let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};
-        let model=match ty{
-            ResolvedType::Record{symbol,stored:true}=>Some(symbol),
-            ResolvedType::Array{element,ordered:true,nonempty:false}=>match element.as_ref(){
-                ResolvedType::Record{symbol,stored:true}=>Some(symbol),_=>None},
-            _=>None,
-        };
-        model.is_some_and(|symbol|ir.items.get(symbol.0 as usize).is_some_and(|item|matches!(item.kind,IrItemKind::Model{..})))
-            .then(||(param.name.clone(),ty.clone()))
-    }).collect();
-    statements(ir,owner,guards,0,&mut values,&mut records,&consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context)
-        && statements(ir,owner,effects,0,&mut values,&mut records,&consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context)
+    let IrItemKind::Scenario {
+        params,
+        guards,
+        effects,
+        hook: None,
+        ..
+    } = &owner.kind
+    else {
+        return false;
+    };
+    let mut values = params
+        .iter()
+        .filter_map(|id| {
+            let param = ir.items.get(id.0 as usize)?;
+            let IrItemKind::Param {
+                ty: IrType::Known(ty),
+                ..
+            } = &param.kind
+            else {
+                return None;
+            };
+            plain_value(ir, ty, 0).then(|| param.name.clone())
+        })
+        .collect();
+    let consumed = sources
+        .iter()
+        .filter_map(|(span, source)| {
+            (source["owner"] == owner.canonical
+                && source["node"]["start"] == span.start
+                && source["node"]["end"] == span.end)
+                .then_some(*span)
+        })
+        .collect();
+    let mut records = params
+        .iter()
+        .filter_map(|id| {
+            let param = ir.items.get(id.0 as usize)?;
+            let IrItemKind::Param {
+                ty: IrType::Known(ty),
+                ..
+            } = &param.kind
+            else {
+                return None;
+            };
+            let model = match ty {
+                ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                } => Some(symbol),
+                ResolvedType::Array {
+                    element,
+                    ordered: true,
+                    nonempty: false,
+                } => match element.as_ref() {
+                    ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    } => Some(symbol),
+                    _ => None,
+                },
+                _ => None,
+            };
+            model
+                .is_some_and(|symbol| {
+                    ir.items
+                        .get(symbol.0 as usize)
+                        .is_some_and(|item| matches!(item.kind, IrItemKind::Model { .. }))
+                })
+                .then(|| (param.name.clone(), ty.clone()))
+        })
+        .collect();
+    statements(
+        ir,
+        owner,
+        guards,
+        0,
+        &mut values,
+        &mut records,
+        &consumed,
+        data_sends,
+        let_data,
+        cancels,
+        schedules,
+        data_emits,
+        loops,
+        context,
+    ) && statements(
+        ir,
+        owner,
+        effects,
+        0,
+        &mut values,
+        &mut records,
+        &consumed,
+        data_sends,
+        let_data,
+        cancels,
+        schedules,
+        data_emits,
+        loops,
+        context,
+    )
 }
 
 pub(super) fn emit_program_with_feasible_query_sources(
@@ -916,13 +1622,10 @@ impl ThenBuildJoin {
                 modules
             };
             for tree in modules {
-                let found = discover_generation(&tree, &source.text);
-                let lowering = super::then_views::lower_then_views(&tree, &source.text);
-                let edges = super::then_views::walk_generation_uses(
-                    &tree,
-                    &source.text,
-                    &found.descriptors,
-                );
+                let found = discover_generation(tree, &source.text);
+                let lowering = super::then_views::lower_then_views(tree, &source.text);
+                let edges =
+                    super::then_views::walk_generation_uses(tree, &source.text, &found.descriptors);
                 let mut view_spans = Vec::new();
                 let mut show_refs = Vec::new();
                 let mut style_hosts = Vec::new();
@@ -1023,9 +1726,7 @@ impl ThenBuildJoin {
     fn capture_standalone_snapshot(
         db: &crate::source::SourceDb,
         files: &[FileThen],
-    ) -> Option<
-        Result<crate::analysis::generation_store::FrozenGeneration, String>,
-    > {
+    ) -> Option<Result<crate::analysis::generation_store::FrozenGeneration, String>> {
         // Library callers get the same snapshot boundary as the CLI. Their
         // already checked source text must agree with the captured filesystem.
         if db.generation.is_none()
@@ -1094,9 +1795,7 @@ impl ThenBuildJoin {
     fn resolve_saved_unit(
         join: &mut ThenBuildJoin,
         snapshot: Option<&crate::analysis::generation_store::FrozenGeneration>,
-        standalone: &Option<
-            Result<crate::analysis::generation_store::FrozenGeneration, String>,
-        >,
+        standalone: &Option<Result<crate::analysis::generation_store::FrozenGeneration, String>>,
         db: &crate::source::SourceDb,
         key: &crate::analysis::generation_intake::AssociationKey,
         span: Span,
@@ -1187,17 +1886,22 @@ impl ThenBuildJoin {
                     label: Some(name.to_string()),
                     anchor: format!("{}:style:{name}:", edge.owner),
                 };
-                if let Some((style_id, style_group)) =
-                    Self::resolve_saved_unit(join, snapshot, &standalone, db, &style_key, edge.use_span, &what)
-                    && Self::claim_staged_unit(
-                        join,
-                        staged_keys,
-                        &style_key,
-                        &style_id,
-                        edge.use_span,
-                        &what,
-                    )
-                {
+                if let Some((style_id, style_group)) = Self::resolve_saved_unit(
+                    join,
+                    snapshot,
+                    standalone,
+                    db,
+                    &style_key,
+                    edge.use_span,
+                    what,
+                ) && Self::claim_staged_unit(
+                    join,
+                    staged_keys,
+                    &style_key,
+                    &style_id,
+                    edge.use_span,
+                    what,
+                ) {
                     join.styles.insert(style_id.clone(), style_group);
                     root_style = Some(style_id);
                 }
@@ -1211,17 +1915,22 @@ impl ThenBuildJoin {
                         edge.owner, view.name, view.name
                     ),
                 };
-                if let Some((style_id, style_group)) =
-                    Self::resolve_saved_unit(join, snapshot, &standalone, db, &style_key, edge.use_span, &what)
-                    && Self::claim_staged_unit(
-                        join,
-                        staged_keys,
-                        &style_key,
-                        &style_id,
-                        edge.use_span,
-                        &what,
-                    )
-                {
+                if let Some((style_id, style_group)) = Self::resolve_saved_unit(
+                    join,
+                    snapshot,
+                    standalone,
+                    db,
+                    &style_key,
+                    edge.use_span,
+                    what,
+                ) && Self::claim_staged_unit(
+                    join,
+                    staged_keys,
+                    &style_key,
+                    &style_id,
+                    edge.use_span,
+                    what,
+                ) {
                     join.styles.insert(style_id.clone(), style_group);
                     root_style = Some(style_id);
                 }
@@ -1234,7 +1943,8 @@ impl ThenBuildJoin {
                 .filter(|d| {
                     matches!(
                         d.kind,
-                        crate::analysis::generation::GenerationKind::StyleNamedUse | crate::analysis::generation::GenerationKind::StyleInline
+                        crate::analysis::generation::GenerationKind::StyleNamedUse
+                            | crate::analysis::generation::GenerationKind::StyleInline
                     ) && d.span.file == edge.use_span.file
                         && d.span.start >= edge.use_span.start
                         && d.span.end <= edge.use_span.end
@@ -1247,15 +1957,22 @@ impl ThenBuildJoin {
                         label: d.label.clone(),
                         anchor: d.anchor.clone(),
                     };
-                    let (style_id, style_group) =
-                        Self::resolve_saved_unit(join, snapshot, &standalone, db, &style_key, edge.use_span, &what)?;
+                    let (style_id, style_group) = Self::resolve_saved_unit(
+                        join,
+                        snapshot,
+                        standalone,
+                        db,
+                        &style_key,
+                        edge.use_span,
+                        what,
+                    )?;
                     if !Self::claim_staged_unit(
                         join,
                         staged_keys,
                         &style_key,
                         &style_id,
                         edge.use_span,
-                        &what,
+                        what,
                     ) {
                         return None;
                     }
@@ -1277,7 +1994,7 @@ impl ThenBuildJoin {
         edge: &super::then_views::UseEdge,
     ) -> Option<()> {
         if edge.definition_kind != crate::analysis::generation::GenerationKind::ViewDefinition
-            || Self::inside_unconsumed_view(&consumed_views, file, &edge.use_span)
+            || Self::inside_unconsumed_view(consumed_views, file, &edge.use_span)
         {
             return None;
         }
@@ -1301,10 +2018,8 @@ impl ThenBuildJoin {
             label: Some(edge.definition_label.clone()),
             anchor: edge.definition_anchor.clone(),
         };
-        let Some((unit_id, group)) = Self::resolve_saved_unit(join, snapshot, &standalone, db, &key, edge.use_span, &what)
-        else {
-            return None;
-        };
+        let (unit_id, group) =
+            Self::resolve_saved_unit(join, snapshot, standalone, db, &key, edge.use_span, &what)?;
         // Adopted legacy views carry the handwritten renderer as
         // `server.js` instead of the v1 `implementation.js` module
         // name; either module satisfies the renderer requirement.
@@ -1313,7 +2028,8 @@ impl ThenBuildJoin {
             .iter()
             .find(|f| f.rel_path == "implementation.js")
             .is_some_and(|f| String::from_utf8(f.bytes.clone()).is_ok())
-            || (group.record.provenance.origin == crate::analysis::generation_intake::ProvenanceOrigin::Adopted
+            || (group.record.provenance.origin
+                == crate::analysis::generation_intake::ProvenanceOrigin::Adopted
                 && group
                     .files
                     .iter()
@@ -1328,21 +2044,14 @@ impl ThenBuildJoin {
             ));
             return None;
         }
-        if !Self::claim_staged_unit(
-            join,
-            staged_keys,
-            &key,
-            &unit_id,
-            edge.use_span,
-            &what,
-        ) {
+        if !Self::claim_staged_unit(join, staged_keys, &key, &unit_id, edge.use_span, &what) {
             return None;
         }
         let mut root_style = Self::resolve_view_root_style(
             join,
             staged_keys,
             snapshot,
-            &standalone,
+            standalone,
             db,
             file,
             edge,
@@ -1381,7 +2090,7 @@ impl ThenBuildJoin {
         db: &crate::source::SourceDb,
         consumed_views: &std::collections::HashSet<(String, String)>,
         files: &[FileThen],
-        file: &FileThen,
+        _file: &FileThen,
         descriptor: &crate::analysis::generation::GenerationDescriptor,
     ) -> Option<()> {
         if descriptor.kind != crate::analysis::generation::GenerationKind::StyleDefinition {
@@ -1389,9 +2098,11 @@ impl ThenBuildJoin {
         }
         let used = files.iter().any(|other| {
             other.edges.iter().any(|edge| {
-                matches!(edge.definition_kind, crate::analysis::generation::GenerationKind::StyleDefinition)
-                    && edge.definition_anchor == descriptor.anchor
-                    && !Self::inside_unconsumed_view(&consumed_views, other, &edge.use_span)
+                matches!(
+                    edge.definition_kind,
+                    crate::analysis::generation::GenerationKind::StyleDefinition
+                ) && edge.definition_anchor == descriptor.anchor
+                    && !Self::inside_unconsumed_view(consumed_views, other, &edge.use_span)
             })
         });
         if !used {
@@ -1407,18 +2118,9 @@ impl ThenBuildJoin {
             label: descriptor.label.clone(),
             anchor: descriptor.anchor.clone(),
         };
-        let Some((unit_id, group)) = Self::resolve_saved_unit(join, snapshot, &standalone, db, &key, descriptor.span, &what)
-        else {
-            return None;
-        };
-        if !Self::claim_staged_unit(
-            join,
-            staged_keys,
-            &key,
-            &unit_id,
-            descriptor.span,
-            &what,
-        ) {
+        let (unit_id, group) =
+            Self::resolve_saved_unit(join, snapshot, standalone, db, &key, descriptor.span, &what)?;
+        if !Self::claim_staged_unit(join, staged_keys, &key, &unit_id, descriptor.span, &what) {
             return None;
         }
         join.styles.insert(unit_id, group);
@@ -1432,12 +2134,14 @@ impl ThenBuildJoin {
         standalone: &Option<Result<crate::analysis::generation_store::FrozenGeneration, String>>,
         db: &crate::source::SourceDb,
         consumed_views: &std::collections::HashSet<(String, String)>,
-        files: &[FileThen],
+        _files: &[FileThen],
         file: &FileThen,
         descriptor: &crate::analysis::generation::GenerationDescriptor,
     ) -> Option<()> {
         let consumed = match descriptor.kind {
-            crate::analysis::generation::GenerationKind::StyleInline => !Self::inside_unconsumed_view(&consumed_views, file, &descriptor.span),
+            crate::analysis::generation::GenerationKind::StyleInline => {
+                !Self::inside_unconsumed_view(consumed_views, file, &descriptor.span)
+            }
             crate::analysis::generation::GenerationKind::ViewRootStyleInline => {
                 let view = descriptor.label.as_deref().unwrap_or_default();
                 consumed_views.contains(&(descriptor.owner.clone(), view.to_string()))
@@ -1454,27 +2158,16 @@ impl ThenBuildJoin {
             ),
             _ => "inline style".to_string(),
         };
-        let Some(kind) = crate::analysis::generation_intake::UnitKind::of_descriptor(descriptor.kind) else {
-            return None;
-        };
+        let kind = crate::analysis::generation_intake::UnitKind::of_descriptor(descriptor.kind)?;
         let key = crate::analysis::generation_intake::AssociationKey {
             owner: descriptor.owner.clone(),
             kind,
             label: descriptor.label.clone(),
             anchor: descriptor.anchor.clone(),
         };
-        let Some((unit_id, group)) = Self::resolve_saved_unit(join, snapshot, &standalone, db, &key, descriptor.span, &what)
-        else {
-            return None;
-        };
-        if !Self::claim_staged_unit(
-            join,
-            staged_keys,
-            &key,
-            &unit_id,
-            descriptor.span,
-            &what,
-        ) {
+        let (unit_id, group) =
+            Self::resolve_saved_unit(join, snapshot, standalone, db, &key, descriptor.span, &what)?;
+        if !Self::claim_staged_unit(join, staged_keys, &key, &unit_id, descriptor.span, &what) {
             return None;
         }
         join.styles.insert(unit_id, group);
@@ -1484,20 +2177,17 @@ impl ThenBuildJoin {
     fn bind_style_hosts(
         join: &mut ThenBuildJoin,
         consumed_views: &std::collections::HashSet<(String, String)>,
-        files: &[FileThen],
+        _files: &[FileThen],
         snapshot: Option<&crate::analysis::generation_store::FrozenGeneration>,
         db: &crate::source::SourceDb,
         file: &FileThen,
         suffix_span: &crate::source::Span,
         host_span: &crate::source::Span,
     ) -> Option<()> {
-        if Self::inside_unconsumed_view(&consumed_views, file, suffix_span) {
+        if Self::inside_unconsumed_view(consumed_views, file, suffix_span) {
             return None;
         }
-        let Some(descriptor) = file.descriptors.iter().find(|d| d.span == *suffix_span)
-        else {
-            return None;
-        };
+        let descriptor = file.descriptors.iter().find(|d| d.span == *suffix_span)?;
         let (kind, label, anchor) = match descriptor.kind {
             crate::analysis::generation::GenerationKind::StyleNamedUse => {
                 let name = descriptor.label.clone().unwrap_or_default();
@@ -1521,23 +2211,20 @@ impl ThenBuildJoin {
             anchor,
         };
         if let Some(snapshot) = snapshot {
-            if let Ok(Some((id, _))) = snapshot.resolve(db, &key, descriptor.span) {
-                if join.styles.contains_key(&id) {
-                    join.style_hosts.insert(*host_span, id);
-                }
+            if let Ok(Some((id, _))) = snapshot.resolve(db, &key, descriptor.span)
+                && join.styles.contains_key(&id)
+            {
+                join.style_hosts.insert(*host_span, id);
             }
-        } else if let Some((id, _)) = join
-            .styles
-            .iter()
-            .find(|(_, group)| crate::analysis::generation_intake::AssociationKey::of(&group.record.source) == key)
-        {
+        } else if let Some((id, _)) = join.styles.iter().find(|(_, group)| {
+            crate::analysis::generation_intake::AssociationKey::of(&group.record.source) == key
+        }) {
             join.style_hosts.insert(*host_span, id.clone());
         }
         Some(())
     }
 
     pub(crate) fn resolve(db: &crate::source::SourceDb) -> Self {
-        use crate::analysis::generation::{GenerationKind, discover_generation};
         use crate::analysis::generation_intake as intake;
         let files = Self::collect_then_files(db);
         // A view is consumed when some `show` names it (prompted views
@@ -1573,21 +2260,50 @@ impl ThenBuildJoin {
         // at least one emitted named use.
         for file in &files {
             for descriptor in &file.descriptors {
-                let _ = Self::pack_style_definitions(&mut join, &mut staged_keys, snapshot, &standalone, db, &consumed_views, &files, file, descriptor);
+                let _ = Self::pack_style_definitions(
+                    &mut join,
+                    &mut staged_keys,
+                    snapshot,
+                    &standalone,
+                    db,
+                    &consumed_views,
+                    &files,
+                    file,
+                    descriptor,
+                );
             }
         }
         // Inline attachments consume their own unit wherever their host
         // emits; definition-owned inline root styles follow their view.
         for file in &files {
             for descriptor in &file.descriptors {
-                let _ = Self::pack_inline_styles(&mut join, &mut staged_keys, snapshot, &standalone, db, &consumed_views, &files, file, descriptor);
+                let _ = Self::pack_inline_styles(
+                    &mut join,
+                    &mut staged_keys,
+                    snapshot,
+                    &standalone,
+                    db,
+                    &consumed_views,
+                    &files,
+                    file,
+                    descriptor,
+                );
             }
         }
         // Bind ordinary style attachments to their exact owning CST host.
         // Existing saved intake above is the only source of style unit IDs.
         for file in &files {
             for (suffix_span, host_span) in &file.style_hosts {
-                let _ = Self::bind_style_hosts(&mut join, &consumed_views, &files, snapshot, db, file, suffix_span, host_span);
+                let _ = Self::bind_style_hosts(
+                    &mut join,
+                    &consumed_views,
+                    &files,
+                    snapshot,
+                    db,
+                    file,
+                    suffix_span,
+                    host_span,
+                );
             }
         }
         join
@@ -1618,7 +2334,10 @@ fn emit_program_with_sources(
         // Multi-source closures need per-declaration provenance: the module
         // source map cannot resolve one exact declaring file for them.
         if db.len() > 1 {
-            emitter.source_paths = db.iter().map(|(id, source)| (id, source.path.clone())).collect();
+            emitter.source_paths = db
+                .iter()
+                .map(|(id, source)| (id, source.path.clone()))
+                .collect();
         }
     }
     for original in ir.committed_sources.mailbox_event_handlers() {
@@ -1649,18 +2368,32 @@ fn emit_program_with_sources(
             );
         }
     }
-    if ir.standard_completion_sources.is_private_terminal_candidate() {
+    if ir
+        .standard_completion_sources
+        .is_private_terminal_candidate()
+    {
         let ready = !ir.standard_completion_sources.handlers.is_empty()
-            && ir.standard_completion_sources.handlers.iter().all(|original| {
-                let index = original.id.0 as usize;
-                ir.items.get(index).is_some_and(|handler| decisions.standard_terminal_events
-                    .is_some_and(|prepared| prepared.matches(ir, index, handler)))
-            });
+            && ir
+                .standard_completion_sources
+                .handlers
+                .iter()
+                .all(|original| {
+                    let index = original.id.0 as usize;
+                    ir.items.get(index).is_some_and(|handler| {
+                        decisions
+                            .standard_terminal_events
+                            .is_some_and(|prepared| prepared.matches(ir, index, handler))
+                    })
+                });
         emitter.private_terminal_ready = ready;
         if !ready {
-            let span = ir.standard_completion_sources.handlers.first().map(|handler|handler.span)
-                .or_else(||ir.items.first().map(|item|item.span))
-                .unwrap_or(Span::new(crate::source::SourceId(0),0,0));
+            let span = ir
+                .standard_completion_sources
+                .handlers
+                .first()
+                .map(|handler| handler.span)
+                .or_else(|| ir.items.first().map(|item| item.span))
+                .unwrap_or(Span::new(crate::source::SourceId(0), 0, 0));
             emitter.unsupported("standard terminal source",
                 "candidate needs its complete original source and independently prepared handler closure",span);
         }
@@ -1717,7 +2450,10 @@ fn emit_program_with_sources(
     emitter.private_derives = decisions.private_derives.cloned().unwrap_or_default();
     if emitter.private_terminal_ready {
         for (index, item) in ir.items.iter().enumerate() {
-            if decisions.standard_terminal_events.is_some_and(|prepared|prepared.matches(ir,index,item)) {
+            if decisions
+                .standard_terminal_events
+                .is_some_and(|prepared| prepared.matches(ir, index, item))
+            {
                 emitter.owner_handlers.insert(item.id);
             }
         }
@@ -1742,8 +2478,11 @@ fn emit_program_with_sources(
             .unwrap_or_default();
     }
     if native_receipts {
-        emitter.source_requires = decisions.read_predicates
-            .and_then(|source| source.source_requires(ir)).cloned().unwrap_or_default();
+        emitter.source_requires = decisions
+            .read_predicates
+            .and_then(|source| source.source_requires(ir))
+            .cloned()
+            .unwrap_or_default();
         emitter.boolean_sources = decisions
             .read_predicates
             .and_then(|source| source.booleans(ir))
@@ -1890,17 +2629,29 @@ fn emit_program_with_sources(
                     feasibility,
                 )
             {
-                if ir.scenario_disclosures.get(&item.id)
+                if ir
+                    .scenario_disclosures
+                    .get(&item.id)
                     .and_then(|value| value.source_facts())
                     .and_then(|facts| facts.queries.as_ref())
-                    .is_some_and(|queries| queries.iter().any(|query| query.first.as_ref()
-                        .is_some_and(|first| first.target_decision_shape && !first.target_consumed)))
+                    .is_some_and(|queries| {
+                        queries.iter().any(|query| {
+                            query.first.as_ref().is_some_and(|first| {
+                                first.target_decision_shape && !first.target_consumed
+                            })
+                        })
+                    })
                 {
-                    emitter.unsupported("first decision target",
-                        "selected first row has an unproved decision, write target or value sink", item.span);
+                    emitter.unsupported(
+                        "first decision target",
+                        "selected first row has an unproved decision, write target or value sink",
+                        item.span,
+                    );
                     continue;
                 }
-                let requires = ir.scenario_disclosures.get(&item.id)
+                let requires = ir
+                    .scenario_disclosures
+                    .get(&item.id)
                     .and_then(|value| value.source_facts())
                     .and_then(|facts| facts.source_requires.as_deref())
                     .unwrap_or(&[]);
@@ -1920,33 +2671,52 @@ fn emit_program_with_sources(
                 }
                 if item.canonical == "member_terms.term"
                     && recipe.plan.term_decision.is_some()
-                    && decisions.source_context.is_some_and(|context|
-                        super::term_decisions::latest_capture_private_only(context,item))
+                    && decisions.source_context.is_some_and(|context| {
+                        super::term_decisions::latest_capture_private_only(context, item)
+                    })
                 {
                     emitter.private_term_helper_only = true;
                 }
-                if let Some(inputs) = decisions.source_context.and_then(|context|
-                    super::scenario_receipts::constructor_inputs(context,item,&recipe.plan.source)) {
-                    emitter.constructor_inputs.insert(item.id,inputs);
+                if let Some(inputs) = decisions.source_context.and_then(|context| {
+                    super::scenario_receipts::constructor_inputs(context, item, &recipe.plan.source)
+                }) {
+                    emitter.constructor_inputs.insert(item.id, inputs);
                 }
-                if let Some(counts)=decisions.source_context.and_then(|context|super::scenario_receipts::constructor_counts(context,item,&recipe.plan.source)) {
-                    emitter.constructor_counts.insert(item.id,counts);
+                if let Some(counts) = decisions.source_context.and_then(|context| {
+                    super::scenario_receipts::constructor_counts(context, item, &recipe.plan.source)
+                }) {
+                    emitter.constructor_counts.insert(item.id, counts);
                 }
                 emitter.native_receipts.insert(item.id, recipe);
-            } else if ir.scenario_disclosures.get(&item.id)
+            } else if ir
+                .scenario_disclosures
+                .get(&item.id)
                 .and_then(|value| value.source_facts())
                 .and_then(|facts| facts.queries.as_ref())
-                .is_some_and(|queries| queries.iter().any(|query| query.first.as_ref()
-                    .is_some_and(|first| first.target_decision_shape && !first.target_consumed)))
+                .is_some_and(|queries| {
+                    queries.iter().any(|query| {
+                        query.first.as_ref().is_some_and(|first| {
+                            first.target_decision_shape && !first.target_consumed
+                        })
+                    })
+                })
             {
-                emitter.unsupported("first decision target",
-                    "selected first row has an unproved decision, write target or value sink", item.span);
-            } else if ir.scenario_disclosures.get(&item.id)
+                emitter.unsupported(
+                    "first decision target",
+                    "selected first row has an unproved decision, write target or value sink",
+                    item.span,
+                );
+            } else if ir
+                .scenario_disclosures
+                .get(&item.id)
                 .and_then(|value| value.source_facts())
                 .is_some_and(|facts| facts.unproved_helper_contained_requires)
             {
-                emitter.unsupported("scenario source requirement",
-                    "helper collection in Require lacks exact owner-domain correspondence", item.span);
+                emitter.unsupported(
+                    "scenario source requirement",
+                    "helper collection in Require lacks exact owner-domain correspondence",
+                    item.span,
+                );
             } else if super::scenario_receipts::has_original_transcript_source(
                 ir,
                 SymbolId(index as u32),
@@ -1957,16 +2727,26 @@ fn emit_program_with_sources(
                         .into(),
                     item.span,
                 ));
-            } else if let Some(recipe) = decisions.source_context.zip(decisions.send_guards)
-                .and_then(|(context,guards)|super::send_guards::retained_handler_receipt(
-                    context,guards,item,&module_path(&entry_name))) {
-                emitter.native_receipts.insert(item.id,recipe);
+            } else if let Some(recipe) = decisions
+                .source_context
+                .zip(decisions.send_guards)
+                .and_then(|(context, guards)| {
+                    super::send_guards::retained_handler_receipt(
+                        context,
+                        guards,
+                        item,
+                        &module_path(&entry_name),
+                    )
+                })
+            {
+                emitter.native_receipts.insert(item.id, recipe);
             } else if super::scenario_receipts::has_original_guarded_send(
                 ir,
                 SymbolId(index as u32),
             ) {
                 if item.canonical == "maintain.remind"
-                    || !missing_source_checked_send_rule(ir, item, emitter.send_guards) {
+                    || !missing_source_checked_send_rule(ir, item, emitter.send_guards)
+                {
                     emitter.diags.push(Diagnostic::error(
                         "E6008",
                         "send dispatch guard needs exact original native receipt and sealed Rule correspondence".into(),
@@ -2102,76 +2882,239 @@ fn emit_program_with_sources(
         body.push(entry_span, Some("canScenarioQueryPredicateSource".into()),
             "const $can$query$predicates=new WeakMap();function $can$query$issue(marker,context,predicate){$can$query$predicates.set(predicate,{marker,context});return predicate;}export function canScenarioQueryPredicateSource(predicate){const issued=$can$query$predicates.get(predicate);return issued===undefined?null:{marker:JSON.parse(issued.marker),context:issued.context};}");
     }
-    if native_receipts && let Some(context)=decisions.source_context {
+    if native_receipts && let Some(context) = decisions.source_context {
         for owner in &ir.items {
-            if let Some(receipt)=emitter.native_receipts.get(&owner.id){
-                if let Some(loops)=super::source_loops::collect_native(ir,owner,context,&serde_json::to_value(&receipt.plan.source).ok().expect("checked source"),&module_path(&entry_name)){emitter.source_body_loops.insert(owner.canonical.clone(),loops);}
+            if let Some(receipt) = emitter.native_receipts.get(&owner.id) {
+                if let Some(loops) = super::source_loops::collect_native(
+                    ir,
+                    owner,
+                    context,
+                    &serde_json::to_value(&receipt.plan.source).expect("checked source"),
+                    &module_path(&entry_name),
+                ) {
+                    emitter
+                        .source_body_loops
+                        .insert(owner.canonical.clone(), loops);
+                }
                 continue;
             }
-            if let Some(loops)=super::source_loops::collect(ir,owner,context,&emitter.source_requires,&module_path(&entry_name)){emitter.source_body_loops.insert(owner.canonical.clone(),loops);}
-            if let Some(loans)=super::source_let_data::collect(ir,owner,context,&emitter.source_requires,&module_path(&entry_name),emitter.source_body_loops.get(&owner.canonical)){emitter.source_let_data.extend(loans);}
-            if let Some(sends)=source_only_data_sends(ir,owner,context,&emitter.source_requires,&emitter.source_let_data,&module_path(&entry_name),emitter.source_body_loops.get(&owner.canonical)) {
+            if let Some(loops) = super::source_loops::collect(
+                ir,
+                owner,
+                context,
+                &emitter.source_requires,
+                &module_path(&entry_name),
+            ) {
+                emitter
+                    .source_body_loops
+                    .insert(owner.canonical.clone(), loops);
+            }
+            if let Some(loans) = super::source_let_data::collect(
+                ir,
+                owner,
+                context,
+                &emitter.source_requires,
+                &module_path(&entry_name),
+                emitter.source_body_loops.get(&owner.canonical),
+            ) {
+                emitter.source_let_data.extend(loans);
+            }
+            if let Some(sends) = source_only_data_sends(
+                ir,
+                owner,
+                context,
+                &emitter.source_requires,
+                &emitter.source_let_data,
+                &module_path(&entry_name),
+                emitter.source_body_loops.get(&owner.canonical),
+            ) {
                 emitter.source_data_sends.extend(sends);
             }
-            if let Some(emits)=source_only_data_emits(ir,owner,context,&emitter.source_requires,&module_path(&entry_name)){emitter.source_data_emits.extend(emits);}
-            if let Some(cancels)=source_only_work(ir,owner,context,&emitter.source_requires,&module_path(&entry_name),SourceWorkKind::Cancel,&emitter.source_let_data,emitter.source_body_loops.get(&owner.canonical)) {
+            if let Some(emits) = source_only_data_emits(
+                ir,
+                owner,
+                context,
+                &emitter.source_requires,
+                &module_path(&entry_name),
+            ) {
+                emitter.source_data_emits.extend(emits);
+            }
+            if let Some(cancels) = source_only_work(
+                ir,
+                owner,
+                context,
+                &emitter.source_requires,
+                &module_path(&entry_name),
+                SourceWorkKind::Cancel,
+                &emitter.source_let_data,
+                emitter.source_body_loops.get(&owner.canonical),
+            ) {
                 emitter.source_cancels.extend(cancels);
             }
-            if let Some(schedules)=source_only_work(ir,owner,context,&emitter.source_requires,&module_path(&entry_name),SourceWorkKind::Schedule,&emitter.source_let_data,emitter.source_body_loops.get(&owner.canonical)){emitter.source_schedules.extend(schedules);}
-
+            if let Some(schedules) = source_only_work(
+                ir,
+                owner,
+                context,
+                &emitter.source_requires,
+                &module_path(&entry_name),
+                SourceWorkKind::Schedule,
+                &emitter.source_let_data,
+                emitter.source_body_loops.get(&owner.canonical),
+            ) {
+                emitter.source_schedules.extend(schedules);
+            }
         }
     }
-    if !emitter.source_body_loops.is_empty(){
-        let inventory:BTreeMap<_,_>=emitter.source_body_loops.iter().collect();
-        let payload=descriptor_json(&descriptor_json(&inventory));
-        body.push(entry_span,Some("canScenarioBodyLoopSources".into()),&format!("export function canScenarioBodyLoopSources(){{return JSON.parse({payload});}}"));
+    if !emitter.source_body_loops.is_empty() {
+        let inventory: BTreeMap<_, _> = emitter.source_body_loops.iter().collect();
+        let payload = descriptor_json(&descriptor_json(&inventory));
+        body.push(
+            entry_span,
+            Some("canScenarioBodyLoopSources".into()),
+            &format!(
+                "export function canScenarioBodyLoopSources(){{return JSON.parse({payload});}}"
+            ),
+        );
     }
-    if native_receipts && (!emitter.source_body_loops.is_empty() || emitter.native_receipts.values().any(|receipt|receipt.plan.source_loops.is_some())) {
+    if native_receipts
+        && (!emitter.source_body_loops.is_empty()
+            || emitter
+                .native_receipts
+                .values()
+                .any(|receipt| receipt.plan.source_loops.is_some()))
+    {
         body.push(entry_span,Some("canScenarioSourceLoopSource".into()),
             "const $can$loop$sources=new WeakMap();function $can$loop$issue(source,context,predicate){$can$loop$sources.set(predicate,{source,context});return predicate;}export function canScenarioSourceLoopSource(predicate){const issued=$can$loop$sources.get(predicate);return issued===undefined?null:{source:JSON.parse(issued.source),context:issued.context};}");
     }
-    if !emitter.source_let_data.is_empty(){
-        let mut inventory:BTreeMap<String,Vec<serde_json::Value>>=BTreeMap::new();
-        for source in emitter.source_let_data.values(){inventory.entry(source["owner"].as_str().expect("checked LET owner").to_owned()).or_default().push(source.clone());}
-        for sources in inventory.values_mut(){sources.sort_by_key(|source|source.to_string());}
-        let payload=descriptor_json(&descriptor_json(&inventory));
-        body.push(entry_span,Some("canScenarioLetDataSources".into()),&format!("export function canScenarioLetDataSources(){{return JSON.parse({payload});}}"));
+    if !emitter.source_let_data.is_empty() {
+        let mut inventory: BTreeMap<String, Vec<serde_json::Value>> = BTreeMap::new();
+        for source in emitter.source_let_data.values() {
+            inventory
+                .entry(
+                    source["owner"]
+                        .as_str()
+                        .expect("checked LET owner")
+                        .to_owned(),
+                )
+                .or_default()
+                .push(source.clone());
+        }
+        for sources in inventory.values_mut() {
+            sources.sort_by_key(|source| source.to_string());
+        }
+        let payload = descriptor_json(&descriptor_json(&inventory));
+        body.push(
+            entry_span,
+            Some("canScenarioLetDataSources".into()),
+            &format!(
+                "export function canScenarioLetDataSources(){{return JSON.parse({payload});}}"
+            ),
+        );
     }
-    if !emitter.source_schedules.is_empty(){
-        if emitter.source_schedules.values().any(|source|source["at"].get("expression").is_some()){
+    if !emitter.source_schedules.is_empty() {
+        if emitter
+            .source_schedules
+            .values()
+            .any(|source| source["at"].get("expression").is_some())
+        {
             body.push(entry_span,Some("canScenarioWorkSource".into()),
                 "const $can$work$sources=new WeakMap();function $can$work$issue(source,context,body){$can$work$sources.set(body,{source,context});return body;}export function canScenarioWorkSource(body){const issued=$can$work$sources.get(body);return issued===undefined?null:{source:JSON.parse(issued.source),context:issued.context};}");
         }
 
-        let mut inventory:BTreeMap<String,Vec<serde_json::Value>>=BTreeMap::new();
-        for source in emitter.source_schedules.values(){inventory.entry(source["owner"].as_str().expect("checked schedule owner").to_owned()).or_default().push(source.clone());}
-        for sources in inventory.values_mut(){sources.sort_by_key(|source|source.to_string());}
-        let payload=descriptor_json(&descriptor_json(&inventory));
-        body.push(entry_span,Some("canScenarioScheduleSources".into()),&format!("export function canScenarioScheduleSources(){{return JSON.parse({payload});}}"));
+        let mut inventory: BTreeMap<String, Vec<serde_json::Value>> = BTreeMap::new();
+        for source in emitter.source_schedules.values() {
+            inventory
+                .entry(
+                    source["owner"]
+                        .as_str()
+                        .expect("checked schedule owner")
+                        .to_owned(),
+                )
+                .or_default()
+                .push(source.clone());
+        }
+        for sources in inventory.values_mut() {
+            sources.sort_by_key(|source| source.to_string());
+        }
+        let payload = descriptor_json(&descriptor_json(&inventory));
+        body.push(
+            entry_span,
+            Some("canScenarioScheduleSources".into()),
+            &format!(
+                "export function canScenarioScheduleSources(){{return JSON.parse({payload});}}"
+            ),
+        );
     }
-    if !emitter.source_cancels.is_empty(){
-        let mut inventory:BTreeMap<String,Vec<serde_json::Value>>=BTreeMap::new();
-        for source in emitter.source_cancels.values(){inventory.entry(source["owner"].as_str().expect("checked cancel owner").to_owned()).or_default().push(source.clone());}
-        for sources in inventory.values_mut(){sources.sort_by_key(|source|source.to_string());}
-        let payload=descriptor_json(&descriptor_json(&inventory));
-        body.push(entry_span,Some("canScenarioCancelSources".into()),&format!("export function canScenarioCancelSources(){{return JSON.parse({payload});}}"));
+    if !emitter.source_cancels.is_empty() {
+        let mut inventory: BTreeMap<String, Vec<serde_json::Value>> = BTreeMap::new();
+        for source in emitter.source_cancels.values() {
+            inventory
+                .entry(
+                    source["owner"]
+                        .as_str()
+                        .expect("checked cancel owner")
+                        .to_owned(),
+                )
+                .or_default()
+                .push(source.clone());
+        }
+        for sources in inventory.values_mut() {
+            sources.sort_by_key(|source| source.to_string());
+        }
+        let payload = descriptor_json(&descriptor_json(&inventory));
+        body.push(
+            entry_span,
+            Some("canScenarioCancelSources".into()),
+            &format!("export function canScenarioCancelSources(){{return JSON.parse({payload});}}"),
+        );
     }
-    if !emitter.source_data_emits.is_empty(){
+    if !emitter.source_data_emits.is_empty() {
         body.push(entry_span,Some("canScenarioEmitDataSource".into()),"const $can$emit$data=new WeakMap();function $can$emit$issue(source,context,body){$can$emit$data.set(body,{source,context});return body;}export function canScenarioEmitDataSource(body){const issued=$can$emit$data.get(body);return issued===undefined?null:{source:JSON.parse(issued.source),context:issued.context};}");
-        let mut inventory:BTreeMap<String,Vec<serde_json::Value>>=BTreeMap::new();
-        for source in emitter.source_data_emits.values(){inventory.entry(source["owner"].as_str().expect("checked EMIT owner").to_owned()).or_default().push(source.clone());}
-        for sites in inventory.values_mut(){sites.sort_by_key(|site|site.to_string());}
-        let payload=descriptor_json(&descriptor_json(&inventory));
-        body.push(entry_span,Some("canScenarioEmitDataSources".into()),&format!("export function canScenarioEmitDataSources(){{return JSON.parse({payload});}}"));
+        let mut inventory: BTreeMap<String, Vec<serde_json::Value>> = BTreeMap::new();
+        for source in emitter.source_data_emits.values() {
+            inventory
+                .entry(
+                    source["owner"]
+                        .as_str()
+                        .expect("checked EMIT owner")
+                        .to_owned(),
+                )
+                .or_default()
+                .push(source.clone());
+        }
+        for sites in inventory.values_mut() {
+            sites.sort_by_key(|site| site.to_string());
+        }
+        let payload = descriptor_json(&descriptor_json(&inventory));
+        body.push(
+            entry_span,
+            Some("canScenarioEmitDataSources".into()),
+            &format!(
+                "export function canScenarioEmitDataSources(){{return JSON.parse({payload});}}"
+            ),
+        );
     }
-    if !emitter.source_data_sends.is_empty(){
+    if !emitter.source_data_sends.is_empty() {
         body.push(entry_span,Some("canScenarioSendDataSource".into()),
             "const $can$send$data=new WeakMap();function $can$send$issue(source,context,body){$can$send$data.set(body,{source,context});return body;}export function canScenarioSendDataSource(body){const issued=$can$send$data.get(body);return issued===undefined?null:{source:JSON.parse(issued.source),context:issued.context};}");
-        let mut inventory:BTreeMap<String,Vec<serde_json::Value>>=BTreeMap::new();
-        for source in emitter.source_data_sends.values(){inventory.entry(source["owner"].as_str().expect("checked owner").to_owned()).or_default().push(source.clone());}
-        for sites in inventory.values_mut(){sites.sort_by_key(|site|site.to_string());}
-        let payload=descriptor_json(&descriptor_json(&inventory));
-        body.push(entry_span,Some("canScenarioSendDataSources".into()),&format!("export function canScenarioSendDataSources(){{return JSON.parse({payload});}}"));
+        let mut inventory: BTreeMap<String, Vec<serde_json::Value>> = BTreeMap::new();
+        for source in emitter.source_data_sends.values() {
+            inventory
+                .entry(source["owner"].as_str().expect("checked owner").to_owned())
+                .or_default()
+                .push(source.clone());
+        }
+        for sites in inventory.values_mut() {
+            sites.sort_by_key(|site| site.to_string());
+        }
+        let payload = descriptor_json(&descriptor_json(&inventory));
+        body.push(
+            entry_span,
+            Some("canScenarioSendDataSources".into()),
+            &format!(
+                "export function canScenarioSendDataSources(){{return JSON.parse({payload});}}"
+            ),
+        );
     }
     if native_receipts && !emitter.source_requires.is_empty() {
         body.push(entry_span,Some("canScenarioRequireSource".into()),
@@ -2183,14 +3126,22 @@ fn emit_program_with_sources(
         let mut inventory: BTreeMap<String, Vec<serde_json::Value>> = BTreeMap::new();
         for identity in emitter.source_requires.values() {
             let owner = identity["owner"].as_str().expect("sealed Require owner");
-            inventory.entry(owner.to_owned()).or_default().push(identity.clone());
+            inventory
+                .entry(owner.to_owned())
+                .or_default()
+                .push(identity.clone());
         }
         for sites in inventory.values_mut() {
             sites.sort_by_key(|site| site.to_string());
         }
         let payload = descriptor_json(&descriptor_json(&inventory));
-        body.push(entry_span, Some("canScenarioRequireSources".into()),
-            &format!("export function canScenarioRequireSources(){{return JSON.parse({payload});}}"));
+        body.push(
+            entry_span,
+            Some("canScenarioRequireSources".into()),
+            &format!(
+                "export function canScenarioRequireSources(){{return JSON.parse({payload});}}"
+            ),
+        );
     }
     if native_receipts && !emitter.membership_predicates.is_empty() {
         body.push(entry_span, Some("canReadPredicateSource".into()),
@@ -2225,10 +3176,35 @@ fn emit_program_with_sources(
             &format!("export function canMembershipSources(){{return JSON.parse({payload});}}"),
         );
     }
-    let mut source_plans=queries.cloned().unwrap_or_default();
-    for (id,recipe) in &emitter.native_receipts {
-        if recipe.plan.retained_guarded_handler.is_some() {
-            source_plans.insert(ir.items[id.0 as usize].canonical.clone(),serde_json::to_value(&recipe.plan).expect("private source frame"));
+    let mut source_plans = queries.cloned().unwrap_or_default();
+    for (id, recipe) in &emitter.native_receipts {
+        let item = &ir.items[id.0 as usize];
+        // Trusted private mutation handlers also consume original DATA reads
+        // without a query. Publish their checked source inventory through the
+        // same fresh-copy interface; this does not expose a public operation.
+        let private_data_source = emitter.owner_handlers.contains(id)
+            && matches!(
+                item.kind,
+                IrItemKind::Scenario {
+                    trusted: true,
+                    event_source: Some(_),
+                    ..
+                }
+            )
+            && recipe
+                .plan
+                .returns
+                .iter()
+                .flat_map(|result| &result.dependencies)
+                .any(|read| {
+                    read.role == super::scenario_receipts::ReceiptRole::Data
+                        && read.query_id.is_none()
+                });
+        if recipe.plan.retained_guarded_handler.is_some() || private_data_source {
+            source_plans.insert(
+                item.canonical.clone(),
+                serde_json::to_value(&recipe.plan).expect("private source frame"),
+            );
         }
     }
     if !source_plans.is_empty() {
@@ -2291,19 +3267,38 @@ fn emit_program_with_sources(
                     && diagnostic.severity == crate::diagnostic::Severity::Error)
             {
                 let reason = match ir.scenario_disclosures.get(&item.id) {
-                    Some(crate::analysis::scenario_disclosure::ScenarioDisclosure::Declined(decline)) =>
-                        format!(": {}", decline.reason),
+                    Some(crate::analysis::scenario_disclosure::ScenarioDisclosure::Declined(
+                        decline,
+                    )) => format!(": {}", decline.reason),
                     _ => String::new(),
                 };
-                emitter.unsupported("scenario source requirement",
-                    &format!("original checked owner receipt is unavailable for its source guard{reason}"), item.span);
-                if let Some(crate::analysis::scenario_disclosure::ScenarioDisclosure::Declined(decline)) =
-                    ir.scenario_disclosures.get(&item.id)
+                emitter.unsupported(
+                    "scenario source requirement",
+                    &format!(
+                        "original checked owner receipt is unavailable for its source guard{reason}"
+                    ),
+                    item.span,
+                );
+                if let Some(crate::analysis::scenario_disclosure::ScenarioDisclosure::Declined(
+                    decline,
+                )) = ir.scenario_disclosures.get(&item.id)
                 {
-                    emitter.diags.last_mut().unwrap().related.push(crate::diagnostic::Related {
-                        span: Span::new(decline.node.file, decline.node.start, decline.node.end),
-                        message: format!("Unsupported original owner expression: {}", decline.reason),
-                    });
+                    emitter
+                        .diags
+                        .last_mut()
+                        .unwrap()
+                        .related
+                        .push(crate::diagnostic::Related {
+                            span: Span::new(
+                                decline.node.file,
+                                decline.node.start,
+                                decline.node.end,
+                            ),
+                            message: format!(
+                                "Unsupported original owner expression: {}",
+                                decline.reason
+                            ),
+                        });
                 }
             }
         }
@@ -2312,19 +3307,34 @@ fn emit_program_with_sources(
     // tracked record views using ordinary calls. A handler census alone must
     // not suppress those definitions: unlike retained handlers, this receipt
     // does not select a private helper variant.
-    if emitter.native_receipts.values().any(|receipt|
-        receipt.plan.event_decision.is_some() || receipt.plan.success_renewal_decision.is_some())
-    {
+    if emitter.native_receipts.values().any(|receipt| {
+        receipt.plan.event_decision.is_some() || receipt.plan.success_renewal_decision.is_some()
+    }) {
         // Standard completion handlers are added to the emitter's dispatch
         // set later; they are outside this original Declared/Every census.
-        let private_handlers = decisions.owner_handlers.into_iter().flatten().copied().filter(|id|
-            emitter.native_receipts.get(id).is_none_or(|receipt|
-                receipt.plan.event_decision.is_none() && receipt.plan.success_renewal_decision.is_none()))
+        let private_handlers = decisions
+            .owner_handlers
+            .into_iter()
+            .flatten()
+            .copied()
+            .filter(|id| {
+                emitter.native_receipts.get(id).is_none_or(|receipt| {
+                    receipt.plan.event_decision.is_none()
+                        && receipt.plan.success_renewal_decision.is_none()
+                })
+            })
             .collect();
-        let ordinary_safe = decisions.source_context.and_then(|context|
-            decisions.read_predicates?.private_only_derives(context, &private_handlers))
+        let ordinary_safe = decisions
+            .source_context
+            .and_then(|context| {
+                decisions
+                    .read_predicates?
+                    .private_only_derives(context, &private_handlers)
+            })
             .unwrap_or_default();
-        emitter.private_derives.retain(|name| ordinary_safe.contains(name));
+        emitter
+            .private_derives
+            .retain(|name| ordinary_safe.contains(name));
     }
     emitter.emit_identity_consts(&mut body, entry_id);
     for module in &ir.modules {
@@ -2845,22 +3855,48 @@ fn collect_form_usages(node: &IrUi, page: &str, out: &mut Vec<FormUsage>) {
 /// be exactly that choice's cases in order, and the current read must
 /// be that preference.
 fn saved_preference_binding_parts(node: &IrUi) -> Option<&[(String, TypedExpr)]> {
-    let keys: std::collections::HashSet<_> = node.props.iter().map(|(key, _)| key.as_str()).collect();
-    if keys.len() != node.props.len() || keys.len() > 2 || !keys.iter().all(|key| matches!(*key, "binding" | "caption")) { return None; }
+    let keys: std::collections::HashSet<_> =
+        node.props.iter().map(|(key, _)| key.as_str()).collect();
+    if keys.len() != node.props.len()
+        || keys.len() > 2
+        || !keys.iter().all(|key| matches!(*key, "binding" | "caption"))
+    {
+        return None;
+    }
     let (_, binding) = node.props.iter().find(|(key, _)| key == "binding")?;
-    let IrExpr::Object(parts) = &binding.expr else { return None; };
+    let IrExpr::Object(parts) = &binding.expr else {
+        return None;
+    };
     let expected: &[&str] = if parts.iter().any(|(key, _)| key == "editor") {
-        &["name", "options", "current", "version", "postTo", "editor", "nullable"]
-    } else { &["name", "options", "current", "version", "postTo"] };
-    (parts.len() == expected.len() && expected.iter().all(|key| parts.iter().filter(|(name, _)| name == key).count() == 1)).then_some(parts)
+        &[
+            "name", "options", "current", "version", "postTo", "editor", "nullable",
+        ]
+    } else {
+        &["name", "options", "current", "version", "postTo"]
+    };
+    (parts.len() == expected.len()
+        && expected
+            .iter()
+            .all(|key| parts.iter().filter(|(name, _)| name == key).count() == 1))
+    .then_some(parts)
 }
 
-fn inline_preference_editor_matches(editor: &TypedExpr, nullable: &TypedExpr, ty: &ResolvedType, values: &[&str]) -> bool {
-    let IrExpr::Text(editor) = &editor.expr else { return false; };
-    if !matches!(nullable.expr, IrExpr::Bool(value) if value == ty.nullable_inner().is_some()) { return false; }
+fn inline_preference_editor_matches(
+    editor: &TypedExpr,
+    nullable: &TypedExpr,
+    ty: &ResolvedType,
+    values: &[&str],
+) -> bool {
+    let IrExpr::Text(editor) = &editor.expr else {
+        return false;
+    };
+    if !matches!(nullable.expr, IrExpr::Bool(value) if value == ty.nullable_inner().is_some()) {
+        return false;
+    }
     match (editor.as_str(), ty.nullable_inner().unwrap_or(ty)) {
         ("bool", ResolvedType::Scalar(Scalar::Bool)) => values == ["true", "false"],
-        ("text", ResolvedType::Scalar(Scalar::Text)) | ("int", ResolvedType::Scalar(Scalar::Int)) => values.is_empty(),
+        ("text", ResolvedType::Scalar(Scalar::Text))
+        | ("int", ResolvedType::Scalar(Scalar::Int)) => values.is_empty(),
         _ => false,
     }
 }
@@ -2904,17 +3940,22 @@ fn preference_version_module(version: &TypedExpr, name: &str) -> Option<String> 
     let IrExpr::Member { base, field } = &base.expr else {
         return None;
     };
-    if field != "preferenceVersions"
-        || !matches!(&base.expr, IrExpr::Name(base) if base == "c")
-    {
+    if field != "preferenceVersions" || !matches!(&base.expr, IrExpr::Name(base) if base == "c") {
         return None;
     }
     Some(module_segment)
 }
 
 fn standalone_filter_binding_is_valid(ir: &IrProgram, node: &IrUi) -> bool {
-    let Some(parts) = saved_preference_binding_parts(node) else { return false; };
-    let part = |key: &str| parts.iter().find(|(name, _)| name == key).map(|(_, value)| value);
+    let Some(parts) = saved_preference_binding_parts(node) else {
+        return false;
+    };
+    let part = |key: &str| {
+        parts
+            .iter()
+            .find(|(name, _)| name == key)
+            .map(|(_, value)| value)
+    };
     let (Some(name), Some(options), Some(current), Some(version), Some(post_to)) = (
         part("name"),
         part("options"),
@@ -2959,7 +4000,12 @@ fn standalone_filter_binding_is_valid(ir: &IrProgram, node: &IrUi) -> bool {
         }
         values.push(value);
     }
-    if values.iter().collect::<std::collections::HashSet<_>>().len() != values.len() {
+    if values
+        .iter()
+        .collect::<std::collections::HashSet<_>>()
+        .len()
+        != values.len()
+    {
         return false;
     }
     // The current read is that preference: a direct `preferences.<name>` leaf.
@@ -2986,7 +4032,11 @@ fn standalone_filter_binding_is_valid(ir: &IrProgram, node: &IrUi) -> bool {
     // `Preferences` owner; options are exactly its owned finite-choice
     // cases in order and the read types as the preference, so an
     // equivalent other-app reuse keeps its own meaning.
-    let Some(module) = ir.modules.iter().find(|module| module.name == module_segment) else {
+    let Some(module) = ir
+        .modules
+        .iter()
+        .find(|module| module.name == module_segment)
+    else {
         return false;
     };
     let preference = ir.items.iter().find(|item| {
@@ -3044,11 +4094,11 @@ fn derived_bool_source_sealed(
     expansion: &str,
     parts: &[(String, TypedExpr)],
 ) -> bool {
-    let expected = match (item.canonical.as_str(), field_name, expansion) {
-        ("desk.Ticket.unassigned", "unassigned", "unassigned") => true,
-        ("desk.Ticket.overdue", "overdue", "overdue") => true,
-        _ => false,
-    };
+    let expected = matches!(
+        (item.canonical.as_str(), field_name, expansion),
+        ("desk.Ticket.unassigned", "unassigned", "unassigned")
+            | ("desk.Ticket.overdue", "overdue", "overdue")
+    );
     if !expected {
         return false;
     }
@@ -3128,15 +4178,16 @@ fn derived_bool_source_sealed(
         return false;
     }
     let at = |key: &str| {
-        range.iter().find(|(name, _)| name == key).and_then(
-            |(_, value)| {
+        range
+            .iter()
+            .find(|(name, _)| name == key)
+            .and_then(|(_, value)| {
                 if let IrExpr::Int(number) = &value.expr {
                     usize::try_from(*number).ok()
                 } else {
                     None
                 }
-            },
-        )
+            })
     };
     matches!((at("start"), at("end")), (Some(start), Some(end)) if start == item.span.start as usize && end == item.span.end as usize)
 }
@@ -3158,8 +4209,9 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
     let Some(model) = ir.items.iter().find(|item| item.canonical == model_name) else {
         return false;
     };
-    let IrItemKind::Model { fields, .. } = &model.kind else {
-        return false;
+    let fields = match &model.kind {
+        IrItemKind::Model { fields, .. } | IrItemKind::Contract { fields, .. } => fields,
+        _ => return false,
     };
     let field = |name: &str| {
         fields
@@ -3253,9 +4305,16 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             // entries (expansion id + derive declaration source);
             // every other column keeps the exact four-key shape.
             let derived_shape = keys.len() == 6
-                && ["field", "label", "type", "valueLabels", "expansion", "source"]
-                    .iter()
-                    .all(|key| keys.contains(key));
+                && [
+                    "field",
+                    "label",
+                    "type",
+                    "valueLabels",
+                    "expansion",
+                    "source",
+                ]
+                .iter()
+                .all(|key| keys.contains(key));
             if keys.len() != parts.len() || (!derived_shape && parts.len() != 4) {
                 return false;
             }
@@ -3275,33 +4334,82 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                 return false;
             };
             let (item, ty) = if name == "parent" && field("parent").is_none() {
-                let IrItemKind::Model { owner: IrOwner::ChildOf(parent), .. } = model.kind else { return false; };
-                if field("parent").is_some() { return false; }
-                let Some(target) = ir.items.get(parent.0 as usize).filter(|item| matches!(item.kind, IrItemKind::Model { .. })) else { return false; };
-                (target, ResolvedType::Record { symbol: parent, stored: true })
-            } else if let Some(base) = name.strip_suffix(".currency").filter(|base| !base.contains('.')) {
-                let Some(item) = field(base) else { return false; };
-                if !matches!(&item.kind, IrItemKind::Field { ty: IrType::Known(ResolvedType::Scalar(Scalar::Money)), .. }) { return false; }
+                let IrItemKind::Model {
+                    owner: IrOwner::ChildOf(parent),
+                    ..
+                } = model.kind
+                else {
+                    return false;
+                };
+                if field("parent").is_some() {
+                    return false;
+                }
+                let Some(target) = ir
+                    .items
+                    .get(parent.0 as usize)
+                    .filter(|item| matches!(item.kind, IrItemKind::Model { .. }))
+                else {
+                    return false;
+                };
+                (
+                    target,
+                    ResolvedType::Record {
+                        symbol: parent,
+                        stored: true,
+                    },
+                )
+            } else if let Some(base) = name
+                .strip_suffix(".currency")
+                .filter(|base| !base.contains('.'))
+            {
+                let Some(item) = field(base) else {
+                    return false;
+                };
+                if !matches!(
+                    &item.kind,
+                    IrItemKind::Field {
+                        ty: IrType::Known(ResolvedType::Scalar(Scalar::Money)),
+                        ..
+                    }
+                ) {
+                    return false;
+                }
                 (item, ResolvedType::Scalar(Scalar::Currency))
             } else if derived_shape {
                 // Sealed derived-bool selectors resolve to an owned bool
                 // DeriveField whose body the IR layer pinned; their type
                 // and expansion are validated below, never inferred here.
-                let Some(item) = derived_field(name) else { return false; };
-                let IrItemKind::DeriveField { ty: IrType::Known(ty), .. } = &item.kind else { return false; };
+                let Some(item) = derived_field(name) else {
+                    return false;
+                };
+                let IrItemKind::DeriveField {
+                    ty: IrType::Known(ty),
+                    ..
+                } = &item.kind
+                else {
+                    return false;
+                };
                 if *ty != ResolvedType::Scalar(Scalar::Bool) {
                     return false;
                 }
                 (item, ty.clone())
             } else {
-                let Some(item) = field(name) else { return false; };
-                let IrItemKind::Field { ty: IrType::Known(ty), .. } = &item.kind else { return false; };
+                let Some(item) = field(name) else {
+                    return false;
+                };
+                let IrItemKind::Field {
+                    ty: IrType::Known(ty),
+                    ..
+                } = &item.kind
+                else {
+                    return false;
+                };
                 (item, ty.clone())
             };
-            // A filter column selects a distinct owned finite-choice model
-            // field: an owned enum or a plain bool toggle. Anything else
-            // keeps the refusal below.
-            let _ = item;
+            // Nullable fields select present values through the same typed
+            // control. Their original owner and declaration were checked
+            // above; clearing a control grants no access and adds no filter.
+            let ty = ty.nullable_inner().unwrap_or(&ty).clone();
             let expected_cases: Option<&[String]> = match &ty {
                 ResolvedType::Enum {
                     owner: Some(owner),
@@ -3362,7 +4470,9 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                 // table): a plain `date` column carries no value labels,
                 // exactly like text/a reference. Datetime keeps the
                 // refusal below: no symmetry generalization.
-                ResolvedType::Scalar(scalar @ (Scalar::Date | Scalar::Int | Scalar::Datetime | Scalar::Currency)) if text("type") == Some(scalar.as_str()) => None,
+                ResolvedType::Scalar(
+                    scalar @ (Scalar::Date | Scalar::Int | Scalar::Datetime | Scalar::Currency),
+                ) if text("type") == Some(scalar.as_str()) => None,
                 _ => return false,
             };
             // A reference column compares by typed opaque identity
@@ -3381,7 +4491,12 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             ) || matches!(&ty, ResolvedType::Nullable(inner)
                 if inner.as_ref() == &ResolvedType::Scalar(Scalar::User));
             let is_text = matches!(ty, ResolvedType::Scalar(Scalar::Text));
-            let is_date = matches!(ty, ResolvedType::Scalar(Scalar::Date | Scalar::Int | Scalar::Datetime | Scalar::Currency));
+            let is_date = matches!(
+                ty,
+                ResolvedType::Scalar(
+                    Scalar::Date | Scalar::Int | Scalar::Datetime | Scalar::Currency
+                )
+            );
             if selected.insert(name, ty.clone()).is_some() {
                 return false;
             }
@@ -3439,7 +4554,9 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                 ResolvedType::Scalar(Scalar::Text) => None,
                 // C3 civil-date equality rule: no case inventory (None,
                 // like text/references); other shapes keep the refusal.
-                ResolvedType::Scalar(Scalar::Date | Scalar::Int | Scalar::Datetime | Scalar::Currency) => None,
+                ResolvedType::Scalar(
+                    Scalar::Date | Scalar::Int | Scalar::Datetime | Scalar::Currency,
+                ) => None,
                 _ => return false,
             };
             // C2 text-equality rule (DESIGN 975 scalar): a text-typed
@@ -3469,10 +4586,20 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                         && (case == "true" || case == "false")
                         && (value.ty == *expected
                             || matches!(value.ty, ResolvedType::Scalar(Scalar::Text))))
-                        || ((text_default || *expected == ResolvedType::Scalar(Scalar::Currency)) && value.ty == *expected)
+                        || ((text_default || *expected == ResolvedType::Scalar(Scalar::Currency))
+                            && value.ty == *expected)
                 }
-                IrExpr::Int(_) if *expected == ResolvedType::Scalar(Scalar::Int) && value.ty == *expected => true,
-                IrExpr::Datetime(_) if *expected == ResolvedType::Scalar(Scalar::Datetime) && value.ty == *expected => true,
+                IrExpr::Int(_)
+                    if *expected == ResolvedType::Scalar(Scalar::Int) && value.ty == *expected =>
+                {
+                    true
+                }
+                IrExpr::Datetime(_)
+                    if *expected == ResolvedType::Scalar(Scalar::Datetime)
+                        && value.ty == *expected =>
+                {
+                    true
+                }
                 _ if date_literal => true,
                 IrExpr::Bool(_) => bool_default && value.ty == *expected,
                 IrExpr::Null => true,
@@ -4439,8 +5566,8 @@ impl<'a> Emitter<'a> {
                 constraints: self.nominal_field_constraints(&field, ty),
             });
             let mut base = ty;
-            while let ResolvedType::Nullable(inner)
-            | ResolvedType::Array { element: inner, .. } = base
+            while let ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } =
+                base
             {
                 base = inner;
             }
@@ -4844,27 +5971,68 @@ impl<'a> Emitter<'a> {
     /// its nullable slot is absent. This grants no send/result/input profile.
     fn local_model_delivery_descriptor(&self, op: SymbolId) -> Option<JsDeliveryDescriptor> {
         let operation = self.ir.items.get(op.0 as usize)?;
-        let IrItemKind::CapabilityOp {result:IrType::Known(result_type),..} = &operation.kind else { return None; };
-        let mut capabilities = self.ir.items.iter().filter(|item| matches!(&item.kind,IrItemKind::Capability {ops,..} if ops.contains(&op)));
+        let IrItemKind::CapabilityOp {
+            result: IrType::Known(result_type),
+            ..
+        } = &operation.kind
+        else {
+            return None;
+        };
+        let mut capabilities = self.ir.items.iter().filter(
+            |item| matches!(&item.kind,IrItemKind::Capability {ops,..} if ops.contains(&op)),
+        );
         let capability = capabilities.next()?;
-        let IrItemKind::Capability {version:Some(version),..} = capability.kind else { return None; };
-        if capabilities.next().is_some() || operation.canonical != format!("{}.{}",capability.canonical,operation.name) { return None; }
-        let version = u32::try_from(version).ok().filter(|version| *version != 0)?;
+        let IrItemKind::Capability {
+            version: Some(version),
+            ..
+        } = capability.kind
+        else {
+            return None;
+        };
+        if capabilities.next().is_some()
+            || operation.canonical != format!("{}.{}", capability.canonical, operation.name)
+        {
+            return None;
+        }
+        let version = u32::try_from(version)
+            .ok()
+            .filter(|version| *version != 0)?;
         let schema = match result_type {
             ResolvedType::Record { symbol, .. } => {
                 let result = self.ir.items.get(symbol.0 as usize)?;
-                if !matches!(result.kind, IrItemKind::Contract { .. }) { return None; }
-                self.value_types.as_ref()?.contracts.iter().find(|schema| schema.name == result.canonical)?.clone()
+                if !matches!(result.kind, IrItemKind::Contract { .. }) {
+                    return None;
+                }
+                self.value_types
+                    .as_ref()?
+                    .contracts
+                    .iter()
+                    .find(|schema| schema.name == result.canonical)?
+                    .clone()
             }
             ResolvedType::StdNominal { name, .. } => {
                 let schema = nominal_schema(name)?;
-                JsNominalResult { name: (*name).to_string(), fields: schema.fields.iter()
-                    .map(|(name, declared)| JsNominalLeaf {name:(*name).to_string(),
-                        declared:(*declared).to_string(), constraints:JsValueConstraints::default()}).collect() }
+                JsNominalResult {
+                    name: (*name).to_string(),
+                    fields: schema
+                        .fields
+                        .iter()
+                        .map(|(name, declared)| JsNominalLeaf {
+                            name: (*name).to_string(),
+                            declared: (*declared).to_string(),
+                            constraints: JsValueConstraints::default(),
+                        })
+                        .collect(),
+                }
             }
             _ => return None,
         };
-        Some(JsDeliveryDescriptor {capability:capability.canonical.clone(), operation:operation.name.clone(), version, result:schema})
+        Some(JsDeliveryDescriptor {
+            capability: capability.canonical.clone(),
+            operation: operation.name.clone(),
+            version,
+            result: schema,
+        })
     }
 
     fn judgment_delivery_descriptor(&self, op: SymbolId) -> Option<JsJudgmentDeliveryDescriptor> {
@@ -5281,7 +6449,9 @@ impl<'a> Emitter<'a> {
         let nullable = value.ty.nullable_inner().is_some();
         let value = self.lower_expr(value);
         if nullable {
-            format!("(await (async($reference)=>$reference==null?null:nativeReadReference(c,$reference))({value}))")
+            format!(
+                "(await (async($reference)=>$reference==null?null:nativeReadReference(c,$reference))({value}))"
+            )
         } else {
             format!("(await nativeReadReference(c,{value}))")
         }
@@ -5441,7 +6611,8 @@ impl<'a> Emitter<'a> {
         args: &[TypedExpr],
         slots: Option<&[Option<usize>]>,
     ) -> bool {
-        if !matches!(target, IrCallTarget::Builtin { id, .. } if matches!(id.as_str(), "any" | "all" | "group")) {
+        if !matches!(target, IrCallTarget::Builtin { id, .. } if matches!(id.as_str(), "any" | "all" | "group"))
+        {
             return false;
         }
         let predicate = match slots {
@@ -5464,34 +6635,56 @@ impl<'a> Emitter<'a> {
     /// constructing a callback does not evaluate its body. In particular a
     /// pure Values grouping key must remain synchronous.
     fn implicit_expr_uses_async(&self, expression: &TypedExpr) -> bool {
-        if !self.retained_owner_body && !self.boolean_body && !self.boolean_helper && !self.source_data_body { return false; }
+        if !self.retained_owner_body
+            && !self.boolean_body
+            && !self.boolean_helper
+            && !self.source_data_body
+        {
+            return false;
+        }
         let mut pending = vec![expression];
         while let Some(value) = pending.pop() {
             match &value.expr {
                 IrExpr::Member { base, field } => {
-                    if self.source_data_body && matches!(base.ty,ResolvedType::Record{symbol,..}if
-                        self.ir.items.iter().any(|item|item.name==*field&&matches!(item.kind,IrItemKind::DeriveField{model,..}if model==symbol))) {
+                    if self.source_data_body
+                        && matches!(base.ty,ResolvedType::Record{symbol,..}if
+                        self.ir.items.iter().any(|item|item.name==*field&&matches!(item.kind,IrItemKind::DeriveField{model,..}if model==symbol)))
+                    {
                         return true;
                     }
-                    if (self.boolean_body || self.retained_owner_body && field != "id") && self.is_model_reference(&base.ty) {
+                    if (self.boolean_body || self.retained_owner_body && field != "id")
+                        && self.is_model_reference(&base.ty)
+                    {
                         return true;
                     }
                     pending.push(base);
                 }
                 IrExpr::Call { target, args } => {
-                    if self.async_scoped_predicate(target, args, None) { return true; }
+                    if self.async_scoped_predicate(target, args, None) {
+                        return true;
+                    }
                     pending.extend(args);
                 }
-                IrExpr::BoundCall { target, args, slots } => {
-                    if self.async_scoped_predicate(target, args, Some(slots)) { return true; }
+                IrExpr::BoundCall {
+                    target,
+                    args,
+                    slots,
+                } => {
+                    if self.async_scoped_predicate(target, args, Some(slots)) {
+                        return true;
+                    }
                     pending.extend(args);
                 }
                 IrExpr::Unary { operand, .. } => pending.push(operand),
-                IrExpr::Binary { left, right, .. } => pending.extend([left.as_ref(), right.as_ref()]),
+                IrExpr::Binary { left, right, .. } => {
+                    pending.extend([left.as_ref(), right.as_ref()])
+                }
                 IrExpr::Array(values) => pending.extend(values),
                 IrExpr::Object(values) => pending.extend(values.iter().map(|(_, value)| value)),
                 IrExpr::Query(query) => {
-                    if let super::ir::IrQueryDomain::Value { base, .. } = &query.domain { pending.push(base); }
+                    if let super::ir::IrQueryDomain::Value { base, .. } = &query.domain {
+                        pending.push(base);
+                    }
                     pending.extend(query.value_order.iter().map(|order| order.key.as_ref()));
                     pending.extend(query.parent.iter().map(|value| value.as_ref()));
                     pending.extend(query.where_pred.iter().map(|value| value.as_ref()));
@@ -5499,26 +6692,31 @@ impl<'a> Emitter<'a> {
                     pending.extend(query.archived.iter().map(|value| value.as_ref()));
                     pending.extend(query.select.iter().map(|value| value.as_ref()));
                 }
-                IrExpr::Message(message) => pending.extend(message.params.iter().map(|param| &param.value)),
+                IrExpr::Message(message) => {
+                    pending.extend(message.params.iter().map(|param| &param.value))
+                }
                 IrExpr::MessageCall { args, params, .. } => {
                     pending.extend(args);
                     pending.extend(params.iter().filter_map(|param| param.default.as_ref()));
                 }
                 IrExpr::Format { args, .. } => pending.extend(args),
-                _ => {},
+                _ => {}
             }
         }
         false
     }
 
     fn leave_decide_async_predicate(&self, span: Span) -> bool {
-        self.owner_handler_body && self.receipt_capture.as_ref()
-            .and_then(|receipt|receipt.plan.leave_decide_decision.as_ref())
-            .is_some_and(|decision| {
-                let site=&decision["querySites"][1]["predicateSite"];
-                site["start"].as_u64()==Some(span.start as u64)
-                    && site["end"].as_u64()==Some(span.end as u64)
-            })
+        self.owner_handler_body
+            && self
+                .receipt_capture
+                .as_ref()
+                .and_then(|receipt| receipt.plan.leave_decide_decision.as_ref())
+                .is_some_and(|decision| {
+                    let site = &decision["querySites"][1]["predicateSite"];
+                    site["start"].as_u64() == Some(span.start as u64)
+                        && site["end"].as_u64() == Some(span.end as u64)
+                })
     }
 
     /// Whether hook lowering is active.
@@ -5575,10 +6773,7 @@ impl<'a> Emitter<'a> {
                         // Event-derived values and plain names expose no
                         // further event content; ordinary lowering owns them.
                         // A `Value` alias read deeper below still gaps.
-                        if matches!(
-                            self.hook_alias_lookup(name),
-                            Some(Some(HookAlias::Value))
-                        ) {
+                        if matches!(self.hook_alias_lookup(name), Some(Some(HookAlias::Value))) {
                             HookBase::Shallow
                         } else {
                             HookBase::Plain
@@ -5677,7 +6872,11 @@ impl<'a> Emitter<'a> {
     /// bindings, deeper chains and non-reference fields — those keep their
     /// existing classification.
     fn hook_reference_link(&self, base: &TypedExpr) -> Option<(String, SymbolId, String)> {
-        let crate::codegen::ir::IrExpr::Member { base: root, field: ref_field } = &base.expr else {
+        let crate::codegen::ir::IrExpr::Member {
+            base: root,
+            field: ref_field,
+        } = &base.expr
+        else {
             return None;
         };
         if !matches!(
@@ -5708,12 +6907,18 @@ impl<'a> Emitter<'a> {
                 continue;
             }
             match field_ty {
-                ResolvedType::Record { symbol, stored: true } => {
+                ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                } => {
                     target_opt = Some(*symbol);
                     break;
                 }
                 ResolvedType::Nullable(inner) => match &**inner {
-                    ResolvedType::Record { symbol, stored: true } => {
+                    ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    } => {
                         target_opt = Some(*symbol);
                         break;
                     }
@@ -5743,7 +6948,14 @@ impl<'a> Emitter<'a> {
     ) -> bool {
         if matches!(
             field,
-            "id" | "model" | "version" | "parent" | "created" | "updated" | "createdBy" | "updatedBy" | "archivedAt"
+            "id" | "model"
+                | "version"
+                | "parent"
+                | "created"
+                | "updated"
+                | "createdBy"
+                | "updatedBy"
+                | "archivedAt"
         ) {
             return false;
         }
@@ -5817,13 +7029,20 @@ impl<'a> Emitter<'a> {
     /// separate declared-type correspondence and cannot shadow that metadata.
     fn hook_parent_read_allowed(&self, parent: SymbolId, field: &str, ty: &ResolvedType) -> bool {
         self.hook_parent_field_allowed(parent, field, ty)
-            || field == "version" && *ty == ResolvedType::Scalar(crate::analysis::types::Scalar::Int)
-                && !self.ir.items.iter().any(|item| item.name == "version"
-                    && matches!(&item.kind, IrItemKind::Field { owner, .. } if *owner == parent))
+            || field == "version"
+                && *ty == ResolvedType::Scalar(crate::analysis::types::Scalar::Int)
+                && !self.ir.items.iter().any(|item| {
+                    item.name == "version"
+                        && matches!(&item.kind, IrItemKind::Field { owner, .. } if *owner == parent)
+                })
     }
 
     fn hook_read_site(&self) -> &'static str {
-        if self.hook_decision_depth > 0 { "decision" } else { "value" }
+        if self.hook_decision_depth > 0 {
+            "decision"
+        } else {
+            "value"
+        }
     }
 
     fn hook_parent_gap(
@@ -5866,7 +7085,9 @@ impl<'a> Emitter<'a> {
                 // State's exact provisional parent carrier owns this
                 // metadata; it is not a readable data field or grant.
                 "BigInt($hookRow.version)".to_string()
-            } else { format!("$hookRow.data{access}") };
+            } else {
+                format!("$hookRow.data{access}")
+            };
             let read = format!(
                 "(await (async($hookParent)=>{{if($hookParent==null)throw new Error(\"hook parent content missing\");const $hookScope=await $hookCtx.transitive.openScope({});const $hookRow=await $hookCtx.transitive.load($hookScope,{},$hookParent.id);if($hookRow===null)throw new Error(\"hook parent content missing\");return {result};}})({base_text}))",
                 js_string(site),
@@ -5915,17 +7136,13 @@ impl<'a> Emitter<'a> {
         // root, and emitted texts lower from the root name directly.
         let mut levels: Vec<String> = Vec::new();
         let mut cursor = base;
-        loop {
-            match &cursor.expr {
-                IrExpr::Member {
-                    base: inner,
-                    field: inner_field,
-                } => {
-                    levels.push(inner_field.clone());
-                    cursor = inner;
-                }
-                _ => break,
-            }
+        while let IrExpr::Member {
+            base: inner,
+            field: inner_field,
+        } = &cursor.expr
+        {
+            levels.push(inner_field.clone());
+            cursor = inner;
         }
         if levels.len() > 8 {
             return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
@@ -5956,11 +7173,19 @@ impl<'a> Emitter<'a> {
                     return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
                 }
                 let first = steps.remove(0);
-                (format!("event.{first}"), trigger_item.id, ChainRoot::Snapshot)
+                (
+                    format!("event.{first}"),
+                    trigger_item.id,
+                    ChainRoot::Snapshot,
+                )
             }
             IrExpr::Name(alias_name) => {
                 let alias_class = self.hook_alias_lookup(alias_name);
-                let ResolvedType::Record { symbol, stored: true } = &cursor.ty else {
+                let ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                } = &cursor.ty
+                else {
                     return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
                 };
                 match alias_class {
@@ -6037,16 +7262,18 @@ impl<'a> Emitter<'a> {
                 if *owner != current {
                     continue;
                 }
-                if let ResolvedType::Record { symbol, stored: true } = ty {
-                    if self
+                if let ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                } = ty
+                    && self
                         .ir
                         .items
                         .get(symbol.0 as usize)
                         .is_some_and(|t| t.id == *symbol)
-                    {
-                        target = Some(*symbol);
-                        break;
-                    }
+                {
+                    target = Some(*symbol);
+                    break;
                 }
             }
             let Some(target) = target else {
@@ -6169,10 +7396,7 @@ impl<'a> Emitter<'a> {
             tail
         };
         stmts.push(format!("return {tail};"));
-        format!(
-            "(await (async($hookLink)=>{{{}}}))({text})",
-            stmts.join(""),
-        )
+        format!("(await (async($hookLink)=>{{{}}}))({text})", stmts.join(""),)
     }
 
     /// Traversal guard for hook member reads. Returns the throwing
@@ -6199,7 +7423,11 @@ impl<'a> Emitter<'a> {
         if self.in_hook() && !self.hook_native() {
             let mut root = base;
             let mut top = field;
-            while let IrExpr::Member { base: next, field: inner } = &root.expr {
+            while let IrExpr::Member {
+                base: next,
+                field: inner,
+            } = &root.expr
+            {
                 top = inner;
                 root = next;
             }
@@ -6346,10 +7574,10 @@ impl<'a> Emitter<'a> {
     /// residual mismatch fails loud at the loader's containment bound —
     /// never a silent wrong row.
     fn hook_linkage_arg(&self, arg: &TypedExpr) -> bool {
-        if let Some(links) = &self.hook_helper_links {
-            if matches!(&arg.expr, IrExpr::Name(name) if links.contains_key(name)) {
-                return true;
-            }
+        if let Some(links) = &self.hook_helper_links
+            && matches!(&arg.expr, IrExpr::Name(name) if links.contains_key(name))
+        {
+            return true;
         }
         if !self.in_hook() {
             return false;
@@ -6362,7 +7590,8 @@ impl<'a> Emitter<'a> {
         // linkage meaning as parent linkages for helper selection —
         // identity only, with declared fields loading through the
         // reference loader at the inheriting site.
-        if self.hook_base_class(arg) == HookBase::Shallow && self.hook_reference_link(arg).is_some() {
+        if self.hook_base_class(arg) == HookBase::Shallow && self.hook_reference_link(arg).is_some()
+        {
             return true;
         }
         false
@@ -6456,7 +7685,11 @@ impl<'a> Emitter<'a> {
             return None;
         }
         let IrItemKind::Param {
-            ty: IrType::Known(ResolvedType::Record { symbol, stored: true }),
+            ty:
+                IrType::Known(ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                }),
             ..
         } = &item.kind
         else {
@@ -7357,11 +8590,19 @@ impl<'a> Emitter<'a> {
         {
             return self.formatted_refusal("formatted formatting argument", span);
         }
-        if let Some(source)=self.source_let_data.get(&span).cloned()
-            &&matches!(expr.expr,IrExpr::Member{..}){
+        if let Some(source) = self.source_let_data.get(&span).cloned()
+            && matches!(expr.expr, IrExpr::Member { .. })
+        {
             self.stdlib.insert("nativeScenarioSourceLetData".into());
-            let root=self.reference(source["parameter"].as_str().expect("checked original scalar DATA root"));
-            return format!("(await nativeScenarioSourceLetData(c,{},{root}))",descriptor_json(&source));
+            let root = self.reference(
+                source["parameter"]
+                    .as_str()
+                    .expect("checked original scalar DATA root"),
+            );
+            return format!(
+                "(await nativeScenarioSourceLetData(c,{},{root}))",
+                descriptor_json(&source)
+            );
         }
         if let Some(lowered) = self.lower_current_policy_member(expr) {
             return lowered;
@@ -7575,27 +8816,40 @@ impl<'a> Emitter<'a> {
                     return self.throw_expr("Original stored scalar source is missing");
                 };
                 let nullable_source = self.receipt_capture.as_ref().is_some_and(|recipe| {
-                    recipe.plan.returns.iter().flat_map(|returned| &returned.dependencies)
-                        .any(|read| read.id == *source_id && read.type_id == format!("{}?", scalar.model))
+                    recipe
+                        .plan
+                        .returns
+                        .iter()
+                        .flat_map(|returned| &returned.dependencies)
+                        .any(|read| {
+                            read.id == *source_id && read.type_id == format!("{}?", scalar.model)
+                        })
                 });
                 if nullable_source {
-                    let IrExpr::Member { base: source_view, .. } = &base.expr else {
+                    let IrExpr::Member {
+                        base: source_view, ..
+                    } = &base.expr
+                    else {
                         return self.throw_expr("Original nullable reference source is missing");
                     };
-                    self.stdlib.insert("readScenarioReceiptNullableStoredReference".into());
+                    self.stdlib
+                        .insert("readScenarioReceiptNullableStoredReference".into());
                     let source_view = self.lower_expr(source_view);
                     format!(
                         "(await readScenarioReceiptNullableStoredReference(c,{source_view},{receiver},{},{}))",
-                        js_string(source_id), js_string(&scalar.id)
+                        js_string(source_id),
+                        js_string(&scalar.id)
                     )
                 } else {
-                    self.stdlib.insert("readScenarioReceiptStoredReference".into());
+                    self.stdlib
+                        .insert("readScenarioReceiptStoredReference".into());
                     // Recursive lowering has already read the original reference
                     // once and awaited its source marker. Promote that same value
                     // before the one scalar getter and awaited marker below.
                     format!(
                         "(await readScenarioReceiptStoredReference(c,{receiver},{},{}))",
-                        js_string(source_id), js_string(&scalar.id)
+                        js_string(source_id),
+                        js_string(&scalar.id)
                     )
                 }
             } else {
@@ -7619,11 +8873,14 @@ impl<'a> Emitter<'a> {
                 })
                 .collect::<String>();
             let absent = if matches!(&base.ty,ResolvedType::Nullable(inner)
-                if matches!(inner.as_ref(),ResolvedType::Record{stored:true,..})) {
+                if matches!(inner.as_ref(),ResolvedType::Record{stored:true,..}))
+            {
                 // The checked optional FIRST scalar consumer has no getter
                 // or DATA observation on its genuine absent-row branch.
                 "if($receiptRow==null)return null;"
-            }else{""};
+            } else {
+                ""
+            };
             return format!(
                 "(await (async($receiptRow)=>{{{absent}const $receiptValue={value};{observations}return $receiptValue;}})({receiver}))"
             );
@@ -7696,38 +8953,56 @@ impl<'a> Emitter<'a> {
                     && matches!(&base.ty, ResolvedType::Record {symbol,stored:true}
                         if self.ir.items.get(symbol.0 as usize)
                             .is_some_and(|item|item.canonical=="leave.Day"))
-                    && self.receipt_capture.as_ref().and_then(|receipt|
-                        receipt.plan.leave_request_decision.as_ref())
+                    && self
+                        .receipt_capture
+                        .as_ref()
+                        .and_then(|receipt| receipt.plan.leave_request_decision.as_ref())
                         .is_some_and(|decision| {
-                            let node=&decision["sites"]["yearLoop"]["node"];
-                            node["start"].as_u64().is_some_and(|start|start<=span.start as u64)
-                                && node["end"].as_u64().is_some_and(|end|span.end as u64<=end)
+                            let node = &decision["sites"]["yearLoop"]["node"];
+                            node["start"]
+                                .as_u64()
+                                .is_some_and(|start| start <= span.start as u64)
+                                && node["end"]
+                                    .as_u64()
+                                    .is_some_and(|end| span.end as u64 <= end)
                         })
                 {
                     self.stdlib.insert("date_year".into());
-                    let row=self.lower_expr(base);
+                    let row = self.lower_expr(base);
                     return format!("date_year({row}.date)");
                 }
                 // A source-owned guard or checked owner rule consumes a derived
                 // scalar's original body under the same current-row observer. No stored
                 // value is fabricated and no standalone read transaction opens.
                 let leave_nullable_allowance = self.owner_handler_body
-                    && field=="remaining"
-                    && self.receipt_capture.as_ref()
-                        .and_then(|receipt|receipt.plan.leave_decide_decision.as_ref())
+                    && field == "remaining"
+                    && self
+                        .receipt_capture
+                        .as_ref()
+                        .and_then(|receipt| receipt.plan.leave_decide_decision.as_ref())
                         .is_some_and(|decision| {
-                            decision["sites"]["portionRequire"]["node"]["start"].as_u64()
-                                .is_some_and(|start|start<=span.start as u64)
-                            && decision["sites"]["portionRequire"]["node"]["end"].as_u64()
-                                .is_some_and(|end|span.end as u64<=end)
+                            decision["sites"]["portionRequire"]["node"]["start"]
+                                .as_u64()
+                                .is_some_and(|start| start <= span.start as u64)
+                                && decision["sites"]["portionRequire"]["node"]["end"]
+                                    .as_u64()
+                                    .is_some_and(|end| span.end as u64 <= end)
                         });
-                let derived_model=match &base.ty {
-                    ResolvedType::Record{symbol,stored:true}=>Some(*symbol),
-                    ResolvedType::Nullable(inner) if leave_nullable_allowance=>match inner.as_ref() {
-                        ResolvedType::Record{symbol,stored:true}=>Some(*symbol),
-                        _=>None,
-                    },
-                    _=>None,
+                let derived_model = match &base.ty {
+                    ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    } => Some(*symbol),
+                    ResolvedType::Nullable(inner) if leave_nullable_allowance => {
+                        match inner.as_ref() {
+                            ResolvedType::Record {
+                                symbol,
+                                stored: true,
+                            } => Some(*symbol),
+                            _ => None,
+                        }
+                    }
+                    _ => None,
                 };
                 if (self.source_guard_body || self.owner_handler_body || self.source_data_body)
                     && let Some(model)=derived_model
@@ -7839,12 +9114,19 @@ impl<'a> Emitter<'a> {
                         )
                     }
                 } else if matches!(&base.expr, IrExpr::Name(name) if name == "preferences")
-                    && expr.ty.nullable_inner().unwrap_or(&expr.ty) == &ResolvedType::Scalar(Scalar::Int)
+                    && expr.ty.nullable_inner().unwrap_or(&expr.ty)
+                        == &ResolvedType::Scalar(Scalar::Int)
                 {
                     self.stdlib.insert("decodeValue".into());
                     self.stdlib.insert("int64".into());
-                    let absence = if expr.ty.nullable_inner().is_some() { "if(value==null)return null;" } else { "" };
-                    format!("(value=>{{try{{{absence}return typeof value===\"bigint\"?int64(value):decodeValue(\"int\",value);}}catch{{throw{{code:\"validation\",message:\"Invalid int preference.\"}}}}}})({member})")
+                    let absence = if expr.ty.nullable_inner().is_some() {
+                        "if(value==null)return null;"
+                    } else {
+                        ""
+                    };
+                    format!(
+                        "(value=>{{try{{{absence}return typeof value===\"bigint\"?int64(value):decodeValue(\"int\",value);}}catch{{throw{{code:\"validation\",message:\"Invalid int preference.\"}}}}}})({member})"
+                    )
                 } else {
                     member
                 };
@@ -7910,17 +9192,35 @@ impl<'a> Emitter<'a> {
                 // at a nested capability-input site. The symbol's actual
                 // declaration, not that flag, owns its literal defaults.
                 if let ResolvedType::Record { symbol, .. } = &expr.ty {
-                    let defaults = self.ir.items.get(symbol.0 as usize).and_then(|item| {
-                        let IrItemKind::Contract { fields, .. } = &item.kind else { return None; };
-                        Some(fields.iter().filter_map(|id| {
-                            let field = self.ir.items.get(id.0 as usize)?;
-                            if entries.iter().any(|(name, _)| name == &field.name) { return None; }
-                            let IrItemKind::Field { default: Some(IrDefault::Literal(value)), .. } = &field.kind else {
+                    let defaults = self
+                        .ir
+                        .items
+                        .get(symbol.0 as usize)
+                        .and_then(|item| {
+                            let IrItemKind::Contract { fields, .. } = &item.kind else {
                                 return None;
                             };
-                            Some((field.name.clone(), value.clone()))
-                        }).collect::<Vec<_>>())
-                    }).unwrap_or_default();
+                            Some(
+                                fields
+                                    .iter()
+                                    .filter_map(|id| {
+                                        let field = self.ir.items.get(id.0 as usize)?;
+                                        if entries.iter().any(|(name, _)| name == &field.name) {
+                                            return None;
+                                        }
+                                        let IrItemKind::Field {
+                                            default: Some(IrDefault::Literal(value)),
+                                            ..
+                                        } = &field.kind
+                                        else {
+                                            return None;
+                                        };
+                                        Some((field.name.clone(), value.clone()))
+                                    })
+                                    .collect::<Vec<_>>(),
+                            )
+                        })
+                        .unwrap_or_default();
                     for (name, value) in defaults {
                         parts.push(format!("{}:{}", object_key(&name), self.lower_expr(&value)));
                     }
@@ -8091,12 +9391,26 @@ impl<'a> Emitter<'a> {
                 self.stdlib.insert("ValueError".to_string());
                 self.ui.insert("normalizeTag".to_string());
                 self.localized_format = true;
-                let audit=self.receipt_capture.as_ref().and_then(|receipt|receipt.plan.event_notice_audit.as_ref()).and_then(|plan|
-                    plan["formats"].as_array()?.iter().find(|site| site["node"]["start"].as_u64()==Some(span.start as u64) && site["node"]["end"].as_u64()==Some(span.end as u64)).map(|site|(plan.clone(),site["field"].as_str().unwrap().to_string())));
-                let was_boolean=self.boolean_body;
-                if audit.is_some() {self.boolean_body=true;}
+                let audit = self
+                    .receipt_capture
+                    .as_ref()
+                    .and_then(|receipt| receipt.plan.event_notice_audit.as_ref())
+                    .and_then(|plan| {
+                        plan["formats"]
+                            .as_array()?
+                            .iter()
+                            .find(|site| {
+                                site["node"]["start"].as_u64() == Some(span.start as u64)
+                                    && site["node"]["end"].as_u64() == Some(span.end as u64)
+                            })
+                            .map(|site| (plan.clone(), site["field"].as_str().unwrap().to_string()))
+                    });
+                let was_boolean = self.boolean_body;
+                if audit.is_some() {
+                    self.boolean_body = true;
+                }
                 let values: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
-                self.boolean_body=was_boolean;
+                self.boolean_body = was_boolean;
                 let capture = binding_ident("a", &self.binding_seq.to_string());
                 self.binding_seq += 1;
                 let schemas = schemas
@@ -8119,11 +9433,16 @@ impl<'a> Emitter<'a> {
                     })
                     .collect::<Vec<_>>()
                     .join(",");
-                if let Some((plan,field))=audit {
+                if let Some((plan, field)) = audit {
                     self.stdlib.insert("nativeScenarioEventNoticeFormat".into());
-                    let event=self.reference("event");
-                    return format!("(await nativeScenarioEventNoticeFormat(c,{},{},async(c,{{event:{event}}})=>(({capture})=>({{descriptor:{capture}[{descriptor_index}],locale:{capture}[{locale_index}],formatted:{}(c,{capture}[{descriptor_index}],{capture}[{locale_index}],[{schemas}])}}))([{}])))",
-                        descriptor_json(&plan),js_string(&field),binding_ident("h","localized_format"),values.join(","));
+                    let event = self.reference("event");
+                    return format!(
+                        "(await nativeScenarioEventNoticeFormat(c,{},{},async(c,{{event:{event}}})=>(({capture})=>({{descriptor:{capture}[{descriptor_index}],locale:{capture}[{locale_index}],formatted:{}(c,{capture}[{descriptor_index}],{capture}[{locale_index}],[{schemas}])}}))([{}])))",
+                        descriptor_json(&plan),
+                        js_string(&field),
+                        binding_ident("h", "localized_format"),
+                        values.join(",")
+                    );
                 }
                 format!(
                     "(({capture})=>{}(c,{capture}[{descriptor_index}],{capture}[{locale_index}],[{schemas}]))([{}])",
@@ -8160,8 +9479,10 @@ impl<'a> Emitter<'a> {
                     self.hook_closure_depth -= 1;
                 }
                 self.exit_scope();
-                if expr_uses_async(body) || self.implicit_expr_uses_async(body)
-                    || self.leave_decide_async_predicate(body.span) {
+                if expr_uses_async(body)
+                    || self.implicit_expr_uses_async(body)
+                    || self.leave_decide_async_predicate(body.span)
+                {
                     format!("async({param})=>{body_text}")
                 } else {
                     format!("({param})=>{body_text}")
@@ -8324,8 +9645,9 @@ impl<'a> Emitter<'a> {
         // value; unscoped scans keep no parent on either side. Any other
         // combination keeps the unprepared refusal below.
         let parent_matches = self.first_query_parent_matches(source, query);
-        self.first_query_call_matches(first, at, target, slots, result, &row, domain, &array, fact, source)
-            && self.first_query_collection_matches(collection, first, source, fact)
+        self.first_query_call_matches(
+            first, at, target, slots, result, &row, domain, &array, fact, source,
+        ) && self.first_query_collection_matches(collection, first, source, fact)
             && self.first_query_plan_matches(query, source, parent_matches)
     }
 
@@ -8352,17 +9674,31 @@ impl<'a> Emitter<'a> {
 
     /// Stored-model first needs its checked native recipe. A value-array
     /// query already produces a supplied ordered array for the pure builtin.
-    fn viewer_read_first_query(&self, target: &IrCallTarget, args: &[TypedExpr], span: Span) -> bool {
+    fn viewer_read_first_query(
+        &self,
+        target: &IrCallTarget,
+        args: &[TypedExpr],
+        span: Span,
+    ) -> bool {
         if !self.viewer_read_body
             || !matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "first")
         {
             return false;
         }
-        let [domain] = args else { return false; };
-        let IrExpr::Query(query) = &domain.expr else { return false; };
-        let crate::codegen::ir::IrQueryDomain::Model(_) = &query.domain else { return false; };
-        let (Some(source), Some(call)) = (query.source.as_deref(), query.collection_call.as_deref())
-        else { return false; };
+        let [domain] = args else {
+            return false;
+        };
+        let IrExpr::Query(query) = &domain.expr else {
+            return false;
+        };
+        let crate::codegen::ir::IrQueryDomain::Model(_) = &query.domain else {
+            return false;
+        };
+        let (Some(source), Some(call)) =
+            (query.source.as_deref(), query.collection_call.as_deref())
+        else {
+            return false;
+        };
         call.builtin == "first"
             && call.node.file == span.file
             && call.node.start == span.start
@@ -8392,7 +9728,8 @@ impl<'a> Emitter<'a> {
             })
         {
             if matches!(args, [domain] if self.authority_queries
-                .is_some_and(|prepared| prepared.matched_first(span, domain))) {
+                .is_some_and(|prepared| prepared.matched_first(span, domain)))
+            {
                 return None;
             }
             self.unsupported(
@@ -8591,13 +9928,20 @@ impl<'a> Emitter<'a> {
             && parent.span.file == parent_node.file
             && parent.span.start == parent_node.start
             && parent.span.end == parent_node.end
-            && (created_parent || matches!(&parent.expr, IrExpr::Name(name) if name == &parameter.name)
-                && matches!(&parameter.kind,IrItemKind::Param{ty:IrType::Known(ty),default:None,..} if ty==&parent.ty && matches!(ty,ResolvedType::Record{stored:true,..}))
-                || self.query_capture.as_ref().is_some_and(|capture|
-                    self.ir.items.iter().find(|item|item.canonical==capture.owner)
-                        .and_then(|item|self.constructor_counts.get(&item.id)).and_then(|counts|counts.as_array())
-                        .is_some_and(|counts|counts.iter().any(|value|value["queryId"]==source.id)))
-                    && matches!(&parent.expr,IrExpr::Member{base,field} if field=="parent"
+            && (created_parent
+                || matches!(&parent.expr, IrExpr::Name(name) if name == &parameter.name)
+                    && matches!(&parameter.kind,IrItemKind::Param{ty:IrType::Known(ty),default:None,..} if ty==&parent.ty && matches!(ty,ResolvedType::Record{stored:true,..}))
+                || self.query_capture.as_ref().is_some_and(|capture| {
+                    self.ir
+                        .items
+                        .iter()
+                        .find(|item| item.canonical == capture.owner)
+                        .and_then(|item| self.constructor_counts.get(&item.id))
+                        .and_then(|counts| counts.as_array())
+                        .is_some_and(|counts| {
+                            counts.iter().any(|value| value["queryId"] == source.id)
+                        })
+                }) && matches!(&parent.expr,IrExpr::Member{base,field} if field=="parent"
                         && matches!(&base.expr,IrExpr::Name(name) if name==&parameter.name)
                         && matches!(&parameter.kind,IrItemKind::Param{ty:IrType::Known(ty),default:None,..} if ty==&base.ty && matches!(ty,ResolvedType::Record{stored:true,..}))))
             && matches!(&query.domain, super::ir::IrQueryDomain::Model(model) if model == &source.model_name)
@@ -8656,29 +10000,29 @@ impl<'a> Emitter<'a> {
     /// order: `param.field == operand` equalities or bare bool reads, with
     /// the operand off any non-alias member base. The emitted callback
     /// tests exactly these leaves.
-fn conjunct_dependency_matches<'d>(
-    dependency: &'d crate::analysis::scenario_disclosure::DisclosureDependency,
-    source: &crate::analysis::scenario_disclosure::DisclosureQuery,
-    field_name: &str,
-    member_span: Span,
-    seen: &mut std::collections::HashSet<&'d String>,
-) -> bool {
-    dependency.role == crate::analysis::scenario_disclosure::DependencyRole::Control
-        && dependency.model == source.model
-        && dependency.model_name == source.model_name
-        && dependency.field_name == field_name
-        && dependency.calls.is_empty()
-        && dependency.query_id.is_none()
-        && !dependency.id.is_empty()
-        && seen.insert(&dependency.id)
-        && dependency.source == source.source
-        && !dependency.type_id.is_empty()
-        && Span::new(
-            dependency.node.file,
-            dependency.node.start,
-            dependency.node.end,
-        ) == member_span
-}
+    fn conjunct_dependency_matches<'d>(
+        dependency: &'d crate::analysis::scenario_disclosure::DisclosureDependency,
+        source: &crate::analysis::scenario_disclosure::DisclosureQuery,
+        field_name: &str,
+        member_span: Span,
+        seen: &mut std::collections::HashSet<&'d String>,
+    ) -> bool {
+        dependency.role == crate::analysis::scenario_disclosure::DependencyRole::Control
+            && dependency.model == source.model
+            && dependency.model_name == source.model_name
+            && dependency.field_name == field_name
+            && dependency.calls.is_empty()
+            && dependency.query_id.is_none()
+            && !dependency.id.is_empty()
+            && seen.insert(&dependency.id)
+            && dependency.source == source.source
+            && !dependency.type_id.is_empty()
+            && Span::new(
+                dependency.node.file,
+                dependency.node.start,
+                dependency.node.end,
+            ) == member_span
+    }
 
     fn conjunct_dependencies_match(
         &self,
@@ -8695,11 +10039,17 @@ fn conjunct_dependency_matches<'d>(
         let mut seen = HashSet::new();
         for (leaf, dependency) in leaves.iter().zip(source.dependencies.iter()) {
             let Some(super::scenario_receipts::PredicateMemberLeaf {
-                member, field: field_name, operand, ..
-            }) = super::scenario_receipts::predicate_member_leaf(leaf, param) else {
+                member,
+                field: field_name,
+                operand,
+                ..
+            }) = super::scenario_receipts::predicate_member_leaf(leaf, param)
+            else {
                 return false;
             };
-            if dependency.ty != member.ty { return false; }
+            if dependency.ty != member.ty {
+                return false;
+            }
             if let Some(operand) = operand {
                 let IrExpr::Member { base, .. } = &operand.expr else {
                     return false;
@@ -8720,8 +10070,13 @@ fn conjunct_dependency_matches<'d>(
                     }
                 }
             }
-            if !Self::conjunct_dependency_matches(dependency, source, field_name, member.span, &mut seen)
-            {
+            if !Self::conjunct_dependency_matches(
+                dependency,
+                source,
+                field_name,
+                member.span,
+                &mut seen,
+            ) {
                 return false;
             }
         }
@@ -8988,12 +10343,24 @@ fn conjunct_dependency_matches<'d>(
     }
 
     fn lower_purchase_all(&mut self, target: &IrCallTarget, span: Span) -> Option<String> {
-        if !matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "all") { return None; }
-        let profile = self.receipt_capture.as_ref()?.plan.purchase_receive_all.as_ref()?;
-        if !super::purchase_all::at(profile, span) { return None; }
+        if !matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "all") {
+            return None;
+        }
+        let profile = self
+            .receipt_capture
+            .as_ref()?
+            .plan
+            .purchase_receive_all
+            .as_ref()?;
+        if !super::purchase_all::at(profile, span) {
+            return None;
+        }
         let profile = descriptor_json(profile);
-        self.stdlib.insert("evaluateScenarioReceiptPurchaseAll".into());
-        Some(format!("(await evaluateScenarioReceiptPurchaseAll(c,{profile}))"))
+        self.stdlib
+            .insert("evaluateScenarioReceiptPurchaseAll".into());
+        Some(format!(
+            "(await evaluateScenarioReceiptPurchaseAll(c,{profile}))"
+        ))
     }
 
     /// Lower a call: catalog builtins import from `@canlang/stdlib`
@@ -9006,7 +10373,9 @@ fn conjunct_dependency_matches<'d>(
         span: Span,
         result: &ResolvedType,
     ) -> String {
-        if let Some(value) = self.lower_purchase_all(target, span) { return value; }
+        if let Some(value) = self.lower_purchase_all(target, span) {
+            return value;
+        }
         if args.iter().any(|arg| self.expr_formatted(arg)) {
             return self.formatted_refusal("formatted call argument", span);
         }
@@ -9051,7 +10420,9 @@ fn conjunct_dependency_matches<'d>(
         span: Span,
         result: &ResolvedType,
     ) -> String {
-        if let Some(value) = self.lower_purchase_all(target, span) { return value; }
+        if let Some(value) = self.lower_purchase_all(target, span) {
+            return value;
+        }
         if args.iter().any(|arg| self.expr_formatted(arg)) {
             return self.formatted_refusal("formatted call argument", span);
         }
@@ -9102,7 +10473,15 @@ fn conjunct_dependency_matches<'d>(
             self.stdlib.insert("countQuery".into());
             format!("countQuery(c,{})", ordered[0])
         } else {
-            self.lower_call_rendered(target, &ordered, domain_type, span, false, async_scoped, HookDerive::AsIs)
+            self.lower_call_rendered(
+                target,
+                &ordered,
+                domain_type,
+                span,
+                false,
+                async_scoped,
+                HookDerive::AsIs,
+            )
         };
         let awaited = native_first
             || native_count
@@ -9197,27 +10576,74 @@ fn conjunct_dependency_matches<'d>(
     /// Each source-Require invocation keeps its original helper call chain.
     /// Sharing an emitted helper function would lose which of two calls owns
     /// the same physical active_member node in that guard.
-    fn lower_source_require_derive(&mut self,canonical:&str,parts:&[String],span:Span,await_result:bool)->Option<String> {
+    fn lower_source_require_derive(
+        &mut self,
+        canonical: &str,
+        parts: &[String],
+        span: Span,
+        await_result: bool,
+    ) -> Option<String> {
         // Dedicated owner interpreters retain their existing checked helper
         // variants and domain markers. This is the generic observer route.
-        if !self.generic_boolean_body && self.membership_rule_sites.is_none() {return None;}
-        let sites=self.membership_decision_sites()?;
-        let mut matching=sites.iter().filter_map(|site|site["calls"].as_array()).flatten().filter(|call|call["target"]["kind"]=="derive"
-            && call["target"]["name"]==canonical && call["node"]["start"].as_u64()==Some(span.start as u64)
-            && call["node"]["end"].as_u64()==Some(span.end as u64)
-            && call["chain"].as_array()==Some(&self.source_require_calls));
-        let call=matching.next()?.clone();
-        if matching.next().is_some() || self.source_require_calls.len()>=32 {return None;}
-        let item=self.ir.items.get(*self.by_canonical.get(canonical)?)?.clone();
-        let IrItemKind::DeriveFn{params,expr:Some(body),..}=item.kind else{return None;};
-        if params.len()!=parts.len() || call["slots"].as_array()?.iter().enumerate().any(|(index,slot)|slot.as_u64()!=Some(index as u64))
-            || !call["defaults"].as_array()?.is_empty() {return None;}
+        if !self.generic_boolean_body && self.membership_rule_sites.is_none() {
+            return None;
+        }
+        let sites = self.membership_decision_sites()?;
+        let mut matching = sites
+            .iter()
+            .filter_map(|site| site["calls"].as_array())
+            .flatten()
+            .filter(|call| {
+                call["target"]["kind"] == "derive"
+                    && call["target"]["name"] == canonical
+                    && call["node"]["start"].as_u64() == Some(span.start as u64)
+                    && call["node"]["end"].as_u64() == Some(span.end as u64)
+                    && call["chain"].as_array() == Some(&self.source_require_calls)
+            });
+        let call = matching.next()?.clone();
+        if matching.next().is_some() || self.source_require_calls.len() >= 32 {
+            return None;
+        }
+        let item = self
+            .ir
+            .items
+            .get(*self.by_canonical.get(canonical)?)?
+            .clone();
+        let IrItemKind::DeriveFn {
+            params,
+            expr: Some(body),
+            ..
+        } = item.kind
+        else {
+            return None;
+        };
+        if params.len() != parts.len()
+            || call["slots"]
+                .as_array()?
+                .iter()
+                .enumerate()
+                .any(|(index, slot)| slot.as_u64() != Some(index as u64))
+            || !call["defaults"].as_array()?.is_empty()
+        {
+            return None;
+        }
         self.enter_scope();
-        let names=params.iter().map(|id|self.bind(&self.ir.items[id.0 as usize].name.clone())).collect::<Vec<_>>();
-        self.source_require_calls.push(serde_json::json!({"source":call["source"],"node":call["node"],"derive":canonical}));
-        let expression=self.lower_expr(&body);
-        self.source_require_calls.pop();self.exit_scope();
-        Some(format!("{}(async({})=>({expression}))({})",if await_result{"await "}else{""},names.join(","),parts.join(",")))
+        let names = params
+            .iter()
+            .map(|id| self.bind(&self.ir.items[id.0 as usize].name.clone()))
+            .collect::<Vec<_>>();
+        self.source_require_calls.push(
+            serde_json::json!({"source":call["source"],"node":call["node"],"derive":canonical}),
+        );
+        let expression = self.lower_expr(&body);
+        self.source_require_calls.pop();
+        self.exit_scope();
+        Some(format!(
+            "{}(async({})=>({expression}))({})",
+            if await_result { "await " } else { "" },
+            names.join(","),
+            parts.join(",")
+        ))
     }
 
     /// The same physical membership node can occur in two helper invocations.
@@ -9228,15 +10654,32 @@ fn conjunct_dependency_matches<'d>(
         physical: &serde_json::Value,
     ) -> Result<Option<serde_json::Value>, ()> {
         if self.source_require_identity.is_some() || self.membership_rule_sites.is_some() {
-            let sites=self.membership_decision_sites().ok_or(())?;
-            let mut matching=sites.iter().enumerate().filter_map(|(site_index,site)|site["calls"].as_array().map(|calls|(site_index,calls)))
-                .flat_map(|(site_index,calls)|calls.iter().enumerate().map(move |(call_index,call)|(site_index,call_index,call)))
-                .filter(|(_,_,call)|call["target"]["kind"]=="builtin"
-                && call["target"]["id"]=="active_member" && call["source"]==physical["source"] && call["node"]==physical["node"]
-                && call["chain"].as_array()==Some(&self.source_require_calls));
-            let (site_index,index,_)=matching.next().ok_or(())?;
-            if matching.next().is_some() {return Err(());}
-            let mut marker=physical.clone();marker["sourceCall"]=serde_json::json!({"siteIndex":site_index,"callIndex":index});
+            let sites = self.membership_decision_sites().ok_or(())?;
+            let mut matching = sites
+                .iter()
+                .enumerate()
+                .filter_map(|(site_index, site)| {
+                    site["calls"].as_array().map(|calls| (site_index, calls))
+                })
+                .flat_map(|(site_index, calls)| {
+                    calls
+                        .iter()
+                        .enumerate()
+                        .map(move |(call_index, call)| (site_index, call_index, call))
+                })
+                .filter(|(_, _, call)| {
+                    call["target"]["kind"] == "builtin"
+                        && call["target"]["id"] == "active_member"
+                        && call["source"] == physical["source"]
+                        && call["node"] == physical["node"]
+                        && call["chain"].as_array() == Some(&self.source_require_calls)
+                });
+            let (site_index, index, _) = matching.next().ok_or(())?;
+            if matching.next().is_some() {
+                return Err(());
+            }
+            let mut marker = physical.clone();
+            marker["sourceCall"] = serde_json::json!({"siteIndex":site_index,"callIndex":index});
             return Ok(Some(marker));
         }
         let Some(capture) = &self.query_capture else {
@@ -9407,7 +10850,9 @@ fn conjunct_dependency_matches<'d>(
             // result shape, awaiting only the actual original key callback.
             return format!(
                 "{}(async($domain,$keyFn)=>{{if(!Array.isArray($domain))throw new ValueError(\"invalid-construction\",\"group domain must be an array\");if(typeof $keyFn!==\"function\")throw new ValueError(\"invalid-construction\",\"group key function must be a function\");const $groups=[];for(const $item of $domain){{const $key=await $keyFn($item);let $found;for(const $candidate of $groups){{if(equalValue(\"\",$candidate.key,$key)){{$found=$candidate;break;}}}}if($found===undefined)$groups.push({{key:$key,items:[$item]}});else $found.items.push($item);}}return Object.freeze($groups.map($entry=>Object.freeze({{key:$entry.key,items:Object.freeze([...$entry.items])}})));}})({},{})",
-                if await_result { "await " } else { "" }, parts[0], parts[1]
+                if await_result { "await " } else { "" },
+                parts[0],
+                parts[1]
             );
         }
         if async_scoped && matches!(id.as_str(), "any" | "all") && parts.len() == 2 {
@@ -9422,20 +10867,20 @@ fn conjunct_dependency_matches<'d>(
             );
         }
         let mut parts = parts.to_vec();
-        if id == "active_member" {
-            if let Some(done) = self.lower_active_member_rendered(awaited, &mut parts, span) {
-                return done;
-            }
+        if id == "active_member"
+            && let Some(done) = self.lower_active_member_rendered(awaited, &mut parts, span)
+        {
+            return done;
         }
         if id == "app_url" {
             // Only the resolved builtin receives the trusted host context.
             // Source arguments retain their existing once-only ordering.
             parts.insert(0, "c".to_string());
         }
-        if id == "sum" {
-            if let Some(done) = self.lower_sum_rendered(&mut parts, domain_type, span) {
-                return done;
-            }
+        if id == "sum"
+            && let Some(done) = self.lower_sum_rendered(&mut parts, domain_type, span)
+        {
+            return done;
         }
         self.stdlib.insert(id.clone());
         self.builtins.push(ReferencedBuiltin {
@@ -9537,21 +10982,61 @@ fn conjunct_dependency_matches<'d>(
         hook_derive: HookDerive,
     ) -> String {
         match target {
-            IrCallTarget::Builtin { id, awaited } => {
-                self.lower_builtin_rendered(id, *awaited, parts, domain_type, span, await_result, async_scoped)
-            }
+            IrCallTarget::Builtin { id, awaited } => self.lower_builtin_rendered(
+                id,
+                *awaited,
+                parts,
+                domain_type,
+                span,
+                await_result,
+                async_scoped,
+            ),
             IrCallTarget::DeriveFn(canonical) => {
                 if self.source_data_body {
-                    let helper=self.ir.items.iter().find(|item|item.canonical==*canonical).cloned();
-                    if let Some(IrItem{kind:IrItemKind::DeriveFn{params,expr:Some(body),..},..})=helper {
-                        if params.len()!=parts.len() { self.unsupported("effect DATA helper","original supplied formal census differs",span);return self.throw_expr("effect DATA helper formal mismatch"); }
+                    let helper = self
+                        .ir
+                        .items
+                        .iter()
+                        .find(|item| item.canonical == *canonical)
+                        .cloned();
+                    if let Some(IrItem {
+                        kind:
+                            IrItemKind::DeriveFn {
+                                params,
+                                expr: Some(body),
+                                ..
+                            },
+                        ..
+                    }) = helper
+                    {
+                        if params.len() != parts.len() {
+                            self.unsupported(
+                                "effect DATA helper",
+                                "original supplied formal census differs",
+                                span,
+                            );
+                            return self.throw_expr("effect DATA helper formal mismatch");
+                        }
                         self.enter_scope();
-                        let signature=params.iter().map(|id|self.bind(&self.ir.items[id.0 as usize].name.clone())).collect::<Vec<_>>().join(",");
-                        let value=self.lower_expr(&body);self.exit_scope();
-                        return format!("{}(async({signature})=>({value}))({})",if await_result{"await "}else{""},parts.join(","));
+                        let signature = params
+                            .iter()
+                            .map(|id| self.bind(&self.ir.items[id.0 as usize].name.clone()))
+                            .collect::<Vec<_>>()
+                            .join(",");
+                        let value = self.lower_expr(&body);
+                        self.exit_scope();
+                        return format!(
+                            "{}(async({signature})=>({value}))({})",
+                            if await_result { "await " } else { "" },
+                            parts.join(",")
+                        );
                     }
                 }
-                if let Some(specialized)=self.lower_source_require_derive(canonical,parts,span,await_result) {return specialized;}
+                if let Some(specialized) =
+                    self.lower_source_require_derive(canonical, parts, span, await_result)
+                {
+                    return specialized;
+                }
                 if let Some(specialized) =
                     self.lower_derive_field_rendered(canonical, parts, span, await_result)
                 {
@@ -9605,10 +11090,15 @@ fn conjunct_dependency_matches<'d>(
                     }
                     HookDerive::AsIs => {}
                 }
-                if self.generic_boolean_body { self.generic_boolean_derives.insert(canonical.clone()); }
+                if self.generic_boolean_body {
+                    self.generic_boolean_derives.insert(canonical.clone());
+                }
                 if self.owner_handler_body {
-                    if self.retained_owner_body { self.retained_owner_derives.insert(canonical.clone()); }
-                    else { self.owner_handler_derives.insert(canonical.clone()); }
+                    if self.retained_owner_body {
+                        self.retained_owner_derives.insert(canonical.clone());
+                    } else {
+                        self.owner_handler_derives.insert(canonical.clone());
+                    }
                 }
                 let name = match self.by_canonical.get(canonical) {
                     Some(index) => binding_ident(
@@ -9619,8 +11109,10 @@ fn conjunct_dependency_matches<'d>(
                         } else if self.owner_handler_body {
                             "o"
                         } else if (self.boolean_body || self.authority_body)
-                            && !(self.authority_body && self.authority_queries
-                                .is_some_and(|prepared| prepared.reaches(span)))
+                            && !(self.authority_body
+                                && self
+                                    .authority_queries
+                                    .is_some_and(|prepared| prepared.reaches(span)))
                             && self.boolean_derives.contains(canonical)
                         {
                             "b"
@@ -10020,23 +11512,23 @@ fn conjunct_dependency_matches<'d>(
         ));
     }
 
-fn null_equality(
-    left: &TypedExpr,
-    right: &TypedExpr,
-    l: &str,
-    r: &str,
-    negate: bool,
-) -> Option<String> {
-    if !(matches!(left.ty, ResolvedType::Null) || matches!(right.ty, ResolvedType::Null)) {
-        return None;
+    fn null_equality(
+        left: &TypedExpr,
+        right: &TypedExpr,
+        l: &str,
+        r: &str,
+        negate: bool,
+    ) -> Option<String> {
+        if !(matches!(left.ty, ResolvedType::Null) || matches!(right.ty, ResolvedType::Null)) {
+            return None;
+        }
+        let js_op = if negate { "!==" } else { "===" };
+        Some(format!(
+            "{} {js_op} {}",
+            parenthesize_operand(l, &left.expr),
+            parenthesize_operand(r, &right.expr)
+        ))
     }
-    let js_op = if negate { "!==" } else { "===" };
-    Some(format!(
-        "{} {js_op} {}",
-        parenthesize_operand(l, &left.expr),
-        parenthesize_operand(r, &right.expr)
-    ))
-}
 
     fn record_identity_equality(
         &mut self,
@@ -10218,9 +11710,8 @@ fn null_equality(
                     | ScalarFamily::Date
                     | ScalarFamily::Datetime,
                 ),
-            ) => self.lower_ordered_scalar_equality(
-                l_family, r_family, left, right, span, l, r, negate,
-            ),
+            ) => self
+                .lower_ordered_scalar_equality(l_family, r_family, left, right, span, l, r, negate),
             (
                 Some(ScalarFamily::Bool | ScalarFamily::Text | ScalarFamily::Enum),
                 Some(ScalarFamily::Bool | ScalarFamily::Text | ScalarFamily::Enum),
@@ -10479,7 +11970,9 @@ fn null_equality(
                 self.stdlib.insert("multiplyDuration".to_string());
                 // Capture authored operands once, left-to-right (including
                 // awaits/throws), before normalizing the helper's argument order.
-                Some(format!("(($factor,$duration)=>multiplyDuration($duration,$factor))({l},{r})"))
+                Some(format!(
+                    "(($factor,$duration)=>multiplyDuration($duration,$factor))({l},{r})"
+                ))
             }
             (Some(ScalarFamily::Datetime), Some(ScalarFamily::Duration))
             | (Some(ScalarFamily::Duration), Some(ScalarFamily::Duration)) => match op {
@@ -10555,8 +12048,7 @@ fn null_equality(
                 self.stdlib.insert("int64".to_string());
                 format!("int64({l} {js_op} {r})")
             }
-            (Some(ScalarFamily::Money), _)
-            | (_, Some(ScalarFamily::Money)) => self
+            (Some(ScalarFamily::Money), _) | (_, Some(ScalarFamily::Money)) => self
                 .lower_money_arithmetic(
                     scalar_family(&left.ty),
                     scalar_family(&right.ty),
@@ -10829,8 +12321,7 @@ fn null_equality(
                 && self.receipt_calls.as_slice()
                     == [Span::new(fact.call.file, fact.call.start, fact.call.end)]
         })?;
-        let (Some(projection), Some(param)) =
-            (query.select.as_ref(), query.select_param.as_ref())
+        let (Some(projection), Some(param)) = (query.select.as_ref(), query.select_param.as_ref())
         else {
             self.unsupported(
                 "transcript selection",
@@ -10912,11 +12403,12 @@ fn null_equality(
         // data-only filters to the predicate AST; anything
         // else keeps the ordinary callback below (still
         // refused fail-closed by decision mode).
-        let authority_ast = if self.authority_body && !query.where_async && !source_checked_authority {
-            Self::lower_authority_where(query)
-        } else {
-            None
-        };
+        let authority_ast =
+            if self.authority_body && !query.where_async && !source_checked_authority {
+                Self::lower_authority_where(query)
+            } else {
+                None
+            };
         if let Some(ast) = authority_ast {
             opts.push(format!("where:{ast}"));
             return;
@@ -10933,14 +12425,14 @@ fn null_equality(
         }
         self.exit_scope();
         if self.native_source_predicates {
-            let prefix = if query.where_async || self.boolean_body || self.implicit_expr_uses_async(pred) {
-                "async"
-            } else {
-                ""
-            };
-            let predicate = format!(
-                "{prefix}({row},$can$read$c)=>{{const c=$can$read$c;return {body};}}"
-            );
+            let prefix =
+                if query.where_async || self.boolean_body || self.implicit_expr_uses_async(pred) {
+                    "async"
+                } else {
+                    ""
+                };
+            let predicate =
+                format!("{prefix}({row},$can$read$c)=>{{const c=$can$read$c;return {body};}}");
             if let Some(source) = self.membership_predicates.get(&pred.span) {
                 opts.push(format!(
                     "where:$can$read$issue({},{predicate})",
@@ -10989,7 +12481,9 @@ fn null_equality(
             let alias = self.bind(alias);
             let key = self.lower_expr(&order.key);
             self.exit_scope();
-            let asynchronous = expr_uses_async(&order.key) || self.boolean_body || self.implicit_expr_uses_async(&order.key);
+            let asynchronous = expr_uses_async(&order.key)
+                || self.boolean_body
+                || self.implicit_expr_uses_async(&order.key);
             let (awaited, asynchronous_fn) = if asynchronous {
                 ("await ", "async")
             } else {
@@ -11052,8 +12546,7 @@ fn null_equality(
                             // predicate below.
                             assert!(
                                 contained_count
-                                    || (source.first.is_some()
-                                        && source.predicate.is_none()),
+                                    || (source.first.is_some() && source.predicate.is_none()),
                                 "checked source query predicate"
                             );
                             "true".into()
@@ -11091,111 +12584,194 @@ fn null_equality(
             crate::codegen::ir::IrQueryDomain::Model(model) => {
                 if self.source_data_body {
                     if self.source_send_data_body {
-                    let source=self.source_data_sends.values().filter_map(|source|source["queries"].as_array()).flat_map(|queries|queries.iter())
-                        .find(|source|source["node"]["file"]==span.file.0&&source["node"]["start"]==span.start&&source["node"]["end"]==span.end).cloned();
-                    if let Some(source)=source{
-                        self.stdlib.insert("nativeScenarioSourceSendQuery".into());
-                        let parent=self.lower_expr(query.parent.as_deref().expect("checked contained DATA parent"));
-                        let fetched=format!("await nativeScenarioSourceSendQuery(c,{}, {parent},async()=>{{throw new Error(\"unissued source query\");}})",js_string(source["id"].as_str().expect("checked DATA query id")));
-                        return self.append_select(&fetched,true,query);
+                        let source = self
+                            .source_data_sends
+                            .values()
+                            .filter_map(|source| source["queries"].as_array())
+                            .flat_map(|queries| queries.iter())
+                            .find(|source| {
+                                source["node"]["file"] == span.file.0
+                                    && source["node"]["start"] == span.start
+                                    && source["node"]["end"] == span.end
+                            })
+                            .cloned();
+                        if let Some(source) = source {
+                            self.stdlib.insert("nativeScenarioSourceSendQuery".into());
+                            let parent = self.lower_expr(
+                                query
+                                    .parent
+                                    .as_deref()
+                                    .expect("checked contained DATA parent"),
+                            );
+                            let fetched = format!(
+                                "await nativeScenarioSourceSendQuery(c,{}, {parent},async()=>{{throw new Error(\"unissued source query\");}})",
+                                js_string(source["id"].as_str().expect("checked DATA query id"))
+                            );
+                            return self.append_select(&fetched, true, query);
+                        }
+                        self.unsupported(
+                            "SEND DATA query",
+                            "original contained domain lacks its independent DATA census",
+                            span,
+                        );
+                        return self.throw_expr("unsealed SEND DATA query");
                     }
-                    self.unsupported("SEND DATA query","original contained domain lacks its independent DATA census",span);
-                    return self.throw_expr("unsealed SEND DATA query");
-                    }
-                    let source=self.source_data_emits.values().filter_map(|source|source["queries"].as_array()).flat_map(|queries|queries.iter())
-                        .find(|source|source["node"]["file"]==span.file.0&&source["node"]["start"]==span.start&&source["node"]["end"]==span.end).cloned();
-                    let Some(source)=source else{self.unsupported("EMIT DATA query","original aggregate domain lacks its independent DATA census",span);return self.throw_expr("unsealed EMIT DATA query");};
+                    let source = self
+                        .source_data_emits
+                        .values()
+                        .filter_map(|source| source["queries"].as_array())
+                        .flat_map(|queries| queries.iter())
+                        .find(|source| {
+                            source["node"]["file"] == span.file.0
+                                && source["node"]["start"] == span.start
+                                && source["node"]["end"] == span.end
+                        })
+                        .cloned();
+                    let Some(source) = source else {
+                        self.unsupported(
+                            "EMIT DATA query",
+                            "original aggregate domain lacks its independent DATA census",
+                            span,
+                        );
+                        return self.throw_expr("unsealed EMIT DATA query");
+                    };
                     self.stdlib.insert("nativeScenarioSourceEmitQuery".into());
-                    let parent=self.lower_expr(query.parent.as_deref().expect("checked aggregate parent"));
-                    let mut fetched=format!("await nativeScenarioSourceEmitQuery(c,{}, {parent})",js_string(source["id"].as_str().expect("checked aggregate id")));
-                    if let Some(predicate)=&query.where_pred{
-                        self.enter_scope();let row=self.bind(&query.where_param);let predicate=self.lower_expr(predicate);self.exit_scope();
-                        fetched=format!("await (async($rows)=>{{const $selected=[];for(const $item of $rows){{if(await (async({row})=>({predicate}))($item))$selected.push($item);}}return Object.freeze($selected);}})({fetched})");
+                    let parent =
+                        self.lower_expr(query.parent.as_deref().expect("checked aggregate parent"));
+                    let mut fetched = format!(
+                        "await nativeScenarioSourceEmitQuery(c,{}, {parent})",
+                        js_string(source["id"].as_str().expect("checked aggregate id"))
+                    );
+                    if let Some(predicate) = &query.where_pred {
+                        self.enter_scope();
+                        let row = self.bind(&query.where_param);
+                        let predicate = self.lower_expr(predicate);
+                        self.exit_scope();
+                        fetched = format!(
+                            "await (async($rows)=>{{const $selected=[];for(const $item of $rows){{if(await (async({row})=>({predicate}))($item))$selected.push($item);}}return Object.freeze($selected);}})({fetched})"
+                        );
                     }
-                    return self.append_select(&fetched,true,query);
+                    return self.append_select(&fetched, true, query);
                 }
                 // A private serial owner decision may issue only its checked
                 // stored-model occurrences. The marker identifies the exact
                 // source call, rather than granting authority by model name.
-                let owner_decision = self.receipt_capture.as_ref()
-                    .and_then(|receipt|receipt.plan.refer_reject_decision.as_ref()
-                        .or(receipt.plan.member_retry_decision.as_ref())
-                        .or(receipt.plan.invoice_collect_decision.as_ref())
-                        .or(receipt.plan.invoice_issue_decision.as_ref())
-                        .or(receipt.plan.observe_venue_decision.as_ref()))
-                    .filter(|_|self.owner_handler_body);
+                let owner_decision = self
+                    .receipt_capture
+                    .as_ref()
+                    .and_then(|receipt| {
+                        receipt
+                            .plan
+                            .refer_reject_decision
+                            .as_ref()
+                            .or(receipt.plan.member_retry_decision.as_ref())
+                            .or(receipt.plan.invoice_collect_decision.as_ref())
+                            .or(receipt.plan.invoice_issue_decision.as_ref())
+                            .or(receipt.plan.observe_venue_decision.as_ref())
+                    })
+                    .filter(|_| self.owner_handler_body);
                 // Source Require lowering temporarily suspends receipt_capture,
                 // and imported pure helpers are emitted outside the handler.
                 // Their exact checked invoice collection sites still carry the
                 // same source marker when called under that owner's lease.
-                let owner_site_id = owner_decision.into_iter().chain(
-                    self.native_receipts.values().filter(|_| !self.retained_owner_body && !self.generic_boolean_body).flat_map(|receipt| [
-                        receipt.plan.invoice_collect_decision.as_ref(),
-                        receipt.plan.invoice_issue_decision.as_ref(),
-                    ].into_iter().flatten())).filter(|decision| {
-                    // Shared helpers can occur in several owner's financial
-                    // profiles. A source Require has its exact owner here;
-                    // another owner's site must not win HashMap iteration.
-                    self.source_require_identity.as_ref()
-                        .and_then(|identity| identity["owner"].as_str())
-                        .is_none_or(|owner| decision["owner"] == owner)
-                }).find_map(|decision| {
-                    decision["querySites"].as_array()?.iter().find(|site| {
-                        let exact_node=query.source.as_ref().is_some_and(|source| {
-                            let node=source.node;
-                            (self.source_paths.is_empty() || self.source_paths.get(&node.file)
-                                .is_some_and(|path|site["source"]["path"]==path.as_str()))
-                                && site["queryNode"]==serde_json::json!({
-                                    "start":node.start,"end":node.end,"kind":node.kind
-                                })
-                        });
-                        // Bare `count(invoice.Line)` has a checked builtin and
-                        // typed model-member argument, but no checked query fact.
-                        // The exact issue source/IR profile binds that one span.
-                        let issue_count=query.source.is_none()
-                            && decision["owner"]=="invoice.issue"
-                            && site["stage"]=="lineCount"
-                            && site["queryNode"]["start"]==span.start
-                            && site["queryNode"]["end"]==span.end;
-                        site["model"]==*model
-                            && (exact_node || issue_count)
-                    })?["id"].as_str().map(str::to_owned)
-                });
+                let owner_site_id = owner_decision
+                    .into_iter()
+                    .chain(
+                        self.native_receipts
+                            .values()
+                            .filter(|_| !self.retained_owner_body && !self.generic_boolean_body)
+                            .flat_map(|receipt| {
+                                [
+                                    receipt.plan.invoice_collect_decision.as_ref(),
+                                    receipt.plan.invoice_issue_decision.as_ref(),
+                                ]
+                                .into_iter()
+                                .flatten()
+                            }),
+                    )
+                    .filter(|decision| {
+                        // Shared helpers can occur in several owner's financial
+                        // profiles. A source Require has its exact owner here;
+                        // another owner's site must not win HashMap iteration.
+                        self.source_require_identity
+                            .as_ref()
+                            .and_then(|identity| identity["owner"].as_str())
+                            .is_none_or(|owner| decision["owner"] == owner)
+                    })
+                    .find_map(|decision| {
+                        decision["querySites"].as_array()?.iter().find(|site| {
+                            let exact_node = query.source.as_ref().is_some_and(|source| {
+                                let node = source.node;
+                                (self.source_paths.is_empty()
+                                    || self.source_paths.get(&node.file).is_some_and(|path| {
+                                        site["source"]["path"] == path.as_str()
+                                    }))
+                                    && site["queryNode"]
+                                        == serde_json::json!({
+                                            "start":node.start,"end":node.end,"kind":node.kind
+                                        })
+                            });
+                            // Bare `count(invoice.Line)` has a checked builtin and
+                            // typed model-member argument, but no checked query fact.
+                            // The exact issue source/IR profile binds that one span.
+                            let issue_count = query.source.is_none()
+                                && decision["owner"] == "invoice.issue"
+                                && site["stage"] == "lineCount"
+                                && site["queryNode"]["start"] == span.start
+                                && site["queryNode"]["end"] == span.end;
+                            site["model"] == *model && (exact_node || issue_count)
+                        })?["id"]
+                            .as_str()
+                            .map(str::to_owned)
+                    });
                 if owner_decision.is_some() && owner_site_id.is_none() {
-                    self.unsupported("owner decision query",
-                        "stored-model read lacks its exact checked source site",span);
+                    self.unsupported(
+                        "owner decision query",
+                        "stored-model read lacks its exact checked source site",
+                        span,
+                    );
                     return self.throw_expr("unsealed owner decision query");
                 }
                 let unsealed_authority_query = self.authority_queries.is_some_and(|prepared| {
                     prepared.reaches(span) && prepared.matched_site(span, query, model).is_none()
                 });
                 if unsealed_authority_query {
-                    self.unsupported("authority query", "reachable stored-model read lacks exact checked source correspondence", span);
+                    self.unsupported(
+                        "authority query",
+                        "reachable stored-model read lacks exact checked source correspondence",
+                        span,
+                    );
                     return self.throw_expr("unsealed authority query");
                 }
                 self.stdlib.insert("records".to_string());
                 let mut opts = Vec::new();
-                if let Some(id)=owner_site_id {
-                    opts.push(format!("ownerDecisionSource:{{id:{}}}",js_string(&id)));
+                if let Some(id) = owner_site_id {
+                    opts.push(format!("ownerDecisionSource:{{id:{}}}", js_string(&id)));
                 }
-                if let Some(prepared) = self.authority_queries {
-                    if let Some(site) = prepared.matched_site(span, query, model) {
-                        opts.push(format!("authoritySource:{{id:{}}}", js_string(&site.id)));
-                    }
+                if let Some(prepared) = self.authority_queries
+                    && let Some(site) = prepared.matched_site(span, query, model)
+                {
+                    opts.push(format!("authoritySource:{{id:{}}}", js_string(&site.id)));
                 }
                 if self.hook_native() {
                     // Only the checked private hook adapter consumes this
                     // label as its inherited decision/value read site.
-                    opts.push(format!("authority:{}", js_string(
-                        if self.hook_decision_depth > 0 { "owner" } else { "viewer" }
-                    )));
+                    opts.push(format!(
+                        "authority:{}",
+                        js_string(if self.hook_decision_depth > 0 {
+                            "owner"
+                        } else {
+                            "viewer"
+                        })
+                    ));
                 }
                 if let Some(parent) = &query.parent {
                     opts.push(format!("parent:{}", self.lower_expr(parent)));
                 }
                 if let Some(pred) = &query.where_pred {
-                    let source_checked_authority = self.authority_queries
-                        .is_some_and(|prepared| prepared.matched_site(span, query, model).is_some());
+                    let source_checked_authority = self.authority_queries.is_some_and(|prepared| {
+                        prepared.matched_site(span, query, model).is_some()
+                    });
                     self.lower_model_where_opt(query, pred, &mut opts, source_checked_authority);
                 }
                 if let Some(order) = &query.value_order {
@@ -11204,8 +12780,10 @@ fn null_equality(
                     let key = self.lower_expr(&order.key);
                     self.exit_scope();
                     let compared = self.lower_value_order_comparison(&order.key);
-                    opts.push(format!("order:{{by:async({row})=>{key},compare:($a,$b)=>{compared},direction:{}}}",
-                        js_string(if order.descending { "desc" } else { "asc" })));
+                    opts.push(format!(
+                        "order:{{by:async({row})=>{key},compare:($a,$b)=>{compared},direction:{}}}",
+                        js_string(if order.descending { "desc" } else { "asc" })
+                    ));
                 }
                 if !query.order.is_empty() {
                     let order = query
@@ -11233,14 +12811,32 @@ fn null_equality(
                     js_string(model),
                     opts.join(",")
                 );
-                let projection=self.source_data_sends.values().filter_map(|source|source["queries"].as_array())
-                    .flat_map(|queries|queries.iter()).find(|source|source["node"]["file"]==span.file.0
-                        &&source["node"]["start"]==span.start&&source["node"]["end"]==span.end).cloned();
-                let fetched=if let Some(source)=projection{
+                let projection = self
+                    .source_data_sends
+                    .values()
+                    .filter_map(|source| source["queries"].as_array())
+                    .flat_map(|queries| queries.iter())
+                    .find(|source| {
+                        source["node"]["file"] == span.file.0
+                            && source["node"]["start"] == span.start
+                            && source["node"]["end"] == span.end
+                    })
+                    .cloned();
+                let fetched = if let Some(source) = projection {
                     self.stdlib.insert("nativeScenarioSourceSendQuery".into());
-                    let parent=self.lower_expr(query.parent.as_deref().expect("checked direct projection parent"));
-                    format!("await nativeScenarioSourceSendQuery(c,{}, {parent},async()=>({fetched}))",js_string(source["id"].as_str().expect("checked projection id")))
-                }else{fetched};
+                    let parent = self.lower_expr(
+                        query
+                            .parent
+                            .as_deref()
+                            .expect("checked direct projection parent"),
+                    );
+                    format!(
+                        "await nativeScenarioSourceSendQuery(c,{}, {parent},async()=>({fetched}))",
+                        js_string(source["id"].as_str().expect("checked projection id"))
+                    )
+                } else {
+                    fetched
+                };
                 self.append_select(&fetched, true, query)
             }
             crate::codegen::ir::IrQueryDomain::Value { base, alias } => {
@@ -11304,7 +12900,10 @@ fn null_equality(
         } else {
             body
         };
-        if expr_uses_async(projection) || self.boolean_body || self.implicit_expr_uses_async(projection) {
+        if expr_uses_async(projection)
+            || self.boolean_body
+            || self.implicit_expr_uses_async(projection)
+        {
             return format!(
                 "(await (async($items)=>{{const $result=[];for(const {param} of $items){{$result.push(await ({body}));}}return $result;}})({fetched}))"
             );
@@ -11479,7 +13078,7 @@ fn null_equality(
     }
 
     /// The installed source closure observes control only at its actual owner stage.
-    fn lower_source_condition(&mut self,cond:&TypedExpr)->Option<String> {
+    fn lower_source_condition(&mut self, cond: &TypedExpr) -> Option<String> {
         // A sealed receipt consumer owns its actual staged observation. Keep it
         // outside the generic source closure, which has no receipt execution frame.
         // The existing consumer checks the complete original profile and node.
@@ -11488,7 +13087,7 @@ fn null_equality(
         {
             return Some(expression);
         }
-        let identity=self.source_requires.get(&cond.span).cloned()?;
+        let identity = self.source_requires.get(&cond.span).cloned()?;
         let parameters = identity["parameters"]
             .as_array()
             .expect("sealed Require parameters");
@@ -11508,19 +13107,21 @@ fn null_equality(
             .collect::<Vec<_>>()
             .join(",");
         let previous_boolean = std::mem::replace(&mut self.boolean_body, true);
-        let source_guard_bridge = self.receipt_capture.as_ref()
+        let source_guard_bridge = self
+            .receipt_capture
+            .as_ref()
             .and_then(|receipt| receipt.plan.owner_body(identity["owner"].as_str()?))
             .is_some_and(|body| body.source_guard_bridge);
-        let previous_generic = std::mem::replace(&mut self.generic_boolean_body, !source_guard_bridge);
-        let previous_source_guard =
-            std::mem::replace(&mut self.source_guard_body, true);
+        let previous_generic =
+            std::mem::replace(&mut self.generic_boolean_body, !source_guard_bridge);
+        let previous_source_guard = std::mem::replace(&mut self.source_guard_body, true);
         let previous_receipt = self.receipt_capture.take();
         let previous_query = self.query_capture.take();
-        let previous_require=self.source_require_identity.replace(identity.clone());
-        let previous_calls=std::mem::take(&mut self.source_require_calls);
+        let previous_require = self.source_require_identity.replace(identity.clone());
+        let previous_calls = std::mem::take(&mut self.source_require_calls);
         let expression = self.lower_expr(cond);
-        self.source_require_identity=previous_require;
-        self.source_require_calls=previous_calls;
+        self.source_require_identity = previous_require;
+        self.source_require_calls = previous_calls;
         self.boolean_body = previous_boolean;
         self.generic_boolean_body = previous_generic;
         self.source_guard_body = previous_source_guard;
@@ -11590,43 +13191,68 @@ fn null_equality(
             }
         } else if let Some(value) = consumers.iter().find(|value| self.expr_formatted(value)) {
             let notice_sink = match stmt {
-                IrStmt::Create { model, input, span, .. }
-                    if model == "rent_reservations.Notice" && self.owner_handler_body => {
-                    self.receipt_capture.as_ref()
-                        .and_then(|receipt| receipt.plan.rent_notice_decision.as_ref())
-                        .is_some_and(|decision| {
-                            let names = ["confirmationCreate", "cancellationCreate", "reminderCreate"];
-                            let positions = self.formatted_positions(input);
-                            names.iter().any(|name| {
-                                decision["sites"][name]["model"] == "rent_reservations.Notice" &&
-                                decision["sites"][name]["statement"]["start"] == span.start &&
-                                decision["sites"][name]["statement"]["end"] == span.end
-                            }) && !positions.is_empty() && positions.iter().all(|(path, _)|
-                                path.as_slice() == ["subject"] || path.as_slice() == ["body"])
-                        })
-                }
-                IrStmt::Create {model,input,span,..} if model == "events.Notice" => {
-                    self.receipt_capture.as_ref().and_then(|receipt|receipt.plan.event_notice_audit.as_ref())
-                        .is_some_and(|audit| audit["model"] == model.as_str()
-                            && audit["create"]["start"] == span.start && audit["create"]["end"] == span.end
-                            && {let positions=self.formatted_positions(input); !positions.is_empty()
-                                && positions.iter().all(|(path,_)|path.as_slice()==["subject"] || path.as_slice()==["body"])})
-                }
+                IrStmt::Create {
+                    model, input, span, ..
+                } if model == "rent_reservations.Notice" && self.owner_handler_body => self
+                    .receipt_capture
+                    .as_ref()
+                    .and_then(|receipt| receipt.plan.rent_notice_decision.as_ref())
+                    .is_some_and(|decision| {
+                        let names = ["confirmationCreate", "cancellationCreate", "reminderCreate"];
+                        let positions = self.formatted_positions(input);
+                        names.iter().any(|name| {
+                            decision["sites"][name]["model"] == "rent_reservations.Notice"
+                                && decision["sites"][name]["statement"]["start"] == span.start
+                                && decision["sites"][name]["statement"]["end"] == span.end
+                        }) && !positions.is_empty()
+                            && positions.iter().all(|(path, _)| {
+                                path.as_slice() == ["subject"] || path.as_slice() == ["body"]
+                            })
+                    }),
+                IrStmt::Create {
+                    model, input, span, ..
+                } if model == "events.Notice" => self
+                    .receipt_capture
+                    .as_ref()
+                    .and_then(|receipt| receipt.plan.event_notice_audit.as_ref())
+                    .is_some_and(|audit| {
+                        audit["model"] == model.as_str()
+                            && audit["create"]["start"] == span.start
+                            && audit["create"]["end"] == span.end
+                            && {
+                                let positions = self.formatted_positions(input);
+                                !positions.is_empty()
+                                    && positions.iter().all(|(path, _)| {
+                                        path.as_slice() == ["subject"]
+                                            || path.as_slice() == ["body"]
+                                    })
+                            }
+                    }),
                 _ => false,
             };
-            if notice_sink { /* The complete original handler and values are rechecked by State. */ }
-            else {
-            let refused = self.formatted_refusal("formatted business statement", value.span);
-            return vec![(format!("{pad}{refused};"), value.span)];
+            if notice_sink { /* The complete original handler and values are rechecked by State. */
+            } else {
+                let refused = self.formatted_refusal("formatted business statement", value.span);
+                return vec![(format!("{pad}{refused};"), value.span)];
             }
         }
         match stmt {
             IrStmt::Let { name, value, span } => {
-                if let Some(source)=self.source_let_data.get(span).cloned(){
+                if let Some(source) = self.source_let_data.get(span).cloned() {
                     self.stdlib.insert("nativeScenarioSourceLetData".into());
-                    let root=self.reference(source["parameter"].as_str().expect("original LET parameter"));
-                    let binding=self.bind(name);
-                    return vec![(format!("{pad}const {binding}=await nativeScenarioSourceLetData(c,{},{root});",descriptor_json(&source)),*span)];
+                    let root = self.reference(
+                        source["parameter"]
+                            .as_str()
+                            .expect("original LET parameter"),
+                    );
+                    let binding = self.bind(name);
+                    return vec![(
+                        format!(
+                            "{pad}const {binding}=await nativeScenarioSourceLetData(c,{},{root});",
+                            descriptor_json(&source)
+                        ),
+                        *span,
+                    )];
                 }
                 let current = self
                     .receipt_capture
@@ -11679,10 +13305,10 @@ fn null_equality(
                     .last_mut()
                     .expect("lexical scope")
                     .insert(name.clone(), formatted);
-                if let Some(alias) = alias {
-                    if let Some(scope) = self.hook_aliases.last_mut() {
-                        scope.insert(name.clone(), alias);
-                    }
+                if let Some(alias) = alias
+                    && let Some(scope) = self.hook_aliases.last_mut()
+                {
+                    scope.insert(name.clone(), alias);
                 }
                 vec![(format!("{pad}const {emitted} = {value_text};"), *span)]
             }
@@ -11951,27 +13577,84 @@ fn null_equality(
                 // are preserved, and post-commit handlers run in later
                 // transactions that never undo the committed source.
                 self.stdlib.insert("emit".to_string());
-                if let Some(source)=self.source_data_emits.get(span).cloned(){
+                if let Some(source) = self.source_data_emits.get(span).cloned() {
                     self.stdlib.insert("nativeScenarioSourceEmitData".into());
-                    let bindings=source["parameters"].as_array().expect("checked EMIT roots").iter().map(|root|{
-                        let name=root["name"].as_str().expect("checked root");format!("{}:{}",object_key(name),self.reference(name))}).collect::<Vec<_>>().join(",");
-                    let references=source["references"].as_array().cloned().unwrap_or_default();
-                    let mut roots=BTreeSet::new();
-                    for reference in &references{roots.insert(reference["parameter"].as_str().expect("original reference"));}
-                    let inputs=roots.iter().filter(|name|!source["parameters"].as_array().expect("DATA roots").iter().any(|root|root["name"]==**name))
-                        .map(|name|format!("{}:{}",object_key(name),self.reference(name))).collect::<Vec<_>>().join(",");
-                    let IrExpr::Object(entries)=&payload.expr else{unreachable!("original event payload");};
-                    let previous_data_body=self.source_data_body;self.source_data_body=source.get("queries").is_some()||source["parameters"].as_array().is_some_and(|parameters|parameters.iter().any(|parameter|parameter.get("derived").is_some()));
-                    let fields=entries.iter().map(|(field,value)|{
-                        let value=if let Some(reference)=references.iter().find(|reference|reference["field"]==*field){
-                            format!("$can$emit$refs[{}]",descriptor_json(&reference[if references.iter().any(|reference|reference.get("path").is_some()){"field"}else{"parameter"}]))
-                        }else{self.lower_expr(value)};
-                        format!("{}:{value}",object_key(field))
-                    }).collect::<Vec<_>>().join(",");
-                    self.source_data_body=previous_data_body;
-                    return vec![(format!("{pad}await nativeScenarioSourceEmitData(c,$can$emit$issue({},c,async(c,{{{bindings}}},$can$emit$refs)=>emit(c,{},{{{fields}}})),{{{bindings}{}{inputs}}});",descriptor_json(&descriptor_json(&source)),js_string(event),if inputs.is_empty(){""}else{","}),*span)];
+                    let bindings = source["parameters"]
+                        .as_array()
+                        .expect("checked EMIT roots")
+                        .iter()
+                        .map(|root| {
+                            let name = root["name"].as_str().expect("checked root");
+                            format!("{}:{}", object_key(name), self.reference(name))
+                        })
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    let references = source["references"].as_array().cloned().unwrap_or_default();
+                    let mut roots = BTreeSet::new();
+                    for reference in &references {
+                        roots.insert(reference["parameter"].as_str().expect("original reference"));
+                    }
+                    let inputs = roots
+                        .iter()
+                        .filter(|name| {
+                            !source["parameters"]
+                                .as_array()
+                                .expect("DATA roots")
+                                .iter()
+                                .any(|root| root["name"] == **name)
+                        })
+                        .map(|name| format!("{}:{}", object_key(name), self.reference(name)))
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    let IrExpr::Object(entries) = &payload.expr else {
+                        unreachable!("original event payload");
+                    };
+                    let previous_data_body = self.source_data_body;
+                    self.source_data_body = source.get("queries").is_some()
+                        || source["parameters"].as_array().is_some_and(|parameters| {
+                            parameters
+                                .iter()
+                                .any(|parameter| parameter.get("derived").is_some())
+                        });
+                    let fields = entries
+                        .iter()
+                        .map(|(field, value)| {
+                            let value = if let Some(reference) = references
+                                .iter()
+                                .find(|reference| reference["field"] == *field)
+                            {
+                                format!(
+                                    "$can$emit$refs[{}]",
+                                    descriptor_json(
+                                        &reference[if references
+                                            .iter()
+                                            .any(|reference| reference.get("path").is_some())
+                                        {
+                                            "field"
+                                        } else {
+                                            "parameter"
+                                        }]
+                                    )
+                                )
+                            } else {
+                                self.lower_expr(value)
+                            };
+                            format!("{}:{value}", object_key(field))
+                        })
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    self.source_data_body = previous_data_body;
+                    return vec![(
+                        format!(
+                            "{pad}await nativeScenarioSourceEmitData(c,$can$emit$issue({},c,async(c,{{{bindings}}},$can$emit$refs)=>emit(c,{},{{{fields}}})),{{{bindings}{}{inputs}}});",
+                            descriptor_json(&descriptor_json(&source)),
+                            js_string(event),
+                            if inputs.is_empty() { "" } else { "," }
+                        ),
+                        *span,
+                    )];
                 }
-                let payload_text=self.lower_expr(payload);
+                let payload_text = self.lower_expr(payload);
                 vec![(
                     format!("{pad}await emit(c,{},{payload_text});", js_string(event)),
                     *span,
@@ -12004,10 +13687,30 @@ fn null_equality(
                     .send_guards
                     .and_then(|guards| guards.get(span))
                     .cloned();
-                if *when_at_source && !prepared.as_ref().is_some_and(|guard|self.native_receipts.values().any(|receipt|
-                    receipt.plan.retained_guarded_handler.as_ref().is_some_and(|frame|frame["stagedRules"].as_array().is_some_and(|rules|rules.iter().any(|rule|rule==&guard.rule))))) {
-                    self.unsupported("send guard evaluation","source evaluation needs its complete source-owned retained Rule",*span);
-                    return vec![(format!("{pad}throw new Error('unproved source guard evaluation');"),*span)];
+                if *when_at_source
+                    && !prepared.as_ref().is_some_and(|guard| {
+                        self.native_receipts.values().any(|receipt| {
+                            receipt
+                                .plan
+                                .retained_guarded_handler
+                                .as_ref()
+                                .is_some_and(|frame| {
+                                    frame["stagedRules"].as_array().is_some_and(|rules| {
+                                        rules.iter().any(|rule| rule == &guard.rule)
+                                    })
+                                })
+                        })
+                    })
+                {
+                    self.unsupported(
+                        "send guard evaluation",
+                        "source evaluation needs its complete source-owned retained Rule",
+                        *span,
+                    );
+                    return vec![(
+                        format!("{pad}throw new Error('unproved source guard evaluation');"),
+                        *span,
+                    )];
                 }
                 if prepared.is_none() && when.is_some() && self.native_source_predicates {
                     // One owner can be refused while another has sealed
@@ -12044,12 +13747,21 @@ fn null_equality(
                     )];
                 }
                 self.stdlib.insert("send".to_string());
-                let previous_data_body=self.source_data_body;
-                let previous_send_data_body=self.source_send_data_body;
-                if self.source_data_sends.get(span).is_some_and(|source|source["parameters"].as_array().is_some_and(|parameters|parameters.iter().any(|parameter|parameter.get("derived").is_some()))){self.source_data_body=true;self.source_send_data_body=true;}
+                let previous_data_body = self.source_data_body;
+                let previous_send_data_body = self.source_send_data_body;
+                if self.source_data_sends.get(span).is_some_and(|source| {
+                    source["parameters"].as_array().is_some_and(|parameters| {
+                        parameters
+                            .iter()
+                            .any(|parameter| parameter.get("derived").is_some())
+                    })
+                }) {
+                    self.source_data_body = true;
+                    self.source_send_data_body = true;
+                }
                 let args_text = self.lower_expr(args);
-                self.source_data_body=previous_data_body;
-                self.source_send_data_body=previous_send_data_body;
+                self.source_data_body = previous_data_body;
+                self.source_send_data_body = previous_send_data_body;
                 let mut options = Vec::new();
                 if let Some(binding) = deployment_binding {
                     options.push(format!("binding:{}", js_string(binding)));
@@ -12087,12 +13799,25 @@ fn null_equality(
                     "await send(c,{}, {args_text}{options_text})",
                     js_string(operation)
                 );
-                let call=if let Some(source)=self.source_data_sends.get(span).cloned(){
+                let call = if let Some(source) = self.source_data_sends.get(span).cloned() {
                     self.stdlib.insert("nativeScenarioSourceSendData".into());
-                    let bindings=source["parameters"].as_array().expect("checked source roots").iter()
-                        .map(|root|{let name=root["name"].as_str().expect("checked root");format!("{}:{}",object_key(name),self.reference(name))}).collect::<Vec<_>>().join(",");
-                    format!("await nativeScenarioSourceSendData(c,$can$send$issue({},c,async(c,{{{bindings}}})=>({call})),{{{bindings}}})",descriptor_json(&descriptor_json(&source)))
-                }else{call};
+                    let bindings = source["parameters"]
+                        .as_array()
+                        .expect("checked source roots")
+                        .iter()
+                        .map(|root| {
+                            let name = root["name"].as_str().expect("checked root");
+                            format!("{}:{}", object_key(name), self.reference(name))
+                        })
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    format!(
+                        "await nativeScenarioSourceSendData(c,$can$send$issue({},c,async(c,{{{bindings}}})=>({call})),{{{bindings}}})",
+                        descriptor_json(&descriptor_json(&source))
+                    )
+                } else {
+                    call
+                };
                 vec![(
                     match binding {
                         Some(name) => format!("{pad}const {} = {call};", self.bind(name)),
@@ -12121,15 +13846,30 @@ fn null_equality(
                         *span,
                     )];
                 }
-                if let Some(source)=self.source_schedules.get(span).cloned(){
+                if let Some(source) = self.source_schedules.get(span).cloned() {
                     self.stdlib.insert("nativeScenarioSourceSchedule".into());
-                    let root=self.reference(source["parameter"].as_str().expect("checked source root"));
-                    let key=self.lower_expr(key);let at=self.lower_expr(at);let payload=self.lower_expr(payload);
-                    if source["at"].get("expression").is_some(){
-                        return vec![(format!("{pad}await nativeScenarioSourceSchedule(c,{},{root},undefined,undefined,undefined,$can$work$issue({},c,async(c)=>({{key:{key},at:{at},payload:{payload}}})));",
-                            descriptor_json(&source),descriptor_json(&descriptor_json(&source))),*span)];
+                    let root =
+                        self.reference(source["parameter"].as_str().expect("checked source root"));
+                    let key = self.lower_expr(key);
+                    let at = self.lower_expr(at);
+                    let payload = self.lower_expr(payload);
+                    if source["at"].get("expression").is_some() {
+                        return vec![(
+                            format!(
+                                "{pad}await nativeScenarioSourceSchedule(c,{},{root},undefined,undefined,undefined,$can$work$issue({},c,async(c)=>({{key:{key},at:{at},payload:{payload}}})));",
+                                descriptor_json(&source),
+                                descriptor_json(&descriptor_json(&source))
+                            ),
+                            *span,
+                        )];
                     }
-                    return vec![(format!("{pad}{{const $can$schedule$key={key};await nativeScenarioSourceSchedule(c,{},{root},{at},{payload},$can$schedule$key);}}",descriptor_json(&source)),*span)];
+                    return vec![(
+                        format!(
+                            "{pad}{{const $can$schedule$key={key};await nativeScenarioSourceSchedule(c,{},{root},{at},{payload},$can$schedule$key);}}",
+                            descriptor_json(&source)
+                        ),
+                        *span,
+                    )];
                 }
                 self.stdlib.insert("schedule".to_string());
                 let key_text = self.lower_expr(key);
@@ -12153,10 +13893,21 @@ fn null_equality(
                     let key_text = self.lower_expr(key);
                     return vec![(format!("{pad}$hookCtx.cancel({key_text});"), *span)];
                 }
-                if let Some(source)=self.source_cancels.get(span).cloned(){
+                if let Some(source) = self.source_cancels.get(span).cloned() {
                     self.stdlib.insert("nativeScenarioSourceCancel".into());
-                    let root=self.reference(source["parameter"].as_str().expect("checked source cancel root"));
-                    return vec![(format!("{pad}await nativeScenarioSourceCancel(c,{},{});",descriptor_json(&source),root),*span)];
+                    let root = self.reference(
+                        source["parameter"]
+                            .as_str()
+                            .expect("checked source cancel root"),
+                    );
+                    return vec![(
+                        format!(
+                            "{pad}await nativeScenarioSourceCancel(c,{},{});",
+                            descriptor_json(&source),
+                            root
+                        ),
+                        *span,
+                    )];
                 }
                 self.stdlib.insert("cancel".to_string());
                 let key_text = self.lower_expr(key);
@@ -12252,7 +14003,9 @@ fn null_equality(
                 if in_hook {
                     self.hook_decision_depth += 1;
                 }
-                let cond_text = self.lower_source_condition(cond).unwrap_or_else(||self.lower_expr(cond));
+                let cond_text = self
+                    .lower_source_condition(cond)
+                    .unwrap_or_else(|| self.lower_expr(cond));
                 if in_hook {
                     self.hook_decision_depth -= 1;
                 }
@@ -12271,9 +14024,13 @@ fn null_equality(
                 if in_hook {
                     self.hook_decision_depth += 1;
                 }
-                let event_decision = self.receipt_capture.as_ref()
+                let event_decision = self
+                    .receipt_capture
+                    .as_ref()
                     .and_then(|receipt| receipt.plan.event_decision.clone());
-                let renewal_decision = self.receipt_capture.as_ref()
+                let renewal_decision = self
+                    .receipt_capture
+                    .as_ref()
                     .and_then(|receipt| receipt.plan.success_renewal_decision.clone());
                 let cond_text = if let Some(decision) = event_decision {
                     let site = &decision["ifSite"];
@@ -12282,8 +14039,11 @@ fn null_equality(
                         || site["node"]["start"].as_u64() != Some(u64::from(cond.span.start))
                         || site["node"]["end"].as_u64() != Some(u64::from(cond.span.end))
                     {
-                        self.unsupported("event owner decision",
-                            "original IF decision no longer matches its complete event receipt",*span);
+                        self.unsupported(
+                            "event owner decision",
+                            "original IF decision no longer matches its complete event receipt",
+                            *span,
+                        );
                         "false".into()
                     } else {
                         self.enter_scope();
@@ -12292,36 +14052,54 @@ fn null_equality(
                         let expression = self.lower_expr(cond);
                         self.exit_scope();
                         self.stdlib.insert("nativeScenarioEventDecision".into());
-                        format!("await nativeScenarioEventDecision(c,{},async(c,{{eventTerm,eventRevision}})=>{{const {inspection}=eventTerm;const {event}={{inspection:eventTerm,revision:eventRevision}};return {expression};}})",
-                            descriptor_json(&decision))
+                        format!(
+                            "await nativeScenarioEventDecision(c,{},async(c,{{eventTerm,eventRevision}})=>{{const {inspection}=eventTerm;const {event}={{inspection:eventTerm,revision:eventRevision}};return {expression};}})",
+                            descriptor_json(&decision)
+                        )
                     }
                 } else if let Some(decision) = renewal_decision {
                     let site = &decision["sites"]["if"];
-                    if !matches!(decision["owner"].as_str(), Some("success.renewal_due" | "success.remind"))
-                        || site["statement"]["start"].as_u64() != Some(u64::from(span.start))
+                    if !matches!(
+                        decision["owner"].as_str(),
+                        Some("success.renewal_due" | "success.remind")
+                    ) || site["statement"]["start"].as_u64() != Some(u64::from(span.start))
                         || site["statement"]["end"].as_u64() != Some(u64::from(span.end))
                         || site["node"]["start"].as_u64() != Some(u64::from(cond.span.start))
                         || site["node"]["end"].as_u64() != Some(u64::from(cond.span.end))
                     {
-                        self.unsupported("renewal owner decision",
-                            "original IF decision no longer matches its complete renewal receipt",*span);
+                        self.unsupported(
+                            "renewal owner decision",
+                            "original IF decision no longer matches its complete renewal receipt",
+                            *span,
+                        );
                         "false".into()
                     } else {
                         self.enter_scope();
-                        let root_field = if decision["owner"] == "success.remind" { "followup" } else { "account" };
+                        let root_field = if decision["owner"] == "success.remind" {
+                            "followup"
+                        } else {
+                            "account"
+                        };
                         let account = self.bind(root_field);
                         let event = self.bind("event");
                         let expression = self.lower_expr(cond);
                         self.exit_scope();
                         self.stdlib.insert("nativeScenarioEventDecision".into());
-                        format!("await nativeScenarioEventDecision(c,{},async(c,{{eventTerm,eventRevision,eventAccountRevision}})=>{{const {account}=eventTerm;const {event}={{{root_field}:eventTerm,revision:eventRevision,account_revision:eventAccountRevision}};return {expression};}})",
-                            descriptor_json(&decision))
+                        format!(
+                            "await nativeScenarioEventDecision(c,{},async(c,{{eventTerm,eventRevision,eventAccountRevision}})=>{{const {account}=eventTerm;const {event}={{{root_field}:eventTerm,revision:eventRevision,account_revision:eventAccountRevision}};return {expression};}})",
+                            descriptor_json(&decision)
+                        )
                     }
-                } else if self.receipt_capture.is_none() || self.source_requires.get(&cond.span)
-                    .is_some_and(|source|source["decision"]=="if") {
+                } else if self.receipt_capture.is_none()
+                    || self
+                        .source_requires
+                        .get(&cond.span)
+                        .is_some_and(|source| source["decision"] == "if")
+                {
                     // A generic void receipt does not replace an independently
                     // checked staged source decision with a raw Model read.
-                    self.lower_source_condition(cond).unwrap_or_else(||self.lower_expr(cond))
+                    self.lower_source_condition(cond)
+                        .unwrap_or_else(|| self.lower_expr(cond))
                 } else {
                     // A complete receipt retains its existing checked query
                     // consumers and branch ledger; source control is a fallback.
@@ -12401,30 +14179,84 @@ fn null_equality(
                 body,
                 span,
             } => {
-                let source_loop = self.receipt_capture.as_ref().and_then(|receipt|receipt.plan.source_loops.as_ref().or(receipt.plan.source_emissions.as_ref()))
-                    .and_then(|source|source["loops"].as_array().and_then(|loops|loops.iter().find(|loop_|
-                        loop_["node"]["start"]==span.start && loop_["node"]["end"]==span.end).map(|loop_|(source.clone(),loop_.clone()))))
-                    .or_else(||self.source_body_loops.values().find_map(|source|source["loops"].as_array()?.iter().find(|entry|
-                        entry["node"]["start"]==span.start&&entry["node"]["end"]==span.end).map(|entry|(source.clone(),entry.clone()))));
-                let body_loop=source_loop.as_ref().filter(|(_,entry)|entry.get("item").is_some()).cloned();
-                let copy_loop=source_loop.as_ref().filter(|(_,loop_)|loop_.get("copy").is_some()).cloned();
-                let domain_text = if let Some((source,loop_)) = source_loop {
+                let source_loop = self
+                    .receipt_capture
+                    .as_ref()
+                    .and_then(|receipt| {
+                        receipt
+                            .plan
+                            .source_loops
+                            .as_ref()
+                            .or(receipt.plan.source_emissions.as_ref())
+                    })
+                    .and_then(|source| {
+                        source["loops"].as_array().and_then(|loops| {
+                            loops
+                                .iter()
+                                .find(|loop_| {
+                                    loop_["node"]["start"] == span.start
+                                        && loop_["node"]["end"] == span.end
+                                })
+                                .map(|loop_| (source.clone(), loop_.clone()))
+                        })
+                    })
+                    .or_else(|| {
+                        self.source_body_loops.values().find_map(|source| {
+                            source["loops"]
+                                .as_array()?
+                                .iter()
+                                .find(|entry| {
+                                    entry["node"]["start"] == span.start
+                                        && entry["node"]["end"] == span.end
+                                })
+                                .map(|entry| (source.clone(), entry.clone()))
+                        })
+                    });
+                let body_loop = source_loop
+                    .as_ref()
+                    .filter(|(_, entry)| entry.get("item").is_some())
+                    .cloned();
+                let copy_loop = source_loop
+                    .as_ref()
+                    .filter(|(_, loop_)| loop_.get("copy").is_some())
+                    .cloned();
+                let domain_text = if let Some((source, loop_)) = source_loop {
                     let parent = if loop_.get("parentDepth").is_some() {
-                        let IrExpr::Query(query)=&domain.expr else{unreachable!("checked contained loop");};
+                        let IrExpr::Query(query) = &domain.expr else {
+                            unreachable!("checked contained loop");
+                        };
                         self.lower_expr(query.parent.as_ref().expect("checked parent path"))
-                    } else { self.reference(loop_["parameter"].as_str().expect("checked loop parameter")) };
-                    let predicate = if loop_["filtered"].as_bool()==Some(true) {
-                        let IrExpr::Query(query) = &domain.expr else { unreachable!("checked original loop query"); };
+                    } else {
+                        self.reference(loop_["parameter"].as_str().expect("checked loop parameter"))
+                    };
+                    let predicate = if loop_["filtered"].as_bool() == Some(true) {
+                        let IrExpr::Query(query) = &domain.expr else {
+                            unreachable!("checked original loop query");
+                        };
                         let original = query.where_pred.as_ref().expect("checked original filter");
-                        self.enter_scope(); let row = self.bind(&query.where_param);
+                        self.enter_scope();
+                        let row = self.bind(&query.where_param);
                         let capture = self.receipt_capture.take();
                         let expression = self.lower_expr(original);
-                        self.receipt_capture = capture; self.exit_scope();
-                        format!("$can$loop$issue({},c,async({row})=>({expression}))",descriptor_json(&descriptor_json(&serde_json::json!({"source":source["source"],"owner":source["owner"],"loop":loop_}))))
-                    } else { "null".into() };
+                        self.receipt_capture = capture;
+                        self.exit_scope();
+                        format!(
+                            "$can$loop$issue({},c,async({row})=>({expression}))",
+                            descriptor_json(&descriptor_json(
+                                &serde_json::json!({"source":source["source"],"owner":source["owner"],"loop":loop_})
+                            ))
+                        )
+                    } else {
+                        "null".into()
+                    };
                     self.stdlib.insert("nativeScenarioSourceLoop".into());
-                    format!("await nativeScenarioSourceLoop(c,{},{parent},{predicate})",descriptor_json(&loop_["id"]))
-                } else { self.lower_expr(domain) };
+                    format!(
+                        "await nativeScenarioSourceLoop(c,{},{parent},{predicate})",
+                        descriptor_json(&loop_["id"])
+                    )
+                } else {
+                    self.lower_expr(domain)
+                };
                 // Model queries arrive already awaited (`await
                 // records(...)`); await any other domain exactly once
                 // (`await` on a plain array is harmless).
@@ -12478,21 +14310,35 @@ fn null_equality(
                     }
                 }
                 lines.push((format!("{pad}for (const {item} of {over}) {{"), *span));
-                if let Some((source,loop_))=body_loop{
+                if let Some((source, loop_)) = body_loop {
                     self.stdlib.insert("nativeScenarioSourceLoopItem".into());
-                    let marker=descriptor_json(&descriptor_json(&serde_json::json!({"source":source["source"],"owner":source["owner"],"loop":loop_,"phase":"item"})));
+                    let marker = descriptor_json(&descriptor_json(
+                        &serde_json::json!({"source":source["source"],"owner":source["owner"],"loop":loop_,"phase":"item"}),
+                    ));
                     lines.push((format!("{pad}  await nativeScenarioSourceLoopItem(c,{},{item},$can$loop$issue({marker},c,async()=>{{",descriptor_json(&loop_["id"])),*span));
-                    for stmt in body{lines.extend(self.lower_stmt(stmt,indent+2));}
-                    lines.push((format!("{pad}  }}));"),*span));
-                }else if let Some((source,loop_))=copy_loop{
+                    for stmt in body {
+                        lines.extend(self.lower_stmt(stmt, indent + 2));
+                    }
+                    lines.push((format!("{pad}  }}));"), *span));
+                } else if let Some((source, loop_)) = copy_loop {
                     self.stdlib.insert("nativeScenarioSourceLoopCopy".into());
-                    let parent=self.reference(loop_["copy"]["parent"].as_str().expect("checked copy parent"));
-                    let marker=descriptor_json(&descriptor_json(&serde_json::json!({"source":source["source"],"owner":source["owner"],"loop":loop_})));
+                    let parent = self.reference(
+                        loop_["copy"]["parent"]
+                            .as_str()
+                            .expect("checked copy parent"),
+                    );
+                    let marker = descriptor_json(&descriptor_json(
+                        &serde_json::json!({"source":source["source"],"owner":source["owner"],"loop":loop_}),
+                    ));
                     lines.push((format!("{pad}  await nativeScenarioSourceLoopCopy(c,{},{item},{parent},$can$loop$issue({marker},c,async()=>{{",descriptor_json(&loop_["id"])),*span));
-                    for stmt in body{lines.extend(self.lower_stmt(stmt,indent+2));}
-                    lines.push((format!("{pad}  }}));"),*span));
-                }else{
-                    for stmt in body {lines.extend(self.lower_stmt(stmt, indent + 1));}
+                    for stmt in body {
+                        lines.extend(self.lower_stmt(stmt, indent + 2));
+                    }
+                    lines.push((format!("{pad}  }}));"), *span));
+                } else {
+                    for stmt in body {
+                        lines.extend(self.lower_stmt(stmt, indent + 1));
+                    }
                 }
                 self.exit_scope();
                 lines.push((format!("{pad}}}"), *span));
@@ -12608,28 +14454,29 @@ fn null_equality(
             // carries `{model, id}` like the parent slot. Anything else
             // lowers inline as before.
             let linkage_model = match value.ty.nullable_inner().unwrap_or(&value.ty) {
-                ResolvedType::Record { symbol, stored: true } => {
-                    match self.hook_base_class(value) {
-                        HookBase::Root | HookBase::Snapshot => self
-                            .ir
-                            .items
-                            .get(symbol.0 as usize)
-                            .map(|item| item.canonical.clone()),
-                        _ => None,
-                    }
-                }
+                ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                } => match self.hook_base_class(value) {
+                    HookBase::Root | HookBase::Snapshot => self
+                        .ir
+                        .items
+                        .get(symbol.0 as usize)
+                        .map(|item| item.canonical.clone()),
+                    _ => None,
+                },
                 _ => None,
             };
             if let Some(link_model) = linkage_model {
                 let base = self.lower_expr(value);
-                let id = format!(
-                    "{}.id",
-                    parenthesize_operand(&base, &value.expr)
-                );
+                let id = format!("{}.id", parenthesize_operand(&base, &value.expr));
                 let linkage = if matches!(&value.ty, ResolvedType::Record { .. }) {
                     format!("{{model:{},id:{id}}}", js_string(&link_model))
                 } else {
-                    format!("({base}==null?null:{{model:{},id:{id}}})", js_string(&link_model))
+                    format!(
+                        "({base}==null?null:{{model:{},id:{id}}})",
+                        js_string(&link_model)
+                    )
                 };
                 data_parts.push(format!("{}:{linkage}", object_key(key)));
             } else {
@@ -12692,7 +14539,10 @@ fn null_equality(
             if let Some(name) = id_ref {
                 let data_slot = binding_ident("n", &self.binding_seq.to_string());
                 self.binding_seq += 1;
-                let call = format!("$hookCtx.stage({{op:\"create\",model:{},id:{name}.id{parent_text},data:{data_slot}}})", js_string(model));
+                let call = format!(
+                    "$hookCtx.stage({{op:\"create\",model:{},id:{name}.id{parent_text},data:{data_slot}}})",
+                    js_string(model)
+                );
                 return vec![
                     (format!("{pad}const {slot}=$stagedNext++;"), span),
                     (format!("{pad}const {data_slot}={data};"), span),
@@ -12703,7 +14553,10 @@ fn null_equality(
                     (format!("{pad}{call};"), span),
                 ];
             }
-            let call = format!("$hookCtx.stage({{op:\"create\",model:{},id:{id_value}{parent_text},data:{data}}})", js_string(model));
+            let call = format!(
+                "$hookCtx.stage({{op:\"create\",model:{},id:{id_value}{parent_text},data:{data}}})",
+                js_string(model)
+            );
             return vec![
                 (format!("{pad}const {slot}=$stagedNext++;"), span),
                 (format!("{pad}{call};"), span),
@@ -13162,7 +15015,7 @@ fn null_equality(
         };
         format!(
             "await (async({row})=>{{{guard}return await {factory}({{context:{ctx},descriptor:{descriptor},useId:{use_id},row:{presentation_row},bindings:{bindings},render:{render}}});}})({argument})",
-            use_id = format!("{}+'-o'+JSON.stringify([{}]).split('').map(value=>value.charCodeAt(0).toString(16).padStart(4,'0')).join('')", js_string(&view.identity), occurrences.join(",")),
+            use_id = format_args!("{}+'-o'+JSON.stringify([{}]).split('').map(value=>value.charCodeAt(0).toString(16).padStart(4,'0')).join('')", js_string(&view.identity), occurrences.join(",")),
             presentation_row = original_row.map(str::to_owned).unwrap_or_else(|| format!("(({{id,version,...fields}})=>({{id,version:version===undefined?undefined:version.toString(),fields}}))({row})")),
         )
     }
@@ -13840,7 +15693,11 @@ fn null_equality(
                     matches!(value.ty, ResolvedType::Scalar(Scalar::Text))
                 }
                 "open" => matches!(value.ty, ResolvedType::Scalar(Scalar::Bool)),
-                "caption" if node.factory == "link" && value.ty == ResolvedType::Scalar(Scalar::Url) => true,
+                "caption"
+                    if node.factory == "link" && value.ty == ResolvedType::Scalar(Scalar::Url) =>
+                {
+                    true
+                }
                 "caption" | "title" | "text" | "label" | "message" => matches!(
                     value.ty,
                     ResolvedType::Scalar(Scalar::Text)
@@ -14102,9 +15959,10 @@ fn null_equality(
                         key == "page" && matches!(value.expr, IrExpr::Bool(true))
                     })))
             || (node.factory == "timeline"
-                && node.props.iter().any(|(key, value)| {
-                    key == "page" && matches!(value.expr, IrExpr::Bool(true))
-                }))
+                && node
+                    .props
+                    .iter()
+                    .any(|(key, value)| key == "page" && matches!(value.expr, IrExpr::Bool(true))))
             || (node.factory == "board"
                 && node.props.iter().any(|(key, value)| {
                     key == "filter" || key == "page" && matches!(value.expr, IrExpr::Bool(true))
@@ -14449,7 +16307,10 @@ fn null_equality(
                         })
                         .collect();
                     props.push(format!("actions:[{}]", rest.join(",")));
-                } else if matches!(node.factory.as_str(), "chatBubble" | "modal" | "drawer" | "dropdown" | "indicator" | "swap" | "diff") {
+                } else if matches!(
+                    node.factory.as_str(),
+                    "chatBubble" | "modal" | "drawer" | "dropdown" | "indicator" | "swap" | "diff"
+                ) {
                     // The actual factories consume named slot props, not
                     // children or a standalone slot factory. Keep authored
                     // slot order and evaluate each descendant exactly once.
@@ -14698,13 +16559,25 @@ fn null_equality(
                         // A reference preference leaf carries no case
                         // options: the saved identity stays opaque and is
                         // validated as an opaque string downstream.
-                        if field.reference { ",reference:true" } else { "" },
+                        if field.reference {
+                            ",reference:true"
+                        } else {
+                            ""
+                        },
                         // C3 civil-date leaf (DESIGN 1015-1025): no case
                         // options; the default/saved values are civil
                         // dates validated downstream.
                         if field.date { ",date:true" } else { "" },
-                        field.scalar_type.as_ref().map(|ty| format!(",scalarType:{}", js_string(ty))).unwrap_or_default(),
-                        editable = field.editable.as_ref().map(|kind| format!(",editable:{}", js_string(kind))).unwrap_or_default(),
+                        field
+                            .scalar_type
+                            .as_ref()
+                            .map(|ty| format!(",scalarType:{}", js_string(ty)))
+                            .unwrap_or_default(),
+                        editable = field
+                            .editable
+                            .as_ref()
+                            .map(|kind| format!(",editable:{}", js_string(kind)))
+                            .unwrap_or_default(),
                     )
                 })
                 .collect::<Vec<_>>()
@@ -15443,8 +17316,12 @@ impl<'a> Emitter<'a> {
                     let key = format!("{}.{}", module.name, alias);
                     let declaration = format!("{}.{}", import.provider, name);
                     let Some(kind) = super::runtime_bindings::bound_import_kind(
-                        self.ir, &import.provider, &name,
-                    ) else { continue; };
+                        self.ir,
+                        &import.provider,
+                        &name,
+                    ) else {
+                        continue;
+                    };
                     bindings.push(format!(
                         "{}:{{{kind}:{},from:{}}}",
                         js_string(&key),
@@ -15581,11 +17458,7 @@ impl<'a> Emitter<'a> {
         published.insert(item.canonical.clone());
     }
 
-    fn push_event_records(
-        &mut self,
-        records: &mut Vec<String>,
-        published: &mut BTreeSet<String>,
-    ) {
+    fn push_event_records(&mut self, records: &mut Vec<String>, published: &mut BTreeSet<String>) {
         let ir = self.ir;
         // A Queue declaration owns its complete typed event profile even
         // when this program has no local handler for the published value.
@@ -15593,14 +17466,27 @@ impl<'a> Emitter<'a> {
             for binding in &module.runtime_bindings {
                 let super::runtime_bindings::RuntimeBindingDeclaration::Queue {
                     resolved_type, ..
-                } = &binding.declaration else { continue };
-                let Some(field) = self.queue_event_input(resolved_type) else {
-                    self.unsupported("queue event payload", "declared queue type has no supported original event input carrier", module.span);
+                } = &binding.declaration
+                else {
                     continue;
                 };
-                let Some(type_id) = field.value_type.as_deref() else { continue };
-                records.push(format!("{}:{{inputs:{{value:{{type:{}}}}},inputFields:{}}}",
-                    js_string(&binding.binding), js_string(type_id), descriptor_json(&vec![field])));
+                let Some(field) = self.queue_event_input(resolved_type) else {
+                    self.unsupported(
+                        "queue event payload",
+                        "declared queue type has no supported original event input carrier",
+                        module.span,
+                    );
+                    continue;
+                };
+                let Some(type_id) = field.value_type.as_deref() else {
+                    continue;
+                };
+                records.push(format!(
+                    "{}:{{inputs:{{value:{{type:{}}}}},inputFields:{}}}",
+                    js_string(&binding.binding),
+                    js_string(type_id),
+                    descriptor_json(&vec![field])
+                ));
                 published.insert(binding.binding.clone());
             }
         }
@@ -15650,12 +17536,20 @@ impl<'a> Emitter<'a> {
                 continue;
             };
             let terminal_fields = if matches!(source, IrEventSource::StandardCompleted { .. }) {
-                format!(",inputFields:{}{}", descriptor_json(&invocation.inputs[..input_count]),
-                    self.declaration_source(item.span).map(|path|format!(",source:{}",js_string(&path))).unwrap_or_default())
-            } else { String::new() };
+                format!(
+                    ",inputFields:{}{}",
+                    descriptor_json(&invocation.inputs[..input_count]),
+                    self.declaration_source(item.span)
+                        .map(|path| format!(",source:{}", js_string(&path)))
+                        .unwrap_or_default()
+                )
+            } else {
+                String::new()
+            };
             records.push(format!(
                 "{}:{{inputs:{{{}}}{terminal_fields}}}",
-                js_string(identity), inputs.join(",")
+                js_string(identity),
+                inputs.join(",")
             ));
             published.insert(identity.to_string());
         }
@@ -15773,7 +17667,16 @@ impl<'a> Emitter<'a> {
                 // A stored field's enum is not an independent Values enum
                 // declaration. Its exact cases are the event wire type; the
                 // source field still retains its nominal owning declaration.
-                IrType::Known(ResolvedType::Enum{owner:Some(owner),cases}) if matches!(self.ir.items[owner.0 as usize].kind,IrItemKind::Field{..}) => format!("enum({})",cases.join(",")),
+                IrType::Known(ResolvedType::Enum {
+                    owner: Some(owner),
+                    cases,
+                }) if matches!(
+                    self.ir.items[owner.0 as usize].kind,
+                    IrItemKind::Field { .. }
+                ) =>
+                {
+                    format!("enum({})", cases.join(","))
+                }
                 IrType::Known(ty) => self.canonical_type_id(ty, field.span),
                 IrType::Unknown => "unknown".to_string(),
             };
@@ -15977,10 +17880,19 @@ impl<'a> Emitter<'a> {
                             // Retained SEND inputs and completion requests share
                             // the original catalog declaration. Its availability
                             // must not depend on an authored completion handler.
-                            let request_fields = match (op.inputs.iter()
-                                .map(|(name,ty)|self.standard_completion_input(name,ty)).collect::<Option<Vec<_>>>(),
-                                self.standard_completion_input("result", op.result), delivery_descriptor(capability.name,op)) {
-                                (Some(fields),Some(_),Some(delivery)) => format!(",inputFields:{},delivery:{}",descriptor_json(&fields),delivery.to_json()),
+                            let request_fields = match (
+                                op.inputs
+                                    .iter()
+                                    .map(|(name, ty)| self.standard_completion_input(name, ty))
+                                    .collect::<Option<Vec<_>>>(),
+                                self.standard_completion_input("result", op.result),
+                                delivery_descriptor(capability.name, op),
+                            ) {
+                                (Some(fields), Some(_), Some(delivery)) => format!(
+                                    ",inputFields:{},delivery:{}",
+                                    descriptor_json(&fields),
+                                    delivery.to_json()
+                                ),
                                 _ => String::new(),
                             };
                             format!(
@@ -16554,17 +18466,20 @@ impl<'a> Emitter<'a> {
             if let Some(origin) = Self::defining_source_origin(self.ir, item) {
                 members.push(format!("source:{}", descriptor_json(&origin)));
             }
-            if item.canonical == "rent_reservations.resource_report" {
-                if let Some(prepared) = self.authority_queries {
-                    members.push(format!("authorityQuerySites:{}", descriptor_json(&prepared.plan)));
-                }
+            if item.canonical == "rent_reservations.resource_report"
+                && let Some(prepared) = self.authority_queries
+            {
+                members.push(format!(
+                    "authorityQuerySites:{}",
+                    descriptor_json(&prepared.plan)
+                ));
             }
         }
         if let Some(authority) = self.operation_root_authority(item) {
             members.push(format!("rootAuthority:{}", descriptor_json(&authority)));
         }
-        if let Some(counts)=self.constructor_counts.get(&item.id) {
-            members.push(format!("constructorCounts:{}",descriptor_json(counts)));
+        if let Some(counts) = self.constructor_counts.get(&item.id) {
+            members.push(format!("constructorCounts:{}", descriptor_json(counts)));
         }
         if let Some(inputs) = self.constructor_inputs.get(&item.id) {
             members.push(format!("constructorInputs:{}", descriptor_json(inputs)));
@@ -16626,12 +18541,11 @@ impl<'a> Emitter<'a> {
             let mut complete = true;
             for descriptor in descriptors.as_array_mut().into_iter().flatten() {
                 let guard = self.send_guards.and_then(|guards| {
-                    guards.values().find(|guard| {
-                        Some(guard.rule.as_str()) == descriptor["rule"].as_str()
-                    })
+                    guards
+                        .values()
+                        .find(|guard| Some(guard.rule.as_str()) == descriptor["rule"].as_str())
                 });
-                let declaration =
-                    guard.and_then(|guard| self.send_input_declaration(guard));
+                let declaration = guard.and_then(|guard| self.send_input_declaration(guard));
                 if let Some(declaration) = declaration {
                     descriptor["inputDeclaration"] = declaration;
                 } else {
@@ -16642,7 +18556,11 @@ impl<'a> Emitter<'a> {
             if complete {
                 members.push(format!("sendGuards:{}", descriptor_json(&descriptors)));
             } else {
-                self.unsupported("send dispatch inputs", "original lexical inputs have no complete owning declaration profile", item.span);
+                self.unsupported(
+                    "send dispatch inputs",
+                    "original lexical inputs have no complete owning declaration profile",
+                    item.span,
+                );
             }
         }
     }
@@ -16675,21 +18593,18 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    fn operation_event_identity(&self, item: &IrItem, event: &IrEventSource) -> Option<String> {
+    fn operation_event_identity(&self, _item: &IrItem, event: &IrEventSource) -> Option<String> {
         match event {
-            IrEventSource::Declared(identity)
-            | IrEventSource::DeliveryProgressed(identity) => Some(identity.clone()),
+            IrEventSource::Declared(identity) | IrEventSource::DeliveryProgressed(identity) => {
+                Some(identity.clone())
+            }
             IrEventSource::Queue { source, .. } => Some(source.clone()),
             IrEventSource::StandardCompleted { source, .. }
             | IrEventSource::DeliveryCompleted { source, .. }
             | IrEventSource::MailboxReceived { source, .. }
             | IrEventSource::PaymentsChanged { source, .. } => Some(source.clone()),
-            IrEventSource::InstrumentationError => {
-                Some("instrumentation.error".into())
-            }
-            IrEventSource::TeamsMemberRemoved => {
-                Some("teams.member_removed".into())
-            }
+            IrEventSource::InstrumentationError => Some("instrumentation.error".into()),
+            IrEventSource::TeamsMemberRemoved => Some("teams.member_removed".into()),
             IrEventSource::Committed { model, change } => self
                 .ir
                 .items
@@ -16718,7 +18633,11 @@ impl<'a> Emitter<'a> {
             if let Some(invocation) = self.private_event_invocation(item, event) {
                 members.push(format!("invocation:{}", invocation.to_json()));
             } else if matches!(event, IrEventSource::Queue { .. }) {
-                self.unsupported("queue handler payload", "declared queue type has no supported private invocation input carrier", item.span);
+                self.unsupported(
+                    "queue handler payload",
+                    "declared queue type has no supported private invocation input carrier",
+                    item.span,
+                );
             }
         }
     }
@@ -17195,7 +19114,14 @@ impl<'a> Emitter<'a> {
                     }
                 }
                 if let Some(default) = default {
-                    self.push_param_default_member(*param_id, param.span, default, wire, computed_defaults, &mut members);
+                    self.push_param_default_member(
+                        *param_id,
+                        param.span,
+                        default,
+                        wire,
+                        computed_defaults,
+                        &mut members,
+                    );
                 }
                 if !wire && let Some(label) = label {
                     members.push_str(&format!(",label:{}", self.lower_message(label)));
@@ -17468,8 +19394,7 @@ impl<'a> Emitter<'a> {
                     .items
                     .get(cohort.model.0 as usize)
                     .filter(|item| {
-                        item.id == cohort.model
-                            && matches!(item.kind, IrItemKind::Model { .. })
+                        item.id == cohort.model && matches!(item.kind, IrItemKind::Model { .. })
                     })
                     .map(|item| item.canonical.as_str())
             }) == fact.cohort_model.as_deref().map(Some)
@@ -17554,7 +19479,11 @@ impl<'a> Emitter<'a> {
         let public_source_valid = !facts.has_public_standard_completion_fact()
             || db.is_some_and(|db| facts.valid_public_standard_completions(self.ir, db));
         let valid = public_source_valid
-            && (!self.ir.standard_completion_sources.is_private_terminal_candidate() || self.private_terminal_ready)
+            && (!self
+                .ir
+                .standard_completion_sources
+                .is_private_terminal_candidate()
+                || self.private_terminal_ready)
             && db.is_some_and(|db| {
                 !facts.sources.is_empty()
                     && facts.sources.iter().all(|(id, path, hash)| {
@@ -17754,11 +19683,18 @@ impl<'a> Emitter<'a> {
         let ty = IrType::Known(payload.clone());
         let (field, is_array) = self.mcp_field_for_type(&ty, false)?;
         Some(JsOperationField {
-            min: None, max: None, name: "value".into(), field,
-            value_type: Some(self.operation_input_value_type(&ty)?), required: true,
+            min: None,
+            max: None,
+            name: "value".into(),
+            field,
+            value_type: Some(self.operation_input_value_type(&ty)?),
+            required: true,
             nullable: matches!(payload, ResolvedType::Nullable(_)),
-            array_required: is_array.then_some(false), computed_default: false,
-            default: None, description: None, choices: None,
+            array_required: is_array.then_some(false),
+            computed_default: false,
+            default: None,
+            description: None,
+            choices: None,
         })
     }
 
@@ -18171,9 +20107,7 @@ impl<'a> Emitter<'a> {
         for param_id in params {
             // Never direct-index: a dangling row omits the
             // operation instead of panicking.
-            let Some(param) = self.ir.items.get(param_id.0 as usize) else {
-                return None;
-            };
+            let param = self.ir.items.get(param_id.0 as usize)?;
             let IrItemKind::Param {
                 array_bounds,
                 ty,
@@ -18196,9 +20130,11 @@ impl<'a> Emitter<'a> {
                     .get(alias.0 as usize)
                     .filter(|item| {
                         item.id == alias
-                            && self.ir.value_constraints.get(&alias).is_some_and(
-                                |constraints| constraints.alias == Some(alias),
-                            )
+                            && self
+                                .ir
+                                .value_constraints
+                                .get(&alias)
+                                .is_some_and(|constraints| constraints.alias == Some(alias))
                     })
                     .map(|item| item.canonical.clone())
             });
@@ -18215,18 +20151,21 @@ impl<'a> Emitter<'a> {
                     min: array_bounds.as_ref().and_then(|bounds| bounds.min),
                     max: array_bounds.as_ref().and_then(|bounds| bounds.max),
                     name: param.name.clone(),
-                    field: alias_name
-                        .map_or(field, |name| JsMcpField::Nominal { name }),
+                    field: alias_name.map_or(field, |name| JsMcpField::Nominal { name }),
                     value_type: match ty {
-                        IrType::Known(resolved) if alias.is_some() => Some(
-                            self.symbol_value_type_id(*param_id, resolved, param.span),
-                        ),
+                        IrType::Known(resolved) if alias.is_some() => {
+                            Some(self.symbol_value_type_id(*param_id, resolved, param.span))
+                        }
                         _ => self.operation_input_value_type(ty).or_else(|| {
                             // Active native receipts and source-only Require
                             // frames retain the exact checked primitive type;
                             // a legacy string tag cannot authenticate email.
                             if !self.native_receipts.contains_key(&item.id)
-                                && !self.source_requires.values().any(|source| source["owner"] == item.canonical) {
+                                && !self
+                                    .source_requires
+                                    .values()
+                                    .any(|source| source["owner"] == item.canonical)
+                            {
                                 return None;
                             }
                             let IrType::Known(resolved) = ty else {
@@ -18236,12 +20175,24 @@ impl<'a> Emitter<'a> {
                                 ResolvedType::Nullable(inner) => inner.as_ref(),
                                 value => value,
                             };
-                            if matches!(scalar, ResolvedType::Scalar(
-                                Scalar::Text | Scalar::Bool | Scalar::Int | Scalar::Date
-                                    | Scalar::Datetime | Scalar::Decimal | Scalar::Money
-                                    | Scalar::Duration | Scalar::Currency | Scalar::User
-                                    | Scalar::Email | Scalar::Timezone | Scalar::Url))
-                            {
+                            if matches!(
+                                scalar,
+                                ResolvedType::Scalar(
+                                    Scalar::Text
+                                        | Scalar::Bool
+                                        | Scalar::Int
+                                        | Scalar::Date
+                                        | Scalar::Datetime
+                                        | Scalar::Decimal
+                                        | Scalar::Money
+                                        | Scalar::Duration
+                                        | Scalar::Currency
+                                        | Scalar::User
+                                        | Scalar::Email
+                                        | Scalar::Timezone
+                                        | Scalar::Url
+                                )
+                            ) {
                                 checked_value_profile(resolved).map(str::to_owned)
                             } else {
                                 None
@@ -18282,24 +20233,19 @@ impl<'a> Emitter<'a> {
                 .get(&item.id)
                 .is_some_and(|source| {
                     self.native_receipts.get(&item.id).is_some_and(|recipe| {
-                        serde_json::to_value(&recipe.plan).ok().as_ref()
-                            == Some(&source.plan)
+                        serde_json::to_value(&recipe.plan).ok().as_ref() == Some(&source.plan)
                     })
                 });
         if prepared_query
             || super::scenario_receipts::checked_created_model_result(self.ir, item)
                 .and_then(|model| self.ir.items.get(model.0 as usize))
-                .is_some_and(|model| {
-                    published_result.as_deref() == Some(model.canonical.as_str())
-                })
+                .is_some_and(|model| published_result.as_deref() == Some(model.canonical.as_str()))
             || published_result.as_deref().is_some_and(|type_id| {
-                type_id == "void"
-                    || super::scenario_receipts::supported_type_id(type_id)
+                type_id == "void" || super::scenario_receipts::supported_type_id(type_id)
             })
         {
             self.native_receipts.get(&item.id).map(|recipe| {
-                serde_json::to_value(&recipe.plan)
-                    .expect("native disclosure JSON invariant")
+                serde_json::to_value(&recipe.plan).expect("native disclosure JSON invariant")
             })
         } else {
             self.native_receipts.remove(&item.id);
@@ -18314,9 +20260,7 @@ impl<'a> Emitter<'a> {
     ) -> Option<Vec<JsOperationField>> {
         let mut flat = Vec::new();
         for field_id in model_fields {
-            let Some(field_item) = self.ir.items.get(field_id.0 as usize) else {
-                return None;
-            };
+            let field_item = self.ir.items.get(field_id.0 as usize)?;
             // Derived fields ride the model's field list
             // (resolve) but are never caller-provided: always
             // skip, even under an empty allowlist. (T15a
@@ -18358,9 +20302,7 @@ impl<'a> Emitter<'a> {
                     // they are separate IR items, not model
                     // fields.)
                     let array_required = is_array.then_some(*required_array);
-                    let required = default.is_none()
-                        && !nullable
-                        && !(is_array && !required_array);
+                    let required = default.is_none() && !nullable && !(is_array && !required_array);
                     flat.push(JsOperationField {
                         min: None,
                         max: None,
@@ -18487,9 +20429,7 @@ impl<'a> Emitter<'a> {
         for item in &self.ir.items {
             match &item.kind {
                 IrItemKind::Model { grants, .. } => {
-                    if let Some(operation) =
-                        Self::collect_model_read(item, !grants.is_empty())
-                    {
+                    if let Some(operation) = Self::collect_model_read(item, !grants.is_empty()) {
                         operations.push(operation);
                     }
                 }
@@ -18539,8 +20479,11 @@ impl<'a> Emitter<'a> {
                         result: published_result,
                         disclosure,
                         root_authority: self.operation_root_authority(item),
-                        authority_query_sites: self.authority_queries
-                            .filter(|prepared| prepared.plan["operation"].as_str() == Some(item.canonical.as_str()))
+                        authority_query_sites: self
+                            .authority_queries
+                            .filter(|prepared| {
+                                prepared.plan["operation"].as_str() == Some(item.canonical.as_str())
+                            })
                             .map(|prepared| prepared.plan.clone()),
                     });
                 }
@@ -18588,13 +20531,10 @@ impl<'a> Emitter<'a> {
                                 .collect(),
                         )
                     };
-                    let Some(flat) = self.collect_crud_fields(model_fields, &allowlist)
-                    else {
+                    let Some(flat) = self.collect_crud_fields(model_fields, &allowlist) else {
                         continue;
                     };
-                    let Some(inputs) =
-                        self.collect_crud_inputs(op, owner, &model_item, flat)
-                    else {
+                    let Some(inputs) = self.collect_crud_inputs(op, owner, model_item, flat) else {
                         continue;
                     };
                     operations.push(JsOperation {
@@ -18759,9 +20699,7 @@ impl<'a> Emitter<'a> {
                     declaration["array"] = serde_json::json!({"required":required});
                 }
             }
-            JsMcpField::Nominal { .. } => {
-                declaration["valueType"] = serde_json::json!(type_id)
-            }
+            JsMcpField::Nominal { .. } => declaration["valueType"] = serde_json::json!(type_id),
             JsMcpField::Enum { values } => {
                 declaration["valueType"] = serde_json::json!(type_id);
                 declaration["enumValues"] = serde_json::json!(values);
@@ -19136,12 +21074,16 @@ impl<'a> Emitter<'a> {
                 }
             })
         };
-        let mut value_type = required_file_array_value_type(self.model_value_type(ty), required_array);
+        let mut value_type =
+            required_file_array_value_type(self.model_value_type(ty), required_array);
         // The value codec and the explicit array marker must describe the
         // same authored `[]!` declaration, including scalar and nominal
         // arrays. File arrays may already carry the suffix above.
-        if required_array && !nullable && let Some(name) = value_type.as_mut()
-            && name.ends_with("[]") {
+        if required_array
+            && !nullable
+            && let Some(name) = value_type.as_mut()
+            && name.ends_with("[]")
+        {
             name.push('!');
         }
         JsModelField {
@@ -19310,11 +21252,9 @@ impl<'a> Emitter<'a> {
 
     fn record_model_tag(&self, symbol: &SymbolId) -> JsModelFieldType {
         match self.ir.items.get(symbol.0 as usize) {
-            Some(row) if matches!(row.kind, IrItemKind::Model { .. }) => {
-                JsModelFieldType::Ref {
-                    model: row.canonical.clone(),
-                }
-            }
+            Some(row) if matches!(row.kind, IrItemKind::Model { .. }) => JsModelFieldType::Ref {
+                model: row.canonical.clone(),
+            },
             Some(row) => JsModelFieldType::Other {
                 type_id: row.canonical.clone(),
             },
@@ -19370,7 +21310,10 @@ impl<'a> Emitter<'a> {
             ResolvedType::Delivery { op } => self
                 .judgment_delivery_descriptor(*op)
                 .map(JsModelFieldType::JudgmentDelivery)
-                .or_else(|| self.local_model_delivery_descriptor(*op).map(JsModelFieldType::Delivery))
+                .or_else(|| {
+                    self.local_model_delivery_descriptor(*op)
+                        .map(JsModelFieldType::Delivery)
+                })
                 .unwrap_or_else(|| JsModelFieldType::Other {
                     type_id: self
                         .ir
@@ -19519,33 +21462,48 @@ impl<'a> Emitter<'a> {
                     })
                     .collect::<Vec<_>>()
                     .join("");
-                let event_binding = guard.event_source.as_ref().map_or_else(String::new, |source| {
-                    let extra = if guard.descriptor["owner"] == "success.remind" {
-                        ",account_revision:$can$send$inputs[\"eventAccountRevision\"]"
-                    } else if guard.descriptor["owner"] == "events.attendee_notice" {
-                        ",kind:$can$send$inputs[\"eventKind\"]"
-                    } else { "" };
-                    let event = format!(
-                        "const {}={{{}:$can$send$inputs[{}],{}:$can$send$inputs[{}]{extra}}};",
-                        self.bind("event"),
-                        object_key(&source.model_field), js_string(source.model_slot),
-                        object_key(&source.revision_field), js_string(source.revision_slot),
-                    );
-                    match source.lexical_alias.as_deref() {
-                        Some(alias) => format!("{event}const {}=$can$send$inputs[{}];",
-                            self.bind(alias),js_string(source.model_slot)),
-                        None => event,
-                    }
+                let event_binding = guard.event_source.as_ref().map_or_else(
+                    String::new,
+                    |source| {
+                        let extra = if guard.descriptor["owner"] == "success.remind" {
+                            ",account_revision:$can$send$inputs[\"eventAccountRevision\"]"
+                        } else if guard.descriptor["owner"] == "events.attendee_notice" {
+                            ",kind:$can$send$inputs[\"eventKind\"]"
+                        } else {
+                            ""
+                        };
+                        let event = format!(
+                            "const {}={{{}:$can$send$inputs[{}],{}:$can$send$inputs[{}]{extra}}};",
+                            self.bind("event"),
+                            object_key(&source.model_field),
+                            js_string(source.model_slot),
+                            object_key(&source.revision_field),
+                            js_string(source.revision_slot),
+                        );
+                        match source.lexical_alias.as_deref() {
+                            Some(alias) => format!(
+                                "{event}const {}=$can$send$inputs[{}];",
+                                self.bind(alias),
+                                js_string(source.model_slot)
+                            ),
+                            None => event,
+                        }
+                    },
+                );
+                let retained = self.native_receipts.values().any(|receipt| {
+                    receipt
+                        .plan
+                        .retained_guarded_handler
+                        .as_ref()
+                        .is_some_and(|frame| frame["owner"] == guard.descriptor["owner"])
                 });
-                let retained=self.native_receipts.values().any(|receipt|receipt.plan.retained_guarded_handler.as_ref()
-                    .is_some_and(|frame|frame["owner"]==guard.descriptor["owner"]));
-                let previous_owner=self.owner_handler_body;
-                let previous_retained=self.retained_owner_body;
-                self.owner_handler_body=retained;
-                self.retained_owner_body=retained;
+                let previous_owner = self.owner_handler_body;
+                let previous_retained = self.retained_owner_body;
+                self.owner_handler_body = retained;
+                self.retained_owner_body = retained;
                 let predicate = self.lower_expr(&guard.predicate);
-                self.owner_handler_body=previous_owner;
-                self.retained_owner_body=previous_retained;
+                self.owner_handler_body = previous_owner;
+                self.retained_owner_body = previous_retained;
                 self.exit_scope();
                 entries.push(format!(
                     "{}:async(c,$can$send$inputs)=>{{{bindings}{event_binding}return {predicate};}}",
@@ -19740,7 +21698,8 @@ impl<'a> Emitter<'a> {
             )
         }) {
             format!("async(c,row,$readCurrent)=>{body_text}")
-        } else if expr_uses_async(body) || self.boolean_body || self.implicit_expr_uses_async(body) {
+        } else if expr_uses_async(body) || self.boolean_body || self.implicit_expr_uses_async(body)
+        {
             format!("async(c,row)=>{body_text}")
         } else {
             format!("(c,row)=>{body_text}")
@@ -19928,12 +21887,7 @@ impl<'a> Emitter<'a> {
     /// Checked native hooks receive State's original projected snapshots and
     /// owning context; their policy binding reuses this exact callback. Legacy
     /// profiles retain the existing engine convention until their owner joins.
-    fn emit_hooks_map(
-        &mut self,
-        out: &mut JsWriter,
-        span: Span,
-        native_hooks: &HashSet<String>,
-    ) {
+    fn emit_hooks_map(&mut self, out: &mut JsWriter, span: Span, native_hooks: &HashSet<String>) {
         let hooks: Vec<IrItem> = self
             .ir
             .items
@@ -20035,82 +21989,123 @@ impl<'a> Emitter<'a> {
     /// order (no `row`: derives are pure functions, DESIGN §2). Always
     /// `async`: call sites uniformly `await`. Exported exactly when the
     /// source derive is exported.
-    fn emit_derive_fns(&mut self, out: &mut JsWriter, owner_mode: bool, retained_mode: bool, generic_boolean_mode: bool) {
+    fn emit_derive_fns(
+        &mut self,
+        out: &mut JsWriter,
+        owner_mode: bool,
+        retained_mode: bool,
+        generic_boolean_mode: bool,
+    ) {
         let ir = self.ir;
         let mut emitted = HashSet::new();
         loop {
-        let items: Vec<_> = ir.items.iter().filter(|item| matches!(item.kind, IrItemKind::DeriveFn { .. })
-            && (!generic_boolean_mode || self.generic_boolean_derives.contains(&item.canonical))
-            && (!owner_mode || if retained_mode { self.retained_owner_derives.contains(&item.canonical) }
-                else { self.owner_handler_derives.contains(&item.canonical) })
-            && !emitted.contains(&item.id)).cloned().collect();
-        if items.is_empty() { break; }
-        for item in &items {
-            emitted.insert(item.id);
-            let IrItemKind::DeriveFn { params, expr, .. } = &item.kind else {
-                continue;
-            };
-            let modes = if generic_boolean_mode { vec![true] } else if !owner_mode && self.private_derives.contains(&item.canonical) {
-                if self.boolean_derives.contains(&item.canonical) { vec![true] } else { Vec::new() }
-            } else if !owner_mode && self.boolean_derives.contains(&item.canonical) {
-                vec![false, true]
-            } else {
-                vec![false]
-            };
-            for boolean_body in modes {
-                self.owner_handler_body = owner_mode;
-                self.retained_owner_body = retained_mode;
-                self.boolean_body = boolean_body;
-                self.generic_boolean_body = generic_boolean_mode;
-                self.source_guard_body = generic_boolean_mode;
-                self.boolean_helper = self.boolean_derives.contains(&item.canonical);
-                let name = binding_ident(if generic_boolean_mode { "v" } else if retained_mode { "t" } else if owner_mode { "o" } else if boolean_body { "b" } else { "s" }, &item.canonical);
-                self.enter_scope();
-                let mut signature = vec!["c".to_string()];
-                for id in params {
-                    signature.push(self.bind(&self.ir.items[id.0 as usize].name.clone()));
-                }
-                let export = if item.exported && !boolean_body && !owner_mode {
-                    "export "
-                } else {
-                    ""
+            let items: Vec<_> = ir
+                .items
+                .iter()
+                .filter(|item| {
+                    matches!(item.kind, IrItemKind::DeriveFn { .. })
+                        && (!generic_boolean_mode
+                            || self.generic_boolean_derives.contains(&item.canonical))
+                        && (!owner_mode
+                            || if retained_mode {
+                                self.retained_owner_derives.contains(&item.canonical)
+                            } else {
+                                self.owner_handler_derives.contains(&item.canonical)
+                            })
+                        && !emitted.contains(&item.id)
+                })
+                .cloned()
+                .collect();
+            if items.is_empty() {
+                break;
+            }
+            for item in &items {
+                emitted.insert(item.id);
+                let IrItemKind::DeriveFn { params, expr, .. } = &item.kind else {
+                    continue;
                 };
-                match expr {
-                    Some(_) if !owner_mode && !boolean_body
-                        && item.canonical == "sales_attribution.latest_capture"
-                        && self.private_term_helper_only =>
-                    {
-                        // The exact term profile proves the only checked call
-                        // to this helper is inside its private owner callback.
-                        // Keep the ordinary export fail-closed; the selected
-                        // owner variant below performs the checked FIRST.
-                        out.push(item.span,Some(item.canonical.clone()),
+                let modes = if generic_boolean_mode {
+                    vec![true]
+                } else if !owner_mode && self.private_derives.contains(&item.canonical) {
+                    if self.boolean_derives.contains(&item.canonical) {
+                        vec![true]
+                    } else {
+                        Vec::new()
+                    }
+                } else if !owner_mode && self.boolean_derives.contains(&item.canonical) {
+                    vec![false, true]
+                } else {
+                    vec![false]
+                };
+                for boolean_body in modes {
+                    self.owner_handler_body = owner_mode;
+                    self.retained_owner_body = retained_mode;
+                    self.boolean_body = boolean_body;
+                    self.generic_boolean_body = generic_boolean_mode;
+                    self.source_guard_body = generic_boolean_mode;
+                    self.boolean_helper = self.boolean_derives.contains(&item.canonical);
+                    let name = binding_ident(
+                        if generic_boolean_mode {
+                            "v"
+                        } else if retained_mode {
+                            "t"
+                        } else if owner_mode {
+                            "o"
+                        } else if boolean_body {
+                            "b"
+                        } else {
+                            "s"
+                        },
+                        &item.canonical,
+                    );
+                    self.enter_scope();
+                    let mut signature = vec!["c".to_string()];
+                    for id in params {
+                        signature.push(self.bind(&self.ir.items[id.0 as usize].name.clone()));
+                    }
+                    let export = if item.exported && !boolean_body && !owner_mode {
+                        "export "
+                    } else {
+                        ""
+                    };
+                    match expr {
+                        Some(_)
+                            if !owner_mode
+                                && !boolean_body
+                                && item.canonical == "sales_attribution.latest_capture"
+                                && self.private_term_helper_only =>
+                        {
+                            // The exact term profile proves the only checked call
+                            // to this helper is inside its private owner callback.
+                            // Keep the ordinary export fail-closed; the selected
+                            // owner variant below performs the checked FIRST.
+                            out.push(item.span,Some(item.canonical.clone()),
                             &format!("{export}async function {name}({}){{throw new Error('latest_capture requires its checked term owner');}}",
                                 signature.join(",")));
-                    }
-                    Some(expr) => {
-                        let mut defaults = String::new();
-                        for (id, name) in params.iter().zip(signature.iter().skip(1)) {
-                            if let IrItemKind::Param {
-                                default: Some(default),
-                                ..
-                            } = &self.ir.items[id.0 as usize].kind.clone()
-                            {
-                                let value = match default {
-                                    IrDefault::Literal(expr) | IrDefault::Computed { expr, .. } => {
-                                        self.lower_business_expr(
-                                            expr,
-                                            "formatted derive parameter default",
-                                        )
-                                    }
-                                };
-                                defaults.push_str(&format!(
-                                    "if({name}===undefined){{{name}={value};}}"
-                                ));
-                            }
                         }
-                        let body_text = self.lower_expr(expr);
-                        out.push(
+                        Some(expr) => {
+                            let mut defaults = String::new();
+                            for (id, name) in params.iter().zip(signature.iter().skip(1)) {
+                                if let IrItemKind::Param {
+                                    default: Some(default),
+                                    ..
+                                } = &self.ir.items[id.0 as usize].kind.clone()
+                                {
+                                    let value = match default {
+                                        IrDefault::Literal(expr)
+                                        | IrDefault::Computed { expr, .. } => self
+                                            .lower_business_expr(
+                                                expr,
+                                                "formatted derive parameter default",
+                                            ),
+                                    };
+                                    defaults.push_str(&format!(
+                                        "if({name}===undefined){{{name}={value};}}"
+                                    ));
+                                }
+                            }
+                            let body_text = self.lower_expr(expr);
+                            out.push(
                         item.span,
                         Some(item.canonical.clone()),
                         &format!(
@@ -20118,29 +22113,31 @@ impl<'a> Emitter<'a> {
                             signature.join(",")
                         ),
                     );
+                        }
+                        None => {
+                            out.push(
+                                item.span,
+                                Some(item.canonical.clone()),
+                                &format!(
+                                    "{export}async function {name}({}){{throw new Error({});}}",
+                                    signature.join(","),
+                                    js_string(&format!("unchecked derive: {}", item.canonical))
+                                ),
+                            );
+                        }
                     }
-                    None => {
-                        out.push(
-                            item.span,
-                            Some(item.canonical.clone()),
-                            &format!(
-                                "{export}async function {name}({}){{throw new Error({});}}",
-                                signature.join(","),
-                                js_string(&format!("unchecked derive: {}", item.canonical))
-                            ),
-                        );
-                    }
+                    self.exit_scope();
+                    self.boolean_body = false;
+                    self.generic_boolean_body = false;
+                    self.source_guard_body = false;
+                    self.boolean_helper = false;
+                    self.owner_handler_body = false;
+                    self.retained_owner_body = false;
                 }
-                self.exit_scope();
-                self.boolean_body = false;
-                self.generic_boolean_body = false;
-                self.source_guard_body = false;
-                self.boolean_helper = false;
-                self.owner_handler_body = false;
-                self.retained_owner_body = false;
             }
-        }
-        if !owner_mode && !generic_boolean_mode { break; }
+            if !owner_mode && !generic_boolean_mode {
+                break;
+            }
         }
     }
 
@@ -20174,9 +22171,7 @@ impl<'a> Emitter<'a> {
                     } else {
                         self.hook_variant_parent.contains(&item.canonical)
                     };
-                    if selected
-                        && !hook_emitted.contains(&(item.canonical.clone(), is_reference))
-                    {
+                    if selected && !hook_emitted.contains(&(item.canonical.clone(), is_reference)) {
                         next = Some((index, is_reference));
                         break;
                     }
@@ -20359,18 +22354,14 @@ impl<'a> Emitter<'a> {
             {
                 let name = self.reference(&param.name);
                 let (IrDefault::Literal(expr) | IrDefault::Computed { expr, .. }) = default;
-                let value = self.lower_business_expr(
-                    expr,
-                    "formatted scenario parameter default",
-                );
+                let value = self.lower_business_expr(expr, "formatted scenario parameter default");
                 let mut default_site = self.receipt_site(
                     default_node
                         .map(|node| Span::new(node.file, node.start, node.end))
                         .unwrap_or(expr.span),
                 );
                 default_site.default_selection = true;
-                let evaluated = self
-                    .receipt_choice_at(default_site.clone(), "default-evaluated");
+                let evaluated = self.receipt_choice_at(default_site.clone(), "default-evaluated");
                 let provided = self.receipt_choice_at(default_site, "default-provided");
                 let supplied_branch = if provided.is_empty() {
                     String::new()
@@ -20381,11 +22372,7 @@ impl<'a> Emitter<'a> {
                     (Some(observer), IrDefault::Computed { .. })
                         if self.scenario_computed_default_supported(*id) =>
                     {
-                        format!(
-                            "{observer}?.({},{});",
-                            js_string(&param.name),
-                            name
-                        )
+                        format!("{observer}?.({},{});", js_string(&param.name), name)
                     }
                     _ => String::new(),
                 };
@@ -20405,20 +22392,26 @@ impl<'a> Emitter<'a> {
         guards: &[IrStmt],
         effects: &[IrStmt],
     ) {
-        if let Some(body) = self.receipt_capture.as_ref()
+        if let Some(body) = self
+            .receipt_capture
+            .as_ref()
             .and_then(|receipt| receipt.plan.owner_body(&item.canonical))
         {
             self.emit_owner_decision_body(out, item, guards, effects, body);
             return;
         }
-        if let Some(decision) = self.receipt_capture.as_ref()
+        if let Some(decision) = self
+            .receipt_capture
+            .as_ref()
             .and_then(|receipt| receipt.plan.term_decision.clone())
             && item.canonical == "member_terms.term"
         {
-            self.emit_term_decision_body(out,item,guards,effects,&decision);
+            self.emit_term_decision_body(out, item, guards, effects, &decision);
             return;
         }
-        if self.receipt_capture.as_ref()
+        if self
+            .receipt_capture
+            .as_ref()
             .and_then(|receipt| receipt.plan.observe_venue_decision.as_ref())
             .is_some_and(|decision| decision["owner"] == "events.observe_venue")
             && item.canonical == "events.observe_venue"
@@ -20459,12 +22452,18 @@ impl<'a> Emitter<'a> {
     /// All collected owner decisions share the same lexical/query lifetime.
     /// The layout retains each original body's shape, admission and staged prefix.
     fn emit_owner_decision_body(
-        &mut self, out: &mut JsWriter, item: &IrItem,
-        guards: &[IrStmt], effects: &[IrStmt], body: super::scenario_receipts::OwnerDecisionBody,
+        &mut self,
+        out: &mut JsWriter,
+        item: &IrItem,
+        guards: &[IrStmt],
+        effects: &[IrStmt],
+        body: super::scenario_receipts::OwnerDecisionBody,
     ) {
         use super::scenario_receipts::OwnerDecisionAdmission;
-        if guards.len() != body.guards || effects.len() != body.effects ||
-            body.first_defaults && !matches!(&effects[0], IrStmt::Let { name, .. } if name == "defaults")
+        if guards.len() != body.guards
+            || effects.len() != body.effects
+            || body.first_defaults
+                && !matches!(&effects[0], IrStmt::Let { name, .. } if name == "defaults")
         {
             self.unsupported(body.context, body.missing_body, item.span);
             return;
@@ -20481,10 +22480,12 @@ impl<'a> Emitter<'a> {
         self.owner_handler_body = true;
         // Complete owners keep their original guard consumers. Only owners
         // with an explicit source bridge may borrow a generic observer frame.
-        let source_requires = (!body.source_guard_bridge)
-            .then(|| std::mem::take(&mut self.source_requires));
+        let source_requires =
+            (!body.source_guard_bridge).then(|| std::mem::take(&mut self.source_requires));
         self.enter_scope();
-        let mut names = body.parameters.iter()
+        let mut names = body
+            .parameters
+            .iter()
             .map(|name| format!("{}:{}", object_key(name), self.bind(name)))
             .collect::<Vec<_>>();
         let first_defaults = body.first_defaults.then(|| self.bind("firstDefaults"));
@@ -20492,9 +22493,16 @@ impl<'a> Emitter<'a> {
             names.push(format!("firstDefaults:{first_defaults}"));
         }
         self.stdlib.insert(body.runtime.into());
-        out.push(item.span, Some(item.canonical.clone()),
-            &format!("await {}(c,{},async(c,{{{}}})=>{{",
-                body.runtime, descriptor_json(&body.decision), names.join(",")));
+        out.push(
+            item.span,
+            Some(item.canonical.clone()),
+            &format!(
+                "await {}(c,{},async(c,{{{}}})=>{{",
+                body.runtime,
+                descriptor_json(&body.decision),
+                names.join(",")
+            ),
+        );
         if let IrItemKind::Scenario { by, .. } = &item.kind {
             let admission = match body.admission {
                 OwnerDecisionAdmission::None => None,
@@ -20504,11 +22512,18 @@ impl<'a> Emitter<'a> {
                     // pre-query stage over the authenticated subject.
                     self.stdlib.insert("check".into());
                     self.stdlib.insert("hasRole".into());
-                    Some(format!("check(await hasRole(c,{},c.actor),\"forbidden\")", js_string(name)))
+                    Some(format!(
+                        "check(await hasRole(c,{},c.actor),\"forbidden\")",
+                        js_string(name)
+                    ))
                 }
             };
             if let Some(admission) = admission {
-                out.push(item.span, Some(item.canonical.clone()), &format!("{admission};"));
+                out.push(
+                    item.span,
+                    Some(item.canonical.clone()),
+                    &format!("{admission};"),
+                );
             }
         }
         for stmt in guards {
@@ -20519,29 +22534,54 @@ impl<'a> Emitter<'a> {
         let effects = if let Some(first_defaults) = first_defaults {
             if let IrStmt::Let { name, span, .. } = &effects[0] {
                 let bound = self.bind(name);
-                out.push(*span, Some(item.canonical.clone()),
-                    &format!("const {bound}=await {first_defaults}();"));
+                out.push(
+                    *span,
+                    Some(item.canonical.clone()),
+                    &format!("const {bound}=await {first_defaults}();"),
+                );
             }
             &effects[1..]
-        } else { effects };
+        } else {
+            effects
+        };
         for stmt in effects {
             for (line, span) in self.lower_stmt(stmt, 0) {
                 out.push(span, Some(item.canonical.clone()), &line);
             }
         }
-        out.push(item.span, Some(item.canonical.clone()), "return undefined;});");
+        out.push(
+            item.span,
+            Some(item.canonical.clone()),
+            "return undefined;});",
+        );
         self.exit_scope();
-        if let Some(source_requires) = source_requires { self.source_requires = source_requires; }
+        if let Some(source_requires) = source_requires {
+            self.source_requires = source_requires;
+        }
         self.owner_handler_body = previous_owner;
         self.query_capture = previous_query;
     }
 
     fn emit_term_decision_body(
-        &mut self, out: &mut JsWriter, item: &IrItem,
-        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value,
+        &mut self,
+        out: &mut JsWriter,
+        item: &IrItem,
+        guards: &[IrStmt],
+        effects: &[IrStmt],
+        decision: &serde_json::Value,
     ) {
-        let [capture_branch,previous_let,previous_require,create_branch] = effects else {
-            self.unsupported("term owner decision","the exact authored body is missing",item.span);
+        let [
+            capture_branch,
+            previous_let,
+            previous_require,
+            create_branch,
+        ] = effects
+        else {
+            self.unsupported(
+                "term owner decision",
+                "the exact authored body is missing",
+                item.span,
+            );
             return;
         };
         let previous_owner = self.owner_handler_body;
@@ -20560,26 +22600,33 @@ impl<'a> Emitter<'a> {
         // frame would incorrectly treat those views as public input slots.
         let source_requires = std::mem::take(&mut self.source_requires);
         for guard in guards {
-            for (line,span) in self.lower_stmt(guard,0) {
-                out.push(span,Some(item.canonical.clone()),&line);
+            for (line, span) in self.lower_stmt(guard, 0) {
+                out.push(span, Some(item.canonical.clone()), &line);
             }
         }
-        for effect in [capture_branch,previous_let,previous_require] {
-            for (line,span) in self.lower_stmt(effect,0) {
-                out.push(span,Some(item.canonical.clone()),&line);
+        for effect in [capture_branch, previous_let, previous_require] {
+            for (line, span) in self.lower_stmt(effect, 0) {
+                out.push(span, Some(item.canonical.clone()), &line);
             }
         }
         let selected = self.reference("previous");
-        out.push(item.span,Some(item.canonical.clone()),&format!("return {selected};}});"));
+        out.push(
+            item.span,
+            Some(item.canonical.clone()),
+            &format!("return {selected};}});"),
+        );
         self.exit_scope();
         self.source_requires = source_requires;
         self.owner_handler_body = previous_owner;
         self.query_capture = previous_query;
         let previous = self.bind("previous");
-        out.push(item.span,Some(item.canonical.clone()),
-            &format!("const {previous}=$termPrevious;"));
-        for (line,span) in self.lower_stmt(create_branch,0) {
-            out.push(span,Some(item.canonical.clone()),&line);
+        out.push(
+            item.span,
+            Some(item.canonical.clone()),
+            &format!("const {previous}=$termPrevious;"),
+        );
+        for (line, span) in self.lower_stmt(create_branch, 0) {
+            out.push(span, Some(item.canonical.clone()), &line);
         }
     }
 
@@ -20605,9 +22652,19 @@ impl<'a> Emitter<'a> {
                         continue;
                     }
                     let handler = object_key(&item.canonical);
-                    if self.ir.standard_completion_sources.is_private_terminal_candidate()
+                    if self
+                        .ir
+                        .standard_completion_sources
+                        .is_private_terminal_candidate()
                         && !self.private_terminal_ready
-                        && matches!(&item.kind, IrItemKind::Scenario {event_source:Some(IrEventSource::StandardCompleted {..}),..}) {
+                        && matches!(
+                            &item.kind,
+                            IrItemKind::Scenario {
+                                event_source: Some(IrEventSource::StandardCompleted { .. }),
+                                ..
+                            }
+                        )
+                    {
                         out.push(item.span, Some(item.canonical.clone()),
                             &format!("async {handler}(){{throw new Error(\"unprepared standard terminal source\");}},"));
                         continue;
@@ -20625,9 +22682,17 @@ impl<'a> Emitter<'a> {
                         // is the nominal itself, unlike Mailbox's {value}
                         // event. Unwrap only this checked provider source.
                         let event = self.bind("event");
-                        let event = if matches!(&item.kind, IrItemKind::Scenario {
-                            event_source: Some(IrEventSource::PaymentsChanged { .. }), ..
-                        }) { format!("{{value:{event}}}") } else { event };
+                        let event = if matches!(
+                            &item.kind,
+                            IrItemKind::Scenario {
+                                event_source: Some(IrEventSource::PaymentsChanged { .. }),
+                                ..
+                            }
+                        ) {
+                            format!("{{value:{event}}}")
+                        } else {
+                            event
+                        };
                         let mut bindings = vec![format!("event:{event}")];
                         if let Some(bind) = cohort.as_ref().and_then(|cohort| cohort.bind.as_ref())
                         {
@@ -20680,13 +22745,18 @@ impl<'a> Emitter<'a> {
                         std::mem::replace(&mut self.authority_body, *scope_authority);
                     self.receipt_calls.clear();
                     self.current_revision_binding = None;
-                    self.receipt_capture = self.native_receipts.get(&item.id).filter(|recipe| recipe.plan.retained_guarded_handler.is_none()).cloned();
+                    self.receipt_capture = self
+                        .native_receipts
+                        .get(&item.id)
+                        .filter(|recipe| recipe.plan.retained_guarded_handler.is_none())
+                        .cloned();
                     // Source inventories remain useful for declined scenarios,
                     // but only a published, whole-owner receipt can enter the
                     // owning query lifetime. Dev dispatches the actual public
                     // viewer lifetime or private child State frame.
                     self.query_capture = self.admitted_query_source(item.id);
-                    self.owner_handler_body = self.receipt_capture.is_none() && self.owner_handlers.contains(&item.id);
+                    self.owner_handler_body =
+                        self.receipt_capture.is_none() && self.owner_handlers.contains(&item.id);
                     // Generic retained handlers use the host's complete owner
                     // session, independently of closed public receipt profiles.
                     // Their shared derives must not borrow another owner's
@@ -20714,17 +22784,28 @@ impl<'a> Emitter<'a> {
                     // header, query and effects. Other scenarios keep their
                     // existing pre-body admission stage.
                     if !((item.canonical == "refer.reject_source"
-                        && self.receipt_capture.as_ref().is_some_and(|receipt|
-                            receipt.plan.refer_reject_decision.is_some()))
+                        && self
+                            .receipt_capture
+                            .as_ref()
+                            .is_some_and(|receipt| receipt.plan.refer_reject_decision.is_some()))
                         || (item.canonical == "member_terms.retry_collection"
-                        && self.receipt_capture.as_ref().is_some_and(|receipt|
-                            receipt.plan.member_retry_decision.is_some()))
+                            && self.receipt_capture.as_ref().is_some_and(|receipt| {
+                                receipt.plan.member_retry_decision.is_some()
+                            }))
                         || (item.canonical == "invoice.collect"
-                            && self.receipt_capture.as_ref().is_some_and(|receipt|
-                            receipt.plan.invoice_collect_decision.is_some()))) {
+                            && self.receipt_capture.as_ref().is_some_and(|receipt| {
+                                receipt.plan.invoice_collect_decision.is_some()
+                            })))
+                    {
                         self.emit_admission_check(out, by, item.span);
                     }
-                    self.emit_scenario_param_defaults(out, item, trusted, params, &default_observer);
+                    self.emit_scenario_param_defaults(
+                        out,
+                        item,
+                        trusted,
+                        params,
+                        &default_observer,
+                    );
                     self.viewer_read_body = *read && !*trusted && !*scope_authority;
                     self.emit_scenario_body_stmts(out, item, guards, effects);
                     if let Some(selection) = self.receipt_return_selection(item.span, true, false) {
@@ -20753,11 +22834,11 @@ impl<'a> Emitter<'a> {
                     has_when,
                     delete_mode,
                     ..
-                } => self.emit_crud_op_handler(
-                    out, item, model, op, by, *has_when, delete_mode,
-                ),
+                } => self.emit_crud_op_handler(out, item, model, op, by, *has_when, delete_mode),
                 IrItemKind::DeriveFn { .. } => {
-                    if self.private_derives.contains(&item.canonical) { continue; }
+                    if self.private_derives.contains(&item.canonical) {
+                        continue;
+                    }
                     let name = binding_ident("s", &item.canonical);
                     self.callables.push(JsCallable {
                         id: item.canonical.clone(),
@@ -21056,4 +23137,3 @@ fn object_key(key: &str) -> String {
         js_string(key)
     }
 }
-

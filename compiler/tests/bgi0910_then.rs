@@ -280,7 +280,7 @@ fn declared_fields_feed_admission_refusal() {
 
 #[test]
 fn row_argument_contract_is_once_only_with_separate_instance_identity() {
-    assert!(ROW_EVALUATED_ONCE);
+    const { assert!(ROW_EVALUATED_ONCE) };
     assert_eq!(RENDER_SIGNATURE, "render({row, bindings, ui})");
     assert_eq!(MOUNT_SIGNATURE, "mount(root, presentation) => cleanup");
     // Repeated instances share the renderer but never an identity.

@@ -50,7 +50,6 @@ impl MembershipSources {
 
 /// Reuse the original checked call slots and complete decision inventories.
 /// A source recipe names a call; it never supplies a membership answer or scope.
-
 fn membership_call_shape(
     program: &CheckedProgram,
     catalog: &Catalog,
@@ -60,7 +59,9 @@ fn membership_call_shape(
     overload: usize,
 ) -> bool {
     let entry = catalog.lookup(id);
-    let signature = catalog.overloads(id).and_then(|overloads| overloads.get(overload));
+    let signature = catalog
+        .overloads(id)
+        .and_then(|overloads| overloads.get(overload));
     let (Some(entry), Some(signature)) = (entry, signature) else {
         return false;
     };
@@ -111,9 +112,7 @@ fn membership_call_record(
 ) -> Option<(Span, serde_json::Value)> {
     let file = db.get(node.file)?;
     let module = program.modules.iter().find(|module| {
-        module.file == node.file
-            && module.span.start <= node.start
-            && module.span.end >= node.end
+        module.file == node.file && module.span.start <= node.start && module.span.end >= node.end
     })?;
     if node.start >= node.end || node.end as usize > file.text.len() {
         return None;
@@ -143,8 +142,7 @@ fn collect_membership_calls(
         if !membership_call_shape(program, catalog, node, selected, id, *overload) {
             return None;
         }
-        let (_person, _team) =
-            membership_call_parties(program, catalog, selected, id, *overload)?;
+        let (_person, _team) = membership_call_parties(program, catalog, selected, id, *overload)?;
         let (span, record) = membership_call_record(program, db, node)?;
         calls.insert(span, record);
     }
@@ -174,44 +172,63 @@ fn collect_membership_sites(
     let mut sites = BTreeMap::new();
     for item in &ir.items {
         if item.canonical == "maintain.remind" {
-            if let Some(source) = super::event_decisions::collect_maintain_membership_sites(context, item) {
+            if let Some(source) =
+                super::event_decisions::collect_maintain_membership_sites(context, item)
+            {
                 sites.insert(item.canonical.clone(), serde_json::Value::Array(source));
             }
             continue;
         }
-        if matches!(item.canonical.as_str(), "success.renewal_due" | "success.remind") {
-            if let Some(source) = super::success_send_decisions::collect_success_notice_membership_sites(context, item) {
+        if matches!(
+            item.canonical.as_str(),
+            "success.renewal_due" | "success.remind"
+        ) {
+            if let Some(source) =
+                super::success_send_decisions::collect_success_notice_membership_sites(
+                    context, item,
+                )
+            {
                 sites.insert(item.canonical.clone(), serde_json::Value::Array(source));
             }
             continue;
         }
         if item.canonical == "member_terms.term" {
-            if let Some(source) = super::term_decisions::collect_term_membership_sites(context,item) {
-                sites.insert(item.canonical.clone(),serde_json::Value::Array(source));
+            if let Some(source) =
+                super::term_decisions::collect_term_membership_sites(context, item)
+            {
+                sites.insert(item.canonical.clone(), serde_json::Value::Array(source));
             }
             continue;
         }
         if item.canonical == "leave.request" {
-            if let Some(source) = super::leave_decisions::collect_leave_membership_sites(context,item) {
-                sites.insert(item.canonical.clone(),serde_json::Value::Array(source));
+            if let Some(source) =
+                super::leave_decisions::collect_leave_membership_sites(context, item)
+            {
+                sites.insert(item.canonical.clone(), serde_json::Value::Array(source));
             }
             continue;
         }
         if item.canonical == "leave.decide" {
-            if let Some(source) = super::leave_decisions::collect_leave_decide_membership_sites(context,item) {
-                sites.insert(item.canonical.clone(),serde_json::Value::Array(source));
+            if let Some(source) =
+                super::leave_decisions::collect_leave_decide_membership_sites(context, item)
+            {
+                sites.insert(item.canonical.clone(), serde_json::Value::Array(source));
             }
             continue;
         }
         if item.canonical == "refer.reject_source" {
-            if let Some(source) = super::refer_decisions::collect_reject_membership_sites(context,item) {
-                sites.insert(item.canonical.clone(),serde_json::Value::Array(source));
+            if let Some(source) =
+                super::refer_decisions::collect_reject_membership_sites(context, item)
+            {
+                sites.insert(item.canonical.clone(), serde_json::Value::Array(source));
             }
             continue;
         }
         if item.canonical == "invoice.issue" {
-            if let Some(source) = super::invoice_issue_decisions::collect_issue_membership_sites(context,item) {
-                sites.insert(item.canonical.clone(),serde_json::Value::Array(source));
+            if let Some(source) =
+                super::invoice_issue_decisions::collect_issue_membership_sites(context, item)
+            {
+                sites.insert(item.canonical.clone(), serde_json::Value::Array(source));
             }
             continue;
         }

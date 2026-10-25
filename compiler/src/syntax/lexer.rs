@@ -765,8 +765,8 @@ fn lex_punct_or_error(
     if let Some(next) = lex_compound_punct(file, abs, at, rest, tokens) {
         return next;
     }
-    let single =
-        single_delimiter_punct(rest.as_bytes()[0]).or_else(|| single_operator_punct(rest.as_bytes()[0]));
+    let single = single_delimiter_punct(rest.as_bytes()[0])
+        .or_else(|| single_operator_punct(rest.as_bytes()[0]));
     match single {
         Some(punct) => {
             tokens.push(Token::new(TokenKind::Punct(punct), file, abs, abs + 1));
@@ -833,10 +833,7 @@ fn decode_unicode_escape(
             match char::from_u32(scalar) {
                 Some(ch) => out.push(ch),
                 None => {
-                    return Err(fail(
-                        "invalid Unicode scalar value".to_string(),
-                        *i,
-                    ));
+                    return Err(fail("invalid Unicode scalar value".to_string(), *i));
                 }
             }
             *i += 7;
@@ -957,4 +954,3 @@ pub fn decode_json_string(raw: &str, abs: u32, file: SourceId) -> Result<String,
     }
     Ok(out)
 }
-

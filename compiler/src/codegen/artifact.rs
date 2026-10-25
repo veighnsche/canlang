@@ -367,8 +367,15 @@ pub fn assemble(
         .collect();
     let (mut requires, mut require_diags) =
         compute_requires(&ir.catalog_version, &js.stdlib_imports, db);
-    if ir.modules.iter().any(|module| !module.runtime_bindings.is_empty()) {
-        requires.push(ArtifactRequirement { capability: "cloudflare.runtime-bindings".to_string(), min_version: 1 });
+    if ir
+        .modules
+        .iter()
+        .any(|module| !module.runtime_bindings.is_empty())
+    {
+        requires.push(ArtifactRequirement {
+            capability: "cloudflare.runtime-bindings".to_string(),
+            min_version: 1,
+        });
         requires.sort_by(|a, b| a.capability.cmp(&b.capability));
     }
     if callables
@@ -1425,10 +1432,14 @@ fn given_model_field(contributed: &ArtifactGivenField) -> Result<JsModelField, S
 /// Carrier constants are source spellings; artifact defaults are Values wire
 /// data. In particular numeric leaves never pass through a JSON number.
 fn given_field_default(field: &ArtifactGivenField) -> Result<Option<JsFieldDefault>, String> {
-    field.default.as_deref().map(|source| {
-        given_wire_constant(&field.type_name, source)
-            .map(|value| JsFieldDefault::Literal(value.to_string()))
-    }).transpose()
+    field
+        .default
+        .as_deref()
+        .map(|source| {
+            given_wire_constant(&field.type_name, source)
+                .map(|value| JsFieldDefault::Literal(value.to_string()))
+        })
+        .transpose()
 }
 
 fn given_wire_constant(type_name: &str, source: &str) -> Result<serde_json::Value, String> {
@@ -1438,14 +1449,20 @@ fn given_wire_constant(type_name: &str, source: &str) -> Result<serde_json::Valu
         return Ok(serde_json::Value::Null);
     }
     if let Some(element) = ty.strip_suffix("[]") {
-        let body = source.strip_prefix('[').and_then(|s| s.strip_suffix(']'))
+        let body = source
+            .strip_prefix('[')
+            .and_then(|s| s.strip_suffix(']'))
             .ok_or_else(|| format!("invalid contributed array default `{source}`"))?;
-        return crate::analysis::types::split_given_consts(body).iter()
+        return crate::analysis::types::split_given_consts(body)
+            .iter()
             .map(|part| given_wire_constant(element, part))
-            .collect::<Result<Vec<_>, _>>().map(serde_json::Value::Array);
+            .collect::<Result<Vec<_>, _>>()
+            .map(serde_json::Value::Array);
     }
     if matches!(ty, "int" | "integer") {
-        return source.parse::<i64>().map(|value| serde_json::Value::String(value.to_string()))
+        return source
+            .parse::<i64>()
+            .map(|value| serde_json::Value::String(value.to_string()))
             .map_err(|_| format!("invalid contributed integer default `{source}`"));
     }
     if ty == "duration" {
@@ -1463,7 +1480,8 @@ fn given_wire_constant(type_name: &str, source: &str) -> Result<serde_json::Valu
         let value = serde_json::from_str::<String>(source).unwrap_or_else(|_| source.to_string());
         return Ok(serde_json::Value::String(value));
     }
-    serde_json::from_str(source).map_err(|_| format!("invalid contributed {type_name} default `{source}`"))
+    serde_json::from_str(source)
+        .map_err(|_| format!("invalid contributed {type_name} default `{source}`"))
 }
 
 /// Split a checked contributed type into its tag, value type,
@@ -1544,12 +1562,7 @@ fn given_field_tag(type_name: &str) -> (JsModelFieldType, Option<String>, bool, 
             .split(',')
             .map(|case| case.trim().to_string())
             .collect();
-        return (
-            JsModelFieldType::Enum { values },
-            None,
-            nullable,
-            is_array,
-        );
+        return (JsModelFieldType::Enum { values }, None, nullable, is_array);
     }
     let Some(tag) = scalar_field_tag(rest) else {
         return (
@@ -1878,38 +1891,71 @@ pub struct ArtifactStyleAsset {
 /// Finite MIME admission shared by style validation and packing.
 fn detect_asset_bytes(bytes: &[u8]) -> Option<&'static str> {
     let ascii = |start: usize, end: usize| bytes.get(start..end).unwrap_or(&[]);
-    if bytes.starts_with(&[137,80,78,71,13,10,26,10]) { Some("image/png") }
-        else if bytes.starts_with(&[255,216,255]) { Some("image/jpeg") }
-        else if ascii(0,6) == b"GIF87a" || ascii(0,6) == b"GIF89a" { Some("image/gif") }
-        else if ascii(0,4) == b"RIFF" && ascii(8,12) == b"WEBP" { Some("image/webp") }
-        else if ascii(4,8) == b"ftyp" && (ascii(8,12) == b"avif" || ascii(8,12) == b"avis") { Some("image/avif") }
-        else if ascii(0,4) == b"wOFF" { Some("font/woff") }
-        else if ascii(0,4) == b"wOF2" { Some("font/woff2") }
-        else if bytes.starts_with(&[0,1,0,0]) { Some("font/ttf") }
-        else if ascii(0,4) == b"OTTO" { Some("font/otf") }
-        else {
-            detect_svg_bytes(bytes)
-        }
+    if bytes.starts_with(&[137, 80, 78, 71, 13, 10, 26, 10]) {
+        Some("image/png")
+    } else if bytes.starts_with(&[255, 216, 255]) {
+        Some("image/jpeg")
+    } else if ascii(0, 6) == b"GIF87a" || ascii(0, 6) == b"GIF89a" {
+        Some("image/gif")
+    } else if ascii(0, 4) == b"RIFF" && ascii(8, 12) == b"WEBP" {
+        Some("image/webp")
+    } else if ascii(4, 8) == b"ftyp" && (ascii(8, 12) == b"avif" || ascii(8, 12) == b"avis") {
+        Some("image/avif")
+    } else if ascii(0, 4) == b"wOFF" {
+        Some("font/woff")
+    } else if ascii(0, 4) == b"wOF2" {
+        Some("font/woff2")
+    } else if bytes.starts_with(&[0, 1, 0, 0]) {
+        Some("font/ttf")
+    } else if ascii(0, 4) == b"OTTO" {
+        Some("font/otf")
+    } else {
+        detect_svg_bytes(bytes)
+    }
 }
 
 fn detect_svg_bytes(bytes: &[u8]) -> Option<&'static str> {
     let prefix = String::from_utf8_lossy(&bytes[..bytes.len().min(512)]);
     let mut prefix = prefix.trim_start_matches('\u{feff}').trim_start();
-    if prefix.starts_with("<?xml") { if let Some(end) = prefix.find("?>") { prefix = prefix[end + 2..].trim_start(); } }
-    let root = prefix.get(..4).is_some_and(|head| head.eq_ignore_ascii_case("<svg")) && prefix[4..].chars().next().is_some_and(|ch| ch.is_whitespace() || ch == '>');
+    if prefix.starts_with("<?xml")
+        && let Some(end) = prefix.find("?>")
+    {
+        prefix = prefix[end + 2..].trim_start();
+    }
+    let root = prefix
+        .get(..4)
+        .is_some_and(|head| head.eq_ignore_ascii_case("<svg"))
+        && prefix[4..]
+            .chars()
+            .next()
+            .is_some_and(|ch| ch.is_whitespace() || ch == '>');
     root.then_some("image/svg+xml")
 }
 
 fn expected_asset_mime(extension: &str) -> &'static str {
     match extension {
-        "png" => "image/png", "jpg" | "jpeg" => "image/jpeg", "gif" => "image/gif", "webp" => "image/webp", "avif" => "image/avif", "svg" => "image/svg+xml", "woff" => "font/woff", "woff2" => "font/woff2", "ttf" => "font/ttf", "otf" => "font/otf", _ => "",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "avif" => "image/avif",
+        "svg" => "image/svg+xml",
+        "woff" => "font/woff",
+        "woff2" => "font/woff2",
+        "ttf" => "font/ttf",
+        "otf" => "font/otf",
+        _ => "",
     }
 }
 
 pub fn style_asset_content_type(path: &str, bytes: &[u8]) -> Result<&'static str, String> {
     let extension = path.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
-    if extension == "css" { return Ok("text/css"); }
-    if extension == "js" || extension == "mjs" { return Ok("application/javascript"); }
+    if extension == "css" {
+        return Ok("text/css");
+    }
+    if extension == "js" || extension == "mjs" {
+        return Ok("application/javascript");
+    }
     let detected = detect_asset_bytes(bytes);
     let expected = expected_asset_mime(extension.as_str());
     detected.filter(|mime| extension == "bin" || *mime == expected).ok_or_else(|| format!("unsupported or mismatched owned asset type for `{path}`; submit a supported image/font with matching bytes"))
@@ -1960,23 +2006,37 @@ pub fn pack_saved_stylesheet_with_assets(
             kind.as_str(),
         ));
     }
-    let scoped = crate::css_scope::scope_deployed_stylesheet(&owner.unit_id, css).map_err(|errors| {
-        let first = &errors[0];
-        let mut message = format!(
-            "unit `{}` `style.css` failed scope checks: {} {} (line {}, column {})",
-            owner.unit_id, first.code, first.message, first.line, first.column,
-        );
-        if errors.len() > 1 {
-            message.push_str(&format!(" (+{} more)", errors.len() - 1));
-        }
-        message
-    })?;
+    let scoped =
+        crate::css_scope::scope_deployed_stylesheet(&owner.unit_id, css).map_err(|errors| {
+            let first = &errors[0];
+            let mut message = format!(
+                "unit `{}` `style.css` failed scope checks: {} {} (line {}, column {})",
+                owner.unit_id, first.code, first.message, first.line, first.column,
+            );
+            if errors.len() > 1 {
+                message.push_str(&format!(" (+{} more)", errors.len() - 1));
+            }
+            message
+        })?;
     use base64::Engine;
     let mut assets = Vec::new();
     for path in &scoped.assets {
-        let file = files.iter().find(|file| &file.rel_path == path).ok_or_else(|| format!("unit `{}` references missing owned asset `{path}`", owner.unit_id))?;
+        let file = files
+            .iter()
+            .find(|file| &file.rel_path == path)
+            .ok_or_else(|| {
+                format!(
+                    "unit `{}` references missing owned asset `{path}`",
+                    owner.unit_id
+                )
+            })?;
         let content_type = style_asset_content_type(path, &file.bytes)?;
-        assets.push(ArtifactStyleAsset { path: format!("can.generated/{}/{path}", owner.unit_id), content_base64: base64::engine::general_purpose::STANDARD.encode(&file.bytes), sha256: crate::source::sha256_hex(&file.bytes), content_type: content_type.to_string() });
+        assets.push(ArtifactStyleAsset {
+            path: format!("can.generated/{}/{path}", owner.unit_id),
+            content_base64: base64::engine::general_purpose::STANDARD.encode(&file.bytes),
+            sha256: crate::source::sha256_hex(&file.bytes),
+            content_type: content_type.to_string(),
+        });
     }
     let path = saved_unit_style_path(kind, &owner.unit_id)?;
     let sha256 = crate::source::sha256_hex(scoped.css.as_bytes());

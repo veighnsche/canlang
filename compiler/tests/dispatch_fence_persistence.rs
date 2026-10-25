@@ -11,10 +11,10 @@
 //! --native-scenario-receipts` yields a clean artifact for both
 //! positive shapes below).
 use canlang_compiler::analysis::catalog::{CatalogRequest, load_catalog};
-use canlang_compiler::analysis::scenario_disclosure::ScenarioDisclosure;
 use canlang_compiler::analysis::check_program;
-use canlang_compiler::diagnostic::Diagnostic;
+use canlang_compiler::analysis::scenario_disclosure::ScenarioDisclosure;
 use canlang_compiler::codegen::ir;
+use canlang_compiler::diagnostic::Diagnostic;
 use canlang_compiler::source::{SourceDb, Span};
 use std::path::{Path, PathBuf};
 

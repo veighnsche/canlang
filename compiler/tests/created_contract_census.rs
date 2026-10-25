@@ -12,9 +12,9 @@
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::scenario_disclosure::ScenarioDisclosure;
 use canlang_compiler::analysis::{CheckedProgram, check_program};
+use canlang_compiler::codegen::artifact::to_json;
 use canlang_compiler::codegen::ir::{self, IrItem, IrProgram};
 use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
-use canlang_compiler::codegen::artifact::to_json;
 use canlang_compiler::diagnostic::{Diagnostic, DiagnosticResult};
 use canlang_compiler::source::{SourceDb, Span};
 use serde_json::Value;
@@ -104,7 +104,11 @@ fn checked(source: &str) -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
     (db, program, ir, catalog)
 }
 
-fn prepared(program: &CheckedProgram, db: &SourceDb, catalog: &Catalog) -> (Value, Vec<Diagnostic>) {
+fn prepared(
+    program: &CheckedProgram,
+    db: &SourceDb,
+    catalog: &Catalog,
+) -> (Value, Vec<Diagnostic>) {
     let mut result = DiagnosticResult::new("created-contract-census", "1.0", 1);
     result.add_sources(db);
     let (artifact, diagnostics) = emit(
@@ -177,17 +181,23 @@ fn local_contract_field_create_has_native_receipt() {
     // The single-scenario fixture admits no other receipt: the emitted
     // model-result binder proves the native receipt was built for it, not
     // merely described in metadata.
-    let bound = artifact["modules"].as_array().unwrap().iter().any(|module| {
-        module["js"]
-            .as_str()
-            .is_some_and(|js| js.contains("bindScenarioReceiptModelResult"))
-    });
+    let bound = artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|module| {
+            module["js"]
+                .as_str()
+                .is_some_and(|js| js.contains("bindScenarioReceiptModelResult"))
+        });
     assert!(bound, "emitted assembly binds the created model result");
     let source = &disclosure["source"];
-    assert!(source["path"]
-        .as_str()
-        .unwrap()
-        .ends_with("created-contract-census.can"));
+    assert!(
+        source["path"]
+            .as_str()
+            .unwrap()
+            .ends_with("created-contract-census.can")
+    );
     assert!(
         source["sha256"].as_str().unwrap().len() >= 16,
         "disclosure source carries its content identity"

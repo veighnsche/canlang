@@ -1047,9 +1047,7 @@ impl SigParser<'_> {
         Ok(cases)
     }
 
-    fn parse_object_fields(
-        &mut self,
-    ) -> Result<Vec<(String, SigType)>, (&'static str, String)> {
+    fn parse_object_fields(&mut self) -> Result<Vec<(String, SigType)>, (&'static str, String)> {
         self.pos += 1;
         let mut fields = Vec::new();
         loop {
@@ -1820,7 +1818,8 @@ pub struct StdNominal {
     pub fields: &'static [(&'static str, &'static str)],
 }
 
-/// The six T13a nominal leaf schemas, in [`T13A_NOMINAL_TYPES`] order.
+/// T13a receipt schemas in [`T13A_NOMINAL_TYPES`] order, followed by the
+/// ErrorsV1 input consumed by instrumentation handlers.
 /// Per-entry cites name the frozen `services.ts` producer interface.
 pub const T13A_NOMINAL_LEAVES: &[StdNominal] = &[
     // `DeliveryResult` (services.ts:26); `status` inlines `DeliveryStatus`
@@ -1879,6 +1878,18 @@ pub const T13A_NOMINAL_LEAVES: &[StdNominal] = &[
     StdNominal {
         name: "ErrorAccepted",
         fields: &[("reference", "text")],
+    },
+    // `ErrorReport` (contracts/services.ts): the complete owning input shape.
+    StdNominal {
+        name: "ErrorReport",
+        fields: &[
+            ("id", "text"),
+            ("message", "text"),
+            ("occurred_at", "datetime"),
+            ("stack", "text?"),
+            ("release", "text?"),
+            ("environment", "text?"),
+        ],
     },
 ];
 
@@ -2146,4 +2157,3 @@ pub fn nominal_schema(name: &str) -> Option<&'static StdNominal> {
         .chain(T13B_NESTED_NOMINALS.iter())
         .find(|nominal| nominal.name == name)
 }
-

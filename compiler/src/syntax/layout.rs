@@ -690,11 +690,7 @@ fn decode_reference(
     DescriptionData::Reference { path: parts }
 }
 
-fn suffix_locale_key(
-    text: &str,
-    key: &Token,
-    fail: &mut impl FnMut(&str, Span),
-) -> Option<String> {
+fn suffix_locale_key(text: &str, key: &Token, fail: &mut impl FnMut(&str, Span)) -> Option<String> {
     match key.kind {
         TokenKind::Name => Some(key.text(text).to_string()),
         // A bad string was already reported by the lexer; skip variant.
@@ -845,4 +841,3 @@ fn decode_suffix(
     }
     Some(DescriptionSuffix { variants })
 }
-

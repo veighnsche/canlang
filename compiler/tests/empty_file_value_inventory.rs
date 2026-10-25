@@ -20,7 +20,8 @@ use std::{
 
 const ORIGINAL: &str =
     include_str!("../../packages/cloudflare/test/fixtures/typed-file-journey.can");
-const DEFERRED: &str = include_str!("../../packages/cloudflare/test/fixtures/native-file-deferred.can");
+const DEFERRED: &str =
+    include_str!("../../packages/cloudflare/test/fixtures/native-file-deferred.can");
 const DEFERRED_SHA256: &str = "b92403ac05f5b1de879ab4201047c0d915520cf7f730d1c525a6f257bf2c6fc8";
 
 fn root() -> PathBuf {

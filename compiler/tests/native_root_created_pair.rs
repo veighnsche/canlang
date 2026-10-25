@@ -2,10 +2,10 @@
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::scenario_disclosure::ScenarioDisclosure;
 use canlang_compiler::analysis::{CheckedProgram, check_program};
+use canlang_compiler::codegen::artifact::to_json;
 use canlang_compiler::codegen::ir::{self, IrExpr, IrItemKind, IrProgram, IrStmt};
 use canlang_compiler::codegen::scenario_queries::serialize_complete_query_receipt;
 use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
-use canlang_compiler::codegen::artifact::to_json;
 use canlang_compiler::diagnostic::DiagnosticResult;
 use canlang_compiler::source::{SourceDb, Span};
 use std::path::Path;

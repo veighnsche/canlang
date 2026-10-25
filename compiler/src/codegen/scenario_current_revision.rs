@@ -306,7 +306,12 @@ fn collect_digest_data<'a>(
         }
     }
     let (digest_index, digest_presence, digest_control_value) = digest_guard?;
-    Some((digest_index, digest_presence, digest_control_value, data_leaves))
+    Some((
+        digest_index,
+        digest_presence,
+        digest_control_value,
+        data_leaves,
+    ))
 }
 
 fn resolve_data_leaves<'a>(
@@ -960,22 +965,24 @@ fn parameter_mismatch(
     index: usize,
     ty: &ResolvedType,
 ) -> Option<bool> {
-    Some(parameter.id != original_parameter
-        || parent != owner_id
-        || index != position
-        || parameter.module != owner_module
-        || parameter.canonical != format!("{owner_canonical}.{name}")
-        || parameter.span != authored_name.span
-        || authored_name.token()?.text(text) != name
-        || ty != receiver_ty
-        || original_ty != receiver_ty
-        || original_default_present
-        || original_constraints_present
-        || authored.kind != SyntaxKind::Parameter
-        || !authored
-            .children
-            .iter()
-            .any(|node| NodeKey::of(node) == original_type_node))
+    Some(
+        parameter.id != original_parameter
+            || parent != owner_id
+            || index != position
+            || parameter.module != owner_module
+            || parameter.canonical != format!("{owner_canonical}.{name}")
+            || parameter.span != authored_name.span
+            || authored_name.token()?.text(text) != name
+            || ty != receiver_ty
+            || original_ty != receiver_ty
+            || original_default_present
+            || original_constraints_present
+            || authored.kind != SyntaxKind::Parameter
+            || !authored
+                .children
+                .iter()
+                .any(|node| NodeKey::of(node) == original_type_node),
+    )
 }
 
 fn checked_parameter<'a>(
@@ -1425,14 +1432,7 @@ impl SourceSites<'_> {
                 .children
                 .iter()
                 .find(|node| node.kind == SyntaxKind::Name)?;
-            self.check_field_identity(
-                schema,
-                field,
-                *id,
-                *owner,
-                *required_array,
-                authored_name,
-            )?;
+            self.check_field_identity(schema, field, *id, *owner, *required_array, authored_name)?;
             let (type_position, parts) = Self::field_type_position(authored)?;
             self.check_field_types(
                 ir,
@@ -1468,9 +1468,10 @@ fn match_std_nominal(
         .imports
         .iter()
         .flat_map(|import| {
-            import.members.iter().filter_map(move |member| {
-                (member.1 == spelling).then_some((import, member))
-            })
+            import
+                .members
+                .iter()
+                .filter_map(move |member| (member.1 == spelling).then_some((import, member)))
         })
         .collect();
     let [(import, member)] = imports.as_slice() else {

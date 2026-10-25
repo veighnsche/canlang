@@ -1298,12 +1298,12 @@ fn packed_maps_locate_saved_js_with_owner_links() {
         requires: vec![],
         tests: vec![],
     };
-    stage_saved_unit_modules(&mut artifact, &[packed.clone()]).expect("stage");
+    stage_saved_unit_modules(&mut artifact, std::slice::from_ref(&packed)).expect("stage");
     assert_eq!(artifact.modules.len(), 2);
     assert_eq!(artifact.modules[0].path, "app/main.js");
     assert_eq!(artifact.modules[1].path, "can.generated/u3/server.js");
     // Staging twice refuses; staging never overwrites.
-    assert!(stage_saved_unit_modules(&mut artifact, &[packed.clone()]).is_err());
+    assert!(stage_saved_unit_modules(&mut artifact, std::slice::from_ref(&packed)).is_err());
     // The owner manifest attributes the `.can` intent without inventing
     // executable prompt positions: unit, kind, path, revision, span.
     let manifest = saved_unit_manifest_to_json(&[packed]);

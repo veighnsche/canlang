@@ -6029,14 +6029,32 @@ impl<'a> Parser<'a> {
                             self.builder.push_inner(&mut inner, condition);
                         }
                         if is_send && cursor.at_name("when_at") {
-                            if !inner.iter().any(|node|node.kind==SyntaxKind::Name&&self.text.get(node.span.start as usize..node.span.end as usize)==Some("when")) {
-                                return Err(Fail::new("E1204","when_at requires a when guard".to_string(),head.span));
+                            if !inner.iter().any(|node| {
+                                node.kind == SyntaxKind::Name
+                                    && self
+                                        .text
+                                        .get(node.span.start as usize..node.span.end as usize)
+                                        == Some("when")
+                            }) {
+                                return Err(Fail::new(
+                                    "E1204",
+                                    "when_at requires a when guard".to_string(),
+                                    head.span,
+                                ));
                             }
-                            let qualifier=cursor.next().expect("peeked when_at");self.builder.leaf(&mut inner,&qualifier);
-                            let eq=cursor.expect_p(Punct::Eq)?;self.builder.leaf(&mut inner,&eq);
-                            let mode=cursor.expect_name()?;
-                            if !matches!(mode.text(self.text),"source"|"current") {return Err(Fail::new("E1204","when_at must be the literal source or current".to_string(),mode.span));}
-                            self.builder.leaf(&mut inner,&mode);
+                            let qualifier = cursor.next().expect("peeked when_at");
+                            self.builder.leaf(&mut inner, &qualifier);
+                            let eq = cursor.expect_p(Punct::Eq)?;
+                            self.builder.leaf(&mut inner, &eq);
+                            let mode = cursor.expect_name()?;
+                            if !matches!(mode.text(self.text), "source" | "current") {
+                                return Err(Fail::new(
+                                    "E1204",
+                                    "when_at must be the literal source or current".to_string(),
+                                    mode.span,
+                                ));
+                            }
+                            self.builder.leaf(&mut inner, &mode);
                         }
                         let mut binding = None;
                         if cursor.at_name("as") {

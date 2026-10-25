@@ -102,20 +102,36 @@ impl PreparedSendGuards {
 /// fresh execution closure and each owner's complete original SEND inventory.
 pub(super) fn retained_handler_receipt(
     context: &super::source_context::FreshSourceContext<'_>,
-    prepared: &PreparedSendGuards, owner: &IrItem, entry: &str,
+    prepared: &PreparedSendGuards,
+    owner: &IrItem,
+    entry: &str,
 ) -> Option<super::scenario_receipts::NativeScenarioReceipt> {
-    use super::scenario_receipts::{NativeScenarioReceipt, ReceiptDisclosurePlan, transport_source};
-    let ir=context.ir();
-    super::scenario_decisions::owner_handler_queries(context,owner)?;
-    let IrItemKind::Scenario {event_source:Some(super::ir::IrEventSource::Declared(event)),..}=&owner.kind else {return None;};
-    let guards=prepared.by_owner(ir)?.get(&owner.canonical)?.as_array()?;
-    if guards.is_empty() {return None;}
-    let facts=context.original().scenario_disclosures().get(&owner.id)?.source_facts()?;
-    let source=transport_source(&facts.source,entry)?;
-    let marker=serde_json::json!({"source":source,"owner":owner.canonical,"event":event,
+    use super::scenario_receipts::{
+        NativeScenarioReceipt, ReceiptDisclosurePlan, transport_source,
+    };
+    let ir = context.ir();
+    super::scenario_decisions::owner_handler_queries(context, owner)?;
+    let IrItemKind::Scenario {
+        event_source: Some(super::ir::IrEventSource::Declared(event)),
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let guards = prepared.by_owner(ir)?.get(&owner.canonical)?.as_array()?;
+    if guards.is_empty() {
+        return None;
+    }
+    let facts = context
+        .original()
+        .scenario_disclosures()
+        .get(&owner.id)?
+        .source_facts()?;
+    let source = transport_source(&facts.source, entry)?;
+    let marker = serde_json::json!({"source":source,"owner":owner.canonical,"event":event,
         "node":{"start":facts.node.start,"end":facts.node.end},
         "rules":guards.iter().map(|guard|guard["rule"].clone()).collect::<Vec<_>>()});
-    let mut marker=marker;
+    let mut marker = marker;
     let staged=guards.iter().filter(|guard|guard["evaluation"]=="source"
         &&guard["eventSource"].is_object()
         &&facts.decision_sites.as_deref().is_some_and(|sites|sites.iter().any(|site|
@@ -126,19 +142,45 @@ pub(super) fn retained_handler_receipt(
                 crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Role(_)=>false,
             }))))
         .map(|guard|guard["rule"].clone()).collect::<Vec<_>>();
-    if !staged.is_empty(){marker["stagedRules"]=serde_json::Value::Array(staged);}
-    if let Some(queries)=super::authority_query_sites::prepare_owner_with_context(context,owner)
-        &&!queries.sites.is_empty(){marker["queries"]=queries.plan;}
+    if !staged.is_empty() {
+        marker["stagedRules"] = serde_json::Value::Array(staged);
+    }
+    if let Some(queries) = super::authority_query_sites::prepare_owner_with_context(context, owner)
+        && !queries.sites.is_empty()
+    {
+        marker["queries"] = queries.plan;
+    }
     Some(NativeScenarioReceipt {
-        plan:ReceiptDisclosurePlan {retained_guarded_handler:Some(marker),source_loops:None,source_emissions:None,
-            version:1,source,event_decision:None,term_decision:None,leave_request_decision:None,
-            leave_decide_decision:None,refer_reject_decision:None,member_retry_decision:None,
-            rent_movement_refund_decision:None,invoice_collect_decision:None,
-            rent_notice_decision:None,invoice_issue_decision:None,observe_venue_decision:None,
-            success_renewal_decision:None,purchase_receive_all:None,event_notice_audit:None,
-            queries:Vec::new(),returns:Vec::new()},
-        dependencies:HashMap::new(),intrinsics:HashMap::new(),decisions:HashMap::new(),
-        decision_keys:HashMap::new(),calls:HashMap::new(),returns:Vec::new(),current_revision:None,
+        plan: ReceiptDisclosurePlan {
+            retained_guarded_handler: Some(marker),
+            source_loops: None,
+            source_emissions: None,
+            version: 1,
+            source,
+            event_decision: None,
+            term_decision: None,
+            leave_request_decision: None,
+            leave_decide_decision: None,
+            refer_reject_decision: None,
+            member_retry_decision: None,
+            rent_movement_refund_decision: None,
+            invoice_collect_decision: None,
+            rent_notice_decision: None,
+            invoice_issue_decision: None,
+            observe_venue_decision: None,
+            success_renewal_decision: None,
+            purchase_receive_all: None,
+            event_notice_audit: None,
+            queries: Vec::new(),
+            returns: Vec::new(),
+        },
+        dependencies: HashMap::new(),
+        intrinsics: HashMap::new(),
+        decisions: HashMap::new(),
+        decision_keys: HashMap::new(),
+        calls: HashMap::new(),
+        returns: Vec::new(),
+        current_revision: None,
     })
 }
 
@@ -191,94 +233,277 @@ fn declared_model_event_source(
     predicate_node: &SyntaxNode,
     send: &IrStmt,
 ) -> Result<Option<(Vec<PreparedSendInput>, serde_json::Value)>, SendGuardGap> {
-    let Some(scenario) = original.effects.scenarios.get(&owner.id) else { return Ok(None) };
-    let Some(HandlerSource::Event(event_id)) = scenario.on else { return Ok(None) };
-    let Some(event) = resolved.symbols.get(event_id.0 as usize) else { return Ok(None) };
-    let SymbolKind::Event { fields } = &event.kind else { return Ok(None) };
-    if event.module != owner.module ||
-        scenario.module != owner.module || scenario.read || scenario.by.is_some() ||
-        scenario.result.is_some() || scenario.cohort.is_some() || !scenario.params.is_empty() ||
-        fields.len() != 2 || scenario.guards.len() != 1 || scenario.effects.len() != 1 {
+    let Some(scenario) = original.effects.scenarios.get(&owner.id) else {
+        return Ok(None);
+    };
+    let Some(HandlerSource::Event(event_id)) = scenario.on else {
+        return Ok(None);
+    };
+    let Some(event) = resolved.symbols.get(event_id.0 as usize) else {
+        return Ok(None);
+    };
+    let SymbolKind::Event { fields } = &event.kind else {
+        return Ok(None);
+    };
+    if event.module != owner.module
+        || scenario.module != owner.module
+        || scenario.read
+        || scenario.by.is_some()
+        || scenario.result.is_some()
+        || scenario.cohort.is_some()
+        || !scenario.params.is_empty()
+        || fields.len() != 2
+        || scenario.guards.len() != 1
+        || scenario.effects.len() != 1
+    {
         return Ok(None);
     }
     let header = &scenario.guards[0];
     let source_send = &scenario.effects[0];
-    if header.verb!=EffectVerb::Require||source_send.verb!=EffectVerb::Send||source_send.when!=Some(predicate)
-        ||!header.then_effects.is_empty()||!header.else_effects.is_empty()||!header.match_arms.is_empty()
-        ||!source_send.then_effects.is_empty()||!source_send.else_effects.is_empty()||!source_send.match_arms.is_empty(){return Ok(None);}
-    let IrItemKind::Scenario { trusted: true,
+    if header.verb != EffectVerb::Require
+        || source_send.verb != EffectVerb::Send
+        || source_send.when != Some(predicate)
+        || !header.then_effects.is_empty()
+        || !header.else_effects.is_empty()
+        || !header.match_arms.is_empty()
+        || !source_send.then_effects.is_empty()
+        || !source_send.else_effects.is_empty()
+        || !source_send.match_arms.is_empty()
+    {
+        return Ok(None);
+    }
+    let IrItemKind::Scenario {
+        trusted: true,
         event_source: Some(super::ir::IrEventSource::Declared(ir_event)),
-        hook: None, cohort: None, result: None, read: false, by, guards, effects, .. } = &owner.kind
-        else { return Ok(None) };
-    let [IrStmt::Require {cond,span,..}] = guards.as_slice() else { return Ok(None) };
-    let [IrStmt::Send {operation,when:Some(ir_when),span:send_span,binding:Some(binding),..}]
-        = effects.as_slice() else { return Ok(None) };
-    let IrStmt::Send {span:actual,..} = send else { return Ok(None) };
-    if ir_event != &event.canonical || !by.is_empty() || *send_span != *actual ||
-        *span != Span::new(header.node.file,header.node.start,header.node.end) ||
-        cond.span != Span::new(header.cond.unwrap().file,header.cond.unwrap().start,header.cond.unwrap().end) ||
-        ir_when.span != Span::new(predicate.file,predicate.start,predicate.end) {
+        hook: None,
+        cohort: None,
+        result: None,
+        read: false,
+        by,
+        guards,
+        effects,
+        ..
+    } = &owner.kind
+    else {
+        return Ok(None);
+    };
+    let [IrStmt::Require { cond, span, .. }] = guards.as_slice() else {
+        return Ok(None);
+    };
+    let [
+        IrStmt::Send {
+            operation: _,
+            when: Some(ir_when),
+            span: send_span,
+            binding: Some(_binding),
+            ..
+        },
+    ] = effects.as_slice()
+    else {
+        return Ok(None);
+    };
+    let IrStmt::Send { span: actual, .. } = send else {
+        return Ok(None);
+    };
+    if ir_event != &event.canonical
+        || !by.is_empty()
+        || *send_span != *actual
+        || *span != Span::new(header.node.file, header.node.start, header.node.end)
+        || cond.span
+            != Span::new(
+                header.cond.unwrap().file,
+                header.cond.unwrap().start,
+                header.cond.unwrap().end,
+            )
+        || ir_when.span != Span::new(predicate.file, predicate.start, predicate.end)
+    {
         return Ok(None);
     }
-    let Some(model_field) = resolved.symbols.get(fields[0].0 as usize) else { return Ok(None) };
-    let Some(revision_field) = resolved.symbols.get(fields[1].0 as usize) else { return Ok(None) };
-    let (SymbolKind::Field {owner: model_owner,type_node:model_decl},
-        SymbolKind::Field {owner: revision_owner,type_node:revision_decl}) =
-        (&model_field.kind,&revision_field.kind) else { return Ok(None) };
-    let Some(ResolvedType::Record {symbol: invoice,stored:true}) =
-        original.types.symbol_types.get(&model_field.id) else { return Ok(None) };
-    let invoice_ty = ResolvedType::Record {symbol:*invoice,stored:true};
-    if *model_owner != event_id || *revision_owner != event_id ||
-        original.types.symbol_types.get(&revision_field.id) != Some(&ResolvedType::Scalar(Scalar::Int)) ||
-        original.types.node_types.get(&predicate) != Some(&ResolvedType::Scalar(Scalar::Bool)) {
+    let Some(model_field) = resolved.symbols.get(fields[0].0 as usize) else {
+        return Ok(None);
+    };
+    let Some(revision_field) = resolved.symbols.get(fields[1].0 as usize) else {
+        return Ok(None);
+    };
+    let (
+        SymbolKind::Field {
+            owner: model_owner,
+            type_node: model_decl,
+        },
+        SymbolKind::Field {
+            owner: revision_owner,
+            type_node: revision_decl,
+        },
+    ) = (&model_field.kind, &revision_field.kind)
+    else {
+        return Ok(None);
+    };
+    let Some(ResolvedType::Record {
+        symbol: invoice,
+        stored: true,
+    }) = original.types.symbol_types.get(&model_field.id)
+    else {
+        return Ok(None);
+    };
+    let invoice_ty = ResolvedType::Record {
+        symbol: *invoice,
+        stored: true,
+    };
+    if *model_owner != event_id
+        || *revision_owner != event_id
+        || original.types.symbol_types.get(&revision_field.id)
+            != Some(&ResolvedType::Scalar(Scalar::Int))
+        || original.types.node_types.get(&predicate) != Some(&ResolvedType::Scalar(Scalar::Bool))
+    {
         return Ok(None);
     }
-    let source = db.get(predicate.file).ok_or_else(|| gap("missing invoice SEND source", Some(ir_when.span)))?;
+    let source = db
+        .get(predicate.file)
+        .ok_or_else(|| gap("missing invoice SEND source", Some(ir_when.span)))?;
     let mut invoice_uses = Vec::new();
-    for member in predicate_node.descendants().filter(|node| node.kind == SyntaxKind::Member) {
-        if source.text.get(member.span.start as usize..member.span.end as usize).map(str::trim)
-            == Some(format!("event.{}",model_field.name).as_str()) {
+    for member in predicate_node
+        .descendants()
+        .filter(|node| node.kind == SyntaxKind::Member)
+    {
+        if source
+            .text
+            .get(member.span.start as usize..member.span.end as usize)
+            .map(str::trim)
+            == Some(format!("event.{}", model_field.name).as_str())
+        {
             let key = NodeKey::of(member);
-            if original.types.node_types.get(&key) != Some(&invoice_ty) { return Ok(None); }
+            if original.types.node_types.get(&key) != Some(&invoice_ty) {
+                return Ok(None);
+            }
             invoice_uses.push(key);
         }
     }
-    if invoice_uses.is_empty() { return Ok(None); }
-    let roots = predicate_node.descendants().filter(|node| node.kind == SyntaxKind::NameRef &&
-        source.text.get(node.span.start as usize..node.span.end as usize).map(str::trim)
-            == Some("event"))
-        .map(NodeKey::of).collect::<Vec<_>>();
-    if roots.len() != invoice_uses.len() || roots.iter().any(|key|
-        !matches!(resolved.node_binding.get(key),Some(Binding::Context(resolve::ContextVar::Event)))) {
+    if invoice_uses.is_empty() {
         return Ok(None);
     }
-    let event_ty = ResolvedType::Record {symbol:event_id,stored:false};
-    let make_input = |name:&str, field:&str, ty:ResolvedType, declaration:NodeKey,
-        use_site:NodeKey, root:NodeKey, ordinal| PreparedSendInput {
-        name:name.into(), type_id:input_type(&ty,original,ir,None,0).unwrap_or_default(),
-        value:TypedExpr::new(IrExpr::Member {base:Box::new(TypedExpr::new(
-            IrExpr::Name("event".into()),event_ty.clone(),
-            Span::new(root.file,root.start,root.end))),field:field.into()},ty,
-            Span::new(use_site.file,use_site.start,use_site.end)),
-        declaration,symbol:None,owner:owner.id,ordinal,narrowing:None,
+    let roots = predicate_node
+        .descendants()
+        .filter(|node| {
+            node.kind == SyntaxKind::NameRef
+                && source
+                    .text
+                    .get(node.span.start as usize..node.span.end as usize)
+                    .map(str::trim)
+                    == Some("event")
+        })
+        .map(NodeKey::of)
+        .collect::<Vec<_>>();
+    if roots.len() != invoice_uses.len()
+        || roots.iter().any(|key| {
+            !matches!(
+                resolved.node_binding.get(key),
+                Some(Binding::Context(resolve::ContextVar::Event))
+            )
+        })
+    {
+        return Ok(None);
+    }
+    let event_ty = ResolvedType::Record {
+        symbol: event_id,
+        stored: false,
     };
-    let model_input = make_input("eventTerm",&model_field.name,invoice_ty,*model_decl,
-        invoice_uses[0],roots[0],0);
+    let make_input = |name: &str,
+                      field: &str,
+                      ty: ResolvedType,
+                      declaration: NodeKey,
+                      use_site: NodeKey,
+                      root: NodeKey,
+                      ordinal| PreparedSendInput {
+        name: name.into(),
+        type_id: input_type(&ty, original, ir, None, 0).unwrap_or_default(),
+        value: TypedExpr::new(
+            IrExpr::Member {
+                base: Box::new(TypedExpr::new(
+                    IrExpr::Name("event".into()),
+                    event_ty.clone(),
+                    Span::new(root.file, root.start, root.end),
+                )),
+                field: field.into(),
+            },
+            ty,
+            Span::new(use_site.file, use_site.start, use_site.end),
+        ),
+        declaration,
+        symbol: None,
+        owner: owner.id,
+        ordinal,
+        narrowing: None,
+    };
+    let model_input = make_input(
+        "eventTerm",
+        &model_field.name,
+        invoice_ty,
+        *model_decl,
+        invoice_uses[0],
+        roots[0],
+        0,
+    );
     // Revision has a checked event declaration but no source predicate use.
     // It is still transported so State can compare it to the actual due Work
     // payload without silently adding a version test to the authored Rule.
-    let revision_input = make_input("eventRevision",&revision_field.name,
-        ResolvedType::Scalar(Scalar::Int),*revision_decl,*revision_decl,roots[0],1);
-    if model_input.type_id != resolved.symbols.get(invoice.0 as usize).map(|item|item.canonical.as_str()).unwrap_or("") || revision_input.type_id != "int" {
+    let revision_input = make_input(
+        "eventRevision",
+        &revision_field.name,
+        ResolvedType::Scalar(Scalar::Int),
+        *revision_decl,
+        *revision_decl,
+        roots[0],
+        1,
+    );
+    if model_input.type_id
+        != resolved
+            .symbols
+            .get(invoice.0 as usize)
+            .map(|item| item.canonical.as_str())
+            .unwrap_or("")
+        || revision_input.type_id != "int"
+    {
         return Ok(None);
     }
-    let site = |node:NodeKey| serde_json::json!({"start":node.start,"end":node.end});
-    let mut stored_fields=std::collections::BTreeSet::new();
-    for member in predicate_node.descendants().filter(|node|node.kind==SyntaxKind::Member){
-        let Some(base)=member.children.iter().find(|node|node.kind==SyntaxKind::Member)else{continue;};
-        if !invoice_uses.contains(&NodeKey::of(base)){continue;}
-        let Some(name)=member.children.iter().rev().find(|node|node.kind==SyntaxKind::Name).and_then(|node|source.text.get(node.span.start as usize..node.span.end as usize))else{return Ok(None);};
-        if original.effects.models.get(invoice).is_some_and(|model|model.fields.iter().any(|field|resolved.symbols.get(field.field.0 as usize).is_some_and(|decl|decl.name==name))){stored_fields.insert(name.to_owned());}
+    let site = |node: NodeKey| serde_json::json!({"start":node.start,"end":node.end});
+    let mut stored_fields = std::collections::BTreeSet::new();
+    for member in predicate_node
+        .descendants()
+        .filter(|node| node.kind == SyntaxKind::Member)
+    {
+        let Some(base) = member
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::Member)
+        else {
+            continue;
+        };
+        if !invoice_uses.contains(&NodeKey::of(base)) {
+            continue;
+        }
+        let Some(name) = member
+            .children
+            .iter()
+            .rev()
+            .find(|node| node.kind == SyntaxKind::Name)
+            .and_then(|node| {
+                source
+                    .text
+                    .get(node.span.start as usize..node.span.end as usize)
+            })
+        else {
+            return Ok(None);
+        };
+        if original.effects.models.get(invoice).is_some_and(|model| {
+            model.fields.iter().any(|field| {
+                resolved
+                    .symbols
+                    .get(field.field.0 as usize)
+                    .is_some_and(|decl| decl.name == name)
+            })
+        }) {
+            stored_fields.insert(name.to_owned());
+        }
     }
     let descriptor = serde_json::json!({
         "event":event.canonical,"handler":owner.canonical,
@@ -289,7 +514,7 @@ fn declared_model_event_source(
             "declaration":site(*revision_decl),"occurrence":null},
         "predicate":site(predicate),
     });
-    Ok(Some((vec![model_input,revision_input],descriptor)))
+    Ok(Some((vec![model_input, revision_input], descriptor)))
 }
 
 /// The three authored booking notices retain the declared Booking and revision
@@ -309,109 +534,267 @@ fn rent_notice_event_source(
     let (event_name, expected) = match owner.canonical.as_str() {
         "rent_reservations.correspondence" => (
             "rent_reservations.ReservationChanged",
-            ["event.booking.status==confirmed and event.booking.version==event.revision",
-                "event.booking.version==event.revision"].as_slice(),
+            [
+                "event.booking.status==confirmed and event.booking.version==event.revision",
+                "event.booking.version==event.revision",
+            ]
+            .as_slice(),
         ),
         "rent_reservations.remind" => (
             "rent_reservations.Reminder",
-            ["event.booking.status==confirmed and event.booking.version==event.revision"].as_slice(),
+            ["event.booking.status==confirmed and event.booking.version==event.revision"]
+                .as_slice(),
         ),
         _ => return Ok(None),
     };
-    let Some(scenario) = original.effects.scenarios.get(&owner.id) else { return Ok(None) };
-    let Some(HandlerSource::Event(event_id)) = scenario.on else { return Ok(None) };
-    let Some(event) = resolved.symbols.get(event_id.0 as usize) else { return Ok(None) };
-    let SymbolKind::Event { fields } = &event.kind else { return Ok(None) };
-    let slice = |node: NodeKey| db.get(node.file).and_then(|file|
-        file.text.get(node.start as usize..node.end as usize)).map(str::trim);
-    let Some(text) = slice(predicate) else { return Ok(None) };
-    let IrItemKind::Scenario { trusted: true,
+    let Some(scenario) = original.effects.scenarios.get(&owner.id) else {
+        return Ok(None);
+    };
+    let Some(HandlerSource::Event(event_id)) = scenario.on else {
+        return Ok(None);
+    };
+    let Some(event) = resolved.symbols.get(event_id.0 as usize) else {
+        return Ok(None);
+    };
+    let SymbolKind::Event { fields } = &event.kind else {
+        return Ok(None);
+    };
+    let slice = |node: NodeKey| {
+        db.get(node.file)
+            .and_then(|file| file.text.get(node.start as usize..node.end as usize))
+            .map(str::trim)
+    };
+    let Some(text) = slice(predicate) else {
+        return Ok(None);
+    };
+    let IrItemKind::Scenario {
+        trusted: true,
         event_source: Some(super::ir::IrEventSource::Declared(ir_event)),
-        hook: None, cohort: None, result: None, read: false, by, params, .. } = &owner.kind
-        else { return Ok(None) };
-    let IrStmt::Send { operation, when: Some(ir_when), binding: Some(binding), span, .. } = send
-        else { return Ok(None) };
-    if event.canonical != event_name || event.module != owner.module ||
-        scenario.module != owner.module || scenario.read || scenario.by.is_some() ||
-        scenario.result.is_some() || scenario.cohort.is_some() || !scenario.params.is_empty() ||
-        fields.len() != 2 || !expected.contains(&text) ||
-        ir_event != event_name || !by.is_empty() || !params.is_empty() ||
-        operation != "std.EmailV1.send" || binding != "delivery" ||
-        ir_when.span != Span::new(predicate.file,predicate.start,predicate.end) ||
-        original.types.node_types.get(&predicate) != Some(&ResolvedType::Scalar(Scalar::Bool)) ||
-        !matches!(send,IrStmt::Send { span: actual, .. } if actual == span) {
+        hook: None,
+        cohort: None,
+        result: None,
+        read: false,
+        by,
+        params,
+        ..
+    } = &owner.kind
+    else {
+        return Ok(None);
+    };
+    let IrStmt::Send {
+        operation,
+        when: Some(ir_when),
+        binding: Some(binding),
+        span,
+        ..
+    } = send
+    else {
+        return Ok(None);
+    };
+    if event.canonical != event_name
+        || event.module != owner.module
+        || scenario.module != owner.module
+        || scenario.read
+        || scenario.by.is_some()
+        || scenario.result.is_some()
+        || scenario.cohort.is_some()
+        || !scenario.params.is_empty()
+        || fields.len() != 2
+        || !expected.contains(&text)
+        || ir_event != event_name
+        || !by.is_empty()
+        || !params.is_empty()
+        || operation != "std.EmailV1.send"
+        || binding != "delivery"
+        || ir_when.span != Span::new(predicate.file, predicate.start, predicate.end)
+        || original.types.node_types.get(&predicate) != Some(&ResolvedType::Scalar(Scalar::Bool))
+        || !matches!(send,IrStmt::Send { span: actual, .. } if actual == span)
+    {
         return Ok(None);
     }
     let mut source_sends = Vec::new();
     fn find_sends<'a>(effects: &'a [Effect], out: &mut Vec<&'a Effect>) {
         for effect in effects {
-            if effect.verb == EffectVerb::Send { out.push(effect); }
+            if effect.verb == EffectVerb::Send {
+                out.push(effect);
+            }
             find_sends(&effect.then_effects, out);
             find_sends(&effect.else_effects, out);
         }
     }
     find_sends(&scenario.effects, &mut source_sends);
-    let mut selected = source_sends.into_iter().filter(|effect| effect.when == Some(predicate));
-    let Some(source_send) = selected.next() else { return Ok(None) };
-    if selected.next().is_some() || source_send.target_node.and_then(slice) != Some("Mail.send") ||
-        source_send.binding.as_deref() != Some("delivery") ||
-        Span::new(source_send.node.file,source_send.node.start,source_send.node.end) != *span ||
-        source_send.args.iter().map(|arg|arg.key.as_str()).collect::<Vec<_>>() != ["to","subject","body"] {
+    let mut selected = source_sends
+        .into_iter()
+        .filter(|effect| effect.when == Some(predicate));
+    let Some(source_send) = selected.next() else {
+        return Ok(None);
+    };
+    if selected.next().is_some()
+        || source_send.target_node.and_then(slice) != Some("Mail.send")
+        || source_send.binding.as_deref() != Some("delivery")
+        || Span::new(
+            source_send.node.file,
+            source_send.node.start,
+            source_send.node.end,
+        ) != *span
+        || source_send
+            .args
+            .iter()
+            .map(|arg| arg.key.as_str())
+            .collect::<Vec<_>>()
+            != ["to", "subject", "body"]
+    {
         return Ok(None);
     }
-    let Some(model_field) = resolved.symbols.get(fields[0].0 as usize) else { return Ok(None) };
-    let Some(revision_field) = resolved.symbols.get(fields[1].0 as usize) else { return Ok(None) };
-    let (SymbolKind::Field {owner: model_owner,type_node:model_decl},
-        SymbolKind::Field {owner: revision_owner,type_node:revision_decl}) =
-        (&model_field.kind,&revision_field.kind) else { return Ok(None) };
-    let Some(ResolvedType::Record {symbol: booking,stored:true}) =
-        original.types.symbol_types.get(&model_field.id) else { return Ok(None) };
-    let booking_ty = ResolvedType::Record {symbol:*booking,stored:true};
-    if *model_owner != event_id || *revision_owner != event_id ||
-        model_field.name != "booking" || revision_field.name != "revision" ||
-        resolved.symbols.get(booking.0 as usize).map(|item|item.canonical.as_str()) != Some("rent_reservations.Booking") ||
-        original.types.symbol_types.get(&revision_field.id) != Some(&ResolvedType::Scalar(Scalar::Int)) {
+    let Some(model_field) = resolved.symbols.get(fields[0].0 as usize) else {
+        return Ok(None);
+    };
+    let Some(revision_field) = resolved.symbols.get(fields[1].0 as usize) else {
+        return Ok(None);
+    };
+    let (
+        SymbolKind::Field {
+            owner: model_owner,
+            type_node: model_decl,
+        },
+        SymbolKind::Field {
+            owner: revision_owner,
+            type_node: revision_decl,
+        },
+    ) = (&model_field.kind, &revision_field.kind)
+    else {
+        return Ok(None);
+    };
+    let Some(ResolvedType::Record {
+        symbol: booking,
+        stored: true,
+    }) = original.types.symbol_types.get(&model_field.id)
+    else {
+        return Ok(None);
+    };
+    let booking_ty = ResolvedType::Record {
+        symbol: *booking,
+        stored: true,
+    };
+    if *model_owner != event_id
+        || *revision_owner != event_id
+        || model_field.name != "booking"
+        || revision_field.name != "revision"
+        || resolved
+            .symbols
+            .get(booking.0 as usize)
+            .map(|item| item.canonical.as_str())
+            != Some("rent_reservations.Booking")
+        || original.types.symbol_types.get(&revision_field.id)
+            != Some(&ResolvedType::Scalar(Scalar::Int))
+    {
         return Ok(None);
     }
-    let Some(file) = db.get(predicate.file) else { return Ok(None) };
+    let Some(file) = db.get(predicate.file) else {
+        return Ok(None);
+    };
     let mut booking_uses = Vec::new();
     let mut revision_uses = Vec::new();
-    for member in predicate_node.descendants().filter(|node| node.kind == SyntaxKind::Member) {
+    for member in predicate_node
+        .descendants()
+        .filter(|node| node.kind == SyntaxKind::Member)
+    {
         let key = NodeKey::of(member);
-        let text = file.text.get(member.span.start as usize..member.span.end as usize).map(str::trim);
-        if text == Some("event.booking") && original.types.node_types.get(&key) == Some(&booking_ty) {
-            booking_uses.push((key,member));
-        } else if text == Some("event.revision") &&
-            original.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Int)) {
-            revision_uses.push((key,member));
+        let text = file
+            .text
+            .get(member.span.start as usize..member.span.end as usize)
+            .map(str::trim);
+        if text == Some("event.booking") && original.types.node_types.get(&key) == Some(&booking_ty)
+        {
+            booking_uses.push((key, member));
+        } else if text == Some("event.revision")
+            && original.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Int))
+        {
+            revision_uses.push((key, member));
         }
     }
-    let required_bookings = if text.starts_with("event.booking.status") { 2 } else { 1 };
-    if booking_uses.len() != required_bookings || revision_uses.len() != 1 { return Ok(None); }
-    let root = |node: &SyntaxNode| node.descendants().find(|child| child.kind == SyntaxKind::NameRef &&
-        file.text.get(child.span.start as usize..child.span.end as usize) == Some("event") &&
-        matches!(resolved.node_binding.get(&NodeKey::of(child)),Some(Binding::Context(resolve::ContextVar::Event))))
-        .map(NodeKey::of);
-    let Some(booking_root) = root(booking_uses[0].1) else { return Ok(None) };
-    let Some(revision_root) = root(revision_uses[0].1) else { return Ok(None) };
-    let event_ty = ResolvedType::Record {symbol:event_id,stored:false};
-    let make_input = |name:&str,field:&str,ty:ResolvedType,declaration:NodeKey,
-        use_site:NodeKey,root:NodeKey,ordinal| PreparedSendInput {
-        name:name.into(),type_id:input_type(&ty,original,ir,None,0).unwrap_or_default(),
-        value:TypedExpr::new(IrExpr::Member {base:Box::new(TypedExpr::new(
-            IrExpr::Name("event".into()),event_ty.clone(),
-            Span::new(root.file,root.start,root.end))),field:field.into()},ty,
-            Span::new(use_site.file,use_site.start,use_site.end)),
-        declaration,symbol:None,owner:owner.id,ordinal,narrowing:None,
+    let required_bookings = if text.starts_with("event.booking.status") {
+        2
+    } else {
+        1
     };
-    let booking_input = make_input("eventTerm","booking",booking_ty,*model_decl,
-        booking_uses[0].0,booking_root,0);
-    let revision_input = make_input("eventRevision","revision",ResolvedType::Scalar(Scalar::Int),
-        *revision_decl,revision_uses[0].0,revision_root,1);
+    if booking_uses.len() != required_bookings || revision_uses.len() != 1 {
+        return Ok(None);
+    }
+    let root = |node: &SyntaxNode| {
+        node.descendants()
+            .find(|child| {
+                child.kind == SyntaxKind::NameRef
+                    && file
+                        .text
+                        .get(child.span.start as usize..child.span.end as usize)
+                        == Some("event")
+                    && matches!(
+                        resolved.node_binding.get(&NodeKey::of(child)),
+                        Some(Binding::Context(resolve::ContextVar::Event))
+                    )
+            })
+            .map(NodeKey::of)
+    };
+    let Some(booking_root) = root(booking_uses[0].1) else {
+        return Ok(None);
+    };
+    let Some(revision_root) = root(revision_uses[0].1) else {
+        return Ok(None);
+    };
+    let event_ty = ResolvedType::Record {
+        symbol: event_id,
+        stored: false,
+    };
+    let make_input = |name: &str,
+                      field: &str,
+                      ty: ResolvedType,
+                      declaration: NodeKey,
+                      use_site: NodeKey,
+                      root: NodeKey,
+                      ordinal| PreparedSendInput {
+        name: name.into(),
+        type_id: input_type(&ty, original, ir, None, 0).unwrap_or_default(),
+        value: TypedExpr::new(
+            IrExpr::Member {
+                base: Box::new(TypedExpr::new(
+                    IrExpr::Name("event".into()),
+                    event_ty.clone(),
+                    Span::new(root.file, root.start, root.end),
+                )),
+                field: field.into(),
+            },
+            ty,
+            Span::new(use_site.file, use_site.start, use_site.end),
+        ),
+        declaration,
+        symbol: None,
+        owner: owner.id,
+        ordinal,
+        narrowing: None,
+    };
+    let booking_input = make_input(
+        "eventTerm",
+        "booking",
+        booking_ty,
+        *model_decl,
+        booking_uses[0].0,
+        booking_root,
+        0,
+    );
+    let revision_input = make_input(
+        "eventRevision",
+        "revision",
+        ResolvedType::Scalar(Scalar::Int),
+        *revision_decl,
+        revision_uses[0].0,
+        revision_root,
+        1,
+    );
     if booking_input.type_id != "rent_reservations.Booking" || revision_input.type_id != "int" {
         return Ok(None);
     }
-    let site = |node:NodeKey| serde_json::json!({"start":node.start,"end":node.end});
+    let site = |node: NodeKey| serde_json::json!({"start":node.start,"end":node.end});
     let descriptor = serde_json::json!({
         "event":event_name,"handler":owner.canonical,
         "modelField":{"name":"booking","model":"rent_reservations.Booking",
@@ -421,7 +804,7 @@ fn rent_notice_event_source(
             "declaration":site(*revision_decl),"occurrence":site(revision_uses[0].0)},
         "predicate":site(predicate),
     });
-    Ok(Some((vec![booking_input,revision_input],descriptor)))
+    Ok(Some((vec![booking_input, revision_input], descriptor)))
 }
 
 /// Only checked agreement and appointment delivery handlers may transport a
@@ -437,115 +820,311 @@ fn attendee_notice_event_source(
     predicate_node: &SyntaxNode,
     send: &IrStmt,
 ) -> Result<Option<(Vec<PreparedSendInput>, serde_json::Value)>, SendGuardGap> {
-    if owner.canonical != "events.attendee_notice" { return Ok(None); }
+    if owner.canonical != "events.attendee_notice" {
+        return Ok(None);
+    }
     let event_name = "events.AttendeeNotice";
-    let expected = ["event.registration.parent.revision==event.revision and (event.kind!=confirmation or (event.registration.state==confirmed and not event.registration.parent.cancelled))"];
-    let Some(scenario) = original.effects.scenarios.get(&owner.id) else { return Ok(None) };
-    let Some(HandlerSource::Event(event_id)) = scenario.on else { return Ok(None) };
-    let Some(event) = resolved.symbols.get(event_id.0 as usize) else { return Ok(None) };
-    let SymbolKind::Event { fields } = &event.kind else { return Ok(None) };
-    let slice = |node: NodeKey| db.get(node.file).and_then(|file|
-        file.text.get(node.start as usize..node.end as usize)).map(str::trim);
-    let Some(text) = slice(predicate) else { return Ok(None) };
-    let IrItemKind::Scenario { trusted: true,
+    let expected = [
+        "event.registration.parent.revision==event.revision and (event.kind!=confirmation or (event.registration.state==confirmed and not event.registration.parent.cancelled))",
+    ];
+    let Some(scenario) = original.effects.scenarios.get(&owner.id) else {
+        return Ok(None);
+    };
+    let Some(HandlerSource::Event(event_id)) = scenario.on else {
+        return Ok(None);
+    };
+    let Some(event) = resolved.symbols.get(event_id.0 as usize) else {
+        return Ok(None);
+    };
+    let SymbolKind::Event { fields } = &event.kind else {
+        return Ok(None);
+    };
+    let slice = |node: NodeKey| {
+        db.get(node.file)
+            .and_then(|file| file.text.get(node.start as usize..node.end as usize))
+            .map(str::trim)
+    };
+    let Some(text) = slice(predicate) else {
+        return Ok(None);
+    };
+    let IrItemKind::Scenario {
+        trusted: true,
         event_source: Some(super::ir::IrEventSource::Declared(ir_event)),
-        hook: None, cohort: None, result: None, read: false, by, params, .. } = &owner.kind
-        else { return Ok(None) };
-    let IrStmt::Send { operation, when: Some(ir_when), binding: Some(binding), span, .. } = send
-        else { return Ok(None) };
-    if event.canonical != event_name || event.module != owner.module ||
-        scenario.module != owner.module || scenario.read || scenario.by.is_some() ||
-        scenario.result.is_some() || scenario.cohort.is_some() || !scenario.params.is_empty() ||
-        fields.len() != 4 || !expected.contains(&text) ||
-        ir_event != event_name || !by.is_empty() || !params.is_empty() ||
-        operation != "std.EmailV1.send" || binding != "delivery" ||
-        ir_when.span != Span::new(predicate.file,predicate.start,predicate.end) ||
-        original.types.node_types.get(&predicate) != Some(&ResolvedType::Scalar(Scalar::Bool)) ||
-        !matches!(send,IrStmt::Send { span: actual, .. } if actual == span) {
+        hook: None,
+        cohort: None,
+        result: None,
+        read: false,
+        by,
+        params,
+        ..
+    } = &owner.kind
+    else {
+        return Ok(None);
+    };
+    let IrStmt::Send {
+        operation,
+        when: Some(ir_when),
+        binding: Some(binding),
+        span,
+        ..
+    } = send
+    else {
+        return Ok(None);
+    };
+    if event.canonical != event_name
+        || event.module != owner.module
+        || scenario.module != owner.module
+        || scenario.read
+        || scenario.by.is_some()
+        || scenario.result.is_some()
+        || scenario.cohort.is_some()
+        || !scenario.params.is_empty()
+        || fields.len() != 4
+        || !expected.contains(&text)
+        || ir_event != event_name
+        || !by.is_empty()
+        || !params.is_empty()
+        || operation != "std.EmailV1.send"
+        || binding != "delivery"
+        || ir_when.span != Span::new(predicate.file, predicate.start, predicate.end)
+        || original.types.node_types.get(&predicate) != Some(&ResolvedType::Scalar(Scalar::Bool))
+        || !matches!(send,IrStmt::Send { span: actual, .. } if actual == span)
+    {
         return Ok(None);
     }
     let mut source_sends = Vec::new();
     fn find_sends<'a>(effects: &'a [Effect], out: &mut Vec<&'a Effect>) {
         for effect in effects {
-            if effect.verb == EffectVerb::Send { out.push(effect); }
+            if effect.verb == EffectVerb::Send {
+                out.push(effect);
+            }
             find_sends(&effect.then_effects, out);
             find_sends(&effect.else_effects, out);
         }
     }
     find_sends(&scenario.effects, &mut source_sends);
-    let mut selected = source_sends.into_iter().filter(|effect| effect.when == Some(predicate));
-    let Some(source_send) = selected.next() else { return Ok(None) };
-    if selected.next().is_some() || source_send.target_node.and_then(slice) != Some("Mail.send") ||
-        source_send.binding.as_deref() != Some("delivery") ||
-        Span::new(source_send.node.file,source_send.node.start,source_send.node.end) != *span ||
-        source_send.args.iter().map(|arg|arg.key.as_str()).collect::<Vec<_>>() != ["to","subject","body"] {
+    let mut selected = source_sends
+        .into_iter()
+        .filter(|effect| effect.when == Some(predicate));
+    let Some(source_send) = selected.next() else {
+        return Ok(None);
+    };
+    if selected.next().is_some()
+        || source_send.target_node.and_then(slice) != Some("Mail.send")
+        || source_send.binding.as_deref() != Some("delivery")
+        || Span::new(
+            source_send.node.file,
+            source_send.node.start,
+            source_send.node.end,
+        ) != *span
+        || source_send
+            .args
+            .iter()
+            .map(|arg| arg.key.as_str())
+            .collect::<Vec<_>>()
+            != ["to", "subject", "body"]
+    {
         return Ok(None);
     }
-    let Some(model_field) = resolved.symbols.get(fields[0].0 as usize) else { return Ok(None) };
-    let Some(revision_field) = resolved.symbols.get(fields[2].0 as usize) else { return Ok(None) };
-    let (SymbolKind::Field {owner: model_owner,type_node:model_decl},
-        SymbolKind::Field {owner: revision_owner,type_node:revision_decl}) =
-        (&model_field.kind,&revision_field.kind) else { return Ok(None) };
-    let Some(ResolvedType::Record {symbol: booking,stored:true}) =
-        original.types.symbol_types.get(&model_field.id) else { return Ok(None) };
-    let booking_ty = ResolvedType::Record {symbol:*booking,stored:true};
-    if *model_owner != event_id || *revision_owner != event_id ||
-        model_field.name != "registration" || revision_field.name != "revision" ||
-        resolved.symbols.get(booking.0 as usize).map(|item|item.canonical.as_str()) != Some("events.Registration") ||
-        original.types.symbol_types.get(&revision_field.id) != Some(&ResolvedType::Scalar(Scalar::Int)) {
+    let Some(model_field) = resolved.symbols.get(fields[0].0 as usize) else {
+        return Ok(None);
+    };
+    let Some(revision_field) = resolved.symbols.get(fields[2].0 as usize) else {
+        return Ok(None);
+    };
+    let (
+        SymbolKind::Field {
+            owner: model_owner,
+            type_node: model_decl,
+        },
+        SymbolKind::Field {
+            owner: revision_owner,
+            type_node: revision_decl,
+        },
+    ) = (&model_field.kind, &revision_field.kind)
+    else {
+        return Ok(None);
+    };
+    let Some(ResolvedType::Record {
+        symbol: booking,
+        stored: true,
+    }) = original.types.symbol_types.get(&model_field.id)
+    else {
+        return Ok(None);
+    };
+    let booking_ty = ResolvedType::Record {
+        symbol: *booking,
+        stored: true,
+    };
+    if *model_owner != event_id
+        || *revision_owner != event_id
+        || model_field.name != "registration"
+        || revision_field.name != "revision"
+        || resolved
+            .symbols
+            .get(booking.0 as usize)
+            .map(|item| item.canonical.as_str())
+            != Some("events.Registration")
+        || original.types.symbol_types.get(&revision_field.id)
+            != Some(&ResolvedType::Scalar(Scalar::Int))
+    {
         return Ok(None);
     }
-    let Some(file) = db.get(predicate.file) else { return Ok(None) };
+    let Some(file) = db.get(predicate.file) else {
+        return Ok(None);
+    };
     let mut booking_uses = Vec::new();
     let mut revision_uses = Vec::new();
-    for member in predicate_node.descendants().filter(|node| node.kind == SyntaxKind::Member) {
+    for member in predicate_node
+        .descendants()
+        .filter(|node| node.kind == SyntaxKind::Member)
+    {
         let key = NodeKey::of(member);
-        let text = file.text.get(member.span.start as usize..member.span.end as usize).map(str::trim);
-        if text == Some("event.registration") && original.types.node_types.get(&key) == Some(&booking_ty) {
-            booking_uses.push((key,member));
-        } else if text == Some("event.revision") &&
-            original.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Int)) {
-            revision_uses.push((key,member));
+        let text = file
+            .text
+            .get(member.span.start as usize..member.span.end as usize)
+            .map(str::trim);
+        if text == Some("event.registration")
+            && original.types.node_types.get(&key) == Some(&booking_ty)
+        {
+            booking_uses.push((key, member));
+        } else if text == Some("event.revision")
+            && original.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Int))
+        {
+            revision_uses.push((key, member));
         }
     }
     let required_bookings = 3;
-    if booking_uses.len() != required_bookings || revision_uses.len() != 1 { return Ok(None); }
-    let root = |node: &SyntaxNode| node.descendants().find(|child| child.kind == SyntaxKind::NameRef &&
-        file.text.get(child.span.start as usize..child.span.end as usize) == Some("event") &&
-        matches!(resolved.node_binding.get(&NodeKey::of(child)),Some(Binding::Context(resolve::ContextVar::Event))))
-        .map(NodeKey::of);
-    let Some(booking_root) = root(booking_uses[0].1) else { return Ok(None) };
-    let Some(revision_root) = root(revision_uses[0].1) else { return Ok(None) };
-    let event_ty = ResolvedType::Record {symbol:event_id,stored:false};
-    let make_input = |name:&str,field:&str,ty:ResolvedType,declaration:NodeKey,
-        use_site:NodeKey,root:NodeKey,ordinal| PreparedSendInput {
-        name:name.into(),type_id:input_type(&ty,original,ir,None,0).unwrap_or_default(),
-        value:TypedExpr::new(IrExpr::Member {base:Box::new(TypedExpr::new(
-            IrExpr::Name("event".into()),event_ty.clone(),
-            Span::new(root.file,root.start,root.end))),field:field.into()},ty,
-            Span::new(use_site.file,use_site.start,use_site.end)),
-        declaration,symbol:None,owner:owner.id,ordinal,narrowing:None,
+    if booking_uses.len() != required_bookings || revision_uses.len() != 1 {
+        return Ok(None);
+    }
+    let root = |node: &SyntaxNode| {
+        node.descendants()
+            .find(|child| {
+                child.kind == SyntaxKind::NameRef
+                    && file
+                        .text
+                        .get(child.span.start as usize..child.span.end as usize)
+                        == Some("event")
+                    && matches!(
+                        resolved.node_binding.get(&NodeKey::of(child)),
+                        Some(Binding::Context(resolve::ContextVar::Event))
+                    )
+            })
+            .map(NodeKey::of)
     };
-    let booking_input = make_input("eventTerm","registration",booking_ty,*model_decl,
-        booking_uses[0].0,booking_root,0);
-    let revision_input = make_input("eventRevision","revision",ResolvedType::Scalar(Scalar::Int),
-        *revision_decl,revision_uses[0].0,revision_root,1);
+    let Some(booking_root) = root(booking_uses[0].1) else {
+        return Ok(None);
+    };
+    let Some(revision_root) = root(revision_uses[0].1) else {
+        return Ok(None);
+    };
+    let event_ty = ResolvedType::Record {
+        symbol: event_id,
+        stored: false,
+    };
+    let make_input = |name: &str,
+                      field: &str,
+                      ty: ResolvedType,
+                      declaration: NodeKey,
+                      use_site: NodeKey,
+                      root: NodeKey,
+                      ordinal| PreparedSendInput {
+        name: name.into(),
+        type_id: input_type(&ty, original, ir, None, 0).unwrap_or_default(),
+        value: TypedExpr::new(
+            IrExpr::Member {
+                base: Box::new(TypedExpr::new(
+                    IrExpr::Name("event".into()),
+                    event_ty.clone(),
+                    Span::new(root.file, root.start, root.end),
+                )),
+                field: field.into(),
+            },
+            ty,
+            Span::new(use_site.file, use_site.start, use_site.end),
+        ),
+        declaration,
+        symbol: None,
+        owner: owner.id,
+        ordinal,
+        narrowing: None,
+    };
+    let booking_input = make_input(
+        "eventTerm",
+        "registration",
+        booking_ty,
+        *model_decl,
+        booking_uses[0].0,
+        booking_root,
+        0,
+    );
+    let revision_input = make_input(
+        "eventRevision",
+        "revision",
+        ResolvedType::Scalar(Scalar::Int),
+        *revision_decl,
+        revision_uses[0].0,
+        revision_root,
+        1,
+    );
     if booking_input.type_id != "events.Registration" || revision_input.type_id != "int" {
         return Ok(None);
     }
-    let site = |node:NodeKey| serde_json::json!({"start":node.start,"end":node.end});
-    let Some(kind_field) = resolved.symbols.get(fields[1].0 as usize) else { return Ok(None) };
-    let SymbolKind::Field {owner: kind_owner,type_node:kind_decl} = &kind_field.kind else { return Ok(None) };
-    let Some(kind_ty @ ResolvedType::Enum {cases,..}) = original.types.symbol_types.get(&kind_field.id) else { return Ok(None) };
-    if *kind_owner != event_id || kind_field.name != "kind" || cases != &["confirmation","change","cancellation"] { return Ok(None); }
-    let mut kind_uses = predicate_node.descendants().filter(|node| node.kind == SyntaxKind::Member &&
-        file.text.get(node.span.start as usize..node.span.end as usize).map(str::trim) == Some("event.kind"));
-    let Some(kind_use) = kind_uses.next() else { return Ok(None) };
-    if kind_uses.next().is_some() || original.types.node_types.get(&NodeKey::of(kind_use)) != Some(kind_ty) { return Ok(None); }
-    let Some(kind_root) = root(kind_use) else { return Ok(None) };
-    let mut kind_input = make_input("eventKind","kind",kind_ty.clone(),*kind_decl,NodeKey::of(kind_use),kind_root,2);
-    if kind_input.type_id != "events.Notice.kind" { return Ok(None); }
-    kind_input.type_id="enum(confirmation,change,cancellation)".into();
+    let site = |node: NodeKey| serde_json::json!({"start":node.start,"end":node.end});
+    let Some(kind_field) = resolved.symbols.get(fields[1].0 as usize) else {
+        return Ok(None);
+    };
+    let SymbolKind::Field {
+        owner: kind_owner,
+        type_node: kind_decl,
+    } = &kind_field.kind
+    else {
+        return Ok(None);
+    };
+    let Some(kind_ty @ ResolvedType::Enum { cases, .. }) =
+        original.types.symbol_types.get(&kind_field.id)
+    else {
+        return Ok(None);
+    };
+    if *kind_owner != event_id
+        || kind_field.name != "kind"
+        || cases != &["confirmation", "change", "cancellation"]
+    {
+        return Ok(None);
+    }
+    let mut kind_uses = predicate_node.descendants().filter(|node| {
+        node.kind == SyntaxKind::Member
+            && file
+                .text
+                .get(node.span.start as usize..node.span.end as usize)
+                .map(str::trim)
+                == Some("event.kind")
+    });
+    let Some(kind_use) = kind_uses.next() else {
+        return Ok(None);
+    };
+    if kind_uses.next().is_some()
+        || original.types.node_types.get(&NodeKey::of(kind_use)) != Some(kind_ty)
+    {
+        return Ok(None);
+    }
+    let Some(kind_root) = root(kind_use) else {
+        return Ok(None);
+    };
+    let mut kind_input = make_input(
+        "eventKind",
+        "kind",
+        kind_ty.clone(),
+        *kind_decl,
+        NodeKey::of(kind_use),
+        kind_root,
+        2,
+    );
+    if kind_input.type_id != "events.Notice.kind" {
+        return Ok(None);
+    }
+    kind_input.type_id = "enum(confirmation,change,cancellation)".into();
     let descriptor = serde_json::json!({
         "event":event_name,"handler":owner.canonical,
         "modelField":{"name":"registration","model":"events.Registration",
@@ -557,7 +1136,10 @@ fn attendee_notice_event_source(
             "declaration":site(*kind_decl),"occurrence":site(NodeKey::of(kind_use))}],
         "predicate":site(predicate),
     });
-    Ok(Some((vec![booking_input,revision_input,kind_input],descriptor)))
+    Ok(Some((
+        vec![booking_input, revision_input, kind_input],
+        descriptor,
+    )))
 }
 
 /// Only checked agreement and appointment delivery handlers may transport a
@@ -575,94 +1157,253 @@ fn private_delivery_event_source(
     send: &IrStmt,
 ) -> Result<Option<(Vec<PreparedSendInput>, serde_json::Value)>, SendGuardGap> {
     if owner.canonical == "events.attendee_notice" {
-        return attendee_notice_event_source(original, ir, db, resolved, owner,
-            predicate, predicate_node, send);
+        return attendee_notice_event_source(
+            original,
+            ir,
+            db,
+            resolved,
+            owner,
+            predicate,
+            predicate_node,
+            send,
+        );
     }
-    if owner.canonical == "rent_reservations.correspondence" ||
-        owner.canonical == "rent_reservations.remind" {
-        return rent_notice_event_source(original, ir, db, resolved, owner,
-            predicate, predicate_node, send);
+    if owner.canonical == "rent_reservations.correspondence"
+        || owner.canonical == "rent_reservations.remind"
+    {
+        return rent_notice_event_source(
+            original,
+            ir,
+            db,
+            resolved,
+            owner,
+            predicate,
+            predicate_node,
+            send,
+        );
     }
-    if let Some(source)=declared_model_event_source(original,ir,db,resolved,owner,predicate,predicate_node,send)?{return Ok(Some(source));}
-    let Some(scenario) = original.effects.scenarios.get(&owner.id) else { return Ok(None) };
-    let Some(HandlerSource::Event(event_id)) = scenario.on.as_ref() else { return Ok(None) };
-    let Some(event) = resolved.symbols.get(event_id.0 as usize) else { return Ok(None) };
-    let SymbolKind::Event { fields } = &event.kind else { return Ok(None) };
-    let (model_field_name, model_name, created_name, reminder) = match (owner.canonical.as_str(), event.canonical.as_str()) {
-        ("agreements.notice", "agreements.Notice") => ("term", "agreements.Term", "agreements.NoticeDelivery", false),
-        ("agreements.due", "agreements.ObligationDue") => ("obligation", "agreements.Obligation", "agreements.NoticeDelivery", false),
-        ("appointments.remind", "appointments.Reminder") => ("appointment", "appointments.Appointment", "appointments.Notice", true),
-        _ => return Ok(None),
+    if let Some(source) = declared_model_event_source(
+        original,
+        ir,
+        db,
+        resolved,
+        owner,
+        predicate,
+        predicate_node,
+        send,
+    )? {
+        return Ok(Some(source));
+    }
+    let Some(scenario) = original.effects.scenarios.get(&owner.id) else {
+        return Ok(None);
     };
-    if event.module != owner.module || scenario.module != owner.module
-        || scenario.read || scenario.by.is_some() || scenario.result.is_some()
-        || scenario.cohort.is_some() || !scenario.params.is_empty()
+    let Some(HandlerSource::Event(event_id)) = scenario.on.as_ref() else {
+        return Ok(None);
+    };
+    let Some(event) = resolved.symbols.get(event_id.0 as usize) else {
+        return Ok(None);
+    };
+    let SymbolKind::Event { fields } = &event.kind else {
+        return Ok(None);
+    };
+    let (model_field_name, model_name, created_name, reminder) =
+        match (owner.canonical.as_str(), event.canonical.as_str()) {
+            ("agreements.notice", "agreements.Notice") => (
+                "term",
+                "agreements.Term",
+                "agreements.NoticeDelivery",
+                false,
+            ),
+            ("agreements.due", "agreements.ObligationDue") => (
+                "obligation",
+                "agreements.Obligation",
+                "agreements.NoticeDelivery",
+                false,
+            ),
+            ("appointments.remind", "appointments.Reminder") => (
+                "appointment",
+                "appointments.Appointment",
+                "appointments.Notice",
+                true,
+            ),
+            _ => return Ok(None),
+        };
+    if event.module != owner.module
+        || scenario.module != owner.module
+        || scenario.read
+        || scenario.by.is_some()
+        || scenario.result.is_some()
+        || scenario.cohort.is_some()
+        || !scenario.params.is_empty()
         || fields.len() != 2
-    { return Ok(None); }
+    {
+        return Ok(None);
+    }
     let (source_send, source_create, branch) = if reminder {
-        let [source_send, source_create] = scenario.effects.as_slice() else { return Ok(None) };
-        let [source_guard] = scenario.guards.as_slice() else { return Ok(None) };
-        if source_guard.verb != EffectVerb::Require || source_guard.cond.is_none()
-            || !source_guard.then_effects.is_empty() || !source_guard.else_effects.is_empty()
-            || !source_guard.match_arms.is_empty() { return Ok(None); }
+        let [source_send, source_create] = scenario.effects.as_slice() else {
+            return Ok(None);
+        };
+        let [source_guard] = scenario.guards.as_slice() else {
+            return Ok(None);
+        };
+        if source_guard.verb != EffectVerb::Require
+            || source_guard.cond.is_none()
+            || !source_guard.then_effects.is_empty()
+            || !source_guard.else_effects.is_empty()
+            || !source_guard.match_arms.is_empty()
+        {
+            return Ok(None);
+        }
         (source_send, source_create, None)
     } else {
-        let [branch] = scenario.effects.as_slice() else { return Ok(None) };
-        let [source_send, source_create] = branch.then_effects.as_slice() else { return Ok(None) };
-        if !scenario.guards.is_empty() || branch.verb != EffectVerb::If
-            || branch.cond.is_none() || !branch.else_effects.is_empty()
-            || !branch.match_arms.is_empty() { return Ok(None); }
+        let [branch] = scenario.effects.as_slice() else {
+            return Ok(None);
+        };
+        let [source_send, source_create] = branch.then_effects.as_slice() else {
+            return Ok(None);
+        };
+        if !scenario.guards.is_empty()
+            || branch.verb != EffectVerb::If
+            || branch.cond.is_none()
+            || !branch.else_effects.is_empty()
+            || !branch.match_arms.is_empty()
+        {
+            return Ok(None);
+        }
         (source_send, source_create, Some(branch))
     };
     if source_send.verb != EffectVerb::Send
-        || source_send.when != Some(predicate) || source_create.verb != EffectVerb::Create
-        || !source_send.then_effects.is_empty() || !source_send.else_effects.is_empty()
-        || !source_create.then_effects.is_empty() || !source_create.else_effects.is_empty()
-    { return Ok(None); }
-    let Some(EffectTarget::Model(created)) = source_create.target.as_ref() else { return Ok(None) };
-    if resolved.symbols.get(created.0 as usize).map(|symbol| symbol.canonical.as_str())
-        != Some(created_name) { return Ok(None); }
+        || source_send.when != Some(predicate)
+        || source_create.verb != EffectVerb::Create
+        || !source_send.then_effects.is_empty()
+        || !source_send.else_effects.is_empty()
+        || !source_create.then_effects.is_empty()
+        || !source_create.else_effects.is_empty()
+    {
+        return Ok(None);
+    }
+    let Some(EffectTarget::Model(created)) = source_create.target.as_ref() else {
+        return Ok(None);
+    };
+    if resolved
+        .symbols
+        .get(created.0 as usize)
+        .map(|symbol| symbol.canonical.as_str())
+        != Some(created_name)
+    {
+        return Ok(None);
+    }
     let IrItemKind::Scenario {
-        trusted: true, event_source: Some(super::ir::IrEventSource::Declared(ir_event)),
-        hook: None, cohort: None, result: None, read: false, by, guards, effects, ..
-    } = &owner.kind else { return Ok(None) };
+        trusted: true,
+        event_source: Some(super::ir::IrEventSource::Declared(ir_event)),
+        hook: None,
+        cohort: None,
+        result: None,
+        read: false,
+        by,
+        guards,
+        effects,
+        ..
+    } = &owner.kind
+    else {
+        return Ok(None);
+    };
     let (ir_send, ir_create) = if reminder {
-        let [IrStmt::Require {cond, span, ..}] = guards.as_slice() else { return Ok(None); };
-        let [source_guard] = scenario.guards.as_slice() else { return Ok(None); };
-        let Some(header_cond) = source_guard.cond else { return Ok(None); };
-        if *span != Span::new(source_guard.node.file, source_guard.node.start, source_guard.node.end)
+        let [IrStmt::Require { cond, span, .. }] = guards.as_slice() else {
+            return Ok(None);
+        };
+        let [source_guard] = scenario.guards.as_slice() else {
+            return Ok(None);
+        };
+        let Some(header_cond) = source_guard.cond else {
+            return Ok(None);
+        };
+        if *span
+            != Span::new(
+                source_guard.node.file,
+                source_guard.node.start,
+                source_guard.node.end,
+            )
             || cond.span != Span::new(header_cond.file, header_cond.start, header_cond.end)
-        { return Ok(None); }
-        let [ir_send, ir_create] = effects.as_slice() else { return Ok(None) };
+        {
+            return Ok(None);
+        }
+        let [ir_send, ir_create] = effects.as_slice() else {
+            return Ok(None);
+        };
         (ir_send, ir_create)
     } else {
-        let [IrStmt::If { cond, then_branch, else_branch, span: branch_span }] = effects.as_slice()
-            else { return Ok(None) };
-        let Some(branch) = branch else { return Ok(None) };
-        let Some(branch_cond) = branch.cond else { return Ok(None) };
+        let [
+            IrStmt::If {
+                cond,
+                then_branch,
+                else_branch,
+                span: branch_span,
+            },
+        ] = effects.as_slice()
+        else {
+            return Ok(None);
+        };
+        let Some(branch) = branch else {
+            return Ok(None);
+        };
+        let Some(branch_cond) = branch.cond else {
+            return Ok(None);
+        };
         if !else_branch.is_empty()
             || *branch_span != Span::new(branch.node.file, branch.node.start, branch.node.end)
             || cond.span != Span::new(branch_cond.file, branch_cond.start, branch_cond.end)
-        { return Ok(None); }
-        let [ir_send, ir_create] = then_branch.as_slice() else { return Ok(None) };
+        {
+            return Ok(None);
+        }
+        let [ir_send, ir_create] = then_branch.as_slice() else {
+            return Ok(None);
+        };
         (ir_send, ir_create)
     };
-    let IrStmt::Send { operation, when: Some(ir_when), span: send_span, .. } = ir_send else { return Ok(None) };
-    let IrStmt::Create { model, .. } = ir_create else { return Ok(None) };
-    let IrStmt::Send { span, .. } = send else { return Ok(None) };
-    if ir_event != &event.canonical || !by.is_empty()
-        || (!reminder && !guards.is_empty()) || operation != "std.EmailV1.send"
-        || model != created_name || *send_span != *span
+    let IrStmt::Send {
+        operation,
+        when: Some(ir_when),
+        span: send_span,
+        ..
+    } = ir_send
+    else {
+        return Ok(None);
+    };
+    let IrStmt::Create { model, .. } = ir_create else {
+        return Ok(None);
+    };
+    let IrStmt::Send { span, .. } = send else {
+        return Ok(None);
+    };
+    if ir_event != &event.canonical
+        || !by.is_empty()
+        || (!reminder && !guards.is_empty())
+        || operation != "std.EmailV1.send"
+        || model != created_name
+        || *send_span != *span
         || ir_when.span != Span::new(predicate.file, predicate.start, predicate.end)
         || nodes.get(&predicate).is_none()
-    { return Ok(None); }
+    {
+        return Ok(None);
+    }
 
     let mut term = None;
     let mut revision = None;
     for field in fields {
-        let Some(symbol) = resolved.symbols.get(field.0 as usize) else { return Ok(None) };
-        let SymbolKind::Field { owner: declared_event, type_node } = symbol.kind else { return Ok(None) };
-        if declared_event != *event_id || symbol.module != event.module { return Ok(None); }
+        let Some(symbol) = resolved.symbols.get(field.0 as usize) else {
+            return Ok(None);
+        };
+        let SymbolKind::Field {
+            owner: declared_event,
+            type_node,
+        } = symbol.kind
+        else {
+            return Ok(None);
+        };
+        if declared_event != *event_id || symbol.module != event.module {
+            return Ok(None);
+        }
         match symbol.name.as_str() {
             name if name == model_field_name => term = Some((symbol, type_node)),
             "revision" => revision = Some((symbol, type_node)),
@@ -670,67 +1411,165 @@ fn private_delivery_event_source(
         }
     }
     let (Some((term, term_declaration)), Some((revision, revision_declaration))) = (term, revision)
-        else { return Ok(None) };
-    let Some(ResolvedType::Record { symbol: term_model, stored: true }) =
-        original.types.symbol_types.get(&term.id) else { return Ok(None) };
-    let term_ty = ResolvedType::Record { symbol: *term_model, stored: true };
-    if resolved.symbols.get(term_model.0 as usize).map(|symbol| symbol.canonical.as_str())
+    else {
+        return Ok(None);
+    };
+    let Some(ResolvedType::Record {
+        symbol: term_model,
+        stored: true,
+    }) = original.types.symbol_types.get(&term.id)
+    else {
+        return Ok(None);
+    };
+    let term_ty = ResolvedType::Record {
+        symbol: *term_model,
+        stored: true,
+    };
+    if resolved
+        .symbols
+        .get(term_model.0 as usize)
+        .map(|symbol| symbol.canonical.as_str())
         != Some(model_name)
         || original.types.symbol_types.get(&revision.id) != Some(&ResolvedType::Scalar(Scalar::Int))
-    { return Ok(None); }
+    {
+        return Ok(None);
+    }
 
     // Every original `event` occurrence must be the direct receiver of one
     // checked declared field; aliases and other payload fields stay refused.
-    let event_roots: HashSet<_> = predicate_node.descendants()
+    let event_roots: HashSet<_> = predicate_node
+        .descendants()
         .filter(|node| node.kind == SyntaxKind::NameRef)
-        .filter(|node| matches!(resolved.node_binding.get(&NodeKey::of(node)),
-            Some(Binding::Context(resolve::ContextVar::Event))))
-        .map(NodeKey::of).collect();
+        .filter(|node| {
+            matches!(
+                resolved.node_binding.get(&NodeKey::of(node)),
+                Some(Binding::Context(resolve::ContextVar::Event))
+            )
+        })
+        .map(NodeKey::of)
+        .collect();
     let mut matched_roots = HashSet::new();
     let mut term_use = None;
     let mut revision_use = None;
-    for member in predicate_node.descendants().filter(|node| node.kind == SyntaxKind::Member) {
-        let Some(base) = member.children.iter().find(|child| resolve::is_expression(child.kind))
-            else { continue };
+    for member in predicate_node
+        .descendants()
+        .filter(|node| node.kind == SyntaxKind::Member)
+    {
+        let Some(base) = member
+            .children
+            .iter()
+            .find(|child| resolve::is_expression(child.kind))
+        else {
+            continue;
+        };
         let root = NodeKey::of(base);
-        if !event_roots.contains(&root) { continue; }
-        let Some(name) = member.children.iter().rev().find(|child| child.kind == SyntaxKind::Name)
-            .and_then(|child| db.get(child.span.file).and_then(|source| name_text(child, &source.text)))
-            else { return Ok(None) };
+        if !event_roots.contains(&root) {
+            continue;
+        }
+        let Some(name) = member
+            .children
+            .iter()
+            .rev()
+            .find(|child| child.kind == SyntaxKind::Name)
+            .and_then(|child| {
+                db.get(child.span.file)
+                    .and_then(|source| name_text(child, &source.text))
+            })
+        else {
+            return Ok(None);
+        };
         let key = NodeKey::of(member);
         match name {
-            name if name == model_field_name && original.types.node_types.get(&key) == Some(&term_ty) => {
+            name if name == model_field_name
+                && original.types.node_types.get(&key) == Some(&term_ty) =>
+            {
                 term_use.get_or_insert((key, root));
             }
-            "revision" if original.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Int)) => {
+            "revision"
+                if original.types.node_types.get(&key)
+                    == Some(&ResolvedType::Scalar(Scalar::Int)) =>
+            {
                 revision_use.get_or_insert((key, root));
             }
             _ => return Ok(None),
         }
         matched_roots.insert(root);
     }
-    if event_roots.is_empty() || event_roots != matched_roots { return Ok(None); }
-    let (Some((term_use, term_root)), Some((revision_use, revision_root))) = (term_use, revision_use)
-        else { return Ok(None) };
-    let Some(SymbolKind::Model { fields: stored_fields, .. }) = resolved.symbols
-        .get(term_model.0 as usize).map(|symbol| &symbol.kind) else { return Ok(None) };
+    if event_roots.is_empty() || event_roots != matched_roots {
+        return Ok(None);
+    }
+    let (Some((term_use, term_root)), Some((revision_use, revision_root))) =
+        (term_use, revision_use)
+    else {
+        return Ok(None);
+    };
+    let Some(SymbolKind::Model {
+        fields: stored_fields,
+        ..
+    }) = resolved
+        .symbols
+        .get(term_model.0 as usize)
+        .map(|symbol| &symbol.kind)
+    else {
+        return Ok(None);
+    };
     let mut direct_fields = HashSet::<String>::new();
-    for member in predicate_node.descendants().filter(|node| node.kind == SyntaxKind::Member) {
-        let Some(base) = member.children.iter().find(|child| resolve::is_expression(child.kind))
-            else { continue };
-        if base.kind != SyntaxKind::Member { continue; }
-        let Some(root) = base.children.iter().find(|child| resolve::is_expression(child.kind))
-            else { continue };
-        if !event_roots.contains(&NodeKey::of(root)) { continue; }
-        let Some(base_field) = base.children.iter().rev().find(|child| child.kind == SyntaxKind::Name)
-            .and_then(|child| db.get(child.span.file).and_then(|source| name_text(child, &source.text)))
-            else { return Ok(None) };
-        if base_field != model_field_name || original.types.node_types.get(&NodeKey::of(base)) != Some(&term_ty)
-        { return Ok(None); }
-        let Some(field) = member.children.iter().rev().find(|child| child.kind == SyntaxKind::Name)
-            .and_then(|child| db.get(child.span.file).and_then(|source| name_text(child, &source.text)))
-            else { return Ok(None) };
-        if field == "version" || field == "parent" { continue; }
+    for member in predicate_node
+        .descendants()
+        .filter(|node| node.kind == SyntaxKind::Member)
+    {
+        let Some(base) = member
+            .children
+            .iter()
+            .find(|child| resolve::is_expression(child.kind))
+        else {
+            continue;
+        };
+        if base.kind != SyntaxKind::Member {
+            continue;
+        }
+        let Some(root) = base
+            .children
+            .iter()
+            .find(|child| resolve::is_expression(child.kind))
+        else {
+            continue;
+        };
+        if !event_roots.contains(&NodeKey::of(root)) {
+            continue;
+        }
+        let Some(base_field) = base
+            .children
+            .iter()
+            .rev()
+            .find(|child| child.kind == SyntaxKind::Name)
+            .and_then(|child| {
+                db.get(child.span.file)
+                    .and_then(|source| name_text(child, &source.text))
+            })
+        else {
+            return Ok(None);
+        };
+        if base_field != model_field_name
+            || original.types.node_types.get(&NodeKey::of(base)) != Some(&term_ty)
+        {
+            return Ok(None);
+        }
+        let Some(field) = member
+            .children
+            .iter()
+            .rev()
+            .find(|child| child.kind == SyntaxKind::Name)
+            .and_then(|child| {
+                db.get(child.span.file)
+                    .and_then(|source| name_text(child, &source.text))
+            })
+        else {
+            return Ok(None);
+        };
+        if field == "version" || field == "parent" {
+            continue;
+        }
         if !stored_fields.iter().any(|id| resolved.symbols.get(id.0 as usize).is_some_and(|symbol|
             symbol.name == field && matches!(symbol.kind, SymbolKind::Field { owner: declared, .. } if declared == *term_model)))
             || !original.types.node_types.contains_key(&NodeKey::of(member))
@@ -739,85 +1578,205 @@ fn private_delivery_event_source(
     }
     let mut recipient_path = None;
     if reminder {
-        let IrStmt::Send {args, ..} = ir_send else { return Ok(None) };
-        let IrStmt::Create {input, ..} = ir_create else { return Ok(None) };
-        let IrExpr::Object(send_entries) = &args.expr else { return Ok(None) };
-        let IrExpr::Object(create_entries) = &input.expr else { return Ok(None) };
-        let [(_, recipient), _, (_, body)] = send_entries.as_slice() else { return Ok(None) };
-        if send_entries[0].0 != "to" || send_entries[1].0 != "subject"
-            || send_entries[2].0 != "body" { return Ok(None); }
-        let IrExpr::Member {base: contact, field: email_field} = &recipient.expr else { return Ok(None) };
-        let IrExpr::Member {base: appointment, field: contact_field} = &contact.expr else { return Ok(None) };
-        let IrExpr::Member {base: event_root, field: appointment_field} = &appointment.expr else { return Ok(None) };
-        if email_field != "email" || contact_field != "contact"
+        let IrStmt::Send { args, .. } = ir_send else {
+            return Ok(None);
+        };
+        let IrStmt::Create { input, .. } = ir_create else {
+            return Ok(None);
+        };
+        let IrExpr::Object(send_entries) = &args.expr else {
+            return Ok(None);
+        };
+        let IrExpr::Object(create_entries) = &input.expr else {
+            return Ok(None);
+        };
+        let [(_, recipient), _, (_, body)] = send_entries.as_slice() else {
+            return Ok(None);
+        };
+        if send_entries[0].0 != "to"
+            || send_entries[1].0 != "subject"
+            || send_entries[2].0 != "body"
+        {
+            return Ok(None);
+        }
+        let IrExpr::Member {
+            base: contact,
+            field: email_field,
+        } = &recipient.expr
+        else {
+            return Ok(None);
+        };
+        let IrExpr::Member {
+            base: appointment,
+            field: contact_field,
+        } = &contact.expr
+        else {
+            return Ok(None);
+        };
+        let IrExpr::Member {
+            base: event_root,
+            field: appointment_field,
+        } = &appointment.expr
+        else {
+            return Ok(None);
+        };
+        if email_field != "email"
+            || contact_field != "contact"
             || appointment_field != "appointment"
             || !matches!(&event_root.expr, IrExpr::Name(name) if name == "event")
             || appointment.ty != term_ty
-            || db.get(recipient.span.file).and_then(|source| source.text
-                .get(recipient.span.start as usize..recipient.span.end as usize))
-                != Some("event.appointment.contact.email")
-            || db.get(body.span.file).and_then(|source| source.text
-                .get(body.span.start as usize..body.span.end as usize))
-                != Some("event.appointment.parent.parent.instructions")
-        { return Ok(None); }
-        let ResolvedType::Record {symbol: contact_model, stored: true} = contact.ty else { return Ok(None) };
-        if resolved.symbols.get(contact_model.0 as usize).map(|symbol| symbol.canonical.as_str())
-            != Some("customer.Contact") { return Ok(None); }
-        let contact_decl = stored_fields.iter().filter_map(|id| resolved.symbols.get(id.0 as usize))
-            .find(|field| field.name == "contact" && matches!(field.kind,
-                SymbolKind::Field {owner: declared, ..} if declared == *term_model));
-        let Some(contact_decl) = contact_decl else { return Ok(None) };
-        if original.types.symbol_types.get(&contact_decl.id) != Some(&contact.ty) { return Ok(None); }
-        let Some(SymbolKind::Model {fields: contact_fields, ..}) = resolved.symbols
-            .get(contact_model.0 as usize).map(|symbol| &symbol.kind) else { return Ok(None) };
-        let email_decl = contact_fields.iter().filter_map(|id| resolved.symbols.get(id.0 as usize))
-            .find(|field| field.name == "email" && matches!(field.kind,
-                SymbolKind::Field {owner: declared, ..} if declared == contact_model));
-        let Some(email_decl) = email_decl else { return Ok(None) };
-        if original.types.symbol_types.get(&email_decl.id) != Some(&recipient.ty) { return Ok(None); }
+            || db.get(recipient.span.file).and_then(|source| {
+                source
+                    .text
+                    .get(recipient.span.start as usize..recipient.span.end as usize)
+            }) != Some("event.appointment.contact.email")
+            || db.get(body.span.file).and_then(|source| {
+                source
+                    .text
+                    .get(body.span.start as usize..body.span.end as usize)
+            }) != Some("event.appointment.parent.parent.instructions")
+        {
+            return Ok(None);
+        }
+        let ResolvedType::Record {
+            symbol: contact_model,
+            stored: true,
+        } = contact.ty
+        else {
+            return Ok(None);
+        };
+        if resolved
+            .symbols
+            .get(contact_model.0 as usize)
+            .map(|symbol| symbol.canonical.as_str())
+            != Some("customer.Contact")
+        {
+            return Ok(None);
+        }
+        let contact_decl = stored_fields
+            .iter()
+            .filter_map(|id| resolved.symbols.get(id.0 as usize))
+            .find(|field| {
+                field.name == "contact"
+                    && matches!(field.kind,
+                SymbolKind::Field {owner: declared, ..} if declared == *term_model)
+            });
+        let Some(contact_decl) = contact_decl else {
+            return Ok(None);
+        };
+        if original.types.symbol_types.get(&contact_decl.id) != Some(&contact.ty) {
+            return Ok(None);
+        }
+        let Some(SymbolKind::Model {
+            fields: contact_fields,
+            ..
+        }) = resolved
+            .symbols
+            .get(contact_model.0 as usize)
+            .map(|symbol| &symbol.kind)
+        else {
+            return Ok(None);
+        };
+        let email_decl = contact_fields
+            .iter()
+            .filter_map(|id| resolved.symbols.get(id.0 as usize))
+            .find(|field| {
+                field.name == "email"
+                    && matches!(field.kind,
+                SymbolKind::Field {owner: declared, ..} if declared == contact_model)
+            });
+        let Some(email_decl) = email_decl else {
+            return Ok(None);
+        };
+        if original.types.symbol_types.get(&email_decl.id) != Some(&recipient.ty) {
+            return Ok(None);
+        }
         let source_entry = create_entries.iter().find(|entry| entry.0 == "source");
-        let Some((_, active_source)) = source_entry else { return Ok(None) };
-        let IrExpr::Member {base: source_appointment, field: active_name} = &active_source.expr
-            else { return Ok(None) };
-        if active_name != "active_source" || source_appointment.ty != term_ty
+        let Some((_, active_source)) = source_entry else {
+            return Ok(None);
+        };
+        let IrExpr::Member {
+            base: source_appointment,
+            field: active_name,
+        } = &active_source.expr
+        else {
+            return Ok(None);
+        };
+        if active_name != "active_source"
+            || source_appointment.ty != term_ty
             || !matches!(&source_appointment.expr, IrExpr::Member {base, field}
                 if field == "appointment" && matches!(&base.expr, IrExpr::Name(name) if name == "event"))
-            || db.get(active_source.span.file).and_then(|source| source.text
-                .get(active_source.span.start as usize..active_source.span.end as usize))
-                != Some("event.appointment.active_source")
-            || !stored_fields.iter().any(|id| resolved.symbols.get(id.0 as usize).is_some_and(|field|
-                field.name == "active_source" && matches!(field.kind,
+            || db.get(active_source.span.file).and_then(|source| {
+                source
+                    .text
+                    .get(active_source.span.start as usize..active_source.span.end as usize)
+            }) != Some("event.appointment.active_source")
+            || !stored_fields.iter().any(|id| {
+                resolved.symbols.get(id.0 as usize).is_some_and(|field| {
+                    field.name == "active_source"
+                        && matches!(field.kind,
                     SymbolKind::Field {owner: declared, ..} if declared == *term_model)
-                    && original.types.symbol_types.get(id) == Some(&active_source.ty)))
-        { return Ok(None); }
+                        && original.types.symbol_types.get(id) == Some(&active_source.ty)
+                })
+            })
+        {
+            return Ok(None);
+        }
         direct_fields.insert("contact".into());
         direct_fields.insert("active_source".into());
         let Some(ScenarioDisclosure::Complete(disclosure)) =
-            original.scenario_disclosures().get(&owner.id) else { return Ok(None) };
+            original.scenario_disclosures().get(&owner.id)
+        else {
+            return Ok(None);
+        };
         let mut dependency_pair = None;
         for returned in &disclosure.returns {
             let at = |span: Span, model: &str, field: &str| {
-                let mut reads = returned.dependencies.iter().filter(|read|
+                let mut reads = returned.dependencies.iter().filter(|read| {
                     read.node.file == span.file
-                        && read.node.start == span.start && read.node.end == span.end
-                        && read.role == DependencyRole::Data && read.calls.is_empty()
-                        && read.query_id.is_none() && read.model_name == model
-                        && read.field_name == field);
+                        && read.node.start == span.start
+                        && read.node.end == span.end
+                        && read.role == DependencyRole::Data
+                        && read.calls.is_empty()
+                        && read.query_id.is_none()
+                        && read.model_name == model
+                        && read.field_name == field
+                });
                 let read = reads.next()?;
                 reads.next().is_none().then_some(read)
             };
-            let Some(source_read) = at(contact.span, model_name, "contact") else { return Ok(None) };
-            let Some(leaf_read) = at(recipient.span, "customer.Contact", "email") else { return Ok(None) };
-            let Some(source_index) = returned.dependencies.iter().position(|read| read == source_read)
-                else { return Ok(None) };
-            let Some(leaf_index) = returned.dependencies.iter().position(|read| read == leaf_read)
-                else { return Ok(None) };
-            if source_index >= leaf_index { return Ok(None); }
+            let Some(source_read) = at(contact.span, model_name, "contact") else {
+                return Ok(None);
+            };
+            let Some(leaf_read) = at(recipient.span, "customer.Contact", "email") else {
+                return Ok(None);
+            };
+            let Some(source_index) = returned
+                .dependencies
+                .iter()
+                .position(|read| read == source_read)
+            else {
+                return Ok(None);
+            };
+            let Some(leaf_index) = returned
+                .dependencies
+                .iter()
+                .position(|read| read == leaf_read)
+            else {
+                return Ok(None);
+            };
+            if source_index >= leaf_index {
+                return Ok(None);
+            }
             let pair = (source_read.id.clone(), leaf_read.id.clone());
-            if dependency_pair.as_ref().is_some_and(|prior| prior != &pair) { return Ok(None); }
+            if dependency_pair.as_ref().is_some_and(|prior| prior != &pair) {
+                return Ok(None);
+            }
             dependency_pair = Some(pair);
         }
-        let Some((source_dependency_id, leaf_dependency_id)) = dependency_pair else { return Ok(None) };
+        let Some((source_dependency_id, leaf_dependency_id)) = dependency_pair else {
+            return Ok(None);
+        };
         recipient_path = Some(serde_json::json!({
             "sourceDependencyId":source_dependency_id,"leafDependencyId":leaf_dependency_id,
             "sourceField":{"name":"contact","model":model_name,
@@ -828,26 +1787,60 @@ fn private_delivery_event_source(
     }
     let mut direct_fields = direct_fields.into_iter().collect::<Vec<_>>();
     direct_fields.sort();
-    let event_ty = ResolvedType::Record { symbol: *event_id, stored: false };
-    let make_input = |name: &str, field: &str, ty: ResolvedType, declaration: NodeKey,
-                      use_site: NodeKey, root: NodeKey, ordinal| {
+    let event_ty = ResolvedType::Record {
+        symbol: *event_id,
+        stored: false,
+    };
+    let make_input = |name: &str,
+                      field: &str,
+                      ty: ResolvedType,
+                      declaration: NodeKey,
+                      use_site: NodeKey,
+                      root: NodeKey,
+                      ordinal| {
         PreparedSendInput {
             name: name.to_string(),
             type_id: input_type(&ty, original, ir, None, 0).unwrap_or_default(),
-            value: TypedExpr::new(IrExpr::Member {
-                base: Box::new(TypedExpr::new(IrExpr::Name("event".to_string()), event_ty.clone(),
-                    Span::new(root.file, root.start, root.end))),
-                field: field.to_string(),
-            }, ty,
-                Span::new(use_site.file, use_site.start, use_site.end)),
-            declaration, symbol: None, owner: owner.id, ordinal, narrowing: None,
+            value: TypedExpr::new(
+                IrExpr::Member {
+                    base: Box::new(TypedExpr::new(
+                        IrExpr::Name("event".to_string()),
+                        event_ty.clone(),
+                        Span::new(root.file, root.start, root.end),
+                    )),
+                    field: field.to_string(),
+                },
+                ty,
+                Span::new(use_site.file, use_site.start, use_site.end),
+            ),
+            declaration,
+            symbol: None,
+            owner: owner.id,
+            ordinal,
+            narrowing: None,
         }
     };
-    let model_input = make_input("eventTerm", model_field_name, term_ty, term_declaration,
-        term_use, term_root, 0);
-    let revision_input = make_input("eventRevision", "revision", ResolvedType::Scalar(Scalar::Int),
-        revision_declaration, revision_use, revision_root, 1);
-    if model_input.type_id.is_empty() || revision_input.type_id != "int" { return Ok(None); }
+    let model_input = make_input(
+        "eventTerm",
+        model_field_name,
+        term_ty,
+        term_declaration,
+        term_use,
+        term_root,
+        0,
+    );
+    let revision_input = make_input(
+        "eventRevision",
+        "revision",
+        ResolvedType::Scalar(Scalar::Int),
+        revision_declaration,
+        revision_use,
+        revision_root,
+        1,
+    );
+    if model_input.type_id.is_empty() || revision_input.type_id != "int" {
+        return Ok(None);
+    }
     let site = |node: NodeKey| serde_json::json!({"start":node.start,"end":node.end});
     let mut descriptor = serde_json::json!({
         "event": event.canonical, "handler": owner.canonical,
@@ -858,7 +1851,9 @@ fn private_delivery_event_source(
             "declaration":site(revision_declaration), "occurrence":site(revision_use)},
         "predicate":site(predicate),
     });
-    if let Some(path) = recipient_path { descriptor["recipientPath"] = path; }
+    if let Some(path) = recipient_path {
+        descriptor["recipientPath"] = path;
+    }
     Ok(Some((vec![model_input, revision_input], descriptor)))
 }
 
@@ -898,8 +1893,7 @@ fn prepare_send_guard(
     let fact = source_facts
         .iter()
         .find(|fact| {
-            fact.stage
-                == crate::analysis::scenario_disclosure::CheckedDecisionStage::SendDispatch
+            fact.stage == crate::analysis::scenario_disclosure::CheckedDecisionStage::SendDispatch
                 && fact.statement.file == span.file
                 && fact.statement.start == span.start
                 && fact.statement.end == span.end
@@ -940,8 +1934,14 @@ fn prepare_send_guard(
         event_source.is_some(),
     )?;
     if let Some((event_inputs, _)) = &event_source {
-        if inputs.iter().any(|input| event_inputs.iter().any(|event| event.name == input.name)) {
-            return Err(gap("event SEND slots collide with lexical inputs", Some(*span)));
+        if inputs
+            .iter()
+            .any(|input| event_inputs.iter().any(|event| event.name == input.name))
+        {
+            return Err(gap(
+                "event SEND slots collide with lexical inputs",
+                Some(*span),
+            ));
         }
         for mut input in event_inputs.iter().cloned() {
             input.ordinal = inputs.len();
@@ -961,7 +1961,9 @@ fn prepare_send_guard(
     if let Some((_, event)) = &event_source {
         descriptor["eventSource"] = event.clone();
     }
-    if *when_at_source {descriptor["evaluation"]=serde_json::json!("source");}
+    if *when_at_source {
+        descriptor["evaluation"] = serde_json::json!("source");
+    }
     Ok((
         *span,
         PreparedSendGuard {
@@ -969,11 +1971,17 @@ fn prepare_send_guard(
             predicate: predicate.clone(),
             descriptor,
             inputs,
-            event_source: event_source.map(|(_,event)| PreparedSendEventSource {
+            event_source: event_source.map(|(_, event)| PreparedSendEventSource {
                 model_slot: "eventTerm",
                 revision_slot: "eventRevision",
-                model_field:event["modelField"]["name"].as_str().expect("checked event field").into(),
-                revision_field:event["revisionField"]["name"].as_str().expect("checked event revision").into(),
+                model_field: event["modelField"]["name"]
+                    .as_str()
+                    .expect("checked event field")
+                    .into(),
+                revision_field: event["revisionField"]["name"]
+                    .as_str()
+                    .expect("checked event revision")
+                    .into(),
                 lexical_alias: None,
             }),
         },
@@ -1007,62 +2015,91 @@ fn prepare_owner_guards(
     if owner.canonical == "maintain.remind" {
         let (span, guard) = super::event_decisions::prepare_maintain_remind(context, owner)
             .ok_or_else(|| gap("exact event owner decision unavailable", Some(owner.span)))?;
-        if sends.len() != 1 || !matches!(sends[0], IrStmt::Send {span: actual,..} if *actual == span)
-            || guards.insert(span,guard.clone()).is_some() {
-            return Err(gap("event SEND dispatch census mismatch",Some(owner.span)));
+        if sends.len() != 1
+            || !matches!(sends[0], IrStmt::Send {span: actual,..} if *actual == span)
+            || guards.insert(span, guard.clone()).is_some()
+        {
+            return Err(gap("event SEND dispatch census mismatch", Some(owner.span)));
         }
         return Ok(Some(vec![guard.descriptor]));
     }
     if owner.canonical == "invoice.issue" {
-        let (span, guard) = super::invoice_issue_decisions::prepare_issue_send_guard(context, owner)
-            .ok_or_else(|| gap("exact invoice issue SEND owner unavailable", Some(owner.span)))?;
-        if sends.len() != 1 || !matches!(sends[0], IrStmt::Send {span: actual,..} if *actual == span)
-            || guards.insert(span, guard.clone()).is_some() {
-            return Err(gap("invoice issue SEND dispatch census mismatch", Some(owner.span)));
+        let (span, guard) = super::invoice_issue_decisions::prepare_issue_send_guard(
+            context, owner,
+        )
+        .ok_or_else(|| {
+            gap(
+                "exact invoice issue SEND owner unavailable",
+                Some(owner.span),
+            )
+        })?;
+        if sends.len() != 1
+            || !matches!(sends[0], IrStmt::Send {span: actual,..} if *actual == span)
+            || guards.insert(span, guard.clone()).is_some()
+        {
+            return Err(gap(
+                "invoice issue SEND dispatch census mismatch",
+                Some(owner.span),
+            ));
         }
         return Ok(Some(vec![guard.descriptor]));
     }
     if owner.canonical == "events.observe_venue" {
-        let (span, guard) = super::event_send_decisions::prepare_observe_venue_send_guard(context, owner)
-            .ok_or_else(|| gap("exact event venue SEND owner unavailable", Some(owner.span)))?;
-        if sends.len() != 1 || !matches!(sends[0], IrStmt::Send {span: actual,..} if *actual == span)
-            || guards.insert(span,guard.clone()).is_some() {
-            return Err(gap("event venue SEND dispatch census mismatch",Some(owner.span)));
+        let (span, guard) =
+            super::event_send_decisions::prepare_observe_venue_send_guard(context, owner)
+                .ok_or_else(|| gap("exact event venue SEND owner unavailable", Some(owner.span)))?;
+        if sends.len() != 1
+            || !matches!(sends[0], IrStmt::Send {span: actual,..} if *actual == span)
+            || guards.insert(span, guard.clone()).is_some()
+        {
+            return Err(gap(
+                "event venue SEND dispatch census mismatch",
+                Some(owner.span),
+            ));
         }
         return Ok(Some(vec![guard.descriptor]));
     }
-    if matches!(owner.canonical.as_str(), "success.renewal_due" | "success.remind") {
-        let (span, guard) = super::success_send_decisions::prepare_success_notice_send_guard(context, owner)
-            .ok_or_else(|| gap("exact success renewal SEND owner unavailable", Some(owner.span)))?;
-        if sends.len() != 1 || !matches!(sends[0], IrStmt::Send {span: actual,..} if *actual == span)
-            || guards.insert(span, guard.clone()).is_some() {
-            return Err(gap("success renewal SEND dispatch census mismatch", Some(owner.span)));
+    if matches!(
+        owner.canonical.as_str(),
+        "success.renewal_due" | "success.remind"
+    ) {
+        let (span, guard) =
+            super::success_send_decisions::prepare_success_notice_send_guard(context, owner)
+                .ok_or_else(|| {
+                    gap(
+                        "exact success renewal SEND owner unavailable",
+                        Some(owner.span),
+                    )
+                })?;
+        if sends.len() != 1
+            || !matches!(sends[0], IrStmt::Send {span: actual,..} if *actual == span)
+            || guards.insert(span, guard.clone()).is_some()
+        {
+            return Err(gap(
+                "success renewal SEND dispatch census mismatch",
+                Some(owner.span),
+            ));
         }
         return Ok(Some(vec![guard.descriptor]));
     }
     // A fresh IR refusal in this scenario, a consumed helper, or a schema
     // declaration invalidates its SEND proof. Unrelated owners cannot.
-    if super::scenario_queries::checked_send_diagnostics(
-        original,
-        owner,
-        context.ir_diagnostics(),
-    )
-    .is_none()
+    if super::scenario_queries::checked_send_diagnostics(original, owner, context.ir_diagnostics())
+        .is_none()
     {
         return Err(gap(
             "original SEND owner's checked closure has IR diagnostics",
             Some(owner.span),
         ));
     }
-    let sites = super::scenario_decisions::serialize_original_decision_sources_with_context(
-        context, owner,
-    )
-    .ok_or_else(|| {
-        gap(
-            "complete original SEND decision correspondence unavailable",
-            Some(owner.span),
-        )
-    })?;
+    let sites =
+        super::scenario_decisions::serialize_original_decision_sources_with_context(context, owner)
+            .ok_or_else(|| {
+                gap(
+                    "complete original SEND decision correspondence unavailable",
+                    Some(owner.span),
+                )
+            })?;
     let sites = sites
         .iter()
         .filter(|site| site.stage == "send-dispatch")
@@ -1129,7 +2166,12 @@ pub(super) fn prepare_with_context(
     // not unrelated declarations or applications in the same compilation.
     let mut owner_ranges = HashMap::<crate::source::SourceId, Vec<(u32, u32)>>::new();
     for owner in &ir.items {
-        let IrItemKind::Scenario { guards: leading, effects, .. } = &owner.kind else {
+        let IrItemKind::Scenario {
+            guards: leading,
+            effects,
+            ..
+        } = &owner.kind
+        else {
             continue;
         };
         let mut sends = Vec::new();
@@ -1139,20 +2181,29 @@ pub(super) fn prepare_with_context(
         {
             continue;
         }
-        let Some(source) = original.scenario_disclosures().get(&owner.id)
+        let Some(source) = original
+            .scenario_disclosures()
+            .get(&owner.id)
             .and_then(|disclosure| disclosure.source_facts())
         else {
             continue;
         };
-        owner_ranges.entry(source.node.file).or_default()
+        owner_ranges
+            .entry(source.node.file)
+            .or_default()
             .push((source.node.start, source.node.end));
     }
     let mut nodes = HashMap::new();
     for (file, tree) in trees {
-        let Some(ranges) = owner_ranges.get(file) else { continue; };
+        let Some(ranges) = owner_ranges.get(file) else {
+            continue;
+        };
         for node in tree.descendants() {
             let key = NodeKey::of(node);
-            if !ranges.iter().any(|(start, end)| key.start >= *start && key.end <= *end) {
+            if !ranges
+                .iter()
+                .any(|(start, end)| key.start >= *start && key.end <= *end)
+            {
                 continue;
             }
             if nodes.len() >= 200000 && !nodes.contains_key(&key) {
@@ -1167,16 +2218,20 @@ pub(super) fn prepare_with_context(
         // Stage one owner's complete guard inventory atomically. A failure
         // at its second SEND cannot leave its first Rule installed.
         let mut owned = HashMap::new();
-        let Ok(Some(descriptors)) =
-            prepare_owner_guards(context, owner, &nodes, &mut owned)
-        else {
+        let Ok(Some(descriptors)) = prepare_owner_guards(context, owner, &nodes, &mut owned) else {
             continue;
         };
         if owned.keys().any(|span| guards.contains_key(span)) {
-            return Err(gap("duplicate original SEND guard across owners", Some(owner.span)));
+            return Err(gap(
+                "duplicate original SEND guard across owners",
+                Some(owner.span),
+            ));
         }
         guards.extend(owned);
-        by_owner.insert(owner.canonical.clone(), serde_json::Value::Array(descriptors));
+        by_owner.insert(
+            owner.canonical.clone(),
+            serde_json::Value::Array(descriptors),
+        );
     }
     Ok(PreparedSendGuards {
         guards,
@@ -1228,51 +2283,137 @@ fn contained(outer: NodeKey, inner: NodeKey) -> bool {
 /// Existing versioned model inputs can capture one original loop binding,
 /// only inside a source-sealed ordinary trusted event handler. This is a
 /// codec join; the retained owner query and dispatch fence still own reads.
-fn checked_for_item_type(source: FreeInputSource<'_>, predicate: NodeKey,
-    key: NodeKey, loop_node: NodeKey) -> Option<ResolvedType> {
-    fn original_loop(effects:&[Effect],node:NodeKey,depth:usize)->Option<&Effect> {
-        if depth>64 {return None;}
+fn checked_for_item_type(
+    source: FreeInputSource<'_>,
+    predicate: NodeKey,
+    key: NodeKey,
+    loop_node: NodeKey,
+) -> Option<ResolvedType> {
+    fn original_loop(effects: &[Effect], node: NodeKey, depth: usize) -> Option<&Effect> {
+        if depth > 64 {
+            return None;
+        }
         effects.iter().find_map(|effect| {
-            if effect.node==node {return (effect.verb==EffectVerb::For).then_some(effect);}
-            original_loop(&effect.then_effects,node,depth+1)
-                .or_else(||original_loop(&effect.else_effects,node,depth+1))
-                .or_else(||effect.match_arms.iter().find_map(|arm|original_loop(&arm.effects,node,depth+1)))
+            if effect.node == node {
+                return (effect.verb == EffectVerb::For).then_some(effect);
+            }
+            original_loop(&effect.then_effects, node, depth + 1)
+                .or_else(|| original_loop(&effect.else_effects, node, depth + 1))
+                .or_else(|| {
+                    effect
+                        .match_arms
+                        .iter()
+                        .find_map(|arm| original_loop(&arm.effects, node, depth + 1))
+                })
         })
     }
-    fn lowered_loop(effects:&[IrStmt],span:Span,depth:usize)->Option<&IrStmt> {
-        if depth>64 {return None;}
-        effects.iter().find_map(|effect|match effect {
-            IrStmt::For {span:actual,body,..}=>if *actual==span {Some(effect)}else{lowered_loop(body,span,depth+1)},
-            IrStmt::If {then_branch,else_branch,..}=>lowered_loop(then_branch,span,depth+1)
-                .or_else(||lowered_loop(else_branch,span,depth+1)),
-            IrStmt::Match {arms,..}=>arms.iter().find_map(|arm|lowered_loop(&arm.body,span,depth+1)),
-            _=>None,
+    fn lowered_loop(effects: &[IrStmt], span: Span, depth: usize) -> Option<&IrStmt> {
+        if depth > 64 {
+            return None;
+        }
+        effects.iter().find_map(|effect| match effect {
+            IrStmt::For {
+                span: actual, body, ..
+            } => {
+                if *actual == span {
+                    Some(effect)
+                } else {
+                    lowered_loop(body, span, depth + 1)
+                }
+            }
+            IrStmt::If {
+                then_branch,
+                else_branch,
+                ..
+            } => lowered_loop(then_branch, span, depth + 1)
+                .or_else(|| lowered_loop(else_branch, span, depth + 1)),
+            IrStmt::Match { arms, .. } => arms
+                .iter()
+                .find_map(|arm| lowered_loop(&arm.body, span, depth + 1)),
+            _ => None,
         })
     }
-    let scenario=source.program.effects.scenarios.get(&source.owner)?;
-    let Some(HandlerSource::Event(event))=scenario.on.as_ref() else {return None;};
-    if scenario.by.is_some() || scenario.read || scenario.result.is_some() || scenario.cohort.is_some()
-        || !matches!(source.resolved.symbols.get(event.0 as usize)?.kind,SymbolKind::Event {..})
-        || !contained(scenario.node,loop_node) || !contained(loop_node,predicate) || !contained(predicate,key)
-        || source.nodes.get(&loop_node)?.kind!=SyntaxKind::For {return None;}
-    let owner=source.ir.items.get(source.owner.0 as usize)?;
-    let IrItemKind::Scenario {trusted:true,event_source:Some(super::ir::IrEventSource::Declared(_)),
-        hook:None,cohort:None,read:false,result:None,effects,..}=&owner.kind else {return None;};
-    let original=original_loop(&scenario.effects,loop_node,0)?;
-    let query=source.program.types.checked_queries.get(&original.domain?)?;
-    let ResolvedType::Array {element,..}=&query.result else {return None;};
-    let ResolvedType::Record {symbol:model,stored:true}=element.as_ref() else {return None;};
-    if query.projection.is_some() || source.program.types.node_types.get(&query.node)!=Some(&query.result)
-        || !matches!(source.resolved.symbols.get(model.0 as usize)?.kind,SymbolKind::Model {..})
-        || source.nodes.get(&query.domain)?.kind!=SyntaxKind::NameRef
+    let scenario = source.program.effects.scenarios.get(&source.owner)?;
+    let Some(HandlerSource::Event(event)) = scenario.on.as_ref() else {
+        return None;
+    };
+    if scenario.by.is_some()
+        || scenario.read
+        || scenario.result.is_some()
+        || scenario.cohort.is_some()
+        || !matches!(
+            source.resolved.symbols.get(event.0 as usize)?.kind,
+            SymbolKind::Event { .. }
+        )
+        || !contained(scenario.node, loop_node)
+        || !contained(loop_node, predicate)
+        || !contained(predicate, key)
+        || source.nodes.get(&loop_node)?.kind != SyntaxKind::For
+    {
+        return None;
+    }
+    let owner = source.ir.items.get(source.owner.0 as usize)?;
+    let IrItemKind::Scenario {
+        trusted: true,
+        event_source: Some(super::ir::IrEventSource::Declared(_)),
+        hook: None,
+        cohort: None,
+        read: false,
+        result: None,
+        effects,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let original = original_loop(&scenario.effects, loop_node, 0)?;
+    let query = source
+        .program
+        .types
+        .checked_queries
+        .get(&original.domain?)?;
+    let ResolvedType::Array { element, .. } = &query.result else {
+        return None;
+    };
+    let ResolvedType::Record {
+        symbol: model,
+        stored: true,
+    } = element.as_ref()
+    else {
+        return None;
+    };
+    if query.projection.is_some()
+        || source.program.types.node_types.get(&query.node) != Some(&query.result)
+        || !matches!(
+            source.resolved.symbols.get(model.0 as usize)?.kind,
+            SymbolKind::Model { .. }
+        )
+        || source.nodes.get(&query.domain)?.kind != SyntaxKind::NameRef
         || !matches!(source.resolved.node_binding.get(&query.domain),Some(Binding::Symbol(actual)) if actual==model)
-        || source.program.types.node_types.get(&key)!=Some(element.as_ref()) {return None;}
-    let limit=original.limit?;
-    let IrStmt::For {item,domain,limit:Some(bound),..}=lowered_loop(effects,send_key_span(loop_node),0)? else {return None;};
-    if Some(item)!=original.item.as_ref() || domain.span!=send_key_span(query.node) || domain.ty!=query.result
-        || bound.span!=send_key_span(limit) || source.nodes.get(&limit)?.kind!=SyntaxKind::Literal
-        || source.program.types.node_types.get(&limit)!=Some(&ResolvedType::Scalar(Scalar::Int))
-        || !matches!(bound.expr,IrExpr::Int(value) if (1..=200).contains(&value)) {return None;}
+        || source.program.types.node_types.get(&key) != Some(element.as_ref())
+    {
+        return None;
+    }
+    let limit = original.limit?;
+    let IrStmt::For {
+        item,
+        domain,
+        limit: Some(bound),
+        ..
+    } = lowered_loop(effects, send_key_span(loop_node), 0)?
+    else {
+        return None;
+    };
+    if Some(item) != original.item.as_ref()
+        || domain.span != send_key_span(query.node)
+        || domain.ty != query.result
+        || bound.span != send_key_span(limit)
+        || source.nodes.get(&limit)?.kind != SyntaxKind::Literal
+        || source.program.types.node_types.get(&limit) != Some(&ResolvedType::Scalar(Scalar::Int))
+        || !matches!(bound.expr,IrExpr::Int(value) if (1..=200).contains(&value))
+    {
+        return None;
+    }
     Some(element.as_ref().clone())
 }
 
@@ -1282,7 +2423,13 @@ fn declaration_type(
     key: NodeKey,
     binding: &Binding,
 ) -> Result<Option<ResolvedType>, SendGuardGap> {
-    let FreeInputSource {program,resolved,nodes,owner,..}=source;
+    let FreeInputSource {
+        program,
+        resolved,
+        nodes,
+        owner,
+        ..
+    } = source;
     let fail = || {
         gap(
             "free SEND lexical declaration has no supported transport",
@@ -1316,7 +2463,9 @@ fn declaration_type(
                 .cloned()
                 .ok_or_else(fail)?
         }
-        Binding::ForItem {node} => checked_for_item_type(source,predicate,key,*node).ok_or_else(fail)?,
+        Binding::ForItem { node } => {
+            checked_for_item_type(source, predicate, key, *node).ok_or_else(fail)?
+        }
         Binding::QueryAlias { node } if contained(predicate, *node) => return Ok(None),
         Binding::Let { node } => {
             if contained(predicate, *node) {
@@ -1418,9 +2567,9 @@ fn narrowing_owner_mismatch(
 fn narrowing_header<'a>(
     source: FreeInputSource<'a>,
     occurrence: NodeKey,
-    declaration: NodeKey,
+    _declaration: NodeKey,
     model: SymbolId,
-    declared_type: &ResolvedType,
+    _declared_type: &ResolvedType,
 ) -> Option<(
     &'a ScenarioData,
     &'a CheckedScenarioSource,
@@ -1516,7 +2665,7 @@ fn resolve_narrowing_positions(
 
 fn resolve_narrowing_call<'a>(
     source: FreeInputSource<'a>,
-    first: &DisclosureFirstQuery,
+    _first: &DisclosureFirstQuery,
     query: &DisclosureQuery,
     let_value: NodeKey,
 ) -> Option<(
@@ -1671,7 +2820,7 @@ fn check_require_control(
     owner: &IrItem,
     effect: &Effect,
     index: usize,
-    send_node: NodeKey,
+    _send_node: NodeKey,
     declaration: NodeKey,
     declared_type: &ResolvedType,
     binding_name: &str,
@@ -1780,7 +2929,8 @@ fn find_compulsory_narrowing(
             declaration,
             declared_type,
             binding_name,
-        )? else {
+        )?
+        else {
             continue;
         };
         return Some(PreparedFirstRowNarrowing {
@@ -1818,13 +2968,8 @@ fn checked_first_row_narrowing(
     else {
         return None;
     };
-    let (scenario, facts, owner, capture_type) = narrowing_header(
-        source,
-        occurrence,
-        *declaration,
-        *model,
-        declared_type,
-    )?;
+    let (scenario, facts, owner, capture_type) =
+        narrowing_header(source, occurrence, *declaration, *model, declared_type)?;
     let (query, first) = select_narrowing_query(facts, *declaration, *model)?;
     let ((let_index, let_effect), (send_index, send_effect)) =
         resolve_narrowing_positions(scenario, *declaration, predicate)?;
@@ -2087,15 +3232,7 @@ fn compulsory_first_presence(
     if operator != "!=" {
         return None;
     }
-    check_presence_operands(
-        source,
-        key,
-        *left,
-        *right,
-        binding,
-        declared_type,
-        text,
-    )
+    check_presence_operands(source, key, *left, *right, binding, declared_type, text)
 }
 
 fn collect_source_names(
@@ -2117,7 +3254,7 @@ fn collect_source_names(
         ir,
         db,
         resolved,
-        nodes,
+        nodes: _,
         owner,
     } = source;
     let mut inputs = Vec::<PreparedSendInput>::new();
@@ -2140,9 +3277,7 @@ fn collect_source_names(
         if event_source && matches!(binding, Binding::Context(resolve::ContextVar::Event)) {
             continue;
         }
-        let Some(ty) =
-            declaration_type(original_source, predicate_key, key, binding)?
-        else {
+        let Some(ty) = declaration_type(original_source, predicate_key, key, binding)? else {
             continue;
         };
         let source = db
@@ -2164,7 +3299,7 @@ fn collect_source_names(
             Binding::Let { node }
             | Binding::CreateAs { node }
             | Binding::CohortChild { node, .. }
-            | Binding::ForItem {node} => (*node, None),
+            | Binding::ForItem { node } => (*node, None),
             _ => unreachable!("declaration_type admits only original lexical declarations"),
         };
         let narrowing =
@@ -2262,8 +3397,7 @@ fn check_evaluated_name(
     if event_source && matches!(binding, Binding::Context(resolve::ContextVar::Event)) {
         return Ok(());
     }
-    if declaration_type(source, predicate_key, key, binding)?.is_some()
-    {
+    if declaration_type(source, predicate_key, key, binding)?.is_some() {
         if !identities.contains_key(name) {
             return Err(gap(
                 "evaluated SEND lexical name differs from source binding",
@@ -2361,7 +3495,8 @@ fn free_inputs(
 ) -> Result<Vec<PreparedSendInput>, SendGuardGap> {
     let (inputs, identities, source_reads) =
         collect_source_names(source, predicate_key, predicate_node, event_source)?;
-    let evaluated = check_evaluated_names(source, predicate_key, predicate, &identities, event_source)?;
+    let evaluated =
+        check_evaluated_names(source, predicate_key, predicate, &identities, event_source)?;
     if source_reads != evaluated {
         return Err(gap(
             "source/evaluated free SEND name census differs",
@@ -2413,4 +3548,3 @@ fn input_type(
         }
     }
 }
-

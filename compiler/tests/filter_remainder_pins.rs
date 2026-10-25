@@ -185,8 +185,11 @@ fn inline_scalar_input_presentation_lowers() {
 fn inline_preference_controls_require_matching_local_fields() {
     let source = "app Probe\nGiven\n Customer { name:text }\n policy Customer read=public\nWhen\nThen\n preferences { enabled:bool=false, year:int? }\n page /mine title=\"Mine\"\n  preferences\n   toggle enabled\n";
     for control in ["toggle missing", "input enabled", "toggle year"] {
-        assert_refuses(&source.replace("toggle enabled", control), "E3001",
-            "preferences controls require one local bool toggle or text/int input field");
+        assert_refuses(
+            &source.replace("toggle enabled", control),
+            "E3001",
+            "preferences controls require one local bool toggle or text/int input field",
+        );
     }
 }
 
@@ -202,7 +205,11 @@ fn board_pagination_option_lowers() {
         "pagination\n    text \"nested\"",
         "pagination\n   pagination",
     ] {
-        assert_refuses(&source.replace("pagination", marker), "E6008", "pagination:");
+        assert_refuses(
+            &source.replace("pagination", marker),
+            "E6008",
+            "pagination:",
+        );
     }
 }
 

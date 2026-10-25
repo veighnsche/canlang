@@ -11,11 +11,11 @@ use crate::analysis::{ResolvedType, Scalar};
 use crate::source::{Span, sha256_hex};
 
 use super::ir::{IrEventSource, IrItem, IrItemKind, IrStmt};
-use super::source_context::FreshSourceContext;
 use super::scenario_receipts::{
     NativeReturn, NativeScenarioReceipt, ReceiptDisclosurePlan, ReceiptReturn, transport_source,
 };
 use super::send_guards::PreparedSendGuard;
+use super::source_context::FreshSourceContext;
 use super::term_decisions as t;
 
 const CORRESPONDENCE: &str = r#"scenario correspondence on=ReservationChanged
@@ -564,7 +564,10 @@ pub(super) fn collect_notice_receipt(
         .as_bytes(),
     );
     Some(NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
+        plan: ReceiptDisclosurePlan {
+            retained_guarded_handler: None,
+            source_loops: None,
+            source_emissions: None,
             version: 1,
             source: source.clone(),
             event_decision: None,
@@ -576,7 +579,11 @@ pub(super) fn collect_notice_receipt(
             rent_movement_refund_decision: None,
             invoice_collect_decision: None,
             rent_notice_decision: Some(decision),
-            invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,
+            invoice_issue_decision: None,
+            observe_venue_decision: None,
+            success_renewal_decision: None,
+            purchase_receive_all: None,
+            event_notice_audit: None,
             queries: Vec::new(),
             returns: vec![ReceiptReturn {
                 id: id.clone(),

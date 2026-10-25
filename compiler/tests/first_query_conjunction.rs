@@ -166,8 +166,8 @@ fn prepared_artifact(
     db: &SourceDb,
     catalog: &Catalog,
 ) -> (Value, Vec<Diagnostic>) {
+    use canlang_compiler::codegen::artifact::to_json;
     use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
-use canlang_compiler::codegen::artifact::to_json;
     use canlang_compiler::diagnostic::DiagnosticResult;
     let mut result = DiagnosticResult::new("first-query-conjunction", "1.0", 1);
     result.add_sources(db);
@@ -212,17 +212,18 @@ fn query_dep_fields<'a>(prepared: &'a Value, operation_name: &str) -> Vec<&'a st
     let deps = query["dependencies"].as_array().unwrap();
     assert!(!deps.is_empty(), "every conjunct emits its dependency");
     let mut ids: Vec<&str> = Vec::new();
-    let fields = deps
-        .iter()
+    deps.iter()
         .map(|dep| {
             assert_eq!(dep["role"], "control");
             let id = dep["id"].as_str().unwrap();
-            assert!(!id.is_empty() && !ids.contains(&id), "unique dependency IDs");
+            assert!(
+                !id.is_empty() && !ids.contains(&id),
+                "unique dependency IDs"
+            );
             ids.push(id);
             dep["field"].as_str().unwrap()
         })
-        .collect::<Vec<_>>();
-    fields
+        .collect::<Vec<_>>()
 }
 
 #[test]
@@ -243,8 +244,7 @@ fn conj_two_param_predicates_admit() {
 fn conj_duplicate_field_admits_idempotent() {
     // A repeated conjunct restates the same constraint; per-occurrence
     // dependency IDs stay unique, so no new correspondence rule is needed.
-    let (db, program, _, catalog) =
-        fixture_source("conj-dup.can", &conj_go("c.v==n and c.v==n"));
+    let (db, program, _, catalog) = fixture_source("conj-dup.can", &conj_go("c.v==n and c.v==n"));
     let (prepared, diagnostics) = prepared_artifact(&program, &db, &catalog);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     assert_eq!(
@@ -278,8 +278,7 @@ fn conj_fixture_scenarios_admit() {
 
 #[test]
 fn conj_or_shape_refuses() {
-    let (db, program, _, catalog) =
-        fixture_source("conj-or.can", &conj_go("c.v==n or c.role==r"));
+    let (db, program, _, catalog) = fixture_source("conj-or.can", &conj_go("c.v==n or c.role==r"));
     let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
     assert!(
         has_e6008(&diagnostics, "cannot lower first query"),
@@ -290,8 +289,7 @@ fn conj_or_shape_refuses() {
 
 #[test]
 fn conj_comparison_refuses() {
-    let (db, program, _, catalog) =
-        fixture_source("conj-cmp.can", &conj_go("c.v==n and c.v>n"));
+    let (db, program, _, catalog) = fixture_source("conj-cmp.can", &conj_go("c.v==n and c.v>n"));
     let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
     assert!(
         has_e6008(&diagnostics, "cannot lower first query"),
@@ -345,8 +343,10 @@ fn conj_enum_param_admits() {
 
 #[test]
 fn conj_enum_literal_admits() {
-    let (db, program, _, catalog) =
-        fixture_source("conj-enum-lit.can", &conj_enum_go("c.role==administrator", "n:int"));
+    let (db, program, _, catalog) = fixture_source(
+        "conj-enum-lit.can",
+        &conj_enum_go("c.role==administrator", "n:int"),
+    );
     let (prepared, diagnostics) = prepared_artifact(&program, &db, &catalog);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     assert_eq!(

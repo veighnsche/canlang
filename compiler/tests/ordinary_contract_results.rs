@@ -222,12 +222,18 @@ fn timezone_contract_closures_publish_and_unknown_fields_still_refuse() {
                 .any(|contract| contract["name"] == supported)
         );
     }
-    let calendar = contracts.iter().find(|contract| contract["name"] == "Other.Calendar").unwrap();
-    assert_eq!(calendar["fields"], serde_json::json!([
-        {"name":"zone","type":"timezone"},
-        {"name":"zones","type":"timezone[]"},
-        {"name":"optional","type":"timezone?"},
-    ]));
+    let calendar = contracts
+        .iter()
+        .find(|contract| contract["name"] == "Other.Calendar")
+        .unwrap();
+    assert_eq!(
+        calendar["fields"],
+        serde_json::json!([
+            {"name":"zone","type":"timezone"},
+            {"name":"zones","type":"timezone[]"},
+            {"name":"optional","type":"timezone?"},
+        ])
+    );
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let input = scratch.path().join("unknown.can");
     std::fs::write(

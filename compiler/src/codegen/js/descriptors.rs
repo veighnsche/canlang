@@ -6,8 +6,8 @@
 use crate::analysis::catalog::{StdOperation, nominal_schema, std_capability};
 use crate::analysis::types::{ResolvedType, Scalar, canonical_datetime_literal};
 use crate::codegen::ir::{
-    IrCallTarget, IrChoiceValue, IrDefault, IrExpr, IrInputChoiceBinding, IrServer,
-    IrUnOp, TypedExpr,
+    IrCallTarget, IrChoiceValue, IrDefault, IrExpr, IrInputChoiceBinding, IrServer, IrUnOp,
+    TypedExpr,
 };
 use crate::source::Span;
 use serde::ser::{SerializeMap, SerializeStruct};
@@ -529,9 +529,7 @@ pub(super) fn wire_literal(expr: &TypedExpr) -> Option<WireLiteral> {
             Some(WireLiteral::String(canonical_datetime_literal(value).ok()?))
         }
         IrExpr::Array(_) | IrExpr::Object(_) => wire_collection_literal(&expr.expr),
-        IrExpr::Unary { op, operand } if *op == IrUnOp::Neg => {
-            wire_negated_literal(&operand.expr)
-        }
+        IrExpr::Unary { op, operand } if *op == IrUnOp::Neg => wire_negated_literal(&operand.expr),
         IrExpr::Call { target, args } => wire_call_literal(target, args),
         _ => None,
     }
@@ -1065,10 +1063,7 @@ struct ArrayMarker {
 }
 
 impl JsOperationField {
-    fn serialize_bound_fields<S: SerializeStruct>(
-        &self,
-        state: &mut S,
-    ) -> Result<(), S::Error> {
+    fn serialize_bound_fields<S: SerializeStruct>(&self, state: &mut S) -> Result<(), S::Error> {
         if let Some(min) = self.min {
             state.serialize_field("min", &min)?;
         }
@@ -1123,10 +1118,7 @@ impl Serialize for JsOperationField {
 }
 
 impl JsModelField {
-    fn serialize_modifier_fields<S: SerializeStruct>(
-        &self,
-        state: &mut S,
-    ) -> Result<(), S::Error> {
+    fn serialize_modifier_fields<S: SerializeStruct>(&self, state: &mut S) -> Result<(), S::Error> {
         if let Some(machine) = &self.machine {
             state.serialize_field("machine", machine)?;
         }
@@ -1195,7 +1187,8 @@ impl Serialize for JsOperation {
         }
         let mut state = serializer.serialize_struct(
             "Operation",
-            4 + usize::from(self.result.is_some()) + usize::from(self.root_authority.is_some())
+            4 + usize::from(self.result.is_some())
+                + usize::from(self.root_authority.is_some())
                 + usize::from(self.authority_query_sites.is_some()),
         )?;
         state.serialize_field("name", &self.name)?;
@@ -1229,4 +1222,3 @@ impl Serialize for JsOperation {
 fn serialize_app_scope<S: Serializer>(_: &bool, serializer: S) -> Result<S::Ok, S::Error> {
     serializer.serialize_str("app")
 }
-

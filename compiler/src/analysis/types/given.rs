@@ -944,10 +944,7 @@ fn check_trait_template_field(
         *failed = true;
         diags.push(given_bad_value(
             &format!("contributed field `{}`", field.name),
-            &format!(
-                "default `{default}` does not inhabit `{}`",
-                field.type_text
-            ),
+            &format!("default `{default}` does not inhabit `{}`", field.type_text),
             field.span,
         ));
         return None;
@@ -1182,15 +1179,11 @@ fn apply_trait_field_constraints(
     }
     let mut mins: Vec<&str> = Vec::new();
     let mut maxes: Vec<&str> = Vec::new();
-    for bound in [&authored_field.min, &template.min] {
-        if let Some(b) = bound {
-            mins.push(b.as_str());
-        }
+    for b in [&authored_field.min, &template.min].into_iter().flatten() {
+        mins.push(b.as_str());
     }
-    for bound in [&authored_field.max, &template.max] {
-        if let Some(b) = bound {
-            maxes.push(b.as_str());
-        }
+    for b in [&authored_field.max, &template.max].into_iter().flatten() {
+        maxes.push(b.as_str());
     }
     if given_bounds_contradict(&mins, &maxes) {
         *failed = true;
@@ -1323,9 +1316,7 @@ fn given_check_trait_definition(
     // and required checked defaults.
     let mut template_fields: Vec<GivenContributedField> = Vec::new();
     for field in &template.fields {
-        if let Some(contributed) =
-            check_trait_template_field(field, &mut failed, diags)
-        {
+        if let Some(contributed) = check_trait_template_field(field, &mut failed, diags) {
             template_fields.push(contributed);
         }
     }
@@ -1339,8 +1330,7 @@ fn given_check_trait_definition(
     }
     // Applications in explicit source order. Inline attachments apply
     // once at their own target; named traits apply at every written use.
-    let apps =
-        collect_trait_applications(inline, descriptors, def, refs, &label);
+    let apps = collect_trait_applications(inline, descriptors, def, refs, &label);
     // Instantiate the template at every application: model attachments
     // add fields, field attachments add compatible constraints/defaults.
     for app in &apps {
@@ -1609,9 +1599,7 @@ fn bind_keyword_application(
     if model_value.is_empty() || field_value.is_empty() {
         return None;
     }
-    if analysis::resolve::resolve_given_model(refs, &def.owner, model_value).is_none() {
-        return None;
-    }
+    analysis::resolve::resolve_given_model(refs, &def.owner, model_value)?;
     let mut parts = field_value.splitn(2, '.');
     let (field_model, field_name) = (
         parts.next().unwrap_or_default(),
@@ -1619,9 +1607,7 @@ fn bind_keyword_application(
     );
     let field_symbol =
         analysis::resolve::resolve_given_field(refs, &def.owner, field_model, field_name);
-    if field_symbol.is_none() {
-        return None;
-    }
+    field_symbol?;
     // The bound field must be checked `text`: `state.unique-key@1`
     // computes over text only (no nullable/model-typed keys without
     // explicit null-key semantics).

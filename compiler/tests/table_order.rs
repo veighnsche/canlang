@@ -83,14 +83,17 @@ fn checked_table_orders_reach_the_original_native_query_and_protected_row() {
     );
     let artifact = scratch.path().join("artifact.json");
     std::fs::write(&artifact, compiled.stdout).unwrap();
-    let consumed = Command::new("node")
-        .arg(root.join("docs/implementation/compiler-completion/view-reuse/table-order-consumer.mjs"))
-        .arg(root)
-        .arg(&artifact)
-        .arg(scratch.path().join("staged"))
-        .current_dir(root)
-        .output()
-        .unwrap();
+    let consumed =
+        Command::new("node")
+            .arg(root.join(
+                "docs/implementation/compiler-completion/view-reuse/table-order-consumer.mjs",
+            ))
+            .arg(root)
+            .arg(&artifact)
+            .arg(scratch.path().join("staged"))
+            .current_dir(root)
+            .output()
+            .unwrap();
     assert!(
         consumed.status.success(),
         "{}\n{}",
@@ -115,7 +118,7 @@ fn preference_dispatched_order_lowers_to_case_ternary() {
             "Then\n preferences {ordering:enum(ascending,descending)=ascending}\n",
         );
     let mut db = SourceDb::new();
-    let id = db.add("table-order-dispatched.can".into(), source.clone().into());
+    let id = db.add("table-order-dispatched.can".into(), source.clone());
     let (catalog, diagnostics) = load_catalog(&CatalogRequest {
         flag: Some(&catalog_path),
         env: None,

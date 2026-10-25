@@ -92,4 +92,3 @@ pub(super) fn prepare<'a>(
         handlers: indices,
     })
 }
-

@@ -5,8 +5,9 @@ use std::collections::{HashMap, HashSet};
 use serde::Serialize;
 
 use crate::analysis::scenario_disclosure::{
-    DependencyRole, DisclosureChoice, DisclosureEffect, DisclosureEffectKind, DisclosureIntrinsicKind,
-    DisclosureModelResult, DisclosureSource, InfluenceKind, ScenarioDisclosure,
+    DependencyRole, DisclosureChoice, DisclosureEffect, DisclosureEffectKind,
+    DisclosureIntrinsicKind, DisclosureModelResult, DisclosureSource, InfluenceKind,
+    ScenarioDisclosure,
 };
 use crate::analysis::{ResolvedType, Scalar};
 use crate::source::{SourceDb, Span, sha256_hex};
@@ -29,11 +30,14 @@ pub(super) struct ReceiptSource {
 #[derive(Debug, Clone, Serialize)]
 pub(super) struct ReceiptDisclosurePlan {
     /// Private nongrant SEND source frame; never a public return recipe.
-    #[serde(rename="retainedGuardedHandler",skip_serializing_if="Option::is_none")]
+    #[serde(
+        rename = "retainedGuardedHandler",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub retained_guarded_handler: Option<serde_json::Value>,
-    #[serde(rename="sourceLoops",skip_serializing_if="Option::is_none")]
+    #[serde(rename = "sourceLoops", skip_serializing_if = "Option::is_none")]
     pub source_loops: Option<serde_json::Value>,
-    #[serde(rename="sourceEmissions",skip_serializing_if="Option::is_none")]
+    #[serde(rename = "sourceEmissions", skip_serializing_if = "Option::is_none")]
     pub source_emissions: Option<serde_json::Value>,
     pub version: u8,
     pub source: ReceiptSource,
@@ -44,32 +48,59 @@ pub(super) struct ReceiptDisclosurePlan {
     #[serde(rename = "termDecision", skip_serializing_if = "Option::is_none")]
     pub term_decision: Option<serde_json::Value>,
     /// Complete source-bound owner decision for bounded leave request creation.
-    #[serde(rename = "leaveRequestDecision", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "leaveRequestDecision",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub leave_request_decision: Option<serde_json::Value>,
     /// Source-bound serial owner decision for leave approval/rejection.
-    #[serde(rename = "leaveDecideDecision", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "leaveDecideDecision",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub leave_decide_decision: Option<serde_json::Value>,
     /// Source-stamped serial owner decision for referral source reversal.
-    #[serde(rename = "referRejectDecision", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "referRejectDecision",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub refer_reject_decision: Option<serde_json::Value>,
     /// Complete source-bound retry charge and term update in one serial owner frame.
-    #[serde(rename = "memberRetryDecision", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "memberRetryDecision",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub member_retry_decision: Option<serde_json::Value>,
     /// Exact movement-credit refund branch and its complete owner domains.
-    #[serde(rename = "rentMovementRefundDecision", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "rentMovementRefundDecision",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub rent_movement_refund_decision: Option<serde_json::Value>,
     /// Exact collection owner, financial scans, guarded dispatch and settlement.
-    #[serde(rename = "invoiceCollectDecision", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "invoiceCollectDecision",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub invoice_collect_decision: Option<serde_json::Value>,
     /// Exact correspondence/reminder Booking notice owner and localized text sinks.
     #[serde(rename = "rentNoticeDecision", skip_serializing_if = "Option::is_none")]
     pub rent_notice_decision: Option<serde_json::Value>,
-    #[serde(rename = "invoiceIssueDecision", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "invoiceIssueDecision",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub invoice_issue_decision: Option<serde_json::Value>,
-    #[serde(rename = "observeVenueDecision", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "observeVenueDecision",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub observe_venue_decision: Option<serde_json::Value>,
     /// Exact source-bound renewal reminder SEND owner with its staged rule.
-    #[serde(rename = "successRenewalDecision", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "successRenewalDecision",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub success_renewal_decision: Option<serde_json::Value>,
     #[serde(rename = "purchaseReceiveAll", skip_serializing_if = "Option::is_none")]
     pub purchase_receive_all: Option<serde_json::Value>,
@@ -101,76 +132,244 @@ pub(super) struct OwnerDecisionBody {
 pub(super) enum OwnerDecisionAdmission {
     None,
     Original,
-    Role { name: &'static str, missing: &'static str },
+    Role {
+        name: &'static str,
+        missing: &'static str,
+    },
 }
 
 impl ReceiptDisclosurePlan {
     pub(super) fn owner_body(&self, canonical: &str) -> Option<OwnerDecisionBody> {
         use OwnerDecisionAdmission::{None as NoAdmission, Original, Role};
         let missing = "the exact authored body is missing";
-        let (decision, runtime, context, parameters, guards, effects, admission, first_defaults, missing_body):
-            (_, _, _, &'static [&'static str], _, _, _, _, _) = match canonical {
+        let (
+            decision,
+            runtime,
+            context,
+            parameters,
+            guards,
+            effects,
+            admission,
+            first_defaults,
+            missing_body,
+        ): (_, _, _, &'static [&'static str], _, _, _, _, _) = match canonical {
             "rent_reservations.correspondence" | "rent_reservations.remind" => (
-                self.rent_notice_decision.as_ref()?, "nativeScenarioRentNoticeDecision",
-                "booking notice owner decision", &["event"], 1,
-                if canonical == "rent_reservations.correspondence" { 3 } else { 4 },
-                NoAdmission, false, "the exact authored event body is missing"),
-            "invoice.issue" => (self.invoice_issue_decision.as_ref()?, "nativeScenarioInvoiceIssueDecision",
-                "invoice issue owner decision", &["invoice", "number"], 2, 7, Original, true, "the exact authored defaults stage is missing"),
-            "invoice.collect" => (self.invoice_collect_decision.as_ref()?, "nativeScenarioInvoiceCollectDecision",
-                "invoice collection owner decision", &["invoice"], 2, 7, Original, false, missing),
+                self.rent_notice_decision.as_ref()?,
+                "nativeScenarioRentNoticeDecision",
+                "booking notice owner decision",
+                &["event"],
+                1,
+                if canonical == "rent_reservations.correspondence" {
+                    3
+                } else {
+                    4
+                },
+                NoAdmission,
+                false,
+                "the exact authored event body is missing",
+            ),
+            "invoice.issue" => (
+                self.invoice_issue_decision.as_ref()?,
+                "nativeScenarioInvoiceIssueDecision",
+                "invoice issue owner decision",
+                &["invoice", "number"],
+                2,
+                7,
+                Original,
+                true,
+                "the exact authored defaults stage is missing",
+            ),
+            "invoice.collect" => (
+                self.invoice_collect_decision.as_ref()?,
+                "nativeScenarioInvoiceCollectDecision",
+                "invoice collection owner decision",
+                &["invoice"],
+                2,
+                7,
+                Original,
+                false,
+                missing,
+            ),
             "rent_reservations.refund_movement_credit" => (
-                self.rent_movement_refund_decision.as_ref()?, "nativeScenarioRentMovementRefundDecision",
-                "movement-credit refund owner decision", &["movement", "charge_source", "amount", "reason"], 2, 2,
-                Role { name: "rent_reservations.billing", missing: "the original billing admission is missing" }, false, missing),
-            "refer.reject_source" => (self.refer_reject_decision.as_ref()?, "nativeScenarioReferRejectDecision",
-                "referral rejection owner decision", &["evidence", "reason"], 1, 3,
-                Role { name: "refer.program_manager", missing: "the original role admission is missing" }, false, missing),
-            "member_terms.retry_collection" => (self.member_retry_decision.as_ref()?, "nativeScenarioMemberRetryDecision",
-                "member retry owner decision", &["term"], 2, 4, Original, false, missing),
-            "leave.decide" => (self.leave_decide_decision.as_ref()?, "nativeScenarioLeaveDecideDecision",
-                "leave decide owner decision", &["request", "approve", "reason"], 1, 2, NoAdmission, false, missing),
-            "leave.request" => (self.leave_request_decision.as_ref()?, "nativeScenarioLeaveRequestDecision",
-                "leave request owner decision", &["calendar", "from", "until", "bucket", "reason", "reviewer"],
-                3, 6, NoAdmission, false, missing),
+                self.rent_movement_refund_decision.as_ref()?,
+                "nativeScenarioRentMovementRefundDecision",
+                "movement-credit refund owner decision",
+                &["movement", "charge_source", "amount", "reason"],
+                2,
+                2,
+                Role {
+                    name: "rent_reservations.billing",
+                    missing: "the original billing admission is missing",
+                },
+                false,
+                missing,
+            ),
+            "refer.reject_source" => (
+                self.refer_reject_decision.as_ref()?,
+                "nativeScenarioReferRejectDecision",
+                "referral rejection owner decision",
+                &["evidence", "reason"],
+                1,
+                3,
+                Role {
+                    name: "refer.program_manager",
+                    missing: "the original role admission is missing",
+                },
+                false,
+                missing,
+            ),
+            "member_terms.retry_collection" => (
+                self.member_retry_decision.as_ref()?,
+                "nativeScenarioMemberRetryDecision",
+                "member retry owner decision",
+                &["term"],
+                2,
+                4,
+                Original,
+                false,
+                missing,
+            ),
+            "leave.decide" => (
+                self.leave_decide_decision.as_ref()?,
+                "nativeScenarioLeaveDecideDecision",
+                "leave decide owner decision",
+                &["request", "approve", "reason"],
+                1,
+                2,
+                NoAdmission,
+                false,
+                missing,
+            ),
+            "leave.request" => (
+                self.leave_request_decision.as_ref()?,
+                "nativeScenarioLeaveRequestDecision",
+                "leave request owner decision",
+                &["calendar", "from", "until", "bucket", "reason", "reviewer"],
+                3,
+                6,
+                NoAdmission,
+                false,
+                missing,
+            ),
             _ => return None,
         };
-        Some(OwnerDecisionBody { decision: decision.clone(), runtime, context, parameters,
-            guards, effects, admission, first_defaults,
-            source_guard_bridge: self.invoice_collect_decision.is_some() || self.invoice_issue_decision.is_some(),
-            missing_body })
+        Some(OwnerDecisionBody {
+            decision: decision.clone(),
+            runtime,
+            context,
+            parameters,
+            guards,
+            effects,
+            admission,
+            first_defaults,
+            source_guard_bridge: self.invoice_collect_decision.is_some()
+                || self.invoice_issue_decision.is_some(),
+            missing_body,
+        })
     }
 }
 
 /// Budget only complete, source-checked contained loops whose sole effect
 /// is emitting their exactly typed item. This data grants no scan by itself.
-pub(super) fn checked_source_emissions(ir:&IrProgram,owner:&IrItem,
-    checked:&crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,entry:&str)
-    ->Option<serde_json::Value> {
-    let mut loops=Vec::new(); let mut emitted=HashSet::new(); let mut total=0u16;
+pub(super) fn checked_source_emissions(
+    ir: &IrProgram,
+    owner: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    entry: &str,
+) -> Option<serde_json::Value> {
+    let mut loops = Vec::new();
+    let mut emitted = HashSet::new();
+    let mut total = 0u16;
     for proof in &checked.effects {
-        let DisclosureEffectKind::ForMember {domain,maximum,parameter,model,body,..}=&proof.kind else {continue;};
-        let [body_node]=body.as_slice() else {continue;};
-        let Some(emit)=checked.effects.iter().find(|candidate|candidate.node==*body_node) else {continue;};
-        let DisclosureEffectKind::Emit {event}=emit.kind else {continue;};
-        total=total.checked_add(*maximum)?;
-        if total>500 {return None;}
+        let DisclosureEffectKind::ForMember {
+            domain,
+            maximum,
+            parameter,
+            model,
+            body,
+            ..
+        } = &proof.kind
+        else {
+            continue;
+        };
+        let [body_node] = body.as_slice() else {
+            continue;
+        };
+        let Some(emit) = checked
+            .effects
+            .iter()
+            .find(|candidate| candidate.node == *body_node)
+        else {
+            continue;
+        };
+        let DisclosureEffectKind::Emit { event } = emit.kind else {
+            continue;
+        };
+        total = total.checked_add(*maximum)?;
+        if total > 500 {
+            return None;
+        }
         emitted.insert(*body_node);
-        let parameter=ir.items.get(parameter.0 as usize)?;
-        let IrItemKind::Param {ty:IrType::Known(ResolvedType::Record {symbol:parent,stored:true}),default:None,..}=&parameter.kind else {return None;};
-        let event_name=&ir.items.get(event.0 as usize)?.canonical;
-        let handlers=ir.items.iter().filter(|item|matches!(&item.kind,IrItemKind::Scenario {
-            event_source:Some(super::ir::IrEventSource::Declared(name)),..} if name==event_name)).collect::<Vec<_>>();
-        if handlers.len()>1 || handlers.iter().any(|item|!matches!(&item.kind,IrItemKind::Scenario {cohort:None,hook:None,..})) {return None;}
-        let handler=handlers.first().map(|item|item.canonical.as_str());
-        let id=sha256_hex(format!("{}:{}:{}:{}",checked.source.sha256,owner.canonical,proof.node.start,proof.node.end).as_bytes());
+        let parameter = ir.items.get(parameter.0 as usize)?;
+        let IrItemKind::Param {
+            ty:
+                IrType::Known(ResolvedType::Record {
+                    symbol: parent,
+                    stored: true,
+                }),
+            default: None,
+            ..
+        } = &parameter.kind
+        else {
+            return None;
+        };
+        let event_name = &ir.items.get(event.0 as usize)?.canonical;
+        let handlers = ir
+            .items
+            .iter()
+            .filter(|item| {
+                matches!(&item.kind,IrItemKind::Scenario {
+            event_source:Some(super::ir::IrEventSource::Declared(name)),..} if name==event_name)
+            })
+            .collect::<Vec<_>>();
+        if handlers.len() > 1
+            || handlers.iter().any(|item| {
+                !matches!(
+                    &item.kind,
+                    IrItemKind::Scenario {
+                        cohort: None,
+                        hook: None,
+                        ..
+                    }
+                )
+            })
+        {
+            return None;
+        }
+        let handler = handlers.first().map(|item| item.canonical.as_str());
+        let id = sha256_hex(
+            format!(
+                "{}:{}:{}:{}",
+                checked.source.sha256, owner.canonical, proof.node.start, proof.node.end
+            )
+            .as_bytes(),
+        );
         loops.push(serde_json::json!({"id":id,"node":{"start":proof.node.start,"end":proof.node.end},
             "domain":{"start":domain.start,"end":domain.end},"maximum":maximum,
             "parameter":parameter.name,"parentModel":ir.items.get(parent.0 as usize)?.canonical,
             "model":ir.items.get(model.0 as usize)?.canonical,"event":event_name,"handler":handler}));
     }
-    if loops.is_empty() || checked.effects.iter().any(|proof|matches!(proof.kind,DisclosureEffectKind::Emit {..}) && !emitted.contains(&proof.node)) {return None;}
-    Some(serde_json::json!({"source":transport_source(&checked.source,entry)?,"owner":owner.canonical,"loops":loops}))
+    if loops.is_empty()
+        || checked.effects.iter().any(|proof| {
+            matches!(proof.kind, DisclosureEffectKind::Emit { .. })
+                && !emitted.contains(&proof.node)
+        })
+    {
+        return None;
+    }
+    Some(
+        serde_json::json!({"source":transport_source(&checked.source,entry)?,"owner":owner.canonical,"loops":loops}),
+    )
 }
 
 /// Apply an already authenticated borrowed subset; preserve surviving rows
@@ -755,7 +954,9 @@ pub(super) fn checked_created_model_result(
                     return None;
                 }
                 let queries = facts.queries.as_deref()?;
-                let query = if queries.len() == 1 { &queries[0] } else {
+                let query = if queries.len() == 1 {
+                    &queries[0]
+                } else {
                     checked_purchase_helper_query_influences(facts)?;
                     queries.iter().find(|query| query.first.is_some())?
                 };
@@ -771,19 +972,17 @@ pub(super) fn checked_created_model_result(
                 {
                     return None;
                 }
-                let (let_name, let_value) = effects.iter().find_map(|statement| match statement {
-                    IrStmt::Let { name, value, span }
-                        if *span == node_span(first.binding) =>
-                    {
-                        Some((name, value))
-                    }
-                    _ => None,
-                })?;
+                let (let_name, let_value) =
+                    effects.iter().find_map(|statement| match statement {
+                        IrStmt::Let { name, value, span } if *span == node_span(first.binding) => {
+                            Some((name, value))
+                        }
+                        _ => None,
+                    })?;
                 if let_name != binding {
                     return None;
                 }
-                let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) =
-                    &let_value.expr
+                let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &let_value.expr
                 else {
                     return None;
                 };
@@ -1284,7 +1483,9 @@ fn require_helper_call<'a, 's, 'r>(
     if candidates.next().is_some() || source.source != site.source {
         return None;
     }
-    let crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::DeriveFn(id) = source.target else {
+    let crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::DeriveFn(id) =
+        source.target
+    else {
         return None;
     };
     if source.chain.iter().zip(frames).any(|(frame, prior)| {
@@ -1477,7 +1678,10 @@ fn helper_consuming_query<'a>(
     binding: &str,
     ir: &'a IrProgram,
     db: &SourceDb,
-) -> Option<(&'a crate::analysis::scenario_disclosure::DisclosureQuery, &'a crate::analysis::scenario_disclosure::DisclosureFirstQuery)> {
+) -> Option<(
+    &'a crate::analysis::scenario_disclosure::DisclosureQuery,
+    &'a crate::analysis::scenario_disclosure::DisclosureFirstQuery,
+)> {
     let mut queries = facts.queries.as_deref()?.iter().filter(|query| {
         query.model == read.model
             && query.first.as_ref().is_some_and(|first| {
@@ -1522,10 +1726,7 @@ fn helper_consumed_field(
         .iter()
         .find(|schema| schema.model && schema.id == read.model)?;
     match_stored_contract_schema(ir, schema, db)?;
-    let field = schema
-        .fields
-        .iter()
-        .find(|field| field.id == read.field)?;
+    let field = schema.fields.iter().find(|field| field.id == read.field)?;
     match_stored_contract_field(ir, field, db)?;
     if field.ty != read.ty
         || field.name != read.field_name
@@ -1587,8 +1788,9 @@ fn checked_require_helper_consumption(
     let mut frames: Vec<RequireHelperFrame<'_>> = Vec::new();
     let mut roots = vec![condition];
     for (depth, call) in read.calls.iter().enumerate() {
-        let (derive, source, body, params, result, arguments) =
-            require_helper_call(ir, owner, site, read, call, depth, &frames, &roots, &boolean)?;
+        let (derive, source, body, params, _result, arguments) = require_helper_call(
+            ir, owner, site, read, call, depth, &frames, &roots, &boolean,
+        )?;
         let (defaults, default_count) =
             require_helper_defaults(ir, derive, params, source, arguments)?;
         if default_count != source.defaults.len() {
@@ -1980,14 +2182,19 @@ fn checked_plain_enum_data_transport(
         return None;
     }
     match &descriptor.field {
-        JsModelFieldType::Enum { values } if values.as_slice()==ty_cases => {},
-        JsModelFieldType::Nominal {name} if name==dependency_type_id
-            && descriptor.value_type.as_deref()==Some(dependency_type_id) => {},
+        JsModelFieldType::Enum { values } if values.as_slice() == ty_cases => {}
+        JsModelFieldType::Nominal { name }
+            if name == dependency_type_id
+                && descriptor.value_type.as_deref() == Some(dependency_type_id) => {}
         _ => return None,
     }
     let owner_item = ir.items.get(enum_owner.0 as usize)?;
     let IrItemKind::Field {
-        ty: IrType::Known(ResolvedType::Enum { cases: owner_cases, owner: Some(original_owner) }),
+        ty:
+            IrType::Known(ResolvedType::Enum {
+                cases: owner_cases,
+                owner: Some(original_owner),
+            }),
         ..
     } = &owner_item.kind
     else {
@@ -2002,7 +2209,8 @@ fn checked_plain_enum_data_transport(
     }
     let inline = format!("enum({})", ty_cases.join(","));
     if descriptor.value_type.as_deref() != Some(dependency_type_id)
-        && inventory_type(descriptor).as_deref() != Some(inline.as_str()) {
+        && inventory_type(descriptor).as_deref() != Some(inline.as_str())
+    {
         return None;
     }
     Some(inline)
@@ -2011,7 +2219,6 @@ fn checked_plain_enum_data_transport(
 /// `models` must be the actual descriptors emitted by the owning emitter.
 /// `entry_module` is the actual artifact callable module, not an inferred
 /// package path: native scenario implementations currently execute in entry.
-
 pub(super) fn collect_native_scenario_receipt_with_feasibility(
     ir: &IrProgram,
     item: &IrItem,
@@ -2045,7 +2252,10 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     };
     if item.canonical == "maintain.remind" {
         return super::event_decisions::collect_maintain_receipt(
-            source_context?, item, entry_module, send_guards?,
+            source_context?,
+            item,
+            entry_module,
+            send_guards?,
         );
     }
     if item.canonical == "member_terms.term" {
@@ -2056,7 +2266,10 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     }
     if item.canonical == "leave.decide" {
         return super::leave_decisions::collect_leave_decide_receipt(
-            source_context?, item, entry_module, send_guards?,
+            source_context?,
+            item,
+            entry_module,
+            send_guards?,
         );
     }
     if item.canonical == "refer.reject_source" {
@@ -2064,38 +2277,62 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     }
     if item.canonical == "member_terms.retry_collection" {
         return super::member_retry_decisions::collect_retry_receipt(
-            source_context?, item, entry_module, send_guards?,
+            source_context?,
+            item,
+            entry_module,
+            send_guards?,
         );
     }
     if item.canonical == "invoice.collect" {
         return super::invoice_collect_decisions::collect_collect_receipt(
-            source_context?, item, entry_module, send_guards?,
+            source_context?,
+            item,
+            entry_module,
+            send_guards?,
         );
     }
-    if item.canonical == "rent_reservations.correspondence" ||
-        item.canonical == "rent_reservations.remind" {
+    if item.canonical == "rent_reservations.correspondence"
+        || item.canonical == "rent_reservations.remind"
+    {
         return super::rent_notice_decisions::collect_notice_receipt(
-            source_context?, item, entry_module, send_guards?,
+            source_context?,
+            item,
+            entry_module,
+            send_guards?,
         );
     }
     if item.canonical == "invoice.issue" {
         return super::invoice_issue_decisions::collect_issue_receipt(
-            source_context?, item, entry_module, send_guards?,
+            source_context?,
+            item,
+            entry_module,
+            send_guards?,
         );
     }
     if item.canonical == "events.observe_venue" {
         return super::event_send_decisions::collect_observe_receipt(
-            source_context?, item, entry_module, send_guards?,
+            source_context?,
+            item,
+            entry_module,
+            send_guards?,
         );
     }
-    if matches!(item.canonical.as_str(), "success.renewal_due" | "success.remind") {
+    if matches!(
+        item.canonical.as_str(),
+        "success.renewal_due" | "success.remind"
+    ) {
         return super::success_send_decisions::collect_success_notice_receipt(
-            source_context?, item, entry_module, send_guards?,
+            source_context?,
+            item,
+            entry_module,
+            send_guards?,
         );
     }
     if item.canonical == "rent_reservations.refund_movement_credit" {
         return super::rent_movement_refund_decisions::collect_refund_receipt(
-            source_context?, item, entry_module,
+            source_context?,
+            item,
+            entry_module,
         );
     }
     // C23 hook slice: a declared-event handler may carry a native receipt
@@ -2106,8 +2343,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         && matches!(event_source, Some(super::ir::IrEventSource::Declared(_)))
         && hook.is_none()
         && cohort.is_none();
-    if !hook_receipt && (*trusted || event_source.is_some() || hook.is_some() || cohort.is_some())
-    {
+    if !hook_receipt && (*trusted || event_source.is_some() || hook.is_some() || cohort.is_some()) {
         return None;
     }
     let created_model = checked_created_model_result(ir, item);
@@ -2121,15 +2357,20 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         return None;
     };
     let reminder_recipient = if item.canonical == "appointments.remind" {
-        let [IrStmt::Send {span, ..}, IrStmt::Create {..}] = effects.as_slice()
-            else { return None; };
+        let [IrStmt::Send { span, .. }, IrStmt::Create { .. }] = effects.as_slice() else {
+            return None;
+        };
         let guard = send_guards?.get(span)?;
         let path = guard.descriptor.get("eventSource")?.get("recipientPath")?;
         let source_id = path.get("sourceDependencyId")?.as_str()?;
         let leaf_id = path.get("leafDependencyId")?.as_str()?;
         if guard.event_source.as_ref()?.model_field != "appointment"
-            || source_id.is_empty() || leaf_id.is_empty() || source_id == leaf_id
-        { return None; }
+            || source_id.is_empty()
+            || leaf_id.is_empty()
+            || source_id == leaf_id
+        {
+            return None;
+        }
         Some((source_id.to_string(), leaf_id.to_string()))
     } else {
         None
@@ -2175,9 +2416,18 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     if has_original_images_source(ir, item.id) {
         checked_images_source(ir, item, db?)?;
     }
-    let purchase_all = if matches!(item.canonical.as_str(), "purchase.receive" | "CanPurchase.receive") {
-        Some(super::purchase_all::checked(source_context?, item, entry_module)?)
-    } else { None };
+    let purchase_all = if matches!(
+        item.canonical.as_str(),
+        "purchase.receive" | "CanPurchase.receive"
+    ) {
+        Some(super::purchase_all::checked(
+            source_context?,
+            item,
+            entry_module,
+        )?)
+    } else {
+        None
+    };
     let first_plan = checked_native_first_query_plan(
         ir,
         item,
@@ -2198,32 +2448,78 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         None
     };
     let effective_plan = first_plan.or(guard_plan.as_ref());
-    let event_notice = if item.canonical == "events.attendee_notice" {Some(super::event_notice_audit::checked(source_context?,item,entry_module)?)} else {None};
-    let updated_model_owner = source_context.is_some_and(|context| checked.source_facts.as_deref()
-        .and_then(|facts| facts.creates.as_deref()).is_some_and(|creates| creates.len() == 1
-            && source_owned_updated_model_create(context, item, &creates[0]).is_some())
-        || source_owned_void_member_loops(context,item).is_some());
-    let copy_loop=source_context.and_then(|context|source_owned_copy_loop(context,item));
-    let sibling_loop=source_context.and_then(|context|source_owned_sibling_loop(context,item));
-    let sites = match Sites::collect(ir, item, send_guards, db, purchase_all.as_ref(), event_notice.as_ref(), updated_model_owner,copy_loop.as_ref(),sibling_loop.as_ref()) {
+    let event_notice = if item.canonical == "events.attendee_notice" {
+        Some(super::event_notice_audit::checked(
+            source_context?,
+            item,
+            entry_module,
+        )?)
+    } else {
+        None
+    };
+    let updated_model_owner = source_context.is_some_and(|context| {
+        checked
+            .source_facts
+            .as_deref()
+            .and_then(|facts| facts.creates.as_deref())
+            .is_some_and(|creates| {
+                creates.len() == 1
+                    && source_owned_updated_model_create(context, item, &creates[0]).is_some()
+            })
+            || source_owned_void_member_loops(context, item).is_some()
+    });
+    let copy_loop = source_context.and_then(|context| source_owned_copy_loop(context, item));
+    let sibling_loop = source_context.and_then(|context| source_owned_sibling_loop(context, item));
+    let sites = match Sites::collect(
+        ir,
+        item,
+        send_guards,
+        db,
+        purchase_all.as_ref(),
+        event_notice.as_ref(),
+        updated_model_owner,
+        copy_loop.as_ref(),
+        sibling_loop.as_ref(),
+    ) {
         Some(sites) => sites,
         None => {
             return None;
         }
     };
     if !sites.enum_values.is_empty() {
-        let context=source_context?;
+        let context = source_context?;
         context.same_scenario(ir, item)?;
-        for (id,cases) in &sites.enum_values {
-            let actual=ir.items.get(id.0 as usize)?;
-            let original=context.fresh().items.get(id.0 as usize)?;
-            let (IrItemKind::Field{owner:actual_owner,..},IrItemKind::Field{owner:original_owner,..})=(&actual.kind,&original.kind) else{return None;};
-            if actual_owner!=original_owner{return None;}
-            let parent=ir.items.get(actual_owner.0 as usize)?;
-            let original_parent=context.fresh().items.get(original_owner.0 as usize)?;
-            if parent.id!=original_parent.id || parent.canonical!=original_parent.canonical || parent.name!=original_parent.name
-                || parent.module!=original_parent.module || parent.span!=original_parent.span
-                || std::mem::discriminant(&parent.kind)!=std::mem::discriminant(&original_parent.kind) {return None;}
+        for (id, cases) in &sites.enum_values {
+            let actual = ir.items.get(id.0 as usize)?;
+            let original = context.fresh().items.get(id.0 as usize)?;
+            let (
+                IrItemKind::Field {
+                    owner: actual_owner,
+                    ..
+                },
+                IrItemKind::Field {
+                    owner: original_owner,
+                    ..
+                },
+            ) = (&actual.kind, &original.kind)
+            else {
+                return None;
+            };
+            if actual_owner != original_owner {
+                return None;
+            }
+            let parent = ir.items.get(actual_owner.0 as usize)?;
+            let original_parent = context.fresh().items.get(original_owner.0 as usize)?;
+            if parent.id != original_parent.id
+                || parent.canonical != original_parent.canonical
+                || parent.name != original_parent.name
+                || parent.module != original_parent.module
+                || parent.span != original_parent.span
+                || std::mem::discriminant(&parent.kind)
+                    != std::mem::discriminant(&original_parent.kind)
+            {
+                return None;
+            }
             if actual.id!=*id || original.id!=*id || actual.canonical!=original.canonical
                 || actual.name!=original.name || actual.module!=original.module || actual.span!=original.span
                 || ![actual,original].iter().all(|item|matches!(&item.kind,
@@ -2231,16 +2527,37 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                         if owner==id && declared==cases)) {return None;}
         }
     }
-    if match_effect_proofs(ir, item, models, checked, &sites, db, send_guards, source_context).is_none() {
-        return None;
-    }
-    let sealed_created_tail=source_context.is_some_and(|context|checked.source_facts.as_deref()
-        .and_then(|facts|facts.creates.as_deref()).is_some_and(|creates|
-            creates.first().is_some_and(|original|source_owned_void_create(context,item,original).is_some())
-                || creates.len()==1 && source_owned_created_return_tail(context,item,&creates[0]).is_some()));
+    match_effect_proofs(
+        ir,
+        item,
+        models,
+        checked,
+        &sites,
+        db,
+        send_guards,
+        source_context,
+    )?;
+    let sealed_created_tail = source_context.is_some_and(|context| {
+        checked
+            .source_facts
+            .as_deref()
+            .and_then(|facts| facts.creates.as_deref())
+            .is_some_and(|creates| {
+                creates.first().is_some_and(|original| {
+                    source_owned_void_create(context, item, original).is_some()
+                }) || creates.len() == 1
+                    && source_owned_created_return_tail(context, item, &creates[0]).is_some()
+            })
+    });
     let mut profile_scalar_pairs = HashMap::new();
     let mut profile_source_pairs = HashMap::new();
-    let scalar_result = matches!(&item.kind, IrItemKind::Scenario { result:Some(ResolvedType::Scalar(_)), .. });
+    let scalar_result = matches!(
+        &item.kind,
+        IrItemKind::Scenario {
+            result: Some(ResolvedType::Scalar(_)),
+            ..
+        }
+    );
     if (created_model.is_some() || sealed_created_tail || scalar_result)
         && let Some(db) = db
     {
@@ -2250,7 +2567,9 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             };
             let Some(pairs) = checked_profile_scalar_pairs(ir, item, expression, db)
                 .or_else(|| checked_reference_receiver_pairs(ir, item, expression, db))
-                .or_else(|| checked_helper_reference_scalar_pairs(source_context?, item, expression))
+                .or_else(|| {
+                    checked_helper_reference_scalar_pairs(source_context?, item, expression)
+                })
             else {
                 continue;
             };
@@ -2289,20 +2608,42 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     } else {
         None
     };
-    let has_emitting_loop=checked.effects.iter().any(|proof|match &proof.kind {
-        DisclosureEffectKind::ForMember {body,..}=>body.iter().any(|node|checked.effects.iter().any(|effect|
-            effect.node==*node && matches!(effect.kind,DisclosureEffectKind::Emit {..}))),
-        _=>false,
+    let has_emitting_loop = checked.effects.iter().any(|proof| match &proof.kind {
+        DisclosureEffectKind::ForMember { body, .. } => body.iter().any(|node| {
+            checked.effects.iter().any(|effect| {
+                effect.node == *node && matches!(effect.kind, DisclosureEffectKind::Emit { .. })
+            })
+        }),
+        _ => false,
     });
-    if has_emitting_loop && checked_source_emissions(ir,item,checked,entry_module).is_none(){return None;}
-    if checked_source_emissions(ir,item,checked,entry_module).is_some() {
-        let context=source_context?;
+    if has_emitting_loop && checked_source_emissions(ir, item, checked, entry_module).is_none() {
+        return None;
+    }
+    if checked_source_emissions(ir, item, checked, entry_module).is_some() {
+        let context = source_context?;
         context.same_scenario(ir, item)?;
     }
     let mut recipe = NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: checked_source_emissions(ir,item,checked,entry_module),
-            version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None,
-            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source,
+        plan: ReceiptDisclosurePlan {
+            retained_guarded_handler: None,
+            source_loops: None,
+            source_emissions: checked_source_emissions(ir, item, checked, entry_module),
+            version: 1,
+            event_decision: None,
+            term_decision: None,
+            leave_request_decision: None,
+            leave_decide_decision: None,
+            refer_reject_decision: None,
+            member_retry_decision: None,
+            rent_movement_refund_decision: None,
+            invoice_collect_decision: None,
+            rent_notice_decision: None,
+            invoice_issue_decision: None,
+            observe_venue_decision: None,
+            success_renewal_decision: None,
+            purchase_receive_all: None,
+            event_notice_audit: None,
+            source,
             queries: effective_plan.map_or_else(Vec::new, |plan| plan.queries.clone()),
             returns: Vec::new(),
         },
@@ -2317,21 +2658,54 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     if updated_model_owner || copy_loop.is_some() {
         let mut loops = Vec::new();
         for effect in &checked.effects {
-            let DisclosureEffectKind::ForMember {domain,maximum,parameter,model,..} = &effect.kind else {continue;};
+            let DisclosureEffectKind::ForMember {
+                domain,
+                maximum,
+                parameter,
+                model,
+                ..
+            } = &effect.kind
+            else {
+                continue;
+            };
             let parameter = ir.items.get(parameter.0 as usize)?;
-            let IrItemKind::Param {ty:IrType::Known(ResolvedType::Record {symbol:parent,..}),..} = &parameter.kind else {return None;};
+            let IrItemKind::Param {
+                ty: IrType::Known(ResolvedType::Record { symbol: parent, .. }),
+                ..
+            } = &parameter.kind
+            else {
+                return None;
+            };
             let parent = ir.items.get(parent.0 as usize)?;
             let model = ir.items.get(model.0 as usize)?;
-            let id = sha256_hex(format!("source-loop/v1:{}:{}:{}:{}:{}:{}:{}:{}",checked.source.path,
-                checked.source.sha256,item.canonical,effect.node.start,effect.node.end,domain.start,domain.end,maximum).as_bytes());
-            let mut loop_=serde_json::json!({"id":id,"node":{"start":effect.node.start,"end":effect.node.end},
+            let id = sha256_hex(
+                format!(
+                    "source-loop/v1:{}:{}:{}:{}:{}:{}:{}:{}",
+                    checked.source.path,
+                    checked.source.sha256,
+                    item.canonical,
+                    effect.node.start,
+                    effect.node.end,
+                    domain.start,
+                    domain.end,
+                    maximum
+                )
+                .as_bytes(),
+            );
+            let mut loop_ = serde_json::json!({"id":id,"node":{"start":effect.node.start,"end":effect.node.end},
                 "domain":{"start":domain.start,"end":domain.end},"maximum":maximum,"parameter":parameter.name,
                 "parentModel":parent.canonical,"model":model.canonical,"filtered":domain.kind==SyntaxKind::Query as u8});
-            if let Some(copy)=&copy_loop {loop_["copy"]=copy.clone();}
+            if let Some(copy) = &copy_loop {
+                loop_["copy"] = copy.clone();
+            }
             loops.push(loop_);
         }
-        if loops.is_empty() {return None;}
-        recipe.plan.source_loops = Some(serde_json::json!({"source":recipe.plan.source,"owner":item.canonical,"loops":loops}));
+        if loops.is_empty() {
+            return None;
+        }
+        recipe.plan.source_loops = Some(
+            serde_json::json!({"source":recipe.plan.source,"owner":item.canonical,"loops":loops}),
+        );
     }
     recipe.plan.purchase_receive_all = purchase_all;
     if item.canonical == "events.attendee_notice" {
@@ -2537,7 +2911,8 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     .is_some_and(|expressions| matches!(expressions.as_slice(), [expression]
                         if db.is_some_and(|db| checked_set_parent_receiver(ir, item, expression, db).is_some())));
             if (result_identity.is_none()
-                && !is_transition && !parent_set
+                && !is_transition
+                && !parent_set
                 && dependency.node.kind != SyntaxKind::Member as u8)
                 || dependency.id.is_empty()
                 || intrinsic_ids.contains_key(&dependency.id)
@@ -2584,25 +2959,44 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             {
                 return None;
             }
-            let source_dependency_id = profile_scalar_pair.map(|(reference, _)| reference.id.clone())
-                .or_else(|| reminder_recipient.as_ref().and_then(|(source, leaf)| {
-                    if dependency.id != *leaf { return None; }
-                    let mut source_reads = returned.dependencies.iter().filter(|read|
-                        read.id == *source && read.model_name == "appointments.Appointment"
-                            && read.field_name == "contact" && read.type_id == "customer.Contact"
-                            && read.role == DependencyRole::Data && read.calls.is_empty()
-                            && read.query_id.is_none() && read.source == dependency.source);
-                    let source_read = source_reads.next()?;
-                    if source_reads.next().is_some()
-                        || dependency.model_name != "customer.Contact"
-                        || dependency.field_name != "email"
-                        || dependency.role != DependencyRole::Data
-                        || !dependency.calls.is_empty() || dependency.query_id.is_some()
-                        || returned.dependencies.iter().position(|read| read == source_read)?
-                            >= returned.dependencies.iter().position(|read| read == dependency)?
-                    { return None; }
-                    Some(source.clone())
-                }));
+            let source_dependency_id = profile_scalar_pair
+                .map(|(reference, _)| reference.id.clone())
+                .or_else(|| {
+                    reminder_recipient.as_ref().and_then(|(source, leaf)| {
+                        if dependency.id != *leaf {
+                            return None;
+                        }
+                        let mut source_reads = returned.dependencies.iter().filter(|read| {
+                            read.id == *source
+                                && read.model_name == "appointments.Appointment"
+                                && read.field_name == "contact"
+                                && read.type_id == "customer.Contact"
+                                && read.role == DependencyRole::Data
+                                && read.calls.is_empty()
+                                && read.query_id.is_none()
+                                && read.source == dependency.source
+                        });
+                        let source_read = source_reads.next()?;
+                        if source_reads.next().is_some()
+                            || dependency.model_name != "customer.Contact"
+                            || dependency.field_name != "email"
+                            || dependency.role != DependencyRole::Data
+                            || !dependency.calls.is_empty()
+                            || dependency.query_id.is_some()
+                            || returned
+                                .dependencies
+                                .iter()
+                                .position(|read| read == source_read)?
+                                >= returned
+                                    .dependencies
+                                    .iter()
+                                    .position(|read| read == dependency)?
+                        {
+                            return None;
+                        }
+                        Some(source.clone())
+                    })
+                });
             let current_reference = current_sites.as_ref().is_some_and(|current| {
                 [
                     current.presence_read.control,
@@ -2657,13 +3051,26 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 };
                 (base.as_ref(), field, None)
             };
-            let optional_selected = result_identity.is_none() && !is_transition
-                && sites.members.get(&site).and_then(|expressions|expressions.first())
-                    .and_then(|expression|db.and_then(|db|checked_first_optional_actor_member(ir,item,expression,db)))
-                    .is_some_and(|field|field.id==dependency.field && field.owner==dependency.model
-                        && field.ty==dependency.ty && dependency.role==DependencyRole::Data);
+            let optional_selected = result_identity.is_none()
+                && !is_transition
+                && sites
+                    .members
+                    .get(&site)
+                    .and_then(|expressions| expressions.first())
+                    .and_then(|expression| {
+                        db.and_then(|db| {
+                            checked_first_optional_actor_member(ir, item, expression, db)
+                        })
+                    })
+                    .is_some_and(|field| {
+                        field.id == dependency.field
+                            && field.owner == dependency.model
+                            && field.ty == dependency.ty
+                            && dependency.role == DependencyRole::Data
+                    });
             if field != &dependency.field_name
-                || !current_published && !optional_selected
+                || !current_published
+                    && !optional_selected
                     && base.ty
                         != (ResolvedType::Record {
                             symbol: dependency.model,
@@ -2742,8 +3149,29 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     checked_reference_model_result(ir, item, expression, models, db?)?
                 } else {
                     checked_parameter_row_id(ir, item, expression, models, db?)
-                        .or_else(||db.and_then(|db|checked_sealed_narrowed_parameter_id(ir,item,expression,models,db,sealed_created_tail)))
-                        .or_else(||db.and_then(|db|checked_sealed_created_row_id(ir,item,expression,db,sealed_created_tail)))?
+                        .or_else(|| {
+                            db.and_then(|db| {
+                                checked_sealed_narrowed_parameter_id(
+                                    ir,
+                                    item,
+                                    expression,
+                                    models,
+                                    db,
+                                    sealed_created_tail,
+                                )
+                            })
+                        })
+                        .or_else(|| {
+                            db.and_then(|db| {
+                                checked_sealed_created_row_id(
+                                    ir,
+                                    item,
+                                    expression,
+                                    db,
+                                    sealed_created_tail,
+                                )
+                            })
+                        })?
                 };
                 if original.id != dependency.model || original.canonical != dependency.model_name {
                     return None;
@@ -2754,8 +3182,14 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     return None;
                 }
                 let expression = sites.members.get(&site)?.first()?;
-                let (child,parent) = if !dependency.calls.is_empty() {
-                    checked_helper_parent_reference(source_context?,item,dependency,expression,checked.source_facts.as_deref()?)?
+                let (child, parent) = if !dependency.calls.is_empty() {
+                    checked_helper_parent_reference(
+                        source_context?,
+                        item,
+                        dependency,
+                        expression,
+                        checked.source_facts.as_deref()?,
+                    )?
                 } else if dependency.query_id.is_some() {
                     let (child, parent, query_id) = checked_candidate_parent_association(
                         ir, item, dependency, expression, db?,
@@ -2836,8 +3270,11 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                         || expected_fields.next().is_some()
                         || serde_json::to_value(expected_model).ok()?
                             != serde_json::to_value(descriptors[0]).ok()?
-                        || declared[0].nullable && !(reference_operand_type_id(ir,&dependency.ty).is_some()
-                            && profile_scalar_pair.is_some_and(|(reference,_)|matches!(&reference.ty,ResolvedType::Nullable(_))))
+                        || declared[0].nullable
+                            && !(reference_operand_type_id(ir, &dependency.ty).is_some()
+                                && profile_scalar_pair.is_some_and(|(reference, _)| {
+                                    matches!(&reference.ty, ResolvedType::Nullable(_))
+                                }))
                         || declared[0].server_only
                         || declared[0].array_required.is_some()
                         || declared[0].machine.is_some()
@@ -2850,21 +3287,34 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 }
                 if !matches!(base.expr, IrExpr::Name(_)) {
                     if let Some((reference, scalar)) = profile_scalar_pair {
-                        if (reference.ty != base.ty && checked_narrowed_if_reference(ir,item,base,db?).map(|field|field.id)!=Some(reference.field)) || scalar.model != dependency.model {
+                        if (reference.ty != base.ty
+                            && checked_narrowed_if_reference(ir, item, base, db?)
+                                .map(|field| field.id)
+                                != Some(reference.field))
+                            || scalar.model != dependency.model
+                        {
                             return None;
                         }
                     } else if checked_notice_event_row_path(ir, item, base, db?)
-                        == Some(dependency.model) {
+                        == Some(dependency.model)
+                    {
                         let facts = checked.source_facts.as_deref()?;
-                        let mut source_schemas = facts.stored_contracts.as_deref()?.iter()
+                        let mut source_schemas = facts
+                            .stored_contracts
+                            .as_deref()?
+                            .iter()
                             .filter(|schema| schema.model && schema.id == dependency.model);
                         let source_schema = source_schemas.next()?;
-                        let mut source_fields = source_schema.fields.iter()
+                        let mut source_fields = source_schema
+                            .fields
+                            .iter()
                             .filter(|field| field.id == dependency.field);
                         let source_field = source_fields.next()?;
-                        if source_schemas.next().is_some() || source_fields.next().is_some()
+                        if source_schemas.next().is_some()
+                            || source_fields.next().is_some()
                             || source_field.name != dependency.field_name
-                            || source_field.ty != dependency.ty {
+                            || source_field.ty != dependency.ty
+                        {
                             return None;
                         }
                         match_stored_contract_schema(ir, source_schema, db?)?;
@@ -2881,8 +3331,20 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                             return None;
                         }
                         match_stored_contract_field(ir, original, db?)?;
-                    } else if !dependency.calls.is_empty() && source_context.zip(checked.source_facts.as_deref()).is_some_and(|(context,facts)|
-                        checked_helper_identity_reference(context,item,dependency,sites.members[&site][0],facts).is_some()) {
+                    } else if !dependency.calls.is_empty()
+                        && source_context
+                            .zip(checked.source_facts.as_deref())
+                            .is_some_and(|(context, facts)| {
+                                checked_helper_identity_reference(
+                                    context,
+                                    item,
+                                    dependency,
+                                    sites.members[&site][0],
+                                    facts,
+                                )
+                                .is_some()
+                            })
+                    {
                         // Its original helper parent path is sealed together with the field below.
                     } else if !current_published {
                         let (_, parent) = checked_parent_reference(ir, item, base, db?)?;
@@ -2900,7 +3362,16 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                             .any(|query| query.first.is_some() && query.model == dependency.model)
                     })
                     && !optional_selected
-                    && checked_created_row_operand(ir, item, base, dependency.model, db?, recipe.plan.purchase_receive_all.is_some(), sealed_created_tail).is_none()
+                    && checked_created_row_operand(
+                        ir,
+                        item,
+                        base,
+                        dependency.model,
+                        db?,
+                        recipe.plan.purchase_receive_all.is_some(),
+                        sealed_created_tail,
+                    )
+                    .is_none()
                     && checked_first_query_row(ir, item, base, db?)?.id != dependency.model
                 {
                     return None;
@@ -2936,7 +3407,13 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     }
                     let expression = sites.members.get(&site)?.first()?;
                     let original = if !dependency.calls.is_empty() {
-                        checked_helper_identity_reference(source_context?,item,dependency,expression,checked.source_facts.as_deref()?)?
+                        checked_helper_identity_reference(
+                            source_context?,
+                            item,
+                            dependency,
+                            expression,
+                            checked.source_facts.as_deref()?,
+                        )?
                     } else if let Some((reference, _)) = profile_source_pair {
                         checked
                             .source_facts
@@ -2949,8 +3426,15 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                             .iter()
                             .find(|field| field.id == reference.field)?
                     } else {
-                        stored_reference_operand(ir, item, expression, db?)
-                            .or_else(|| checked_sealed_created_reference(ir,item,expression,db?,sealed_created_tail))?
+                        stored_reference_operand(ir, item, expression, db?).or_else(|| {
+                            checked_sealed_created_reference(
+                                ir,
+                                item,
+                                expression,
+                                db?,
+                                sealed_created_tail,
+                            )
+                        })?
                     };
                     if original.id != stored.id
                         || reference_type != dependency.type_id
@@ -2967,11 +3451,17 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     let nullable = matches!(ty, ResolvedType::Nullable(_));
                     let expected = if nullable { "file?" } else { "file" };
                     let descriptor = declared[0];
-                    if transition.is_some() || dependency.role != DependencyRole::Data
-                        || dependency.type_id != expected || !matches!(descriptor.field, JsModelFieldType::File)
-                        || descriptor.value_type.as_deref() != Some(expected) || descriptor.nullable != nullable
-                        || descriptor.array_required.is_some() || descriptor.machine.is_some()
-                    { return None; }
+                    if transition.is_some()
+                        || dependency.role != DependencyRole::Data
+                        || dependency.type_id != expected
+                        || !matches!(descriptor.field, JsModelFieldType::File)
+                        || descriptor.value_type.as_deref() != Some(expected)
+                        || descriptor.nullable != nullable
+                        || descriptor.array_required.is_some()
+                        || descriptor.machine.is_some()
+                    {
+                        return None;
+                    }
                     expected.into()
                 } else if matches!(ty, ResolvedType::Array { element, .. }
                     if **element == ResolvedType::Scalar(Scalar::File))
@@ -3008,8 +3498,24 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                             .find(|field| field.id == dependency.field)?
                     } else {
                         stored_file_array_operand(ir, item, expression, db?)
-                            .or_else(||checked_stored_file_array_create_operand(source_context?,ir,item,expression,db?))
-                            .or_else(||checked_created_file_array_send_operand(ir,item,expression,db?,sealed_created_tail))?
+                            .or_else(|| {
+                                checked_stored_file_array_create_operand(
+                                    source_context?,
+                                    ir,
+                                    item,
+                                    expression,
+                                    db?,
+                                )
+                            })
+                            .or_else(|| {
+                                checked_created_file_array_send_operand(
+                                    ir,
+                                    item,
+                                    expression,
+                                    db?,
+                                    sealed_created_tail,
+                                )
+                            })?
                     };
                     if original.id != stored.id
                         || !stored_file_array_descriptor_matches(ir, original, declared[0])
@@ -3302,13 +3808,23 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 } => {
                     let nested = checked_contract_parameter_path(ir, item, expression, db);
                     let event_scalar = item.canonical == "events.attendee_notice"
-                        && [("eventKind","kind"),("eventBody","body")].iter().any(|(slot,field)|
-                            parameter_name == slot && db.is_some_and(|db| checked_notice_event_field(ir,item,expression,field,db) == Some(*parameter)));
+                        && [("eventKind", "kind"), ("eventBody", "body")].iter().any(
+                            |(slot, field)| {
+                                parameter_name == slot
+                                    && db.is_some_and(|db| {
+                                        checked_notice_event_field(ir, item, expression, field, db)
+                                            == Some(*parameter)
+                                    })
+                            },
+                        );
                     let event_revision = parameter_name == "eventRevision"
                         && checked_notice_event_field(ir, item, expression, "revision", db?)
                             == Some(*parameter);
-                    if !matches!(expression.expr, IrExpr::Name(_)) && nested.is_none()
-                        && !event_revision && !event_scalar {
+                    if !matches!(expression.expr, IrExpr::Name(_))
+                        && nested.is_none()
+                        && !event_revision
+                        && !event_scalar
+                    {
                         return None;
                     }
                     if let Some((root, path)) = &nested {
@@ -3320,12 +3836,28 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     }
                     if let ResolvedType::Scalar(scalar) = &intrinsic.ty {
                         if !crate::analysis::scenario_disclosure::primitive_type(&intrinsic.ty)
-                            || intrinsic.type_id != scalar.as_str() { return None; }
+                            || intrinsic.type_id != scalar.as_str()
+                        {
+                            return None;
+                        }
                     } else if event_scalar && parameter_name == "eventKind" {
-                        let ResolvedType::Enum {owner:Some(kind),cases} = &intrinsic.ty else {return None;};
-                        if ir.items.get(kind.0 as usize)?.canonical != "events.Notice.kind" || intrinsic.type_id != "enum(confirmation,change,cancellation)"
-                            || cases != &["confirmation","change","cancellation"] || expression.ty != intrinsic.ty {return None;}
-                    } else {return None;}
+                        let ResolvedType::Enum {
+                            owner: Some(kind),
+                            cases,
+                        } = &intrinsic.ty
+                        else {
+                            return None;
+                        };
+                        if ir.items.get(kind.0 as usize)?.canonical != "events.Notice.kind"
+                            || intrinsic.type_id != "enum(confirmation,change,cancellation)"
+                            || cases != &["confirmation", "change", "cancellation"]
+                            || expression.ty != intrinsic.ty
+                        {
+                            return None;
+                        }
+                    } else {
+                        return None;
+                    }
                     if !event_revision && !event_scalar {
                         let parameter_item = ir.items.get(parameter.0 as usize)?;
                         let IrItemKind::Param {
@@ -3334,7 +3866,10 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                             ty: IrType::Known(parameter_ty),
                             default,
                             ..
-                        } = &parameter_item.kind else { return None; };
+                        } = &parameter_item.kind
+                        else {
+                            return None;
+                        };
                         if parameter_item.id != *parameter
                             || *parameter_owner != item.id
                             || params.get(*index) != Some(parameter)
@@ -3342,7 +3877,9 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                                 && (parameter_item.name != *parameter_name
                                     || parameter_ty != &intrinsic.ty))
                             || default.is_some()
-                        { return None; }
+                        {
+                            return None;
+                        }
                     }
                     NativeIntrinsicKind::AdmittedInput {
                         parameter: parameter_name.clone(),
@@ -3360,7 +3897,8 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     let nested = checked_contract_parameter_path(ir, item, base, db);
                     let event_field = checked_delivery_event_row_name(item)
                         .and_then(|name| checked_notice_event_field(ir, item, base, name, db?));
-                    let event_term = parameter_name == "eventTerm" && event_field == Some(*parameter);
+                    let event_term =
+                        parameter_name == "eventTerm" && event_field == Some(*parameter);
                     if let Some((root, path)) = &nested {
                         if root != parameter || path != parameter_name {
                             return None;
@@ -3368,7 +3906,9 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                         checked_contract_parameter_row(ir, item, base, models, db?)?;
                     }
                     if field != "version"
-                        || (!matches!(base.expr, IrExpr::Name(_)) && nested.is_none() && !event_term)
+                        || (!matches!(base.expr, IrExpr::Name(_))
+                            && nested.is_none()
+                            && !event_term)
                         || base.ty
                             != (ResolvedType::Record {
                                 symbol: *model,
@@ -3388,14 +3928,20 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                             ty: IrType::Known(parameter_ty),
                             default,
                             ..
-                        } = &parameter_item.kind else { return None; };
+                        } = &parameter_item.kind
+                        else {
+                            return None;
+                        };
                         if parameter_item.id != *parameter
                             || *parameter_owner != item.id
                             || params.get(*index) != Some(parameter)
                             || (nested.is_none()
-                                && (parameter_item.name != *parameter_name || parameter_ty != &base.ty))
+                                && (parameter_item.name != *parameter_name
+                                    || parameter_ty != &base.ty))
                             || default.is_some()
-                        { return None; }
+                        {
+                            return None;
+                        }
                     }
                     let model_item = ir.items.get(model.0 as usize)?;
                     if model_item.id != *model
@@ -3936,7 +4482,12 @@ pub(super) fn predicate_conjuncts(
     let mut pending = vec![root];
     let mut leaves = Vec::new();
     while let Some(node) = pending.pop() {
-        if let IrExpr::Binary { op: IrBinOp::And, left, right } = &node.expr {
+        if let IrExpr::Binary {
+            op: IrBinOp::And,
+            left,
+            right,
+        } = &node.expr
+        {
             if boolean_joins && node.ty != ResolvedType::Scalar(Scalar::Bool) {
                 return None;
             }
@@ -3967,12 +4518,21 @@ pub(super) fn predicate_member_leaf<'a>(
     alias: &str,
 ) -> Option<PredicateMemberLeaf<'a>> {
     let (member, operand) = match &leaf.expr {
-        IrExpr::Binary { op: IrBinOp::Eq, left, right } =>
-            (left.as_ref(), Some(right.as_ref())),
+        IrExpr::Binary {
+            op: IrBinOp::Eq,
+            left,
+            right,
+        } => (left.as_ref(), Some(right.as_ref())),
         IrExpr::Member { .. } => (leaf, None),
         _ => return None,
     };
-    let IrExpr::Member { base: receiver, field } = &member.expr else { return None; };
+    let IrExpr::Member {
+        base: receiver,
+        field,
+    } = &member.expr
+    else {
+        return None;
+    };
     if !matches!(&receiver.expr, IrExpr::Name(name) if name == alias)
         || leaf.ty != ResolvedType::Scalar(Scalar::Bool)
         || match operand {
@@ -3982,7 +4542,12 @@ pub(super) fn predicate_member_leaf<'a>(
     {
         return None;
     }
-    Some(PredicateMemberLeaf { member, receiver, field, operand })
+    Some(PredicateMemberLeaf {
+        member,
+        receiver,
+        field,
+        operand,
+    })
 }
 
 pub(super) fn checked_any_first_query_ir<'a>(
@@ -4092,8 +4657,12 @@ pub(super) fn checked_any_first_query_ir<'a>(
         (&parent_base.span, &parent_base.ty),
     ];
     for (leaf, dependency) in leaves.iter().zip(any.dependencies.iter()) {
-        let PredicateMemberLeaf { member, receiver, field: field_name, operand } =
-            predicate_member_leaf(leaf, param)?;
+        let PredicateMemberLeaf {
+            member,
+            receiver,
+            field: field_name,
+            operand,
+        } = predicate_member_leaf(leaf, param)?;
         let member_ty = &member.ty;
         if receiver.ty != record
             || dependency.ty != *member_ty
@@ -4117,7 +4686,11 @@ pub(super) fn checked_any_first_query_ir<'a>(
             // an operand base); anything else keeps the refusal. The base
             // spelling, member field bytes, and (span, type) census below
             // seal the exact authored expression.
-            let IrExpr::Member { base, field: operand_field } = &operand.expr else {
+            let IrExpr::Member {
+                base,
+                field: operand_field,
+            } = &operand.expr
+            else {
                 return None;
             };
             let IrExpr::Name(operand_base) = &base.expr else {
@@ -4144,9 +4717,7 @@ pub(super) fn checked_any_first_query_ir<'a>(
                     let item = ir.items.get(id.0 as usize)?;
                     (item.name == *operand_base).then_some(item)
                 });
-                let Some(owner_param) = owner_param else {
-                    return None;
-                };
+                let owner_param = owner_param?;
                 if operand_text != format!("{operand_base}.{operand_field}")
                     || owner_param.name == *param
                 {
@@ -4209,10 +4780,7 @@ pub(super) fn checked_any_first_query_ir<'a>(
                 overload: 0,
             })
         || original_call.arguments
-            != vec![
-                (any.node, array.clone()),
-                (any.predicate?, boolean.clone()),
-            ]
+            != vec![(any.node, array.clone()), (any.predicate?, boolean.clone())]
         || original_call.slots != [Some(0), Some(1)]
         || !original_call.defaults.is_empty()
         || !original_call.chain.is_empty()
@@ -4342,8 +4910,7 @@ pub(super) fn checked_native_any_query_plan<'a>(
     // shared sealed lineage; the legacy direct shape keeps the parameter's
     // own declared model.
     let parent_model = if composition {
-        let (_, _, _, _, resolved) =
-            checked_any_first_parent(ir, owner, query, operand, db)?;
+        let (_, _, _, _, resolved) = checked_any_first_parent(ir, owner, query, operand, db)?;
         resolved
     } else {
         let IrItemKind::Param {
@@ -4362,7 +4929,12 @@ pub(super) fn checked_native_any_query_plan<'a>(
             parameter: parameter.name.clone(),
         },
     };
-    receipt_unordered_query(query, entry, Some(parent), receipt_query_dependencies(query, entry)?)
+    receipt_unordered_query(
+        query,
+        entry,
+        Some(parent),
+        receipt_query_dependencies(query, entry)?,
+    )
 }
 
 /// Direct leading-`any` plan for the `[any, first]` composition: the checked
@@ -4602,7 +5174,11 @@ fn guard_any_fragment(
         return None;
     }
     let outer = query.dependencies.first()?.calls.as_slice();
-    if query.dependencies.iter().any(|read| read.calls.as_slice() != outer) {
+    if query
+        .dependencies
+        .iter()
+        .any(|read| read.calls.as_slice() != outer)
+    {
         return None;
     }
     // Guard-any fragments claim no containment scope: a direct query may
@@ -4632,7 +5208,12 @@ fn guard_any_fragment(
         };
         find_nested_guard_any(ir, guards, query, *outer)?;
     }
-    receipt_unordered_query(query, entry, None, receipt_query_dependencies(query, entry)?)
+    receipt_unordered_query(
+        query,
+        entry,
+        None,
+        receipt_query_dependencies(query, entry)?,
+    )
 }
 
 /// A local executable plan for guard-only plain boolean `any` queries: one
@@ -4652,12 +5233,9 @@ fn checked_guard_any_query_plan(
     }
     if !checked.returns.iter().any(|returned| {
         returned.influences.iter().any(|influence| {
-            queries.iter().any(|query| {
-                query
-                    .influences
-                    .iter()
-                    .any(|own| own.id == influence.id)
-            })
+            queries
+                .iter()
+                .any(|query| query.influences.iter().any(|own| own.id == influence.id))
         })
     }) {
         return None;
@@ -4687,25 +5265,46 @@ fn checked_guard_any_query_plan(
         }
         let mut influences = Vec::new();
         for own in &backed {
-            influences.extend(own.iter().filter(|value| {
-                returned
-                    .influences
-                    .iter()
-                    .any(|original| original.id == value.id)
-            }).cloned());
+            influences.extend(
+                own.iter()
+                    .filter(|value| {
+                        returned
+                            .influences
+                            .iter()
+                            .any(|original| original.id == value.id)
+                    })
+                    .cloned(),
+            );
         }
-        if !returned.influences.iter().all(|original| {
-            influences
-                .iter()
-                .any(|value| value.id == original.id)
-        }) {
+        if !returned
+            .influences
+            .iter()
+            .all(|original| influences.iter().any(|value| value.id == original.id))
+        {
             return None;
         }
         returns.push(receipt_return(returned, entry, influences)?);
     }
-    Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
-        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&facts.source, entry)?,
+    Some(ReceiptDisclosurePlan {
+        retained_guarded_handler: None,
+        source_loops: None,
+        source_emissions: None,
+        version: 1,
+        event_decision: None,
+        term_decision: None,
+        leave_request_decision: None,
+        leave_decide_decision: None,
+        refer_reject_decision: None,
+        member_retry_decision: None,
+        rent_movement_refund_decision: None,
+        invoice_collect_decision: None,
+        rent_notice_decision: None,
+        invoice_issue_decision: None,
+        observe_venue_decision: None,
+        success_renewal_decision: None,
+        purchase_receive_all: None,
+        event_notice_audit: None,
+        source: transport_source(&facts.source, entry)?,
         queries: fragments,
         returns,
     })
@@ -4718,7 +5317,7 @@ pub(super) fn checked_native_any_direct_query_plan(
     db: &SourceDb,
     entry: &str,
 ) -> Option<ReceiptDisclosurePlan> {
-    use crate::analysis::scenario_disclosure::{InfluenceKind, ScenarioDisclosure};
+    use crate::analysis::scenario_disclosure::ScenarioDisclosure;
     let fragment = checked_native_any_query_plan(ir, owner, query, db, entry)?;
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
     let census = checked_native_query_influences(facts.queries.as_deref()?)?;
@@ -4755,17 +5354,41 @@ pub(super) fn checked_native_any_direct_query_plan(
     if kinds.len() != 4 {
         return None;
     }
-    Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
-        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
+    Some(ReceiptDisclosurePlan {
+        retained_guarded_handler: None,
+        source_loops: None,
+        source_emissions: None,
+        version: 1,
+        event_decision: None,
+        term_decision: None,
+        leave_request_decision: None,
+        leave_decide_decision: None,
+        refer_reject_decision: None,
+        member_retry_decision: None,
+        rent_movement_refund_decision: None,
+        invoice_collect_decision: None,
+        rent_notice_decision: None,
+        invoice_issue_decision: None,
+        observe_venue_decision: None,
+        success_renewal_decision: None,
+        purchase_receive_all: None,
+        event_notice_audit: None,
+        source: transport_source(&query.source, entry)?,
         queries: vec![fragment],
         returns: checked
             .returns
             .iter()
             .map(|returned| {
-                let selected = influences.iter().filter(|value| {
-                    returned.influences.iter().any(|original| original.id == value.id)
-                }).cloned().collect();
+                let selected = influences
+                    .iter()
+                    .filter(|value| {
+                        returned
+                            .influences
+                            .iter()
+                            .any(|original| original.id == value.id)
+                    })
+                    .cloned()
+                    .collect();
                 receipt_return(returned, entry, selected)
             })
             .collect::<Option<Vec<_>>>()?,
@@ -4878,17 +5501,28 @@ pub(super) fn checked_purchase_helper_query_influences(
     facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
 ) -> Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
     let queries = facts.queries.as_deref()?;
-    let [created] = facts.creates.as_deref()? else { return None; };
-    if facts.source.module != "purchase" || queries.len() != 2 || created.binding != "receipt" { return None; }
+    let [created] = facts.creates.as_deref()? else {
+        return None;
+    };
+    if facts.source.module != "purchase" || queries.len() != 2 || created.binding != "receipt" {
+        return None;
+    }
     let mut first = queries.iter().filter(|query| query.first.is_some());
     let replay = first.next()?;
-    if first.next().is_some() || replay.model_name != "purchase.Receipt" || created.model != replay.model
-        || replay.count.is_some() || replay.projection.is_some() || replay.cardinality_guard.is_some()
-    { return None; }
+    if first.next().is_some()
+        || replay.model_name != "purchase.Receipt"
+        || created.model != replay.model
+        || replay.count.is_some()
+        || replay.projection.is_some()
+        || replay.cardinality_guard.is_some()
+    {
+        return None;
+    }
     let mut census = Vec::new();
     for query in queries {
-        if query == replay { census.extend(checked_query_influence_census(query)?); }
-        else {
+        if query == replay {
+            census.extend(checked_query_influence_census(query)?);
+        } else {
             census.extend(checked_helper_query_influences(facts, query, true)?);
             let outer = query.dependencies.first()?.calls[0];
             let mut owners = facts.decision_sites.as_deref()?.iter().filter(|site|
@@ -4899,10 +5533,20 @@ pub(super) fn checked_purchase_helper_query_influences(
                     && call.arguments.first().is_some_and(|argument| argument.0 == query.node)
                     && call.arguments.get(1).is_some_and(|argument| Some(argument.0) == query.predicate)));
             owners.next()?;
-            if owners.next().is_some() { return None; }
+            if owners.next().is_some() {
+                return None;
+            }
         }
     }
-    if census.iter().map(|value| &value.id).collect::<HashSet<_>>().len() != census.len() { return None; }
+    if census
+        .iter()
+        .map(|value| &value.id)
+        .collect::<HashSet<_>>()
+        .len()
+        != census.len()
+    {
+        return None;
+    }
     Some(census)
 }
 
@@ -4911,7 +5555,9 @@ pub(super) fn checked_purchase_helper_query_influences(
 pub(super) fn checked_mixed_helper_query_influences(
     facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
 ) -> Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
-    if let Some(census) = checked_purchase_helper_query_influences(facts) { return Some(census); }
+    if let Some(census) = checked_purchase_helper_query_influences(facts) {
+        return Some(census);
+    }
     use crate::analysis::scenario_disclosure::{CheckedDecisionCallTarget, CheckedDecisionStage};
     let queries = facts.queries.as_deref()?;
     if queries.len() != 3 || facts.creates.as_deref()?.len() != 2 {
@@ -4979,13 +5625,19 @@ fn receipt_query_dependencies(
     query: &crate::analysis::scenario_disclosure::DisclosureQuery,
     entry: &str,
 ) -> Option<Vec<ReceiptQueryDependency>> {
-    query.dependencies.iter().map(|read| Some(ReceiptQueryDependency {
-        id: read.id.clone(),
-        source: transport_source(&read.source, entry)?,
-        role: ReceiptRole::Control,
-        field: read.field_name.clone(),
-        type_id: read.type_id.clone(),
-    })).collect()
+    query
+        .dependencies
+        .iter()
+        .map(|read| {
+            Some(ReceiptQueryDependency {
+                id: read.id.clone(),
+                source: transport_source(&read.source, entry)?,
+                role: ReceiptRole::Control,
+                field: read.field_name.clone(),
+                type_id: read.type_id.clone(),
+            })
+        })
+        .collect()
 }
 
 /// Wire layout shared by already checked ANY and COUNT fragments. The caller
@@ -5083,7 +5735,10 @@ fn push_mixed_helper_query(
         return None;
     }
     plan.queries.push(receipt_unordered_query(
-        query, entry, None, receipt_query_dependencies(query, entry)?,
+        query,
+        entry,
+        None,
+        receipt_query_dependencies(query, entry)?,
     )?);
     Some(())
 }
@@ -5218,11 +5873,31 @@ pub(super) fn checked_native_helper_any_query_plan(
             .into(),
         })
         .collect::<Vec<_>>();
-    Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
-        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&facts.source, entry)?,
+    Some(ReceiptDisclosurePlan {
+        retained_guarded_handler: None,
+        source_loops: None,
+        source_emissions: None,
+        version: 1,
+        event_decision: None,
+        term_decision: None,
+        leave_request_decision: None,
+        leave_decide_decision: None,
+        refer_reject_decision: None,
+        member_retry_decision: None,
+        rent_movement_refund_decision: None,
+        invoice_collect_decision: None,
+        rent_notice_decision: None,
+        invoice_issue_decision: None,
+        observe_venue_decision: None,
+        success_renewal_decision: None,
+        purchase_receive_all: None,
+        event_notice_audit: None,
+        source: transport_source(&facts.source, entry)?,
         queries: vec![receipt_unordered_query(
-            query, entry, None, receipt_query_dependencies(query, entry)?,
+            query,
+            entry,
+            None,
+            receipt_query_dependencies(query, entry)?,
         )?],
         returns: checked
             .returns
@@ -5232,7 +5907,9 @@ pub(super) fn checked_native_helper_any_query_plan(
     })
 }
 
-fn single_query_shape_valid(query: &crate::analysis::scenario_disclosure::DisclosureQuery) -> Option<()> {
+fn single_query_shape_valid(
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+) -> Option<()> {
     if query.first.is_some() == query.count.is_some()
         || query.projection.is_some()
         || query.cardinality_guard.is_some()
@@ -5289,22 +5966,32 @@ fn assign_count_first_shape_valid(
     let target = first.first.as_ref()?;
     let (_, count_parameter) = capacity.contained_parent?;
     let (_, first_parameter) = target.contained_parent?;
-    if count.first.is_some() || first.count.is_some()
-        || count.model_name != "member_terms.Seat" || first.model_name != count.model_name
-        || count.model != first.model || count.id == first.id
-        || count.source != first.source || count.return_node != first.return_node
+    if count.first.is_some()
+        || first.count.is_some()
+        || count.model_name != "member_terms.Seat"
+        || first.model_name != count.model_name
+        || count.model != first.model
+        || count.id == first.id
+        || count.source != first.source
+        || count.return_node != first.return_node
         || count_parameter != first_parameter
         || capacity.statement.kind != SyntaxKind::Require as u8
         || capacity.statement.end > target.binding.start
         || !capacity.parent_edges.is_empty()
-        || count.alias.is_none() || count.predicate.is_none()
+        || count.alias.is_none()
+        || count.predicate.is_none()
         || count.dependencies.len() != 1
         || count.dependencies[0].role != DependencyRole::Control
         || count.dependencies[0].field_name != "active"
-        || first.order.len() != 1 || first.order[0].field_name != "id"
-        || first.dependencies.len() != 1 || first.dependencies[0].field_name != "account"
-        || !target.target_consumed || !target.guard_consumed
-    { return None; }
+        || first.order.len() != 1
+        || first.order[0].field_name != "id"
+        || first.dependencies.len() != 1
+        || first.dependencies[0].field_name != "account"
+        || !target.target_consumed
+        || !target.guard_consumed
+    {
+        return None;
+    }
     Some(())
 }
 
@@ -5313,7 +6000,11 @@ fn assign_term_membership(
     term: crate::analysis::SymbolId,
     membership: crate::analysis::SymbolId,
 ) -> bool {
-    value.ty == ResolvedType::Record { symbol: membership, stored: true }
+    value.ty
+        == ResolvedType::Record {
+            symbol: membership,
+            stored: true,
+        }
         && matches!(&value.expr, IrExpr::Member { base, field }
             if field == "parent"
                 && base.ty == ResolvedType::Record { symbol: term, stored: true }
@@ -5330,62 +6021,143 @@ fn checked_assign_header_and_event(
     guards: &[IrStmt],
     effects: &[IrStmt],
 ) -> Option<()> {
-    let IrItemKind::Scenario { params, by, .. } = &owner.kind else { return None; };
-    let [term_id, account_id] = params.as_slice() else { return None; };
+    let IrItemKind::Scenario { params, by, .. } = &owner.kind else {
+        return None;
+    };
+    let [term_id, account_id] = params.as_slice() else {
+        return None;
+    };
     let term = ir.items.get(term_id.0 as usize)?;
     let account = ir.items.get(account_id.0 as usize)?;
     let IrItemKind::Param {
-        owner: term_owner, index: 0,
-        ty: IrType::Known(ResolvedType::Record { symbol: term_model, stored: true }),
-        array_bounds: None, default: None, default_node: None, default_copy_source: None, ..
-    } = &term.kind else { return None; };
+        owner: term_owner,
+        index: 0,
+        ty:
+            IrType::Known(ResolvedType::Record {
+                symbol: term_model,
+                stored: true,
+            }),
+        array_bounds: None,
+        default: None,
+        default_node: None,
+        default_copy_source: None,
+        ..
+    } = &term.kind
+    else {
+        return None;
+    };
     let IrItemKind::Param {
-        owner: account_owner, index: 1,
+        owner: account_owner,
+        index: 1,
         ty: IrType::Known(ResolvedType::Scalar(Scalar::User)),
-        array_bounds: None, default: None, default_node: None, default_copy_source: None, ..
-    } = &account.kind else { return None; };
+        array_bounds: None,
+        default: None,
+        default_node: None,
+        default_copy_source: None,
+        ..
+    } = &account.kind
+    else {
+        return None;
+    };
     let term_model_item = ir.items.get(term_model.0 as usize)?;
-    let IrItemKind::Model { owner: IrOwner::ChildOf(membership_model), .. } = &term_model_item.kind
-        else { return None; };
+    let IrItemKind::Model {
+        owner: IrOwner::ChildOf(membership_model),
+        ..
+    } = &term_model_item.kind
+    else {
+        return None;
+    };
     let membership_item = ir.items.get(membership_model.0 as usize)?;
-    let IrItemKind::Model { owner: IrOwner::ChildOf(customer_model), .. } = &membership_item.kind
-        else { return None; };
+    let IrItemKind::Model {
+        owner: IrOwner::ChildOf(customer_model),
+        ..
+    } = &membership_item.kind
+    else {
+        return None;
+    };
     let customer_item = ir.items.get(customer_model.0 as usize)?;
-    if term.name != "term" || account.name != "account"
-        || *term_owner != owner.id || *account_owner != owner.id
+    if term.name != "term"
+        || account.name != "account"
+        || *term_owner != owner.id
+        || *account_owner != owner.id
         || term_model_item.canonical != "member_terms.Term"
         || membership_item.canonical != "member_terms.Membership"
         || customer_item.canonical != "customer.Customer"
         || !matches!(by.as_slice(), [IrGuard::Role(role)] if role == "authenticated")
-    { return None; }
-    let [_, IrStmt::Require { cond: eligible, .. }, _] = guards else { return None; };
+    {
+        return None;
+    }
+    let [_, IrStmt::Require { cond: eligible, .. }, _] = guards else {
+        return None;
+    };
     let (target, args, slots) = match &eligible.expr {
         IrExpr::Call { target, args } => (target, args.as_slice(), None),
-        IrExpr::BoundCall { target, args, slots } => (target, args.as_slice(), Some(slots.as_slice())),
+        IrExpr::BoundCall {
+            target,
+            args,
+            slots,
+        } => (target, args.as_slice(), Some(slots.as_slice())),
         _ => return None,
     };
-    let [person, customer] = args else { return None; };
-    let IrExpr::Member { base: membership, field } = &customer.expr else { return None; };
+    let [person, customer] = args else {
+        return None;
+    };
+    let IrExpr::Member {
+        base: membership,
+        field,
+    } = &customer.expr
+    else {
+        return None;
+    };
     if eligible.ty != ResolvedType::Scalar(Scalar::Bool)
         || !matches!(target, IrCallTarget::DeriveFn(name) if name == "member_terms.eligible_account")
         || slots.is_some_and(|slots| slots != [Some(0), Some(1)])
         || person.ty != ResolvedType::Scalar(Scalar::User)
         || !matches!(&person.expr, IrExpr::Name(name) if name == "account")
-        || customer.ty != (ResolvedType::Record { symbol: *customer_model, stored: true })
+        || customer.ty
+            != (ResolvedType::Record {
+                symbol: *customer_model,
+                stored: true,
+            })
         || field != "parent"
         || !assign_term_membership(membership, *term_model, *membership_model)
-    { return None; }
-    let [IrStmt::Let { value: selected, .. }, IrStmt::If { .. }, IrStmt::Emit { event, payload, .. }] = effects
-        else { return None; };
+    {
+        return None;
+    }
+    let [
+        IrStmt::Let {
+            value: selected, ..
+        },
+        IrStmt::If { .. },
+        IrStmt::Emit { event, payload, .. },
+    ] = effects
+    else {
+        return None;
+    };
     let (target, args, slots) = match &selected.expr {
         IrExpr::Call { target, args } => (target, args.as_slice(), None),
-        IrExpr::BoundCall { target, args, slots } => (target, args.as_slice(), Some(slots.as_slice())),
+        IrExpr::BoundCall {
+            target,
+            args,
+            slots,
+        } => (target, args.as_slice(), Some(slots.as_slice())),
         _ => return None,
     };
-    let [domain] = args else { return None; };
-    let IrExpr::Query(scan) = &domain.expr else { return None; };
+    let [domain] = args else {
+        return None;
+    };
+    let IrExpr::Query(scan) = &domain.expr else {
+        return None;
+    };
     let predicate = scan.where_pred.as_deref()?;
-    let IrExpr::Binary { op: IrBinOp::Eq, left, right } = &predicate.expr else { return None; };
+    let IrExpr::Binary {
+        op: IrBinOp::Eq,
+        left,
+        right,
+    } = &predicate.expr
+    else {
+        return None;
+    };
     if !matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "first")
         || slots.is_some_and(|slots| slots != [Some(0)])
         || scan.where_param != "row"
@@ -5394,16 +6166,34 @@ fn checked_assign_header_and_event(
         || !matches!(&left.expr, IrExpr::Member { base, field }
             if field == "account" && matches!(&base.expr, IrExpr::Name(name) if name == "row"))
         || !matches!(&right.expr, IrExpr::Name(name) if name == "account")
-    { return None; }
-    let IrExpr::Object(entries) = &payload.expr else { return None; };
-    let [(membership_name, membership), (revision_name, revision)] = entries.as_slice()
-        else { return None; };
-    let IrExpr::Binary { op: IrBinOp::Add, left, right } = &revision.expr else { return None; };
-    let IrExpr::Member { base: revision_membership, field: revision_field } = &left.expr
-        else { return None; };
+    {
+        return None;
+    }
+    let IrExpr::Object(entries) = &payload.expr else {
+        return None;
+    };
+    let [(membership_name, membership), (revision_name, revision)] = entries.as_slice() else {
+        return None;
+    };
+    let IrExpr::Binary {
+        op: IrBinOp::Add,
+        left,
+        right,
+    } = &revision.expr
+    else {
+        return None;
+    };
+    let IrExpr::Member {
+        base: revision_membership,
+        field: revision_field,
+    } = &left.expr
+    else {
+        return None;
+    };
     if event != "member_terms.AccessChanged"
         || payload.ty != ResolvedType::Unknown
-        || membership_name != "membership" || revision_name != "revision"
+        || membership_name != "membership"
+        || revision_name != "revision"
         || !assign_term_membership(membership, *term_model, *membership_model)
         || revision.ty != ResolvedType::Scalar(Scalar::Int)
         || left.ty != ResolvedType::Scalar(Scalar::Int)
@@ -5411,7 +6201,9 @@ fn checked_assign_header_and_event(
         || revision_field != "access_revision"
         || !assign_term_membership(revision_membership, *term_model, *membership_model)
         || !matches!(right.expr, IrExpr::Int(1))
-    { return None; }
+    {
+        return None;
+    }
     Some(())
 }
 
@@ -5420,13 +6212,25 @@ pub(super) fn checked_assign_count_first_target_return_order(
     expected: &[crate::analysis::scenario_disclosure::DisclosureInfluence],
     returned: &[crate::analysis::scenario_disclosure::DisclosureInfluence],
 ) -> bool {
-    let [count, first] = queries else { return false; };
+    let [count, first] = queries else {
+        return false;
+    };
     assign_count_first_shape_valid(count, first).is_some()
-        && count.influences.iter().chain(&first.influences).eq(expected.iter())
-        && first.influences.iter().chain(&count.influences).eq(returned.iter())
+        && count
+            .influences
+            .iter()
+            .chain(&first.influences)
+            .eq(expected.iter())
+        && first
+            .influences
+            .iter()
+            .chain(&count.influences)
+            .eq(returned.iter())
 }
 
-fn ancestor_count_shape_valid(ancestor: &crate::analysis::scenario_disclosure::DisclosureQuery) -> Option<()> {
+fn ancestor_count_shape_valid(
+    ancestor: &crate::analysis::scenario_disclosure::DisclosureQuery,
+) -> Option<()> {
     if ancestor.first.is_some()
         || ancestor.count.is_none()
         || ancestor.projection.is_some()
@@ -5462,7 +6266,10 @@ fn triple_query_shape_valid(
     Some(())
 }
 
-fn any_first_shape_valid(any: &crate::analysis::scenario_disclosure::DisclosureQuery, first: &crate::analysis::scenario_disclosure::DisclosureQuery) -> Option<()> {
+fn any_first_shape_valid(
+    any: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    first: &crate::analysis::scenario_disclosure::DisclosureQuery,
+) -> Option<()> {
     if any.first.is_some()
         || any.count.is_some()
         || any.projection.is_some()
@@ -5546,9 +6353,15 @@ pub(super) fn checked_native_query_influences(
 ) -> Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
     match queries {
         [query] => single_query_shape_valid(query)?,
-        [first, count] if first.first.is_some() && count.count.is_some() => pair_query_shape_valid(first, count)?,
-        [count, first] if count.count.is_some() && first.first.is_some() => assign_count_first_shape_valid(count, first)?,
-        [ancestor, first, count] => triple_query_shape_valid(ancestor, first, count, &queries[1..])?,
+        [first, count] if first.first.is_some() && count.count.is_some() => {
+            pair_query_shape_valid(first, count)?
+        }
+        [count, first] if count.count.is_some() && first.first.is_some() => {
+            assign_count_first_shape_valid(count, first)?
+        }
+        [ancestor, first, count] => {
+            triple_query_shape_valid(ancestor, first, count, &queries[1..])?
+        }
         [any, first] => any_first_shape_valid(any, first)?,
         [any, ancestor, first, count] => {
             any_ancestor_shape_valid(any, ancestor, first, count, &queries[1..])?
@@ -5566,11 +6379,24 @@ pub(super) fn checked_any_first_target_return_order(
     expected: &[crate::analysis::scenario_disclosure::DisclosureInfluence],
     returned: &[crate::analysis::scenario_disclosure::DisclosureInfluence],
 ) -> bool {
-    let [any, first] = queries else { return false; };
-    first.first.as_ref().is_some_and(|first| first.target_consumed)
+    let [any, first] = queries else {
+        return false;
+    };
+    first
+        .first
+        .as_ref()
+        .is_some_and(|first| first.target_consumed)
         && any_first_shape_valid(any, first).is_some()
-        && any.influences.iter().chain(&first.influences).eq(expected.iter())
-        && first.influences.iter().chain(&any.influences).eq(returned.iter())
+        && any
+            .influences
+            .iter()
+            .chain(&first.influences)
+            .eq(expected.iter())
+        && first
+            .influences
+            .iter()
+            .chain(&any.influences)
+            .eq(returned.iter())
 }
 
 /// The original ask composes four ordinary selectors with two independent
@@ -5736,33 +6562,66 @@ fn ordered_group_influences(
 /// Constructor counts may coexist with leading helper collections already
 /// owned by exact source-Require observers. They are not a second query
 /// execution: only COUNT influences may reach the implicit void return.
-pub(super) fn constructor_count_queries<'a>(facts:&'a crate::analysis::scenario_disclosure::CheckedScenarioSource)
-    ->Option<Vec<&'a crate::analysis::scenario_disclosure::DisclosureQuery>> {
+pub(super) fn constructor_count_queries(
+    facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+) -> Option<Vec<&crate::analysis::scenario_disclosure::DisclosureQuery>> {
     use crate::analysis::scenario_disclosure::CheckedDecisionStage;
-    if facts.result.is_some(){return None;}
-    let queries=facts.queries.as_deref()?;
-    let mut counts=Vec::new();
+    if facts.result.is_some() {
+        return None;
+    }
+    let queries = facts.queries.as_deref()?;
+    let mut counts = Vec::new();
     for query in queries {
-        if let Some(count)=&query.count {
-            if count.contained_parent.is_none()||!count.parent_edges.is_empty()||query.first.is_some(){return None;}
-            checked_query_influence_census(query)?;counts.push(query);
-        }else{
-            checked_helper_query_influences(facts,query,true)?;
-            let outer=*query.dependencies.first()?.calls.first()?;
-            let mut sites=facts.source_requires.as_deref()?.iter().filter(|site|
-                site.stage==CheckedDecisionStage::LeadingRequire&&site.owner==facts.scenario&&site.source==facts.source
-                && site.calls.iter().any(|call|call.source==query.source&&call.chain.len()==1&&call.chain[0].node==outer
-                    &&call.arguments.first().is_some_and(|argument|argument.0==query.node)
-                    &&call.arguments.get(1).is_some_and(|argument|Some(argument.0)==query.predicate)));
-            sites.next()?;if sites.next().is_some(){return None;}
+        if let Some(count) = &query.count {
+            if count.contained_parent.is_none()
+                || !count.parent_edges.is_empty()
+                || query.first.is_some()
+            {
+                return None;
+            }
+            checked_query_influence_census(query)?;
+            counts.push(query);
+        } else {
+            checked_helper_query_influences(facts, query, true)?;
+            let outer = *query.dependencies.first()?.calls.first()?;
+            let mut sites = facts.source_requires.as_deref()?.iter().filter(|site| {
+                site.stage == CheckedDecisionStage::LeadingRequire
+                    && site.owner == facts.scenario
+                    && site.source == facts.source
+                    && site.calls.iter().any(|call| {
+                        call.source == query.source
+                            && call.chain.len() == 1
+                            && call.chain[0].node == outer
+                            && call
+                                .arguments
+                                .first()
+                                .is_some_and(|argument| argument.0 == query.node)
+                            && call
+                                .arguments
+                                .get(1)
+                                .is_some_and(|argument| Some(argument.0) == query.predicate)
+                    })
+            });
+            sites.next()?;
+            if sites.next().is_some() {
+                return None;
+            }
         }
     }
-    if counts.is_empty()||counts.len()>2{return None;}
+    if counts.is_empty() || counts.len() > 2 {
+        return None;
+    }
     Some(counts)
 }
-pub(super) fn constructor_count_influences(facts:&crate::analysis::scenario_disclosure::CheckedScenarioSource)
-    ->Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
-    Some(constructor_count_queries(facts)?.into_iter().flat_map(|query|query.influences.clone()).collect())
+pub(super) fn constructor_count_influences(
+    facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+) -> Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
+    Some(
+        constructor_count_queries(facts)?
+            .into_iter()
+            .flat_map(|query| query.influences.clone())
+            .collect(),
+    )
 }
 
 pub(super) fn checked_scenario_query_influences(
@@ -5788,7 +6647,7 @@ pub(super) fn checked_scenario_query_influences(
         return checked_helper_any_influences(facts)
             .or_else(|| checked_mixed_helper_query_influences(facts))
             .or_else(|| checked_native_query_influences(queries))
-            .or_else(||constructor_count_influences(facts));
+            .or_else(|| constructor_count_influences(facts));
     }
     let [early, later] = transcripts else {
         return None;
@@ -5804,25 +6663,53 @@ pub(super) fn checked_scenario_query_influences(
 /// Merge already checked individual selectors, retaining original query and
 /// Return identity/order. Each individual plan contributes only its own four
 /// influences; no complete recipe or ordinary observations are reconstructed.
-fn merged_return_extendable(returned:&ReceiptReturn,counted:&ReceiptReturn,
-    queries:&[ReceiptQuery],added:&ReceiptQuery)->bool {
-    fn subsets(influences:&[ReceiptInfluence],queries:&[ReceiptQuery])->bool {
-        let mut ids=HashSet::new();
-        if influences.iter().any(|influence|!ids.insert(&influence.id)
-            ||!queries.iter().any(|query|influence.query_id.as_deref()==Some(query.id.as_str()))){return false;}
-        queries.iter().all(|query|{
-            let selected:Vec<_>=influences.iter().filter(|value|value.query_id.as_deref()==Some(query.id.as_str())).collect();
-            let kinds:HashSet<_>=selected.iter().map(|value|value.kind.as_str()).collect();
-            selected.is_empty()||selected.len()==4&&kinds==HashSet::from(["query-existence","query-cardinality","query-membership","query-order"])
+fn merged_return_extendable(
+    returned: &ReceiptReturn,
+    counted: &ReceiptReturn,
+    queries: &[ReceiptQuery],
+    added: &ReceiptQuery,
+) -> bool {
+    fn subsets(influences: &[ReceiptInfluence], queries: &[ReceiptQuery]) -> bool {
+        let mut ids = HashSet::new();
+        if influences.iter().any(|influence| {
+            !ids.insert(&influence.id)
+                || !queries
+                    .iter()
+                    .any(|query| influence.query_id.as_deref() == Some(query.id.as_str()))
+        }) {
+            return false;
+        }
+        queries.iter().all(|query| {
+            let selected: Vec<_> = influences
+                .iter()
+                .filter(|value| value.query_id.as_deref() == Some(query.id.as_str()))
+                .collect();
+            let kinds: HashSet<_> = selected.iter().map(|value| value.kind.as_str()).collect();
+            selected.is_empty()
+                || selected.len() == 4
+                    && kinds
+                        == HashSet::from([
+                            "query-existence",
+                            "query-cardinality",
+                            "query-membership",
+                            "query-order",
+                        ])
         })
     }
-    returned.id==counted.id
-        &&serde_json::to_value(&returned.source).ok()==serde_json::to_value(&counted.source).ok()
-        &&returned.dependencies.is_empty()&&counted.dependencies.is_empty()
-        &&returned.intrinsics.is_empty()&&counted.intrinsics.is_empty()
-        &&returned.projection.is_none()&&counted.projection.is_none()
-        &&subsets(&returned.influences,queries)&&subsets(&counted.influences,std::slice::from_ref(added))
-        &&!returned.influences.iter().any(|value|counted.influences.iter().any(|other|other.id==value.id))
+    returned.id == counted.id
+        && serde_json::to_value(&returned.source).ok() == serde_json::to_value(&counted.source).ok()
+        && returned.dependencies.is_empty()
+        && counted.dependencies.is_empty()
+        && returned.intrinsics.is_empty()
+        && counted.intrinsics.is_empty()
+        && returned.projection.is_none()
+        && counted.projection.is_none()
+        && subsets(&returned.influences, queries)
+        && subsets(&counted.influences, std::slice::from_ref(added))
+        && !returned
+            .influences
+            .iter()
+            .any(|value| counted.influences.iter().any(|other| other.id == value.id))
 }
 
 pub(super) fn merge_native_query_plans(
@@ -5913,12 +6800,28 @@ fn first_query_expected_plan(
     db: &SourceDb,
     source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
-    if queries.len()==2&&queries.iter().all(|query|query.count.is_some()) {
-        let originals=constructor_count_queries(checked.source_facts.as_deref()?)?;
-        if !originals.iter().copied().eq(queries.iter()){return None;}
-        let first=checked_native_count_query_plan(ir,owner,&queries[0],db,entry_module,source_context)?;
-        let second=checked_native_count_query_plan(ir,owner,&queries[1],db,entry_module,source_context)?;
-        return merge_native_query_plans(first,second);
+    if queries.len() == 2 && queries.iter().all(|query| query.count.is_some()) {
+        let originals = constructor_count_queries(checked.source_facts.as_deref()?)?;
+        if !originals.iter().copied().eq(queries.iter()) {
+            return None;
+        }
+        let first = checked_native_count_query_plan(
+            ir,
+            owner,
+            &queries[0],
+            db,
+            entry_module,
+            source_context,
+        )?;
+        let second = checked_native_count_query_plan(
+            ir,
+            owner,
+            &queries[1],
+            db,
+            entry_module,
+            source_context,
+        )?;
+        return merge_native_query_plans(first, second);
     }
     match queries {
         [query] if query.count.is_some() => {
@@ -5933,17 +6836,40 @@ fn first_query_expected_plan(
                 checked_native_first_query_source_plan(ir, owner, checked, first, entry_module, db);
             merge_native_query_plans(any_plan?, first_plan?)
         }
-        [count, first] if count.count.is_some() && first.first.is_some() => merge_native_query_plans(
-            checked_native_assign_count_query_plan(ir, owner, checked, count, db, entry_module)?,
-            checked_native_first_query_source_plan(ir, owner, checked, first, entry_module, db)?,
-        ),
+        [count, first] if count.count.is_some() && first.first.is_some() => {
+            merge_native_query_plans(
+                checked_native_assign_count_query_plan(
+                    ir,
+                    owner,
+                    checked,
+                    count,
+                    db,
+                    entry_module,
+                )?,
+                checked_native_first_query_source_plan(
+                    ir,
+                    owner,
+                    checked,
+                    first,
+                    entry_module,
+                    db,
+                )?,
+            )
+        }
         [first, count] => merge_native_query_plans(
             checked_native_first_query_source_plan(ir, owner, checked, first, entry_module, db)?,
             checked_native_count_query_plan(ir, owner, count, db, entry_module, source_context)?,
         ),
         [ancestor, first, count] => merge_native_query_plans(
             merge_native_query_plans(
-                checked_native_count_query_plan(ir, owner, ancestor, db, entry_module, source_context)?,
+                checked_native_count_query_plan(
+                    ir,
+                    owner,
+                    ancestor,
+                    db,
+                    entry_module,
+                    source_context,
+                )?,
                 checked_native_first_query_source_plan(
                     ir,
                     owner,
@@ -5955,7 +6881,7 @@ fn first_query_expected_plan(
             )?,
             checked_native_count_query_plan(ir, owner, count, db, entry_module, source_context)?,
         ),
-        _ => return None,
+        _ => None,
     }
 }
 
@@ -6014,10 +6940,13 @@ fn checked_native_first_query_plan<'a>(
         PlainQueryOutcome::Continue => {}
         PlainQueryOutcome::Done(done) => return done,
     }
-    let constructor=constructor_count_queries(facts);
-    checked_native_query_influences(queries).or_else(||constructor_count_influences(facts))?;
-    let selected:Vec<_>=constructor.as_ref().map(|queries|queries.iter().map(|query|(*query).clone()).collect()).unwrap_or_else(||queries.to_vec());
-    let queries=selected.as_slice();
+    let constructor = constructor_count_queries(facts);
+    checked_native_query_influences(queries).or_else(|| constructor_count_influences(facts))?;
+    let selected: Vec<_> = constructor
+        .as_ref()
+        .map(|queries| queries.iter().map(|query| (*query).clone()).collect())
+        .unwrap_or_else(|| queries.to_vec());
+    let queries = selected.as_slice();
     let plan = supplied?;
     let db = db?;
     let mut expected = first_query_expected_plan(
@@ -6040,9 +6969,9 @@ fn inline_selection_value(
     effects: &[IrStmt],
     statement: crate::analysis::NodeKey,
 ) -> Option<&TypedExpr> {
-    let mut statements = effects.iter().filter(
-        |actual| matches!(actual,IrStmt::Let {span,..} if *span==node_span(statement)),
-    );
+    let mut statements = effects
+        .iter()
+        .filter(|actual| matches!(actual,IrStmt::Let {span,..} if *span==node_span(statement)));
     let IrStmt::Let { value, .. } = statements.next()? else {
         return None;
     };
@@ -6057,9 +6986,11 @@ fn inline_selection_original(
     parent: crate::analysis::SymbolId,
     statement_end: u32,
 ) -> Option<&crate::analysis::scenario_disclosure::CheckedScenarioCreate> {
-    let mut creates = facts.creates.as_deref()?.iter().filter(|created| {
-        created.model == parent && created.node.start >= statement_end
-    });
+    let mut creates = facts
+        .creates
+        .as_deref()?
+        .iter()
+        .filter(|created| created.model == parent && created.node.start >= statement_end);
     let original = creates.next()?;
     if creates.next().is_some() {
         return None;
@@ -6494,10 +7425,12 @@ fn checked_native_transcript_plan<'a>(
             return None;
         };
         let expected_any = checked_native_any_query_plan(ir, owner, any, db, entry)?;
-        let expected_ancestor = checked_native_count_query_plan(ir, owner, ancestor, db, entry, source_context)?;
+        let expected_ancestor =
+            checked_native_count_query_plan(ir, owner, ancestor, db, entry, source_context)?;
         let expected_first =
             checked_native_first_query_source_plan(ir, owner, checked, first, entry, db)?;
-        let expected_count = checked_native_count_query_plan(ir, owner, count, db, entry, source_context)?;
+        let expected_count =
+            checked_native_count_query_plan(ir, owner, count, db, entry, source_context)?;
         for (actual, expected) in [
             (1, &expected_any),
             (2, expected_ancestor.queries.first()?),
@@ -6776,8 +7709,7 @@ fn checked_native_first_query_source_plan(
         &expected_influences,
         &mixed,
         effects,
-    )
-        || !first_query_shape_valid(query, first, scan)
+    ) || !first_query_shape_valid(query, first, scan)
     {
         return None;
     }
@@ -6795,9 +7727,26 @@ fn checked_native_first_query_source_plan(
     // queries keep no parent. Re-proves the disclosure receiver here, so a
     // mismatched parent keeps the source-plan refusal.
     let parent = first_query_receipt_parent(ir, owner, query, scan, db, first, entry_module)?;
-    let expected = ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: checked_source_emissions(ir,owner,checked,entry_module),
-        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&checked.source, entry_module)?,
+    let expected = ReceiptDisclosurePlan {
+        retained_guarded_handler: None,
+        source_loops: None,
+        source_emissions: checked_source_emissions(ir, owner, checked, entry_module),
+        version: 1,
+        event_decision: None,
+        term_decision: None,
+        leave_request_decision: None,
+        leave_decide_decision: None,
+        refer_reject_decision: None,
+        member_retry_decision: None,
+        rent_movement_refund_decision: None,
+        invoice_collect_decision: None,
+        rent_notice_decision: None,
+        invoice_issue_decision: None,
+        observe_venue_decision: None,
+        success_renewal_decision: None,
+        purchase_receive_all: None,
+        event_notice_audit: None,
+        source: transport_source(&checked.source, entry_module)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(),
             source: transport_source(&query.source, entry_module)?,
@@ -6819,9 +7768,16 @@ fn checked_native_first_query_source_plan(
             .returns
             .iter()
             .map(|returned| {
-                let selected = influences.iter().filter(|value| {
-                    returned.influences.iter().any(|original| original.id == value.id)
-                }).cloned().collect();
+                let selected = influences
+                    .iter()
+                    .filter(|value| {
+                        returned
+                            .influences
+                            .iter()
+                            .any(|original| original.id == value.id)
+                    })
+                    .cloned()
+                    .collect();
                 receipt_return(returned, entry_module, selected)
             })
             .collect::<Option<Vec<_>>>()?,
@@ -6844,11 +7800,9 @@ fn checked_first_query_schema<'a>(
     let schema = schemas.next()?;
     if schemas.next().is_some()
         || !schema.model
-        || (schema.module != owner.module
-            && !imported_schema_source(ir, owner, schema))
+        || (schema.module != owner.module && !imported_schema_source(ir, owner, schema))
         || schema.canonical != query.model_name
-        || (schema.source != query.source
-            && !imported_source_corresponds(ir, owner, schema, query))
+        || (schema.source != query.source && !imported_source_corresponds(ir, owner, schema, query))
         || schema.field_order.iter().any(|id| {
             ir.items
                 .get(id.0 as usize)
@@ -6903,13 +7857,7 @@ fn imported_source_corresponds(
     schema: &crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
     query: &crate::analysis::scenario_disclosure::DisclosureQuery,
 ) -> bool {
-    imported_field_source_corresponds(
-        ir,
-        owner,
-        &schema.canonical,
-        &schema.source,
-        &query.source,
-    )
+    imported_field_source_corresponds(ir, owner, &schema.canonical, &schema.source, &query.source)
 }
 
 /// Same-cohort field sources across a proven import: the field source
@@ -7080,45 +8028,88 @@ impl<'ir, 'source> ContainedParentSource<'ir, 'source> {
     ) -> Option<Self> {
         let facts = super::scenario_calls::checked_source(ir, owner, db)?;
         let parameter = ir.items.get(parameter_id.0 as usize)?;
-        let IrItemKind::Scenario { params, read: false, .. } = &owner.kind else {
+        let IrItemKind::Scenario {
+            params,
+            read: false,
+            ..
+        } = &owner.kind
+        else {
             return None;
         };
         let IrItemKind::Param {
-            owner: parameter_owner, index,
-            ty: IrType::Known(ResolvedType::Record { symbol: input_model, stored: true }),
-            array_bounds: None, default: None, default_node: None, default_copy_source: None,
+            owner: parameter_owner,
+            index,
+            ty:
+                IrType::Known(ResolvedType::Record {
+                    symbol: input_model,
+                    stored: true,
+                }),
+            array_bounds: None,
+            default: None,
+            default_node: None,
+            default_copy_source: None,
             ..
-        } = &parameter.kind else { return None; };
+        } = &parameter.kind
+        else {
+            return None;
+        };
         let fact = facts.parameters.get(*index)?;
         let child = checked_first_query_schema(ir, owner, query, db)?;
         let receiver_node = checked_effect_node(ir, owner, receiver, db)?;
         let declaration = checked_effect_node(ir, owner, fact.node, db)?;
-        let name = declaration.children.iter().find(|node| node.kind == SyntaxKind::Name)?;
+        let name = declaration
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::Name)?;
         let text = db.get(receiver.file)?.text.as_str();
         if parameter.id != parameter_id
             || *parameter_owner != owner.id
             || params.get(*index) != Some(&parameter_id)
             || params.iter().filter(|id| **id == parameter_id).count() != 1
             || fact.parameter != parameter_id
-            || fact.ty != (ResolvedType::Record { symbol: *input_model, stored: true })
-            || fact.default.is_some() || fact.constraints.is_some()
+            || fact.ty
+                != (ResolvedType::Record {
+                    symbol: *input_model,
+                    stored: true,
+                })
+            || fact.default.is_some()
+            || fact.constraints.is_some()
             || parameter.module != owner.module
             || parameter.canonical != format!("{}.{}", owner.canonical, parameter.name)
             || parameter.span != name.span
-            || !name.token().is_some_and(|token| token.text(text) == parameter.name)
+            || !name
+                .token()
+                .is_some_and(|token| token.text(text) == parameter.name)
         {
             return None;
         }
-        Some(Self { ir, owner, query, db, facts, parameter, fact,
-            input_model: *input_model, child, receiver: receiver_node, text })
+        Some(Self {
+            ir,
+            owner,
+            query,
+            db,
+            facts,
+            parameter,
+            fact,
+            input_model: *input_model,
+            child,
+            receiver: receiver_node,
+            text,
+        })
     }
 
     fn check_domain_parent(&self, parent_id: crate::analysis::SymbolId) -> Option<()> {
-        let mut parents = self.facts.stored_contracts.as_deref()?.iter()
+        let mut parents = self
+            .facts
+            .stored_contracts
+            .as_deref()?
+            .iter()
             .filter(|schema| schema.model && schema.id == parent_id);
         let parent = parents.next()?;
         if parents.next().is_some()
-            || !contained_query_models_valid(self.ir, self.owner, self.query, self.child, &parent_id, parent)
+            || !contained_query_models_valid(
+                self.ir, self.owner, self.query, self.child, &parent_id, parent,
+            )
         {
             return None;
         }
@@ -7135,16 +8126,25 @@ pub(super) fn checked_first_query_parent<'a>(
 ) -> Option<(&'a IrItem, crate::analysis::SymbolId)> {
     let (receiver, parameter_id) = query.first.as_ref()?.contained_parent?;
     let source = ContainedParentSource::checked(ir, owner, query, receiver, parameter_id, db)?;
-    let receiver_text = source.text.get(receiver.start as usize..receiver.end as usize)?;
+    let receiver_text = source
+        .text
+        .get(receiver.start as usize..receiver.end as usize)?;
     // FIRST retains its exact direct or one-hop authored path and decoded IR
     // base occurrence. The common declaration proof grants neither receiver.
     let (navigation, nav_base) = first_query_navigation(
-        source.text, &source.receiver, receiver_text, &source.parameter.name,
+        source.text,
+        &source.receiver,
+        receiver_text,
+        &source.parameter.name,
     )?;
     let parent_value = scan.parent.as_deref()?;
     let parent_id = first_query_parent_model(
-        parent_value, navigation, nav_base, &source.parameter.name,
-        &source.fact.ty, &source.input_model,
+        parent_value,
+        navigation,
+        nav_base,
+        &source.parameter.name,
+        &source.fact.ty,
+        &source.input_model,
     )?;
     if !navigation_parent_valid(navigation, source.facts, &source.input_model, parent_id)
         || (!navigation && receiver_text != source.parameter.name)
@@ -7166,8 +8166,8 @@ fn contained_query_models_valid(
 ) -> bool {
     child.parent == Some(*parent_id)
         && child.owner == Some(crate::analysis::resolve::ModelOwner::ChildOf(*parent_id))
-        && (parent.source == query.source || imported_source_corresponds(ir,owner,parent,query))
-        && (parent.module == owner.module || imported_schema_source(ir,owner,parent))
+        && (parent.source == query.source || imported_source_corresponds(ir, owner, parent, query))
+        && (parent.module == owner.module || imported_schema_source(ir, owner, parent))
         && !parent.field_order.iter().any(|id| {
             ir.items
                 .get(id.0 as usize)
@@ -7194,37 +8194,86 @@ fn checked_count_query_parent<'a>(
     let parent_id = &source.input_model;
     let domain_parent = source.child.parent?;
     let source_receiver = &source.receiver;
-    let created_receiver=if source_receiver.kind==SyntaxKind::Member {
-        let IrItemKind::Scenario{effects,..}=&owner.kind else{return None;};
-        let (input,input_span)=native_count_create_input(effects,count.statement)?;
-        let IrExpr::Object(entries)=&input.expr else{return None;};
-        let original=native_count_original(facts,count.statement)?;
-        let actual_parent=original.inputs.iter().find(|input|input.name=="parent")?;
-        let value=&entries.iter().find(|(name,_)|name=="parent")?.1;
-        if input_span!=node_span(original.node)||value.span!=node_span(actual_parent.value_node){return None;}
-        checked_created_parent(ir,owner,value,db).filter(|(_,parameter,_)|parameter.id==parameter_id)
-    }else{None};
-    let created_root=created_receiver.map(|(created,_,_)|created.inputs.iter().find(|input|input.name=="parent").map(|input|input.value_node)).flatten();
-    let created_root_node=created_root.and_then(|node|checked_effect_node(ir,owner,node,db));
-    let receiver_root=if let Some(root)=&created_root_node {root}else if domain_parent==*parent_id && source_receiver.kind==SyntaxKind::NameRef {
+    let created_receiver = if source_receiver.kind == SyntaxKind::Member {
+        let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+            return None;
+        };
+        let (input, input_span) = native_count_create_input(effects, count.statement)?;
+        let IrExpr::Object(entries) = &input.expr else {
+            return None;
+        };
+        let original = native_count_original(facts, count.statement)?;
+        let actual_parent = original
+            .inputs
+            .iter()
+            .find(|input| input.name == "parent")?;
+        let value = &entries.iter().find(|(name, _)| name == "parent")?.1;
+        if input_span != node_span(original.node)
+            || value.span != node_span(actual_parent.value_node)
+        {
+            return None;
+        }
+        checked_created_parent(ir, owner, value, db)
+            .filter(|(_, parameter, _)| parameter.id == parameter_id)
+    } else {
+        None
+    };
+    let created_root = created_receiver.and_then(|(created, _, _)| {
+        created
+            .inputs
+            .iter()
+            .find(|input| input.name == "parent")
+            .map(|input| input.value_node)
+    });
+    let created_root_node = created_root.and_then(|node| checked_effect_node(ir, owner, node, db));
+    let receiver_root = if let Some(root) = &created_root_node {
+        root
+    } else if domain_parent == *parent_id && source_receiver.kind == SyntaxKind::NameRef {
         source_receiver
-    }else{
-        let root_schema=facts.stored_contracts.as_deref()?.iter().find(|schema|schema.model && schema.id==*parent_id)?;
-        if source_receiver.kind!=SyntaxKind::Member || root_schema.parent!=Some(domain_parent)
-            || !facts.expression_types.as_deref()?.iter().any(|(node,ty)|*node==receiver
-                && *ty==ResolvedType::Record{symbol:domain_parent,stored:true}) {return None;}
-        match_stored_contract_schema(ir,root_schema,db)?;
-        let field=source_receiver.children.iter().rev().find(|node|node.kind==SyntaxKind::Name)?;
-        if field.token()?.text(&db.get(receiver.file)?.text)!="parent" {return None;}
-        let mut roots=source_receiver.children.iter().filter(|node|node.kind==SyntaxKind::NameRef);
-        let root=roots.next()?;
-        if roots.next().is_some(){return None;}
+    } else {
+        let root_schema = facts
+            .stored_contracts
+            .as_deref()?
+            .iter()
+            .find(|schema| schema.model && schema.id == *parent_id)?;
+        if source_receiver.kind != SyntaxKind::Member
+            || root_schema.parent != Some(domain_parent)
+            || !facts.expression_types.as_deref()?.iter().any(|(node, ty)| {
+                *node == receiver
+                    && *ty
+                        == ResolvedType::Record {
+                            symbol: domain_parent,
+                            stored: true,
+                        }
+            })
+        {
+            return None;
+        }
+        match_stored_contract_schema(ir, root_schema, db)?;
+        let field = source_receiver
+            .children
+            .iter()
+            .rev()
+            .find(|node| node.kind == SyntaxKind::Name)?;
+        if field.token()?.text(&db.get(receiver.file)?.text) != "parent" {
+            return None;
+        }
+        let mut roots = source_receiver
+            .children
+            .iter()
+            .filter(|node| node.kind == SyntaxKind::NameRef);
+        let root = roots.next()?;
+        if roots.next().is_some() {
+            return None;
+        }
         root
     };
     // COUNT retains its exact direct NameRef after its own created-parent or
     // one-hop root proof; this is intentionally narrower than FIRST's path.
     if receiver_root.kind != SyntaxKind::NameRef
-        || source.text.get(receiver_root.span.start as usize..receiver_root.span.end as usize)
+        || source
+            .text
+            .get(receiver_root.span.start as usize..receiver_root.span.end as usize)
             != Some(parameter.name.as_str())
     {
         return None;
@@ -7260,12 +8309,15 @@ fn count_query_owner<'a>(
     Some(owner)
 }
 
-fn select_count_query<'a>(
-    facts: &'a crate::analysis::scenario_disclosure::CheckedScenarioSource,
+fn select_count_query(
+    facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
     node: crate::analysis::NodeKey,
-) -> Option<(&'a crate::analysis::scenario_disclosure::DisclosureQuery, &'a crate::analysis::scenario_disclosure::DisclosureCountQuery)> {
+) -> Option<(
+    &crate::analysis::scenario_disclosure::DisclosureQuery,
+    &crate::analysis::scenario_disclosure::DisclosureCountQuery,
+)> {
     let queries = facts.queries.as_deref()?;
-    checked_native_query_influences(queries).or_else(||constructor_count_influences(facts))?;
+    checked_native_query_influences(queries).or_else(|| constructor_count_influences(facts))?;
     let mut selected = queries
         .iter()
         .filter(|query| query.count.as_ref().is_some_and(|count| count.call == node));
@@ -7277,13 +8329,13 @@ fn select_count_query<'a>(
     Some((query, count))
 }
 
-fn count_query_call_shape<'x>(
-    actual: &'x TypedExpr,
+fn count_query_call_shape(
+    actual: &TypedExpr,
 ) -> Option<(
-    &'x IrCallTarget,
-    &'x TypedExpr,
-    &'x IrQuery,
-    Option<&'x [Option<usize>]>,
+    &IrCallTarget,
+    &TypedExpr,
+    &IrQuery,
+    Option<&[Option<usize>]>,
 )> {
     let (target, args, slots) = match &actual.expr {
         IrExpr::Call { target, args } => (target, args.as_slice(), None),
@@ -7323,10 +8375,9 @@ fn count_query_target_mismatch(
         || slots.is_some_and(|slots| slots != count.slots.as_slice())
         || count.statement != original.node
         || original.model != query_model
-        || (!matches!(&owner.kind,IrItemKind::Scenario{result:None,..})
+        || (!matches!(&owner.kind, IrItemKind::Scenario { result: None, .. })
             && checked_created_model_result(ir, owner) != Some(original.model)
-            && checked_created_pair(ir, owner, db)
-                .is_none_or(|pair| pair.1.node != original.node))
+            && checked_created_pair(ir, owner, db).is_none_or(|pair| pair.1.node != original.node))
 }
 
 fn count_query_shape_mismatch(
@@ -7435,7 +8486,7 @@ fn count_query_head(
     let mut receivers = source_domain
         .children
         .iter()
-        .filter(|node| matches!(node.kind,SyntaxKind::NameRef|SyntaxKind::Member));
+        .filter(|node| matches!(node.kind, SyntaxKind::NameRef | SyntaxKind::Member));
     if heads.next().is_some()
         || text.get(head.span.start as usize..head.span.end as usize)? != "count"
         || NodeKey::of(source_domain) != query.node
@@ -7508,10 +8559,21 @@ pub(super) fn checked_count_query_ir<'a>(
     let (target, domain, scan, slots) = count_query_call_shape(actual)?;
     let parent = scan.parent.as_deref()?;
     let parameter = checked_count_query_parent(ir, owner, query, db)?;
-    let parent_type=ResolvedType::Record{symbol:checked_first_query_schema(ir,owner,query,db)?.parent?,stored:true};
-    let parent_name=if checked_created_parent(ir,owner,parent,db).is_some(){
-        let IrExpr::Member{base,..}=&parent.expr else{return None;};let IrExpr::Name(name)=&base.expr else{return None;};name
-    }else{&parameter.name};
+    let parent_type = ResolvedType::Record {
+        symbol: checked_first_query_schema(ir, owner, query, db)?.parent?,
+        stored: true,
+    };
+    let parent_name = if checked_created_parent(ir, owner, parent, db).is_some() {
+        let IrExpr::Member { base, .. } = &parent.expr else {
+            return None;
+        };
+        let IrExpr::Name(name) = &base.expr else {
+            return None;
+        };
+        name
+    } else {
+        &parameter.name
+    };
     let array = ResolvedType::Array {
         element: Box::new(ResolvedType::Record {
             symbol: query.model,
@@ -7572,8 +8634,9 @@ fn ancestor_guard_comparison(
     &Box<TypedExpr>,
     &Box<TypedExpr>,
 )> {
-    let mut matching = guards.iter().filter(|actual|
-        matches!(actual, IrStmt::Require {span, ..} if *span == node_span(statement)));
+    let mut matching = guards.iter().filter(
+        |actual| matches!(actual, IrStmt::Require {span, ..} if *span == node_span(statement)),
+    );
     let IrStmt::Require { cond, .. } = matching.next()? else {
         return None;
     };
@@ -7629,8 +8692,8 @@ fn ancestor_query_identity(
     count: &crate::analysis::scenario_disclosure::DisclosureCountQuery,
     created: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
     cond: &TypedExpr,
-    bound: &Box<TypedExpr>,
-    call: &Box<TypedExpr>,
+    bound: &TypedExpr,
+    call: &TypedExpr,
 ) -> Option<()> {
     if owning != query
         || count.contained_parent.is_some()
@@ -7655,14 +8718,11 @@ fn ancestor_edge_associations(
     returned: &crate::analysis::scenario_disclosure::DisclosureReturn,
     candidate: &crate::analysis::scenario_disclosure::DisclosureQueryParentEdge,
     supplied: &crate::analysis::scenario_disclosure::DisclosureQueryParentEdge,
-    actual_candidate: &Box<TypedExpr>,
-    actual_supplied: &Box<TypedExpr>,
+    actual_candidate: &TypedExpr,
+    actual_supplied: &TypedExpr,
     db: &SourceDb,
 ) -> Option<()> {
-    for (edge, actual) in [
-        (candidate, actual_candidate.as_ref()),
-        (supplied, actual_supplied.as_ref()),
-    ] {
+    for (edge, actual) in [(candidate, actual_candidate), (supplied, actual_supplied)] {
         let mut reads = returned
             .dependencies
             .iter()
@@ -7682,7 +8742,7 @@ fn ancestor_census_valid(
     owner: &IrItem,
     count: &crate::analysis::scenario_disclosure::DisclosureCountQuery,
     cond: &TypedExpr,
-    bound: &Box<TypedExpr>,
+    bound: &TypedExpr,
     db: &SourceDb,
 ) -> Option<()> {
     let census = facts.expression_types.as_deref()?;
@@ -7833,7 +8893,16 @@ fn checked_native_ancestor_count_query_plan(
             return None;
         }
         let models = super::js::Emitter::source_models(ir, db)?;
-        checked_scenario_create(ir, owner, &models, proof, create, statement, db, source_context)?;
+        checked_scenario_create(
+            ir,
+            owner,
+            &models,
+            proof,
+            create,
+            statement,
+            db,
+            source_context,
+        )?;
     }
     // In the triple, the owning contained-count plan and final effect
     // collector seal both constructors; ancestor operand validation does not
@@ -7865,11 +8934,31 @@ fn checked_native_ancestor_count_query_plan(
     {
         return None;
     }
-    Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
-        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
+    Some(ReceiptDisclosurePlan {
+        retained_guarded_handler: None,
+        source_loops: None,
+        source_emissions: None,
+        version: 1,
+        event_decision: None,
+        term_decision: None,
+        leave_request_decision: None,
+        leave_decide_decision: None,
+        refer_reject_decision: None,
+        member_retry_decision: None,
+        rent_movement_refund_decision: None,
+        invoice_collect_decision: None,
+        rent_notice_decision: None,
+        invoice_issue_decision: None,
+        observe_venue_decision: None,
+        success_renewal_decision: None,
+        purchase_receive_all: None,
+        event_notice_audit: None,
+        source: transport_source(&query.source, entry)?,
         queries: vec![receipt_unordered_query(
-            query, entry, None, receipt_query_dependencies(query, entry)?,
+            query,
+            entry,
+            None,
+            receipt_query_dependencies(query, entry)?,
         )?],
         returns: proof
             .returns
@@ -7881,17 +8970,40 @@ fn checked_native_ancestor_count_query_plan(
 
 /// A bounded contained COUNT+1 Create uses the same prepared-query skeleton as
 /// first. No runtime handle or parent authority is issued by this source join.
-fn native_count_create_input(effects:&[IrStmt],statement:crate::analysis::NodeKey)->Option<(&TypedExpr,Span)> {
-    fn visit<'a>(body:&'a [IrStmt],statement:Span,depth:usize,out:&mut Vec<(&'a TypedExpr,Span)>)->Option<()> {
-        if depth>=64{return None;}
-        for actual in body{match actual{
-            IrStmt::Create{input,span,..}if *span==statement=>out.push((input,*span)),
-            IrStmt::If{then_branch,else_branch,..}=>{visit(then_branch,statement,depth+1,out)?;visit(else_branch,statement,depth+1,out)?;},
-            _=>{},
-        }}Some(())
+fn native_count_create_input(
+    effects: &[IrStmt],
+    statement: crate::analysis::NodeKey,
+) -> Option<(&TypedExpr, Span)> {
+    fn visit<'a>(
+        body: &'a [IrStmt],
+        statement: Span,
+        depth: usize,
+        out: &mut Vec<(&'a TypedExpr, Span)>,
+    ) -> Option<()> {
+        if depth >= 64 {
+            return None;
+        }
+        for actual in body {
+            match actual {
+                IrStmt::Create { input, span, .. } if *span == statement => {
+                    out.push((input, *span))
+                }
+                IrStmt::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } => {
+                    visit(then_branch, statement, depth + 1, out)?;
+                    visit(else_branch, statement, depth + 1, out)?;
+                }
+                _ => {}
+            }
+        }
+        Some(())
     }
-    let mut found=Vec::new();visit(effects,node_span(statement),0,&mut found)?;
-    (found.len()==1).then(||found[0])
+    let mut found = Vec::new();
+    visit(effects, node_span(statement), 0, &mut found)?;
+    (found.len() == 1).then(|| found[0])
 }
 
 fn native_count_original(
@@ -7899,14 +9011,17 @@ fn native_count_original(
     statement: crate::analysis::NodeKey,
 ) -> Option<&crate::analysis::scenario_disclosure::CheckedScenarioCreate> {
     let originals = facts.creates.as_deref()?;
-    let mut owning = originals
-        .iter()
-        .filter(|created| created.node == statement);
+    let mut owning = originals.iter().filter(|created| created.node == statement);
     let original = owning.next()?;
     if owning.next().is_some()
         || originals.is_empty()
-        || (originals.len() > 2 && !(originals.len() <= 200 && facts.result.is_none() && constructor_count_queries(facts).is_some()))
-        || facts.queries.as_deref()?.len() >= 2 && originals.len() != 2 && constructor_count_queries(facts).is_none()
+        || (originals.len() > 2
+            && !(originals.len() <= 200
+                && facts.result.is_none()
+                && constructor_count_queries(facts).is_some()))
+        || facts.queries.as_deref()?.len() >= 2
+            && originals.len() != 2
+            && constructor_count_queries(facts).is_none()
     {
         return None;
     }
@@ -7931,15 +9046,21 @@ fn native_count_pair_proofs(
             .find(|proof| proof.node == created.node)?;
         let statement = effects.iter().find(|statement|
             matches!(statement, IrStmt::Create {span, ..} if *span == node_span(created.node)))?;
-        checked_scenario_create(ir, owner, &models, checked, proof, statement, db, source_context)?;
+        checked_scenario_create(
+            ir,
+            owner,
+            &models,
+            checked,
+            proof,
+            statement,
+            db,
+            source_context,
+        )?;
     }
     Some(())
 }
 
-fn native_count_operand(
-    input: &TypedExpr,
-    call: crate::analysis::NodeKey,
-) -> Option<&TypedExpr> {
+fn native_count_operand(input: &TypedExpr, call: crate::analysis::NodeKey) -> Option<&TypedExpr> {
     let IrExpr::Object(entries) = &input.expr else {
         return None;
     };
@@ -7989,12 +9110,31 @@ fn native_count_result_matches(
                     // Each genuine branch retains exactly its original reached
                     // query blocks; inactive COUNTs acquire no observation.
                     returned.model_result.is_some()
-                        || !expected_influences.iter().filter(|value|returned.influences.contains(value)).eq(returned.influences.iter())
-                        || {let selected:Vec<_>=returned.influences.iter().filter(|value|value.query_id.as_deref()==Some(query.id.as_str())).collect();
-                            !selected.is_empty()&&!selected.into_iter().eq(query.influences.iter())}
-                }else{returned.model_result.is_none()||returned.influences!=expected_influences}
+                        || !expected_influences
+                            .iter()
+                            .filter(|value| returned.influences.contains(value))
+                            .eq(returned.influences.iter())
+                        || {
+                            let selected: Vec<_> = returned
+                                .influences
+                                .iter()
+                                .filter(|value| {
+                                    value.query_id.as_deref() == Some(query.id.as_str())
+                                })
+                                .collect();
+                            !selected.is_empty()
+                                && !selected.into_iter().eq(query.influences.iter())
+                        }
+                } else {
+                    returned.model_result.is_none() || returned.influences != expected_influences
+                }
         })
-        || !checked.returns.iter().any(|returned|query.influences.iter().all(|value|returned.influences.contains(value)))
+        || !checked.returns.iter().any(|returned| {
+            query
+                .influences
+                .iter()
+                .all(|value| returned.influences.contains(value))
+        })
     {
         return None;
     }
@@ -8019,24 +9159,51 @@ fn native_count_plan(
     parent_id: crate::analysis::SymbolId,
     influences: Vec<ReceiptInfluence>,
 ) -> Option<ReceiptDisclosurePlan> {
-    Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
-        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
-        queries: vec![receipt_unordered_query(query, entry, Some(ReceiptQueryParent {
+    Some(ReceiptDisclosurePlan {
+        retained_guarded_handler: None,
+        source_loops: None,
+        source_emissions: None,
+        version: 1,
+        event_decision: None,
+        term_decision: None,
+        leave_request_decision: None,
+        leave_decide_decision: None,
+        refer_reject_decision: None,
+        member_retry_decision: None,
+        rent_movement_refund_decision: None,
+        invoice_collect_decision: None,
+        rent_notice_decision: None,
+        invoice_issue_decision: None,
+        observe_venue_decision: None,
+        success_renewal_decision: None,
+        purchase_receive_all: None,
+        event_notice_audit: None,
+        source: transport_source(&query.source, entry)?,
+        queries: vec![receipt_unordered_query(
+            query,
+            entry,
+            Some(ReceiptQueryParent {
                 source: transport_source(&query.source, entry)?,
                 model: ir.items.get(parent_id.0 as usize)?.canonical.clone(),
                 origin: ReceiptQueryParentOrigin::AdmittedReference {
                     parameter: parameter.name.clone(),
                 },
-            }), Vec::new())?],
+            }),
+            Vec::new(),
+        )?],
         returns: checked
             .returns
             .iter()
             .map(|returned| {
-                let selected = if returned.influences.iter().any(|value|
-                    value.query_id.as_deref() == Some(query.id.as_str())) {
+                let selected = if returned
+                    .influences
+                    .iter()
+                    .any(|value| value.query_id.as_deref() == Some(query.id.as_str()))
+                {
                     influences.clone()
-                } else { Vec::new() };
+                } else {
+                    Vec::new()
+                };
                 receipt_return(returned, entry, selected)
             })
             .collect::<Option<Vec<_>>>()?,
@@ -8055,50 +9222,94 @@ pub(super) fn checked_native_assign_count_query_plan(
     entry: &str,
 ) -> Option<ReceiptDisclosurePlan> {
     use super::ir::IrQueryDomain;
-    if owner.canonical != "member_terms.assign" || checked.scenario != owner.id
-        || query.model_name != "member_terms.Seat" || checked.source != query.source
-    { return None; }
+    if owner.canonical != "member_terms.assign"
+        || checked.scenario != owner.id
+        || query.model_name != "member_terms.Seat"
+        || checked.source != query.source
+    {
+        return None;
+    }
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
     let queries = facts.queries.as_deref()?;
-    let [count_query, first_query] = queries else { return None; };
+    let [count_query, first_query] = queries else {
+        return None;
+    };
     assign_count_first_shape_valid(count_query, first_query)?;
-    if count_query != query { return None; }
+    if count_query != query {
+        return None;
+    }
     let count = query.count.as_ref()?;
     let (receiver, _) = count.contained_parent?;
-    let IrItemKind::Scenario { guards, effects, result: None, read: false,
-        trusted: false, cohort: None, .. } = &owner.kind else { return None; };
-    let [_, _, IrStmt::Require { cond, span }] = guards.as_slice() else { return None; };
+    let IrItemKind::Scenario {
+        guards,
+        effects,
+        result: None,
+        read: false,
+        trusted: false,
+        cohort: None,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let [_, _, IrStmt::Require { cond, span }] = guards.as_slice() else {
+        return None;
+    };
     checked_assign_header_and_event(ir, owner, guards, effects)?;
     if *span != node_span(count.statement) || cond.ty != ResolvedType::Scalar(Scalar::Bool) {
         return None;
     }
-    let IrExpr::Binary { op: IrBinOp::Lt, left, right } = &cond.expr else { return None; };
+    let IrExpr::Binary {
+        op: IrBinOp::Lt,
+        left,
+        right,
+    } = &cond.expr
+    else {
+        return None;
+    };
     if left.span != node_span(count.call) || right.ty != ResolvedType::Scalar(Scalar::Int) {
         return None;
     }
     let (target, args, slots) = match &left.expr {
         IrExpr::Call { target, args } => (target, args.as_slice(), None),
-        IrExpr::BoundCall { target, args, slots } => (target, args.as_slice(), Some(slots.as_slice())),
+        IrExpr::BoundCall {
+            target,
+            args,
+            slots,
+        } => (target, args.as_slice(), Some(slots.as_slice())),
         _ => return None,
     };
-    let [domain] = args else { return None; };
-    let IrExpr::Query(scan) = &domain.expr else { return None; };
+    let [domain] = args else {
+        return None;
+    };
+    let IrExpr::Query(scan) = &domain.expr else {
+        return None;
+    };
     let parent = scan.parent.as_deref()?;
     let predicate = scan.where_pred.as_deref()?;
     let checked_scan = scan.source.as_deref()?;
     let checked_call = scan.collection_call.as_deref()?;
-    let [active] = query.dependencies.as_slice() else { return None; };
+    let [active] = query.dependencies.as_slice() else {
+        return None;
+    };
     if !matches!(target, IrCallTarget::Builtin {id, ..} if id == "count")
         || slots.is_some_and(|actual| actual != count.slots.as_slice())
         || count.slots.as_slice() != [Some(0)]
         || left.ty != ResolvedType::Scalar(Scalar::Int)
         || domain.span != node_span(query.node)
-        || checked_scan.node != query.node || checked_scan.domain != query.domain
-        || checked_call.node != count.call || checked_call.query != query.node
+        || checked_scan.node != query.node
+        || checked_scan.domain != query.domain
+        || checked_call.node != count.call
+        || checked_call.query != query.node
         || !matches!(&scan.domain, IrQueryDomain::Model(model) if model == &query.model_name)
-        || scan.where_param != "row" || scan.where_async || !scan.order.is_empty()
-        || scan.value_order.is_some() || scan.limit.is_some() || scan.archived.is_some()
-        || scan.select.is_some() || scan.select_param.is_some()
+        || scan.where_param != "row"
+        || scan.where_async
+        || !scan.order.is_empty()
+        || scan.value_order.is_some()
+        || scan.limit.is_some()
+        || scan.archived.is_some()
+        || scan.select.is_some()
+        || scan.select_param.is_some()
         || scan.contract_collection_call.is_some()
         || parent.span != node_span(receiver)
         || predicate.span != node_span(query.predicate?)
@@ -8108,115 +9319,254 @@ pub(super) fn checked_native_assign_count_query_plan(
         || !matches!(&right.expr, IrExpr::Member {base,field}
             if field == "seats" && matches!(&base.expr, IrExpr::Name(name) if name == "term"))
         || !matches!(&parent.expr, IrExpr::Name(name) if name == "term")
-        || active.model != query.model || active.field_name != "active"
+        || active.model != query.model
+        || active.field_name != "active"
         || active.ty != ResolvedType::Scalar(Scalar::Bool)
         || active.role != DependencyRole::Control
         || active.node != query.predicate?
         || checked.returns.is_empty()
         || !checked_void_effect_tail(owner, checked)
-        || effects.first().is_none_or(|effect| !matches!(effect, IrStmt::Let {span,..}
-            if *span == node_span(first_query.first.as_ref().unwrap().binding)))
-    { return None; }
+        || effects.first().is_none_or(|effect| {
+            !matches!(effect, IrStmt::Let {span,..}
+            if *span == node_span(first_query.first.as_ref().unwrap().binding))
+        })
+    {
+        return None;
+    }
     let parameter = checked_count_query_parent(ir, owner, query, db)?;
     let parent_id = match &parameter.kind {
-        IrItemKind::Param {ty: IrType::Known(ResolvedType::Record {symbol,stored:true}), ..} => *symbol,
+        IrItemKind::Param {
+            ty:
+                IrType::Known(ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                }),
+            ..
+        } => *symbol,
         _ => return None,
     };
     let schema = checked_first_query_schema(ir, owner, query, db)?;
-    if !schema.fields.iter().any(|field| field.id == active.field && field.name == "active"
-        && field.ty == active.ty) { return None; }
+    if !schema
+        .fields
+        .iter()
+        .any(|field| field.id == active.field && field.name == "active" && field.ty == active.ty)
+    {
+        return None;
+    }
     let influences = receipt_query_influences(query)?;
-    let returns = checked.returns.iter().map(|returned| {
-        let selected = returned.influences.iter().filter(|value|
-            value.query_id.as_deref() == Some(query.id.as_str())).collect::<Vec<_>>();
-        if selected.len() != 4 || selected.iter().map(|value| value.id.as_str())
-            .ne(query.influences.iter().map(|value| value.id.as_str())) { return None; }
-        receipt_return(returned, entry, influences.clone())
-    }).collect::<Option<Vec<_>>>()?;
-    Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
-        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None, invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
+    let returns = checked
+        .returns
+        .iter()
+        .map(|returned| {
+            let selected = returned
+                .influences
+                .iter()
+                .filter(|value| value.query_id.as_deref() == Some(query.id.as_str()))
+                .collect::<Vec<_>>();
+            if selected.len() != 4
+                || selected
+                    .iter()
+                    .map(|value| value.id.as_str())
+                    .ne(query.influences.iter().map(|value| value.id.as_str()))
+            {
+                return None;
+            }
+            receipt_return(returned, entry, influences.clone())
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(ReceiptDisclosurePlan {
+        retained_guarded_handler: None,
+        source_loops: None,
+        source_emissions: None,
+        version: 1,
+        event_decision: None,
+        term_decision: None,
+        leave_request_decision: None,
+        leave_decide_decision: None,
+        refer_reject_decision: None,
+        member_retry_decision: None,
+        rent_movement_refund_decision: None,
+        invoice_collect_decision: None,
+        rent_notice_decision: None,
+        invoice_issue_decision: None,
+        observe_venue_decision: None,
+        success_renewal_decision: None,
+        purchase_receive_all: None,
+        event_notice_audit: None,
+        source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
-            id: query.id.clone(), source: transport_source(&query.source, entry)?,
+            id: query.id.clone(),
+            source: transport_source(&query.source, entry)?,
             model: query.model_name.clone(),
             parent: Some(ReceiptQueryParent {
                 source: transport_source(&query.source, entry)?,
                 model: ir.items.get(parent_id.0 as usize)?.canonical.clone(),
-                origin: ReceiptQueryParentOrigin::AdmittedReference {parameter: parameter.name.clone()},
-            }), order: Vec::new(), limit: None, archived: "exclude".into(),
+                origin: ReceiptQueryParentOrigin::AdmittedReference {
+                    parameter: parameter.name.clone(),
+                },
+            }),
+            order: Vec::new(),
+            limit: None,
+            archived: "exclude".into(),
             dependencies: vec![ReceiptQueryDependency {
-                id: active.id.clone(), source: transport_source(&active.source, entry)?,
-                role: ReceiptRole::Control, field: "active".into(), type_id: active.type_id.clone(),
+                id: active.id.clone(),
+                source: transport_source(&active.source, entry)?,
+                role: ReceiptRole::Control,
+                field: "active".into(),
+                type_id: active.type_id.clone(),
             }],
-        }], returns,
+        }],
+        returns,
     })
 }
 
 /// Seal a void constructor COUNT to its original whole owner and one INT
 /// field. This is a consumption association, never a read-policy grant.
 fn constructor_count_source(
-    context: &super::source_context::FreshSourceContext<'_>, owner: &IrItem,
-    query: &crate::analysis::scenario_disclosure::DisclosureQuery, transport: &ReceiptSource,
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    transport: &ReceiptSource,
 ) -> Option<serde_json::Value> {
-    let ir=context.ir();
-    let facts=super::scenario_calls::checked_source(ir,owner,context.db())?;
-    let count=query.count.as_ref()?;
-    if !count.parent_edges.is_empty() || count.contained_parent.is_none() || !query.dependencies.is_empty() {return None;}
-    let original=native_count_original(facts,count.statement)?;
-    let ScenarioDisclosure::Complete(actual)=ir.scenario_disclosures.get(&owner.id)? else{return None;};
-    let ScenarioDisclosure::Complete(fresh)=context.fresh().scenario_disclosures.get(&owner.id)? else{return None;};
-    if !super::scenario_feasibility::same_disclosure(actual,fresh){return None;}
-    source_owned_void_create(context,owner,original)?;
-    let IrItemKind::Scenario{effects,..}=&owner.kind else{return None;};
-    fn at_stage<'a>(body:&'a [IrStmt],target:crate::analysis::NodeKey,mut stage:usize,depth:usize)->Option<(&'a TypedExpr,Span,usize)> {
-        if depth>=64{return None;}
-        for statement in body{
-            if let IrStmt::Create{input,span,when:None,..}=statement && *span==node_span(target){return Some((input,*span,stage));}
-            match statement{
-                IrStmt::Let{..}|IrStmt::Require{..}|IrStmt::Cancel{..}|IrStmt::Send{when:None,..}=>{},
-                IrStmt::Set{when:None,..}|IrStmt::Create{when:None,..}=>stage+=1,
-                IrStmt::If{then_branch,else_branch,..}=>{
-                    if native_count_create_input(then_branch,target).is_some(){return at_stage(then_branch,target,stage,depth+1);}
-                    if native_count_create_input(else_branch,target).is_some(){return at_stage(else_branch,target,stage,depth+1);}
-                    return None;
-                },
-                _=>return None,
+    let ir = context.ir();
+    let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
+    let count = query.count.as_ref()?;
+    if !count.parent_edges.is_empty()
+        || count.contained_parent.is_none()
+        || !query.dependencies.is_empty()
+    {
+        return None;
+    }
+    let original = native_count_original(facts, count.statement)?;
+    let ScenarioDisclosure::Complete(actual) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    let ScenarioDisclosure::Complete(fresh) =
+        context.fresh().scenario_disclosures.get(&owner.id)?
+    else {
+        return None;
+    };
+    if !super::scenario_feasibility::same_disclosure(actual, fresh) {
+        return None;
+    }
+    source_owned_void_create(context, owner, original)?;
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return None;
+    };
+    fn at_stage(
+        body: &[IrStmt],
+        target: crate::analysis::NodeKey,
+        mut stage: usize,
+        depth: usize,
+    ) -> Option<(&TypedExpr, Span, usize)> {
+        if depth >= 64 {
+            return None;
+        }
+        for statement in body {
+            if let IrStmt::Create {
+                input,
+                span,
+                when: None,
+                ..
+            } = statement
+                && *span == node_span(target)
+            {
+                return Some((input, *span, stage));
             }
-            if stage>=200{return None;}
-
+            match statement {
+                IrStmt::Let { .. }
+                | IrStmt::Require { .. }
+                | IrStmt::Cancel { .. }
+                | IrStmt::Send { when: None, .. } => {}
+                IrStmt::Set { when: None, .. } | IrStmt::Create { when: None, .. } => stage += 1,
+                IrStmt::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } => {
+                    if native_count_create_input(then_branch, target).is_some() {
+                        return at_stage(then_branch, target, stage, depth + 1);
+                    }
+                    if native_count_create_input(else_branch, target).is_some() {
+                        return at_stage(else_branch, target, stage, depth + 1);
+                    }
+                    return None;
+                }
+                _ => return None,
+            }
+            if stage >= 200 {
+                return None;
+            }
         }
         None
     }
-    let (input,span,stage)=at_stage(effects,count.statement,0,0)?;
-    let IrExpr::Object(entries)=&input.expr else{return None;};
-    let parent=&entries.iter().find(|(field,_)|field=="parent")?.1;
-    let receiver=count.contained_parent?.0;
-    let text=&context.db().get(receiver.file)?.text;
-    if parent.ty!=(ResolvedType::Record{symbol:checked_first_query_schema(ir,owner,query,context.db())?.parent?,stored:true})
-        || text.get(parent.span.start as usize..parent.span.end as usize)?!=text.get(receiver.start as usize..receiver.end as usize)? {return None;}
-    let operand=native_count_operand(input,count.call)?;
+    let (input, span, stage) = at_stage(effects, count.statement, 0, 0)?;
+    let IrExpr::Object(entries) = &input.expr else {
+        return None;
+    };
+    let parent = &entries.iter().find(|(field, _)| field == "parent")?.1;
+    let receiver = count.contained_parent?.0;
+    let text = &context.db().get(receiver.file)?.text;
+    if parent.ty
+        != (ResolvedType::Record {
+            symbol: checked_first_query_schema(ir, owner, query, context.db())?.parent?,
+            stored: true,
+        })
+        || text.get(parent.span.start as usize..parent.span.end as usize)?
+            != text.get(receiver.start as usize..receiver.end as usize)?
+    {
+        return None;
+    }
+    let operand = native_count_operand(input, count.call)?;
     let (field,value)=entries.iter().find(|(_,value)|matches!(&value.expr,IrExpr::Binary{op:IrBinOp::Add,left,..} if left.span==operand.span))?;
-    if value.ty!=ResolvedType::Scalar(Scalar::Int) {return None;}
-    let source=original.inputs.iter().find(|input|input.name==*field && node_span(input.value_node)==value.span && input.ty==value.ty)?;
-    let field_item=ir.items.get(source.field?.0 as usize)?;
-    if !matches!(&field_item.kind,IrItemKind::Field{ty:IrType::Known(ResolvedType::Scalar(Scalar::Int)),..}) {return None;}
-    checked_count_query_parent(ir,owner,query,context.db())?;
-    let mut metadata=serde_json::json!({"owner":owner.canonical,"source":transport,"queryId":query.id,
+    if value.ty != ResolvedType::Scalar(Scalar::Int) {
+        return None;
+    }
+    let source = original.inputs.iter().find(|input| {
+        input.name == *field && node_span(input.value_node) == value.span && input.ty == value.ty
+    })?;
+    let field_item = ir.items.get(source.field?.0 as usize)?;
+    if !matches!(
+        &field_item.kind,
+        IrItemKind::Field {
+            ty: IrType::Known(ResolvedType::Scalar(Scalar::Int)),
+            ..
+        }
+    ) {
+        return None;
+    }
+    checked_count_query_parent(ir, owner, query, context.db())?;
+    let mut metadata = serde_json::json!({"owner":owner.canonical,"source":transport,"queryId":query.id,
         "stage":stage,"create":{"start":span.start,"end":span.end},"model":original.definition.canonical,"field":field});
-    if let Some((created,parameter,created_stage))=checked_created_parent(ir,owner,parent,context.db()){
-        if created_stage>=stage{return None;}
-        metadata["createdParent"]=serde_json::json!({"stage":created_stage,"model":created.definition.canonical,
+    if let Some((created, parameter, created_stage)) =
+        checked_created_parent(ir, owner, parent, context.db())
+    {
+        if created_stage >= stage {
+            return None;
+        }
+        metadata["createdParent"] = serde_json::json!({"stage":created_stage,"model":created.definition.canonical,
             "create":{"start":created.node.start,"end":created.node.end},"parameter":parameter.name});
     }
     Some(metadata)
 }
 
-pub(super) fn constructor_counts(context:&super::source_context::FreshSourceContext<'_>,owner:&IrItem,
-    transport:&ReceiptSource)->Option<serde_json::Value> {
-    if !matches!(&owner.kind,IrItemKind::Scenario{result:None,..}) {return None;}
-    let facts=super::scenario_calls::checked_source(context.ir(),owner,context.db())?;
-    let counts:Vec<_>=facts.queries.as_deref()?.iter().filter(|query|query.count.is_some())
-        .map(|query|constructor_count_source(context,owner,query,transport)).collect::<Option<_>>()?;
-    (!counts.is_empty()).then(||serde_json::Value::Array(counts))
+pub(super) fn constructor_counts(
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+    transport: &ReceiptSource,
+) -> Option<serde_json::Value> {
+    if !matches!(&owner.kind, IrItemKind::Scenario { result: None, .. }) {
+        return None;
+    }
+    let facts = super::scenario_calls::checked_source(context.ir(), owner, context.db())?;
+    let counts: Vec<_> = facts
+        .queries
+        .as_deref()?
+        .iter()
+        .filter(|query| query.count.is_some())
+        .map(|query| constructor_count_source(context, owner, query, transport))
+        .collect::<Option<_>>()?;
+    (!counts.is_empty()).then_some(serde_json::Value::Array(counts))
 }
 
 pub(super) fn checked_native_count_query_plan(
@@ -8228,12 +9578,21 @@ pub(super) fn checked_native_count_query_plan(
     source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
     if owner.canonical == "member_terms.assign" {
-        let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else { return None; };
+        let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
+            return None;
+        };
         return checked_native_assign_count_query_plan(ir, owner, checked, query, db, entry);
     }
     let count = query.count.as_ref()?;
     if count.contained_parent.is_none() {
-        return checked_native_ancestor_count_query_plan(ir, owner, query, db, entry, source_context);
+        return checked_native_ancestor_count_query_plan(
+            ir,
+            owner,
+            query,
+            db,
+            entry,
+            source_context,
+        );
     }
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
     let expected_influences = checked_scenario_query_influences(facts)?;
@@ -8249,12 +9608,20 @@ pub(super) fn checked_native_count_query_plan(
         return None;
     };
     let (input, span) = native_count_create_input(effects, count.statement)?;
-    let void_constructor=matches!(&owner.kind,IrItemKind::Scenario{result:None,..});
-    let returned=if void_constructor {
-        constructor_count_source(source_context?,owner,query,&transport_source(&query.source,entry)?)?;
+    let void_constructor = matches!(&owner.kind, IrItemKind::Scenario { result: None, .. });
+    let returned = if void_constructor {
+        constructor_count_source(
+            source_context?,
+            owner,
+            query,
+            &transport_source(&query.source, entry)?,
+        )?;
         node_span(facts.node)
-    }else{
-        let IrStmt::Return{span,..}=effects.last()? else{return None;}; *span
+    } else {
+        let IrStmt::Return { span, .. } = effects.last()? else {
+            return None;
+        };
+        *span
     };
     let original = native_count_original(facts, count.statement)?;
     if !void_constructor && facts.creates.as_deref()?.len() == 2 {
@@ -8284,7 +9651,7 @@ pub(super) fn checked_native_count_query_plan(
         void_constructor,
     )?;
     let parameter = checked_count_query_parent(ir, owner, query, db)?;
-    let parent_id=checked_first_query_schema(ir,owner,query,db)?.parent?;
+    let parent_id = checked_first_query_schema(ir, owner, query, db)?.parent?;
     let influences = receipt_query_influences(query)?;
     native_count_plan(ir, query, checked, entry, parameter, parent_id, influences)
 }
@@ -8296,7 +9663,9 @@ fn first_query_binding_spelling_matches(
     name: &str,
     binding: &str,
 ) -> bool {
-    keyword.token().is_some_and(|token| token.text(text) == "let")
+    keyword
+        .token()
+        .is_some_and(|token| token.text(text) == "let")
         && source_binding
             .token()
             .is_some_and(|token| token.text(text) == name)
@@ -8786,8 +10155,14 @@ fn predicate_operand<'d>(
     index: usize,
     dependency: &'d crate::analysis::scenario_disclosure::DisclosureDependency,
     operand_nodes: &[crate::analysis::NodeKey],
-    param_conjuncts: &mut Vec<(usize, &'d crate::analysis::scenario_disclosure::DisclosureDependency)>,
-    member_conjuncts: &mut Vec<(usize, &'d crate::analysis::scenario_disclosure::DisclosureDependency)>,
+    param_conjuncts: &mut Vec<(
+        usize,
+        &'d crate::analysis::scenario_disclosure::DisclosureDependency,
+    )>,
+    member_conjuncts: &mut Vec<(
+        usize,
+        &'d crate::analysis::scenario_disclosure::DisclosureDependency,
+    )>,
     first: &crate::analysis::scenario_disclosure::DisclosureFirstQuery,
 ) -> Option<()> {
     match &right.expr {
@@ -8808,9 +10183,7 @@ fn predicate_operand<'d>(
             {
                 return None;
             }
-            let Some(scalar) = scalar else {
-                return None;
-            };
+            let scalar = scalar?;
             predicate_actor_operand(ir, owner, scalar, right, dependency)
         }
         IrExpr::Name(_) => {
@@ -8850,8 +10223,14 @@ fn predicate_conjunct<'d>(
     conjunct: &TypedExpr,
     operand_nodes: &[crate::analysis::NodeKey],
     unmatched: &mut Vec<&'d crate::analysis::scenario_disclosure::DisclosureDependency>,
-    param_conjuncts: &mut Vec<(usize, &'d crate::analysis::scenario_disclosure::DisclosureDependency)>,
-    member_conjuncts: &mut Vec<(usize, &'d crate::analysis::scenario_disclosure::DisclosureDependency)>,
+    param_conjuncts: &mut Vec<(
+        usize,
+        &'d crate::analysis::scenario_disclosure::DisclosureDependency,
+    )>,
+    member_conjuncts: &mut Vec<(
+        usize,
+        &'d crate::analysis::scenario_disclosure::DisclosureDependency,
+    )>,
 ) -> Option<()> {
     let IrExpr::Binary {
         op: IrBinOp::Eq,
@@ -8904,7 +10283,7 @@ fn predicate_conjunct<'d>(
 fn predicate_param_cover(
     ir: &IrProgram,
     owner: &IrItem,
-    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    _query: &crate::analysis::scenario_disclosure::DisclosureQuery,
     facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
     params: &[crate::analysis::SymbolId],
     conjunct_index: usize,
@@ -9053,8 +10432,14 @@ fn predicate_input_cover(
     params: &[crate::analysis::SymbolId],
     conjuncts: &[&TypedExpr],
     operand_nodes: &[crate::analysis::NodeKey],
-    param_conjuncts: &mut Vec<(usize, &crate::analysis::scenario_disclosure::DisclosureDependency)>,
-    member_conjuncts: &mut Vec<(usize, &crate::analysis::scenario_disclosure::DisclosureDependency)>,
+    param_conjuncts: &mut Vec<(
+        usize,
+        &crate::analysis::scenario_disclosure::DisclosureDependency,
+    )>,
+    member_conjuncts: &mut Vec<(
+        usize,
+        &crate::analysis::scenario_disclosure::DisclosureDependency,
+    )>,
     entry_operand: &crate::analysis::NodeKey,
     parameter: &crate::analysis::SymbolId,
 ) -> Option<()> {
@@ -9064,15 +10449,7 @@ fn predicate_input_cover(
     {
         let (index, dependency) = param_conjuncts.remove(position);
         return predicate_param_cover(
-            ir,
-            owner,
-            query,
-            facts,
-            params,
-            index,
-            dependency,
-            conjuncts,
-            parameter,
+            ir, owner, query, facts, params, index, dependency, conjuncts, parameter,
         );
     }
     let position = member_conjuncts
@@ -9316,7 +10693,9 @@ pub(super) fn checked_first_query_predicate(
     scan: &super::ir::IrQuery,
 ) -> Option<()> {
     let first = query.first.as_ref()?;
-    if first.reference_predicate.is_some(){return checked_first_reference_predicate_ir(ir,owner,query,scan);}
+    if first.reference_predicate.is_some() {
+        return checked_first_reference_predicate_ir(ir, owner, query, scan);
+    }
     predicate_dependency_types(query)?;
     // Order-only first (no where predicate): no conjuncts, no
     // dependencies, no transported inputs. Vacuous truth — the authored
@@ -9438,9 +10817,7 @@ fn select_owner_first_query<'a>(
     Some((query, facts))
 }
 
-fn first_query_call_shape<'x>(
-    actual: &'x TypedExpr,
-) -> Option<(&'x str, &'x TypedExpr, &'x IrQuery)> {
+fn first_query_call_shape(actual: &TypedExpr) -> Option<(&str, &TypedExpr, &IrQuery)> {
     let IrExpr::Call {
         target: IrCallTarget::Builtin { id, awaited: false },
         args,
@@ -9625,21 +11002,10 @@ fn checked_owner_first_query_ir<'a>(
     // refuses, keeping the owner-first join fail-closed.
     let first_parent = match first.contained_parent {
         None => scan.parent.is_none(),
-        Some((receiver, _)) => {
-            first_query_parent_match(ir, owner, query, scan, db, receiver)?
-        }
+        Some((receiver, _)) => first_query_parent_match(ir, owner, query, scan, db, receiver)?,
     };
     if owner_first_query_call_mismatch(
-        id,
-        first,
-        node,
-        actual,
-        &record,
-        &array,
-        &domain.ty,
-        query,
-        facts,
-        scan,
+        id, first, node, actual, &record, &array, &domain.ty, query, facts, scan,
     ) || owner_first_query_source_mismatch(
         source,
         collection,
@@ -9662,7 +11028,10 @@ fn checked_owner_first_query_ir<'a>(
     Some(query)
 }
 
-pub(super) fn transport_source(source: &DisclosureSource, entry_module: &str) -> Option<ReceiptSource> {
+pub(super) fn transport_source(
+    source: &DisclosureSource,
+    entry_module: &str,
+) -> Option<ReceiptSource> {
     if source.path.is_empty()
         || source.sha256.len() != 64
         || !source
@@ -9860,7 +11229,7 @@ fn images_let_statement(
 fn images_send_head(
     matcher: &ImagesSourceExpressions<'_>,
     args: &TypedExpr,
-    operation: &String,
+    _operation: &String,
     binding: &String,
     span: &Span,
     original: &SyntaxNode,
@@ -9898,13 +11267,12 @@ fn images_send_delivery(
     nodes: &HashMap<crate::analysis::NodeKey, &SyntaxNode>,
     text: &str,
     operation: &String,
-    binding: &String,
+    binding: &str,
     names: &mut HashMap<String, ResolvedType>,
 ) -> Option<()> {
     let mut bindings = census.iter().filter(|(key, _)| {
         nodes.get(key).is_some_and(|node| {
-            node.kind == SyntaxKind::NameRef
-                && images_source_name(node, text) == Some(binding.as_str())
+            node.kind == SyntaxKind::NameRef && images_source_name(node, text) == Some(binding)
         })
     });
     let (_, delivery) = bindings.next()?;
@@ -9915,7 +11283,7 @@ fn images_send_delivery(
         || op.name != "submit"
         || *operation != format!("{capability}.{}", op.name)
         || bindings.any(|(_, ty)| ty != delivery)
-        || names.insert(binding.clone(), delivery.clone()).is_some()
+        || names.insert(binding.to_owned(), delivery.clone()).is_some()
     {
         return None;
     }
@@ -9977,17 +11345,17 @@ fn images_authored_valid(authored: &SyntaxNode, has_guards: bool) -> bool {
 }
 
 fn images_by_matches(authored: &SyntaxNode, by: &[IrGuard], text: &str) -> Option<()> {
-    match (
-        crate::analysis::attribute_value(authored, "by", text),
-        by,
-    ) {
+    match (crate::analysis::attribute_value(authored, "by", text), by) {
         (Some(node), [IrGuard::Role(role)])
             if node.kind == SyntaxKind::NameRef
                 && matches!(
                     role.as_str(),
                     "members" | "owner" | "authenticated" | "public"
                 )
-                && images_source_name(node, text)? == role => Some(()),
+                && images_source_name(node, text)? == role =>
+        {
+            Some(())
+        }
         (None, []) => Some(()),
         _ => None,
     }
@@ -10048,11 +11416,7 @@ fn images_effects(
     nodes: &HashMap<crate::analysis::NodeKey, &SyntaxNode>,
 ) -> Option<()> {
     for (actual, original) in effects.iter().zip(statements) {
-        let matcher = ImagesSourceExpressions {
-            text,
-            types,
-            names,
-        };
+        let matcher = ImagesSourceExpressions { text, types, names };
         match (actual, original.kind) {
             (IrStmt::Let { name, value, span }, SyntaxKind::Let) if *span == original.span => {
                 images_let_statement(&matcher, name, value, original, text)?;
@@ -10135,13 +11499,7 @@ fn checked_images_source(ir: &IrProgram, owner: &IrItem, db: &SourceDb) -> Optio
     images_parameters(ir, owner, params, source, &nodes, &file.text, &mut names)?;
     let statements = images_effect_statements(authored, effects)?;
     images_effects(
-        effects,
-        statements,
-        &file.text,
-        &types,
-        &mut names,
-        census,
-        &nodes,
+        effects, statements, &file.text, &types, &mut names, census, &nodes,
     )
 }
 
@@ -10152,12 +11510,8 @@ struct ImagesSourceExpressions<'a> {
 }
 
 impl ImagesSourceExpressions<'_> {
-    fn match_leaf(
-        &self,
-        actual: &TypedExpr,
-        original: &crate::syntax::SyntaxNode,
-    ) -> Option<bool> {
-        let leaf = |kind| original.children.iter().find(|part| part.kind == kind);
+    fn match_leaf(&self, actual: &TypedExpr, original: &crate::syntax::SyntaxNode) -> Option<bool> {
+        let _leaf = |kind| original.children.iter().find(|part| part.kind == kind);
         Some(match (&actual.expr, original.kind) {
             (IrExpr::Name(name), SyntaxKind::Name | SyntaxKind::NameRef | SyntaxKind::Path) => {
                 images_source_name(original, self.text)? == name
@@ -10220,9 +11574,7 @@ impl ImagesSourceExpressions<'_> {
             (IrExpr::Text(value), SyntaxKind::Literal) => {
                 self.match_text(actual, original, value)?
             }
-            (IrExpr::Int(value), SyntaxKind::Literal) => {
-                self.match_int(actual, original, value)?
-            }
+            (IrExpr::Int(value), SyntaxKind::Literal) => self.match_int(actual, original, value)?,
             (IrExpr::Decimal(value), SyntaxKind::Literal) => {
                 actual.ty == ResolvedType::Scalar(Scalar::Decimal)
                     && leaf(SyntaxKind::Decimal)?.token()?.text(self.text) == value
@@ -10577,23 +11929,24 @@ fn contract_parameter_source_name(
     let contract = ir.items.get(symbol.0 as usize)?;
     let ambiguous = parameters.next().is_some();
     if contract_parameter_name_mismatch(
-            ambiguous,
-            actual_owner,
-            owner,
-            params,
-            *index,
-            parameter,
-            fact,
-            ty,
-            &value.ty,
-            name,
-            contract,
-        )
-    {
+        ambiguous,
+        actual_owner,
+        owner,
+        params,
+        *index,
+        parameter,
+        fact,
+        ty,
+        &value.ty,
+        name,
+        contract,
+    ) {
         return None;
     }
     if let Some(db) = db {
-        contract_parameter_source_proven(ir, owner, value, db, facts, parameter, fact, *symbol, name)?;
+        contract_parameter_source_proven(
+            ir, owner, value, db, facts, parameter, fact, *symbol, name,
+        )?;
     }
     Some((parameter.id, name.to_string()))
 }
@@ -10662,9 +12015,7 @@ fn contract_parameter_member_proven(
             )
         })?;
     }
-    if receiver.span != base_span
-        || name.token()?.text(&db.get(value.span.file)?.text) != field
-    {
+    if receiver.span != base_span || name.token()?.text(&db.get(value.span.file)?.text) != field {
         return None;
     }
     let schema = facts
@@ -10715,8 +12066,7 @@ fn contract_parameter_source_member(
         return None;
     };
     let duplicate = candidates.next().is_some();
-    if contract_parameter_member_mismatch(duplicate, field_owner, symbol, ty, &value.ty, field)
-    {
+    if contract_parameter_member_mismatch(duplicate, field_owner, symbol, ty, &value.ty, field) {
         return None;
     }
     if let Some(db) = db {
@@ -10906,7 +12256,11 @@ fn checked_created_row_operand(
                 }
                 // A later loop cannot replace this earlier constructor operand.
                 // Its own source/effect proof still owns every loop execution.
-                IrStmt::For {span,..} if span.file==value.span.file && span.start>value.span.end => *span,
+                IrStmt::For { span, .. }
+                    if span.file == value.span.file && span.start > value.span.end =>
+                {
+                    *span
+                }
                 IrStmt::Require { span, .. }
                 | IrStmt::Create { span, .. }
                 | IrStmt::Send { span, .. }
@@ -10981,33 +12335,74 @@ fn checked_created_row_operand(
 
 /// Observe the original required reference field of the genuine new row.
 /// The complete owner seal preserves its authored consumer and evaluation order.
-fn checked_sealed_created_reference<'a>(ir: &'a IrProgram, owner: &IrItem,
-    value: &TypedExpr, db: &SourceDb, sealed: bool,
+fn checked_sealed_created_reference<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: &SourceDb,
+    sealed: bool,
 ) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
-    if !sealed || !matches!(value.ty, ResolvedType::Record {stored:true,..}) { return None; }
-    let IrExpr::Member {base,field} = &value.expr else { return None; };
-    let ResolvedType::Record {symbol:model,stored:true} = base.ty else { return None; };
-    checked_created_row_operand(ir,owner,base,model,db,false,true)?;
-    let facts = super::scenario_calls::checked_source(ir,owner,db)?;
-    let schema = facts.stored_contracts.as_deref()?.iter().find(|schema| schema.model && schema.id == model)?;
-    match_stored_contract_schema(ir,schema,db)?;
-    reference_receiver_matches(ir,owner,value,base,field,db)?;
-    reference_member_field(ir,owner,value,schema,field,db)
+    if !sealed || !matches!(value.ty, ResolvedType::Record { stored: true, .. }) {
+        return None;
+    }
+    let IrExpr::Member { base, field } = &value.expr else {
+        return None;
+    };
+    let ResolvedType::Record {
+        symbol: model,
+        stored: true,
+    } = base.ty
+    else {
+        return None;
+    };
+    checked_created_row_operand(ir, owner, base, model, db, false, true)?;
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let schema = facts
+        .stored_contracts
+        .as_deref()?
+        .iter()
+        .find(|schema| schema.model && schema.id == model)?;
+    match_stored_contract_schema(ir, schema, db)?;
+    reference_receiver_matches(ir, owner, value, base, field, db)?;
+    reference_member_field(ir, owner, value, schema, field, db)
 }
 
 /// A reserved identity read remains attached to its one actual created row
 /// inside the independently sealed complete original owner tail.
-fn checked_sealed_created_row_id<'a>(ir: &'a IrProgram, owner: &IrItem, value: &TypedExpr,
-    db: &SourceDb, sealed: bool) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema> {
-    if !sealed || value.ty != ResolvedType::Scalar(Scalar::Text) { return None; }
-    let IrExpr::Member {base,field} = &value.expr else { return None; };
-    let ResolvedType::Record {symbol:model,stored:true} = base.ty else { return None; };
-    if field != "id" { return None; }
-    checked_created_row_operand(ir,owner,base,model,db,false,true)?;
-    let facts = super::scenario_calls::checked_source(ir,owner,db)?;
-    let schema = facts.stored_contracts.as_deref()?.iter().find(|schema| schema.model && schema.id == model)?;
-    if schema.fields.iter().any(|field| field.name == "id") { return None; }
-    match_stored_contract_schema(ir,schema,db)?;
+fn checked_sealed_created_row_id<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: &SourceDb,
+    sealed: bool,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema> {
+    if !sealed || value.ty != ResolvedType::Scalar(Scalar::Text) {
+        return None;
+    }
+    let IrExpr::Member { base, field } = &value.expr else {
+        return None;
+    };
+    let ResolvedType::Record {
+        symbol: model,
+        stored: true,
+    } = base.ty
+    else {
+        return None;
+    };
+    if field != "id" {
+        return None;
+    }
+    checked_created_row_operand(ir, owner, base, model, db, false, true)?;
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let schema = facts
+        .stored_contracts
+        .as_deref()?
+        .iter()
+        .find(|schema| schema.model && schema.id == model)?;
+    if schema.fields.iter().any(|field| field.name == "id") {
+        return None;
+    }
+    match_stored_contract_schema(ir, schema, db)?;
     Some(schema)
 }
 
@@ -11188,27 +12583,49 @@ impl<'a> RequiredModelParameter<'a> {
         source: &'a crate::analysis::scenario_disclosure::CheckedScenarioSource,
         name: &str,
     ) -> Option<Self> {
-        let mut parameters = params.iter().enumerate()
+        let mut parameters = params
+            .iter()
+            .enumerate()
             .filter_map(|(position, id)| Some((position, ir.items.get(id.0 as usize)?)))
             .filter(|(_, parameter)| parameter.name == name);
         let (position, parameter) = parameters.next()?;
         let IrItemKind::Param {
-            owner: declared_owner, index,
-            ty: IrType::Known(ty @ ResolvedType::Record { symbol: model, stored: true }),
-            array_bounds: None, default: None, default_node: None, default_copy_source: None,
+            owner: declared_owner,
+            index,
+            ty:
+                IrType::Known(
+                    ty @ ResolvedType::Record {
+                        symbol: model,
+                        stored: true,
+                    },
+                ),
+            array_bounds: None,
+            default: None,
+            default_node: None,
+            default_copy_source: None,
             ..
-        } = &parameter.kind else { return None; };
+        } = &parameter.kind
+        else {
+            return None;
+        };
         let fact = source.parameters.get(position)?;
         if parameters.next().is_some()
-            || *declared_owner != owner.id || *index != position
+            || *declared_owner != owner.id
+            || *index != position
             || parameter.id != fact.parameter
             || parameter.module != owner.module
             || parameter.canonical != format!("{}.{}", owner.canonical, name)
-            || fact.ty != *ty || fact.default.is_some() || fact.constraints.is_some()
+            || fact.ty != *ty
+            || fact.default.is_some()
+            || fact.constraints.is_some()
         {
             return None;
         }
-        Some(Self { parameter, fact, model: *model })
+        Some(Self {
+            parameter,
+            fact,
+            model: *model,
+        })
     }
 }
 
@@ -11267,7 +12684,7 @@ fn parameter_row_declaration(
     name: &str,
     text: &str,
     base_span: Span,
-    model_return: bool,
+    _model_return: bool,
     db: &SourceDb,
 ) -> Option<SyntaxNode> {
     let declaration = checked_effect_node(ir, owner, fact.node, db)?;
@@ -11283,7 +12700,7 @@ fn parameter_row_declaration(
         .children
         .iter()
         .filter(|part| part.kind == SyntaxKind::Path);
-    let type_path = paths.next()?;
+    let _type_path = paths.next()?;
     if text
         .get(base_span.start as usize..base_span.end as usize)
         .map(str::trim)
@@ -11315,8 +12732,13 @@ fn parameter_row_schema<'a>(
         .iter()
         .filter(|schema| schema.model && schema.id == symbol);
     let original = schemas.next()?;
-    super::scenario_create_sources::reference_name(ir,owner,symbol,
-        direct_source_path_name(type_path,text)?,db)?;
+    super::scenario_create_sources::reference_name(
+        ir,
+        owner,
+        symbol,
+        direct_source_path_name(type_path, text)?,
+        db,
+    )?;
     if schemas.next().is_some()
         || original.field_order.iter().any(|id| {
             ir.items
@@ -11376,8 +12798,11 @@ fn checked_parameter_row_id<'a>(
     let IrExpr::Name(name) = &base.expr else {
         return None;
     };
-    let RequiredModelParameter { parameter, fact, model: symbol } =
-        RequiredModelParameter::checked(ir, owner, params, source, name)?;
+    let RequiredModelParameter {
+        parameter,
+        fact,
+        model: symbol,
+    } = RequiredModelParameter::checked(ir, owner, params, source, name)?;
     let module = ir.modules.get(owner.module.0 as usize)?;
     let text = &db.get(source.node.file)?.text;
     if owner.canonical != format!("{}.{}", module.name, owner.name)
@@ -11388,8 +12813,17 @@ fn checked_parameter_row_id<'a>(
         return None;
     }
     parameter_row_receiver(ir, owner, value, model_return, base.span, text, db)?;
-    let declaration =
-        parameter_row_declaration(ir, owner, fact, parameter, name, text, base.span, model_return, db)?;
+    let declaration = parameter_row_declaration(
+        ir,
+        owner,
+        fact,
+        parameter,
+        name,
+        text,
+        base.span,
+        model_return,
+        db,
+    )?;
     let declared_type = declaration
         .children
         .iter()
@@ -11795,34 +13229,98 @@ fn checked_candidate_parent_association<'a>(
 
 /// Exact CreateAs.parent association to that CREATE's original required
 /// parent input. The borrowed row remains a created row, never a parameter.
-fn checked_created_parent<'a>(ir:&'a IrProgram,owner:&IrItem,value:&TypedExpr,db:&SourceDb)
-    ->Option<(&'a crate::analysis::scenario_disclosure::CheckedScenarioCreate,&'a IrItem,usize)> {
-    let IrExpr::Member{base,field}=&value.expr else{return None;};
-    let IrExpr::Name(binding)=&base.expr else{return None;};
-    if field!="parent"{return None;}
-    let facts=super::scenario_calls::checked_source(ir,owner,db)?;
-    let mut sources=facts.creates.as_deref()?.iter().filter(|source|source.binding==*binding&&source.source==facts.source);
-    let created=sources.next()?;if sources.next().is_some(){return None;}
-    checked_created_row_operand(ir,owner,base,created.model,db,false,true)?;
-    let IrItemKind::Scenario{effects,params,..}=&owner.kind else{return None;};
+fn checked_created_parent<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: &SourceDb,
+) -> Option<(
+    &'a crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+    &'a IrItem,
+    usize,
+)> {
+    let IrExpr::Member { base, field } = &value.expr else {
+        return None;
+    };
+    let IrExpr::Name(binding) = &base.expr else {
+        return None;
+    };
+    if field != "parent" {
+        return None;
+    }
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let mut sources = facts
+        .creates
+        .as_deref()?
+        .iter()
+        .filter(|source| source.binding == *binding && source.source == facts.source);
+    let created = sources.next()?;
+    if sources.next().is_some() {
+        return None;
+    }
+    checked_created_row_operand(ir, owner, base, created.model, db, false, true)?;
+    let IrItemKind::Scenario {
+        effects, params, ..
+    } = &owner.kind
+    else {
+        return None;
+    };
     let (position,statement)=effects.iter().enumerate().find(|(_,statement)|matches!(statement,IrStmt::Create{span,..} if *span==node_span(created.node)))?;
-    let IrStmt::Create{input,when:None,..}=statement else{return None;};
-    let IrExpr::Object(entries)=&input.expr else{return None;};
-    let parent=&entries.iter().find(|(name,_)|name=="parent")?.1;
-    let IrExpr::Name(name)=&parent.expr else{return None;};
-    let original=created.inputs.iter().find(|input|input.name=="parent"&&input.field.is_none()&&node_span(input.value_node)==parent.span)?;
-    let models=super::js::Emitter::source_models(ir,db)?;
-    let schema=checked_parameter_row_id(ir,owner,parent,&models,db)?;
-    let child=facts.stored_contracts.as_deref()?.iter().find(|schema|schema.model&&schema.id==created.model)?;
-    match_stored_contract_schema(ir,child,db)?;
-    if child.parent!=Some(schema.id){return None;}
-    if value.ty!=parent.ty||original.ty!=parent.ty||created.definition.declaration.owner!=crate::analysis::resolve::ModelOwner::ChildOf(schema.id){return None;}
-    super::scenario_create_sources::checked_create_expression(ir,created,parent,original.value_node,db)?;
-    let parameter=params.iter().filter_map(|id|ir.items.get(id.0 as usize)).find(|parameter|parameter.name==*name)?;
-    let stage=effects[..position].iter().try_fold(0,|stage,statement|match statement{
-        IrStmt::Let{..}|IrStmt::Require{..}=>Some(stage),
-        IrStmt::Create{when:None,..}|IrStmt::Set{when:None,..}=>Some(stage+1),_=>None})?;
-    Some((created,parameter,stage))
+    let IrStmt::Create {
+        input, when: None, ..
+    } = statement
+    else {
+        return None;
+    };
+    let IrExpr::Object(entries) = &input.expr else {
+        return None;
+    };
+    let parent = &entries.iter().find(|(name, _)| name == "parent")?.1;
+    let IrExpr::Name(name) = &parent.expr else {
+        return None;
+    };
+    let original = created.inputs.iter().find(|input| {
+        input.name == "parent"
+            && input.field.is_none()
+            && node_span(input.value_node) == parent.span
+    })?;
+    let models = super::js::Emitter::source_models(ir, db)?;
+    let schema = checked_parameter_row_id(ir, owner, parent, &models, db)?;
+    let child = facts
+        .stored_contracts
+        .as_deref()?
+        .iter()
+        .find(|schema| schema.model && schema.id == created.model)?;
+    match_stored_contract_schema(ir, child, db)?;
+    if child.parent != Some(schema.id) {
+        return None;
+    }
+    if value.ty != parent.ty
+        || original.ty != parent.ty
+        || created.definition.declaration.owner
+            != crate::analysis::resolve::ModelOwner::ChildOf(schema.id)
+    {
+        return None;
+    }
+    super::scenario_create_sources::checked_create_expression(
+        ir,
+        created,
+        parent,
+        original.value_node,
+        db,
+    )?;
+    let parameter = params
+        .iter()
+        .filter_map(|id| ir.items.get(id.0 as usize))
+        .find(|parameter| parameter.name == *name)?;
+    let stage = effects[..position]
+        .iter()
+        .try_fold(0, |stage, statement| match statement {
+            IrStmt::Let { .. } | IrStmt::Require { .. } => Some(stage),
+            IrStmt::Create { when: None, .. } | IrStmt::Set { when: None, .. } => Some(stage + 1),
+            _ => None,
+        })?;
+    Some((created, parameter, stage))
 }
 
 pub(super) fn checked_parent_reference<'a>(
@@ -11860,9 +13358,17 @@ fn checked_notice_event_field(
     let IrItemKind::Scenario {
         trusted: true,
         event_source: Some(super::ir::IrEventSource::Declared(source)),
-        hook: None, cohort: None, params, ..
-    } = &owner.kind else { return None; };
-    let IrExpr::Member { base, field } = &value.expr else { return None; };
+        hook: None,
+        cohort: None,
+        params,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let IrExpr::Member { base, field } = &value.expr else {
+        return None;
+    };
     let (expected_event, row_name) = match owner.canonical.as_str() {
         "agreements.notice" => ("agreements.Notice", "term"),
         "agreements.due" => ("agreements.ObligationDue", "obligation"),
@@ -11870,26 +13376,59 @@ fn checked_notice_event_field(
         "events.attendee_notice" => ("events.AttendeeNotice", "registration"),
         _ => return None,
     };
-    if source != expected_event || !matches!(field_name, "revision") && field_name != row_name
-            && !(owner.canonical == "events.attendee_notice" && matches!(field_name,"kind"|"body"))
-        || !params.is_empty() || field != field_name
+    if source != expected_event
+        || !matches!(field_name, "revision")
+            && field_name != row_name
+            && !(owner.canonical == "events.attendee_notice"
+                && matches!(field_name, "kind" | "body"))
+        || !params.is_empty()
+        || field != field_name
         || !matches!(&base.expr, IrExpr::Name(name) if name == "event")
-        || db.get(value.span.file)?.text.get(value.span.start as usize..value.span.end as usize)?
-            .trim() != format!("event.{field_name}")
-    { return None; }
-    let mut events = ir.items.iter().filter(|item| item.canonical == *source);
-    let event = events.next()?;
-    let IrItemKind::Event { fields } = &event.kind else { return None; };
-    if events.next().is_some() || event.module != owner.module || fields.len() != if owner.canonical == "events.attendee_notice" {4} else {2} {
+        || db
+            .get(value.span.file)?
+            .text
+            .get(value.span.start as usize..value.span.end as usize)?
+            .trim()
+            != format!("event.{field_name}")
+    {
         return None;
     }
-    let mut matched = fields.iter().filter_map(|id| ir.items.get(id.0 as usize))
+    let mut events = ir.items.iter().filter(|item| item.canonical == *source);
+    let event = events.next()?;
+    let IrItemKind::Event { fields } = &event.kind else {
+        return None;
+    };
+    if events.next().is_some()
+        || event.module != owner.module
+        || fields.len()
+            != if owner.canonical == "events.attendee_notice" {
+                4
+            } else {
+                2
+            }
+    {
+        return None;
+    }
+    let mut matched = fields
+        .iter()
+        .filter_map(|id| ir.items.get(id.0 as usize))
         .filter(|item| item.name == field_name);
     let item = matched.next()?;
-    let IrItemKind::Field { owner: declared, ty: IrType::Known(ty), .. } = &item.kind
-        else { return None; };
-    if matched.next().is_some() || *declared != event.id || item.module != event.module
-        || ty != &value.ty { return None; }
+    let IrItemKind::Field {
+        owner: declared,
+        ty: IrType::Known(ty),
+        ..
+    } = &item.kind
+    else {
+        return None;
+    };
+    if matched.next().is_some()
+        || *declared != event.id
+        || item.module != event.module
+        || ty != &value.ty
+    {
+        return None;
+    }
     Some(item.id)
 }
 
@@ -11900,46 +13439,78 @@ fn checked_notice_event_row_path(
     db: &SourceDb,
 ) -> Option<crate::analysis::SymbolId> {
     if let Some(field) = checked_delivery_event_row_name(owner)
-        .and_then(|name| checked_notice_event_field(ir, owner, value, name, db)) {
+        .and_then(|name| checked_notice_event_field(ir, owner, value, name, db))
+    {
         let IrItemKind::Field {
-            ty: IrType::Known(ResolvedType::Record { symbol, stored: true }), ..
-        } = &ir.items.get(field.0 as usize)?.kind else { return None; };
+            ty:
+                IrType::Known(ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                }),
+            ..
+        } = &ir.items.get(field.0 as usize)?.kind
+        else {
+            return None;
+        };
         return Some(*symbol);
     }
     if owner.canonical == "appointments.remind" {
-        let IrExpr::Member { base, field } = &value.expr else { return None; };
+        let IrExpr::Member { base, field } = &value.expr else {
+            return None;
+        };
         if field == "contact"
             && checked_notice_event_field(ir, owner, base, "appointment", db).is_some()
-            && db.get(value.span.file)?.text
+            && db
+                .get(value.span.file)?
+                .text
                 .get(value.span.start as usize..value.span.end as usize)?
                 == "event.appointment.contact"
         {
             let appointment = match base.ty {
-                ResolvedType::Record { symbol, stored: true } => symbol,
+                ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                } => symbol,
                 _ => return None,
             };
             let contact = match value.ty {
-                ResolvedType::Record { symbol, stored: true } => symbol,
+                ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                } => symbol,
                 _ => return None,
             };
             if ir.items.get(appointment.0 as usize)?.canonical != "appointments.Appointment"
                 || ir.items.get(contact.0 as usize)?.canonical != "customer.Contact"
-            { return None; }
+            {
+                return None;
+            }
             let IrItemKind::Model { fields, .. } = &ir.items.get(appointment.0 as usize)?.kind
-                else { return None; };
-            let mut matching = fields.iter().filter_map(|id| ir.items.get(id.0 as usize))
+            else {
+                return None;
+            };
+            let mut matching = fields
+                .iter()
+                .filter_map(|id| ir.items.get(id.0 as usize))
                 .filter(|item| item.name == "contact");
             let declared = matching.next()?;
-            if matching.next().is_some() || !matches!(&declared.kind,
+            if matching.next().is_some()
+                || !matches!(&declared.kind,
                 IrItemKind::Field { owner: field_owner,
                     ty: IrType::Known(ResolvedType::Record {symbol, stored: true}), .. }
                     if *field_owner == appointment && *symbol == contact)
-            { return None; }
+            {
+                return None;
+            }
             return Some(contact);
         }
     }
-    let IrExpr::Member { field, .. } = &value.expr else { return None; };
-    if field != "parent" { return None; }
+    let IrExpr::Member { field, .. } = &value.expr else {
+        return None;
+    };
+    if field != "parent" {
+        return None;
+    }
     let (_, parent) = checked_parent_reference(ir, owner, value, db)?;
     Some(parent.id)
 }
@@ -12013,9 +13584,9 @@ fn checked_parent_reference_at<'a>(
         return None;
     }
     let selected_first = checked_first_query_row(ir, owner, base, db);
-    let created=checked_created_parent(ir,owner,value,db);
+    let created = checked_created_parent(ir, owner, value, db);
     let symbol = match &base.expr {
-        IrExpr::Name(_) if created.is_some()=>created?.0.model,
+        IrExpr::Name(_) if created.is_some() => created?.0.model,
         IrExpr::Name(_) if selected_first.is_some() => selected_first?.id,
         IrExpr::Name(name) => {
             let mut parameters = params
@@ -12038,7 +13609,15 @@ fn checked_parent_reference_at<'a>(
             else {
                 return None;
             };
-            parent_base_param_symbol(owner, db, base, name, *symbol, parameter_owner, &mut parameters)?
+            parent_base_param_symbol(
+                owner,
+                db,
+                base,
+                name,
+                *symbol,
+                parameter_owner,
+                &mut parameters,
+            )?
         }
         IrExpr::Member { .. }
             if checked_delivery_event_row_name(owner)
@@ -12140,7 +13719,7 @@ fn reference_read_matches(
 /// This joins source/dependency identity only; Files supplies live authority.
 fn file_array_receiver(
     value: &TypedExpr,
-) -> Option<(&String, &String, crate::analysis::SymbolId, &Box<TypedExpr>)> {
+) -> Option<(&String, &String, crate::analysis::SymbolId, &TypedExpr)> {
     let IrExpr::Member { base, field } = &value.expr else {
         return None;
     };
@@ -12232,8 +13811,8 @@ fn file_array_field_valid(
         || original.required_array
         || original.reuse.is_some()
         || original.trim
-        || call_bounds && (original.min.is_some()
-            || original.max.as_ref().map(|(_, max, _)| *max) != Some(8))
+        || call_bounds
+            && (original.min.is_some() || original.max.as_ref().map(|(_, max, _)| *max) != Some(8))
         || original
             .constraints
             .as_ref()
@@ -12276,7 +13855,17 @@ fn file_array_schema_field<'a>(
         return None;
     }
     let declaration = ir.items.get(original.id.0 as usize)?;
-    file_array_field_valid(ir, owner, declaration, original, symbol, value, schema.id, db, call_bounds)?;
+    file_array_field_valid(
+        ir,
+        owner,
+        declaration,
+        original,
+        symbol,
+        value,
+        schema.id,
+        db,
+        call_bounds,
+    )?;
     Some(original)
 }
 
@@ -12289,9 +13878,17 @@ fn stored_file_array_parameter_operand<'a>(
 ) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
     let source = super::scenario_calls::checked_source(ir, owner, db)?;
     let (name, field, symbol, base) = file_array_receiver(value)?;
-    let IrItemKind::Scenario { params, read: false, .. } = &owner.kind else { return None; };
-    let RequiredModelParameter { parameter, fact, .. } =
-        RequiredModelParameter::checked(ir, owner, params, source, name)?;
+    let IrItemKind::Scenario {
+        params,
+        read: false,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let RequiredModelParameter {
+        parameter, fact, ..
+    } = RequiredModelParameter::checked(ir, owner, params, source, name)?;
     let module = ir.modules.get(owner.module.0 as usize)?;
     let text = &db.get(source.node.file)?.text;
     if owner.canonical != format!("{}.{}", module.name, owner.name)
@@ -12306,7 +13903,10 @@ fn stored_file_array_parameter_operand<'a>(
 }
 
 pub(super) fn stored_file_array_operand<'a>(
-    ir: &'a IrProgram, owner: &IrItem, value: &TypedExpr, db: &SourceDb,
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: &SourceDb,
 ) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
     stored_file_array_parameter_operand(ir, owner, value, db, true)
 }
@@ -12315,25 +13915,43 @@ pub(super) fn stored_file_array_operand<'a>(
 /// exact CREATE field. The receiving schema and live File checks still own it.
 fn checked_stored_file_array_create_operand<'a>(
     context: &super::source_context::FreshSourceContext<'_>,
-    ir: &'a IrProgram, owner: &IrItem, value: &TypedExpr, db: &SourceDb,
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: &SourceDb,
 ) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
     context.same_scenario(ir, owner)?;
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
-    let IrItemKind::Scenario { effects, .. } = &owner.kind else { return None; };
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return None;
+    };
     let mut matches = facts.creates.as_deref()?.iter().filter(|created| {
         effects.iter().any(|statement| {
-            let IrStmt::Create {input, span, ..} = statement else { return false; };
-            let IrExpr::Object(entries) = &input.expr else { return false; };
-            *span == node_span(created.node) && entries.iter().any(|(name, argument)|
-                std::ptr::eq(argument, value) && created.inputs.iter().any(|input|
-                    input.name == *name && input.field.is_some() && input.ty == value.ty
-                        && node_span(input.value_node) == value.span
-                        && created.definition.fields.iter().any(|field|
-                            Some(field.field) == input.field && field.ty == value.ty)))
+            let IrStmt::Create { input, span, .. } = statement else {
+                return false;
+            };
+            let IrExpr::Object(entries) = &input.expr else {
+                return false;
+            };
+            *span == node_span(created.node)
+                && entries.iter().any(|(name, argument)| {
+                    std::ptr::eq(argument, value)
+                        && created.inputs.iter().any(|input| {
+                            input.name == *name
+                                && input.field.is_some()
+                                && input.ty == value.ty
+                                && node_span(input.value_node) == value.span
+                                && created.definition.fields.iter().any(|field| {
+                                    Some(field.field) == input.field && field.ty == value.ty
+                                })
+                        })
+                })
         })
     });
     matches.next()?;
-    if matches.next().is_some() { return None; }
+    if matches.next().is_some() {
+        return None;
+    }
     stored_file_array_parameter_operand(ir, owner, value, db, false)
 }
 
@@ -12341,27 +13959,51 @@ fn checked_stored_file_array_create_operand<'a>(
 /// standard SEND slot. The complete owner seal retains the original CREATE,
 /// receiver, consumer and order; Files/State still supply all live authority.
 fn checked_created_file_array_send_operand<'a>(
-    ir: &'a IrProgram, owner: &IrItem, value: &TypedExpr, db: &SourceDb, sealed: bool,
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: &SourceDb,
+    sealed: bool,
 ) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
-    if !sealed { return None; }
+    if !sealed {
+        return None;
+    }
     let (_, field, model, base) = file_array_receiver(value)?;
-    checked_created_row_operand(ir,owner,base,model,db,false,true)?;
-    let IrItemKind::Scenario {effects,..} = &owner.kind else {return None;};
-    let mut consumers=effects.iter().filter_map(|statement| {
-        let IrStmt::Send {operation,args,..} = statement else {return None;};
-        let IrExpr::Object(entries)=&args.expr else {return None;};
-        let (capability,operation)=operation.rsplit_once('.')?;
-        let signature=crate::analysis::catalog::std_operation(capability,operation)?;
-        entries.iter().any(|(name,argument)|std::ptr::eq(argument,value)
-            && signature.inputs.iter().any(|(slot,ty)|*slot==name && *ty=="file[]"))
+    checked_created_row_operand(ir, owner, base, model, db, false, true)?;
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return None;
+    };
+    let mut consumers = effects.iter().filter_map(|statement| {
+        let IrStmt::Send {
+            operation, args, ..
+        } = statement
+        else {
+            return None;
+        };
+        let IrExpr::Object(entries) = &args.expr else {
+            return None;
+        };
+        let (capability, operation) = operation.rsplit_once('.')?;
+        let signature = crate::analysis::catalog::std_operation(capability, operation)?;
+        entries
+            .iter()
+            .any(|(name, argument)| {
+                std::ptr::eq(argument, value)
+                    && signature
+                        .inputs
+                        .iter()
+                        .any(|(slot, ty)| *slot == name && *ty == "file[]")
+            })
             .then_some(())
     });
     consumers.next()?;
-    if consumers.next().is_some() {return None;}
-    let facts=super::scenario_calls::checked_source(ir,owner,db)?;
-    let text=&db.get(facts.node.file)?.text;
-    file_array_authored_matches(ir,owner,facts,value,base,field,text,db)?;
-    file_array_schema_field(ir,owner,facts,model,field,value,db,false)
+    if consumers.next().is_some() {
+        return None;
+    }
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let text = &db.get(facts.node.file)?.text;
+    file_array_authored_matches(ir, owner, facts, value, base, field, text, db)?;
+    file_array_schema_field(ir, owner, facts, model, field, value, db, false)
 }
 
 pub(super) fn stored_file_array_descriptor_matches(
@@ -12398,9 +14040,6 @@ pub(super) fn stored_file_array_descriptor_matches(
             .ok()
             .is_some_and(|expected| serde_json::to_value(descriptor).ok() == Some(expected))
 }
-
-/// Borrow a singular original required Branch.profile read pair. Existing
-/// consumers cannot silently discard another role retained by the source.
 
 /// Borrow the exact required Profile pairs or the leading Turn.run unfinished
 /// guard pair. A Profile Let consumed by guard and result retains both roles.
@@ -12453,9 +14092,14 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
     let IrExpr::Name(binding) = &receiver.expr else {
         return None;
     };
-    let constructor_scalar = source.creates.as_deref().is_some_and(|creates|
-        creates.iter().any(|create| create.inputs.iter().any(|input|
-            node_span(input.value_node) == leaf.span && input.ty == leaf.ty)));
+    let constructor_scalar = source.creates.as_deref().is_some_and(|creates| {
+        creates.iter().any(|create| {
+            create
+                .inputs
+                .iter()
+                .any(|input| node_span(input.value_node) == leaf.span && input.ty == leaf.ty)
+        })
+    });
     let run_guard = field == "run" && scalar_name == "unfinished";
     let (reference_name, expected) = if run_guard {
         ("run", Scalar::Bool)
@@ -12469,8 +14113,12 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
         };
         ("profile", expected)
     } else if constructor_scalar {
-        let ResolvedType::Scalar(expected) = leaf.ty else { return None; };
-        if matches!(expected, Scalar::File) { return None; }
+        let ResolvedType::Scalar(expected) = leaf.ty else {
+            return None;
+        };
+        if matches!(expected, Scalar::File) {
+            return None;
+        }
         (field.as_str(), expected)
     } else {
         return None;
@@ -12603,8 +14251,11 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
         return None;
     }
     match_stored_contract_field(ir, reference_field, db)?;
-    let RequiredModelParameter { parameter, fact: original_parameter, .. } =
-        RequiredModelParameter::checked(ir, owner, params, source, binding)?;
+    let RequiredModelParameter {
+        parameter,
+        fact: original_parameter,
+        ..
+    } = RequiredModelParameter::checked(ir, owner, params, source, binding)?;
     let authored_parameter = checked_effect_node(ir, owner, original_parameter.node, db)?;
     let parameter_name = authored_parameter
         .children
@@ -12693,14 +14344,18 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
         let block = blocks.next()?;
         if blocks.next().is_some()
             || !block.children.iter().any(|node| {
-                (node.kind == SyntaxKind::Create || !constructor_scalar && node.kind == SyntaxKind::Let) && contains(node)
+                (node.kind == SyntaxKind::Create
+                    || !constructor_scalar && node.kind == SyntaxKind::Let)
+                    && contains(node)
             })
         {
             return None;
         }
         DependencyRole::Data
     };
-    if constructor_scalar && role != DependencyRole::Data { return None; }
+    if constructor_scalar && role != DependencyRole::Data {
+        return None;
+    }
     if run_guard {
         if role != DependencyRole::Control
             || branch.parent.is_none()
@@ -12863,40 +14518,82 @@ fn checked_helper_reference_scalar_pairs<'a>(
     context: &'a super::source_context::FreshSourceContext<'_>,
     owner: &IrItem,
     leaf: &TypedExpr,
-) -> Option<Vec<(
-    &'a crate::analysis::scenario_disclosure::DisclosureDependency,
-    &'a crate::analysis::scenario_disclosure::DisclosureDependency,
-)>> {
-    let ir=context.ir();
-    context.same_scenario(ir,owner)?;
-    let ScenarioDisclosure::Complete(proof)=ir.scenario_disclosures.get(&owner.id)? else{return None;};
-    let ScenarioDisclosure::Complete(fresh)=context.fresh().scenario_disclosures.get(&owner.id)? else{return None;};
-    if !super::scenario_feasibility::same_disclosure(proof,fresh){return None;}
-    let facts=proof.source_facts.as_deref()?;
-    let IrExpr::Member{base,field}=&leaf.expr else{return None;};
-    if !(matches!(leaf.ty,ResolvedType::Scalar(_)) && native_result_type(&leaf.ty)
-        || leaf.ty==ResolvedType::Scalar(Scalar::Timezone)){return None;}
-    let ResolvedType::Record{symbol:target,stored:true}=base.ty else{return None;};
-    let schemas=facts.stored_contracts.as_deref()?;
-    let schema=schemas.iter().find(|schema|schema.model&&schema.id==target)?;
-    let original=schema.fields.iter().find(|item|item.name==*field&&item.ty==leaf.ty)?;
-    match_stored_contract_schema(ir,schema,context.db())?;
-    match_stored_contract_field(ir,original,context.db())?;
-    let mut pairs=Vec::new();
+) -> Option<
+    Vec<(
+        &'a crate::analysis::scenario_disclosure::DisclosureDependency,
+        &'a crate::analysis::scenario_disclosure::DisclosureDependency,
+    )>,
+> {
+    let ir = context.ir();
+    context.same_scenario(ir, owner)?;
+    let ScenarioDisclosure::Complete(proof) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    let ScenarioDisclosure::Complete(fresh) =
+        context.fresh().scenario_disclosures.get(&owner.id)?
+    else {
+        return None;
+    };
+    if !super::scenario_feasibility::same_disclosure(proof, fresh) {
+        return None;
+    }
+    let facts = proof.source_facts.as_deref()?;
+    let IrExpr::Member { base, field } = &leaf.expr else {
+        return None;
+    };
+    if !(matches!(leaf.ty, ResolvedType::Scalar(_)) && native_result_type(&leaf.ty)
+        || leaf.ty == ResolvedType::Scalar(Scalar::Timezone))
+    {
+        return None;
+    }
+    let ResolvedType::Record {
+        symbol: target,
+        stored: true,
+    } = base.ty
+    else {
+        return None;
+    };
+    let schemas = facts.stored_contracts.as_deref()?;
+    let schema = schemas
+        .iter()
+        .find(|schema| schema.model && schema.id == target)?;
+    let original = schema
+        .fields
+        .iter()
+        .find(|item| item.name == *field && item.ty == leaf.ty)?;
+    match_stored_contract_schema(ir, schema, context.db())?;
+    match_stored_contract_field(ir, original, context.db())?;
+    let mut pairs = Vec::new();
     for returned in &proof.returns {
-        for read in returned.dependencies.iter().filter(|read|
-            node_span(read.node)==leaf.span && read.ty==leaf.ty && read.model==target
-            && read.field==original.id && read.field_name==*field && read.role==DependencyRole::Data
-            && read.calls.len()==1 && read.query_id.is_none()) {
-            let mut sources=returned.dependencies.iter().filter(|source|
-                node_span(source.node)==base.span && source.ty==base.ty
-                && source.role==read.role && source.source==read.source
-                && source.calls==read.calls && source.query_id.is_none());
-            let source=sources.next()?;
-            if sources.next().is_some() || source.id==read.id{return None;}
-            let reference=checked_helper_identity_reference(context,owner,source,base,facts)?;
-            if reference.ty!=base.ty{return None;}
-            if !pairs.contains(&(source,read)){pairs.push((source,read));}
+        for read in returned.dependencies.iter().filter(|read| {
+            node_span(read.node) == leaf.span
+                && read.ty == leaf.ty
+                && read.model == target
+                && read.field == original.id
+                && read.field_name == *field
+                && read.role == DependencyRole::Data
+                && read.calls.len() == 1
+                && read.query_id.is_none()
+        }) {
+            let mut sources = returned.dependencies.iter().filter(|source| {
+                node_span(source.node) == base.span
+                    && source.ty == base.ty
+                    && source.role == read.role
+                    && source.source == read.source
+                    && source.calls == read.calls
+                    && source.query_id.is_none()
+            });
+            let source = sources.next()?;
+            if sources.next().is_some() || source.id == read.id {
+                return None;
+            }
+            let reference = checked_helper_identity_reference(context, owner, source, base, facts)?;
+            if reference.ty != base.ty {
+                return None;
+            }
+            if !pairs.contains(&(source, read)) {
+                pairs.push((source, read));
+            }
         }
     }
     (!pairs.is_empty()).then_some(pairs)
@@ -12944,8 +14641,10 @@ fn checked_reference_receiver_pairs<'a>(
             return None;
         }
         target
-    } else if guarded || matches!(leaf.ty,ResolvedType::Scalar(_))
-        && (native_result_type(&leaf.ty) || leaf.ty == ResolvedType::Scalar(Scalar::Timezone)) {
+    } else if guarded
+        || matches!(leaf.ty, ResolvedType::Scalar(_))
+            && (native_result_type(&leaf.ty) || leaf.ty == ResolvedType::Scalar(Scalar::Timezone))
+    {
         let facts = super::scenario_calls::checked_source(ir, owner, db)?;
         let schema = facts
             .stored_contracts
@@ -13036,26 +14735,46 @@ fn reference_parent_schema<'a>(
             .or_else(|| checked_first_query_row(ir, owner, base, db))
     } else if checked_contract_parameter_path(ir, owner, base, Some(db)).is_some() {
         let models = super::js::Emitter::source_models(ir, db)?;
-        Some(checked_contract_parameter_row(ir, owner, base, &models, db)?)
+        Some(checked_contract_parameter_row(
+            ir, owner, base, &models, db,
+        )?)
     } else if owner.canonical == "appointments.remind"
         && let Some(model) = checked_notice_event_row_path(ir, owner, base, db)
     {
         let source = super::scenario_calls::checked_source(ir, owner, db)?;
-        let mut schemas = source.stored_contracts.as_deref()?.iter()
+        let mut schemas = source
+            .stored_contracts
+            .as_deref()?
+            .iter()
             .filter(|schema| schema.model && schema.id == model);
         let schema = schemas.next()?;
-        if schemas.next().is_some() { return None; }
+        if schemas.next().is_some() {
+            return None;
+        }
         match_stored_contract_schema(ir, schema, db)?;
         Some(schema)
     } else if let Some((_, parent)) = checked_parent_reference(ir, owner, base, db) {
         Some(parent)
     } else {
         let previous = stored_reference_operand_inner(ir, owner, base, db, depth + 1)?;
-        let symbol=match &previous.ty {
-            ResolvedType::Record{symbol,stored:true}=>*symbol,
-            ResolvedType::Nullable(inner) if checked_narrowed_if_reference(ir,owner,base,db).map(|field|field.id)==Some(previous.id)=>
-                match inner.as_ref(){ResolvedType::Record{symbol,stored:true}=>*symbol,_=>return None},
-            _=>return None,
+        let symbol = match &previous.ty {
+            ResolvedType::Record {
+                symbol,
+                stored: true,
+            } => *symbol,
+            ResolvedType::Nullable(inner)
+                if checked_narrowed_if_reference(ir, owner, base, db).map(|field| field.id)
+                    == Some(previous.id) =>
+            {
+                match inner.as_ref() {
+                    ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    } => *symbol,
+                    _ => return None,
+                }
+            }
+            _ => return None,
         };
         let source = super::scenario_calls::checked_source(ir, owner, db)?;
         let mut targets = source
@@ -13244,31 +14963,83 @@ fn checked_narrowed_if_reference<'a>(
 /// The checked non-null occurrence belongs to one original direct-field CALL
 /// in its source IF arm. Keep the nullable field as the observed dependency;
 /// only the actual taken CALL consumes the non-null row reference.
-pub(super) fn checked_narrowed_call_reference<'a>(ir: &'a IrProgram, owner: &IrItem,
-    value: &TypedExpr, db: &SourceDb) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
-    let IrExpr::Member { base, field } = &value.expr else { return None; };
-    let IrExpr::Name(root) = &base.expr else { return None; };
-    let ResolvedType::Record { stored: true, .. } = value.ty else { return None; };
+pub(super) fn checked_narrowed_call_reference<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
+    let IrExpr::Member { base, field } = &value.expr else {
+        return None;
+    };
+    let IrExpr::Name(root) = &base.expr else {
+        return None;
+    };
+    let ResolvedType::Record { stored: true, .. } = value.ty else {
+        return None;
+    };
     let models = super::js::Emitter::source_models(ir, db)?;
     let parent = checked_parameter_row_id(ir, owner, base, &models, db)?;
-    let mut fields = parent.fields.iter().filter(|original| original.name == *field);
+    let mut fields = parent
+        .fields
+        .iter()
+        .filter(|original| original.name == *field);
     let original = fields.next()?;
-    if fields.next().is_some() || original.ty != ResolvedType::Nullable(Box::new(value.ty.clone())) { return None; }
+    if fields.next().is_some() || original.ty != ResolvedType::Nullable(Box::new(value.ty.clone()))
+    {
+        return None;
+    }
     let source = super::scenario_calls::checked_source(ir, owner, db)?;
-    let IrItemKind::Scenario { effects, .. } = &owner.kind else { return None; };
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return None;
+    };
     for (position, statement) in effects.iter().enumerate() {
-        let IrStmt::If { cond, then_branch, .. } = statement else { continue; };
-        let IrExpr::Binary { op: IrBinOp::Ne, left, right } = &cond.expr else { continue; };
-        if !matches!(right.expr, IrExpr::Null) || left.ty != original.ty ||
-            !matches!(&left.expr, IrExpr::Member { base, field: member } if member == field && matches!(&base.expr, IrExpr::Name(name) if name == root)) { continue; }
-        let [IrStmt::Require { .. }, IrStmt::Call { inputs, span, .. }] = then_branch.as_slice() else { continue; };
-        let IrExpr::Object(entries) = &inputs.expr else { continue; };
+        let IrStmt::If {
+            cond, then_branch, ..
+        } = statement
+        else {
+            continue;
+        };
+        let IrExpr::Binary {
+            op: IrBinOp::Ne,
+            left,
+            right,
+        } = &cond.expr
+        else {
+            continue;
+        };
+        if !matches!(right.expr, IrExpr::Null)
+            || left.ty != original.ty
+            || !matches!(&left.expr, IrExpr::Member { base, field: member } if member == field && matches!(&base.expr, IrExpr::Name(name) if name == root))
+        {
+            continue;
+        }
+        let [IrStmt::Require { .. }, IrStmt::Call { inputs, span, .. }] = then_branch.as_slice()
+        else {
+            continue;
+        };
+        let IrExpr::Object(entries) = &inputs.expr else {
+            continue;
+        };
         if !entries.iter().any(|(_, input)| input.span == value.span && input.ty == value.ty && matches!(&input.expr, IrExpr::Member { base: receiver, field: member } if member == field && receiver.ty == base.ty && matches!(&receiver.expr, IrExpr::Name(name) if name == root))) { continue; }
-        if !source.calls.iter().any(|call| node_span(call.node) == *span && call.inputs.iter().any(|input|
-            node_span(input.node) == value.span && input.ty == value.ty)) ||
-            !source.decision_sites.as_deref()?.iter().any(|site| site.stage == crate::analysis::scenario_disclosure::CheckedDecisionStage::BodyCondition &&
-                site.position.as_slice() == [crate::analysis::scenario_disclosure::CheckedDecisionPosition::Body(position)] && node_span(site.node) == cond.span)
-        { continue; }
+        if !source.calls.iter().any(|call| {
+            node_span(call.node) == *span
+                && call
+                    .inputs
+                    .iter()
+                    .any(|input| node_span(input.node) == value.span && input.ty == value.ty)
+        }) || !source.decision_sites.as_deref()?.iter().any(|site| {
+            site.stage == crate::analysis::scenario_disclosure::CheckedDecisionStage::BodyCondition
+                && site.position.as_slice()
+                    == [
+                        crate::analysis::scenario_disclosure::CheckedDecisionPosition::Body(
+                            position,
+                        ),
+                    ]
+                && node_span(site.node) == cond.span
+        }) {
+            continue;
+        }
         super::scenario_calls::checked_original_expression(ir, owner, cond, db)?;
         match_stored_contract_field(ir, original, db)?;
         return Some(original);
@@ -13300,13 +15071,27 @@ fn reference_member_field<'a>(
         return None;
     };
     let type_id = reference_operand_type_id(ir, &original.ty)?;
-    let narrowed = original.ty != value.ty && checked_narrowed_call_reference(ir, owner, value, db).or_else(||checked_narrowed_if_reference(ir,owner,value,db)).map(|field| field.id) == Some(original.id);
-    let declared_value = TypedExpr { ty: original.ty.clone(), ..value.clone() };
+    let narrowed = original.ty != value.ty
+        && checked_narrowed_call_reference(ir, owner, value, db)
+            .or_else(|| checked_narrowed_if_reference(ir, owner, value, db))
+            .map(|field| field.id)
+            == Some(original.id);
+    let declared_value = TypedExpr {
+        ty: original.ty.clone(),
+        ..value.clone()
+    };
     if fields.next().is_some()
         || original.owner != parent.id
         || original.ty != value.ty && !narrowed
         || modifiers.machine
-        || !reference_read_matches(ir, owner, if narrowed { &declared_value } else { value }, parent.id, original.id, &type_id)
+        || !reference_read_matches(
+            ir,
+            owner,
+            if narrowed { &declared_value } else { value },
+            parent.id,
+            original.id,
+            &type_id,
+        )
     {
         return None;
     }
@@ -13323,16 +15108,18 @@ fn reference_direct_body(
     depth: usize,
 ) -> Option<bool> {
     let source = super::scenario_calls::checked_source(ir, owner, db)?;
-    Some(depth == 0
-        && source
-            .source_requires
-            .as_deref()
-            .is_some_and(|sites| !sites.is_empty())
-        && matches!(&owner.kind, IrItemKind::Scenario { effects, params, .. }
+    Some(
+        depth == 0
+            && source
+                .source_requires
+                .as_deref()
+                .is_some_and(|sites| !sites.is_empty())
+            && matches!(&owner.kind, IrItemKind::Scenario { effects, params, .. }
             if effects.iter().any(|effect| { let at=match effect {IrStmt::Let{span,..}|IrStmt::If{span,..}|IrStmt::Create{span,..}|IrStmt::Set{span,..}=>*span,_=>return false}; at.file==value.span.file && at.start<=value.span.start && value.span.end<=at.end })
                 && params.iter().any(|id| ir.items.get(id.0 as usize).is_some_and(|parameter|
                     matches!(&base.expr,IrExpr::Name(name) if name==&parameter.name)
-                        && matches!(&parameter.kind,IrItemKind::Param {owner: declared,default:None,..} if *declared==owner.id)))))
+                        && matches!(&parameter.kind,IrItemKind::Param {owner: declared,default:None,..} if *declared==owner.id)))),
+    )
 }
 
 fn reference_reused_scope(
@@ -13396,25 +15183,50 @@ fn reference_reused_bounds(
 /// parent. Both original schema owners and the exact parent metadata survive
 /// the source/fresh join; the ordinary parent getter retains its authority.
 fn checked_helper_parent_reference<'a>(
-    context:&super::source_context::FreshSourceContext<'_>,owner:&IrItem,
-    read:&crate::analysis::scenario_disclosure::DisclosureDependency,value:&TypedExpr,
-    facts:&'a crate::analysis::scenario_disclosure::CheckedScenarioSource,
-)->Option<(&'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
-    &'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema)> {
-    let [_]=read.calls.as_slice() else{return None;};
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+    read: &crate::analysis::scenario_disclosure::DisclosureDependency,
+    value: &TypedExpr,
+    facts: &'a crate::analysis::scenario_disclosure::CheckedScenarioSource,
+) -> Option<(
+    &'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
+    &'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
+)> {
+    let [_] = read.calls.as_slice() else {
+        return None;
+    };
     context.same_scenario(context.ir(), owner)?;
-    if read.query_id.is_some() || read.role!=DependencyRole::Data || read.field!=read.model || read.field_name!="parent"
-        || value.span!=node_span(read.node) || value.ty!=read.ty
+    if read.query_id.is_some()
+        || read.role != DependencyRole::Data
+        || read.field != read.model
+        || read.field_name != "parent"
+        || value.span != node_span(read.node)
+        || value.ty != read.ty
         || !matches!(&value.expr,IrExpr::Member{base,field} if field=="parent" &&
-            base.ty==ResolvedType::Record{symbol:read.model,stored:true}) {return None;}
-    let schemas=facts.stored_contracts.as_deref()?;
-    let child=schemas.iter().find(|schema|schema.model&&schema.id==read.model)?;
-    let parent=schemas.iter().find(|schema|schema.model&&Some(schema.id)==child.parent)?;
-    if child.canonical!=read.model_name || parent.canonical!=read.type_id ||
-        read.ty!=(ResolvedType::Record{symbol:parent.id,stored:true}) {return None;}
-    match_stored_contract_schema(context.ir(),child,context.db())?;
-    match_stored_contract_schema(context.ir(),parent,context.db())?;
-    Some((child,parent))
+            base.ty==ResolvedType::Record{symbol:read.model,stored:true})
+    {
+        return None;
+    }
+    let schemas = facts.stored_contracts.as_deref()?;
+    let child = schemas
+        .iter()
+        .find(|schema| schema.model && schema.id == read.model)?;
+    let parent = schemas
+        .iter()
+        .find(|schema| schema.model && Some(schema.id) == child.parent)?;
+    if child.canonical != read.model_name
+        || parent.canonical != read.type_id
+        || read.ty
+            != (ResolvedType::Record {
+                symbol: parent.id,
+                stored: true,
+            })
+    {
+        return None;
+    }
+    match_stored_contract_schema(context.ir(), child, context.db())?;
+    match_stored_contract_schema(context.ir(), parent, context.db())?;
+    Some((child, parent))
 }
 
 /// Whole-owner source re-lowering seals the helper call, formal substitution
@@ -13427,19 +15239,39 @@ fn checked_helper_identity_reference<'a>(
     value: &TypedExpr,
     facts: &'a crate::analysis::scenario_disclosure::CheckedScenarioSource,
 ) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
-    let [_]=read.calls.as_slice() else{return None;};
-    let ir=context.ir();
+    let [_] = read.calls.as_slice() else {
+        return None;
+    };
+    let ir = context.ir();
     context.same_scenario(ir, owner)?;
-    if read.query_id.is_some() || read.role!=DependencyRole::Data || value.span!=node_span(read.node)
-        || value.ty!=read.ty || !matches!(&value.expr,IrExpr::Member{base,field}
+    if read.query_id.is_some()
+        || read.role != DependencyRole::Data
+        || value.span != node_span(read.node)
+        || value.ty != read.ty
+        || !matches!(&value.expr,IrExpr::Member{base,field}
             if (matches!(base.expr,IrExpr::Name(_)) || matches!(&base.expr,IrExpr::Member{field,..} if field=="parent")) && field==&read.field_name
-                && base.ty==ResolvedType::Record{symbol:read.model,stored:true}) {return None;}
-    let mut schemas=facts.stored_contracts.as_deref()?.iter().filter(|schema|schema.model&&schema.id==read.model);
-    let schema=schemas.next()?;if schemas.next().is_some(){return None;}
-    match_stored_contract_schema(ir,schema,context.db())?;
-    let mut fields=schema.fields.iter().filter(|field|field.id==read.field&&field.ty==read.ty&&field.name==read.field_name);
-    let field=fields.next()?;if fields.next().is_some(){return None;}
-    match_stored_contract_field(ir,field,context.db())?;
+                && base.ty==ResolvedType::Record{symbol:read.model,stored:true})
+    {
+        return None;
+    }
+    let mut schemas = facts
+        .stored_contracts
+        .as_deref()?
+        .iter()
+        .filter(|schema| schema.model && schema.id == read.model);
+    let schema = schemas.next()?;
+    if schemas.next().is_some() {
+        return None;
+    }
+    match_stored_contract_schema(ir, schema, context.db())?;
+    let mut fields = schema.fields.iter().filter(|field| {
+        field.id == read.field && field.ty == read.ty && field.name == read.field_name
+    });
+    let field = fields.next()?;
+    if fields.next().is_some() {
+        return None;
+    }
+    match_stored_contract_field(ir, field, context.db())?;
     Some(field)
 }
 
@@ -13791,7 +15623,11 @@ fn stored_contract_declaration<'i>(
         ty => (ty, false),
     };
     let (ty, array) = match ty {
-        ResolvedType::Array { element, ordered: true, nonempty: false } => (element.as_ref(), true),
+        ResolvedType::Array {
+            element,
+            ordered: true,
+            nonempty: false,
+        } => (element.as_ref(), true),
         ty => (ty, false),
     };
     let ResolvedType::Record { symbol, .. } = ty else {
@@ -13806,10 +15642,18 @@ fn stored_contract_declaration<'i>(
     };
     if declaration.id != *symbol
         || name != &declaration.canonical
-        || field.value_type.as_deref()!=Some(format!("{}{}{}",declaration.canonical,
-            if array{"[]"}else{""},if nullable{"?"}else{""}).as_str())
+        || field.value_type.as_deref()
+            != Some(
+                format!(
+                    "{}{}{}",
+                    declaration.canonical,
+                    if array { "[]" } else { "" },
+                    if nullable { "?" } else { "" }
+                )
+                .as_str(),
+            )
         || field.nullable != nullable
-        || field.array_required != if array{Some(false)}else{None}
+        || field.array_required != if array { Some(false) } else { None }
         || field.machine.is_some()
         || fields.is_empty()
         || fields.len() > 200
@@ -13944,9 +15788,11 @@ fn stored_contract_inventory_type(
     nullable_notice_snapshot: bool,
 ) -> Option<String> {
     let (declaration, symbol, nullable, array) = stored_contract_declaration(ir, ty, field)?;
-    if nullable && (!nullable_notice_snapshot
-        || stored.canonical != "agreements.Term.snapshot"
-        || declaration.canonical != "agreements.ExecutedParties") {
+    if nullable
+        && (!nullable_notice_snapshot
+            || stored.canonical != "agreements.Term.snapshot"
+            || declaration.canonical != "agreements.ExecutedParties")
+    {
         return None;
     }
     stored_contract_root_schema(ir, source, stored, ty, db)?;
@@ -13976,8 +15822,12 @@ fn stored_contract_inventory_type(
             }
         }
     }
-    Some(format!("{}{}{}", declaration.canonical,
-        if array { "[]" } else { "" }, if nullable { "?" } else { "" }))
+    Some(format!(
+        "{}{}{}",
+        declaration.canonical,
+        if array { "[]" } else { "" },
+        if nullable { "?" } else { "" }
+    ))
 }
 
 fn stored_contract_owner_matches(
@@ -14183,41 +16033,90 @@ fn checked_set_parent_receiver(
     value: &TypedExpr,
     db: &SourceDb,
 ) -> Option<()> {
-    let path = checked_effect_node(ir, owner, crate::analysis::NodeKey {
-        file: value.span.file, start: value.span.start, end: value.span.end,
-        kind: SyntaxKind::Path as u8,
-    }, db)?;
+    let path = checked_effect_node(
+        ir,
+        owner,
+        crate::analysis::NodeKey {
+            file: value.span.file,
+            start: value.span.start,
+            end: value.span.end,
+            kind: SyntaxKind::Path as u8,
+        },
+        db,
+    )?;
     let text = &db.get(value.span.file)?.text;
-    let names = path.children.iter().filter(|part| part.kind == SyntaxKind::Name).collect::<Vec<_>>();
+    let names = path
+        .children
+        .iter()
+        .filter(|part| part.kind == SyntaxKind::Name)
+        .collect::<Vec<_>>();
     let (root, parents) = names.split_first()?;
-    if parents.is_empty() || parents.len() > 2 { return None; }
+    if parents.is_empty() || parents.len() > 2 {
+        return None;
+    }
     let mut base = value;
     for parent in parents.iter().rev() {
-        let IrExpr::Member { base: inner, field } = &base.expr else { return None; };
-        if parent.token()?.text(text) != "parent" || field != "parent"
+        let IrExpr::Member { base: inner, field } = &base.expr else {
+            return None;
+        };
+        if parent.token()?.text(text) != "parent"
+            || field != "parent"
             || base.span != Span::new(path.span.file, path.span.start, parent.span.end)
-        { return None; }
+        {
+            return None;
+        }
         checked_parent_reference(ir, owner, base, db)?;
         base = inner;
     }
-    let IrExpr::Name(name) = &base.expr else { return None; };
+    let IrExpr::Name(name) = &base.expr else {
+        return None;
+    };
     if root.token()?.text(text) != name
         || base.span != Span::new(path.span.file, path.span.start, root.span.end)
-    { return None; }
+    {
+        return None;
+    }
     let source = super::scenario_calls::checked_source(ir, owner, db)?;
-    let ResolvedType::Record { symbol: child, stored: true } = base.ty else { return None; };
-    let IrItemKind::Scenario { params, .. } = &owner.kind else { return None; };
-    let mut parameters = params.iter().filter_map(|id| ir.items.get(id.0 as usize))
+    let ResolvedType::Record {
+        symbol: child,
+        stored: true,
+    } = base.ty
+    else {
+        return None;
+    };
+    let IrItemKind::Scenario { params, .. } = &owner.kind else {
+        return None;
+    };
+    let mut parameters = params
+        .iter()
+        .filter_map(|id| ir.items.get(id.0 as usize))
         .filter(|parameter| parameter.name == *name);
     let parameter = parameters.next()?;
-    let IrItemKind::Param { owner: parameter_owner, index, default: None,
-        ty: IrType::Known(ty), .. } = &parameter.kind else { return None; };
+    let IrItemKind::Param {
+        owner: parameter_owner,
+        index,
+        default: None,
+        ty: IrType::Known(ty),
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
     let original = source.parameters.get(*index)?;
-    if parameters.next().is_some() || *parameter_owner != owner.id
-        || original.parameter != parameter.id || original.default.is_some()
-        || original.ty != *ty || base.ty != *ty
-        || *ty != (ResolvedType::Record { symbol: child, stored: true })
-    { return None; }
+    if parameters.next().is_some()
+        || *parameter_owner != owner.id
+        || original.parameter != parameter.id
+        || original.default.is_some()
+        || original.ty != *ty
+        || base.ty != *ty
+        || *ty
+            != (ResolvedType::Record {
+                symbol: child,
+                stored: true,
+            })
+    {
+        return None;
+    }
     Some(())
 }
 
@@ -14721,21 +16620,25 @@ fn match_effect_proofs(
                         .as_deref()
                         .and_then(|facts| facts.stored_contracts.as_deref())
                         .and_then(|schemas| schemas.iter().find(|schema| schema.id == *model))
-                    {
-                        if let Some(original) = schema
+                        && let Some(original) = schema
                             .fields
                             .iter()
                             .find(|field| field.id == *id && field.contributed.is_some())
-                        {
-                            match_stored_contract_schema(ir, schema, db?)?;
-                            match_stored_contract_field(ir, original, db?)?;
-                        }
+                    {
+                        match_stored_contract_schema(ir, schema, db?)?;
+                        match_stored_contract_field(ir, original, db?)?;
                     }
                     let mut declared = descriptor.fields.iter().filter(|f| f.name == *name);
                     let emitted = declared.next()?;
-                    if declared.next().is_some() || !(assignment_inventory_matches(ir, ty, emitted)
-                        || source_context.is_some_and(|context| checked_declared_delivery_assignment(
-                            context, model_item, ty, emitted, db).is_some())) {
+                    if declared.next().is_some()
+                        || !(assignment_inventory_matches(ir, ty, emitted)
+                            || source_context.is_some_and(|context| {
+                                checked_declared_delivery_assignment(
+                                    context, model_item, ty, emitted, db,
+                                )
+                                .is_some()
+                            }))
+                    {
                         return None;
                     }
                     let compatible = value.ty == *ty
@@ -14763,9 +16666,7 @@ fn match_effect_proofs(
                 }
             }
             (DisclosureEffectKind::Send { .. }, statement @ IrStmt::Send { .. }) => {
-                if checked_send_guard(ir, owner, proof, statement, send_guards).is_none() {
-                    return None;
-                }
+                checked_send_guard(ir, owner, proof, statement, send_guards)?;
             }
             (
                 DisclosureEffectKind::ForMember {
@@ -14785,16 +16686,33 @@ fn match_effect_proofs(
                     ..
                 },
             ) => {
-                if source_context.and_then(|context|source_owned_sibling_loop(context,owner)).is_some_and(|plan|
-                    plan["loops"].as_array().is_some_and(|loops|loops.iter().any(|entry|entry["node"]["start"]==proof.node.start&&entry["node"]["end"]==proof.node.end))){
+                if source_context
+                    .and_then(|context| source_owned_sibling_loop(context, owner))
+                    .is_some_and(|plan| {
+                        plan["loops"].as_array().is_some_and(|loops| {
+                            loops.iter().any(|entry| {
+                                entry["node"]["start"] == proof.node.start
+                                    && entry["node"]["end"] == proof.node.end
+                            })
+                        })
+                    })
+                {
                     if domain.span!=node_span(*checked_domain)||limit.span!=node_span(*checked_limit)||!matches!(limit.expr,IrExpr::Int(value)if value==i128::from(*maximum))
                         ||item!=checked_item||body.len()!=checked_body.len()||body.iter().zip(checked_body).any(|(stmt,node)|!matches!(stmt,IrStmt::Create{span,..}if *span==node_span(*node))){return None;}
                     continue;
                 }
-                let sealed_owner = source_context.is_some_and(|context| checked.source_facts.as_deref()
-                    .and_then(|facts| facts.creates.as_deref()).is_some_and(|creates| creates.len() == 1
-                        && source_owned_updated_model_create(context, owner, &creates[0]).is_some())
-                    || source_owned_void_member_loops(context,owner).is_some());
+                let sealed_owner = source_context.is_some_and(|context| {
+                    checked
+                        .source_facts
+                        .as_deref()
+                        .and_then(|facts| facts.creates.as_deref())
+                        .is_some_and(|creates| {
+                            creates.len() == 1
+                                && source_owned_updated_model_create(context, owner, &creates[0])
+                                    .is_some()
+                        })
+                        || source_owned_void_member_loops(context, owner).is_some()
+                });
                 let parameter_item = ir.items.get(parameter.0 as usize)?;
                 let IrItemKind::Param {
                     owner: parameter_owner,
@@ -14841,7 +16759,15 @@ fn match_effect_proofs(
                     || !direct_field_name(item)
                     || item != checked_item
                     || *maximum == 0
-                    || *maximum > if body.iter().all(|statement|matches!(statement,IrStmt::Emit {..})) {500} else {200}
+                    || *maximum
+                        > if body
+                            .iter()
+                            .all(|statement| matches!(statement, IrStmt::Emit { .. }))
+                        {
+                            500
+                        } else {
+                            200
+                        }
                     || parameter_item.id != *parameter
                     || *parameter_owner != owner.id
                     || params.get(*index) != Some(parameter)
@@ -14891,8 +16817,13 @@ fn match_effect_proofs(
                 {
                     return None;
                 }
-                if source_context.and_then(|context|source_owned_copy_loop(context,owner)).is_some()
-                    && matches!(body.as_slice(),[IrStmt::Create{span,..}] if checked_body.len()==1 && *span==node_span(checked_body[0])) {continue;}
+                if source_context
+                    .and_then(|context| source_owned_copy_loop(context, owner))
+                    .is_some()
+                    && matches!(body.as_slice(),[IrStmt::Create{span,..}] if checked_body.len()==1 && *span==node_span(checked_body[0]))
+                {
+                    continue;
+                }
                 // Only value-typed owner parameters are element-constant;
                 // stored rows keep their per-element refusal above.
                 let constants: Vec<String> = params
@@ -14914,15 +16845,34 @@ fn match_effect_proofs(
                     .collect();
                 for (original_statement, node) in body.iter().zip(checked_body) {
                     let statement = match original_statement {
-                        IrStmt::If {then_branch,else_branch,span,..} if sealed_owner
-                            && *span == node_span(*node) && else_branch.is_empty() && then_branch.len() == 1 => &then_branch[0],
+                        IrStmt::If {
+                            then_branch,
+                            else_branch,
+                            span,
+                            ..
+                        } if sealed_owner
+                            && *span == node_span(*node)
+                            && else_branch.is_empty()
+                            && then_branch.len() == 1 =>
+                        {
+                            &then_branch[0]
+                        }
                         statement => statement,
                     };
-                    if let IrStmt::Emit {payload,span,..}=statement {
-                        let IrExpr::Object(fields)=&payload.expr else {return None;};
-                        if *span!=node_span(*node) || node.kind!=SyntaxKind::Emit as u8 || fields.is_empty()
-                            || fields.iter().any(|(_,value)|value.ty!=expected_record
-                                || !matches!(&value.expr,IrExpr::Name(name) if name==item)) {return None;}
+                    if let IrStmt::Emit { payload, span, .. } = statement {
+                        let IrExpr::Object(fields) = &payload.expr else {
+                            return None;
+                        };
+                        if *span != node_span(*node)
+                            || node.kind != SyntaxKind::Emit as u8
+                            || fields.is_empty()
+                            || fields.iter().any(|(_, value)| {
+                                value.ty != expected_record
+                                    || !matches!(&value.expr,IrExpr::Name(name) if name==item)
+                            })
+                        {
+                            return None;
+                        }
                         continue;
                     }
                     let IrStmt::Set {
@@ -14934,7 +16884,7 @@ fn match_effect_proofs(
                     else {
                         return None;
                     };
-                    if (!sealed_owner || !matches!(original_statement, IrStmt::If {..}))
+                    if (!sealed_owner || !matches!(original_statement, IrStmt::If { .. }))
                         && (*span != node_span(*node) || node.kind != SyntaxKind::Set as u8)
                         || record.ty != expected_record
                         || !matches!(&record.expr, IrExpr::Name(name) if name == item)
@@ -14947,7 +16897,9 @@ fn match_effect_proofs(
             (
                 DisclosureEffectKind::Emit { event },
                 IrStmt::Emit {
-                    event: actual, span, ..
+                    event: actual,
+                    span,
+                    ..
                 },
             ) => {
                 let event_item = ir.items.get(event.0 as usize)?;
@@ -14964,7 +16916,9 @@ fn match_effect_proofs(
             (
                 DisclosureEffectKind::Schedule { event },
                 IrStmt::Schedule {
-                    event: actual, span, ..
+                    event: actual,
+                    span,
+                    ..
                 },
             ) => {
                 let event_item = ir.items.get(event.0 as usize)?;
@@ -15284,7 +17238,6 @@ fn root_effect_model<'a>(
 
 /// Match this scenario's original populated/contained constructor. The owning
 /// schema supplies defaults and server fields; source supplies explicit operands.
-
 fn scenario_create_identity<'f, 's, 'p>(
     proof: &'p crate::analysis::scenario_disclosure::DisclosureEffect,
     statement: &'s IrStmt,
@@ -15345,21 +17298,57 @@ fn scenario_create_identity<'f, 's, 'p>(
 /// sealed source/fresh closure. Its contained-loop suffix cannot transport
 /// the selected row; each effect still passes the ordinary schema/site gate.
 fn checked_first_target_branch_create(
-    context:&super::source_context::FreshSourceContext<'_>,owner:&IrItem,
-    checked:&crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
-    original:&crate::analysis::scenario_disclosure::CheckedScenarioCreate,
-)->Option<()> {
-    let ir=context.ir();
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+) -> Option<()> {
+    let ir = context.ir();
     context.same_scenario(ir, owner)?;
-    let [query]=checked.source_facts.as_deref()?.queries.as_deref()? else {return None;};
-    if !query.first.as_ref()?.target_consumed {return None;}
-    let IrItemKind::Scenario {effects,result:None,read:false,trusted:false,event_source:None,hook:None,cohort:None,..}=&owner.kind else {return None;};
-    let [IrStmt::Let {span:binding,..},IrStmt::If {then_branch,else_branch,..},suffix @ ..]=effects.as_slice() else {return None;};
-    let [IrStmt::Create {span,..}]=then_branch.as_slice() else {return None;};
-    if *binding!=node_span(query.first.as_ref()?.binding) || *span!=node_span(original.node)
-        || !matches!(else_branch.as_slice(),[IrStmt::Set {when:None,..}])
-        || suffix.iter().any(|statement|!matches!(statement,IrStmt::For {body,..}
-            if matches!(body.as_slice(),[IrStmt::Emit {..}]))) {return None;}
+    let [query] = checked.source_facts.as_deref()?.queries.as_deref()? else {
+        return None;
+    };
+    if !query.first.as_ref()?.target_consumed {
+        return None;
+    }
+    let IrItemKind::Scenario {
+        effects,
+        result: None,
+        read: false,
+        trusted: false,
+        event_source: None,
+        hook: None,
+        cohort: None,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let [
+        IrStmt::Let { span: binding, .. },
+        IrStmt::If {
+            then_branch,
+            else_branch,
+            ..
+        },
+        suffix @ ..,
+    ] = effects.as_slice()
+    else {
+        return None;
+    };
+    let [IrStmt::Create { span, .. }] = then_branch.as_slice() else {
+        return None;
+    };
+    if *binding != node_span(query.first.as_ref()?.binding)
+        || *span != node_span(original.node)
+        || !matches!(else_branch.as_slice(), [IrStmt::Set { when: None, .. }])
+        || suffix.iter().any(|statement| {
+            !matches!(statement,IrStmt::For {body,..}
+            if matches!(body.as_slice(),[IrStmt::Emit {..}]))
+        })
+    {
+        return None;
+    }
     Some(())
 }
 
@@ -15374,41 +17363,117 @@ fn conditional_parameter_create_link(
 ) -> Option<()> {
     let ir = context.ir();
     context.same_scenario(ir, owner)?;
-    let IrItemKind::Scenario { params, guards, effects, result: None, trusted: false,
-        read: false, hook: None, event_source: None, cohort: None, .. } = &owner.kind
-        else { return None; };
-    let [IrStmt::Require { .. }] = guards.as_slice() else { return None; };
-    let [IrStmt::Set { record: first, .. }, IrStmt::Cancel { key, .. },
-        IrStmt::If { cond, then_branch, else_branch, .. }] = effects.as_slice()
-        else { return None; };
-    let [IrStmt::Create { binding: Some(created), span, .. },
-        IrStmt::Set { record: linked, changes, when: None, .. }] = then_branch.as_slice()
-        else { return None; };
+    let IrItemKind::Scenario {
+        params,
+        guards,
+        effects,
+        result: None,
+        trusted: false,
+        read: false,
+        hook: None,
+        event_source: None,
+        cohort: None,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let [IrStmt::Require { .. }] = guards.as_slice() else {
+        return None;
+    };
+    let [
+        IrStmt::Set { record: first, .. },
+        IrStmt::Cancel { key, .. },
+        IrStmt::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        },
+    ] = effects.as_slice()
+    else {
+        return None;
+    };
+    let [
+        IrStmt::Create {
+            binding: Some(created),
+            span,
+            ..
+        },
+        IrStmt::Set {
+            record: linked,
+            changes,
+            when: None,
+            ..
+        },
+    ] = then_branch.as_slice()
+    else {
+        return None;
+    };
     let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
     // Both references come from this same immutable checked-source table:
     // fresh lowering above proves semantics, never allocation identity.
-    let [created_fact] = facts.creates.as_deref()? else { return None; };
-    if !else_branch.is_empty() || *span != node_span(original.node) || !std::ptr::eq(created_fact, original)
-        || *created != original.binding || facts.source_requires.as_deref()?.len() != 1 {
+    let [created_fact] = facts.creates.as_deref()? else {
+        return None;
+    };
+    if !else_branch.is_empty()
+        || *span != node_span(original.node)
+        || !std::ptr::eq(created_fact, original)
+        || *created != original.binding
+        || facts.source_requires.as_deref()?.len() != 1
+    {
         return None;
     }
-    let IrExpr::Name(root_name) = &first.expr else { return None; };
-    let IrExpr::Name(linked_name) = &linked.expr else { return None; };
-    let IrExpr::Member { base: cancelled, field } = &key.expr else { return None; };
-    if root_name != linked_name || first.ty != linked.ty || field != "id"
+    let IrExpr::Name(root_name) = &first.expr else {
+        return None;
+    };
+    let IrExpr::Name(linked_name) = &linked.expr else {
+        return None;
+    };
+    let IrExpr::Member {
+        base: cancelled,
+        field,
+    } = &key.expr
+    else {
+        return None;
+    };
+    if root_name != linked_name
+        || first.ty != linked.ty
+        || field != "id"
         || !matches!(&cancelled.expr, IrExpr::Name(name) if name == root_name)
-        || cancelled.ty != first.ty { return None; }
-    let root = params.iter().filter_map(|id| ir.items.get(id.0 as usize))
+        || cancelled.ty != first.ty
+    {
+        return None;
+    }
+    let root = params
+        .iter()
+        .filter_map(|id| ir.items.get(id.0 as usize))
         .find(|item| item.name == *root_name)?;
     if !matches!(&root.kind, IrItemKind::Param { owner: id, ty: IrType::Known(ty), default: None, .. }
-        if *id == owner.id && *ty == first.ty && matches!(ty, ResolvedType::Record { stored: true, .. })) {
+        if *id == owner.id && *ty == first.ty && matches!(ty, ResolvedType::Record { stored: true, .. }))
+    {
         return None;
     }
-    let IrExpr::Binary { op: IrBinOp::In, left, right } = &cond.expr else { return None; };
-    let IrExpr::Name(input) = &left.expr else { return None; };
-    let ResolvedType::Enum { cases, .. } = &left.ty else { return None; };
-    let IrExpr::Array(values) = &right.expr else { return None; };
-    let parameter = params.iter().filter_map(|id| ir.items.get(id.0 as usize))
+    let IrExpr::Binary {
+        op: IrBinOp::In,
+        left,
+        right,
+    } = &cond.expr
+    else {
+        return None;
+    };
+    let IrExpr::Name(input) = &left.expr else {
+        return None;
+    };
+    let ResolvedType::Enum { cases, .. } = &left.ty else {
+        return None;
+    };
+    let IrExpr::Array(values) = &right.expr else {
+        return None;
+    };
+    let parameter = params
+        .iter()
+        .filter_map(|id| ir.items.get(id.0 as usize))
         .find(|item| item.name == *input)?;
     if values.is_empty() || values.len() > cases.len()
         || !matches!(&parameter.kind, IrItemKind::Param { owner: id, ty: IrType::Known(ty), default: None, .. }
@@ -15417,17 +17482,38 @@ fn conditional_parameter_create_link(
             !matches!(&value.expr, IrExpr::Text(name) | IrExpr::Name(name) if cases.contains(name))) {
         return None;
     }
-    let IrExpr::Object(entries) = &changes.expr else { return None; };
-    let [(field, value)] = entries.as_slice() else { return None; };
+    let IrExpr::Object(entries) = &changes.expr else {
+        return None;
+    };
+    let [(field, value)] = entries.as_slice() else {
+        return None;
+    };
     if !matches!(&value.expr, IrExpr::Name(name) if name == created)
-        || value.ty != (ResolvedType::Record { symbol: original.model, stored: true }) {
+        || value.ty
+            != (ResolvedType::Record {
+                symbol: original.model,
+                stored: true,
+            })
+    {
         return None;
     }
-    let ResolvedType::Record { symbol: target, stored: true } = linked.ty else { return None; };
-    let IrItemKind::Model { fields, .. } = &ir.items.get(target.0 as usize)?.kind else { return None; };
-    if !fields.iter().any(|id| ir.items.get(id.0 as usize).is_some_and(|item|
-        item.name == *field && matches!(&item.kind, IrItemKind::Field { ty: IrType::Known(ty), .. }
-            if *ty == ResolvedType::Nullable(Box::new(value.ty.clone()))))) {
+    let ResolvedType::Record {
+        symbol: target,
+        stored: true,
+    } = linked.ty
+    else {
+        return None;
+    };
+    let IrItemKind::Model { fields, .. } = &ir.items.get(target.0 as usize)?.kind else {
+        return None;
+    };
+    if !fields.iter().any(|id| {
+        ir.items.get(id.0 as usize).is_some_and(|item| {
+            item.name == *field
+                && matches!(&item.kind, IrItemKind::Field { ty: IrType::Known(ty), .. }
+            if *ty == ResolvedType::Nullable(Box::new(value.ty.clone())))
+        })
+    }) {
         return None;
     }
     Some(())
@@ -15435,64 +17521,196 @@ fn conditional_parameter_create_link(
 
 /// A private original-source loop seal for contained sibling constructors.
 /// Every selected reference and ordinary CREATE keeps its own runtime authority.
-fn source_owned_sibling_loop(context:&super::source_context::FreshSourceContext<'_>,owner:&IrItem)->Option<serde_json::Value>{
-    let checked=super::scenario_calls::checked_source(context.ir(),owner,context.db())?;
-    let source=serde_json::json!({"path":checked.source.path,"sha256":checked.source.sha256});
-    super::source_loops::collect_native(context.ir(),owner,context,&source,"")
+fn source_owned_sibling_loop(
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+) -> Option<serde_json::Value> {
+    let checked = super::scenario_calls::checked_source(context.ir(), owner, context.db())?;
+    let source = serde_json::json!({"path":checked.source.path,"sha256":checked.source.sha256});
+    super::source_loops::collect_native(context.ir(), owner, context, &source, "")
 }
 
 /// Exact source-owned same-model copy loop after a completed Model child.
 /// Ordinary schema/rule/lock staging remains mandatory for each CREATE.
-fn source_owned_copy_loop(context:&super::source_context::FreshSourceContext<'_>,owner:&IrItem)->Option<serde_json::Value>{
-    let ir=context.ir();
+fn source_owned_copy_loop(
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+) -> Option<serde_json::Value> {
+    let ir = context.ir();
     context.same_scenario(ir, owner)?;
-    let IrItemKind::Scenario{result:None,trusted:false,read:false,hook:None,event_source:None,cohort:None,effects,..}=&owner.kind else{return None;};
-    let [IrStmt::Call{target:super::ir::IrEffectCallTarget::Operation{operation,..},binding:Some(result),result:Some(result_type),span:call,..},IrStmt::Set{..},
-        IrStmt::For{item,domain,limit:Some(limit),body,span,..}]=effects.as_slice()else{return None;};
-    let [IrStmt::Create{model,input,binding:Some(_),when:None,span:created,..}]=body.as_slice()else{return None;};
-    let facts=super::scenario_calls::checked_source(ir,owner,context.db())?;
-    let [original]=facts.creates.as_deref()?else{return None;};
-    if node_span(original.node)!=*created || ir.items.get(original.model.0 as usize)?.canonical!=*model{return None;}
-    let parameter=contained_member_scan_parent(ir,owner,domain,*span,false)?;
-    if &parameter.ty!=result_type{return None;}
-    let IrExpr::Object(inputs)=&input.expr else{return None;};
-    let [(parent_name,parent),fields @ ..]=inputs.as_slice()else{return None;};
-    if parent_name!="parent" || parent.ty!=*result_type || !matches!(&parent.expr,IrExpr::Name(name)if name==result)
-        || fields.is_empty() || fields.len()>200 || fields.len()+1!=original.inputs.len(){return None;}
-    let mut copied=Vec::new();
-    for ((name,value),source) in fields.iter().zip(&original.inputs[1..]){
-        let IrExpr::Member{base,field}=&value.expr else{return None;};
-        let ResolvedType::Scalar(scalar)=value.ty else{return None;};
-        if !supported_type_id(scalar.as_str()) || scalar==Scalar::User || name!=field || name!=&source.name
-            || source.ty!=value.ty || base.ty!=(ResolvedType::Record{symbol:original.model,stored:true})
-            || !matches!(&base.expr,IrExpr::Name(name)if name==item){return None;}
+    let IrItemKind::Scenario {
+        result: None,
+        trusted: false,
+        read: false,
+        hook: None,
+        event_source: None,
+        cohort: None,
+        effects,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let [
+        IrStmt::Call {
+            target: super::ir::IrEffectCallTarget::Operation { operation, .. },
+            binding: Some(result),
+            result: Some(result_type),
+            span: call,
+            ..
+        },
+        IrStmt::Set { .. },
+        IrStmt::For {
+            item,
+            domain,
+            limit: Some(limit),
+            body,
+            span,
+            ..
+        },
+    ] = effects.as_slice()
+    else {
+        return None;
+    };
+    let [
+        IrStmt::Create {
+            model,
+            input,
+            binding: Some(_),
+            when: None,
+            span: created,
+            ..
+        },
+    ] = body.as_slice()
+    else {
+        return None;
+    };
+    let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
+    let [original] = facts.creates.as_deref()? else {
+        return None;
+    };
+    if node_span(original.node) != *created
+        || ir.items.get(original.model.0 as usize)?.canonical != *model
+    {
+        return None;
+    }
+    let parameter = contained_member_scan_parent(ir, owner, domain, *span, false)?;
+    if &parameter.ty != result_type {
+        return None;
+    }
+    let IrExpr::Object(inputs) = &input.expr else {
+        return None;
+    };
+    let [(parent_name, parent), fields @ ..] = inputs.as_slice() else {
+        return None;
+    };
+    if parent_name != "parent"
+        || parent.ty != *result_type
+        || !matches!(&parent.expr,IrExpr::Name(name)if name==result)
+        || fields.is_empty()
+        || fields.len() > 200
+        || fields.len() + 1 != original.inputs.len()
+    {
+        return None;
+    }
+    let mut copied = Vec::new();
+    for ((name, value), source) in fields.iter().zip(&original.inputs[1..]) {
+        let IrExpr::Member { base, field } = &value.expr else {
+            return None;
+        };
+        let ResolvedType::Scalar(scalar) = value.ty else {
+            return None;
+        };
+        if !supported_type_id(scalar.as_str())
+            || scalar == Scalar::User
+            || name != field
+            || name != &source.name
+            || source.ty != value.ty
+            || base.ty
+                != (ResolvedType::Record {
+                    symbol: original.model,
+                    stored: true,
+                })
+            || !matches!(&base.expr,IrExpr::Name(name)if name==item)
+        {
+            return None;
+        }
         copied.push(serde_json::json!({"name":name,"type":scalar.as_str(),
             "node":{"start":source.value_node.start,"end":source.value_node.end}}));
     }
-    let IrExpr::Int(maximum)=limit.expr else{return None;};
-    if !(1..=200).contains(&maximum){return None;}
-    Some(serde_json::json!({"node":{"start":created.start,"end":created.end},
+    let IrExpr::Int(maximum) = limit.expr else {
+        return None;
+    };
+    if !(1..=200).contains(&maximum) {
+        return None;
+    }
+    Some(
+        serde_json::json!({"node":{"start":created.start,"end":created.end},
         "call":{"start":call.start,"end":call.end},"parent":result,"model":model,
-        "target":ir.items.get(operation.0 as usize)?.canonical,"fields":copied}))
+        "target":ir.items.get(operation.0 as usize)?.canonical,"fields":copied}),
+    )
 }
 
 /// A finite contained update prefix may precede its own created Model result.
 /// Fresh source correspondence seals control flow and every operand; individual
 /// loop, assignment, constructor schema and return checks remain mandatory.
-fn source_owned_updated_model_create(context: &super::source_context::FreshSourceContext<'_>,
-    owner: &IrItem, original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate) -> Option<()> {
+fn source_owned_updated_model_create(
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+    original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+) -> Option<()> {
     let ir = context.ir();
     context.same_scenario(ir, owner)?;
-    let IrItemKind::Scenario { result: Some(ResolvedType::Record {symbol: model,stored:true}),
-        trusted:false,read:false,hook:None,event_source:None,cohort:None,effects,.. } = &owner.kind else { return None; };
-    let [IrStmt::For {..}, IrStmt::Let {..}, IrStmt::Set {..},
-        IrStmt::Create {span,binding:Some(binding),when:None,..},
-        IrStmt::Return {value:Some(value),..}] = effects.as_slice() else { return None; };
-    if *model != original.model || *span != node_span(original.node) || binding != &original.binding
-        || value.ty != (ResolvedType::Record {symbol:*model,stored:true})
-        || !matches!(&value.expr, IrExpr::Name(name) if name == binding) { return None; }
+    let IrItemKind::Scenario {
+        result:
+            Some(ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            }),
+        trusted: false,
+        read: false,
+        hook: None,
+        event_source: None,
+        cohort: None,
+        effects,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let [
+        IrStmt::For { .. },
+        IrStmt::Let { .. },
+        IrStmt::Set { .. },
+        IrStmt::Create {
+            span,
+            binding: Some(binding),
+            when: None,
+            ..
+        },
+        IrStmt::Return {
+            value: Some(value), ..
+        },
+    ] = effects.as_slice()
+    else {
+        return None;
+    };
+    if *model != original.model
+        || *span != node_span(original.node)
+        || binding != &original.binding
+        || value.ty
+            != (ResolvedType::Record {
+                symbol: *model,
+                stored: true,
+            })
+        || !matches!(&value.expr, IrExpr::Name(name) if name == binding)
+    {
+        return None;
+    }
     let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
-    let [created] = facts.creates.as_deref()? else { return None; };
+    let [created] = facts.creates.as_deref()? else {
+        return None;
+    };
     (std::ptr::eq(created, original)).then_some(())
 }
 
@@ -15500,98 +17718,256 @@ fn source_owned_updated_model_create(context: &super::source_context::FreshSourc
 /// CALL and precede its original completion effects. The fresh whole-owner
 /// join seals surrounding operands; each effect, schema and File input still
 /// needs its independent native proof below.
-fn source_owned_after_call_create(context: &super::source_context::FreshSourceContext<'_>,
-    owner: &IrItem, original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate) -> Option<()> {
+fn source_owned_after_call_create(
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+    original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+) -> Option<()> {
     let ir = context.ir();
     context.same_scenario(ir, owner)?;
-    let IrItemKind::Scenario { result: None, trusted: false, read: false, hook: None,
-        event_source: None, cohort: None, effects, .. } = &owner.kind else { return None; };
-    let [IrStmt::If { then_branch, else_branch, .. },
-        IrStmt::Create { span, binding: Some(binding), when: None, .. },
-        IrStmt::Set { .. }, IrStmt::Emit { .. },
-        IrStmt::Send { when: None, binding: Some(_), .. }, IrStmt::Set { .. },
-        IrStmt::Send { when: Some(_), binding: Some(_), .. }] = effects.as_slice() else { return None; };
-    let [IrStmt::Require { .. }, IrStmt::Call { inputs, .. }] = then_branch.as_slice() else { return None; };
-    if !matches!(else_branch.as_slice(), [IrStmt::Require { .. }]) ||
-        *span != node_span(original.node) || binding != &original.binding { return None; }
+    let IrItemKind::Scenario {
+        result: None,
+        trusted: false,
+        read: false,
+        hook: None,
+        event_source: None,
+        cohort: None,
+        effects,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let [
+        IrStmt::If {
+            then_branch,
+            else_branch,
+            ..
+        },
+        IrStmt::Create {
+            span,
+            binding: Some(binding),
+            when: None,
+            ..
+        },
+        IrStmt::Set { .. },
+        IrStmt::Emit { .. },
+        IrStmt::Send {
+            when: None,
+            binding: Some(_),
+            ..
+        },
+        IrStmt::Set { .. },
+        IrStmt::Send {
+            when: Some(_),
+            binding: Some(_),
+            ..
+        },
+    ] = effects.as_slice()
+    else {
+        return None;
+    };
+    let [IrStmt::Require { .. }, IrStmt::Call { inputs, .. }] = then_branch.as_slice() else {
+        return None;
+    };
+    if !matches!(else_branch.as_slice(), [IrStmt::Require { .. }])
+        || *span != node_span(original.node)
+        || binding != &original.binding
+    {
+        return None;
+    }
     let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
-    let [created] = facts.creates.as_deref()? else { return None; };
-    if !std::ptr::eq(created, original) || facts.source_requires.as_deref()?.len() != 1 { return None; }
-    let IrExpr::Object(entries) = &inputs.expr else { return None; };
-    entries.iter().any(|(_, value)| checked_narrowed_call_reference(ir, owner, value, context.db()).is_some()).then_some(())
+    let [created] = facts.creates.as_deref()? else {
+        return None;
+    };
+    if !std::ptr::eq(created, original) || facts.source_requires.as_deref()?.len() != 1 {
+        return None;
+    }
+    let IrExpr::Object(entries) = &inputs.expr else {
+        return None;
+    };
+    entries
+        .iter()
+        .any(|(_, value)| checked_narrowed_call_reference(ir, owner, value, context.db()).is_some())
+        .then_some(())
 }
 
 /// Original void parent mutations may retain the same bounded sibling-loop
 /// port as an updated-model result. This source seal grants no collection or
 /// field authority; each loop, effect and schema keeps its independent join.
-fn source_owned_void_member_loops(context: &super::source_context::FreshSourceContext<'_>, owner: &IrItem) -> Option<()> {
-    let ir=context.ir();
+fn source_owned_void_member_loops(
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+) -> Option<()> {
+    let ir = context.ir();
     context.same_scenario(ir, owner)?;
-    let IrItemKind::Scenario{result:None,trusted:false,read:false,hook:None,event_source:None,cohort:None,effects,..}=&owner.kind else{return None;};
-    let mut loops=0;
+    let IrItemKind::Scenario {
+        result: None,
+        trusted: false,
+        read: false,
+        hook: None,
+        event_source: None,
+        cohort: None,
+        effects,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let mut loops = 0;
     for effect in effects {
         match effect {
-            IrStmt::Set{when:None,..}|IrStmt::Cancel{..}=>{},
-            IrStmt::For{body,span,..}=>{
-                let ScenarioDisclosure::Complete(checked)=ir.scenario_disclosures.get(&owner.id)? else{return None;};
-                if !checked.effects.iter().any(|effect|node_span(effect.node)==*span
-                    && matches!(effect.kind,DisclosureEffectKind::ForMember{..})) {return None;}
-                loops+=1;
-                if body.is_empty() || !body.iter().all(|statement|match statement {
-                    IrStmt::Set{when:None,..}=>true,
-                    IrStmt::If{then_branch,else_branch,..}=>else_branch.is_empty()
-                        && matches!(then_branch.as_slice(),[IrStmt::Set{when:None,..}]),
-                    _=>false,
-                }) {return None;}
-            },
-            _=>return None,
+            IrStmt::Set { when: None, .. } | IrStmt::Cancel { .. } => {}
+            IrStmt::For { body, span, .. } => {
+                let ScenarioDisclosure::Complete(checked) =
+                    ir.scenario_disclosures.get(&owner.id)?
+                else {
+                    return None;
+                };
+                if !checked.effects.iter().any(|effect| {
+                    node_span(effect.node) == *span
+                        && matches!(effect.kind, DisclosureEffectKind::ForMember { .. })
+                }) {
+                    return None;
+                }
+                loops += 1;
+                if body.is_empty()
+                    || !body.iter().all(|statement| match statement {
+                        IrStmt::Set { when: None, .. } => true,
+                        IrStmt::If {
+                            then_branch,
+                            else_branch,
+                            ..
+                        } => {
+                            else_branch.is_empty()
+                                && matches!(
+                                    then_branch.as_slice(),
+                                    [IrStmt::Set { when: None, .. }]
+                                )
+                        }
+                        _ => false,
+                    })
+                {
+                    return None;
+                }
+            }
+            _ => return None,
         }
     }
-    (loops>0).then_some(())
+    (loops > 0).then_some(())
 }
 
 /// A private constructor input is a once-only original DATA occurrence, never
 /// a viewer field grant. Its scalar can only enter the first authored CREATE;
 /// State seals the observed required path against that actual staged field.
 pub(super) fn constructor_inputs(
-    context: &super::source_context::FreshSourceContext<'_>, owner: &IrItem, transport: &ReceiptSource,
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+    transport: &ReceiptSource,
 ) -> Option<serde_json::Value> {
-    let ir=context.ir();
-    let facts=super::scenario_calls::checked_source(ir,owner,context.db())?;
-    let created=facts.creates.as_deref()?.first()?;
-    source_owned_void_create(context,owner,created)?;
-    let IrItemKind::Scenario{effects,..}=&owner.kind else{return None;};
-    let position=effects.iter().position(|statement|matches!(statement,IrStmt::Create{..}))?;
-    if !effects[..position].iter().all(|statement|matches!(statement,IrStmt::Let{..}|IrStmt::Require{..})) {return None;}
-    let IrStmt::Create{input,span,..}=&effects[position] else{return None;};
-    if *span!=node_span(created.node) {return None;}
-    let IrExpr::Object(entries)=&input.expr else{return None;};
-    let models=super::js::Emitter::source_models(ir,context.db())?;
-    let mut inputs=Vec::new();
-    for (sink,leaf) in entries {
-        let IrExpr::Member{base:reference,field:leaf_name}=&leaf.expr else{continue;};
-        if !matches!(leaf.ty,ResolvedType::Scalar(_)) || !native_result_type(&leaf.ty) {continue;}
-        let IrExpr::Member{base:receiver,field:reference_name}=&reference.expr else{continue;};
-        let mut root=receiver.as_ref();
-        let mut parents=Vec::new();
-        while let IrExpr::Member{base,field}=&root.expr {
-            if field!="parent" || parents.len()>=2 {break;}
-            let ResolvedType::Record{symbol,stored:true}=&root.ty else{break;};
-            parents.push(ir.items.get(symbol.0 as usize)?.canonical.clone()); root=base;
+    let ir = context.ir();
+    let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
+    let created = facts.creates.as_deref()?.first()?;
+    source_owned_void_create(context, owner, created)?;
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return None;
+    };
+    let position = effects
+        .iter()
+        .position(|statement| matches!(statement, IrStmt::Create { .. }))?;
+    if !effects[..position]
+        .iter()
+        .all(|statement| matches!(statement, IrStmt::Let { .. } | IrStmt::Require { .. }))
+    {
+        return None;
+    }
+    let IrStmt::Create { input, span, .. } = &effects[position] else {
+        return None;
+    };
+    if *span != node_span(created.node) {
+        return None;
+    }
+    let IrExpr::Object(entries) = &input.expr else {
+        return None;
+    };
+    let models = super::js::Emitter::source_models(ir, context.db())?;
+    let mut inputs = Vec::new();
+    for (sink, leaf) in entries {
+        let IrExpr::Member {
+            base: reference,
+            field: leaf_name,
+        } = &leaf.expr
+        else {
+            continue;
+        };
+        if !matches!(leaf.ty, ResolvedType::Scalar(_)) || !native_result_type(&leaf.ty) {
+            continue;
         }
-        let IrExpr::Name(parameter)=&root.expr else{continue;};
-        let Some(root_schema)=checked_parameter_row_id(ir,owner,root,&models,context.db()) else{continue;};
-        let Some((_,source_schema))=checked_parent_reference(ir,owner,receiver,context.db())
-            .or_else(|| (receiver.span==root.span).then_some((root_schema,root_schema))) else{continue;};
-        let Some(source_field)=stored_reference_operand(ir,owner,reference,context.db()) else{continue;};
-        let ResolvedType::Record{symbol:target,stored:true}=&source_field.ty else{continue;};
-        if source_field.owner!=source_schema.id {continue;}
-        let Some(pairs)=checked_reference_receiver_pairs(ir,owner,leaf,context.db()) else{continue;};
-        let Some(original)=created.inputs.iter().find(|value|value.name==*sink && node_span(value.value_node)==leaf.span && value.ty==leaf.ty) else{continue;};
-        if original.field.is_none() {continue;}
+        let IrExpr::Member {
+            base: receiver,
+            field: reference_name,
+        } = &reference.expr
+        else {
+            continue;
+        };
+        let mut root = receiver.as_ref();
+        let mut parents = Vec::new();
+        while let IrExpr::Member { base, field } = &root.expr {
+            if field != "parent" || parents.len() >= 2 {
+                break;
+            }
+            let ResolvedType::Record {
+                symbol,
+                stored: true,
+            } = &root.ty
+            else {
+                break;
+            };
+            parents.push(ir.items.get(symbol.0 as usize)?.canonical.clone());
+            root = base;
+        }
+        let IrExpr::Name(parameter) = &root.expr else {
+            continue;
+        };
+        let Some(root_schema) = checked_parameter_row_id(ir, owner, root, &models, context.db())
+        else {
+            continue;
+        };
+        let Some((_, source_schema)) = checked_parent_reference(ir, owner, receiver, context.db())
+            .or_else(|| (receiver.span == root.span).then_some((root_schema, root_schema)))
+        else {
+            continue;
+        };
+        let Some(source_field) = stored_reference_operand(ir, owner, reference, context.db())
+        else {
+            continue;
+        };
+        let ResolvedType::Record {
+            symbol: target,
+            stored: true,
+        } = &source_field.ty
+        else {
+            continue;
+        };
+        if source_field.owner != source_schema.id {
+            continue;
+        }
+        let Some(pairs) = checked_reference_receiver_pairs(ir, owner, leaf, context.db()) else {
+            continue;
+        };
+        let Some(original) = created.inputs.iter().find(|value| {
+            value.name == *sink && node_span(value.value_node) == leaf.span && value.ty == leaf.ty
+        }) else {
+            continue;
+        };
+        if original.field.is_none() {
+            continue;
+        }
         parents.reverse();
-        for (source,scalar) in pairs {
-            if source.role!=DependencyRole::Data || scalar.role!=DependencyRole::Data {continue;}
+        for (source, scalar) in pairs {
+            if source.role != DependencyRole::Data || scalar.role != DependencyRole::Data {
+                continue;
+            }
             inputs.push(serde_json::json!({"owner":owner.canonical,"source":transport,
                 "parameter":parameter,"rootModel":root_schema.canonical,"parents":parents,
                 "sourceDependencyId":source.id,"sourceModel":source_schema.canonical,"sourceField":reference_name,
@@ -15600,9 +17976,14 @@ pub(super) fn constructor_inputs(
                 "create":{"start":span.start,"end":span.end},"model":created.definition.canonical,"field":sink}));
         }
     }
-    inputs.sort_by_key(|value|value["sourceDependencyId"].as_str().unwrap_or("").to_owned());
+    inputs.sort_by_key(|value| {
+        value["sourceDependencyId"]
+            .as_str()
+            .unwrap_or("")
+            .to_owned()
+    });
     inputs.dedup();
-    (!inputs.is_empty()).then(||serde_json::Value::Array(inputs))
+    (!inputs.is_empty()).then_some(serde_json::Value::Array(inputs))
 }
 
 /// A complete public void owner may construct its original rows before a
@@ -15610,58 +17991,153 @@ pub(super) fn constructor_inputs(
 /// original operand and branch, including schedule owner, key, instant and
 /// payload. The effect census and declared-event checks remain independent;
 /// this shape proof grants no query, row or scheduling authority.
-fn source_owned_void_create(context: &super::source_context::FreshSourceContext<'_>,
-    owner: &IrItem, original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate) -> Option<()> {
+fn source_owned_void_create(
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+    original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+) -> Option<()> {
     let ir = context.ir();
     context.same_scenario(ir, owner)?;
-    let IrItemKind::Scenario {result:None,trusted:false,read:false,hook:None,event_source:None,
-        cohort:None,effects,..} = &owner.kind else {return None;};
-    let facts = super::scenario_calls::checked_source(ir,owner,context.db())?;
+    let IrItemKind::Scenario {
+        result: None,
+        trusted: false,
+        read: false,
+        hook: None,
+        event_source: None,
+        cohort: None,
+        effects,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
     let creates = facts.creates.as_deref()?;
-    if creates.is_empty() || creates.len()>200 || !creates.iter().any(|value|std::ptr::eq(value,original)) {return None;}
-    fn create_sites<'a>(body:&'a [IrStmt],depth:usize,sites:&mut Vec<(Span,&'a String)>)->Option<()> {
-        if depth>=64{return None;}
-        for statement in body{match statement{
-            IrStmt::Create{span,binding:Some(binding),when:None,..}=>sites.push((*span,binding)),
-            IrStmt::If{then_branch,else_branch,..}=>{create_sites(then_branch,depth+1,sites)?;create_sites(else_branch,depth+1,sites)?;},
-            _=>{},
-        }}Some(())
+    if creates.is_empty()
+        || creates.len() > 200
+        || !creates.iter().any(|value| std::ptr::eq(value, original))
+    {
+        return None;
     }
-    let mut top=Vec::new();create_sites(effects,0,&mut top)?;
-    if source_owned_sibling_loop(context,owner).is_some() {
-        let IrStmt::For{body,..}=effects.last()? else{return None;};
-        let [IrStmt::Create{span,binding:Some(binding),when:None,..}]=body.as_slice() else{return None;};
-        let mut census=top.clone();census.push((*span,binding));
-        if census.len()!=creates.len() || !census.iter().zip(creates).all(|((span,binding),source)|
-            *span==node_span(source.node) && **binding==source.binding) {return None;}
+    fn create_sites<'a>(
+        body: &'a [IrStmt],
+        depth: usize,
+        sites: &mut Vec<(Span, &'a String)>,
+    ) -> Option<()> {
+        if depth >= 64 {
+            return None;
+        }
+        for statement in body {
+            match statement {
+                IrStmt::Create {
+                    span,
+                    binding: Some(binding),
+                    when: None,
+                    ..
+                } => sites.push((*span, binding)),
+                IrStmt::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } => {
+                    create_sites(then_branch, depth + 1, sites)?;
+                    create_sites(else_branch, depth + 1, sites)?;
+                }
+                _ => {}
+            }
+        }
+        Some(())
+    }
+    let mut top = Vec::new();
+    create_sites(effects, 0, &mut top)?;
+    if source_owned_sibling_loop(context, owner).is_some() {
+        let IrStmt::For { body, .. } = effects.last()? else {
+            return None;
+        };
+        let [
+            IrStmt::Create {
+                span,
+                binding: Some(binding),
+                when: None,
+                ..
+            },
+        ] = body.as_slice()
+        else {
+            return None;
+        };
+        let mut census = top.clone();
+        census.push((*span, binding));
+        if census.len() != creates.len()
+            || !census.iter().zip(creates).all(|((span, binding), source)| {
+                *span == node_span(source.node) && **binding == source.binding
+            })
+        {
+            return None;
+        }
         return Some(());
     }
-    if top.len()!=creates.len() || !top.iter().zip(creates).all(|((span,binding),source)|
-        *span==node_span(source.node) && **binding==source.binding) {return None;}
-    fn closed(body:&[IrStmt],depth:usize)->bool {
-        depth<64 && body.iter().all(|statement|match statement {
-            IrStmt::Let{..}|IrStmt::Require{..}|IrStmt::Set{when:None,..}
-                |IrStmt::Send{binding:Some(_),..}|IrStmt::Emit{..}|IrStmt::Cancel{..}
-                |IrStmt::Schedule{..}=>true,
-            IrStmt::If{then_branch,else_branch,..}=>closed(then_branch,depth+1)&&closed(else_branch,depth+1),
-            IrStmt::Create{binding:Some(_),when:None,..}=>true,
-            _=>false,
+    if top.len() != creates.len()
+        || !top.iter().zip(creates).all(|((span, binding), source)| {
+            *span == node_span(source.node) && **binding == source.binding
         })
+    {
+        return None;
     }
-    closed(effects,0).then_some(())
+    fn closed(body: &[IrStmt], depth: usize) -> bool {
+        depth < 64
+            && body.iter().all(|statement| match statement {
+                IrStmt::Let { .. }
+                | IrStmt::Require { .. }
+                | IrStmt::Set { when: None, .. }
+                | IrStmt::Send {
+                    binding: Some(_), ..
+                }
+                | IrStmt::Emit { .. }
+                | IrStmt::Cancel { .. }
+                | IrStmt::Schedule { .. } => true,
+                IrStmt::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } => closed(then_branch, depth + 1) && closed(else_branch, depth + 1),
+                IrStmt::Create {
+                    binding: Some(_),
+                    when: None,
+                    ..
+                } => true,
+                _ => false,
+            })
+    }
+    closed(effects, 0).then_some(())
 }
 
 /// A complete source-owned single-creation result may retain its finite
 /// conditional SEND/SET/EMIT tail. Re-lowering the entire original owner seals
 /// every ordered condition and operand; this grants no query or row authority.
-fn source_owned_created_return_tail(context: &super::source_context::FreshSourceContext<'_>,
-    owner: &IrItem, original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate) -> Option<()> {
+fn source_owned_created_return_tail(
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+    original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+) -> Option<()> {
     let ir = context.ir();
     context.same_scenario(ir, owner)?;
     let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
-    let [created] = facts.creates.as_deref()? else { return None; };
-    if !std::ptr::eq(created, original) || checked_created_model_result(ir, owner) != Some(original.model) { return None; }
-    ordered_created_model_effects(ir, owner, original.node, original.model, &original.binding, context.db())
+    let [created] = facts.creates.as_deref()? else {
+        return None;
+    };
+    if !std::ptr::eq(created, original)
+        || checked_created_model_result(ir, owner) != Some(original.model)
+    {
+        return None;
+    }
+    ordered_created_model_effects(
+        ir,
+        owner,
+        original.node,
+        original.model,
+        &original.binding,
+        context.db(),
+    )
 }
 
 fn scenario_create_nesting(
@@ -15672,34 +18148,59 @@ fn scenario_create_nesting(
     facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
     proof: &crate::analysis::scenario_disclosure::DisclosureEffect,
     original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
-    binding: &String,
+    binding: &str,
     model: &crate::analysis::SymbolId,
     db: &SourceDb,
     source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<()> {
-    let checked_schema=super::scenario_create_sources::checked_created_schema(ir,owner,models,original,db,source_context);
+    let checked_schema = super::scenario_create_sources::checked_created_schema(
+        ir,
+        owner,
+        models,
+        original,
+        db,
+        source_context,
+    );
     checked_schema?;
-    if source_context.is_some_and(|context|source_owned_void_create(context,owner,original).is_some()) {return Some(());}
-    if source_context.is_some_and(|context|
-        super::event_notice_audit::checked(context, owner, "checked-create").is_some()) { return Some(()); }
-    if source_context.is_some_and(|context|
-        super::purchase_all::checked(context, owner, "checked-create").is_some())
+    if source_context
+        .is_some_and(|context| source_owned_void_create(context, owner, original).is_some())
     {
+        return Some(());
+    }
+    if source_context.is_some_and(|context| {
+        super::event_notice_audit::checked(context, owner, "checked-create").is_some()
+    }) {
+        return Some(());
+    }
+    if source_context.is_some_and(|context| {
+        super::purchase_all::checked(context, owner, "checked-create").is_some()
+    }) {
         // The exact original replay/create/posting/parent/ALL sequence has a
         // complete independent fresh-source seal, including its create stage.
         return Some(());
     }
-    if source_context.and_then(|context|source_owned_copy_loop(context,owner)).is_some_and(|copy|
-        copy["node"]["start"]==proof.node.start && copy["node"]["end"]==proof.node.end){return Some(());}
+    if source_context
+        .and_then(|context| source_owned_copy_loop(context, owner))
+        .is_some_and(|copy| {
+            copy["node"]["start"] == proof.node.start && copy["node"]["end"] == proof.node.end
+        })
+    {
+        return Some(());
+    }
     if !is_top_level_create(owner, proof.node) {
         // Arm-nested creates admit only through the captured conditional
         // rule — including void scenarios (no free pass): every other nesting
         // keeps its loud refusal (no receipt).
         if event_notice_branch_create_tail(ir, owner, checked, original, proof.node, binding, db)
-            .is_none() && source_context.and_then(|context|
-                conditional_parameter_create_link(context, owner, original)).is_none()
-                && source_context.and_then(|context|
-                    checked_first_target_branch_create(context,owner,checked,original)).is_none()
+            .is_none()
+            && source_context
+                .and_then(|context| conditional_parameter_create_link(context, owner, original))
+                .is_none()
+            && source_context
+                .and_then(|context| {
+                    checked_first_target_branch_create(context, owner, checked, original)
+                })
+                .is_none()
         {
             conditional_branch_create_tail(ir, owner, checked, proof.node, binding)?;
         }
@@ -15717,7 +18218,10 @@ fn scenario_create_nesting(
         ordered_created_model_effects(ir, owner, first.node, first.model, &first.binding, db)?;
     } else if checked_created_model_result(ir, owner) == Some(*model) {
         if ordered_created_model_effects(ir, owner, proof.node, *model, binding, db).is_none()
-            && source_context.and_then(|context| source_owned_updated_model_create(context, owner, original)).is_none() {
+            && source_context
+                .and_then(|context| source_owned_updated_model_create(context, owner, original))
+                .is_none()
+        {
             return None;
         }
     } else if terminal_create_then_literal_return(owner, proof.node) {
@@ -15737,15 +18241,39 @@ fn scenario_create_nesting(
 
 /// Immutable contract inputs may be ordered by one original scalar member;
 /// element aliases carry Values data only, never a stored Model view.
-fn constructor_values_order_domain<'a>(ir: &IrProgram, query: &'a super::ir::IrQuery) -> Option<&'a TypedExpr> {
+fn constructor_values_order_domain<'a>(
+    ir: &IrProgram,
+    query: &'a super::ir::IrQuery,
+) -> Option<&'a TypedExpr> {
     let source = query.source.as_ref()?;
-    let [alias_clause, order_clause] = source.clauses.as_slice() else { return None; };
-    let super::ir::IrQueryDomain::Value {base,alias} = &query.domain else { return None; };
-    let ResolvedType::Array {element,ordered:true,nonempty:false} = &base.ty else { return None; };
-    let ResolvedType::Record {symbol,..} = element.as_ref() else { return None; };
-    let IrItemKind::Contract {fields,..} = &ir.items.get(symbol.0 as usize)?.kind else { return None; };
+    let [alias_clause, order_clause] = source.clauses.as_slice() else {
+        return None;
+    };
+    let super::ir::IrQueryDomain::Value { base, alias } = &query.domain else {
+        return None;
+    };
+    let ResolvedType::Array {
+        element,
+        ordered: true,
+        nonempty: false,
+    } = &base.ty
+    else {
+        return None;
+    };
+    let ResolvedType::Record { symbol, .. } = element.as_ref() else {
+        return None;
+    };
+    let IrItemKind::Contract { fields, .. } = &ir.items.get(symbol.0 as usize)?.kind else {
+        return None;
+    };
     let order = query.value_order.as_ref()?;
-    let IrExpr::Member {base: receiver,field} = &order.key.expr else { return None; };
+    let IrExpr::Member {
+        base: receiver,
+        field,
+    } = &order.key.expr
+    else {
+        return None;
+    };
     if !matches!(&receiver.expr,IrExpr::Name(name) if name == alias) || receiver.ty != **element
         || !matches!(order.key.ty,ResolvedType::Scalar(scalar) if scalar != Scalar::File)
         || !fields.iter().filter_map(|id|ir.items.get(id.0 as usize)).any(|item|
@@ -15800,14 +18328,17 @@ fn scenario_create_entry_matches(
     {
         return None;
     }
-    if sealed_source_create { return Some(()); }
+    if sealed_source_create {
+        return Some(());
+    }
     super::scenario_create_sources::checked_create_operand(
         ir,
         original,
         value,
         source.value_node,
         db,
-    ).or_else(||checked_first_optional_actor_expression(ir,owner,value,db))
+    )
+    .or_else(|| checked_first_optional_actor_expression(ir, owner, value, db))
 }
 
 fn scenario_create_entries(
@@ -15822,14 +18353,22 @@ fn scenario_create_entries(
     source_context: Option<&super::source_context::FreshSourceContext<'_>>,
     purchase_all: bool,
 ) -> Option<()> {
-    if !purchase_all && checked_created_statements(ir, owner, checked, original, db, source_context).is_none()
-        && source_context.and_then(|context| conditional_parameter_create_link(context, owner, original)
-            .or_else(|| source_owned_after_call_create(context, owner, original))
-            .or_else(|| source_owned_void_create(context, owner, original))
-            .or_else(|| source_owned_created_return_tail(context, owner, original))
-            .or_else(|| source_owned_updated_model_create(context, owner, original))
-            .or_else(|| checked_first_target_branch_create(context,owner,checked,original))
-            .or_else(|| source_owned_copy_loop(context,owner).map(|_|()))).is_none() {
+    if !purchase_all
+        && checked_created_statements(ir, owner, checked, original, db, source_context).is_none()
+        && source_context
+            .and_then(|context| {
+                conditional_parameter_create_link(context, owner, original)
+                    .or_else(|| source_owned_after_call_create(context, owner, original))
+                    .or_else(|| source_owned_void_create(context, owner, original))
+                    .or_else(|| source_owned_created_return_tail(context, owner, original))
+                    .or_else(|| source_owned_updated_model_create(context, owner, original))
+                    .or_else(|| {
+                        checked_first_target_branch_create(context, owner, checked, original)
+                    })
+                    .or_else(|| source_owned_copy_loop(context, owner).map(|_| ()))
+            })
+            .is_none()
+    {
         return None;
     }
     let authored = checked_effect_node(ir, owner, proof.node, db)?;
@@ -15862,12 +18401,25 @@ fn scenario_create_entries(
         return None;
     }
     for (((name, value), source), authored) in entries.iter().zip(inputs).zip(authored_entries) {
-        let sealed_source_create = source_context.is_some_and(|context|
+        let sealed_source_create = source_context.is_some_and(|context| {
             source_owned_updated_model_create(context, owner, original)
-                .or_else(|| source_owned_void_create(context,owner,original))
-                .or_else(|| source_owned_created_return_tail(context, owner, original)).is_some()
-                || source_owned_copy_loop(context,owner).is_some());
-        scenario_create_entry_matches(ir, owner, original, name, value, source, authored, text, db, sealed_source_create)?;
+                .or_else(|| source_owned_void_create(context, owner, original))
+                .or_else(|| source_owned_created_return_tail(context, owner, original))
+                .is_some()
+                || source_owned_copy_loop(context, owner).is_some()
+        });
+        scenario_create_entry_matches(
+            ir,
+            owner,
+            original,
+            name,
+            value,
+            source,
+            authored,
+            text,
+            db,
+            sealed_source_create,
+        )?;
     }
     Some(())
 }
@@ -15885,13 +18437,37 @@ fn checked_scenario_create(
     let facts = checked.source_facts.as_deref()?;
     let (original, input, span, binding, model) =
         scenario_create_identity(proof, statement, facts, checked)?;
-    let nested=scenario_create_nesting(ir,owner,models,checked,facts,proof,original,binding,model,db,source_context);
+    let nested = scenario_create_nesting(
+        ir,
+        owner,
+        models,
+        checked,
+        facts,
+        proof,
+        original,
+        binding,
+        model,
+        db,
+        source_context,
+    );
     nested?;
-    let purchase_all = source_context.is_some_and(|context|
+    let purchase_all = source_context.is_some_and(|context| {
         super::purchase_all::checked(context, owner, "checked-create").is_some()
-        || super::event_notice_audit::checked(context,owner,"checked-create").is_some());
-    let entries=scenario_create_entries(ir,owner,checked,original,input,span,proof,db,source_context,purchase_all);
-    entries
+            || super::event_notice_audit::checked(context, owner, "checked-create").is_some()
+    });
+
+    scenario_create_entries(
+        ir,
+        owner,
+        checked,
+        original,
+        input,
+        span,
+        proof,
+        db,
+        source_context,
+        purchase_all,
+    )
 }
 
 /// Model results consume their checked pair's result origin. Void owners
@@ -15916,18 +18492,29 @@ fn checked_created_statement_origin<'a>(
 /// A void constructor can accompany a SET of the original required input.
 /// This joins its declared slot and authored receiver rather than borrowing a
 /// created-result or selected-row proof from another source occurrence.
-fn checked_required_model_parameter_value(ir: &IrProgram, owner: &IrItem, record: &TypedExpr,
-    statement: Span, db: &SourceDb) -> Option<()> {
+fn checked_required_model_parameter_value(
+    ir: &IrProgram,
+    owner: &IrItem,
+    record: &TypedExpr,
+    statement: Span,
+    db: &SourceDb,
+) -> Option<()> {
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
-    let IrExpr::Name(name) = &record.expr else { return None; };
+    let IrExpr::Name(name) = &record.expr else {
+        return None;
+    };
     let parameter = facts.parameters.iter().find(|parameter| {
-        ir.items.get(parameter.parameter.0 as usize).is_some_and(|item| item.name == *name)
+        ir.items
+            .get(parameter.parameter.0 as usize)
+            .is_some_and(|item| item.name == *name)
     })?;
     let item = ir.items.get(parameter.parameter.0 as usize)?;
-    if parameter.default.is_some() || parameter.ty != record.ty
+    if parameter.default.is_some()
+        || parameter.ty != record.ty
         || !matches!(&item.kind, IrItemKind::Param { owner: id, ty: IrType::Known(ty), default: None, default_node: None, default_copy_source: None, array_bounds: None, .. }
             if *id == owner.id && *ty == record.ty)
-        || !matches!(record.ty, ResolvedType::Record { stored: true, .. }) {
+        || !matches!(record.ty, ResolvedType::Record { stored: true, .. })
+    {
         return None;
     }
     created_record_name_matches(record, &parameter.ty, name, statement, db)
@@ -15943,35 +18530,92 @@ pub(super) fn checked_stored_scalar_parameter_default(
 ) -> Option<()> {
     context.same_scenario(ir, owner)?;
     let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
-    let checked = facts.parameters.iter().find(|value| value.parameter == parameter)?;
+    let checked = facts
+        .parameters
+        .iter()
+        .find(|value| value.parameter == parameter)?;
     let item = ir.items.get(parameter.0 as usize)?;
-    let IrItemKind::Param { owner: declared_owner, index, ty: IrType::Known(ty),
-        default: Some(IrDefault::Computed {expr, ..}), default_node: Some(node),
-        default_copy_source: None, .. } = &item.kind else { return None; };
-    let IrItemKind::Scenario {params, ..} = &owner.kind else { return None; };
-    if *declared_owner != owner.id || params.get(*index) != Some(&parameter)
-        || checked.default != Some(*node) || node.kind != SyntaxKind::Member as u8
-        || checked.ty != *ty || !crate::analysis::scenario_disclosure::primitive_type(ty)
-        || expr.ty != *ty || expr.span != node_span(*node)
+    let IrItemKind::Param {
+        owner: declared_owner,
+        index,
+        ty: IrType::Known(ty),
+        default: Some(IrDefault::Computed { expr, .. }),
+        default_node: Some(node),
+        default_copy_source: None,
+        ..
+    } = &item.kind
+    else {
+        return None;
+    };
+    let IrItemKind::Scenario { params, .. } = &owner.kind else {
+        return None;
+    };
+    if *declared_owner != owner.id
+        || params.get(*index) != Some(&parameter)
+        || checked.default != Some(*node)
+        || node.kind != SyntaxKind::Member as u8
+        || checked.ty != *ty
+        || !crate::analysis::scenario_disclosure::primitive_type(ty)
+        || expr.ty != *ty
+        || expr.span != node_span(*node)
         || ir.value_constraints.get(&parameter) != checked.constraints.as_ref()
-        || context.original().types.param_default_copy_sources.contains_key(&parameter)
-    { return None; }
-    let IrExpr::Member {base, field} = &expr.expr else { return None; };
-    let IrExpr::Name(seed_name) = &base.expr else { return None; };
-    let mut seeds = params[..*index].iter().filter_map(|id| ir.items.get(id.0 as usize))
+        || context
+            .original()
+            .types
+            .param_default_copy_sources
+            .contains_key(&parameter)
+    {
+        return None;
+    }
+    let IrExpr::Member { base, field } = &expr.expr else {
+        return None;
+    };
+    let IrExpr::Name(seed_name) = &base.expr else {
+        return None;
+    };
+    let mut seeds = params[..*index]
+        .iter()
+        .filter_map(|id| ir.items.get(id.0 as usize))
         .filter(|item| item.name == *seed_name);
     let seed = seeds.next()?;
-    if seeds.next().is_some() { return None; }
-    let IrItemKind::Param {owner: seed_owner, index: seed_index,
-        ty: IrType::Known(ResolvedType::Record {symbol: model, stored: true}),
-        default: None, default_node: None, default_copy_source: None, ..} = &seed.kind else { return None; };
-    if *seed_owner != owner.id || seed_index >= index || seed.module != owner.module
-        || base.ty != (ResolvedType::Record {symbol: *model, stored: true})
+    if seeds.next().is_some() {
+        return None;
+    }
+    let IrItemKind::Param {
+        owner: seed_owner,
+        index: seed_index,
+        ty:
+            IrType::Known(ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            }),
+        default: None,
+        default_node: None,
+        default_copy_source: None,
+        ..
+    } = &seed.kind
+    else {
+        return None;
+    };
+    if *seed_owner != owner.id
+        || seed_index >= index
+        || seed.module != owner.module
+        || base.ty
+            != (ResolvedType::Record {
+                symbol: *model,
+                stored: true,
+            })
         || context.original().types.node_types.get(node) != Some(ty)
-    { return None; }
+    {
+        return None;
+    }
     let target = ir.items.get(model.0 as usize)?;
-    let IrItemKind::Model {fields, ..} = &target.kind else { return None; };
-    let mut matching = fields.iter().filter_map(|id| ir.items.get(id.0 as usize))
+    let IrItemKind::Model { fields, .. } = &target.kind else {
+        return None;
+    };
+    let mut matching = fields
+        .iter()
+        .filter_map(|id| ir.items.get(id.0 as usize))
         .filter(|item| item.name == *field);
     let member = matching.next()?;
     if matching.next().is_some()
@@ -15980,12 +18624,23 @@ pub(super) fn checked_stored_scalar_parameter_default(
         || member.module != target.module
         || member.canonical != format!("{}.{}", target.canonical, field)
         || context.original().types.symbol_types.get(&member.id) != Some(ty)
-        || format!("{member:?}") != format!("{:?}", context.fresh().items.get(member.id.0 as usize)?)
+        || format!("{member:?}")
+            != format!("{:?}", context.fresh().items.get(member.id.0 as usize)?)
         || format!("{item:?}") != format!("{:?}", context.fresh().items.get(item.id.0 as usize)?)
-    { return None; }
+    {
+        return None;
+    }
     let fresh_owner = context.fresh().items.get(owner.id.0 as usize)?;
-    let IrItemKind::Scenario {params: fresh_params, ..} = &fresh_owner.kind else { return None; };
-    if fresh_params.get(*index) != Some(&parameter) { return None; }
+    let IrItemKind::Scenario {
+        params: fresh_params,
+        ..
+    } = &fresh_owner.kind
+    else {
+        return None;
+    };
+    if fresh_params.get(*index) != Some(&parameter) {
+        return None;
+    }
     Some(())
 }
 
@@ -16066,7 +18721,7 @@ fn checked_created_statements(
                     ir, original, value, node, db,
                 )?;
             }
-            (Some(IrDefault::Computed {..}), Some(_)) => {
+            (Some(IrDefault::Computed { .. }), Some(_)) => {
                 checked_stored_scalar_parameter_default(source_context?, ir, owner, *id)?;
             }
             _ => return None,
@@ -16141,9 +18796,17 @@ fn checked_created_statements(
                     NodeKey::of(authored),
                     db,
                 )
-                .is_some() || event_notice_branch_create_tail(
-                    ir, owner, checked, original, original.node, &original.binding, db,
-                ).is_some();
+                .is_some()
+                    || event_notice_branch_create_tail(
+                        ir,
+                        owner,
+                        checked,
+                        original,
+                        original.node,
+                        &original.binding,
+                        db,
+                    )
+                    .is_some();
                 if !prefix_ok {
                     return None;
                 }
@@ -16183,7 +18846,11 @@ fn checked_created_statements(
                     return None;
                 }
                 let parent_receiver = checked_set_parent_receiver(ir, owner, record, db).is_some();
-                let binding = if parent_receiver { "" } else { direct_source_path_name(receiver, text)? };
+                let binding = if parent_receiver {
+                    ""
+                } else {
+                    direct_source_path_name(receiver, text)?
+                };
                 if parent_receiver {
                     // The complete original required-input parent path was joined above.
                 } else if binding == result_original.binding {
@@ -16239,7 +18906,7 @@ fn checked_created_statements(
                         }
                     }
                     for effect in owner_effects.iter() {
-                        if matches!(effect, IrStmt::Let { name, .. } if name == &binding) {
+                        if matches!(effect, IrStmt::Let { name, .. } if name == binding) {
                             prebound = true;
                         }
                     }
@@ -16248,7 +18915,9 @@ fn checked_created_statements(
                         return None;
                     }
                 } else if (void_owner || model_created)
-                    && checked_required_model_parameter_value(ir, owner, record, *span, db).is_some() {
+                    && checked_required_model_parameter_value(ir, owner, record, *span, db)
+                        .is_some()
+                {
                     // Required source input, independently matched to this
                     // owner's original parameter and authored SET receiver.
                 } else {
@@ -16390,13 +19059,23 @@ fn checked_created_statements(
                 }
                 (SyntaxKind::Call, *span, None)
             }
-            IrStmt::Cancel{key,span,..} if void_owner => {
-                (SyntaxKind::Cancel,*span,Some(key))
+            IrStmt::Cancel { key, span, .. } if void_owner => {
+                (SyntaxKind::Cancel, *span, Some(key))
             }
-            IrStmt::Emit { event, payload, span } if void_owner => {
-                let mut proofs = checked.effects.iter().filter(|proof| node_span(proof.node) == *span);
+            IrStmt::Emit {
+                event,
+                payload,
+                span,
+            } if void_owner => {
+                let mut proofs = checked
+                    .effects
+                    .iter()
+                    .filter(|proof| node_span(proof.node) == *span);
                 let proof = proofs.next()?;
-                let DisclosureEffectKind::Emit { event: original_event } = proof.kind else {
+                let DisclosureEffectKind::Emit {
+                    event: original_event,
+                } = proof.kind
+                else {
                     return None;
                 };
                 let event_item = ir.items.get(original_event.0 as usize)?;
@@ -16420,10 +19099,19 @@ fn checked_created_statements(
             if owner.canonical == "member_terms.assign"
                 && matches!(statement, IrStmt::Require { .. })
                 && let Some([count, first]) = facts.queries.as_deref()
-                && count.count.as_ref().is_some_and(|capacity| capacity.statement == crate::analysis::NodeKey::of(authored))
+                && count.count.as_ref().is_some_and(|capacity| {
+                    capacity.statement == crate::analysis::NodeKey::of(authored)
+                })
                 && first.first.is_some()
             {
-                checked_native_assign_count_query_plan(ir, owner, checked, count, db, &checked.source.module)?;
+                checked_native_assign_count_query_plan(
+                    ir,
+                    owner,
+                    checked,
+                    count,
+                    db,
+                    &checked.source.module,
+                )?;
                 continue;
             }
             let node = authored.children.iter().find(|node| {
@@ -16535,10 +19223,7 @@ pub(super) fn checked_created_object_entries(
 /// use/alias inventory — any other tail keeps the intermediate-call
 /// linkage or its loud refusal, so alias escapes through objects,
 /// branches or rebindings cannot slip through as unlinked side effects.
-fn terminal_create_then_literal_return(
-    owner: &IrItem,
-    create: crate::analysis::NodeKey,
-) -> bool {
+fn terminal_create_then_literal_return(owner: &IrItem, create: crate::analysis::NodeKey) -> bool {
     let IrItemKind::Scenario { effects, .. } = &owner.kind else {
         return false;
     };
@@ -16553,11 +19238,7 @@ fn terminal_create_then_literal_return(
     matches!(
         value.as_ref().map(|returned| &returned.expr),
         Some(
-            IrExpr::Int(_)
-                | IrExpr::Decimal(_)
-                | IrExpr::Text(_)
-                | IrExpr::Bool(_)
-                | IrExpr::Null
+            IrExpr::Int(_) | IrExpr::Decimal(_) | IrExpr::Text(_) | IrExpr::Bool(_) | IrExpr::Null
         )
     )
 }
@@ -16966,71 +19647,162 @@ fn event_reminder_create_tail(
     let IrItemKind::Scenario {
         trusted: true,
         event_source: Some(super::ir::IrEventSource::Declared(event)),
-        hook: None, cohort: None, read: false, result: None,
-        params, by, guards, effects, ..
-    } = &owner.kind else { return None; };
-    let [IrStmt::Require {cond, span: require_span}] = guards.as_slice()
-        else { return None; };
-    let [IrStmt::Send {
-        operation, when: Some(when), binding: Some(delivery),
-        span: send_span, ..
-    }, IrStmt::Create {
-        model, input, binding: Some(created), when: None, span: create_span,
-    }] = effects.as_slice() else { return None; };
-    let [send_proof, create_proof] = checked.effects.as_slice() else { return None; };
+        hook: None,
+        cohort: None,
+        read: false,
+        result: None,
+        params,
+        by,
+        guards,
+        effects,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let [
+        IrStmt::Require {
+            cond,
+            span: require_span,
+        },
+    ] = guards.as_slice()
+    else {
+        return None;
+    };
+    let [
+        IrStmt::Send {
+            operation,
+            when: Some(when),
+            binding: Some(delivery),
+            span: send_span,
+            ..
+        },
+        IrStmt::Create {
+            model,
+            input,
+            binding: Some(created),
+            when: None,
+            span: create_span,
+        },
+    ] = effects.as_slice()
+    else {
+        return None;
+    };
+    let [send_proof, create_proof] = checked.effects.as_slice() else {
+        return None;
+    };
     let facts = checked.source_facts.as_deref()?;
-    let [source_create] = facts.creates.as_deref()? else { return None; };
-    let source_require = checked_effect_node(ir, owner,
-        crate::analysis::NodeKey {file:require_span.file,start:require_span.start,
-            end:require_span.end,kind:SyntaxKind::Require as u8}, db)?;
-    let source_cond = source_require.children.iter().find(|child|
-        matches!(child.kind, SyntaxKind::NameRef | SyntaxKind::Member | SyntaxKind::Binary
-            | SyntaxKind::Unary | SyntaxKind::Group | SyntaxKind::Call))?;
+    let [source_create] = facts.creates.as_deref()? else {
+        return None;
+    };
+    let source_require = checked_effect_node(
+        ir,
+        owner,
+        crate::analysis::NodeKey {
+            file: require_span.file,
+            start: require_span.start,
+            end: require_span.end,
+            kind: SyntaxKind::Require as u8,
+        },
+        db,
+    )?;
+    let source_cond = source_require.children.iter().find(|child| {
+        matches!(
+            child.kind,
+            SyntaxKind::NameRef
+                | SyntaxKind::Member
+                | SyntaxKind::Binary
+                | SyntaxKind::Unary
+                | SyntaxKind::Group
+                | SyntaxKind::Call
+        )
+    })?;
     if owner.canonical != "appointments.remind"
         || event != "appointments.Reminder"
-        || model != "appointments.Notice" || operation != "std.EmailV1.send"
-        || !params.is_empty() || !by.is_empty()
-        || delivery != "delivery" || created != "notice" || binding != "notice"
-        || create != original.node || source_create.node != create
+        || model != "appointments.Notice"
+        || operation != "std.EmailV1.send"
+        || !params.is_empty()
+        || !by.is_empty()
+        || delivery != "delivery"
+        || created != "notice"
+        || binding != "notice"
+        || create != original.node
+        || source_create.node != create
         || *create_span != node_span(create)
         || *send_span != node_span(send_proof.node)
-        || source_require.kind != SyntaxKind::Require || source_require.span != *require_span
+        || source_require.kind != SyntaxKind::Require
+        || source_require.span != *require_span
         || cond.span != source_cond.span
         || !matches!(&send_proof.kind, DisclosureEffectKind::Send {when: Some(node), ..}
             if when.span == node_span(*node))
         || !matches!(&create_proof.kind, DisclosureEffectKind::Create {model: id, ..}
             if *id == original.model)
-        || create_proof.node != create || source_create.model != original.model
-    { return None; }
+        || create_proof.node != create
+        || source_create.model != original.model
+    {
+        return None;
+    }
     let text = &db.get(cond.span.file)?.text;
-    if text.get(cond.span.start as usize..cond.span.end as usize)?.trim()
-        != text.get(when.span.start as usize..when.span.end as usize)?.trim()
+    if text
+        .get(cond.span.start as usize..cond.span.end as usize)?
+        .trim()
+        != text
+            .get(when.span.start as usize..when.span.end as usize)?
+            .trim()
         || when.ty != ResolvedType::Scalar(Scalar::Bool)
         || cond.ty != ResolvedType::Scalar(Scalar::Bool)
-    { return None; }
-    let IrExpr::Object(entries) = &input.expr else { return None; };
-    let [(parent_name, parent), (kind_name, kind), (source_name, source),
-        (delivery_name, delivery_value)] = entries.as_slice() else { return None; };
-    let ResolvedType::Record {symbol: appointment, stored: true} = parent.ty
-        else { return None; };
-    if parent_name != "parent" || kind_name != "kind" || source_name != "source"
+    {
+        return None;
+    }
+    let IrExpr::Object(entries) = &input.expr else {
+        return None;
+    };
+    let [
+        (parent_name, parent),
+        (kind_name, kind),
+        (source_name, source),
+        (delivery_name, delivery_value),
+    ] = entries.as_slice()
+    else {
+        return None;
+    };
+    let ResolvedType::Record {
+        symbol: appointment,
+        stored: true,
+    } = parent.ty
+    else {
+        return None;
+    };
+    if parent_name != "parent"
+        || kind_name != "kind"
+        || source_name != "source"
         || delivery_name != "delivery"
         || original.definition.declaration.owner
             != crate::analysis::resolve::ModelOwner::ChildOf(appointment)
         || checked_notice_event_field(ir, owner, parent, "appointment", db).is_none()
         || !matches!(&kind.expr, IrExpr::Text(name) if name == "reminder")
-        || db.get(kind.span.file)?.text.get(kind.span.start as usize..kind.span.end as usize)?
+        || db
+            .get(kind.span.file)?
+            .text
+            .get(kind.span.start as usize..kind.span.end as usize)?
             != "reminder"
         || !matches!(&source.expr, IrExpr::Member {base,field}
             if field == "active_source"
                 && checked_notice_event_field(ir, owner, base, "appointment", db).is_some())
-        || db.get(source.span.file)?.text.get(source.span.start as usize..source.span.end as usize)?
+        || db
+            .get(source.span.file)?
+            .text
+            .get(source.span.start as usize..source.span.end as usize)?
             != "event.appointment.active_source"
         || !matches!(&delivery_value.expr, IrExpr::Name(name) if name == delivery)
-        || db.get(delivery_value.span.file)?.text
+        || db
+            .get(delivery_value.span.file)?
+            .text
             .get(delivery_value.span.start as usize..delivery_value.span.end as usize)?
             != delivery
-    { return None; }
+    {
+        return None;
+    }
     Some(())
 }
 
@@ -17055,84 +19827,185 @@ fn event_notice_branch_create_tail(
     let IrItemKind::Scenario {
         trusted: true,
         event_source: Some(super::ir::IrEventSource::Declared(event)),
-        hook: None, cohort: None, read: false, result: None,
-        params, by, guards, effects, ..
-    } = &owner.kind else { return None; };
-    let [IrStmt::If { cond, then_branch, else_branch, span: branch_span }] = effects.as_slice()
-        else { return None; };
-    let [IrStmt::Send {
-        operation, when: Some(_), binding: Some(delivery),
-        span: send_span, args, ..
-    }, IrStmt::Create {
-        model, input, binding: Some(created), when: None, span: create_span,
-    }] = then_branch.as_slice() else { return None; };
+        hook: None,
+        cohort: None,
+        read: false,
+        result: None,
+        params,
+        by,
+        guards,
+        effects,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let [
+        IrStmt::If {
+            cond,
+            then_branch,
+            else_branch,
+            span: branch_span,
+        },
+    ] = effects.as_slice()
+    else {
+        return None;
+    };
+    let [
+        IrStmt::Send {
+            operation,
+            when: Some(_),
+            binding: Some(delivery),
+            span: send_span,
+            args,
+            ..
+        },
+        IrStmt::Create {
+            model,
+            input,
+            binding: Some(created),
+            when: None,
+            span: create_span,
+        },
+    ] = then_branch.as_slice()
+    else {
+        return None;
+    };
     if event != expected_event
-        || model != "agreements.NoticeDelivery" || operation != "std.EmailV1.send"
-        || !params.is_empty() || !by.is_empty() || !guards.is_empty()
-        || !else_branch.is_empty() || *create_span != node_span(create)
-        || created != binding || delivery != "delivery" || binding != "notice"
-        || checked.effects.len() != 2 || checked.returns.is_empty()
-        || checked.returns.iter().any(|returned| returned.model_result.is_some())
-        || !matches!(&checked.effects[0].kind, DisclosureEffectKind::Send {when: Some(_), ..})
+        || model != "agreements.NoticeDelivery"
+        || operation != "std.EmailV1.send"
+        || !params.is_empty()
+        || !by.is_empty()
+        || !guards.is_empty()
+        || !else_branch.is_empty()
+        || *create_span != node_span(create)
+        || created != binding
+        || delivery != "delivery"
+        || binding != "notice"
+        || checked.effects.len() != 2
+        || checked.returns.is_empty()
+        || checked
+            .returns
+            .iter()
+            .any(|returned| returned.model_result.is_some())
+        || !matches!(
+            &checked.effects[0].kind,
+            DisclosureEffectKind::Send { when: Some(_), .. }
+        )
         || node_span(checked.effects[0].node) != *send_span
         || !matches!(&checked.effects[1].kind, DisclosureEffectKind::Create {model: id, ..} if
             ir.items.get(id.0 as usize).is_some_and(|item| item.canonical == *model))
-        || checked.effects[1].node != create || original.node != create
-    { return None; }
+        || checked.effects[1].node != create
+        || original.node != create
+    {
+        return None;
+    }
     let facts = checked.source_facts.as_deref()?;
-    if facts.creates.as_deref().is_none_or(|creates| creates.len() != 1 || creates[0].node != create)
-        || checked.node != facts.node || checked.source != facts.source
-    { return None; }
+    if facts
+        .creates
+        .as_deref()
+        .is_none_or(|creates| creates.len() != 1 || creates[0].node != create)
+        || checked.node != facts.node
+        || checked.source != facts.source
+    {
+        return None;
+    }
     let source_if = crate::analysis::NodeKey {
-        file: branch_span.file, start: branch_span.start, end: branch_span.end,
+        file: branch_span.file,
+        start: branch_span.start,
+        end: branch_span.end,
         kind: SyntaxKind::If as u8,
     };
     let authored_if = checked_effect_node(ir, owner, source_if, db)?;
-    let source_cond = authored_if.children.iter().find(|child|
-        matches!(child.kind, SyntaxKind::NameRef | SyntaxKind::Member | SyntaxKind::Binary
-            | SyntaxKind::Unary | SyntaxKind::Group | SyntaxKind::Call))?;
-    if authored_if.kind != SyntaxKind::If || authored_if.span != *branch_span
+    let source_cond = authored_if.children.iter().find(|child| {
+        matches!(
+            child.kind,
+            SyntaxKind::NameRef
+                | SyntaxKind::Member
+                | SyntaxKind::Binary
+                | SyntaxKind::Unary
+                | SyntaxKind::Group
+                | SyntaxKind::Call
+        )
+    })?;
+    if authored_if.kind != SyntaxKind::If
+        || authored_if.span != *branch_span
         || source_cond.span != cond.span
         || cond.ty != ResolvedType::Scalar(Scalar::Bool)
         || super::scenario_create_sources::checked_create_expression(
-            ir, original, cond, crate::analysis::NodeKey::of(source_cond), db).is_none()
-    { return None; }
-    let IrExpr::Object(entries) = &input.expr else { return None; };
+            ir,
+            original,
+            cond,
+            crate::analysis::NodeKey::of(source_cond),
+            db,
+        )
+        .is_none()
+    {
+        return None;
+    }
+    let IrExpr::Object(entries) = &input.expr else {
+        return None;
+    };
     let (parent, obligation, revision, delivery_entry) = if due {
-        let [parent, obligation, revision, delivery] = entries.as_slice() else { return None; };
+        let [parent, obligation, revision, delivery] = entries.as_slice() else {
+            return None;
+        };
         (parent, Some(obligation), revision, delivery)
     } else {
-        let [parent, revision, delivery] = entries.as_slice() else { return None; };
+        let [parent, revision, delivery] = entries.as_slice() else {
+            return None;
+        };
         (parent, None, revision, delivery)
     };
     let crate::analysis::resolve::ModelOwner::ChildOf(term_model) =
-        original.definition.declaration.owner else { return None; };
-    let checked_row = |value: &TypedExpr| checked_notice_event_field(ir, owner, value, row_name, db);
+        original.definition.declaration.owner
+    else {
+        return None;
+    };
+    let checked_row =
+        |value: &TypedExpr| checked_notice_event_field(ir, owner, value, row_name, db);
     let parent_row = if due {
-        let IrExpr::Member { base, field } = &parent.1.expr else { return None; };
+        let IrExpr::Member { base, field } = &parent.1.expr else {
+            return None;
+        };
         field == "parent"
             && checked_row(base).is_some()
-            && checked_parent_reference(ir, owner, &parent.1, db)
-                .is_some_and(|(child, parent_model)|
-                    child.canonical == "agreements.Obligation" && parent_model.id == term_model)
+            && checked_parent_reference(ir, owner, &parent.1, db).is_some_and(
+                |(child, parent_model)| {
+                    child.canonical == "agreements.Obligation" && parent_model.id == term_model
+                },
+            )
     } else {
         checked_row(&parent.1).is_some()
     };
-    if parent.0 != "parent" || !parent_row
-        || obligation.is_some_and(|entry|
-            entry.0 != "obligation"
-                || checked_row(&entry.1).is_none())
+    if parent.0 != "parent"
+        || !parent_row
+        || obligation
+            .is_some_and(|entry| entry.0 != "obligation" || checked_row(&entry.1).is_none())
         || revision.0 != "revision"
         || checked_notice_event_field(ir, owner, &revision.1, "revision", db).is_none()
         || delivery_entry.0 != "delivery"
         || !matches!(&delivery_entry.1.expr, IrExpr::Name(name) if name == delivery)
-        || parent.1.ty != (ResolvedType::Record {symbol: term_model, stored: true})
+        || parent.1.ty
+            != (ResolvedType::Record {
+                symbol: term_model,
+                stored: true,
+            })
         || revision.1.ty != ResolvedType::Scalar(Scalar::Int)
-    { return None; }
-    let IrExpr::Object(send_entries) = &args.expr else { return None; };
-    if send_entries.len() != 3 || send_entries.iter().map(|(name, _)| name.as_str())
-        .ne(["to", "subject", "body"].into_iter())
-    { return None; }
+    {
+        return None;
+    }
+    let IrExpr::Object(send_entries) = &args.expr else {
+        return None;
+    };
+    if send_entries.len() != 3
+        || send_entries
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .ne(["to", "subject", "body"])
+    {
+        return None;
+    }
     Some(())
 }
 
@@ -17443,7 +20316,11 @@ fn created_pair_entry<'n>(
     input: &crate::analysis::scenario_disclosure::CheckedScenarioCreateInput,
     names: &mut HashSet<&'n String>,
     parent_found: &mut bool,
-    parent_context: Option<&(&crate::analysis::scenario_disclosure::DisclosureCountQuery, &IrItem, ResolvedType)>,
+    parent_context: Option<&(
+        &crate::analysis::scenario_disclosure::DisclosureCountQuery,
+        &IrItem,
+        ResolvedType,
+    )>,
     second_node: crate::analysis::NodeKey,
     reference_value_node: crate::analysis::NodeKey,
     result_type: &ResolvedType,
@@ -17464,24 +20341,41 @@ fn created_pair_entry<'n>(
         return None;
     }
     if input.field.is_none() {
-        if *parent_found || name != "parent" { return None; }
+        if *parent_found || name != "parent" {
+            return None;
+        }
         if original.node == second_node
             && original.definition.declaration.owner
                 == crate::analysis::resolve::ModelOwner::ChildOf(match result_type {
-                    ResolvedType::Record { symbol, stored: true } => *symbol,
+                    ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    } => *symbol,
                     _ => return None,
                 })
-            && input.value_node == reference_value_node && &input.ty == result_type
+            && input.value_node == reference_value_node
+            && &input.ty == result_type
         {
             created_record_name_matches(value, result_type, first_binding, span, db)?;
         } else if let Some((_, parameter, parent_type)) = parent_context {
-            if &input.ty != parent_type { return None; }
+            if &input.ty != parent_type {
+                return None;
+            }
             created_record_name_matches(value, parent_type, &parameter.name, span, db)?;
         } else {
-            let crate::analysis::resolve::ModelOwner::ChildOf(parent) = original.definition.declaration.owner else {
+            let crate::analysis::resolve::ModelOwner::ChildOf(parent) =
+                original.definition.declaration.owner
+            else {
                 return None;
             };
-            if input.ty != (ResolvedType::Record { symbol: parent, stored: true }) { return None; }
+            if input.ty
+                != (ResolvedType::Record {
+                    symbol: parent,
+                    stored: true,
+                })
+            {
+                return None;
+            }
             checked_required_model_parameter_value(ir, owner, value, span, db)?;
         }
         *parent_found = true;
@@ -17516,7 +20410,11 @@ fn created_pair_statement(
     checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
     original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
     statement: &IrStmt,
-    parent_context: Option<&(&crate::analysis::scenario_disclosure::DisclosureCountQuery, &IrItem, ResolvedType)>,
+    parent_context: Option<&(
+        &crate::analysis::scenario_disclosure::DisclosureCountQuery,
+        &IrItem,
+        ResolvedType,
+    )>,
     second_node: crate::analysis::NodeKey,
     reference_value_node: crate::analysis::NodeKey,
     result_type: &ResolvedType,
@@ -17575,8 +20473,12 @@ fn created_pair_statement(
             db,
         )?;
     }
-    if parent_found != matches!(original.definition.declaration.owner,
-        crate::analysis::resolve::ModelOwner::ChildOf(_)) {
+    if parent_found
+        != matches!(
+            original.definition.declaration.owner,
+            crate::analysis::resolve::ModelOwner::ChildOf(_)
+        )
+    {
         return None;
     }
     Some(())
@@ -17642,7 +20544,10 @@ fn checked_created_pair<'a>(
         // existing parent or its count context.
         None
     } else {
-        created_pair_parent(first.definition.declaration.owner, second.definition.declaration.owner)?
+        created_pair_parent(
+            first.definition.declaration.owner,
+            second.definition.declaration.owner,
+        )?
     };
     if created_pair_header_mismatch(ir, owner, first, second, checked, parent_id) {
         return None;
@@ -17686,8 +20591,11 @@ fn checked_created_pair<'a>(
     let mut reference_inputs = second.inputs.iter().filter(|input| input.ty == result_type);
     let reference = reference_inputs.next()?;
     if reference_inputs.next().is_some()
-        || if contained_child { reference.field.is_some() || reference.name != "parent" }
-            else { reference.field.is_none() }
+        || if contained_child {
+            reference.field.is_some() || reference.name != "parent"
+        } else {
+            reference.field.is_none()
+        }
     {
         return None;
     }
@@ -17749,14 +20657,29 @@ pub(super) fn checked_created_reference_operand(
         let facts = super::scenario_calls::checked_source(ir, owner, db)?;
         for created in facts.creates.as_deref()? {
             if created.node.end <= original.node.start
-                && actual.ty == (ResolvedType::Record { symbol: created.model, stored: true })
+                && actual.ty
+                    == (ResolvedType::Record {
+                        symbol: created.model,
+                        stored: true,
+                    })
                 && matches!(&actual.expr, IrExpr::Name(name) if name == &created.binding)
             {
-                return created_record_name_matches(actual, &actual.ty, &created.binding,
-                    node_span(original.node), db);
+                return created_record_name_matches(
+                    actual,
+                    &actual.ty,
+                    &created.binding,
+                    node_span(original.node),
+                    db,
+                );
             }
         }
-        return checked_required_model_parameter_value(ir, owner, actual, node_span(original.node), db);
+        return checked_required_model_parameter_value(
+            ir,
+            owner,
+            actual,
+            node_span(original.node),
+            db,
+        );
     }
     let (first, second) = checked_created_pair(ir, owner, db)?;
     if original.node == second.node
@@ -17766,14 +20689,14 @@ pub(super) fn checked_created_reference_operand(
                 stored: true,
             })
     {
-        if !second
-            .inputs
-            .iter()
-            .any(|input| input.value_node == node && input.ty == actual.ty
+        if !second.inputs.iter().any(|input| {
+            input.value_node == node
+                && input.ty == actual.ty
                 && (input.field.is_some()
-                    || input.name == "parent" && second.definition.declaration.owner
-                        == crate::analysis::resolve::ModelOwner::ChildOf(first.model)))
-        {
+                    || input.name == "parent"
+                        && second.definition.declaration.owner
+                            == crate::analysis::resolve::ModelOwner::ChildOf(first.model))
+        }) {
             return None;
         }
         created_record_name_matches(
@@ -17825,20 +20748,37 @@ fn created_effects_ordered_tail(
     while let Some((effects, mut previous, until)) = pending.pop() {
         for effect in effects {
             visits += 1;
-            if visits > 16384 { return false; }
+            if visits > 16384 {
+                return false;
+            }
             let at = match effect {
-                IrStmt::Let { span, .. } | IrStmt::Require { span, .. }
-                | IrStmt::Set { when: None, span, .. }
-                | IrStmt::Send { binding: Some(_), span, .. }
-                | IrStmt::Emit { span, .. } | IrStmt::Schedule { span, .. } => *span,
-                IrStmt::If { then_branch, else_branch, span, .. } => {
+                IrStmt::Let { span, .. }
+                | IrStmt::Require { span, .. }
+                | IrStmt::Set {
+                    when: None, span, ..
+                }
+                | IrStmt::Send {
+                    binding: Some(_),
+                    span,
+                    ..
+                }
+                | IrStmt::Emit { span, .. }
+                | IrStmt::Schedule { span, .. } => *span,
+                IrStmt::If {
+                    then_branch,
+                    else_branch,
+                    span,
+                    ..
+                } => {
                     pending.push((then_branch.as_slice(), span.start, span.end));
                     pending.push((else_branch.as_slice(), span.start, span.end));
                     *span
                 }
                 _ => return false,
             };
-            if at.file != file || at.start < previous || at.end > until { return false; }
+            if at.file != file || at.start < previous || at.end > until {
+                return false;
+            }
             previous = at.end;
         }
     }
@@ -18021,9 +20961,9 @@ fn created_guarded_sequence(
             }
             previous = at.end;
         }
-    Some(())
-}
+        Some(())
     }
+}
 
 fn ordered_created_model_effects(
     ir: &IrProgram,
@@ -18044,7 +20984,15 @@ fn ordered_created_model_effects(
     if !created_direct_sequence(effects, create, paired, last_create) {
         let (_, _, last_position) = find_created_positions(effects, paired, create)?;
         created_guarded_sequence(
-            ir, owner, db, effects, create, model, binding, last_create, last_position,
+            ir,
+            owner,
+            db,
+            effects,
+            create,
+            model,
+            binding,
+            last_create,
+            last_position,
         )?;
     }
     let IrStmt::Return {
@@ -18320,7 +21268,10 @@ fn closed_loop_changes(
 /// Stored references use their canonical declaring Model descriptor. Arrays
 /// retain the original required, non-null reference-array inventory separately.
 fn assignment_reference_inventory_matches(
-    ir: &IrProgram, base: &ResolvedType, nullable: bool, field: &JsModelField,
+    ir: &IrProgram,
+    base: &ResolvedType,
+    nullable: bool,
+    field: &JsModelField,
 ) -> Option<bool> {
     let (element, array) = match base {
         ResolvedType::Array { element, .. } => (element.as_ref(), true),
@@ -18333,34 +21284,57 @@ fn assignment_reference_inventory_matches(
         return Some(false);
     };
     let expected = format!("{model}[]");
-    Some(matches!(&field.field, JsModelFieldType::Ref { model: actual } if actual == &model)
-        && field.nullable == nullable && field.machine.is_none()
-        && if array {
-            !nullable && reference_operand_type_id(ir, base).as_ref() == Some(&expected)
-                && field.value_type.as_ref() == Some(&expected) && field.array_required.is_some()
-        } else {
-            field.value_type.as_deref() == Some(format!("{model}{}", if nullable { "?" } else { "" }).as_str())
-                && field.array_required.is_none()
-        })
+    Some(
+        matches!(&field.field, JsModelFieldType::Ref { model: actual } if actual == &model)
+            && field.nullable == nullable
+            && field.machine.is_none()
+            && if array {
+                !nullable
+                    && reference_operand_type_id(ir, base).as_ref() == Some(&expected)
+                    && field.value_type.as_ref() == Some(&expected)
+                    && field.array_required.is_some()
+            } else {
+                field.value_type.as_deref()
+                    == Some(format!("{model}{}", if nullable { "?" } else { "" }).as_str())
+                    && field.array_required.is_none()
+            },
+    )
 }
 
 /// A declared provider slot uses the exact fresh model descriptor and operation.
 /// The SEND producer and original ordered assignment are checked separately.
 fn checked_declared_delivery_assignment(
     context: &super::source_context::FreshSourceContext<'_>,
-    model: &IrItem, ty: &ResolvedType, field: &JsModelField, db: Option<&SourceDb>,
+    model: &IrItem,
+    ty: &ResolvedType,
+    field: &JsModelField,
+    db: Option<&SourceDb>,
 ) -> Option<()> {
-    let base = match ty { ResolvedType::Nullable(inner) => inner.as_ref(), ty => ty };
-    let ResolvedType::Delivery { op } = base else { return None; };
+    let base = match ty {
+        ResolvedType::Nullable(inner) => inner.as_ref(),
+        ty => ty,
+    };
+    let ResolvedType::Delivery { op } = base else {
+        return None;
+    };
     super::source_correspondence::same_capability_operation(context, *op)?;
-    if !matches!(field.field, JsModelFieldType::Delivery(_)) { return None; }
+    if !matches!(field.field, JsModelFieldType::Delivery(_)) {
+        return None;
+    }
     let models = super::js::Emitter::source_models(context.fresh(), db?)?;
     let mut models = models.iter().filter(|item| item.name == model.canonical);
     let expected = models.next()?;
-    if models.next().is_some() { return None; }
-    let mut fields = expected.fields.iter().filter(|item| item.name == field.name);
+    if models.next().is_some() {
+        return None;
+    }
+    let mut fields = expected
+        .fields
+        .iter()
+        .filter(|item| item.name == field.name);
     let expected = fields.next()?;
-    (fields.next().is_none() && serde_json::to_value(expected).ok()? == serde_json::to_value(field).ok()?).then_some(())
+    (fields.next().is_none()
+        && serde_json::to_value(expected).ok()? == serde_json::to_value(field).ok()?)
+    .then_some(())
 }
 
 fn delivery_assignment_inventory_match(
@@ -18416,10 +21390,14 @@ fn assignment_inventory_matches(ir: &IrProgram, ty: &ResolvedType, field: &JsMod
             return false;
         }
         match &field.field {
-            JsModelFieldType::Enum {values} if values==cases => {},
-            JsModelFieldType::Nominal {name} if owner.is_some_and(|owner|
-                ir.items.get(owner.0 as usize).is_some_and(|declaration|
-                    name==&declaration.canonical && field.value_type.as_deref()==Some(name.as_str()))) => {},
+            JsModelFieldType::Enum { values } if values == cases => {}
+            JsModelFieldType::Nominal { name }
+                if owner.is_some_and(|owner| {
+                    ir.items.get(owner.0 as usize).is_some_and(|declaration| {
+                        name == &declaration.canonical
+                            && field.value_type.as_deref() == Some(name.as_str())
+                    })
+                }) => {}
             _ => return false,
         }
         let expected = format!(
@@ -18624,23 +21602,75 @@ fn file_assignment_input_matches(
 }
 
 /// This IR profile is immutable Values filtering, never records().
-fn literal_enum_values_query(query:&super::ir::IrQuery)->Option<(crate::analysis::SymbolId,Vec<String>,&TypedExpr,&TypedExpr)> {
-    let super::ir::IrQueryDomain::Value{base,..}=&query.domain else{return None;};
-    let ResolvedType::Array{element,ordered:true,nonempty:true}=&base.ty else{return None;};
-    let ResolvedType::Enum{owner:Some(owner),cases}=element.as_ref() else{return None;};
-    let IrExpr::Array(entries)=&base.expr else{return None;};
-    let predicate=query.where_pred.as_ref()?;
-    let IrExpr::Binary{op:super::ir::IrBinOp::Eq,left,right}=&predicate.expr else{return None;};
-    if left.ty!=right.ty || !matches!(&left.ty,ResolvedType::Enum{owner:Some(_),cases} if !cases.is_empty())
-        || !(matches!((&left.expr,&right.expr),(IrExpr::Name(_),IrExpr::Text(_))|(IrExpr::Text(_),IrExpr::Name(_)))) {return None;}
-    if cases.is_empty() || entries.is_empty() || entries.len()>200 || predicate.ty!=ResolvedType::Scalar(Scalar::Bool)
-        || query.parent.is_some() || query.select.is_some() || query.select_param.is_some() || query.where_async
-        || query.limit.is_some() || query.archived.is_some() || !query.order.is_empty() || query.value_order.is_some()
-        || query.collection_call.is_some() || query.contract_collection_call.is_some()
-        || entries.iter().any(|entry|entry.ty!=**element || !matches!(&entry.expr,IrExpr::Text(value) if cases.contains(value))) {
+fn literal_enum_values_query(
+    query: &super::ir::IrQuery,
+) -> Option<(
+    crate::analysis::SymbolId,
+    Vec<String>,
+    &TypedExpr,
+    &TypedExpr,
+)> {
+    let super::ir::IrQueryDomain::Value { base, .. } = &query.domain else {
+        return None;
+    };
+    let ResolvedType::Array {
+        element,
+        ordered: true,
+        nonempty: true,
+    } = &base.ty
+    else {
+        return None;
+    };
+    let ResolvedType::Enum {
+        owner: Some(owner),
+        cases,
+    } = element.as_ref()
+    else {
+        return None;
+    };
+    let IrExpr::Array(entries) = &base.expr else {
+        return None;
+    };
+    let predicate = query.where_pred.as_ref()?;
+    let IrExpr::Binary {
+        op: super::ir::IrBinOp::Eq,
+        left,
+        right,
+    } = &predicate.expr
+    else {
+        return None;
+    };
+    if left.ty != right.ty
+        || !matches!(&left.ty,ResolvedType::Enum{owner:Some(_),cases} if !cases.is_empty())
+        || !(matches!(
+            (&left.expr, &right.expr),
+            (IrExpr::Name(_), IrExpr::Text(_)) | (IrExpr::Text(_), IrExpr::Name(_))
+        ))
+    {
         return None;
     }
-    Some((*owner,cases.clone(),base,predicate))
+    if cases.is_empty()
+        || entries.is_empty()
+        || entries.len() > 200
+        || predicate.ty != ResolvedType::Scalar(Scalar::Bool)
+        || query.parent.is_some()
+        || query.select.is_some()
+        || query.select_param.is_some()
+        || query.where_async
+        || query.limit.is_some()
+        || query.archived.is_some()
+        || !query.order.is_empty()
+        || query.value_order.is_some()
+        || query.collection_call.is_some()
+        || query.contract_collection_call.is_some()
+        || entries.iter().any(|entry| {
+            entry.ty != **element
+                || !matches!(&entry.expr,IrExpr::Text(value) if cases.contains(value))
+        })
+    {
+        return None;
+    }
+    Some((*owner, cases.clone(), base, predicate))
 }
 
 #[derive(Default)]
@@ -18671,8 +21701,8 @@ impl<'a> Sites<'a> {
         purchase_all: Option<&serde_json::Value>,
         event_notice: Option<&serde_json::Value>,
         updated_model_owner: bool,
-        copy_loop:Option<&serde_json::Value>,
-        sibling_loop:Option<&serde_json::Value>,
+        copy_loop: Option<&serde_json::Value>,
+        sibling_loop: Option<&serde_json::Value>,
     ) -> Option<Self> {
         let IrItemKind::Scenario {
             params,
@@ -19333,17 +22363,33 @@ impl<'a> Sites<'a> {
 
 /// Literal descriptors contain no evaluated arguments. Their wording, source
 /// language and variants are joined to the exact source by SourceExpressions.
-fn checked_receipt_literal(ir: &IrProgram, owner: &IrItem, expression: &TypedExpr, db: Option<&SourceDb>) -> Option<()> {
+fn checked_receipt_literal(
+    ir: &IrProgram,
+    owner: &IrItem,
+    expression: &TypedExpr,
+    db: Option<&SourceDb>,
+) -> Option<()> {
     match &expression.expr {
-        IrExpr::Message(message) if expression.ty == ResolvedType::InlineMessage =>
-            message.params.is_empty().then_some(()),
+        IrExpr::Message(message) if expression.ty == ResolvedType::InlineMessage => {
+            message.params.is_empty().then_some(())
+        }
         IrExpr::Message(_) => {
             let facts = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
-            if !facts.expression_types.as_ref()?.iter().any(|(node, ty)|
-                node_span(*node) == expression.span && ty == &expression.ty)
-            { return None; }
-            super::scenario_create_sources::checked_static_named_message(ir, owner.module, expression, db?)
-        },
+            if !facts
+                .expression_types
+                .as_ref()?
+                .iter()
+                .any(|(node, ty)| node_span(*node) == expression.span && ty == &expression.ty)
+            {
+                return None;
+            }
+            super::scenario_create_sources::checked_static_named_message(
+                ir,
+                owner.module,
+                expression,
+                db?,
+            )
+        }
         _ => Some(()),
     }
 }
@@ -19372,17 +22418,33 @@ fn member_scan_query_is_plain(query: &super::ir::IrQuery) -> bool {
 }
 
 fn finite_member_filter(query: &super::ir::IrQuery) -> bool {
-    let Some(source) = &query.source else { return false; };
-    let [alias, filter] = source.clauses.as_slice() else { return false; };
-    let Some(predicate) = &query.where_pred else { return false; };
-    matches!(alias.kind, crate::analysis::types::CheckedQueryClauseKind::As {..})
-        && filter.kind == crate::analysis::types::CheckedQueryClauseKind::Where
-        && filter.expressions.len() == 1 && node_span(filter.expressions[0]) == predicate.span
+    let Some(source) = &query.source else {
+        return false;
+    };
+    let [alias, filter] = source.clauses.as_slice() else {
+        return false;
+    };
+    let Some(predicate) = &query.where_pred else {
+        return false;
+    };
+    matches!(
+        alias.kind,
+        crate::analysis::types::CheckedQueryClauseKind::As { .. }
+    ) && filter.kind == crate::analysis::types::CheckedQueryClauseKind::Where
+        && filter.expressions.len() == 1
+        && node_span(filter.expressions[0]) == predicate.span
         && predicate.ty == ResolvedType::Scalar(Scalar::Bool)
-        && source.result == source.domain_type && source.projection.is_none()
-        && query.collection_call.is_none() && query.contract_collection_call.is_none()
-        && !query.where_async && query.order.is_empty() && query.value_order.is_none()
-        && query.limit.is_none() && query.archived.is_none() && query.select.is_none() && query.select_param.is_none()
+        && source.result == source.domain_type
+        && source.projection.is_none()
+        && query.collection_call.is_none()
+        && query.contract_collection_call.is_none()
+        && !query.where_async
+        && query.order.is_empty()
+        && query.value_order.is_none()
+        && query.limit.is_none()
+        && query.archived.is_none()
+        && query.select.is_none()
+        && query.select_param.is_none()
 }
 
 fn contained_member_scan_parent<'a>(
@@ -19397,10 +22459,7 @@ fn contained_member_scan_parent<'a>(
     };
     let proof = checked.effects.iter().find(|proof| {
         node_span(proof.node) == span
-            && matches!(
-                &proof.kind,
-                DisclosureEffectKind::ForMember { .. }
-            )
+            && matches!(&proof.kind, DisclosureEffectKind::ForMember { .. })
     })?;
     let DisclosureEffectKind::ForMember {
         domain: checked_domain,
@@ -19578,7 +22637,9 @@ struct Walk {
 }
 impl Walk {
     fn descend(&self, visited: usize, pending: usize) -> Option<Self> {
-        if visited > 16384 || pending > 16384 || self.depth >= 64 { return None; }
+        if visited > 16384 || pending > 16384 || self.depth >= 64 {
+            return None;
+        }
         let mut child = self.clone();
         child.depth += 1;
         Some(child)
@@ -19621,4 +22682,3 @@ fn source_matches(ir: &IrProgram, source: &DisclosureSource, span: Span) -> bool
             .bytes()
             .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
 }
-

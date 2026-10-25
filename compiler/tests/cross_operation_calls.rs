@@ -22,9 +22,9 @@
 //! `send`/`cancel` inside loop bodies, record-carrying `emit` payloads,
 //! nullable-to-required narrowing without an exact supplied type, and
 //! `create` inside loop bodies.
-use canlang_compiler::analysis::catalog::{load_catalog, CatalogRequest};
+use canlang_compiler::analysis::catalog::{CatalogRequest, load_catalog};
 use canlang_compiler::analysis::scenario_disclosure::ScenarioDisclosure;
-use canlang_compiler::analysis::{check_program, ResolvedType};
+use canlang_compiler::analysis::{ResolvedType, check_program};
 use canlang_compiler::codegen::ir::{self, IrExpr, IrItem, IrItemKind, IrProgram, IrStmt};
 use canlang_compiler::codegen::js;
 use canlang_compiler::codegen::scenario_calls::collect_static_scenario_calls;
@@ -59,8 +59,8 @@ fn root() -> PathBuf {
 fn lowered(name: &str, scenarios: &str) -> (SourceDb, IrProgram) {
     let mut db = SourceDb::new();
     let file = db.add(
-        format!("cross-operation-{name}.can").into(),
-        format!("{GIVEN}{scenarios}{THEN}").into(),
+        format!("cross-operation-{name}.can"),
+        format!("{GIVEN}{scenarios}{THEN}"),
     );
     let path = root().join("packages/values/dist/catalog.json");
     let (catalog, diagnostics) = load_catalog(&CatalogRequest {
@@ -123,13 +123,15 @@ fn joined(name: &str, scenarios: &str, parent: &str) -> (SourceDb, IrProgram) {
             .count(),
         1
     );
-    assert!(emitted
-        .operations
-        .iter()
-        .find(|operation| operation.name == parent)
-        .unwrap()
-        .disclosure
-        .is_some());
+    assert!(
+        emitted
+            .operations
+            .iter()
+            .find(|operation| operation.name == parent)
+            .unwrap()
+            .disclosure
+            .is_some()
+    );
     (db, ir)
 }
 
@@ -567,7 +569,10 @@ fn member_domain_loop_with_call_joins_and_emits_receipt_call() {
 #[test]
 fn external_effect_children_join_and_emit_receipt_call() {
     for (name, body) in [
-        ("emit-child", "set branch {title}\n    emit Ping {note=title}"),
+        (
+            "emit-child",
+            "set branch {title}\n    emit Ping {note=title}",
+        ),
         (
             "sched-child",
             "set branch {title}\n    schedule title at=now event=Ping {note=title}\n    cancel title",
@@ -648,7 +653,7 @@ fn recursive_calls_refuse_at_check() {
     let mut db = SourceDb::new();
     let file = db.add(
         "cross-operation-recursion.can".into(),
-        format!("{GIVEN}{SOURCE}{THEN}").into(),
+        format!("{GIVEN}{SOURCE}{THEN}"),
     );
     let path = root().join("packages/values/dist/catalog.json");
     let (catalog, diagnostics) = load_catalog(&CatalogRequest {

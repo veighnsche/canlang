@@ -594,10 +594,7 @@ where
     serde_json::from_value(rest).map_err(|err| reject_param(name, err))
 }
 
-fn parse_doctor_params(
-    name: &str,
-    rest: serde_json::Value,
-) -> Result<GenParams, ProtocolError> {
+fn parse_doctor_params(name: &str, rest: serde_json::Value) -> Result<GenParams, ProtocolError> {
     let params: DoctorParams = decode_params(name, rest)?;
     if let Some(root) = &params.root {
         require_text(name, "root", root)?;
@@ -606,20 +603,14 @@ fn parse_doctor_params(
     Ok(GenParams::Doctor(params))
 }
 
-fn parse_status_params(
-    name: &str,
-    rest: serde_json::Value,
-) -> Result<GenParams, ProtocolError> {
+fn parse_status_params(name: &str, rest: serde_json::Value) -> Result<GenParams, ProtocolError> {
     let params: StatusParams = decode_params(name, rest)?;
     require_text(name, "root", &params.root)?;
     require_non_empty(name, "files", &params.files)?;
     Ok(GenParams::Status(params))
 }
 
-fn parse_inspect_params(
-    name: &str,
-    rest: serde_json::Value,
-) -> Result<GenParams, ProtocolError> {
+fn parse_inspect_params(name: &str, rest: serde_json::Value) -> Result<GenParams, ProtocolError> {
     let params: InspectParams = decode_params(name, rest)?;
     require_text(name, "root", &params.root)?;
     if let Some(unit_id) = &params.unit_id {
@@ -688,10 +679,7 @@ fn parse_bind_params(name: &str, rest: serde_json::Value) -> Result<GenParams, P
     Ok(GenParams::Bind(params))
 }
 
-fn parse_generate_params(
-    name: &str,
-    rest: serde_json::Value,
-) -> Result<GenParams, ProtocolError> {
+fn parse_generate_params(name: &str, rest: serde_json::Value) -> Result<GenParams, ProtocolError> {
     let params: GenerateParams = decode_params(name, rest)?;
     require_text(name, "root", &params.root)?;
     match (&params.files, &params.unit_ids) {
@@ -700,9 +688,7 @@ fn parse_generate_params(
         _ => {
             return Err(ProtocolError::invalid(
                 "invalid-param",
-                format!(
-                    "operation `{name}` needs exactly one scope: `files` or `unit_ids`"
-                ),
+                format!("operation `{name}` needs exactly one scope: `files` or `unit_ids`"),
             ));
         }
     }
@@ -719,10 +705,7 @@ fn parse_generate_params(
     Ok(GenParams::Generate(params))
 }
 
-fn parse_refine_params(
-    name: &str,
-    rest: serde_json::Value,
-) -> Result<GenParams, ProtocolError> {
+fn parse_refine_params(name: &str, rest: serde_json::Value) -> Result<GenParams, ProtocolError> {
     let params: RefineParams = decode_params(name, rest)?;
     require_text(name, "root", &params.root)?;
     require_text(name, "unit_id", &params.unit_id)?;
@@ -739,10 +722,7 @@ fn parse_retry_params(name: &str, rest: serde_json::Value) -> Result<GenParams, 
     Ok(GenParams::Retry(params))
 }
 
-fn parse_resume_params(
-    name: &str,
-    rest: serde_json::Value,
-) -> Result<GenParams, ProtocolError> {
+fn parse_resume_params(name: &str, rest: serde_json::Value) -> Result<GenParams, ProtocolError> {
     let params: ResumeParams = decode_params(name, rest)?;
     require_text(name, "root", &params.root)?;
     require_text(name, "session_id", &params.session_id)?;
@@ -756,20 +736,14 @@ fn parse_diff_params(name: &str, rest: serde_json::Value) -> Result<GenParams, P
     Ok(GenParams::Diff(params))
 }
 
-fn parse_preview_params(
-    name: &str,
-    rest: serde_json::Value,
-) -> Result<GenParams, ProtocolError> {
+fn parse_preview_params(name: &str, rest: serde_json::Value) -> Result<GenParams, ProtocolError> {
     let params: PreviewParams = decode_params(name, rest)?;
     require_text(name, "root", &params.root)?;
     require_text(name, "unit_id", &params.unit_id)?;
     Ok(GenParams::Preview(params))
 }
 
-fn parse_validate_params(
-    name: &str,
-    rest: serde_json::Value,
-) -> Result<GenParams, ProtocolError> {
+fn parse_validate_params(name: &str, rest: serde_json::Value) -> Result<GenParams, ProtocolError> {
     let params: ValidateParams = decode_params(name, rest)?;
     require_text(name, "root", &params.root)?;
     if let Some(unit_id) = &params.unit_id {
@@ -796,10 +770,7 @@ fn parse_adopt_params(name: &str, rest: serde_json::Value) -> Result<GenParams, 
     Ok(GenParams::Adopt(params))
 }
 
-fn parse_accept_params(
-    name: &str,
-    rest: serde_json::Value,
-) -> Result<GenParams, ProtocolError> {
+fn parse_accept_params(name: &str, rest: serde_json::Value) -> Result<GenParams, ProtocolError> {
     let params: AcceptParams = decode_params(name, rest)?;
     require_text(name, "root", &params.root)?;
     if let Some(unit_id) = &params.unit_id {
@@ -817,10 +788,7 @@ fn parse_accept_params(
     Ok(GenParams::Accept(params))
 }
 
-fn parse_cancel_params(
-    name: &str,
-    rest: serde_json::Value,
-) -> Result<GenParams, ProtocolError> {
+fn parse_cancel_params(name: &str, rest: serde_json::Value) -> Result<GenParams, ProtocolError> {
     let params: CancelParams = decode_params(name, rest)?;
     require_text(name, "root", &params.root)?;
     if let Some(session_id) = &params.session_id {
@@ -832,9 +800,7 @@ fn parse_cancel_params(
     if params.session_id.is_some() == params.request.is_some() {
         return Err(ProtocolError::invalid(
             "invalid-param",
-            format!(
-                "operation `{name}` needs exactly one scope: `session_id` or `request`"
-            ),
+            format!("operation `{name}` needs exactly one scope: `session_id` or `request`"),
         ));
     }
     Ok(GenParams::Cancel(params))
@@ -866,10 +832,7 @@ fn parse_reset_params(name: &str, rest: serde_json::Value) -> Result<GenParams, 
     Ok(GenParams::Reset(params))
 }
 
-fn parse_rollback_params(
-    name: &str,
-    rest: serde_json::Value,
-) -> Result<GenParams, ProtocolError> {
+fn parse_rollback_params(name: &str, rest: serde_json::Value) -> Result<GenParams, ProtocolError> {
     let params: RollbackParams = decode_params(name, rest)?;
     require_text(name, "root", &params.root)?;
     require_text(name, "unit_id", &params.unit_id)?;
@@ -898,10 +861,7 @@ fn parse_edit_begin_params(
     Ok(GenParams::EditBegin(params))
 }
 
-fn parse_edit_end_params(
-    name: &str,
-    rest: serde_json::Value,
-) -> Result<GenParams, ProtocolError> {
+fn parse_edit_end_params(name: &str, rest: serde_json::Value) -> Result<GenParams, ProtocolError> {
     let params: EditEndParams = decode_params(name, rest)?;
     require_text(name, "root", &params.root)?;
     require_text(name, "token", &params.token)?;

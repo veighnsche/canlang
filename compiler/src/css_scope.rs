@@ -98,11 +98,18 @@ pub fn scope_stylesheet(unit_id: &str, css: &str) -> Result<ScopedStylesheet, Ve
 }
 
 /// Emit host-owned deployment routes after ordinary owned-URL admission.
-pub fn scope_deployed_stylesheet(unit_id: &str, css: &str) -> Result<ScopedStylesheet, Vec<CssError>> {
+pub fn scope_deployed_stylesheet(
+    unit_id: &str,
+    css: &str,
+) -> Result<ScopedStylesheet, Vec<CssError>> {
     scope_stylesheet_with_asset_routes(unit_id, css, true)
 }
 
-fn scope_stylesheet_with_asset_routes(unit_id: &str, css: &str, deploy_assets: bool) -> Result<ScopedStylesheet, Vec<CssError>> {
+fn scope_stylesheet_with_asset_routes(
+    unit_id: &str,
+    css: &str,
+    deploy_assets: bool,
+) -> Result<ScopedStylesheet, Vec<CssError>> {
     if !is_unit_id(unit_id) {
         return Err(vec![CssError {
             code: "E2101",
@@ -295,7 +302,10 @@ impl Scoper {
     }
 
     fn root_marker(&self) -> String {
-        format!(":is([{STYLE_ROOT_ATTR}^=\"{0}:\"],[{STYLE_ROOT_ATTR}*=\" {0}:\"]){1}", self.unit, self.guard)
+        format!(
+            ":is([{STYLE_ROOT_ATTR}^=\"{0}:\"],[{STYLE_ROOT_ATTR}*=\" {0}:\"]){1}",
+            self.unit, self.guard
+        )
     }
 }
 
@@ -719,11 +729,7 @@ fn parse_pseudo_element(
             write!(tail, "::{name}({args})").expect("selector push");
         }
         _ => {
-            return custom(
-                input,
-                "E2100",
-                "expected a pseudo-element".to_string(),
-            );
+            return custom(input, "E2100", "expected a pseudo-element".to_string());
         }
     }
     Ok(())
@@ -739,11 +745,7 @@ fn parse_pseudo_ident(
     simple: usize,
 ) -> Result<(), ParseError<ScopeError>> {
     if name.eq_ignore_ascii_case("root") || name.eq_ignore_ascii_case("scope") {
-        return custom(
-            input,
-            "E2103",
-            format!(":{name} escapes the style unit"),
-        );
+        return custom(input, "E2103", format!(":{name} escapes the style unit"));
     }
     if name.eq_ignore_ascii_case("host") {
         if simple > 0 || !tail.is_empty() {
@@ -771,7 +773,7 @@ fn parse_functional_pseudo(
     scope: &mut Scoper,
     name: String,
     head: &mut String,
-    tail: &mut String,
+    tail: &mut str,
     host_only: &mut bool,
     simple: usize,
 ) -> Result<(), ParseError<ScopeError>> {
@@ -779,8 +781,7 @@ fn parse_functional_pseudo(
         return custom(
             input,
             "E2102",
-            ":has() relational selectors are not admitted in scoped styles"
-                .to_string(),
+            ":has() relational selectors are not admitted in scoped styles".to_string(),
         );
     }
     if name.eq_ignore_ascii_case("host") {
@@ -803,19 +804,14 @@ fn parse_functional_pseudo(
         || name.eq_ignore_ascii_case("is")
         || name.eq_ignore_ascii_case("where")
     {
-        let inner = input
-            .parse_nested_block(|inner| parse_selector_list(inner, scope))?;
+        let inner = input.parse_nested_block(|inner| parse_selector_list(inner, scope))?;
         write!(head, ":{name}({inner})").expect("selector push");
-    } else if name.eq_ignore_ascii_case("nth-child")
-        || name.eq_ignore_ascii_case("nth-last-child")
+    } else if name.eq_ignore_ascii_case("nth-child") || name.eq_ignore_ascii_case("nth-last-child")
     {
-        let args =
-            input.parse_nested_block(|inner| transform_nth(inner, scope))?;
+        let args = input.parse_nested_block(|inner| transform_nth(inner, scope))?;
         write!(head, ":{name}({args})").expect("selector push");
     } else {
-        let args = input.parse_nested_block(|inner| {
-            serialize_generic_block(inner, scope)
-        })?;
+        let args = input.parse_nested_block(|inner| serialize_generic_block(inner, scope))?;
         write!(head, ":{name}({args})").expect("selector push");
     }
     Ok(())
@@ -836,10 +832,26 @@ fn parse_pseudo(
             parse_pseudo_element(input, scope, tail)?;
         }
         Token::Ident(name) => {
-            parse_pseudo_ident(input, scope, name.to_string(), head, tail, host_only, *simple)?;
+            parse_pseudo_ident(
+                input,
+                scope,
+                name.to_string(),
+                head,
+                tail,
+                host_only,
+                *simple,
+            )?;
         }
         Token::Function(name) => {
-            parse_functional_pseudo(input, scope, name.to_string(), head, tail, host_only, *simple)?;
+            parse_functional_pseudo(
+                input,
+                scope,
+                name.to_string(),
+                head,
+                tail,
+                host_only,
+                *simple,
+            )?;
         }
         _ => return custom(input, "E2100", "expected a pseudo-class".to_string()),
     }
@@ -969,7 +981,15 @@ fn parse_compound(
             }
         }
     }
-    finish_compound(input, &scope.guard, head, tail, simple, bare_star, host_only)
+    finish_compound(
+        input,
+        &scope.guard,
+        head,
+        tail,
+        simple,
+        bare_star,
+        host_only,
+    )
 }
 
 /// Parse `[name op value flag]`, refusing forged ownership attributes.
@@ -1099,20 +1119,17 @@ fn transform_function_value(
         let rendered = input.parse_nested_block(|inner| transform_var(inner, scope))?;
         out.push_str(&rendered);
     } else if name.eq_ignore_ascii_case("url") {
-        let rendered =
-            input.parse_nested_block(|inner| transform_url_function(inner, scope))?;
+        let rendered = input.parse_nested_block(|inner| transform_url_function(inner, scope))?;
         out.push_str(&rendered);
     } else {
-        let rendered =
-            input.parse_nested_block(|inner| transform_value(inner, scope, false))?;
+        let rendered = input.parse_nested_block(|inner| transform_value(inner, scope, false))?;
         write!(out, "{name}({rendered})").expect("value push");
     }
     Ok(())
 }
 
 fn is_keyframes_ident(token: &Token, animate: bool, scope: &Scoper) -> bool {
-    animate
-        && matches!(token, Token::Ident(name) if scope.keyframes_known.contains(name.as_ref()))
+    animate && matches!(token, Token::Ident(name) if scope.keyframes_known.contains(name.as_ref()))
 }
 
 fn next_value_token<'i>(input: &mut Parser<'i>) -> Option<Token<'i>> {
@@ -1155,8 +1172,7 @@ fn transform_bracketed_value(
     close: char,
 ) -> Result<(), ParseError<ScopeError>> {
     maybe_space(out, needs_space);
-    let rendered =
-        input.parse_nested_block(|inner| transform_value(inner, scope, false))?;
+    let rendered = input.parse_nested_block(|inner| transform_value(inner, scope, false))?;
     out.push(open);
     out.push_str(&rendered);
     out.push(close);
@@ -1195,7 +1211,13 @@ fn transform_value(
                 push_token(&mut out, &mut needs_space, &Token::Delim('!'));
             }
             Token::Function(name) => {
-                transform_function_value(input, scope, &mut out, &mut needs_space, name.to_string())?;
+                transform_function_value(
+                    input,
+                    scope,
+                    &mut out,
+                    &mut needs_space,
+                    name.to_string(),
+                )?;
             }
             Token::UnquotedUrl(url) => {
                 transform_unquoted_url(input, scope, &mut out, &mut needs_space, &url)?;
@@ -1308,8 +1330,15 @@ fn check_owned_url(
     if url.is_empty() {
         return custom(input, "E2107", "empty url() is not admitted".to_string());
     }
-    if url.starts_with('#') { return Ok(url.to_string()); }
-    if url.get(..5).is_some_and(|prefix| prefix.eq_ignore_ascii_case("data:")) { return Ok(url.to_string()); }
+    if url.starts_with('#') {
+        return Ok(url.to_string());
+    }
+    if url
+        .get(..5)
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("data:"))
+    {
+        return Ok(url.to_string());
+    }
     if url.contains('\\') || url.starts_with('/') || url.contains("://") || url.starts_with("//") {
         return custom(
             input,
@@ -1341,16 +1370,36 @@ fn check_owned_url(
         );
     }
     let end = url.find(['?', '#']).unwrap_or(url.len());
-    let path = url[..end].split('/').filter(|segment| !segment.is_empty() && *segment != ".").collect::<Vec<_>>().join("/");
-    if path.is_empty() { return custom(input, "E2107", "owned asset path is empty".to_string()); }
+    let path = url[..end]
+        .split('/')
+        .filter(|segment| !segment.is_empty() && *segment != ".")
+        .collect::<Vec<_>>()
+        .join("/");
+    if path.is_empty() {
+        return custom(input, "E2107", "owned asset path is empty".to_string());
+    }
     scope.assets.insert(path.clone());
     if scope.deploy_assets {
-        let encoded = path.as_bytes().iter().map(|byte| {
-            if byte.is_ascii_alphanumeric() || matches!(*byte, b'-' | b'.' | b'_' | b'~' | b'/') { char::from(*byte).to_string() }
-            else { format!("%{byte:02X}") }
-        }).collect::<String>();
-        Ok(format!("/assets/can.generated/{}/{encoded}{}", scope.unit, &url[end..]))
-    } else { Ok(url.to_string()) }
+        let encoded = path
+            .as_bytes()
+            .iter()
+            .map(|byte| {
+                if byte.is_ascii_alphanumeric() || matches!(*byte, b'-' | b'.' | b'_' | b'~' | b'/')
+                {
+                    char::from(*byte).to_string()
+                } else {
+                    format!("%{byte:02X}")
+                }
+            })
+            .collect::<String>();
+        Ok(format!(
+            "/assets/can.generated/{}/{encoded}{}",
+            scope.unit,
+            &url[end..]
+        ))
+    } else {
+        Ok(url.to_string())
+    }
 }
 
 /// Serialize a `@media`/`@supports`/`@container` prelude. Conditions pass

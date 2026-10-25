@@ -34,7 +34,8 @@ use compile::*;
 mod reference;
 use reference::*;
 mod entry;
-use entry::*;
+use entry::run_source_entry;
+pub use entry::{run_dev_entry, run_thin_entry};
 mod generation;
 use generation::*;
 
@@ -377,15 +378,9 @@ fn dispatch_lsp_command(parsed: &ParsedArgs) -> Option<DispatchResult> {
     })
 }
 
-fn dispatch_gen_command(
-    parsed: &ParsedArgs,
-    public_generation: bool,
-) -> DispatchResult {
+fn dispatch_gen_command(parsed: &ParsedArgs, public_generation: bool) -> DispatchResult {
     if parsed.catalog_set {
-        return DispatchResult::tool_error(
-            "E7001",
-            "can gen takes no --catalog flag".to_string(),
-        );
+        return DispatchResult::tool_error("E7001", "can gen takes no --catalog flag".to_string());
     }
     let source_mode = parsed
         .operands
@@ -518,10 +513,7 @@ fn dispatch_with_route(
     if let Some(out) = dispatch_entry_command(cmd, &parsed, public_generation) {
         return out;
     }
-    DispatchResult::tool_error(
-        "E7001",
-        format!("unknown command '{cmd}'; use can --help"),
-    )
+    DispatchResult::tool_error("E7001", format!("unknown command '{cmd}'; use can --help"))
 }
 
 /// All subcommands `can` accepts.
@@ -875,10 +867,7 @@ fn collect_fmt_outputs(
         crate::SCHEMA_VERSION,
     );
     for input in inputs {
-        let id = match add_source(&mut db, input.name.clone(), input.text.clone()) {
-            Ok(id) => id,
-            Err(error) => return Err(error),
-        };
+        let id = add_source(&mut db, input.name.clone(), input.text.clone())?;
         match crate::format::format_source(id, &input.text) {
             Ok(formatted) => outputs.push(formatted.text),
             Err(error) => {
@@ -961,10 +950,8 @@ fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
             run_lsp: false,
         };
     }
-    if check {
-        if let Some(report) = report_fmt_check(&inputs, &outputs) {
-            return report;
-        }
+    if check && let Some(report) = report_fmt_check(&inputs, &outputs) {
+        return report;
     }
     write_fmt_outputs(&inputs, &outputs)
 }
@@ -1209,4 +1196,3 @@ pub(crate) fn find_on_path(name: &str) -> Option<String> {
     }
     None
 }
-

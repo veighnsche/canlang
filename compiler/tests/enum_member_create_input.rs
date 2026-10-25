@@ -17,11 +17,11 @@
 //! to shape and binds the same data read under caller authority.
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::{CheckedProgram, check_program};
+use canlang_compiler::codegen::artifact::to_json;
 use canlang_compiler::codegen::ir;
+use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
 use canlang_compiler::diagnostic::{Diagnostic, DiagnosticResult};
 use canlang_compiler::source::{SourceDb, Span};
-use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
-use canlang_compiler::codegen::artifact::to_json;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
@@ -122,7 +122,11 @@ fn fixture(path: &str, source: &str) -> (SourceDb, CheckedProgram, ir::IrProgram
     (db, program, ir, catalog)
 }
 
-fn prepared(program: &CheckedProgram, db: &SourceDb, catalog: &Catalog) -> (Value, Vec<Diagnostic>) {
+fn prepared(
+    program: &CheckedProgram,
+    db: &SourceDb,
+    catalog: &Catalog,
+) -> (Value, Vec<Diagnostic>) {
     let mut result = DiagnosticResult::new("enum-member-create-input", "1.0", 1);
     result.add_sources(db);
     let (artifact, diagnostics) = emit(
@@ -185,7 +189,10 @@ fn reused_enum_member_create_input_emits_sealed_data_transport() {
     );
     let source = &dep["source"];
     assert!(
-        source["path"].as_str().unwrap().ends_with("enum-member-create-input.can"),
+        source["path"]
+            .as_str()
+            .unwrap()
+            .ends_with("enum-member-create-input.can"),
         "dependency keeps its source path, got {dep:?}"
     );
     assert!(
@@ -222,8 +229,12 @@ fn machine_enum_member_read_still_refuses_without_transition() {
     let (db, program, _, catalog) = fixture("enum-machine-create-input.can", MACHINE);
     let (_, diagnostics) = prepared(&program, &db, &catalog);
     assert!(
-        diagnostics.iter().any(|diagnostic| diagnostic.code == "E6008"
-            && diagnostic.message.contains("original native query correspondence")),
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008"
+                && diagnostic
+                    .message
+                    .contains("original native query correspondence")),
         "machine enum reads without a transition keep the refusal, got {diagnostics:?}"
     );
     let _ = db;

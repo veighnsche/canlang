@@ -856,10 +856,18 @@ fn expression_query_order_keeps_typed_key_and_owning_read() {
         String::from_utf8_lossy(&output.stderr)
     );
     let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    let generated = response["modules"].as_array().unwrap().iter()
-        .map(|module| module["js"].as_str().unwrap()).collect::<Vec<_>>().join("\n");
+    let generated = response["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|module| module["js"].as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join("\n");
     assert!(generated.contains("order:{by:async("), "{generated}");
-    assert!(generated.contains("compare:($a,$b)=>$a===$b?0:$a<$b?-1:1"), "{generated}");
+    assert!(
+        generated.contains("compare:($a,$b)=>$a===$b?0:$a<$b?-1:1"),
+        "{generated}"
+    );
     assert!(generated.contains("direction:\"asc\""), "{generated}");
 }
 

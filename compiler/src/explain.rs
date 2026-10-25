@@ -1055,4 +1055,3 @@ const CATALOG: [CodeInfo; 119] = [
         example_invalid: "do\n let n = old_add(x=1)\n return n",
     },
 ];
-

@@ -144,8 +144,7 @@ fn desk_admitted_triage_filter_descriptor_shapes() {
         ("queue", "text"),
     ] {
         assert!(
-            js.contains(&format!("field:\"{field}\""))
-                && js.contains(&format!("type:\"{ty}\"")),
+            js.contains(&format!("field:\"{field}\"")) && js.contains(&format!("type:\"{ty}\"")),
             "missing descriptor for {field} as {ty}, got: {js}"
         );
     }
@@ -293,9 +292,7 @@ fn extract_filter_profile(js: &str) -> (String, String, String) {
     let occurrence_key = "occurrence:\"";
     let occurrence_at = js.find(occurrence_key).expect("missing occurrence");
     let name_start = occurrence_at + occurrence_key.len();
-    let name_end = js[name_start..]
-        .find('"')
-        .expect("unterminated occurrence");
+    let name_end = js[name_start..].find('"').expect("unterminated occurrence");
     let occurrence = js[name_start..name_start + name_end].to_string();
 
     let filter_key = "filter:[";

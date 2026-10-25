@@ -574,12 +574,12 @@ impl SemanticJoin<'_> {
         b_callback: &Option<Box<CheckedGenerationCallbackRead>>,
         a: &TypedExpr,
         b: &TypedExpr,
-        x: &Box<TypedExpr>,
-        y: &Box<TypedExpr>,
-        p: &String,
-        q: &String,
-        i: &Vec<String>,
-        j: &Vec<String>,
+        x: &TypedExpr,
+        y: &TypedExpr,
+        p: &str,
+        q: &str,
+        i: &[String],
+        j: &[String],
     ) -> Option<()> {
         match (a_callback, b_callback) {
             (None, None) => Some(()),

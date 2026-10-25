@@ -6,8 +6,8 @@ use super::ir::{
 use super::js::{JsFieldDefault, JsMcpField, JsOperation, JsOperationField, JsOperationKind};
 use crate::analysis::resolve::SymbolId;
 use crate::analysis::scenario_disclosure::{
-    CheckedScenarioCallInput, CheckedScenarioParameter, CheckedScenarioSourceCall,
-    DependencyRole, DisclosureEffectKind, DisclosureQuery, DisclosureReturn, ScenarioDisclosure,
+    CheckedScenarioCallInput, CheckedScenarioParameter, CheckedScenarioSourceCall, DependencyRole,
+    DisclosureEffectKind, DisclosureQuery, DisclosureReturn, ScenarioDisclosure,
 };
 use crate::analysis::types::CheckedQueryProjectionField;
 use crate::analysis::{NodeKey, ResolvedType, Scalar};
@@ -141,9 +141,7 @@ fn collect_call_site(
     result: &Option<ResolvedType>,
 ) -> Option<()> {
     let mut proofs = source.calls.iter().filter(|proof| {
-        proof.node.file == span.file
-            && proof.node.start == span.start
-            && proof.node.end == span.end
+        proof.node.file == span.file && proof.node.start == span.start && proof.node.end == span.end
     });
     let proof = proofs.next()?;
     let node = proof.node;
@@ -523,8 +521,7 @@ fn check_literal_default(
         || value.ty != *ty
         || value.span != Span::new(node.file, node.start, node.end)
         || !source_scalar_literal(value, db)
-        || actual.to_json()
-            != super::js::js_field_default(default.as_ref(), None)?.to_json()
+        || actual.to_json() != super::js::js_field_default(default.as_ref(), None)?.to_json()
     {
         return None;
     }
@@ -558,10 +555,11 @@ fn check_computed_default(
     let IrItemKind::Scenario { params, .. } = &child.kind else {
         return None;
     };
-    let Some(earlier) = params.iter().position(|id| id == &parameter.id) else {
-        return None;
-    };
-    let mut referenced = params[..earlier].iter().filter_map(|id| ir.items.get(id.0 as usize)).filter(|item| item.name == *target);
+    let earlier = params.iter().position(|id| id == &parameter.id)?;
+    let mut referenced = params[..earlier]
+        .iter()
+        .filter_map(|id| ir.items.get(id.0 as usize))
+        .filter(|item| item.name == *target);
     let source = referenced.next()?;
     if referenced.next().is_some() {
         return None;
@@ -652,14 +650,7 @@ fn explicit_scalar_input(
         .text
         .get(parameter.span.start as usize..parameter.span.end as usize)?;
     if scalar_identity_mismatch(
-        *owner,
-        *index,
-        position,
-        parameter,
-        child,
-        input,
-        default,
-        param_text,
+        *owner, *index, position, parameter, child, input, default, param_text,
     ) {
         return None;
     }
@@ -753,8 +744,7 @@ fn check_null_default(
             .text
             .get(node.start as usize..node.end as usize)?
             != "null"
-        || actual.to_json()
-            != super::js::js_field_default(default.as_ref(), None)?.to_json()
+        || actual.to_json() != super::js::js_field_default(default.as_ref(), None)?.to_json()
     {
         return None;
     }
@@ -797,13 +787,7 @@ fn explicit_nullable_value_input(
         .text
         .get(parameter.span.start as usize..parameter.span.end as usize)?;
     if nullable_identity_mismatch(
-        *owner,
-        *index,
-        position,
-        parameter,
-        child,
-        input,
-        param_text,
+        *owner, *index, position, parameter, child, input, param_text,
     ) {
         return None;
     }
@@ -844,7 +828,7 @@ fn enum_identity_mismatch(
         || parameter.module != child.module
         || parameter.canonical != format!("{}.{}", child.canonical, parameter.name)
         || input.name != parameter.name
-        || input.required != true
+        || !input.required
         || input.nullable
         || input.array_required.is_some()
         || input.min.is_some()
@@ -943,7 +927,7 @@ fn check_empty_array_default(
     ty: &ResolvedType,
     actual: &JsFieldDefault,
     default: &Option<IrDefault>,
-    db: &SourceDb,
+    _db: &SourceDb,
 ) -> Option<()> {
     let IrExpr::Array(items) = &value.expr else {
         return None;
@@ -952,8 +936,7 @@ fn check_empty_array_default(
         || !items.is_empty()
         || value.ty != *ty
         || value.span != Span::new(node.file, node.start, node.end)
-        || actual.to_json()
-            != super::js::js_field_default(default.as_ref(), None)?.to_json()
+        || actual.to_json() != super::js::js_field_default(default.as_ref(), None)?.to_json()
     {
         return None;
     }
@@ -1119,19 +1102,35 @@ fn checked_rich_call_operands(
 }
 
 /// Seal one original typed decision operand without rechecking a program.
-pub(super) fn checked_original_expression(ir: &IrProgram, owner: &IrItem,
-    value: &TypedExpr, db: &SourceDb) -> Option<()> {
+pub(super) fn checked_original_expression(
+    ir: &IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: &SourceDb,
+) -> Option<()> {
     let source = checked_source(ir, owner, db)?;
     let text = &db.get(source.node.file)?.text;
     let (tree, diagnostics) = crate::syntax::parse_source(source.node.file, text);
-    if diagnostics.iter().any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error) { return None; }
+    if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+    {
+        return None;
+    }
     let mut pending = vec![&tree];
     let mut steps = 0;
     while let Some(node) = pending.pop() {
         steps += 1;
-        if steps > 200000 { return None; }
-        if node.span == value.span && rich_operand_children(node).len() != 0 &&
-            matches!(node.kind, SyntaxKind::Binary | SyntaxKind::Member | SyntaxKind::NameRef) {
+        if steps > 200000 {
+            return None;
+        }
+        if node.span == value.span
+            && !rich_operand_children(node).is_empty()
+            && matches!(
+                node.kind,
+                SyntaxKind::Binary | SyntaxKind::Member | SyntaxKind::NameRef
+            )
+        {
             return checked_rich_operand(value, node, source.expression_types.as_deref()?, text, 0);
         }
         pending.extend(node.children.iter());
@@ -1139,11 +1138,7 @@ pub(super) fn checked_original_expression(ir: &IrProgram, owner: &IrItem,
     None
 }
 
-fn operand_token<'t>(
-    original: &SyntaxNode,
-    kind: SyntaxKind,
-    text: &'t str,
-) -> Option<&'t str> {
+fn operand_token<'t>(original: &SyntaxNode, kind: SyntaxKind, text: &'t str) -> Option<&'t str> {
     original
         .children
         .iter()
@@ -1240,9 +1235,10 @@ fn check_duration_operand(value: &i128, spelling: &str) -> Option<()> {
         ("h", 3600000),
         ("d", 86400000),
     ] {
-        if let Some(digits) = spelling.strip_suffix(unit).filter(|digits| {
-            !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit())
-        }) {
+        if let Some(digits) = spelling
+            .strip_suffix(unit)
+            .filter(|digits| !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit()))
+        {
             duration = digits.parse::<i128>().ok()?.checked_mul(factor);
             break;
         }
@@ -1253,11 +1249,7 @@ fn check_duration_operand(value: &i128, spelling: &str) -> Option<()> {
     Some(())
 }
 
-fn match_scalar_operand(
-    expr: &IrExpr,
-    original: &SyntaxNode,
-    text: &str,
-) -> Option<bool> {
+fn match_scalar_operand(expr: &IrExpr, original: &SyntaxNode, text: &str) -> Option<bool> {
     let token = |kind| operand_token(original, kind, text);
     Some(match expr {
         IrExpr::Int(value) => token(SyntaxKind::Integer)?.parse::<i128>().ok()? == *value,
@@ -1272,9 +1264,7 @@ fn match_scalar_operand(
                 .as_ref()?
                 == value
         }
-        IrExpr::Bool(value) => {
-            token(SyntaxKind::Name)? == if *value { "true" } else { "false" }
-        }
+        IrExpr::Bool(value) => token(SyntaxKind::Name)? == if *value { "true" } else { "false" },
         IrExpr::Null => token(SyntaxKind::Name)? == "null",
         IrExpr::DurationMs(value) => {
             check_duration_operand(value, token(SyntaxKind::Duration)?)?;
@@ -1546,7 +1536,9 @@ fn explicit_stored_file_input(
         return None;
     };
     let source = checked_source(ir, owner, db)?;
-    let parent_descriptor = operations.iter().find(|operation| operation.name == owner.canonical)?;
+    let parent_descriptor = operations
+        .iter()
+        .find(|operation| operation.name == owner.canonical)?;
     let published = parent_descriptor.disclosure.as_ref()?;
     if published["version"] != 1
         || published["source"]["path"] != source.source.path
@@ -1673,10 +1665,14 @@ fn file_param_syntax_mismatch(
 ) -> bool {
     declaration.kind != SyntaxKind::Parameter
         || name.span != parameter.span
-        || name.token().is_none_or(|token| token.text(text) != parameter.name)
+        || name
+            .token()
+            .is_none_or(|token| token.text(text) != parameter.name)
         || NodeKey::of(array_type) != fact.type_node
         || scalar.kind != SyntaxKind::Name
-        || scalar.token().is_none_or(|token| token.text(text) != "file")
+        || scalar
+            .token()
+            .is_none_or(|token| token.text(text) != "file")
         || open.token().is_none_or(|token| token.text(text) != "[")
         || close.token().is_none_or(|token| token.text(text) != "]")
 }
@@ -1700,10 +1696,7 @@ fn find_param_syntax_nodes<'t>(
     tree: &'t crate::syntax::SyntaxNode,
     fact_node: &NodeKey,
     default_node: &NodeKey,
-) -> Option<(
-    &'t crate::syntax::SyntaxNode,
-    &'t crate::syntax::SyntaxNode,
-)> {
+) -> Option<(&'t crate::syntax::SyntaxNode, &'t crate::syntax::SyntaxNode)> {
     let mut pending = vec![tree];
     let mut declaration = None;
     let mut default = None;
@@ -1837,8 +1830,12 @@ fn explicit_reference_input(
         // The declaration consumes the exact original checked parent chain,
         // required or nullable alike. Its literal null default stays metadata
         // and is never visited.
-        if let Some(original) = super::scenario_receipts::checked_narrowed_call_reference(ir, owner, value, db) {
-            return (!nullable && original.ty == ResolvedType::Nullable(Box::new(value.ty.clone()))).then_some(None);
+        if let Some(original) =
+            super::scenario_receipts::checked_narrowed_call_reference(ir, owner, value, db)
+        {
+            return (!nullable
+                && original.ty == ResolvedType::Nullable(Box::new(value.ty.clone())))
+            .then_some(None);
         }
         let (_, parent) = super::scenario_receipts::checked_parent_reference(ir, owner, value, db)?;
         return (parent.id == model).then_some(None);
@@ -1936,9 +1933,10 @@ fn reference_owner_mismatch(
         || !matches!(model.kind, IrItemKind::Model { .. })
         || fact.constraints.is_some()
         || ir.value_constraints.contains_key(&parameter.id)
-        || ir.modules.get(model.module.0 as usize).is_none_or(|module| {
-            model.canonical != format!("{}.{}", module.name, model.name)
-        })
+        || ir
+            .modules
+            .get(model.module.0 as usize)
+            .is_none_or(|module| model.canonical != format!("{}.{}", module.name, model.name))
 }
 
 fn reference_input_mismatch(
@@ -1992,9 +1990,8 @@ fn reference_import_ok(
             import.provider == module_name
                 && import.from.is_none()
                 && db.get(import.provider_span.file).and_then(|file| {
-                    file.text.get(
-                        import.provider_span.start as usize..import.provider_span.end as usize,
-                    )
+                    file.text
+                        .get(import.provider_span.start as usize..import.provider_span.end as usize)
                 }) == Some(module_name)
         })
         .flat_map(|import| import.members.iter())
@@ -2032,7 +2029,10 @@ fn check_reference_default(
                     .get(node.start as usize..node.end as usize)?
                     == "null"
                 && actual.to_json()
-                    == super::js::js_field_default(default.as_ref(), None)?.to_json() => Some(()),
+                    == super::js::js_field_default(default.as_ref(), None)?.to_json() =>
+        {
+            Some(())
+        }
         _ => None,
     }
 }
@@ -2282,7 +2282,15 @@ fn lower_call_site(
     };
     let (model_result, query, descriptor) =
         join_call_descriptor(ir, child, *child_read, binding, operations, db)?;
-    let result_fact = check_call_result(ir, child, declared, model_result, binding, query, descriptor)?;
+    let result_fact = check_call_result(
+        ir,
+        child,
+        declared,
+        model_result,
+        binding,
+        query,
+        descriptor,
+    )?;
     check_call_disclosure(ir, child, operation, descriptor, query, feasibility, entry)?;
     let entries = match_call_proof(checked, inputs, span, operation, matched)?;
     let source_call = check_call_arity(
@@ -2392,9 +2400,7 @@ fn drive_proven_effect<'e>(
     pending: &mut Vec<(&'e IrStmt, usize)>,
 ) -> Option<()> {
     match stmt {
-        IrStmt::Emit { span, .. }
-        | IrStmt::Schedule { span, .. }
-        | IrStmt::Cancel { span, .. } => {
+        IrStmt::Emit { span, .. } | IrStmt::Schedule { span, .. } | IrStmt::Cancel { span, .. } => {
             check_proven_effect(ir, owner, span)?;
         }
         IrStmt::For { body, span, .. } => {
@@ -2437,8 +2443,21 @@ fn drive_owner_statement<'e>(
     match stmt {
         IrStmt::Call { .. } => {
             lower_call_site(
-                ir, owner, operations, db, entry, feasibility, source_calls, checked, origin,
-                module, text_len, stmt, sites, matched, supplied,
+                ir,
+                owner,
+                operations,
+                db,
+                entry,
+                feasibility,
+                source_calls,
+                checked,
+                origin,
+                module,
+                text_len,
+                stmt,
+                sites,
+                matched,
+                supplied,
             )?;
         }
         IrStmt::If { .. } | IrStmt::Match { .. } => {
@@ -2452,14 +2471,24 @@ fn drive_owner_statement<'e>(
         // A child-walk create already proven in the child's own complete
         // disclosure executes in the joined transaction in source order;
         // only unproven top-level creates need M2/supplied accounting.
+        IrStmt::Create { span, .. } if is_child && is_proven_child_create(checked, span) => {}
         IrStmt::Create { span, .. }
-            if is_child && is_proven_child_create(checked, span) => {}
-        IrStmt::Create { span, .. } if !is_child && native_receipts.is_some_and(|receipts|
-            receipts.get(&owner.id).is_some_and(|receipt| operations.iter().any(|operation|
-                operation.name == owner.canonical && operation.disclosure.as_ref() == serde_json::to_value(&receipt.plan).ok().as_ref())))
+            if !is_child
+                && native_receipts.is_some_and(|receipts| {
+                    receipts.get(&owner.id).is_some_and(|receipt| {
+                        operations.iter().any(|operation| {
+                            operation.name == owner.canonical
+                                && operation.disclosure.as_ref()
+                                    == serde_json::to_value(&receipt.plan).ok().as_ref()
+                        })
+                    })
+                })
                 && is_proven_child_create(checked, span)
-                && checked.effects.iter().any(|effect| matches!(effect.kind, DisclosureEffectKind::Call { .. })
-                    && effect.node.file == span.file && effect.node.end <= span.start) => {}
+                && checked.effects.iter().any(|effect| {
+                    matches!(effect.kind, DisclosureEffectKind::Call { .. })
+                        && effect.node.file == span.file
+                        && effect.node.end <= span.start
+                }) => {}
         IrStmt::Create { span, .. } if depth == 0 => {
             intermediate.insert(*span);
         }
@@ -2471,7 +2500,10 @@ fn drive_owner_statement<'e>(
         | IrStmt::Transition { .. } => {}
         // Proven owner effects traverse in source order without joining
         // sites of their own. Unproven statements keep the refusal below.
-        IrStmt::Emit { .. } | IrStmt::Schedule { .. } | IrStmt::Cancel { .. } | IrStmt::For { .. } => {
+        IrStmt::Emit { .. }
+        | IrStmt::Schedule { .. }
+        | IrStmt::Cancel { .. }
+        | IrStmt::For { .. } => {
             drive_proven_effect(ir, owner, stmt, depth, pending)?;
         }
         _ => return None,
@@ -2563,7 +2595,7 @@ fn join_call_descriptor<'a, 'b>(
 
 fn check_call_result(
     ir: &IrProgram,
-    child: &IrItem,
+    _child: &IrItem,
     declared: &Option<ResolvedType>,
     model_result: Option<SymbolId>,
     binding: &Option<String>,
@@ -2583,18 +2615,13 @@ fn check_call_result(
             let contract = ir
                 .items
                 .get(query.projection.as_ref()?.contract.0 as usize)?;
-            if descriptor.result.as_deref()
-                != Some(format!("{}[]", contract.canonical).as_str())
-            {
+            if descriptor.result.as_deref() != Some(format!("{}[]", contract.canonical).as_str()) {
                 return None;
             }
             Some(CallResultFact::Opaque(ty.clone()))
         }
         None if descriptor.result.as_deref() == Some("void") => Some(CallResultFact::Void),
-        Some(ty)
-            if scalar_id(ty) == descriptor.result.as_deref()
-                && scalar_id(ty).is_some() =>
-        {
+        Some(ty) if scalar_id(ty) == descriptor.result.as_deref() && scalar_id(ty).is_some() => {
             Some(CallResultFact::Scalar(ty.clone()))
         }
         _ => None,
@@ -2610,8 +2637,7 @@ fn check_call_disclosure(
     feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
     entry: &str,
 ) -> Option<()> {
-    let ScenarioDisclosure::Complete(child_checked) =
-        ir.scenario_disclosures.get(operation)?
+    let ScenarioDisclosure::Complete(child_checked) = ir.scenario_disclosures.get(operation)?
     else {
         return None;
     };
@@ -2641,9 +2667,7 @@ fn match_call_proof<'e>(
         return None;
     };
     let mut proofs = checked.effects.iter().filter(|proof| {
-        proof.node.file == span.file
-            && proof.node.start == span.start
-            && proof.node.end == span.end
+        proof.node.file == span.file && proof.node.start == span.start && proof.node.end == span.end
     });
     let proof = proofs.next()?;
     if proofs.next().is_some()
@@ -2700,7 +2724,7 @@ fn check_call_arity<'s>(
 fn check_rich_operands(
     ir: &IrProgram,
     owner: &IrItem,
-    entries: &Vec<(String, TypedExpr)>,
+    entries: &[(String, TypedExpr)],
     span: Span,
     params: &[SymbolId],
     db: &SourceDb,
@@ -2774,11 +2798,7 @@ fn dispatch_nullable_input(
     };
     if !matches!(inner.as_ref(), ResolvedType::Scalar(_))
         || (value.ty != *inner.as_ref() && value.ty != *ty)
-        || (!simple_value(value)
-            && !matches!(
-                value.expr,
-                IrExpr::Name(_) | IrExpr::Member { .. }
-            ))
+        || (!simple_value(value) && !matches!(value.expr, IrExpr::Name(_) | IrExpr::Member { .. }))
     {
         return Some(false);
     }
@@ -2804,10 +2824,18 @@ fn forwarded_nullable_file_parameter(
     let IrExpr::Name(name) = &value.expr else {
         return None;
     };
-    if db.get(value.span.file)?.text.get(value.span.start as usize..value.span.end as usize)? != name {
+    if db
+        .get(value.span.file)?
+        .text
+        .get(value.span.start as usize..value.span.end as usize)?
+        != name
+    {
         return None;
     }
-    let IrItemKind::Scenario { params, effects, .. } = &owner.kind else {
+    let IrItemKind::Scenario {
+        params, effects, ..
+    } = &owner.kind
+    else {
         return None;
     };
     let source = checked_source(ir, owner, db)?;
@@ -2827,12 +2855,18 @@ fn forwarded_nullable_file_parameter(
     {
         return None;
     }
-    let operation = operations.iter().find(|entry| entry.name == owner.canonical)?;
+    let operation = operations
+        .iter()
+        .find(|entry| entry.name == owner.canonical)?;
     let mut inputs = operation.inputs.iter().filter(|input| input.name == *name);
     let input = inputs.next()?;
-    if inputs.next().is_some() || !matches!(input.field, JsMcpField::File) ||
-        input.value_type.as_deref() != Some("file?") || !input.nullable || input.required ||
-        input.array_required.is_some() || input.computed_default
+    if inputs.next().is_some()
+        || !matches!(input.field, JsMcpField::File)
+        || input.value_type.as_deref() != Some("file?")
+        || !input.nullable
+        || input.required
+        || input.array_required.is_some()
+        || input.computed_default
     {
         return None;
     }
@@ -2848,12 +2882,26 @@ fn effects_bind_name(effects: &[IrStmt], name: &str) -> bool {
             return true;
         }
         match effect {
-            IrStmt::Let { name: bound, .. } | IrStmt::For { item: bound, .. }
-                if bound == name => return true,
-            IrStmt::Create { binding: Some(bound), .. }
-            | IrStmt::Call { binding: Some(bound), .. }
-            | IrStmt::Send { binding: Some(bound), .. } if bound == name => return true,
-            IrStmt::If { then_branch, else_branch, .. } => {
+            IrStmt::Let { name: bound, .. } | IrStmt::For { item: bound, .. } if bound == name => {
+                return true;
+            }
+            IrStmt::Create {
+                binding: Some(bound),
+                ..
+            }
+            | IrStmt::Call {
+                binding: Some(bound),
+                ..
+            }
+            | IrStmt::Send {
+                binding: Some(bound),
+                ..
+            } if bound == name => return true,
+            IrStmt::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
                 pending.extend(then_branch.iter().chain(else_branch));
             }
             IrStmt::Match { arms, .. } => {
@@ -2910,7 +2958,7 @@ fn dispatch_call_input(
     param: &IrItem,
     ty: &ResolvedType,
     value: &TypedExpr,
-    name: &String,
+    name: &str,
     input: &JsOperationField,
     operations: &[JsOperation],
     span: Span,
@@ -2927,15 +2975,15 @@ fn dispatch_call_input(
         }
         protected_query_input(ir, owner, param, value, input, operations, db)?;
     } else if dispatch_value_input(ir, child, param, ty, value, input, db)? {
-        if *ty == ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::File))) {
-            if !matches!(value.expr, IrExpr::Null) {
-                let parent_parameter =
-                    forwarded_nullable_file_parameter(ir, owner, value, operations, db)?;
-                file_inputs.push(StaticScenarioCallFileInput::Forwarded {
-                    name: name.clone(),
-                    parent_parameter,
-                });
-            }
+        if *ty == ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::File)))
+            && !matches!(value.expr, IrExpr::Null)
+        {
+            let parent_parameter =
+                forwarded_nullable_file_parameter(ir, owner, value, operations, db)?;
+            file_inputs.push(StaticScenarioCallFileInput::Forwarded {
+                name: name.to_owned(),
+                parent_parameter,
+            });
         }
     } else if ordinary_file_array(ty) {
         let dependency_id = explicit_stored_file_input(
@@ -2948,7 +2996,7 @@ fn dispatch_call_input(
             db,
         )?;
         file_inputs.push(StaticScenarioCallFileInput::Stored {
-            name: name.clone(),
+            name: name.to_owned(),
             dependency_id,
         });
     } else if let Some(created) = explicit_reference_input(
@@ -3162,9 +3210,26 @@ fn collect_owner(
     let mut steps = 0;
     while let Some((stmt, depth)) = pending.pop() {
         drive_owner_statement(
-            ir, owner, operations, db, entry, is_child, feasibility, native_receipts,
-            &source_calls, checked, &origin, module, text_len, stmt, depth, &mut steps,
-            &mut pending, &mut sites, &mut matched_calls, &mut intermediate_creates,
+            ir,
+            owner,
+            operations,
+            db,
+            entry,
+            is_child,
+            feasibility,
+            native_receipts,
+            &source_calls,
+            checked,
+            &origin,
+            module,
+            text_len,
+            stmt,
+            depth,
+            &mut steps,
+            &mut pending,
+            &mut sites,
+            &mut matched_calls,
+            &mut intermediate_creates,
             &mut supplied_creates,
         )?;
     }
@@ -3490,7 +3555,7 @@ fn check_record_ref(
 
 fn check_array_ref(
     ir: &IrProgram,
-    element: &Box<ResolvedType>,
+    element: &ResolvedType,
     descriptor: &JsOperationField,
     bounds: &Option<super::ir::IrParameterArrayBounds>,
     require_version: bool,
@@ -3500,7 +3565,7 @@ fn check_array_ref(
     let ResolvedType::Record {
         symbol,
         stored: true,
-    } = element.as_ref()
+    } = element
     else {
         return None;
     };
@@ -3613,10 +3678,7 @@ fn protected_query_input(
     Some(())
 }
 
-fn check_stored_parent_input(
-    original_input: &JsOperationField,
-    model: &IrItem,
-) -> Option<()> {
+fn check_stored_parent_input(original_input: &JsOperationField, model: &IrItem) -> Option<()> {
     if !original_input.required
         || original_input.nullable
         || original_input.array_required.is_some()
@@ -3633,7 +3695,7 @@ fn check_stored_parent_input(
 }
 
 fn check_stored_array_target(
-    element: &Box<ResolvedType>,
+    element: &ResolvedType,
     bounds: &Option<super::ir::IrParameterArrayBounds>,
     original: &crate::analysis::scenario_disclosure::CheckedStoredContractField,
     input: &JsOperationField,
@@ -3641,7 +3703,7 @@ fn check_stored_array_target(
     let ResolvedType::Record {
         symbol,
         stored: true,
-    } = element.as_ref()
+    } = element
     else {
         return None;
     };
@@ -3767,9 +3829,7 @@ fn check_stored_target(
             element,
             ordered: true,
             nonempty: false,
-        } => {
-            check_stored_array_target(element, bounds, original, input)?
-        }
+        } => check_stored_array_target(element, bounds, original, input)?,
         _ => return None,
     };
     Some(target)
@@ -3806,4 +3866,3 @@ fn simple_value(value: &super::ir::TypedExpr) -> bool {
     }
     true
 }
-

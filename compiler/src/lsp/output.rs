@@ -232,4 +232,3 @@ pub(super) fn action(
 pub(super) struct SemanticTokens {
     pub data: Vec<u32>,
 }
-

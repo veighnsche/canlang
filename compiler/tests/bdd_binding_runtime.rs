@@ -480,8 +480,9 @@ fn imported_example_helpers_use_actual_production_registry() {
         scratch.path().join("node_modules"),
     )
     .unwrap();
-    let source = root
-        .join("docs/implementation/compiler-completion/bdd-facts/independent-review/sequence-alias.can");
+    let source = root.join(
+        "docs/implementation/compiler-completion/bdd-facts/independent-review/sequence-alias.can",
+    );
     let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
         .args(["compile", "--format=json", "--catalog"])
         .arg(root.join("packages/values/dist/catalog.json"))

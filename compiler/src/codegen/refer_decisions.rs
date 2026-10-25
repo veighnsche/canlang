@@ -14,11 +14,11 @@ use crate::analysis::{CheckedProgram, NodeKey, ResolvedType, Scalar};
 use crate::source::{SourceDb, Span, sha256_hex};
 
 use super::ir::{IrItem, IrItemKind, IrStmt};
-use super::source_context::FreshSourceContext;
 use super::scenario_receipts::{
     NativeReturn, NativeScenarioReceipt, NativeSite, ReceiptDisclosurePlan, ReceiptReturn,
     transport_source,
 };
+use super::source_context::FreshSourceContext;
 
 const HEADER: &str = "all(evidence.advocate.parent.locations as location,can_work(actor,location)) and trim(reason)!=\"\"";
 const FIRST: &str = "first(evidence.advocate.Credit as credit where credit.source==evidence.source and credit.reversal==null order=credit.id)";
@@ -27,7 +27,7 @@ const BRANCH: &str =
 const ABSENCE: &str = "any(evidence.advocate.Credit as item,item.reversal==credit)";
 const CAN_WORK: &str = "any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))";
 
-fn text<'a>(db: &'a SourceDb, node: NodeKey) -> Option<&'a str> {
+fn text(db: &SourceDb, node: NodeKey) -> Option<&str> {
     db.get(node.file)?
         .text
         .get(node.start as usize..node.end as usize)
@@ -629,7 +629,10 @@ pub(super) fn collect_reject_receipt(
         .as_bytes(),
     );
     Some(NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
+        plan: ReceiptDisclosurePlan {
+            retained_guarded_handler: None,
+            source_loops: None,
+            source_emissions: None,
             version: 1,
             source: source.clone(),
             event_decision: None,
@@ -637,8 +640,16 @@ pub(super) fn collect_reject_receipt(
             leave_request_decision: None,
             leave_decide_decision: None,
             refer_reject_decision: Some(decision),
-            member_retry_decision: None, rent_movement_refund_decision: None,
-            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,queries: Vec::new(),
+            member_retry_decision: None,
+            rent_movement_refund_decision: None,
+            invoice_collect_decision: None,
+            rent_notice_decision: None,
+            invoice_issue_decision: None,
+            observe_venue_decision: None,
+            success_renewal_decision: None,
+            purchase_receive_all: None,
+            event_notice_audit: None,
+            queries: Vec::new(),
             returns: vec![ReceiptReturn {
                 id: id.clone(),
                 source,

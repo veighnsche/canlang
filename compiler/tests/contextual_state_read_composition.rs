@@ -10,7 +10,7 @@
 
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::types::SelectedCallTarget;
-use canlang_compiler::analysis::{check_program, CheckedProgram};
+use canlang_compiler::analysis::{CheckedProgram, check_program};
 use canlang_compiler::diagnostic::Diagnostic;
 use canlang_compiler::source::{SourceDb, Span};
 
@@ -108,7 +108,10 @@ fn inline_local_and_imported_helpers_stay_equivalent() {
     let imported_calls = membership_calls(&assert_clean(imported, &catalog));
     assert_eq!(local_calls.len(), 1);
     assert_eq!(imported_calls.len(), 1);
-    assert_eq!(local_calls[0].1, imported_calls[0].1, "same slots in source order");
+    assert_eq!(
+        local_calls[0].1, imported_calls[0].1,
+        "same slots in source order"
+    );
 }
 
 /// Record-less page admission reads with the viewer team authority: the
@@ -130,7 +133,11 @@ fn helper_reads_keep_source_order_and_short_circuit() {
     let program = assert_clean(source, &catalog);
     let calls = membership_calls(&program);
     assert_eq!(calls.len(), 1);
-    assert_eq!(calls[0].1, vec![Some(1), Some(0)], "named slots keep declaration order");
+    assert_eq!(
+        calls[0].1,
+        vec![Some(1), Some(0)],
+        "named slots keep declaration order"
+    );
 }
 
 /// Failures still propagate unchanged: an ill-typed membership operand
@@ -141,8 +148,9 @@ fn membership_failures_still_refuse() {
     let source = "app Inv\nGiven\n Entry {owner:user}\n derive ok(person:user?):bool = active_member(person,person)\n policy Entry read=members\nWhen\nThen\n";
     let (_, diagnostics) = check(source, &catalog);
     assert!(
-        diagnostics.iter().any(|diagnostic| diagnostic.severity
-            == canlang_compiler::diagnostic::Severity::Error),
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.severity == canlang_compiler::diagnostic::Severity::Error),
         "ill-typed team operand refuses: {diagnostics:?}"
     );
 }
@@ -157,7 +165,9 @@ fn nested_container_gates_stay_strict() {
     let nested = "app Inv\nGiven\n Entry {owner:user}\n derive ok(person:user?):bool = person!=null and active_member(person,team)\n policy Entry read=members where=ok(actor)\nWhen\nThen\n page /entries title=\"Entries\"\n  list Entry as e where ok(actor)\n   require ok(e.owner)\n   text \"hi\"\n";
     let (_, diagnostics) = check(nested, &catalog);
     assert!(
-        diagnostics.iter().any(|diagnostic| diagnostic.code == "E3010"),
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E3010"),
         "nested render-gate membership refuses: {diagnostics:?}"
     );
     let pure = "app Inv\nGiven\n Entry {owner:user,active:bool}\n policy Entry read=members\nWhen\nThen\n page /entries title=\"Entries\"\n  list Entry as e\n   require e.active\n   text \"hi\"\n";

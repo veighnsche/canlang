@@ -126,7 +126,10 @@ Then
 "#;
 
 fn root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().into()
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .into()
 }
 
 fn native_owner_root() -> PathBuf {
@@ -170,8 +173,8 @@ fn prepared_artifact(
     db: &SourceDb,
     catalog: &Catalog,
 ) -> (Value, Vec<Diagnostic>) {
+    use canlang_compiler::codegen::artifact::to_json;
     use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
-use canlang_compiler::codegen::artifact::to_json;
     use canlang_compiler::diagnostic::DiagnosticResult;
     let mut result = DiagnosticResult::new("first-query-side-effect", "1.0", 1);
     result.add_sources(db);
@@ -203,9 +206,9 @@ fn operation<'a>(artifact: &'a Value, name: &str) -> &'a Value {
 }
 
 fn has_e6008(diagnostics: &[Diagnostic], fragment: &str) -> bool {
-    diagnostics.iter().any(|diagnostic| {
-        diagnostic.code == "E6008" && diagnostic.message.contains(fragment)
-    })
+    diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.code == "E6008" && diagnostic.message.contains(fragment))
 }
 
 /// The refused tail leaves no prepared native recipe: the genuine CLI reports
@@ -404,10 +407,7 @@ fn absence_conjunctions_admit_with_control_dependency() {
         fixture_source("first-query-side-effect-conjunction.can", CONJUNCTION);
     let (prepared, diagnostics) = prepared_artifact(&program, &db, &catalog);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
-    for name in [
-        "ConjunctionSources.go_or",
-        "ConjunctionSources.go_and",
-    ] {
+    for name in ["ConjunctionSources.go_or", "ConjunctionSources.go_and"] {
         let disclosure = &operation(&prepared, name)["result"]["disclosure"];
         let [query] = disclosure["queries"].as_array().unwrap().as_slice() else {
             panic!("{name}: one first query")

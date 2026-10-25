@@ -89,12 +89,21 @@ package consumer
             ("targets", "[]", Some(false)),
             ("required_targets", "[]!", Some(true)),
         ] {
-            let field = model["fields"].as_array().unwrap().iter()
-                .find(|field| field["name"] == name).unwrap();
+            let field = model["fields"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|field| field["name"] == name)
+                .unwrap();
             assert_eq!(field["valueType"], format!("catalog.Source{suffix}"));
             assert_eq!(field["field"]["kind"], "ref");
             assert_eq!(field["field"]["model"], "catalog.Source");
-            assert_eq!(field.get("array").map(|array| array["required"].as_bool().unwrap()), array_required);
+            assert_eq!(
+                field
+                    .get("array")
+                    .map(|array| array["required"].as_bool().unwrap()),
+                array_required
+            );
         }
         let source = artifact["models"]
             .as_array()

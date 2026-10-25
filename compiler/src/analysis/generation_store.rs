@@ -158,7 +158,6 @@ impl FrozenGeneration {
             source_paths: std::sync::Mutex::new(HashMap::new()),
         })
     }
-
 }
 
 fn regular_tree(path: &Path) -> Result<(), String> {
@@ -189,7 +188,7 @@ fn freeze_unit_groups(
 ) -> Result<(), String> {
     for id in unit_ids {
         regular_tree(&original.join(intake::GENERATED_DIR).join(&id))?;
-        for file in crate::leases::group_files(&original, &id).map_err(|e| e.to_string())? {
+        for file in crate::leases::group_files(original, &id).map_err(|e| e.to_string())? {
             paths.push(format!("{}/{id}/{file}", intake::GENERATED_DIR));
         }
     }
@@ -352,8 +351,7 @@ impl FrozenGeneration {
         };
         // Qualification is ephemeral artifact naming; persisted identity
         // and its editable directory retain the original unit ID.
-        group.record.id =
-            intake::GenerationUnitId::parse(&staged_id).map_err(|e| e.to_string())?;
+        group.record.id = intake::GenerationUnitId::parse(&staged_id).map_err(|e| e.to_string())?;
         Ok((staged_id, group))
     }
 
@@ -379,8 +377,7 @@ impl FrozenGeneration {
                 continue;
             }
             let dir = root.mirror.path().join(intake::GENERATED_DIR).join(&name);
-            if let Ok((mut record, files)) = intake::adopt_legacy_unit(&dir, &id, key, &evidence)
-            {
+            if let Ok((mut record, files)) = intake::adopt_legacy_unit(&dir, &id, key, &evidence) {
                 let staged_id = if self.roots.len() > 1 {
                     format!("r{root_index}-{name}")
                 } else {
@@ -399,8 +396,7 @@ impl FrozenGeneration {
                 .iter()
                 .filter(|descriptor| {
                     descriptor.has_generation_identity
-                        && intake::UnitKind::of_descriptor(descriptor.kind)
-                            == Some(key.kind)
+                        && intake::UnitKind::of_descriptor(descriptor.kind) == Some(key.kind)
                         && descriptor.label == key.label
                 })
                 .count()

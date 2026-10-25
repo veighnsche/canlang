@@ -246,8 +246,8 @@ impl UnitRecord {
                 record.id
             ));
         }
-        if let Some(region) = &record.source.region {
-            if record.source.selector.is_none()
+        if let Some(region) = &record.source.region
+            && (record.source.selector.is_none()
                 || region.container.is_empty()
                 || region.count == 0
                 || region.occurrence >= region.count
@@ -255,10 +255,9 @@ impl UnitRecord {
                 || !region
                     .sha256
                     .bytes()
-                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
-            {
-                return Err("unit source has an invalid local region certificate".to_string());
-            }
+                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()))
+        {
+            return Err("unit source has an invalid local region certificate".to_string());
         }
         Ok(record)
     }
@@ -507,12 +506,11 @@ fn associate_inner(
                 if id_counts.get(record.id.as_str()) != Some(&1) {
                     return false;
                 }
-                if let Some(source) = source {
-                    if source.path != record.source.path
-                        && live_paths.contains(record.source.path.as_str())
-                    {
-                        return false;
-                    }
+                if let Some(source) = source
+                    && source.path != record.source.path
+                    && live_paths.contains(record.source.path.as_str())
+                {
+                    return false;
                 }
                 if let Some(region) = &record.source.region {
                     let conflicting_region =
@@ -572,12 +570,12 @@ fn associate_inner(
         }
     }
     for (_, association) in &mut outcomes {
-        if let UnitAssociation::Retained { id, .. } = association {
-            if retained_counts.get(id).is_some_and(|count| *count > 1) {
-                *association = UnitAssociation::Ambiguous {
-                    candidates: vec![id.clone()],
-                };
-            }
+        if let UnitAssociation::Retained { id, .. } = association
+            && retained_counts.get(id).is_some_and(|count| *count > 1)
+        {
+            *association = UnitAssociation::Ambiguous {
+                candidates: vec![id.clone()],
+            };
         }
     }
     let retained_ids = outcomes
@@ -1393,4 +1391,3 @@ pub fn intake_associated(
     }
     (groups, issues)
 }
-

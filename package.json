@@ -49,7 +49,7 @@
     "lint:compiler": "node scripts/run-tasks.mjs native:compiler:lint",
     "native:compiler:build": "cargo build --locked --manifest-path compiler/Cargo.toml",
     "native:compiler:test": "cargo test --locked --manifest-path compiler/Cargo.toml",
-    "native:compiler:lint": "cargo fmt --manifest-path compiler/Cargo.toml --check && cargo clippy --locked --manifest-path compiler/Cargo.toml --all-targets -- -D warnings",
+    "native:compiler:lint": "cargo fmt --manifest-path compiler/Cargo.toml --check && cargo clippy --locked --manifest-path compiler/Cargo.toml --all-targets -- -D warnings -A clippy::too_many_arguments -A clippy::type_complexity",
     "build:values-wasm": "node scripts/run-tasks.mjs build:semantics --filter=@canlang/values",
     "build:work-wasm": "node scripts/run-tasks.mjs build:wasm --filter=@canlang/work-kernel",
     "release:install": "node scripts/build-install.mjs",

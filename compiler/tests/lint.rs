@@ -7,12 +7,12 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use canlang_compiler::analysis::catalog::CatalogRequest;
 use canlang_compiler::analysis::{self, Catalog, CheckedProgram};
 use canlang_compiler::diagnostic::{Diagnostic, Severity};
-use canlang_compiler::lint::driver::{
-    apply_fix, apply_fixes, collect_fixes, lint_program, DeprecatedSet, FixRejected, LintConfig,
-    LintFix, RuleSet,
-};
 use canlang_compiler::lint::RULES;
-use canlang_compiler::source::{sha256_hex, SourceDb, SourceId, Span};
+use canlang_compiler::lint::driver::{
+    DeprecatedSet, FixRejected, LintConfig, LintFix, RuleSet, apply_fix, apply_fixes,
+    collect_fixes, lint_program,
+};
+use canlang_compiler::source::{SourceDb, SourceId, Span, sha256_hex};
 
 fn check(
     text: impl AsRef<str>,
@@ -285,9 +285,11 @@ fn enum_match_lints_keep_unreachable_reads_and_shadowing_in_the_owning_arm() {
     // exact dead statement and the unread sibling-arm binding.
     let recommended = lint_program(&program, &db, &LintConfig::default());
     assert_eq!(recommended.len(), 2, "{recommended:?}");
-    assert!(recommended
-        .iter()
-        .all(|diag| matches!(diag.code, "W1001" | "I1001")));
+    assert!(
+        recommended
+            .iter()
+            .all(|diag| matches!(diag.code, "W1001" | "I1001"))
+    );
 }
 
 // --- I1001 unused-binding (`let`) ---------------------------------------
@@ -675,9 +677,11 @@ fn unreachable_removal_refuses_descriptions_and_malformed_inline_comments() {
         let config = LintConfig { fix: true, ..all() };
         assert!(collect_fixes(&program, &db, &config).is_empty(), "{text}");
         if !malformed {
-            assert!(lint_program(&program, &db, &all())
-                .iter()
-                .any(|diagnostic| diagnostic.code == "W1001"));
+            assert!(
+                lint_program(&program, &db, &all())
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "W1001")
+            );
         }
     }
 }

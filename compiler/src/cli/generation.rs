@@ -1459,7 +1459,7 @@ struct BindScope {
 
 fn bind_acquire_scope(
     header: &crate::analysis::generation_protocol::RequestHeader,
-    params: &crate::analysis::generation_protocol::BindParams,
+    _params: &crate::analysis::generation_protocol::BindParams,
     root_path: &Path,
     fail: &dyn Fn(&str, String) -> DispatchResult,
 ) -> Result<BindScope, DispatchResult> {
@@ -2691,7 +2691,7 @@ fn validate_saved_unit(
     // and non-prompt anchor. Anything else is source drift, which
     // deterministic manual adoption reconciles — never regeneration.
     let found = crate::analysis::generation::discover_generation(&tree, &source_text);
-    let report = match collect_gen_status(root, &[record.source.path.clone()]) {
+    let report = match collect_gen_status(root, std::slice::from_ref(&record.source.path)) {
         Ok(report) => report,
         Err(error) => return error,
     };
@@ -3649,7 +3649,7 @@ pub(super) struct JsModuleScan {
 /// byte length and newlines so offsets still address the original.
 /// Template `${...}` interpolations stay code; everywhere else inside
 /// a literal is blanked.
-fn blank_js_range(out: &mut Vec<u8>, from: usize, to: usize) {
+fn blank_js_range(out: &mut [u8], from: usize, to: usize) {
     for b in &mut out[from..to] {
         if *b != b'\n' {
             *b = b' ';
@@ -3657,7 +3657,7 @@ fn blank_js_range(out: &mut Vec<u8>, from: usize, to: usize) {
     }
 }
 
-fn blank_js_line_comment(bytes: &[u8], out: &mut Vec<u8>, i: &mut usize) {
+fn blank_js_line_comment(bytes: &[u8], out: &mut [u8], i: &mut usize) {
     let from = *i;
     while *i < bytes.len() && bytes[*i] != b'\n' {
         *i += 1;
@@ -3665,7 +3665,7 @@ fn blank_js_line_comment(bytes: &[u8], out: &mut Vec<u8>, i: &mut usize) {
     blank_js_range(out, from, *i);
 }
 
-fn blank_js_block_comment(bytes: &[u8], out: &mut Vec<u8>, i: &mut usize) {
+fn blank_js_block_comment(bytes: &[u8], out: &mut [u8], i: &mut usize) {
     let from = *i;
     *i += 2;
     while *i + 1 < bytes.len() && !(bytes[*i] == b'*' && bytes[*i + 1] == b'/') {
@@ -3675,7 +3675,7 @@ fn blank_js_block_comment(bytes: &[u8], out: &mut Vec<u8>, i: &mut usize) {
     blank_js_range(out, from, *i);
 }
 
-fn blank_js_string(bytes: &[u8], out: &mut Vec<u8>, i: &mut usize, quote: u8) {
+fn blank_js_string(bytes: &[u8], out: &mut [u8], i: &mut usize, quote: u8) {
     let from = *i;
     *i += 1;
     while *i < bytes.len() {
@@ -3693,7 +3693,7 @@ fn blank_js_string(bytes: &[u8], out: &mut Vec<u8>, i: &mut usize, quote: u8) {
     blank_js_range(out, from, *i);
 }
 
-fn blank_js_template(bytes: &[u8], out: &mut Vec<u8>, i: &mut usize) {
+fn blank_js_template(bytes: &[u8], out: &mut [u8], i: &mut usize) {
     // Blank literal runs byte by byte; `${...}`
     // interpolations stay code (balanced braces skipped
     // unblanked, including nested quotes — a conservative
@@ -4027,7 +4027,7 @@ impl JsScanState {
         j
     }
 
-    fn scan_from(&mut self, original: &[u8], blanked: &[u8], i: usize) -> usize {
+    fn scan_from(&mut self, original: &[u8], _blanked: &[u8], i: usize) -> usize {
         // Re-export edges: `export ... from "spec"` handled by the
         // `from` scan below at the `from` keyword itself.
         let mut j = i + 4;

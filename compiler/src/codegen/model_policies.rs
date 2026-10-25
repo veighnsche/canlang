@@ -8,13 +8,11 @@ use crate::codegen::ir::{
 };
 use crate::codegen::model_policy_profile::{
     CheckedQueryRuleProfile, CurrentRevisionRuleKind, CurrentRevisionRuleProfile,
-    RequiredModelRuleDependency, checked_chat_invariant_fields,
-    checked_local_rule_fields, checked_query_rule_fields, checked_stored_lock_target,
-    current_revision_lock_target, current_revision_rule_profile, local_hook_supported,
-    local_rule_fields, local_stored_field_type, required_model_rule_dependencies,
-    required_model_rule_fields,
+    RequiredModelRuleDependency, checked_chat_invariant_fields, checked_local_rule_fields,
+    checked_query_rule_fields, checked_stored_lock_target, current_revision_lock_target,
+    current_revision_rule_profile, local_hook_supported, local_rule_fields,
+    local_stored_field_type, required_model_rule_dependencies, required_model_rule_fields,
 };
-use crate::diagnostic::Severity;
 use crate::source::SourceDb;
 use serde::Serialize;
 
@@ -142,10 +140,8 @@ pub(crate) fn collect_checked_policies(
         return None;
     }
     let (plain, complete) = collect_policies(ir, emitted_module, None, None, None);
-    if complete {
-        if let Some(existing) = plain {
-            return Some(existing);
-        }
+    if complete && let Some(existing) = plain {
+        return Some(existing);
     }
     let profiles = ir
         .invariants
@@ -218,14 +214,11 @@ fn resolve_rule_fallback(
         local_rule_fields(ir, model.id, &rule.pred)
             .or_else(|| {
                 checked_context.and_then(|(program, db, catalog)| {
-                    checked_local_rule_fields(
-                        program, ir, model.id, &rule.pred, db, catalog,
-                    )
+                    checked_local_rule_fields(program, ir, model.id, &rule.pred, db, catalog)
                 })
             })
             .or_else(|| {
-                checked_profiles
-                    .and_then(|_| required_model_rule_fields(ir, model.id, &rule.pred))
+                checked_profiles.and_then(|_| required_model_rule_fields(ir, model.id, &rule.pred))
             })
             .or_else(|| {
                 checked_profiles
@@ -357,7 +350,9 @@ fn collect_invariant_rule(
         checked_context.and_then(|(program, db, catalog)| {
             checked_query_rule_fields(program, ir, model.id, &rule.pred, db, catalog)
         })
-    } else { None };
+    } else {
+        None
+    };
     resolve_rule_fallback(
         ir,
         model,
@@ -465,15 +460,20 @@ fn collect_lock_rule(
             checked_query_rule_fields(program, ir, model.id, predicate, db, catalog)
         });
         if profile.is_none() {
-            checked_local_body = checked_context.is_some_and(|(program, db, catalog)|
-                checked_local_rule_fields(program, ir, model.id, predicate, db, catalog).is_some());
+            checked_local_body = checked_context.is_some_and(|(program, db, catalog)| {
+                checked_local_rule_fields(program, ir, model.id, predicate, db, catalog).is_some()
+            });
             if !checked_local_body {
-                local_rule_fields(ir, model.id, predicate)
-                    .or_else(|| checked_profiles.and_then(|_| required_model_rule_fields(ir, model.id, predicate)))?;
+                local_rule_fields(ir, model.id, predicate).or_else(|| {
+                    checked_profiles
+                        .and_then(|_| required_model_rule_fields(ir, model.id, predicate))
+                })?;
             }
         }
         profile
-    } else { None };
+    } else {
+        None
+    };
     let id = format!("{owner_package}.{}", origin.registry_id);
     rules.push((
         origin.ordinal,
@@ -489,9 +489,15 @@ fn collect_lock_rule(
         kind: origin.kind,
         predicate: rule.when.clone(),
         current_revision: None,
-        checked_body: lock_profile.is_some() || checked_local_body || checked_profiles.is_some() && rule.when.as_ref()
-            .is_some_and(|predicate| required_model_rule_fields(ir,model.id,predicate).is_some()),
-        query_models: lock_profile.map(|profile| profile.query_models).unwrap_or_default(),
+        checked_body: lock_profile.is_some()
+            || checked_local_body
+            || checked_profiles.is_some()
+                && rule.when.as_ref().is_some_and(|predicate| {
+                    required_model_rule_fields(ir, model.id, predicate).is_some()
+                }),
+        query_models: lock_profile
+            .map(|profile| profile.query_models)
+            .unwrap_or_default(),
     });
     Some(())
 }
@@ -656,4 +662,3 @@ fn collect_policies(
         )
     }
 }
-

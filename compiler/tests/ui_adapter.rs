@@ -352,13 +352,17 @@ fn original_loyalty_bound_panels_keep_their_checked_cases_labels_and_bodies_in_i
         "{timeline:?}"
     );
     assert!(
-        timeline.props.iter().any(|(key, value)| key == "page"
-            && matches!(value.expr, IrExpr::Bool(true))),
+        timeline
+            .props
+            .iter()
+            .any(|(key, value)| key == "page" && matches!(value.expr, IrExpr::Bool(true))),
         "{timeline:?}"
     );
     assert!(timeline.row_scope.is_some(), "{timeline:?}");
     assert!(
-        !diagnostics.iter().any(|diagnostic| diagnostic.message.contains("timeline")),
+        !diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("timeline")),
         "{diagnostics:?}"
     );
     assert!(
@@ -940,7 +944,10 @@ fn unsupported_ui_payloads_refuse_instead_of_losing_authored_meaning() {
     use std::process::Command;
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
     for (body, profile) in [
-        ("  card unknown=true\n   text \"Body\"\n", "unsupported attribute"),
+        (
+            "  card unknown=true\n   text \"Body\"\n",
+            "unsupported attribute",
+        ),
         (
             "  details \"Caption\" display=drawer\n   text \"Body\"\n",
             "details",

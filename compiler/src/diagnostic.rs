@@ -388,4 +388,3 @@ fn single_line(message: &str) -> String {
 pub fn push_json_str(out: &mut String, s: &str) {
     out.push_str(&crate::json::to_compact_string(s).expect("JSON string must serialize"));
 }
-

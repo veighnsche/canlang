@@ -792,4 +792,3 @@ fn names_list(names: &[String]) -> String {
         .collect::<Vec<_>>()
         .join(",")
 }
-

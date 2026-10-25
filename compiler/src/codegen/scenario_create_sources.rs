@@ -3,16 +3,16 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::analysis::NodeKey;
-use crate::analysis::resolve::{ModelOwner, ModuleKind, SymbolId};
 use crate::analysis::effects::{
     FieldData, InvariantRule, LockRule, ModelData, RetainRule, UniqueRule,
 };
+use crate::analysis::resolve::{ModelOwner, ModuleKind, SymbolId};
 use crate::analysis::scenario_disclosure::{
     CheckedDecisionCall, CheckedDecisionCallFrame, CheckedDecisionCallTarget, CheckedDecisionSite,
     CheckedInlineSelectionSource, CheckedScenarioCreate, CheckedScenarioCreatedField,
     CheckedScenarioCreatedModel, CheckedScenarioParameter, CheckedScenarioSource,
     CheckedStoredContractSchema, CheckedTranscriptSource, DependencyRole, DisclosureQuery,
-    DisclosureSource, ScenarioDisclosure,
+    DisclosureSource,
 };
 use crate::analysis::types::{
     CheckedCollectionCall, CheckedQuery, CheckedQueryClause, ResolvedType, Scalar,
@@ -34,15 +34,21 @@ use super::js::{Emitter, JsModel, js_field_default, literal_json};
 /// E6007/E6008 gaps) must not orphan exactly-bound derives, while an affected
 /// model/member stays refused with its exact codes. This mirrors the
 /// membership bridge and query-diagnostic seals.
-fn checked_fresh_derived_member(context: &super::source_context::FreshSourceContext<'_>,
-    ir: &IrProgram, model: &IrItem, member: &IrItem, db: &SourceDb) -> Option<()> {
+fn checked_fresh_derived_member(
+    context: &super::source_context::FreshSourceContext<'_>,
+    ir: &IrProgram,
+    model: &IrItem,
+    member: &IrItem,
+    db: &SourceDb,
+) -> Option<()> {
     if !std::ptr::eq(context.ir(), ir) || !std::ptr::eq(context.db(), db) {
         return None;
     }
     let expected_model = context.fresh().items.get(model.id.0 as usize)?;
     let expected_member = context.fresh().items.get(member.id.0 as usize)?;
     if format!("{model:?}") != format!("{expected_model:?}")
-        || format!("{member:?}") != format!("{expected_member:?}") {
+        || format!("{member:?}") != format!("{expected_member:?}")
+    {
         return None;
     }
     let overlaps = |a: crate::source::Span, b: crate::source::Span| {
@@ -55,10 +61,10 @@ fn checked_fresh_derived_member(context: &super::source_context::FreshSourceCont
     // Diagnostics overlapping any of them veto, while unrelated refusals
     // elsewhere (e.g. presentation-page gaps) still do not.
     let mut veto = vec![model.span, member.span];
-    if let super::ir::IrItemKind::DeriveField { expr, .. } = &member.kind {
-        if let Some(body) = expr {
-            veto.push(body.span);
-        }
+    if let super::ir::IrItemKind::DeriveField { expr, .. } = &member.kind
+        && let Some(body) = expr
+    {
+        veto.push(body.span);
     }
     if let Some(derive) = context.program().effects.derives.get(&member.id) {
         veto.push(crate::source::Span {
@@ -78,7 +84,10 @@ fn checked_fresh_derived_member(context: &super::source_context::FreshSourceCont
         diagnostic.severity == crate::diagnostic::Severity::Error
             && veto.iter().any(|span| {
                 overlaps(*span, diagnostic.primary)
-                    || diagnostic.related.iter().any(|related| overlaps(*span, related.span))
+                    || diagnostic
+                        .related
+                        .iter()
+                        .any(|related| overlaps(*span, related.span))
             })
     }) {
         return None;
@@ -102,9 +111,7 @@ fn check_derived_member(
             return None;
         }
     };
-    if checked_fresh_derived_member(context, ir, model, member, db).is_none() {
-        return None;
-    }
+    checked_fresh_derived_member(context, ir, model, member, db)?;
     if member.canonical != format!("{}.{}", model.canonical, member.name) {
         return None;
     }
@@ -255,8 +262,7 @@ fn check_field_naming(
         || field.module != model.module
         || field.name != original_field.name
         || field.canonical != original_field.canonical
-        || text.get(field.span.start as usize..field.span.end as usize)
-            != Some(field.name.as_str())
+        || text.get(field.span.start as usize..field.span.end as usize) != Some(field.name.as_str())
         || field.span.file != data.node.file
         || field.span.start < data.node.start
         || field.span.end > data.node.end
@@ -356,9 +362,12 @@ fn check_field_default(
 ) -> Option<()> {
     match (default, data_default) {
         (None, None)
-            if original_field.modifier_sources.first().is_none_or(
-                |(_, _, _, _, values)| values.iter().all(|value| value.default.is_none()),
-            ) => {}
+            if original_field
+                .modifier_sources
+                .first()
+                .is_none_or(|(_, _, _, _, values)| {
+                    values.iter().all(|value| value.default.is_none())
+                }) => {}
         (Some(IrDefault::Literal(actual)), None) => {
             check_bare_literal_default(original_field, ty, field_span, actual, default)?;
         }
@@ -385,8 +394,7 @@ fn check_field_server(
         (Some(IrServer::Actor), Some(node))
             if matcher.word(node)? == "actor" && *ty == ResolvedType::Scalar(Scalar::User) => {}
         (Some(IrServer::Now), Some(node))
-            if matcher.word(node)? == "now"
-                && *ty == ResolvedType::Scalar(Scalar::Datetime) => {}
+            if matcher.word(node)? == "now" && *ty == ResolvedType::Scalar(Scalar::Datetime) => {}
         _ => return None,
     }
     Some(())
@@ -401,21 +409,32 @@ fn checked_fresh_scalar_alias_modifiers(
     actual: &super::ir::IrModifiers,
     db: &SourceDb,
 ) -> Option<()> {
-    if !std::ptr::eq(context.ir(), ir) || !std::ptr::eq(context.db(), db)
-        || field.reuse.is_none() || field.modifier_sources.is_empty()
-        || field.modifier_sources.len() > 128 { return None; }
+    if !std::ptr::eq(context.ir(), ir)
+        || !std::ptr::eq(context.db(), db)
+        || field.reuse.is_none()
+        || field.modifier_sources.is_empty()
+        || field.modifier_sources.len() > 128
+    {
+        return None;
+    }
     let mut ty = &field.ty;
     while let ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } = ty {
         ty = inner;
     }
     if !matches!(ty, ResolvedType::Scalar(scalar)
-        if !matches!(scalar, Scalar::File | Scalar::Secret | Scalar::Member | Scalar::Json | Scalar::Bytes)) {
+        if !matches!(scalar, Scalar::File | Scalar::Secret | Scalar::Member | Scalar::Json | Scalar::Bytes))
+    {
         return None;
     }
     let mut seen = HashSet::new();
     for (index, (data, origin, ty, reuse, _)) in field.modifier_sources.iter().enumerate() {
         if !seen.insert(data.field)
-            || *reuse != field.modifier_sources.get(index + 1).map(|entry| entry.0.field) {
+            || *reuse
+                != field
+                    .modifier_sources
+                    .get(index + 1)
+                    .map(|entry| entry.0.field)
+        {
             return None;
         }
         let current = ir.items.get(data.field.0 as usize)?;
@@ -423,27 +442,45 @@ fn checked_fresh_scalar_alias_modifiers(
         if format!("{current:?}") != format!("{fresh:?}")
             || !matches!(&current.kind, IrItemKind::Field {ty: IrType::Known(actual_ty), ..}
                 if actual_ty == ty)
-            || context.original().types.field_reuse_sources.get(&data.field).copied() != *reuse {
+            || context
+                .original()
+                .types
+                .field_reuse_sources
+                .get(&data.field)
+                .copied()
+                != *reuse
+        {
             return None;
         }
         source(ir, origin, current.span, db)?;
         source(ir, origin, span(data.node), db)?;
         let scope = span(data.node);
-        let overlaps = |candidate: Span| scope.file == candidate.file
-            && scope.start <= candidate.end && candidate.start <= scope.end;
-        if context.ir_diagnostics().iter().any(|diagnostic|
+        let overlaps = |candidate: Span| {
+            scope.file == candidate.file
+                && scope.start <= candidate.end
+                && candidate.start <= scope.end
+        };
+        if context.ir_diagnostics().iter().any(|diagnostic| {
             diagnostic.severity == crate::diagnostic::Severity::Error
                 && (overlaps(diagnostic.primary)
-                    || diagnostic.related.iter().any(|related| overlaps(related.span)))) {
+                    || diagnostic
+                        .related
+                        .iter()
+                        .any(|related| overlaps(related.span)))
+        }) {
             return None;
         }
     }
     let item = ir.items.get(field.field.0 as usize)?;
-    let IrItemKind::Field { modifiers, .. } = &item.kind else { return None; };
+    let IrItemKind::Field { modifiers, .. } = &item.kind else {
+        return None;
+    };
     (field.modifier_sources[0].0.field == field.field
         && field.modifier_sources[0].3 == field.reuse
-        && item.canonical == field.canonical && item.name == field.name
-        && format!("{modifiers:?}") == format!("{actual:?}")).then_some(())
+        && item.canonical == field.canonical
+        && item.name == field.name
+        && format!("{modifiers:?}") == format!("{actual:?}"))
+    .then_some(())
 }
 
 fn check_field_modifiers(
@@ -457,19 +494,27 @@ fn check_field_modifiers(
     source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<()> {
     let (trim, unique, machine, minimum, maximum) = collect_field_flags(data)?;
-    if original_field.modifier_sources.len() > 1 || original_field
-        .modifier_sources
-        .iter()
-        .any(|(_, _, _, _, given)| !given.is_empty())
+    if original_field.modifier_sources.len() > 1
+        || original_field
+            .modifier_sources
+            .iter()
+            .any(|(_, _, _, _, given)| !given.is_empty())
     {
         let mut base = &original_field.ty;
-        while let ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } = base {
+        while let ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } = base
+        {
             base = inner;
         }
         let scalar_alias = matches!(base, ResolvedType::Scalar(scalar)
             if !matches!(scalar, Scalar::File | Scalar::Secret | Scalar::Member | Scalar::Json | Scalar::Bytes));
         if original_field.reuse.is_some() && scalar_alias {
-            checked_fresh_scalar_alias_modifiers(source_context?, ir, original_field, modifiers, db)?;
+            checked_fresh_scalar_alias_modifiers(
+                source_context?,
+                ir,
+                original_field,
+                modifiers,
+                db,
+            )?;
         } else {
             checked_field_trait_modifiers(ir, original, original_field, modifiers, db)?;
         }
@@ -477,12 +522,20 @@ fn check_field_modifiers(
             return None;
         }
     } else {
-        if modifiers.trim != trim || modifiers.unique != unique || modifiers.machine != machine
-        {
+        if modifiers.trim != trim || modifiers.unique != unique || modifiers.machine != machine {
             return None;
         }
-        for (value,node) in [(modifiers.min.as_ref(),minimum),(modifiers.max.as_ref(),maximum)]{
-            match(value,node){(None,None)=>{},(Some(value),Some(node))=>checked_field_literal_expression(matcher,value,node,&original_field.ty)?,_=>return None}
+        for (value, node) in [
+            (modifiers.min.as_ref(), minimum),
+            (modifiers.max.as_ref(), maximum),
+        ] {
+            match (value, node) {
+                (None, None) => {}
+                (Some(value), Some(node)) => {
+                    checked_field_literal_expression(matcher, value, node, &original_field.ty)?
+                }
+                _ => return None,
+            }
         }
     }
     Some(())
@@ -531,10 +584,26 @@ fn check_declared_field(
     source(ir, &original_field.source, span(data.node), db)?;
     check_field_syntax(nodes, data, field)?;
     check_field_reference(ir, owner, model, data, original_field, ty, text, db)?;
-    let checked_default=check_field_default(matcher,default,data.default,original_field,ty,field.span);
+    let checked_default = check_field_default(
+        matcher,
+        default,
+        data.default,
+        original_field,
+        ty,
+        field.span,
+    );
     checked_default?;
     check_field_server(matcher, server, data.server, ty)?;
-    check_field_modifiers(ir, matcher, original, original_field, data, modifiers, db, source_context)?;
+    check_field_modifiers(
+        ir,
+        matcher,
+        original,
+        original_field,
+        data,
+        modifiers,
+        db,
+        source_context,
+    )?;
     Some(())
 }
 
@@ -710,7 +779,16 @@ fn check_schema_rules(
         return None;
     }
     for (index, (original_rule, actual)) in declaration.locks.iter().zip(actual_locks).enumerate() {
-        check_schema_lock(matcher, ir, model, original_rule, actual, locks, index, prefix)?;
+        check_schema_lock(
+            matcher,
+            ir,
+            model,
+            original_rule,
+            actual,
+            locks,
+            index,
+            prefix,
+        )?;
     }
     for (index, (original_rule, actual)) in declaration.uniques.iter().zip(uniques).enumerate() {
         check_schema_unique(matcher, ir, actual, original_rule, prefix, index)?;
@@ -726,44 +804,91 @@ fn check_schema_rules(
 
 /// Authenticate complex owning rules against independent source lowering.
 /// The normal runtime invariant/lock/unique/retention evaluators still run.
-fn checked_fresh_model_rules(context: &super::source_context::FreshSourceContext<'_>,
-    ir: &IrProgram, model: &IrItem, db: &SourceDb) -> Option<()> {
-    if !std::ptr::eq(context.ir(), ir) || !std::ptr::eq(context.db(), db)
-        || format!("{model:?}") != format!("{:?}",context.fresh().items.get(model.id.0 as usize)?)
-    { return None; }
+fn checked_fresh_model_rules(
+    context: &super::source_context::FreshSourceContext<'_>,
+    ir: &IrProgram,
+    model: &IrItem,
+    db: &SourceDb,
+) -> Option<()> {
+    if !std::ptr::eq(context.ir(), ir)
+        || !std::ptr::eq(context.db(), db)
+        || format!("{model:?}") != format!("{:?}", context.fresh().items.get(model.id.0 as usize)?)
+    {
+        return None;
+    }
     let declaration = context.original().effects.models.get(&model.id)?;
     let mut scopes = vec![span(declaration.node)];
     scopes.extend(declaration.invariants.iter().map(|rule| span(rule.node)));
     scopes.extend(declaration.locks.iter().map(|rule| span(rule.node)));
     scopes.extend(declaration.uniques.iter().map(|rule| span(rule.node)));
     scopes.extend(declaration.retains.iter().map(|rule| span(rule.node)));
-    if context.ir_diagnostics().iter().any(|diagnostic|
-        diagnostic.severity == crate::diagnostic::Severity::Error && scopes.iter().any(|scope| {
-            let overlaps = |candidate: crate::source::Span| scope.file == candidate.file
-                && scope.start <= candidate.end && candidate.start <= scope.end;
-            overlaps(diagnostic.primary) || diagnostic.related.iter().any(|related| overlaps(related.span))
-        })) { return None; }
+    if context.ir_diagnostics().iter().any(|diagnostic| {
+        diagnostic.severity == crate::diagnostic::Severity::Error
+            && scopes.iter().any(|scope| {
+                let overlaps = |candidate: crate::source::Span| {
+                    scope.file == candidate.file
+                        && scope.start <= candidate.end
+                        && candidate.start <= scope.end
+                };
+                overlaps(diagnostic.primary)
+                    || diagnostic
+                        .related
+                        .iter()
+                        .any(|related| overlaps(related.span))
+            })
+    }) {
+        return None;
+    }
     let prefix = ir_model_rule_prefix(ir, model);
-    let owned = |rule: &&IrRuleFn| rule.origin.as_ref().is_some_and(|origin| origin.model == model.id)
-        || rule.id.starts_with(&format!("{prefix}.unique."));
+    let owned = |rule: &&IrRuleFn| {
+        rule.origin
+            .as_ref()
+            .is_some_and(|origin| origin.model == model.id)
+            || rule.id.starts_with(&format!("{prefix}.unique."))
+    };
     let actual: Vec<_> = ir.invariants.iter().filter(owned).collect();
     let expected: Vec<_> = context.fresh().invariants.iter().filter(owned).collect();
-    if format!("{actual:?}") != format!("{expected:?}") { return None; }
+    if format!("{actual:?}") != format!("{expected:?}") {
+        return None;
+    }
     for (actual, expected) in actual.iter().zip(expected) {
         context.same_expression(&actual.pred, &expected.pred)?;
     }
-    let actual: Vec<_> = ir.locks.iter().filter(|rule| rule.origin.model == model.id).collect();
-    let expected: Vec<_> = context.fresh().locks.iter().filter(|rule| rule.origin.model == model.id).collect();
-    if format!("{actual:?}") != format!("{expected:?}") { return None; }
+    let actual: Vec<_> = ir
+        .locks
+        .iter()
+        .filter(|rule| rule.origin.model == model.id)
+        .collect();
+    let expected: Vec<_> = context
+        .fresh()
+        .locks
+        .iter()
+        .filter(|rule| rule.origin.model == model.id)
+        .collect();
+    if format!("{actual:?}") != format!("{expected:?}") {
+        return None;
+    }
     for (actual, expected) in actual.iter().zip(expected) {
         match (&actual.when, &expected.when) {
             (Some(actual), Some(expected)) => context.same_expression(actual, expected)?,
-            (None, None) => {}, _ => return None,
+            (None, None) => {}
+            _ => return None,
         }
     }
-    let actual: Vec<_> = ir.retention.iter().filter(|rule| rule.name == prefix).collect();
-    let expected: Vec<_> = context.fresh().retention.iter().filter(|rule| rule.name == prefix).collect();
-    if format!("{actual:?}") != format!("{expected:?}") { return None; }
+    let actual: Vec<_> = ir
+        .retention
+        .iter()
+        .filter(|rule| rule.name == prefix)
+        .collect();
+    let expected: Vec<_> = context
+        .fresh()
+        .retention
+        .iter()
+        .filter(|rule| rule.name == prefix)
+        .collect();
+    if format!("{actual:?}") != format!("{expected:?}") {
+        return None;
+    }
     for (actual, expected) in actual.iter().zip(expected) {
         context.same_expression(&actual.body, &expected.body)?;
     }
@@ -884,13 +1009,25 @@ fn check_bare_literal_default(
 
 /// The checker promotes an authored integer token into its owning Decimal
 /// default/bound. Compare the token/value without discarding that target type.
-fn checked_field_literal_expression(matcher:&SourceExpressions<'_>,actual:&TypedExpr,node:NodeKey,
-    ty:&ResolvedType)->Option<()>{
-    if actual.ty==ResolvedType::Scalar(Scalar::Decimal) && *ty==actual.ty
-        && matches!(actual.expr,IrExpr::Int(_)) && node.kind==SyntaxKind::Literal as u8{
-        let literal=TypedExpr{ty:ResolvedType::Scalar(Scalar::Int),..actual.clone()};
-        matcher.expression(&literal,node,0)
-    }else{matcher.expression(actual,node,0)}
+fn checked_field_literal_expression(
+    matcher: &SourceExpressions<'_>,
+    actual: &TypedExpr,
+    node: NodeKey,
+    ty: &ResolvedType,
+) -> Option<()> {
+    if actual.ty == ResolvedType::Scalar(Scalar::Decimal)
+        && *ty == actual.ty
+        && matches!(actual.expr, IrExpr::Int(_))
+        && node.kind == SyntaxKind::Literal as u8
+    {
+        let literal = TypedExpr {
+            ty: ResolvedType::Scalar(Scalar::Int),
+            ..actual.clone()
+        };
+        matcher.expression(&literal, node, 0)
+    } else {
+        matcher.expression(actual, node, 0)
+    }
 }
 
 fn check_named_literal_default(
@@ -900,7 +1037,7 @@ fn check_named_literal_default(
     default: &Option<IrDefault>,
     ty: &ResolvedType,
 ) -> Option<()> {
-    checked_field_literal_expression(matcher,actual,node,ty)?;
+    checked_field_literal_expression(matcher, actual, node, ty)?;
     if literal_json(actual).is_none() || js_field_default(default.as_ref(), None).is_none() {
         return None;
     }
@@ -941,13 +1078,7 @@ fn check_actor_default(
 
 fn collect_field_flags(
     data: &FieldData,
-) -> Option<(
-    bool,
-    bool,
-    bool,
-    Option<NodeKey>,
-    Option<NodeKey>,
-)> {
+) -> Option<(bool, bool, bool, Option<NodeKey>, Option<NodeKey>)> {
     let mut trim = false;
     let mut unique = false;
     let mut machine = false;
@@ -988,7 +1119,17 @@ pub(super) fn checked_created_schema(
     ) = load_created_model(ir, owner, original, db)?;
     let stored_fields = collect_stored_fields(ir, model, fields, source_context, db)?;
     let _authored = match_authored_fields(definition, &stored_fields, declaration)?;
-    check_schema_identity(model, owner, original, definition, declaration, actual_owner, expected_owner, fields, &stored_fields)?;
+    check_schema_identity(
+        model,
+        owner,
+        original,
+        definition,
+        declaration,
+        actual_owner,
+        expected_owner,
+        fields,
+        &stored_fields,
+    )?;
     let (tree, text) = load_declaration_tree(ir, db, definition, declaration, model)?;
     let mut nodes = HashMap::new();
     let mut pending = vec![&tree];
@@ -1014,38 +1155,86 @@ pub(super) fn checked_created_schema(
         query_alias: None,
     };
     for (data, original_field) in declaration.fields.iter().zip(&definition.fields) {
-        let field=check_declared_field(&matcher,ir,owner,model,original,definition,data,original_field,text,&nodes,db,source_context);
+        let field = check_declared_field(
+            &matcher,
+            ir,
+            owner,
+            model,
+            original,
+            definition,
+            data,
+            original_field,
+            text,
+            &nodes,
+            db,
+            source_context,
+        );
         field?;
     }
     for original_field in &definition.contributed {
         checked_contributed_field(ir, model, original_field, db)?;
     }
     let prefix = ir_model_rule_prefix(ir, model);
-    check_schema_rules(&matcher, ir, model, declaration, invariants, locks, uniques, retain, prefix)
-        .or_else(|| checked_fresh_model_rules(source_context?, ir, model, db))?;
+    check_schema_rules(
+        &matcher,
+        ir,
+        model,
+        declaration,
+        invariants,
+        locks,
+        uniques,
+        retain,
+        prefix,
+    )
+    .or_else(|| checked_fresh_model_rules(source_context?, ir, model, db))?;
     // A local declared delivery can be retained as an untouched null slot.
     // Its complete operation/version/result schema must still agree with the
     // independent original lowering; this issues no non-null receipt value.
-    if stored_fields.iter().filter_map(|id|ir.items.get(id.0 as usize)).any(|field| matches!(&field.kind,
+    if stored_fields
+        .iter()
+        .filter_map(|id| ir.items.get(id.0 as usize))
+        .any(|field| {
+            matches!(&field.kind,
         IrItemKind::Field {ty:IrType::Known(ResolvedType::Nullable(inner)),..}
-            if matches!(inner.as_ref(),ResolvedType::Delivery {..}))) {
+            if matches!(inner.as_ref(),ResolvedType::Delivery {..}))
+        })
+    {
         let context = source_context?;
         for id in &stored_fields {
             let field = ir.items.get(id.0 as usize)?;
-            if let IrItemKind::Field {ty:IrType::Known(ResolvedType::Nullable(inner)),default,..} = &field.kind
-                && let ResolvedType::Delivery {op} = inner.as_ref() {
-                super::source_correspondence::same_capability_operation(context,*op)?;
-                if original.inputs.iter().any(|input| input.field == Some(field.id))
-                    || !(default.is_none() || matches!(default,Some(IrDefault::Literal(value)) if value.ty == ResolvedType::Null && matches!(value.expr,IrExpr::Null))) {
+            if let IrItemKind::Field {
+                ty: IrType::Known(ResolvedType::Nullable(inner)),
+                default,
+                ..
+            } = &field.kind
+                && let ResolvedType::Delivery { op } = inner.as_ref()
+            {
+                super::source_correspondence::same_capability_operation(context, *op)?;
+                if original
+                    .inputs
+                    .iter()
+                    .any(|input| input.field == Some(field.id))
+                    || !(default.is_none()
+                        || matches!(default,Some(IrDefault::Literal(value)) if value.ty == ResolvedType::Null && matches!(value.expr,IrExpr::Null)))
+                {
                     return None;
                 }
             }
         }
-        let expected = Emitter::source_models(context.fresh(),db)?;
-        let mut generated = expected.iter().filter(|descriptor| descriptor.name == model.canonical);
-        let mut supplied = models.iter().filter(|descriptor| descriptor.name == model.canonical);
-        if serde_json::to_value(generated.next()?).ok()? != serde_json::to_value(supplied.next()?).ok()?
-            || generated.next().is_some() || supplied.next().is_some() { return None; }
+        let expected = Emitter::source_models(context.fresh(), db)?;
+        let mut generated = expected
+            .iter()
+            .filter(|descriptor| descriptor.name == model.canonical);
+        let mut supplied = models
+            .iter()
+            .filter(|descriptor| descriptor.name == model.canonical);
+        if serde_json::to_value(generated.next()?).ok()?
+            != serde_json::to_value(supplied.next()?).ok()?
+            || generated.next().is_some()
+            || supplied.next().is_some()
+        {
+            return None;
+        }
     }
     check_emitted_descriptor(ir, db, models, model)
 }
@@ -1106,11 +1295,7 @@ fn classify_module_declaration(declaration: &SyntaxNode, text: &str) -> Option<M
     Some(declaration_kind)
 }
 
-fn check_model_declaration(
-    declaration: &SyntaxNode,
-    text: &str,
-    item: &IrItem,
-) -> Option<()> {
+fn check_model_declaration(declaration: &SyntaxNode, text: &str, item: &IrItem) -> Option<()> {
     let mut pending = vec![declaration];
     let mut matching = 0;
     while let Some(node) = pending.pop() {
@@ -1240,7 +1425,12 @@ fn find_import_candidate(
     let [(import, (_, _, member_span))] = candidates.as_slice() else {
         return None;
     };
-    Some((import.span, import.provider_span, *member_span, import.from.clone()))
+    Some((
+        import.span,
+        import.provider_span,
+        *member_span,
+        import.from.clone(),
+    ))
 }
 
 fn check_import_from(
@@ -1341,8 +1531,7 @@ fn reference_name_in_module(
         .children
         .iter()
         .find(|node| node.kind == SyntaxKind::Import && node.span == import_span)?;
-    if text.get(provider_span.start as usize..provider_span.end as usize)
-        != Some(provider.as_str())
+    if text.get(provider_span.start as usize..provider_span.end as usize) != Some(provider.as_str())
     {
         return None;
     }
@@ -1631,9 +1820,7 @@ fn trait_literal_value(
                 .iter()
                 .find_map(|part| part.token().map(|token| (part.kind, token)))?;
             match token.0 {
-                SyntaxKind::Integer => {
-                    IrExpr::Int(token.1.text(matcher.text).parse().ok()?)
-                }
+                SyntaxKind::Integer => IrExpr::Int(token.1.text(matcher.text).parse().ok()?),
                 SyntaxKind::Decimal => IrExpr::Decimal(token.1.text(matcher.text).into()),
                 _ => return None,
             }
@@ -1647,7 +1834,11 @@ fn trait_literal_value(
             }
             IrExpr::Unary {
                 op: IrUnOp::Neg,
-                operand: Box::new(trait_literal_value(matcher, expressions(node).first()?, ty)?),
+                operand: Box::new(trait_literal_value(
+                    matcher,
+                    expressions(node).first()?,
+                    ty,
+                )?),
             }
         }
         _ => return None,
@@ -1675,7 +1866,12 @@ fn load_trait_item<'x>(
     ir: &'x IrProgram,
     data: &FieldData,
     ty: &ResolvedType,
-) -> Option<(&'x IrItem, &'x IrItem, &'x ResolvedType, &'x super::ir::IrModifiers)> {
+) -> Option<(
+    &'x IrItem,
+    &'x IrItem,
+    &'x ResolvedType,
+    &'x super::ir::IrModifiers,
+)> {
     let item = ir.items.get(data.field.0 as usize)?;
     let IrItemKind::Field {
         owner,
@@ -1729,13 +1925,27 @@ fn check_trait_reuse(
 ) -> Option<()> {
     let mut type_node = *nodes.get(&data.type_node)?;
     for _ in 0..16 {
-        if !matches!(type_node.kind, SyntaxKind::NullableType | SyntaxKind::ArrayType) { break; }
-        let mut children = type_node.children.iter().filter(|node|
-            matches!(node.kind, SyntaxKind::NamedType | SyntaxKind::NullableType | SyntaxKind::ArrayType));
+        if !matches!(
+            type_node.kind,
+            SyntaxKind::NullableType | SyntaxKind::ArrayType
+        ) {
+            break;
+        }
+        let mut children = type_node.children.iter().filter(|node| {
+            matches!(
+                node.kind,
+                SyntaxKind::NamedType | SyntaxKind::NullableType | SyntaxKind::ArrayType
+            )
+        });
         type_node = children.next()?;
-        if children.next().is_some() { return None; }
+        if children.next().is_some() {
+            return None;
+        }
     }
-    let path = type_node.children.iter().find(|node| node.kind == SyntaxKind::Path)?;
+    let path = type_node
+        .children
+        .iter()
+        .find(|node| node.kind == SyntaxKind::Path)?;
     let spelling = path
         .children
         .iter()
@@ -1861,7 +2071,17 @@ fn join_trait_source(
         else {
             return None;
         };
-        check_trait_reuse(ir, db, &matcher, &nodes, text, data, owner, target, target_owner)?;
+        check_trait_reuse(
+            ir,
+            db,
+            &matcher,
+            &nodes,
+            text,
+            data,
+            owner,
+            target,
+            target_owner,
+        )?;
     }
     let bound_ty = super::ir::given_bound_type(ty);
     for modifier in &data.modifiers {
@@ -1921,7 +2141,18 @@ fn checked_field_trait_modifiers(
         if !seen.insert(data.field) || *reuse != sources.get(index + 1).map(|value| value.0.field) {
             return None;
         }
-        join_trait_source(ir, db, original, data, origin, ty, reuse, given, actual, &mut expected)?;
+        join_trait_source(
+            ir,
+            db,
+            original,
+            data,
+            origin,
+            ty,
+            reuse,
+            given,
+            actual,
+            &mut expected,
+        )?;
     }
     check_trait_bounds(actual, &expected)
 }
@@ -2080,24 +2311,64 @@ fn static_message_text_matches(
     declaration: &SyntaxNode,
     text: &str,
 ) -> Option<()> {
-    let source = node.children.iter().find(|child| child.kind == SyntaxKind::Literal)?;
-    let text_value = source.children.iter().find(|child| child.kind == SyntaxKind::String)?.token()?.string_value.as_ref()?;
+    let source = node
+        .children
+        .iter()
+        .find(|child| child.kind == SyntaxKind::Literal)?;
+    let text_value = source
+        .children
+        .iter()
+        .find(|child| child.kind == SyntaxKind::String)?
+        .token()?
+        .string_value
+        .as_ref()?;
     let source_lang = crate::analysis::attribute_value(declaration, "source", text)
-        .and_then(|value| value.children.iter().find(|child| child.kind == SyntaxKind::String))
-        .and_then(|string| string.token()?.string_value.as_ref()).map(String::as_str).unwrap_or("en");
-    let variants = node.children.iter().filter(|child| child.kind == SyntaxKind::MessageVariant)
+        .and_then(|value| {
+            value
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::String)
+        })
+        .and_then(|string| string.token()?.string_value.as_ref())
+        .map(String::as_str)
+        .unwrap_or("en");
+    let variants = node
+        .children
+        .iter()
+        .filter(|child| child.kind == SyntaxKind::MessageVariant)
         .map(|variant| {
-            let locale = variant.children.iter().find(|child| child.kind == SyntaxKind::Name)?.token()?.text(text).to_string();
-            let literal = variant.children.iter().find(|child| child.kind == SyntaxKind::Literal)?;
-            let value = match literal.children.iter().find(|child| child.kind == SyntaxKind::String) {
+            let locale = variant
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Name)?
+                .token()?
+                .text(text)
+                .to_string();
+            let literal = variant
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Literal)?;
+            let value = match literal
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::String)
+            {
                 Some(string) => Some(string.token()?.string_value.clone()?),
-                None if text.get(literal.span.start as usize..literal.span.end as usize) == Some("null") => None,
+                None if text.get(literal.span.start as usize..literal.span.end as usize)
+                    == Some("null") =>
+                {
+                    None
+                }
                 _ => return None,
             };
             Some((locale, value))
-        }).collect::<Option<Vec<_>>>()?;
-    (message.params.is_empty() && message.source == *text_value
-        && message.source_lang == source_lang && message.variants == variants).then_some(())
+        })
+        .collect::<Option<Vec<_>>>()?;
+    (message.params.is_empty()
+        && message.source == *text_value
+        && message.source_lang == source_lang
+        && message.variants == variants)
+        .then_some(())
 }
 
 /// Join a named descriptor to its original zero-argument source declaration.
@@ -2108,53 +2379,115 @@ pub(super) fn checked_static_named_message(
     actual: &TypedExpr,
     db: &SourceDb,
 ) -> Option<()> {
-    let ResolvedType::Message(id) = &actual.ty else { return None; };
-    let IrExpr::Message(message) = &actual.expr else { return None; };
+    let ResolvedType::Message(id) = &actual.ty else {
+        return None;
+    };
+    let IrExpr::Message(message) = &actual.expr else {
+        return None;
+    };
     let item = ir.items.get(id.0 as usize)?;
-    let IrItemKind::Message { params, descriptor: Some(descriptor) } = &item.kind else { return None; };
+    let IrItemKind::Message {
+        params,
+        descriptor: Some(descriptor),
+    } = &item.kind
+    else {
+        return None;
+    };
     let module = ir.modules.get(item.module.0 as usize)?;
     let receiver = ir.modules.get(receiving.0 as usize)?;
-    if item.id != *id || !params.is_empty() || !descriptor.params.is_empty()
+    if item.id != *id
+        || !params.is_empty()
+        || !descriptor.params.is_empty()
         || item.canonical != format!("{}.{}", module.name, item.name)
-        || actual.span.file != receiver.file || actual.span.start < receiver.span.start
+        || actual.span.file != receiver.file
+        || actual.span.start < receiver.span.start
         || actual.span.end > receiver.span.end
-    { return None; }
+    {
+        return None;
+    }
     for file in [receiver.file, module.file] {
         let original = db.get(file)?;
-        if !ir.committed_sources.sources.iter().any(|(source, path, digest)|
-            *source == file && *path == original.path && *digest == original.sha256)
+        if !ir
+            .committed_sources
+            .sources
+            .iter()
+            .any(|(source, path, digest)| {
+                *source == file && *path == original.path && *digest == original.sha256
+            })
             || original.sha256 != sha256_hex(original.text.as_bytes())
-        { return None; }
+        {
+            return None;
+        }
     }
     let (references, diagnostics) = crate::syntax::parse(db, actual.span.file);
-    if !diagnostics.is_empty() { return None; }
+    if !diagnostics.is_empty() {
+        return None;
+    }
     let reference_text = &db.get(actual.span.file)?.text;
     let mut pending = vec![&references];
     let mut reference = None;
     let mut visits = 0usize;
     while let Some(node) = pending.pop() {
         visits += 1;
-        if visits > 200000 { return None; }
-        if node.span == actual.span && matches!(node.kind, SyntaxKind::NameRef | SyntaxKind::Name | SyntaxKind::Path) {
+        if visits > 200000 {
+            return None;
+        }
+        if node.span == actual.span
+            && matches!(
+                node.kind,
+                SyntaxKind::NameRef | SyntaxKind::Name | SyntaxKind::Path
+            )
+        {
             reference = Some(node);
             break;
         }
         pending.extend(node.children.iter());
     }
-    reference_name_in_module(ir, receiving, *id, single_name(reference?, reference_text)?, db)?;
+    reference_name_in_module(
+        ir,
+        receiving,
+        *id,
+        single_name(reference?, reference_text)?,
+        db,
+    )?;
     let (tree, diagnostics) = crate::syntax::parse(db, module.file);
-    if !diagnostics.is_empty() { return None; }
+    if !diagnostics.is_empty() {
+        return None;
+    }
     let text = &db.get(module.file)?.text;
-    let declaration = tree.children.iter().find(|node|
-        matches!(node.kind, SyntaxKind::App | SyntaxKind::Package) && node.span == module.span)?;
-    let named = declaration.children.iter().filter(|node| node.kind == SyntaxKind::Section)
+    let declaration = tree.children.iter().find(|node| {
+        matches!(node.kind, SyntaxKind::App | SyntaxKind::Package) && node.span == module.span
+    })?;
+    let named = declaration
+        .children
+        .iter()
+        .filter(|node| node.kind == SyntaxKind::Section)
         .flat_map(|section| section.children.iter())
-        .find(|node| node.kind == SyntaxKind::Message && node.children.iter().any(|name|
-            name.kind == SyntaxKind::Name && name.span == item.span && name.token().is_some_and(|token| token.text(text) == item.name)))?;
-    if named.children.iter().any(|node| node.kind == SyntaxKind::Parameter) { return None; }
-    let mut values = named.children.iter().filter(|node| node.kind == SyntaxKind::MessageValue);
+        .find(|node| {
+            node.kind == SyntaxKind::Message
+                && node.children.iter().any(|name| {
+                    name.kind == SyntaxKind::Name
+                        && name.span == item.span
+                        && name
+                            .token()
+                            .is_some_and(|token| token.text(text) == item.name)
+                })
+        })?;
+    if named
+        .children
+        .iter()
+        .any(|node| node.kind == SyntaxKind::Parameter)
+    {
+        return None;
+    }
+    let mut values = named
+        .children
+        .iter()
+        .filter(|node| node.kind == SyntaxKind::MessageValue);
     let value = values.next()?;
-    if values.next().is_some() { return None; }
+    if values.next().is_some() {
+        return None;
+    }
     static_message_text_matches(descriptor, value, declaration, text)?;
     static_message_text_matches(message, value, declaration, text)
 }
@@ -2201,9 +2534,7 @@ impl<'a> SourceExpressions<'a> {
         depth: usize,
     ) -> Option<()> {
         match (value, values) {
-            (Some(value), [authored]) => {
-                self.expression(value, NodeKey::of(authored), depth + 1)
-            }
+            (Some(value), [authored]) => self.expression(value, NodeKey::of(authored), depth + 1),
             (None, []) => Some(()),
             _ => None,
         }
@@ -2297,8 +2628,7 @@ impl<'a> SourceExpressions<'a> {
         {
             return None;
         }
-        let receiver_name =
-            super::scenario_receipts::direct_source_path_name(receiver, self.text)?;
+        let receiver_name = super::scenario_receipts::direct_source_path_name(receiver, self.text)?;
         // 0551: the actual receiver name must be the authored one in
         // every class. Class membership alone (pre-bound param/let)
         // would otherwise admit a same-span/type row swap.
@@ -2351,8 +2681,7 @@ impl<'a> SourceExpressions<'a> {
                     prebound = true;
                 }
             }
-            if !prebound || !matches!(&record.ty, ResolvedType::Record { stored: true, .. })
-            {
+            if !prebound || !matches!(&record.ty, ResolvedType::Record { stored: true, .. }) {
                 let selected = super::scenario_receipts::checked_first_query_row(
                     self.ir, owner, record, self.db,
                 )?;
@@ -2595,10 +2924,7 @@ impl<'a> SourceExpressions<'a> {
 
     /// Match the original inline, WHERE-bound standard message selection.
     /// The source query has no local Contract identity or helper invocation.
-    fn load_inline_fact<'x>(
-        &'x self,
-        key: NodeKey,
-    ) -> Option<&'x CheckedInlineSelectionSource> {
+    fn load_inline_fact(&self, key: NodeKey) -> Option<&CheckedInlineSelectionSource> {
         let source = self.transcript_source()?;
         let mut facts = source
             .inline_selections
@@ -2622,7 +2948,7 @@ impl<'a> SourceExpressions<'a> {
         predicate: &TypedExpr,
         select: &TypedExpr,
         predicate_node: NodeKey,
-        alias_name: &String,
+        alias_name: &str,
     ) -> Option<()> {
         if actual.ty != fact.ty
             || actual.span != span(key)
@@ -2631,7 +2957,7 @@ impl<'a> SourceExpressions<'a> {
             || parent.span != span(fact.parent.node)
             || predicate.span != span(predicate_node)
             || select.span != span(fact.select)
-            || query.select_param.as_deref() != Some(alias_name.as_str())
+            || query.select_param.as_deref() != Some(alias_name)
             || query.where_async
             || query.limit.is_some()
             || query.archived.is_some()
@@ -2728,7 +3054,15 @@ impl<'a> SourceExpressions<'a> {
             return None;
         };
         Self::check_inline_query_shape(
-            actual, key, query, fact, model, parent, predicate, select, predicate_node,
+            actual,
+            key,
+            query,
+            fact,
+            model,
+            parent,
+            predicate,
+            select,
+            predicate_node,
             alias_name,
         )?;
         Self::check_inline_query_order(query, fact)?;
@@ -2736,14 +3070,7 @@ impl<'a> SourceExpressions<'a> {
         // Ordinary query predicates lower their authored alias to `row`; the
         // select expression keeps `prior`. Authenticate that existing rewrite
         // at this exact checked predicate instead of changing source or IR.
-        self.check_inline_predicate(
-            predicate,
-            fact,
-            model,
-            predicate_node,
-            alias_name,
-            depth,
-        )?;
+        self.check_inline_predicate(predicate, fact, model, predicate_node, alias_name, depth)?;
         self.expression(select, fact.select, depth + 1)
     }
 
@@ -3303,16 +3630,16 @@ impl<'a> SourceExpressions<'a> {
     /// admitting its execution. The query and its external predicate share one
     /// original alias scope; ordinary derive fallback must keep this sealed.
     #[allow(clippy::too_many_arguments)]
-    fn load_query_domain<'q>(
-        args: &'q [TypedExpr],
+    fn load_query_domain(
+        args: &[TypedExpr],
     ) -> Option<(
-        &'q TypedExpr,
-        &'q TypedExpr,
-        &'q IrQuery,
-        &'q CheckedQuery,
-        &'q CheckedCollectionCall,
-        &'q CheckedQueryClause,
-        &'q String,
+        &TypedExpr,
+        &TypedExpr,
+        &IrQuery,
+        &CheckedQuery,
+        &CheckedCollectionCall,
+        &CheckedQueryClause,
+        &String,
     )> {
         use crate::analysis::types::CheckedQueryClauseKind;
         let [domain, predicate] = args else {
@@ -3421,7 +3748,7 @@ impl<'a> SourceExpressions<'a> {
         authored_alias: &SyntaxNode,
         alias: &CheckedQueryClause,
         alias_words: &[&str],
-        name: &String,
+        name: &str,
         model: &IrItem,
         query: &IrQuery,
     ) -> Option<()> {
@@ -3436,7 +3763,7 @@ impl<'a> SourceExpressions<'a> {
             || alias.node != NodeKey::of(authored_alias)
             || call.alias != alias.node
             || !alias.expressions.is_empty()
-            || alias_words != ["as", name.as_str()]
+            || alias_words != ["as", name]
             || !matches!(model.kind, IrItemKind::Model { .. })
             || !matches!(&query.domain, super::ir::IrQueryDomain::Model(canonical) if canonical == &model.canonical)
         {
@@ -3542,7 +3869,11 @@ impl<'a> SourceExpressions<'a> {
                     id: id.into(),
                     overload: call.overload,
                 })
-            || original.arguments != vec![(checked.node, array.clone()), (retained_predicate.node, boolean.clone())]
+            || original.arguments
+                != vec![
+                    (checked.node, array.clone()),
+                    (retained_predicate.node, boolean.clone()),
+                ]
             || original.slots.as_slice() != [Some(0), Some(1)]
             || !original.defaults.is_empty()
             || selected.any(|other| {
@@ -3579,20 +3910,43 @@ impl<'a> SourceExpressions<'a> {
         reached: &mut Vec<String>,
         membership: &mut bool,
     ) -> Option<()> {
-        let (domain, predicate, query, checked, call, alias, name) =
-            Self::load_query_domain(args)?;
+        let (domain, predicate, query, checked, call, alias, name) = Self::load_query_domain(args)?;
         let (body, param, retained_predicate, model) = self.load_query_lambda(predicate, call)?;
         let (row, array, boolean) = Self::build_query_call_types(model);
-        let (domain_node, predicate_node, ungrouped_predicate, authored_domain, authored_alias, alias_words) =
-            Self::load_query_call_nodes(node, text)?;
+        let (
+            domain_node,
+            predicate_node,
+            ungrouped_predicate,
+            authored_domain,
+            authored_alias,
+            alias_words,
+        ) = Self::load_query_call_nodes(node, text)?;
         Self::check_query_call_identity(
-            id, node, call, domain_node, checked, authored_domain, authored_alias, alias,
-            &alias_words, name, model, query,
+            id,
+            node,
+            call,
+            domain_node,
+            checked,
+            authored_domain,
+            authored_alias,
+            alias,
+            &alias_words,
+            name,
+            model,
+            query,
         )?;
         Self::check_query_call_types(query, checked, domain, predicate, &array, &boolean)?;
         Self::check_query_call_params(
-            domain, predicate, body, retained_predicate, param, name, &boolean, domain_node,
-            predicate_node, ungrouped_predicate,
+            domain,
+            predicate,
+            body,
+            retained_predicate,
+            param,
+            name,
+            &boolean,
+            domain_node,
+            predicate_node,
+            ungrouped_predicate,
         )?;
         reference_name(
             self.ir,
@@ -3602,7 +3956,16 @@ impl<'a> SourceExpressions<'a> {
             self.db,
         )?;
         self.check_query_call_original(
-            owner, node, id, call, checked, retained_predicate, &array, &boolean, model, facts,
+            owner,
+            node,
+            id,
+            call,
+            checked,
+            retained_predicate,
+            &array,
+            &boolean,
+            model,
+            facts,
         )?;
         let facts = facts?;
         let mut scoped = formals.to_vec();
@@ -3724,16 +4087,12 @@ impl<'a> SourceExpressions<'a> {
             let facts = facts?;
             let contracts = facts.stored_contracts.as_deref()?;
             let schema = contracts.iter().find(|schema| schema.id == *model)?;
-            super::scenario_receipts::match_stored_contract_schema(
-                self.ir, schema, self.db,
-            )?;
+            super::scenario_receipts::match_stored_contract_schema(self.ir, schema, self.db)?;
             let field_fact = schema
                 .fields
                 .iter()
                 .find(|candidate| candidate.owner == *model && candidate.name == *field)?;
-            super::scenario_receipts::match_stored_contract_field(
-                self.ir, field_fact, self.db,
-            )?;
+            super::scenario_receipts::match_stored_contract_field(self.ir, field_fact, self.db)?;
             if !Self::type_narrows(&expr.ty, &field_fact.ty) {
                 return None;
             }
@@ -3975,14 +4334,31 @@ impl<'a> SourceExpressions<'a> {
         match (&expr.expr, node.kind) {
             (IrExpr::Binary { op, left, right }, SyntaxKind::Binary) => {
                 self.match_body_binary(
-                    defining_owner, node, text, depth, formals, facts, reached, membership,
-                    op, left, right,
+                    defining_owner,
+                    node,
+                    text,
+                    depth,
+                    formals,
+                    facts,
+                    reached,
+                    membership,
+                    op,
+                    left,
+                    right,
                 )?;
             }
             (IrExpr::Unary { op, operand }, SyntaxKind::Unary) => {
                 self.match_body_unary(
-                    defining_owner, node, text, depth, formals, facts, reached, membership,
-                    op, operand,
+                    defining_owner,
+                    node,
+                    text,
+                    depth,
+                    formals,
+                    facts,
+                    reached,
+                    membership,
+                    op,
+                    operand,
                 )?;
             }
             (
@@ -3992,7 +4368,12 @@ impl<'a> SourceExpressions<'a> {
                 Self::check_call_slots(expr, args)?;
                 let callee = source_path(expressions(node).first()?, text)?;
                 self.match_body_call_target(
-                    defining_owner, expr, target, callee, reached, membership,
+                    defining_owner,
+                    expr,
+                    target,
+                    callee,
+                    reached,
+                    membership,
                 )?;
                 if args.iter().any(|argument| {
                     matches!(argument.expr, IrExpr::Query(_) | IrExpr::Lambda { .. })
@@ -4014,7 +4395,14 @@ impl<'a> SourceExpressions<'a> {
                     );
                 }
                 self.match_body_call_args(
-                    defining_owner, node, args, text, depth, formals, facts, reached,
+                    defining_owner,
+                    node,
+                    args,
+                    text,
+                    depth,
+                    formals,
+                    facts,
+                    reached,
                     membership,
                 )?;
             }
@@ -4045,7 +4433,7 @@ impl<'a> SourceExpressions<'a> {
         if expr.span != node.span {
             return None;
         }
-        let token = |kind: SyntaxKind| {
+        let _token = |kind: SyntaxKind| {
             node.children
                 .iter()
                 .find(|child| child.kind == kind)
@@ -4073,15 +4461,30 @@ impl<'a> SourceExpressions<'a> {
                     && !formals.iter().any(|(name, _)| name == "team") => {}
             (IrExpr::Member { base, field }, SyntaxKind::Member) => {
                 self.match_body_member(
-                    defining_owner, expr, node, text, depth, formals, facts, reached,
-                    membership, base, field,
+                    defining_owner,
+                    expr,
+                    node,
+                    text,
+                    depth,
+                    formals,
+                    facts,
+                    reached,
+                    membership,
+                    base,
+                    field,
                 )?;
             }
             _ => self.match_body_compound(
-                defining_owner, expr, node, text, depth, formals, facts, reached,
+                defining_owner,
+                expr,
+                node,
+                text,
+                depth,
+                formals,
+                facts,
+                reached,
                 membership,
             )?,
-            _ => return None,
         }
         Some(())
     }
@@ -4193,10 +4596,24 @@ impl<'a> SourceExpressions<'a> {
             super::scenario_receipts::match_stored_contract_schema(self.ir, schema, self.db)?;
             if field == "parent" {
                 let parent = schema.parent?;
-                if root.ty != (ResolvedType::Record { symbol: parent, stored: true }) { return None; }
-                let parent_schema = facts.stored_contracts.as_deref()?.iter()
+                if root.ty
+                    != (ResolvedType::Record {
+                        symbol: parent,
+                        stored: true,
+                    })
+                {
+                    return None;
+                }
+                let parent_schema = facts
+                    .stored_contracts
+                    .as_deref()?
+                    .iter()
                     .find(|candidate| candidate.model && candidate.id == parent)?;
-                super::scenario_receipts::match_stored_contract_schema(self.ir, parent_schema, self.db)?;
+                super::scenario_receipts::match_stored_contract_schema(
+                    self.ir,
+                    parent_schema,
+                    self.db,
+                )?;
                 root = base;
                 continue;
             }
@@ -4338,16 +4755,10 @@ impl<'a> SourceExpressions<'a> {
         if edges == 0 {
             return None;
         }
-        let (binding_index, initializer, binding_span) =
-            Self::find_effect_binding(effects, name)?;
+        let (binding_index, initializer, binding_span) = Self::find_effect_binding(effects, name)?;
         self.load_first_binding(initializer, binding_span, root)?;
-        let (_branch_index, cond, branch_span) = Self::find_require_branch(
-            effects,
-            name,
-            statement,
-            binding_index,
-            binding_span,
-        )?;
+        let (_branch_index, cond, branch_span) =
+            Self::find_require_branch(effects, name, statement, binding_index, binding_span)?;
         let IrExpr::Binary {
             op: IrBinOp::Ne,
             left,
@@ -4468,7 +4879,6 @@ impl<'a> SourceExpressions<'a> {
         body: &TypedExpr,
         location_type: &ResolvedType,
     ) -> Option<()> {
-        use crate::analysis::scenario_disclosure::CheckedDecisionCallTarget;
         if person_slot == location_slot
             || args.len() != 2
             || outer.arguments.len() != 2
@@ -4572,29 +4982,60 @@ impl<'a> SourceExpressions<'a> {
                         &args[location_slot],
                         Some(self.db),
                     )?;
-                if actual_parameter != *parameter || *argument != outer.arguments[location_slot].0
-                {
+                if actual_parameter != *parameter || *argument != outer.arguments[location_slot].0 {
                     return None;
                 }
             }
             [] if site.stage == CheckedDecisionStage::LeadingRequire
-                && super::scenario_receipts::checked_purchase_helper_query_influences(facts).is_some() => {
+                && super::scenario_receipts::checked_purchase_helper_query_influences(facts)
+                    .is_some() =>
+            {
                 let (root, edges) = self.walk_required_path(facts, &args[location_slot])?;
-                let IrExpr::Name(name) = &root.expr else { return None; };
-                let IrItemKind::Scenario { params, .. } = &owner.kind else { return None; };
-                let mut parameters = params.iter().filter_map(|id| self.ir.items.get(id.0 as usize))
+                let IrExpr::Name(name) = &root.expr else {
+                    return None;
+                };
+                let IrItemKind::Scenario { params, .. } = &owner.kind else {
+                    return None;
+                };
+                let mut parameters = params
+                    .iter()
+                    .filter_map(|id| self.ir.items.get(id.0 as usize))
                     .filter(|parameter| parameter.name == *name);
                 let parameter = parameters.next()?;
-                let IrItemKind::Param { owner: declared, index, ty: IrType::Known(ty),
-                    default: None, default_node: None, array_bounds: None, .. } = &parameter.kind else { return None; };
+                let IrItemKind::Param {
+                    owner: declared,
+                    index,
+                    ty: IrType::Known(ty),
+                    default: None,
+                    default_node: None,
+                    array_bounds: None,
+                    ..
+                } = &parameter.kind
+                else {
+                    return None;
+                };
                 let original = facts.parameters.get(*index)?;
-                if edges == 0 || parameters.next().is_some() || *declared != owner.id
-                    || params.get(*index) != Some(&parameter.id) || original.parameter != parameter.id
-                    || original.ty != *ty || root.ty != *ty || original.default.is_some()
-                    || parameter.module != owner.module || parameter.canonical != format!("{}.{}",owner.canonical,name)
-                    || self.db.get(root.span.file)?.text.get(root.span.start as usize..root.span.end as usize) != Some(name.as_str())
-                    || original.constraints.is_some() || !matches!(ty, ResolvedType::Record {stored: true, ..})
-                { return None; }
+                if edges == 0
+                    || parameters.next().is_some()
+                    || *declared != owner.id
+                    || params.get(*index) != Some(&parameter.id)
+                    || original.parameter != parameter.id
+                    || original.ty != *ty
+                    || root.ty != *ty
+                    || original.default.is_some()
+                    || parameter.module != owner.module
+                    || parameter.canonical != format!("{}.{}", owner.canonical, name)
+                    || self
+                        .db
+                        .get(root.span.file)?
+                        .text
+                        .get(root.span.start as usize..root.span.end as usize)
+                        != Some(name.as_str())
+                    || original.constraints.is_some()
+                    || !matches!(ty, ResolvedType::Record { stored: true, .. })
+                {
+                    return None;
+                }
             }
             [] if site.stage == CheckedDecisionStage::BodyRequire => {
                 self.query_required_argument(
@@ -4904,7 +5345,7 @@ impl<'a> SourceExpressions<'a> {
                         != sha256_hex(
                             format!(
                                 "scenario-disclosure/v1:query-influence:{}:{id}:{kind:?}",
-                                format!(
+                                format_args!(
                                     "{}:{}:{}:{}:{}",
                                     query.source.path,
                                     query.source.sha256,
@@ -4973,18 +5414,44 @@ impl<'a> SourceExpressions<'a> {
             return None;
         };
         self.check_query_outer(
-            owner, facts, target, actual, args, &slots, outer, item, person, *person_slot,
-            *location_slot, result, body, location_type,
+            owner,
+            facts,
+            target,
+            actual,
+            args,
+            &slots,
+            outer,
+            item,
+            person,
+            *person_slot,
+            *location_slot,
+            result,
+            body,
+            location_type,
         )?;
         self.check_query_require(site, owner, key, depth)?;
         let query = self.load_authorized_query(
-            facts, owner, site, key, args, *location_slot, outer, depth,
+            facts,
+            owner,
+            site,
+            key,
+            args,
+            *location_slot,
+            outer,
+            depth,
         )?;
         self.check_query_arg_shapes(args, outer, depth)?;
         let (_scan, _checked, _selected, _domain, _predicate, predicate_body) =
             Self::load_query_scan(self.ir, self.db, body, query)?;
         let fields = self.collect_query_members(
-            site, query, item, owner, facts, key, outer, predicate_body,
+            site,
+            query,
+            item,
+            owner,
+            facts,
+            key,
+            outer,
+            predicate_body,
         )?;
         if fields.len() != query.dependencies.len() {
             return None;
@@ -4994,9 +5461,7 @@ impl<'a> SourceExpressions<'a> {
         self.check_query_tail(query, person, predicate_body, &id)
     }
 
-    fn load_authorization_owner<'s>(
-        &'s self,
-    ) -> Option<(&'s IrItem, &'s CheckedScenarioSource)> {
+    fn load_authorization_owner(&self) -> Option<(&IrItem, &CheckedScenarioSource)> {
         let mut owners = self.ir.items.iter().filter(|owner| {
             self.ir
                 .scenario_disclosures
@@ -5078,11 +5543,7 @@ impl<'a> SourceExpressions<'a> {
         &'s self,
         item: &IrItem,
         owner: &IrItem,
-    ) -> Option<(
-        &'s super::ir::IrModule,
-        &'s str,
-        DisclosureSource,
-    )> {
+    ) -> Option<(&'s super::ir::IrModule, &'s str, DisclosureSource)> {
         let defining = self.ir.modules.get(item.module.0 as usize)?;
         let defining_file = self.db.get(defining.file)?;
         let defining_text = defining_file.text.as_str();
@@ -5202,13 +5663,9 @@ impl<'a> SourceExpressions<'a> {
         Some(())
     }
 
-    fn load_authorization_call<'x>(
-        actual: &'x TypedExpr,
-    ) -> Option<(
-        &'x String,
-        &'x [TypedExpr],
-        Option<&'x [Option<usize>]>,
-    )> {
+    fn load_authorization_call(
+        actual: &TypedExpr,
+    ) -> Option<(&String, &[TypedExpr], Option<&[Option<usize>]>)> {
         match &actual.expr {
             IrExpr::Call {
                 target: IrCallTarget::DeriveFn(target),
@@ -5402,14 +5859,7 @@ impl<'a> SourceExpressions<'a> {
             literal,
         )?;
         self.expression(literal, *default, depth + 1)?;
-        self.seal_imported_conversation(
-            facts,
-            *model,
-            item,
-            defining_source,
-            authored_type,
-            owner,
-        )
+        self.seal_imported_conversation(facts, *model, item, defining_source, authored_type, owner)
     }
 
     fn load_authorization_conversation<'s>(
@@ -5434,9 +5884,8 @@ impl<'a> SourceExpressions<'a> {
                 depth,
             );
         }
-        let (branch, conversation) = super::scenario_receipts::checked_parent_reference(
-            self.ir, owner, parent, self.db,
-        )?;
+        let (branch, conversation) =
+            super::scenario_receipts::checked_parent_reference(self.ir, owner, parent, self.db)?;
         let IrExpr::Member { base, field } = &parent.expr else {
             return None;
         };
@@ -5576,9 +6025,10 @@ impl<'a> SourceExpressions<'a> {
             .children
             .iter()
             .find(|node| node.kind == SyntaxKind::Name)?;
-        let type_node = authored.children.iter().find(|node| {
-            matches!(node.kind, SyntaxKind::NamedType | SyntaxKind::NullableType)
-        })?;
+        let type_node = authored
+            .children
+            .iter()
+            .find(|node| matches!(node.kind, SyntaxKind::NamedType | SyntaxKind::NullableType))?;
         let expected = if index == 0 {
             ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::User)))
         } else {
@@ -5609,11 +6059,11 @@ impl<'a> SourceExpressions<'a> {
         Some(())
     }
 
-    fn load_membership_call<'s>(
-        site: &'s CheckedDecisionSite,
+    fn load_membership_call(
+        site: &CheckedDecisionSite,
         key: NodeKey,
         derive: SymbolId,
-    ) -> Option<(&'s CheckedDecisionCall, &'s CheckedDecisionCallFrame)> {
+    ) -> Option<(&CheckedDecisionCall, &CheckedDecisionCallFrame)> {
         let mut membership_calls = site.calls.iter().filter(|call|
             matches!(&call.target,CheckedDecisionCallTarget::Builtin {id,overload:0} if id == "active_member")
                 && matches!(call.chain.as_slice(),[frame] if frame.node == key && frame.derive == derive));
@@ -5738,12 +6188,8 @@ impl<'a> SourceExpressions<'a> {
             return None;
         };
         let (owner, facts) = self.load_authorization_owner()?;
-        let (site, outer) = Self::load_authorization_site(
-            facts,
-            owner,
-            &self.original.source,
-            key,
-        )?;
+        let (site, outer) =
+            Self::load_authorization_site(facts, owner, &self.original.source, key)?;
         let (derive, item, params, result, body) = self.load_authorization_derive(outer)?;
         let IrItemKind::Scenario { guards, .. } = &owner.kind else {
             return None;
@@ -5755,8 +6201,19 @@ impl<'a> SourceExpressions<'a> {
         let defining_tree = self.load_defining_tree(defining)?;
         let defining_nodes = Self::collect_defining_nodes(self.nodes, defining_tree.as_ref());
         Self::check_authorization_shape(
-            site, outer, guards, item, derive, target, owner, &self.original.source, slots,
-            params, result, actual, body,
+            site,
+            outer,
+            guards,
+            item,
+            derive,
+            target,
+            owner,
+            &self.original.source,
+            slots,
+            params,
+            result,
+            actual,
+            body,
         )?;
         self.check_authorization_call(owner, key, derive, outer, actor)?;
         let conversation = self.load_authorization_conversation(
@@ -5772,8 +6229,7 @@ impl<'a> SourceExpressions<'a> {
         // Require prunes scalar authorization reads from the result recipe;
         // the helper still consumes these exact original field declarations.
         self.check_conversation_fields(conversation, &defining_source)?;
-        let declaration =
-            self.check_derive_declaration(&defining_nodes, item, defining_text)?;
+        let declaration = self.check_derive_declaration(&defining_nodes, item, defining_text)?;
         self.check_authorization_formals(
             params,
             declaration,
@@ -6131,8 +6587,8 @@ impl<'a> SourceExpressions<'a> {
         .then_some(())
     }
 
-    fn match_schema_money(actual: &TypedExpr, field: &String) -> Option<()> {
-        let expected = match field.as_str() {
+    fn match_schema_money(actual: &TypedExpr, field: &str) -> Option<()> {
+        let expected = match field {
             "currency" => Scalar::Currency,
             "minor" => Scalar::Int,
             _ => return None,
@@ -6171,16 +6627,8 @@ impl<'a> SourceExpressions<'a> {
         let parent_schema = inventory
             .iter()
             .find(|schema| schema.model && schema.id == *parent)?;
-        super::scenario_receipts::match_stored_contract_schema(
-            self.ir,
-            child_schema,
-            self.db,
-        )?;
-        super::scenario_receipts::match_stored_contract_schema(
-            self.ir,
-            parent_schema,
-            self.db,
-        )?;
+        super::scenario_receipts::match_stored_contract_schema(self.ir, child_schema, self.db)?;
+        super::scenario_receipts::match_stored_contract_schema(self.ir, parent_schema, self.db)?;
         (actual.ty
             == ResolvedType::Record {
                 symbol: *parent,
@@ -6189,7 +6637,11 @@ impl<'a> SourceExpressions<'a> {
         .then_some(())
     }
 
-    fn load_schema_field_ty(&self, field: &String, model: crate::analysis::SymbolId) -> Option<ResolvedType> {
+    fn load_schema_field_ty(
+        &self,
+        field: &String,
+        model: crate::analysis::SymbolId,
+    ) -> Option<ResolvedType> {
         if model == self.original.model {
             return Some(
                 self.original
@@ -6208,16 +6660,12 @@ impl<'a> SourceExpressions<'a> {
             .as_deref()?
             .iter()
             .find(|schema| schema.model && schema.id == model)?;
-        super::scenario_receipts::match_stored_contract_schema(
-            self.ir, schema, self.db,
-        )?;
+        super::scenario_receipts::match_stored_contract_schema(self.ir, schema, self.db)?;
         let declared = schema
             .fields
             .iter()
             .find(|declared| declared.name == *field)?;
-        super::scenario_receipts::match_stored_contract_field(
-            self.ir, declared, self.db,
-        )?;
+        super::scenario_receipts::match_stored_contract_field(self.ir, declared, self.db)?;
         Some(declared.ty.clone())
     }
 
@@ -6326,12 +6774,7 @@ impl<'a> SourceExpressions<'a> {
         {
             return None;
         }
-        self.schema_rule_expression(
-            operand,
-            NodeKey::of(source_operand),
-            bindings,
-            depth + 1,
-        )
+        self.schema_rule_expression(operand, NodeKey::of(source_operand), bindings, depth + 1)
     }
 
     fn match_schema_trim(
@@ -6352,12 +6795,7 @@ impl<'a> SourceExpressions<'a> {
         let [source] = source.as_slice() else {
             return None;
         };
-        self.schema_rule_expression(
-            value,
-            NodeKey::of(source),
-            bindings,
-            depth + 1,
-        )
+        self.schema_rule_expression(value, NodeKey::of(source), bindings, depth + 1)
     }
 
     fn check_schema_any_identity(
@@ -6441,7 +6879,7 @@ impl<'a> SourceExpressions<'a> {
         &self,
         candidate: &IrItem,
         checked: &CheckedQuery,
-        name: &String,
+        name: &str,
         bindings: &[(String, crate::analysis::SymbolId)],
     ) -> Option<Vec<(String, crate::analysis::SymbolId)>> {
         reference_name(
@@ -6453,7 +6891,7 @@ impl<'a> SourceExpressions<'a> {
         )?;
         model_identity(self.ir, self.create_owner()?, candidate.id, self.db)?;
         let mut nested = bindings.to_vec();
-        nested.push((name.clone(), candidate.id));
+        nested.push((name.to_owned(), candidate.id));
         Some(nested)
     }
 
@@ -6465,9 +6903,7 @@ impl<'a> SourceExpressions<'a> {
         bindings: &[(String, crate::analysis::SymbolId)],
         depth: usize,
     ) -> Option<()> {
-        let ([source_domain, source_predicate], [domain, predicate]) =
-            (arguments, args)
-        else {
+        let ([source_domain, source_predicate], [domain, predicate]) = (arguments, args) else {
             return None;
         };
         let IrExpr::Query(query) = &domain.expr else {
@@ -6488,8 +6924,7 @@ impl<'a> SourceExpressions<'a> {
         let [alias] = checked.clauses.as_slice() else {
             return None;
         };
-        let crate::analysis::types::CheckedQueryClauseKind::As { name } = &alias.kind
-        else {
+        let crate::analysis::types::CheckedQueryClauseKind::As { name } = &alias.kind else {
             return None;
         };
         let source_query = self.nodes.get(&checked.node)?;
@@ -6517,11 +6952,27 @@ impl<'a> SourceExpressions<'a> {
         };
         let collection = query.collection_call.as_deref()?;
         self.check_schema_any_identity(
-            source_query, source_domain, domain, &array, checked, alias, alias_name,
-            name, param, predicate, body, source_predicate,
+            source_query,
+            source_domain,
+            domain,
+            &array,
+            checked,
+            alias,
+            alias_name,
+            name,
+            param,
+            predicate,
+            body,
+            source_predicate,
         )?;
         Self::check_schema_any_query(
-            collection, checked, query, source_predicate, node, alias.node, candidate.id,
+            collection,
+            checked,
+            query,
+            source_predicate,
+            node,
+            alias.node,
+            candidate.id,
         )?;
         let nested = self.seal_schema_any_source(candidate, checked, name, bindings)?;
         self.schema_rule_expression(body, NodeKey::of(source_predicate), &nested, depth + 1)
@@ -6561,9 +7012,7 @@ impl<'a> SourceExpressions<'a> {
                     operand,
                 },
                 SyntaxKind::Unary,
-            ) => {
-                self.match_schema_unary(actual, node, &children, bindings, depth, operand)
-            }
+            ) => self.match_schema_unary(actual, node, &children, bindings, depth, operand),
             (
                 IrExpr::Call {
                     target: IrCallTarget::Builtin { id, awaited: false },
@@ -6582,15 +7031,14 @@ impl<'a> SourceExpressions<'a> {
                 if source_path(children.first()?, self.text)? != *id {
                     return None;
                 }
-                if let IrExpr::BoundCall { slots, .. } = &actual.expr {
-                    if slots
+                if let IrExpr::BoundCall { slots, .. } = &actual.expr
+                    && (slots
                         .iter()
                         .enumerate()
                         .any(|(index, slot)| *slot != Some(index))
-                        || slots.len() != args.len()
-                    {
-                        return None;
-                    }
+                        || slots.len() != args.len())
+                {
+                    return None;
                 }
                 let arguments = node
                     .children
@@ -6603,7 +7051,7 @@ impl<'a> SourceExpressions<'a> {
                 if id == "trim" {
                     return self.match_schema_trim(actual, &arguments, args, bindings, depth);
                 }
-                return self.match_schema_any_query(node, &arguments, args, bindings, depth);
+                self.match_schema_any_query(node, &arguments, args, bindings, depth)
             }
             (_, SyntaxKind::Literal) => self.expression(actual, NodeKey::of(node), depth + 1),
             _ => None,
@@ -6612,14 +7060,25 @@ impl<'a> SourceExpressions<'a> {
 
     fn literal_text_type(&self, actual: &TypedExpr) -> bool {
         actual.ty == ResolvedType::Scalar(Scalar::Text)
-            || self.operands && matches!(actual.ty, ResolvedType::Scalar(Scalar::Email | Scalar::Locale))
+            || self.operands
+                && matches!(
+                    actual.ty,
+                    ResolvedType::Scalar(Scalar::Email | Scalar::Locale)
+                )
     }
 
     /// Exact authored scalar literals are shared by schema/default and operand
     /// correspondence; contextual Email and Locale remain operand-only.
     fn scalar_literal(&self, actual: &TypedExpr, node: &SyntaxNode) -> Option<bool> {
-        let token = |kind| node.children.iter().find(|child| child.kind == kind)
-            .and_then(|child| self.text.get(child.span.start as usize..child.span.end as usize));
+        let token = |kind| {
+            node.children
+                .iter()
+                .find(|child| child.kind == kind)
+                .and_then(|child| {
+                    self.text
+                        .get(child.span.start as usize..child.span.end as usize)
+                })
+        };
         let primitive = |scalar| actual.ty == ResolvedType::Scalar(scalar);
         Some(match &actual.expr {
             IrExpr::Int(value) => {
@@ -6633,9 +7092,7 @@ impl<'a> SourceExpressions<'a> {
                 primitive(Scalar::Bool)
                     && token(SyntaxKind::Name)? == if *value { "true" } else { "false" }
             }
-            IrExpr::Null => {
-                actual.ty == ResolvedType::Null && token(SyntaxKind::Name)? == "null"
-            }
+            IrExpr::Null => actual.ty == ResolvedType::Null && token(SyntaxKind::Name)? == "null",
             IrExpr::Text(value) => {
                 // Checked operand literals retain contextual Email/Locale identity.
                 // Schema/default matching keeps its existing Text-only path.
@@ -6654,78 +7111,91 @@ impl<'a> SourceExpressions<'a> {
     }
 
     fn literal_message(&self, actual: &TypedExpr, node: &SyntaxNode) -> Option<()> {
-        let IrExpr::Message(message) = &actual.expr else { return None; };
-        let module = self.ir.modules.iter().find(|module| module.name == self.original.source.module)?;
-        let declaration = self.nodes.values().find(|node| matches!(node.kind, SyntaxKind::App | SyntaxKind::Package) && node.span == module.span)?;
-        if actual.ty != ResolvedType::InlineMessage { return None; }
+        let IrExpr::Message(message) = &actual.expr else {
+            return None;
+        };
+        let module = self
+            .ir
+            .modules
+            .iter()
+            .find(|module| module.name == self.original.source.module)?;
+        let declaration = self.nodes.values().find(|node| {
+            matches!(node.kind, SyntaxKind::App | SyntaxKind::Package) && node.span == module.span
+        })?;
+        if actual.ty != ResolvedType::InlineMessage {
+            return None;
+        }
         static_message_text_matches(message, node, declaration, self.text)
     }
 
     /// Localized formatting keeps written argument order and the two checked
     /// descriptor/locale formal bindings; no absent catalog default is invented.
     fn literal_format(&self, actual: &TypedExpr, node: &SyntaxNode, depth: usize) -> Option<()> {
-        let IrExpr::Format { args, descriptor_index, locale_index, schemas } = &actual.expr else { return None; };
+        let IrExpr::Format {
+            args,
+            descriptor_index,
+            locale_index,
+            schemas,
+        } = &actual.expr
+        else {
+            return None;
+        };
         let children = expressions(node);
-        if actual.ty != ResolvedType::Scalar(Scalar::Text) || source_path(children.first()?, self.text)? != "format" || args.len() != 2 {
+        if actual.ty != ResolvedType::Scalar(Scalar::Text)
+            || source_path(children.first()?, self.text)? != "format"
+            || args.len() != 2
+        {
             return None;
         }
-        let arguments: Vec<_> = node.children.iter().filter(|child| child.kind == SyntaxKind::Argument).collect();
-        if arguments.len() != 2 { return None; }
+        let arguments: Vec<_> = node
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::Argument)
+            .collect();
+        if arguments.len() != 2 {
+            return None;
+        }
         let mut slots = [None, None];
         for (index, (argument, value)) in arguments.iter().zip(args).enumerate() {
-            let named = argument.children.iter().find(|child| child.kind == SyntaxKind::Name).and_then(|name| name.token()).map(|token| token.text(self.text));
-            let formal = match named { None => index, Some("descriptor") => 0, Some("locale") => 1, _ => return None };
-            if slots[formal].replace(index).is_some() { return None; }
-            let values = expressions(argument);
-            let [source] = values.as_slice() else { return None; };
-            self.expression(value, NodeKey::of(source), depth + 1)?;
-        }
-        if slots != [Some(*descriptor_index), Some(*locale_index)] { return None; }
-        let IrExpr::Message(descriptor) = &args.get(*descriptor_index)?.expr else { return None; };
-        let [schema] = schemas.as_slice() else { return None; };
-        let locale = &args.get(*locale_index)?.ty;
-        (schema.source_lang == descriptor.source_lang && schema.param_types.is_empty()
-            && matches!(locale, ResolvedType::Null | ResolvedType::Scalar(Scalar::Locale))
-            && descriptor.params.is_empty()).then_some(())
-    }
-
-    fn ungroup_expression_node<'x>(
-        &'x self,
-        actual: &TypedExpr,
-        key: NodeKey,
-        depth: usize,
-    ) -> Option<&'x SyntaxNode> {
-        let mut node = *self.nodes.get(&key)?;
-        if self.operands && !self.operand_type_matches(actual, key) {
-            return None;
-        }
-        let mut groups = 0usize;
-        while node.kind == SyntaxKind::Group {
-            groups += 1;
-            if depth + groups > 64 {
+            let named = argument
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Name)
+                .and_then(|name| name.token())
+                .map(|token| token.text(self.text));
+            let formal = match named {
+                None => index,
+                Some("descriptor") => 0,
+                Some("locale") => 1,
+                _ => return None,
+            };
+            if slots[formal].replace(index).is_some() {
                 return None;
             }
-            let children = expressions(node);
-            let [child] = children.as_slice() else {
+            let values = expressions(argument);
+            let [source] = values.as_slice() else {
                 return None;
             };
-            if self.operands && !self.operand_type_matches(actual, NodeKey::of(child)) {
-                return None;
-            }
-            node = child;
+            self.expression(value, NodeKey::of(source), depth + 1)?;
         }
-        // Group lowering retains the inner expression's source span. Every
-        // original wrapper and its inner node still have the same checked type.
-        if actual.span != node.span {
+        if slots != [Some(*descriptor_index), Some(*locale_index)] {
             return None;
         }
-        Some(node)
-    }
-
-    fn child_token<'x>(&'x self, node: &SyntaxNode, kind: SyntaxKind) -> Option<&'x str> {
-        let child = node.children.iter().find(|child| child.kind == kind)?;
-        self.text
-            .get(child.span.start as usize..child.span.end as usize)
+        let IrExpr::Message(descriptor) = &args.get(*descriptor_index)?.expr else {
+            return None;
+        };
+        let [schema] = schemas.as_slice() else {
+            return None;
+        };
+        let locale = &args.get(*locale_index)?.ty;
+        (schema.source_lang == descriptor.source_lang
+            && schema.param_types.is_empty()
+            && matches!(
+                locale,
+                ResolvedType::Null | ResolvedType::Scalar(Scalar::Locale)
+            )
+            && descriptor.params.is_empty())
+        .then_some(())
     }
 
     fn match_operand_name(&self, node: &SyntaxNode, name: &str) -> bool {
@@ -6816,7 +7286,7 @@ impl<'a> SourceExpressions<'a> {
     }
     fn check_actor_facts_seal(
         &self,
-        actual: &TypedExpr,
+        _actual: &TypedExpr,
         base: &TypedExpr,
         facts_base: &TypedExpr,
         base_node: &SyntaxNode,
@@ -7050,9 +7520,7 @@ impl<'a> SourceExpressions<'a> {
                         && self
                             .transcript_source()
                             .and_then(|source| {
-                                super::scenario_receipts::checked_scenario_query_influences(
-                                    source,
-                                )
+                                super::scenario_receipts::checked_scenario_query_influences(source)
                             })
                             .is_some_and(|influences| influences.len() == 24)
                         && matches!((&actual.ty, &left.ty, &right.ty), (
@@ -7062,9 +7530,7 @@ impl<'a> SourceExpressions<'a> {
                         ) if element == left_element && element == right_element
                             && crate::analysis::types::checked_standard_nominal_name(element) == Some("TextMessage"))
             }
-            IrBinOp::Mod | IrBinOp::Sub | IrBinOp::Mul | IrBinOp::Div => {
-                actual.ty == left.ty
-            }
+            IrBinOp::Mod | IrBinOp::Sub | IrBinOp::Mul | IrBinOp::Div => actual.ty == left.ty,
             IrBinOp::Coalesce => false,
         };
         matched.then_some(())
@@ -7176,9 +7642,7 @@ impl<'a> SourceExpressions<'a> {
         }
         let legacy = self.transcript_source().and_then(|source| {
             let owner = self.ir.items.get(source.scenario.0 as usize)?;
-            super::scenario_receipts::checked_any_query_ir(
-                self.ir, owner, actual, self.db,
-            )?;
+            super::scenario_receipts::checked_any_query_ir(self.ir, owner, actual, self.db)?;
             Some(())
         });
         if legacy.is_none() {
@@ -7187,9 +7651,7 @@ impl<'a> SourceExpressions<'a> {
             // exists, so the composition matcher supplies the
             // same exact guard/call/domain correspondence.
             let owner = self.create_owner()?;
-            super::scenario_receipts::checked_any_first_query_ir(
-                self.ir, owner, actual, self.db,
-            )?;
+            super::scenario_receipts::checked_any_first_query_ir(self.ir, owner, actual, self.db)?;
         }
         Some(())
     }
@@ -7225,15 +7687,14 @@ impl<'a> SourceExpressions<'a> {
         query: &crate::analysis::scenario_disclosure::DisclosureQuery,
         domain: &TypedExpr,
         source_key: NodeKey,
-        actual: &TypedExpr,
+        _actual: &TypedExpr,
         depth: usize,
     ) -> Option<()> {
         let IrExpr::Query(scan) = &domain.expr else {
             return None;
         };
         let alias = scan.source.as_ref()?.clauses.first()?;
-        let crate::analysis::types::CheckedQueryClauseKind::As { name: alias_name } =
-            &alias.kind
+        let crate::analysis::types::CheckedQueryClauseKind::As { name: alias_name } = &alias.kind
         else {
             return None;
         };
@@ -7241,8 +7702,7 @@ impl<'a> SourceExpressions<'a> {
             return None;
         }
         if let Some(order) = query.order.first()
-            && source_path(self.nodes.get(&order.node)?, self.text)?
-                != format!("{alias_name}.id")
+            && source_path(self.nodes.get(&order.node)?, self.text)? != format!("{alias_name}.id")
         {
             return None;
         }
@@ -7508,12 +7968,22 @@ impl<'a> SourceExpressions<'a> {
         depth: usize,
     ) -> Option<bool> {
         match (&actual.expr, node.kind) {
-            (IrExpr::Int(_) | IrExpr::Decimal(_) | IrExpr::Bool(_) | IrExpr::Null
-                | IrExpr::Text(_), SyntaxKind::Literal) => {
-                Some(self.scalar_literal(actual, node)?)
-            }
-            (IrExpr::Message(_), SyntaxKind::NameRef | SyntaxKind::Name | SyntaxKind::Path) if self.operands => {
-                let module = self.ir.modules.iter().find(|module| module.name == self.original.source.module)?;
+            (
+                IrExpr::Int(_)
+                | IrExpr::Decimal(_)
+                | IrExpr::Bool(_)
+                | IrExpr::Null
+                | IrExpr::Text(_),
+                SyntaxKind::Literal,
+            ) => Some(self.scalar_literal(actual, node)?),
+            (IrExpr::Message(_), SyntaxKind::NameRef | SyntaxKind::Name | SyntaxKind::Path)
+                if self.operands =>
+            {
+                let module = self
+                    .ir
+                    .modules
+                    .iter()
+                    .find(|module| module.name == self.original.source.module)?;
                 checked_static_named_message(self.ir, module.id, actual, self.db)?;
                 Some(true)
             }
@@ -7536,7 +8006,7 @@ impl<'a> SourceExpressions<'a> {
             (IrExpr::DurationMs(value), SyntaxKind::Literal) => {
                 Some(self.match_duration(node, value, actual))
             }
-            _ => return self.match_member_shape(actual, node, children, key, depth),
+            _ => self.match_member_shape(actual, node, children, key, depth),
         }
     }
     fn match_member_shape(
@@ -7657,18 +8127,16 @@ impl<'a> SourceExpressions<'a> {
                     slots,
                 },
                 SyntaxKind::Call,
-            ) if self.operands => {
-                self.match_call_by_target(
-                    actual,
-                    node,
-                    children,
-                    key,
-                    depth,
-                    target,
-                    args,
-                    Some(slots),
-                )
-            }
+            ) if self.operands => self.match_call_by_target(
+                actual,
+                node,
+                children,
+                key,
+                depth,
+                target,
+                args,
+                Some(slots),
+            ),
             _ => Some(false),
         }
     }
@@ -7688,15 +8156,12 @@ impl<'a> SourceExpressions<'a> {
                 self.match_plain_builtin_call(actual, node, children, key, depth, id, args, slots)
             }
             IrCallTarget::Builtin { id, awaited: true }
-                if id == "active_member"
-                    && actual.ty == ResolvedType::Scalar(Scalar::Bool) =>
+                if id == "active_member" && actual.ty == ResolvedType::Scalar(Scalar::Bool) =>
             {
                 self.membership(actual, node, args, slots, depth)?;
                 Some(true)
             }
-            IrCallTarget::DeriveFn(_)
-                if actual.ty == ResolvedType::Scalar(Scalar::Bool) =>
-            {
+            IrCallTarget::DeriveFn(_) if actual.ty == ResolvedType::Scalar(Scalar::Bool) => {
                 self.match_authorization_call(actual, node, depth)?;
                 Some(true)
             }
@@ -7731,8 +8196,9 @@ impl<'a> SourceExpressions<'a> {
                 self.match_starts_with(actual, node, args, slots, depth)?;
                 Some(true)
             }
-            "format" if actual.ty == ResolvedType::Scalar(Scalar::Text)
-                && matches!(args, [template, values]
+            "format"
+                if actual.ty == ResolvedType::Scalar(Scalar::Text)
+                    && matches!(args, [template, values]
                     if template.ty == ResolvedType::Scalar(Scalar::Text)
                         && matches!(&values.ty, ResolvedType::Object(fields)
                             if fields.iter().all(|(_, ty)| matches!(ty,
@@ -7747,9 +8213,7 @@ impl<'a> SourceExpressions<'a> {
                 self.match_scalar_builtin(node, children, id, args, slots, depth)?;
                 Some(true)
             }
-            _ => self.match_tail_builtin_call(
-                actual, node, children, key, depth, id, args, slots,
-            ),
+            _ => self.match_tail_builtin_call(actual, node, children, key, depth, id, args, slots),
         }
     }
     fn match_tail_builtin_call(
@@ -7944,4 +8408,3 @@ fn duration(text: &str) -> Option<i128> {
     }
     None
 }
-

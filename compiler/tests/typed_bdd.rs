@@ -11,6 +11,7 @@ fn ir() -> IrProgram {
         catalog_version: String::new(),
         value_constraints: Default::default(),
         scenario_disclosures: Default::default(),
+        derived_bool_receipts: Default::default(),
         committed_sources: Default::default(),
         resolved_cases: Default::default(),
         standard_completion_sources: Default::default(),

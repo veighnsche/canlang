@@ -1141,9 +1141,8 @@ impl<'a> Checker<'a> {
         if let Some(root) = self.scenario_selector_root(ctx, bound, sel, module, text) {
             return Some(root);
         }
-        match self.crud_selector_root(ctx, sel, span) {
-            Some(decided) => return decided,
-            None => {}
+        if let Some(decided) = self.crud_selector_root(ctx, sel, span) {
+            return decided;
         }
         if let Some(value) = bound.get(&sel.root) {
             return Some(SelRoot::Binding(binding_fixture(
@@ -2987,9 +2986,6 @@ fn is_error_call(text: &str, node: &SyntaxNode) -> bool {
     })
 }
 
-/// Bare word of a `NameRef` expression, if it is one.
-
-
 /// `Name` leaves of a path expression in order (`a.b.c` → `[a,b,c]`).
 fn member_names(text: &str, node: &SyntaxNode) -> Vec<String> {
     node.descendants()
@@ -3139,8 +3135,6 @@ fn span_slice(text: &str, span: Span) -> &str {
     text.get(span.start as usize..span.end as usize)
         .unwrap_or("")
 }
-
-
 
 /// Decoded value of a string `Literal` node (`None` when not one).
 /// Analysis-layer recovery, like effects': falls back to quote-stripping raw

@@ -1220,4 +1220,3 @@ impl ReferenceAvailability {
         reference_json(self)
     }
 }
-

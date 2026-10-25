@@ -144,4 +144,3 @@ fn node_range(node: &SyntaxNode, index: &LineIndex, text: &str) -> Range {
         end: Position { line, character },
     }
 }
-

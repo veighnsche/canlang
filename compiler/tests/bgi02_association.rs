@@ -1143,7 +1143,8 @@ fn explicit_bind_honored_for_exact_captured_location_only() {
         contract: contract_for(second).unwrap(),
         target: BindTarget::New,
     };
-    let bound_copy = apply_bind(&[bound_original.clone()], &bind_copy, revision).unwrap();
+    let bound_copy =
+        apply_bind(std::slice::from_ref(&bound_original), &bind_copy, revision).unwrap();
     let copy_id = bound_copy.id.clone();
     assert!(copy_id.as_str().starts_with("g-"));
     let saved = vec![bound_original, bound_copy];
@@ -1502,9 +1503,7 @@ fn owner_rename_requires_reconciliation_for_each_saved_kind() {
         .iter()
         .filter(|descriptor| descriptor.has_generation_identity)
         .enumerate()
-        .map(|(index, descriptor)| {
-            saved_record(&format!("u{index}"), descriptor, "app.can", "old")
-        })
+        .map(|(index, descriptor)| saved_record(&format!("u{index}"), descriptor, "app.can", "old"))
         .collect::<Vec<_>>();
     let renamed = BASE.replace("app Tasks", "app Renamed");
     let current = discover(&renamed);
@@ -1535,7 +1534,10 @@ fn owner_rename_requires_reconciliation_for_each_saved_kind() {
         .filter(|record| record.source.kind == UnitKind::View)
         .collect::<Vec<_>>();
     let current_style = discover("app New\nGiven\nWhen\nThen\n style Fresh $\"Readable\"\n");
-    assert!(matches!(associate(&current_style, &view_only)[0].1, UnitAssociation::New));
+    assert!(matches!(
+        associate(&current_style, &view_only)[0].1,
+        UnitAssociation::New
+    ));
 }
 
 #[test]

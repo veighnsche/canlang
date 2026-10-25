@@ -356,4 +356,3 @@ fn validate_vlq_envelope(segment: &str) -> Result<(), String> {
     }
     Ok(())
 }
-

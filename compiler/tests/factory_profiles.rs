@@ -326,7 +326,10 @@ fn collapse_over_bound_timeline_cascades() {
     let diags = emit_all(
         "app Probe\nGiven\n Account { title:text }\n Decision in Account { reason:text }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=title\n   collapse \"Decisions\"\n    timeline row.Decision\n     slot item\n      text row.reason\n",
     );
-    assert!(diags.is_empty(), "admitted collapse content lowers, got: {diags:?}");
+    assert!(
+        diags.is_empty(),
+        "admitted collapse content lowers, got: {diags:?}"
+    );
 }
 
 /// A second sequence header has no timeline profile.

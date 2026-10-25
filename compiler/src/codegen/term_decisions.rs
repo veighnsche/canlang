@@ -15,10 +15,10 @@ use crate::source::{SourceDb, Span, sha256_hex};
 use crate::syntax::SyntaxKind;
 
 use super::ir::{IrExpr, IrItem, IrItemKind, IrQueryDomain, IrStmt};
-use super::source_context::FreshSourceContext;
 use super::scenario_receipts::{
     NativeReturn, NativeScenarioReceipt, ReceiptDisclosurePlan, ReceiptReturn, transport_source,
 };
+use super::source_context::FreshSourceContext;
 
 const GUARDS: [&str; 3] = [
     "cycle>0 and not membership.revoked and membership.plan.active",
@@ -35,12 +35,12 @@ pub(super) const HAS_ROLE: &str =
 const CYCLE_BOUNDARY: &str = "local_instant(add_months(membership.anchor,offset*membership.months),\"00:00\",membership.timezone,fold=earlier)";
 const LATEST_CAPTURE: &str = "first(customer.Capture as capture where capture.account==person and capture.captured+capture.window>=now and ((capture.advocate!=null and capture.advocate.parent.active and capture.advocate.account!=person and location in capture.advocate.parent.locations and product in capture.advocate.parent.products) or (capture.partner!=null and capture.partner.active and capture.partner.account!=person and location in capture.partner.locations and product in capture.partner.products)) order=-capture.captured)";
 
-fn slice<'a>(db: &'a SourceDb, key: NodeKey) -> Option<&'a str> {
+fn slice(db: &SourceDb, key: NodeKey) -> Option<&str> {
     db.get(key.file)?
         .text
         .get(key.start as usize..key.end as usize)
 }
-pub(super) fn text<'a>(db: &'a SourceDb, key: NodeKey) -> Option<&'a str> {
+pub(super) fn text(db: &SourceDb, key: NodeKey) -> Option<&str> {
     Some(slice(db, key)?.trim())
 }
 pub(super) fn span(key: NodeKey) -> Span {
@@ -67,7 +67,12 @@ pub(super) fn record_is(program: &CheckedProgram, ty: &ResolvedType, canonical: 
 fn nullable_record_is(program: &CheckedProgram, ty: &ResolvedType, canonical: &str) -> bool {
     matches!(ty, ResolvedType::Nullable(inner) if record_is(program,inner,canonical))
 }
-pub(super) fn source(program: &CheckedProgram, db: &SourceDb, key: NodeKey, module: &str) -> Option<Value> {
+pub(super) fn source(
+    program: &CheckedProgram,
+    db: &SourceDb,
+    key: NodeKey,
+    module: &str,
+) -> Option<Value> {
     let owner = program
         .modules
         .iter()
@@ -104,7 +109,11 @@ pub(super) fn site(
 pub(super) fn no_children(effect: &Effect) -> bool {
     effect.then_effects.is_empty() && effect.else_effects.is_empty() && effect.match_arms.is_empty()
 }
-pub(super) fn args_match(db: &SourceDb, effect: &Effect, expected: &[(&str, Option<&str>)]) -> bool {
+pub(super) fn args_match(
+    db: &SourceDb,
+    effect: &Effect,
+    expected: &[(&str, Option<&str>)],
+) -> bool {
     effect.args.len() == expected.len()
         && effect.args.iter().zip(expected).all(|(arg, (key, value))| {
             arg.key == *key
@@ -172,7 +181,11 @@ pub(super) fn derive(
     };
     okay.then_some((id, expr))
 }
-pub(super) fn selected_derive(program: &CheckedProgram, within: NodeKey, target: SymbolId) -> Option<NodeKey> {
+pub(super) fn selected_derive(
+    program: &CheckedProgram,
+    within: NodeKey,
+    target: SymbolId,
+) -> Option<NodeKey> {
     let mut hits = program
         .types
         .selected_calls
@@ -240,7 +253,12 @@ pub(super) fn selected_collection(
     let hit = hits.next()?;
     hits.next().is_none().then_some(hit)
 }
-pub(super) fn frame(program: &CheckedProgram, db: &SourceDb, call: NodeKey, derive: &str) -> Option<Value> {
+pub(super) fn frame(
+    program: &CheckedProgram,
+    db: &SourceDb,
+    call: NodeKey,
+    derive: &str,
+) -> Option<Value> {
     let module = &program
         .modules
         .iter()
@@ -841,13 +859,27 @@ pub(super) fn collect_term_receipt(
         projection: None,
     };
     Some(NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
+        plan: ReceiptDisclosurePlan {
+            retained_guarded_handler: None,
+            source_loops: None,
+            source_emissions: None,
             version: 1,
             source,
             event_decision: None,
             term_decision: Some(decision),
-            leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, rent_movement_refund_decision: None,
-            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,queries: Vec::new(),
+            leave_request_decision: None,
+            leave_decide_decision: None,
+            refer_reject_decision: None,
+            member_retry_decision: None,
+            rent_movement_refund_decision: None,
+            invoice_collect_decision: None,
+            rent_notice_decision: None,
+            invoice_issue_decision: None,
+            observe_venue_decision: None,
+            success_renewal_decision: None,
+            purchase_receive_all: None,
+            event_notice_audit: None,
+            queries: Vec::new(),
             returns: vec![returned],
         },
         dependencies: Default::default(),

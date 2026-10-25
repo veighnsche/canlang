@@ -429,4 +429,3 @@ fn dump_into(out: &mut String, node: &SyntaxNode, source: &str, depth: usize) {
         dump_into(out, child, source, depth + 1);
     }
 }
-
