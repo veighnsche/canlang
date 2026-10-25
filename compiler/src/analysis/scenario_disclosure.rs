@@ -19143,7 +19143,11 @@ impl<'a> Closure<'a> {
         scenario: &'b super::effects::ScenarioData,
         path: &[CheckedDecisionPosition],
     ) -> Option<&'b Effect> {
-        fn prefix(effects: &[Effect], wrote: &mut bool) -> Option<()> {
+        fn prefix(
+            effects: &[Effect],
+            wrote: &mut bool,
+            allowed_create: &impl Fn(&Effect) -> bool,
+        ) -> Option<()> {
             for effect in effects {
                 if effect.verb != EffectVerb::Require && effect.cond.is_some()
                     || effect.when.is_some()
@@ -19155,6 +19159,11 @@ impl<'a> Closure<'a> {
                 match effect.verb {
                     EffectVerb::Let | EffectVerb::Require if effect.then_effects.is_empty() => {}
                     EffectVerb::Set if effect.then_effects.is_empty() => *wrote = true,
+                    EffectVerb::Create
+                        if allowed_create(effect) && effect.then_effects.is_empty() =>
+                    {
+                        *wrote = true
+                    }
                     EffectVerb::For
                         if effect.limit.is_some()
                             && !effect.then_effects.is_empty()
@@ -19177,8 +19186,34 @@ impl<'a> Closure<'a> {
         let (CheckedDecisionPosition::Body(index), nested) = path.split_first()? else {
             return None;
         };
+        let allowed_create = |effect: &Effect| {
+            (|| {
+                if scenario.result.is_some() {
+                    return None;
+                }
+                let created = self.checked_create_source(effect, scenario.module)?;
+                let ModelOwner::ChildOf(parent) = created.definition.declaration.owner else {
+                    return None;
+                };
+                let input = created
+                    .inputs
+                    .iter()
+                    .find(|input| input.name == "parent" && input.field.is_none())?;
+                let Binding::Symbol(parameter) = self.query_binding(input.value_node)? else {
+                    return None;
+                };
+                (scenario
+                    .params
+                    .iter()
+                    .any(|input| input.param == *parameter)
+                    && self.checked_call_parent_path(input.value_node, *parameter, 0)
+                        == Some((parent, 0)))
+                .then_some(())
+            })()
+            .is_some()
+        };
         let mut wrote = false;
-        prefix(scenario.effects.get(..*index)?, &mut wrote)?;
+        prefix(scenario.effects.get(..*index)?, &mut wrote, &allowed_create)?;
         let mut effect = scenario.effects.get(*index)?;
         for position in nested {
             if effect.verb != EffectVerb::If || !effect.match_arms.is_empty() {
@@ -19189,7 +19224,7 @@ impl<'a> Closure<'a> {
                 CheckedDecisionPosition::Else(index) => (&effect.else_effects, *index),
                 _ => return None,
             };
-            prefix(branch.get(..index)?, &mut wrote)?;
+            prefix(branch.get(..index)?, &mut wrote, &allowed_create)?;
             effect = branch.get(index)?;
         }
         (wrote && effect.verb == EffectVerb::Require).then_some(effect)
@@ -20673,8 +20708,7 @@ impl<'a> Closure<'a> {
                     &self.db.get(value.file)?.text,
                     expression,
                 )
-                || query.projection.is_some()
-                || !self.source_require_plain_value(&query.result, 0)
+                || !self.computed_plain_value(&query.result)
             {
                 continue;
             }
@@ -20746,6 +20780,42 @@ impl<'a> Closure<'a> {
                 if self.types.node_types.get(&selected)==Some(element.as_ref()))
             {
                 continue;
+            }
+            if let Some(projection) = &query.projection {
+                let ResolvedType::Array { element, .. } = &query.result else {
+                    continue;
+                };
+                let ResolvedType::Record {
+                    symbol: contract, ..
+                } = element.as_ref()
+                else {
+                    continue;
+                };
+                if projection.node != selected
+                    || projection.model != *model
+                    || projection.alias != alias.node
+                    || projection.contract != *contract
+                    || !self.is_contract_symbol(*contract)
+                    || projection.fields.is_empty()
+                    || projection.fields.iter().any(|field| {
+                        let CheckedQueryProjectionMapping::DirectField { field: source } =
+                            &field.mapping
+                        else {
+                            return true;
+                        };
+                        let Some(declaration) = self.resolve.symbols.get(field.field.0 as usize)
+                        else {
+                            return true;
+                        };
+                        !self.computed_plain_value(&field.ty)
+                            || self
+                                .contract_member(*contract, &declaration.name, &field.ty)
+                                .is_none_or(|original| original != field.field)
+                            || self.query_member(field.node, alias.node, *model) != Some(*source)
+                    })
+                {
+                    continue;
+                }
             }
             let source = self.source(scenario.module, value).ok()?;
             let id = self.opaque("value-query", value, "").ok()?;
@@ -28594,6 +28664,32 @@ impl<'a> Closure<'a> {
         {
             // Only the original full leading guard is observer-owned.
             // The body and every other requirement keep static closure.
+            // The observer consumes genuine immutable LET ledger values.
+            // Retain their already evaluated query/DATA provenance; this
+            // neither rereads fields nor turns DATA into observer authority.
+            let mut flow = flow;
+            let mut captured = Vec::new();
+            let mut declarations = HashSet::new();
+            let mut pending = self
+                .nodes
+                .get(&cond)
+                .copied()
+                .into_iter()
+                .collect::<Vec<_>>();
+            while let Some(node) = pending.pop() {
+                if let Some(Binding::Let { node: declaration }) =
+                    self.resolve.node_binding.get(&NodeKey::of(node))
+                    && declarations.insert(*declaration)
+                    && let Some(value) = flow.env.get(&Local::Let(*declaration))
+                    && !value.source_values.is_empty()
+                {
+                    captured.push(value.clone());
+                }
+                pending.extend(node.children.iter());
+            }
+            for value in captured {
+                flow.controls.join(&value);
+            }
             next.push(flow);
             return Ok(());
         }

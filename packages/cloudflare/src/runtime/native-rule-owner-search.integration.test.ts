@@ -1185,7 +1185,7 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
     try {
       const source = join(directory,'phase-prefix.can');
       const original=await readFile(join(root,'compiler/tests/fixtures/native-require-missing-owner-frame.can'),'utf8');
-      await writeFile(source,original.replace('Child in Root {active:bool=true}','Child in Root {active:bool=true,marked:bool=false}').replace('Then\n',' scenario staged(root:Root) by=members\n  do\n   let probe_values=Child as child select child.active\n   let original=root.capacity\n   require count(probe_values)>0\n   set root {checked=true,capacity=root.capacity+1}\n   for child in root.Child limit=10\n    set child {marked=true}\n   require root.checked and root.capacity>original and allowed(root)\n   if root.checked and allowed(root)\n    set root {capacity=root.capacity+1}\nThen\n'));
+      await writeFile(source,original.replace('Given\n','Given\n contract Selected {active:bool}\n').replace('Child in Root {active:bool=true}','Child in Root {active:bool=true,marked:bool=false}').replace('Then\n',' scenario staged(root:Root) by=members\n  do\n   let probe_values=Child as child select child.active\n   let original=root.capacity\n   require count(probe_values)>0\n   set root {checked=true,capacity=root.capacity+1}\n   for child in root.Child limit=10\n    set child {marked=true}\n   require root.checked and root.capacity>original and allowed(root)\n   if root.checked and allowed(root)\n    set root {capacity=root.capacity+1}\n scenario query_value(root:Root) by=members\n  require root.capacity>0\n  do\n   let values=root.Child as child select Selected {active=child.active}\n   require count(values)>0 and all(values as selected,selected.active)\n   let first_value=at(values,0)\n   require first_value!=null\n   set root {checked=true}\n scenario created(root:Root) by=members\n  do\n   create Child {parent=root,active=true,marked=false} as child\n   require root.capacity>0 and allowed(root)\n   for item in root.Child limit=10\n    set item {marked=true}\nThen\n'));
       const { stdout } = await promisify(execFile)(compiler,
         ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
@@ -1267,9 +1267,57 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
 
         }
       }
+      // The same owner-prefix capability authenticates an original CREATE;
+      // a schema-valid default cannot conceal a different authored field set.
+      const state=await import('@canlang/state/invocation');
+      for(const mode of ['valid','wrong-fields','wrong-parent','extra-write']){
+        const {now,identities,identity}=await member('created-phase-'+mode),store=createMemoryStorage();
+        const loaded=await loadCanonicalDescriptors(asm,artifact,store),target=model('GuardOwnerFrame','Root'),child=model('GuardOwnerFrame','Child');
+        const sourceRow={...makeRow({id:asId('root'),data:{capacity:'2',checked:false}}),parent:null};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:target,row:sourceRow}]}));
+        const def=loaded.registry.get('GuardOwnerFrame.created')as Parameters<typeof state.bindScenarioSourceRequirePhases>[0];
+        const sites=loaded.requireSources.get(def.name)!,site=sites.find(site=>site.decision==='require'&&site.mutationPrefix!==undefined)!;
+        assert.ok(site);assert.equal(site.mutationPrefix?.length,1);assert.equal(site.mutationPrefix?.[0]?.kind,'create');
+        const callable=artifact.callables.find(callable=>callable.id===def.name)!;
+        state.bindScenarioSourceRequirePhases(def,{source:{...site.source,module:callable.module},owner:def.name,phases:[{node:site.node,statement:site.statement,prefix:site.mutationPrefix!}]});
+        let proven=false;
+        await assert.rejects(()=>state.invoke({registry:loaded.registry as Parameters<typeof state.invoke>[0]['registry'],
+          envelope:{operation:def.name,operation_id:operationId(now),inputs:{root:{id:'root',version:'1'}}},identity,app:'GuardOwnerFrame',source:'integration',store,memberships:identities,clock:{nowMs:()=>now},execute:async call=>{
+            const session=await state.beginScenarioReceiptMutation(call,store,{table:loaded.table as Parameters<typeof state.beginScenarioReceiptMutation>[2]['table'],bounds:state.readScenarioReceiptOwnerBounds(call,store)});
+            await session.stage({op:'create',model:child,id:asId('created-child'),data:mode==='wrong-fields'?{active:true}:{active:true,marked:false},parent:{model:target,id:mode==='wrong-parent'?asId('foreign-root'):sourceRow.id}},{cause:'scenario'});
+            if(mode==='extra-write')await session.stage({op:'update',model:target,id:sourceRow.id,data:{checked:true}},{cause:'scenario'});
+            const phase=await state.openScenarioSourceRequirePhase(call,store,site.node);
+            await state.consumeScenarioSourceRequirePhase(call,store,site.node,phase);proven=true;throw new Error('created phase proof complete; abort probe');
+          }}),mode==='valid'?/created phase proof complete/:mode==='wrong-fields'?/complete original CREATE prefix/:mode==='wrong-parent'?/exact actual CREATE stage and admitted parent/:/omitted or reordered an actual owner mutation/);
+        assert.equal(proven,mode==='valid');assert.deepEqual(await store.query({model:child,authority:'owner'}),[],'CREATE phase probing publishes no insert');assert.deepEqual(await store.load(target,sourceRow.id),sourceRow);assert.deepEqual(await store.outboxPending(),[]);
+      }
+      // Native query cardinality is owned by its completed State execution;
+      // copying or exchanging the original return-case metadata cannot supply it.
+      for(const mode of ['swapped-query-cases','missing-query-completion','forged-pure-value']){
+        const {now,identities,identity}=await member(mode),store=createMemoryStorage();
+        const loaded=await loadCanonicalDescriptors(asm,artifact,store),target=model('GuardOwnerFrame','Root');
+        const sourceRow={...makeRow({id:asId('root'),data:{capacity:'2',checked:false}}),parent:null};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:target,row:sourceRow}]}));
+        const def=loaded.registry.get('GuardOwnerFrame.query_value')as Parameters<typeof state.bindScenarioSourceQueryValueProducer>[0];
+        const callable=artifact.callables.find(callable=>callable.id===def.name)!;
+        const module=await import(asm.moduleUrls[callable.module]!);
+        const sites=(module.canScenarioQueryValueSources()as Record<string,Parameters<typeof state.bindScenarioSourceQueryValueProducer>[1]['sites']>)[def.name]!;
+        const site=sites.find(site=>site.receiptQueryId!==undefined)!;
+        assert.ok(site?.receiptCases);assert.ok(site.receiptCases.empty.length>0);assert.ok(site.receiptCases.nonempty.length>0);
+        assert.deepEqual(sites.find(site=>site.binding==='first_value')?.captures?.map(capture=>capture.binding),['values'],'pure native LET keeps its actual prior canonical Values capture');
+        state.bindScenarioSourceQueryValueProducer(def,{source:def.descriptor.result!.disclosure!.source,owner:def.name,sites,original:module.canScenarioQueryValueSource});
+        let ran=false,entered=false;
+        await assert.rejects(()=>state.invoke({registry:loaded.registry as Parameters<typeof state.invoke>[0]['registry'],
+          envelope:{operation:def.name,operation_id:operationId(now),inputs:{root:{id:'root',version:'1'}}},identity,app:'GuardOwnerFrame',source:'integration',store,memberships:identities,clock:{nowMs:()=>now},execute:async call=>{
+            entered=true;await state.beginScenarioReceiptMutation(call,store,{table:loaded.table as Parameters<typeof state.beginScenarioReceiptMutation>[2]['table'],bounds:state.readScenarioReceiptOwnerBounds(call,store)});
+            if(mode==='missing-query-completion')state.selectScenarioReceiptReturn(call,store,site.receiptCases!.empty[0]!);
+            else await state.executeScenarioSourceQueryValue(call,store,{source:mode==='forged-pure-value'?sites.find(site=>site.binding==='first_value')!:{...site,receiptCases:{empty:site.receiptCases!.nonempty,nonempty:site.receiptCases!.empty}},body:async()=>{ran=true;return [];},context:{}});
+            throw new Error('forged query case unexpectedly accepted');
+          }}),mode==='missing-query-completion'?/Return omitted its original completed Values query case/:mode==='forged-pure-value'?/closed own data shape required/:/changed their original declaration/);
+        assert.equal(entered,true);assert.equal(ran,false);assert.deepEqual(await store.load(target,sourceRow.id),sourceRow);assert.deepEqual(await store.outboxPending(),[]);
+      }
       // Exercise the actual admitted State owner API independently of the
       // generated IF adapter. A probe always aborts before business commit.
-      const state=await import('@canlang/state/invocation');
       for(const mode of ['valid','forged','stale','wrong-prefix','mutable-write','loop-wrong-fields','loop-extra-when','missing-scalar-capture','forged-query-value','wrong-source','reused','revision-race']){
         const {now,identities,identity}=await member('phase-proof-'+mode),store=createMemoryStorage();
         const loaded=await loadCanonicalDescriptors(asm,artifact,store),target=model('GuardOwnerFrame','Root');

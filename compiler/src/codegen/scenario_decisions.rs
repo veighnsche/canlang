@@ -2842,6 +2842,12 @@ fn serialize_require_phase_prefix(
             }
             match statement {
                 IrStmt::Let { .. } | IrStmt::Require { .. } => {}
+                IrStmt::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } if super::source_created_rows::write_free(then_branch, 0)
+                    && super::source_created_rows::write_free(else_branch, 0) => {}
                 IrStmt::Set {
                     record,
                     changes,
@@ -2861,6 +2867,35 @@ fn serialize_require_phase_prefix(
                         return None;
                     }
                     prefix.push(serde_json::json!({"kind":"set","parameter":parameter,"model":ir.items.get(model.0 as usize)?.canonical,"parents":parents,"fields":names}));
+                }
+                IrStmt::Create {
+                    input,
+                    span,
+                    when: None,
+                    ..
+                } if matches!(&owner.kind, IrItemKind::Scenario { result: None, .. }) => {
+                    let creates = super::source_created_rows::collect(ir, owner, sources, &source)?;
+                    let created = creates.iter().find(|created| {
+                        created["node"]["start"] == span.start && created["node"]["end"] == span.end
+                    })?;
+                    let IrExpr::Object(fields) = &input.expr else {
+                        return None;
+                    };
+                    let mut fields: Vec<_> = fields
+                        .iter()
+                        .filter(|(name, _)| name != "parent")
+                        .map(|(name, _)| name.clone())
+                        .collect();
+                    fields.sort();
+                    if fields.is_empty()
+                        || fields.len() > 200
+                        || fields.windows(2).any(|pair| pair[0] == pair[1])
+                    {
+                        return None;
+                    }
+                    prefix.push(
+                        serde_json::json!({"kind":"create","created":created,"fields":fields}),
+                    );
                 }
                 IrStmt::For { span, body, .. }
                     if body

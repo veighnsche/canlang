@@ -3,6 +3,22 @@ use super::ir::*;
 use crate::analysis::{ResolvedType, SymbolId};
 use std::collections::HashMap;
 
+// An early idempotency arm may return without reaching a later linear
+// CREATE. It changes no owner stage and grants no created-row identity.
+pub(super) fn write_free(body: &[IrStmt], depth: usize) -> bool {
+    depth < 32
+        && body.len() <= 200
+        && body.iter().all(|statement| match statement {
+            IrStmt::Let { .. } | IrStmt::Require { .. } | IrStmt::Return { .. } => true,
+            IrStmt::If {
+                then_branch,
+                else_branch,
+                ..
+            } => write_free(then_branch, depth + 1) && write_free(else_branch, depth + 1),
+            _ => false,
+        })
+}
+
 pub(super) fn collect(
     ir: &IrProgram,
     owner: &IrItem,
@@ -106,6 +122,11 @@ pub(super) fn collect(
                 parents.remove(name);
             }
             IrStmt::Require { .. } | IrStmt::Send { .. } => {}
+            IrStmt::If {
+                then_branch,
+                else_branch,
+                ..
+            } if write_free(then_branch, 0) && write_free(else_branch, 0) => {}
             _ => break,
         }
     }

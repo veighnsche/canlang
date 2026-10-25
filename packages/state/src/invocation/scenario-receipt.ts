@@ -5045,10 +5045,10 @@ function captureRequireSource(value:unknown):ScenarioReceiptRequireSource{
 export interface ScenarioSourceRequirePhasePlan {
  readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
  readonly phases:readonly {readonly node:{readonly start:number;readonly end:number};readonly statement:{readonly start:number;readonly end:number};
- readonly prefix:readonly ({readonly kind:'set';readonly parameter:string;readonly model:ModelName;readonly parents:readonly ModelName[];readonly fields:readonly string[]}|{readonly kind:'loop';readonly id:string;readonly fields:readonly (readonly string[])[]})[]}[];
+ readonly prefix:readonly ({readonly kind:'set';readonly parameter:string;readonly model:ModelName;readonly parents:readonly ModelName[];readonly fields:readonly string[]}|{readonly kind:'loop';readonly id:string;readonly fields:readonly (readonly string[])[]}|{readonly kind:'create';readonly created:ScenarioSourceCreatedRoot;readonly fields:readonly string[]})[]}[];
 }
 export interface ScenarioSourceRequirePhase {readonly kind:'source-require-phase';}
-interface SourceMutationStamp {readonly stage:number;readonly call:AdmittedCall;readonly writes:readonly {readonly op:string;readonly model:ModelName;readonly id:RecordId|undefined;readonly fields:readonly string[];readonly plain:boolean}[];readonly loop?:{readonly id:string;readonly item:RecordId};}
+interface SourceMutationStamp {readonly stage:number;readonly call:AdmittedCall;readonly writes:readonly {readonly op:string;readonly model:ModelName;readonly id:RecordId|undefined;readonly fields:readonly string[];readonly plain:boolean;readonly noModifiers:boolean;readonly parent?:Readonly<{model:ModelName;id:RecordId}>}[];readonly loop?:{readonly id:string;readonly item:RecordId};}
 const sourceMutationStamps=new WeakMap<ReceiptOwnerSession,SourceMutationStamp[]>();
 const sourceRequirePhaseProducers=new WeakMap<GeneratedOperationDef,ScenarioSourceRequirePhasePlan>();
 const sourceRequirePhaseTokens=new WeakMap<object,{readonly call:AdmittedCall;readonly store:StoragePort;readonly owner:ReceiptOwnerSession;readonly plan:ScenarioSourceRequirePhasePlan;readonly node:string;readonly stage:number;readonly revision:number;consumed:boolean}>();
@@ -5062,6 +5062,13 @@ export function bindScenarioSourceRequirePhases(def:GeneratedOperationDef,value:
   const key=stableStringify(phase['node']);if(ids.has(key))return invalid('Source phase repeats an original guard.');ids.add(key);
   const prefix=list(phase['prefix']);if(prefix.length===0)return invalid('Source phase requires its complete nonempty mutation prefix.');
   for(const value of prefix){
+   if(typeof value==='object'&&value!==null&&Object.getOwnPropertyDescriptor(value,'kind')?.value==='create'){
+    const step=object(value,['kind','created','fields']);
+    bindScenarioSourceCreatedRoots(def,{source:bound.plan.source,owner:def.name,creates:[step['created'] as ScenarioSourceCreatedRoot]});
+    const created=step['created'] as ScenarioSourceCreatedRoot,names=list(step['fields']).map(text);
+    if(names.length===0||new Set(names).size!==names.length||names.some((name,index)=>index>0&&names[index-1]!>=name||!bound.artifactModels.get(created.model)?.fields.some(field=>field.name===name&&field.default?.kind!=='derived')))return invalid('Source phase CREATE fields differ from their original stored schema.');
+    continue;
+   }
    if(typeof value==='object'&&value!==null&&Object.getOwnPropertyDescriptor(value,'kind')?.value==='loop'){
     const step=object(value,['kind','id','fields']),loop=sourceBodyLoopProducers.get(def)?.loops.find(loop=>loop.id===text(step['id']));
     if(loop===undefined||loop.sends!==0||loop.work!==undefined||loop.condition!==undefined)return invalid('Source phase loop differs from its original write-only loop.');
@@ -5084,7 +5091,7 @@ function recordSourceMutationStamp(owner:ReceiptOwnerSession,writes:Parameters<O
  const stamps=sourceMutationStamps.get(owner)??[];sourceMutationStamps.set(owner,stamps);
  if(stamps.length>=((sourceBodyLoopLimits(owner.call.def as GeneratedOperationDef)?.maxWrites)??MAX_ITEMS))return invalid('Source phase mutation stamp census exceeded its owning budget.');
  const item=sourceBodyLoopItems.get(owner),actual=Array.isArray(writes)?writes:[writes];
- stamps.push(Object.freeze({stage:owner.stage,call:owner.executingCall,writes:Object.freeze(actual.map(write=>Object.freeze({op:write.op,model:write.model,id:write.id,fields:Object.freeze(Object.keys(write.data??{}).sort()),plain:write.parent===undefined&&write.transition===undefined&&write.when===undefined}))),...(item===undefined?{}:{loop:Object.freeze({id:item.execution.loop.id,item:item.row.id})})}));
+ stamps.push(Object.freeze({stage:owner.stage,call:owner.executingCall,writes:Object.freeze(actual.map(write=>Object.freeze({op:write.op,model:write.model,id:write.id,fields:Object.freeze(Object.keys(write.data??{}).sort()),plain:write.parent===undefined&&write.transition===undefined&&write.when===undefined,noModifiers:write.transition===undefined&&write.when===undefined,...(write.parent===undefined?{}:{parent:Object.freeze({model:write.parent.model,id:write.parent.id})})}))),...(item===undefined?{}:{loop:Object.freeze({id:item.execution.loop.id,item:item.row.id})})}));
 }
 export async function openScenarioSourceRequirePhase(call:AdmittedCall,store:StoragePort,node:{readonly start:number;readonly end:number}):Promise<ScenarioSourceRequirePhase>{
  const state=capture(call,store),owner=ownerSessions.get(call),plan=sourceRequirePhaseProducers.get(call.def as GeneratedOperationDef);
@@ -5096,6 +5103,16 @@ export async function openScenarioSourceRequirePhase(call:AdmittedCall,store:Sto
    if(await store.readRevision()!==call.revision)throw new StateError('conflict','Source phase admission revision changed.');healthy();
    const stamps=sourceMutationStamps.get(owner)??[];let cursor=0;
    for(const step of phase.prefix){
+    if(step.kind==='create'){
+     const captured=sourceCreatedRootCaptures.get(owner)?.get(step.created.id),stamp=stamps[cursor],write=stamp?.writes[0];
+     if(captured===undefined||stableStringify(captured.profile)!==stableStringify(step.created)||captured.profile.stage!==cursor
+         ||stamp?.stage!==cursor||stamp.call!==call||stamp.loop!==undefined||stamp.writes.length!==1||write?.op!=='create'||write.noModifiers!==true
+         ||write.model!==captured.profile.model||write.id!==captured.row.id||stableStringify(write.parent)!==stableStringify(captured.row.parent)
+         ||stableStringify(write.fields)!==stableStringify(step.fields))return invalid('Source phase differs from its complete original CREATE prefix.');
+     const current=await owner.session!.views.final.get(captured.profile.model,captured.row.id);healthy();
+     if(current===null||current.archivedAt!==null||!sameModelLifetime(captured.row,current)||stableStringify(current.parent)!==stableStringify(captured.row.parent))return invalid('Source phase CREATE lifetime or original parent changed.');
+     cursor++;continue;
+    }
     if(step.kind==='loop'){
      const execution=sourceBodyLoopExecutions.get(owner)?.get(step.id);
      if(execution===undefined||execution.stage!==cursor||[...execution.rows.values()].some(row=>!row.completed))return invalid('Source phase loop has not completed its genuine selected domain.');
