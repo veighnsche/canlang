@@ -2490,6 +2490,45 @@ fn parent_timezone_keeps_its_original_stored_dependency() {
         "real native constructor receipt required"
     );
 
+    // A lazy scalar precondition is checked once at its original source
+    // site. Constructor DATA still keeps the independent null/present paths.
+    let guard = std::iter::repeat_n(
+        "(guard.code==\"skip\" or guard.program==\"Original program\")",
+        12,
+    )
+    .collect::<Vec<_>>()
+    .join(" and ");
+    let guarded = nullable
+        .replace(
+            "copy(capture:Capture?)",
+            "copy(guard:Capture,capture:Capture?)",
+        )
+        .replace("  do\n", &format!("  require {guard}\n  do\n"));
+    let (guarded_db, guarded_program, guarded_ir, guarded_catalog) =
+        fixture_source("lazy-scalar-precondition.can", &guarded);
+    let guarded_owner = item(&guarded_ir, "NullableCapture.copy");
+    let ScenarioDisclosure::Complete(guarded_proof) =
+        &guarded_ir.scenario_disclosures[&guarded_owner.id]
+    else {
+        panic!("{:?}", guarded_ir.scenario_disclosures[&guarded_owner.id]);
+    };
+    assert_eq!(guarded_proof.returns.len(), 2);
+    let (guarded_artifact, guarded_diagnostics) =
+        prepared_artifact(&guarded_program, &guarded_db, &guarded_catalog);
+    assert!(guarded_diagnostics.is_empty(), "{guarded_diagnostics:?}");
+    assert_eq!(
+        guarded_artifact["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|operation| operation["name"] == "NullableCapture.copy")
+            .unwrap()["result"]["disclosure"]["returns"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+
     // Reusing the same optional input after a prior CREATE cannot select
     // a different presence branch for the second constructor.
     let constructor = nullable

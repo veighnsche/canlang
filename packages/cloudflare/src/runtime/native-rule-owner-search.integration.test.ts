@@ -3507,6 +3507,44 @@ it('observes original helper parent getters at their authored identity reads', {
     assert.deepEqual(await store.query({model:bookingModel,authority:'owner'}),bookings);
    }
   }
+  const guardSource=join(directory,'lazy-scalar-precondition.can');
+  const scalarGuard=Array.from({length:12},()=>'(guard.code=="skip" or guard.program=="Original program")').join(' and ');
+  await writeFile(guardSource,(await readFile(optionalSource,'utf8'))
+   .replace('copy(capture:Capture?)','copy(guard:Capture,capture:Capture?)')
+   .replace('  do\n',`  require ${scalarGuard}\n  do\n`));
+  const guardOutput=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,guardSource],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const guardArtifact=JSON.parse(guardOutput.stdout) as CompileArtifact;
+  assert.equal(guardArtifact.operations?.find(operation=>operation.name==='NullableCapture.copy')?.result?.disclosure?.returns.length,2);
+  const guardAsm=await assembleModules({artifact:guardArtifact,sourcePath:guardSource},{workDir:join(directory,'lazy-guard'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  // Private Require control keeps its existing owner authority. The same
+  // observer never lends that authority to constructor DATA (withheld-data).
+  for(const mode of ['allowed','lazy-skipped','false','private-control','withheld-data','identity-race','guard-race']){
+   const {now,identities,identity,membership}=await member('lazy-scalar-guard-'+mode);
+   const {store}=createTestMemoryStorage(),captureModel=asModel('NullableCapture.Capture'),bookingModel=asModel('NullableCapture.Booking');
+   const lazy=mode==='lazy-skipped'||mode==='withheld-data';
+   const captured={code:'Original code',program:'Original program',captured:new Date(now).toISOString(),window:'86400000',visible:mode!=='withheld-data'};
+   const guarded={...captured,code:lazy?'skip':'Original code',program:mode==='false'?'blocked':'Original program',visible:!lazy&&mode!=='private-control'};
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    {kind:'insert',model:captureModel,row:makeRow({id:asId('guard'),data:guarded})},
+    {kind:'insert',model:captureModel,row:makeRow({id:asId('capture'),data:captured})}]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.load=async(model,id)=>{const row=await load(model,id);
+    if(mode==='identity-race'&&model===bookingModel&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return row;};
+   store.commit=async batch=>{if(mode==='guard-race'&&!raced&&batch.writes.some(write=>write.kind==='insert'&&write.model===bookingModel)){
+    raced=true;const row=await load(captureModel,asId('guard'));assert.ok(row);
+    await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:captureModel,id:row.id,expectedVersion:row.version,row:{...row,version:asVersion(row.version+1),data:{...row.data,program:'blocked'}}}]}));
+   }return commit(batch);};
+   const request={operation:'NullableCapture.copy',operation_id:operationId(now),inputs:{guard:{id:'guard',version:'1'},capture:{id:'capture',version:'1'}}};
+   const invoker=buildInvoker(guardArtifact,guardAsm,store,{memberships:identities,now:()=>now});
+   const result=await invoker.invokeMutation(request,identity),allowed=mode==='allowed'||mode==='lazy-skipped'||mode==='private-control';
+   assert.equal('result'in result,allowed,mode+': '+JSON.stringify(result));
+   if(mode.endsWith('-race'))assert.equal(raced,true,mode);
+   const bookings=await store.query({model:bookingModel,authority:'owner'});assert.equal(bookings.length,allowed?1:0,mode+': atomic scalar-guard constructor');
+   if(allowed){assert.deepEqual(bookings[0]!.data,{attribution:captured.code,exclusive_program:captured.program,attributed_at:captured.captured,attribution_window:captured.window});
+    const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
+    assert.deepEqual(await store.query({model:bookingModel,authority:'owner'}),bookings);
+   }
+  }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
 

@@ -18910,6 +18910,35 @@ impl<'a> Closure<'a> {
         {
             *helper_query = true;
         }
+        // A lazy leading scalar guard is one source decision, not a product
+        // of hypothetical successful short-circuit paths. Reuse the same
+        // sealed observer as query guards; its current reads remain CONTROL
+        // and confer no authority on constructor or return DATA reads.
+        if !body
+            && site.stage == CheckedDecisionStage::LeadingRequire
+            && (self.query_binary(site.node, "and").is_some()
+                || self.query_binary(site.node, "or").is_some())
+            && node.kind == SyntaxKind::Member
+            && let Some((base, name)) = self.count_member(key)
+            && let Some(Binding::Symbol(parameter)) = self.query_binding(base)
+            && scenario.params.iter().any(|input| input.param == *parameter)
+            && let Some(ResolvedType::Record { symbol: model, stored: true }) =
+                self.types.symbol_types.get(parameter)
+            && self.effects.models.get(model).is_some_and(|owner| {
+                owner.fields.iter().any(|field| {
+                    self.resolve.symbols.get(field.field.0 as usize).is_some_and(|declaration| {
+                        declaration.name == name
+                            && matches!(declaration.kind, SymbolKind::Field { owner, .. } if owner == *model)
+                    }) && self.types.symbol_types.get(&field.field).is_some_and(|ty| {
+                        self.types.node_types.get(&key) == Some(ty)
+                            && (primitive_type(ty)
+                                || matches!(ty, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
+                    })
+                })
+            })
+        {
+            *helper_query = true;
+        }
         // Required stored-reference guards are owner decisions too. Keep
         // their original lazy navigation inside the independently sealed
         // guard observer; no field grant escapes into a later expression.
