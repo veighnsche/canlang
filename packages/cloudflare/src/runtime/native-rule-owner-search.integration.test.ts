@@ -7,7 +7,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, it } from 'node:test';
+import { it } from 'node:test';
 import { promisify } from 'node:util';
 import type { CompileArtifact, FileRetirementAuthority, ModelName, StoredRow, Receipt, ScenarioReceiptAssociation, ArtifactOperationInput } from '@canlang/contracts';
 import { resolveIdentity, sha256HexText } from '@canlang/identity';
@@ -126,9 +126,6 @@ async function member(mode: string, roles: readonly string[] = [], emailVerified
   return { now, identities, team, user, membership, identity: await resolveIdentity(identities, { session_token: token },
     { clock: createFrozenClock(now) }) };
 }
-
-// Each workflow owns its temporary assembly, identities, stores and File ports.
-describe('native owner workflows', { concurrency: 2 }, () => {
 
 it('refuses a helper-contained child scan through an unproved copy', () => {
   const result = spawnSync(compiler, ['compile', '--format=json', '--native-scenario-receipts',
@@ -6128,6 +6125,4 @@ it('triages the original unmatched mail atomically with its stored default and f
       }
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
-});
-
 });
