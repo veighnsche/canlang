@@ -559,7 +559,13 @@ export async function executeScenarioSourceLoopItem(call:AdmittedCall,store:Stor
       const stamps=sourceMutationStamps.get(owner);
       entry.completion=Object.freeze({stage,endStage:owner.stage,answer:item.answer,stamps:Object.freeze(stamps?.slice(stage,owner.stage)??[])});
       entry.completed=true;execution.next++;
-    }finally{sourceBodyLoopItems.delete(owner);}
+    }finally{
+      // A lexical value cannot escape its original item. Releasing only this
+      // private item's entries keeps the unchanged local-capture bound useful
+      // for long finite loops without retaining values from earlier rows.
+      for(const [key,value]of sourceLetValueCaptures.get(call)??[])if(value.item===item)sourceLetValueCaptures.get(call)!.delete(key);
+      sourceBodyLoopItems.delete(owner);
+    }
   }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
 }
 /** Consume a command only after its genuine installed Work staging succeeds. */
@@ -5239,10 +5245,12 @@ function recordSourceMutationStamp(owner:ReceiptOwnerSession,writes:Parameters<O
 /** Verify the actual ordered owner mutations without assigning a source kind.
  * Guard and LET producers independently bind their original authored sites. */
 async function checkedSourceMutationPrefix(call:AdmittedCall,store:StoragePort,owner:ReceiptOwnerSession,
- prefix:ScenarioSourceRequirePhasePlan['phases'][number]['prefix']):Promise<number>{
+ prefix:ScenarioSourceRequirePhasePlan['phases'][number]['prefix'],checkpoint=owner.stage):Promise<number>{
    const stage=owner.stage,healthy=()=>{ownerHealthy(owner);if(owner.stage!==stage||owner.executingCall!==call)return invalid('Source phase crossed its actual original checkpoint.');};
    if(await store.readRevision()!==call.revision)throw new StateError('conflict','Source phase admission revision changed.');healthy();
-   const stamps=sourceMutationStamps.get(owner)??[];let cursor=0;
+   const allStamps=sourceMutationStamps.get(owner)??[];
+   if(!Number.isSafeInteger(checkpoint)||checkpoint<0||checkpoint>stage||allStamps.length!==stage)return invalid('Source phase checkpoint lacks its actual ordered mutation census.');
+   const stamps=allStamps.slice(0,checkpoint);let cursor=0;
    for(const step of prefix){
     if(step.kind==='create'){
      const captured=sourceCreatedRootCaptures.get(owner)?.get(step.created.id),stamp=stamps[cursor],write=stamp?.writes[0];
@@ -5277,9 +5285,9 @@ async function checkedSourceMutationPrefix(call:AdmittedCall,store:StoragePort,o
     const stamp=stamps[cursor],write=stamp?.writes[0];
     if(stamp?.stage!==cursor||stamp.call!==call||stamp.loop!==undefined||stamp.writes.length!==1||write?.op!=='update'||write.plain!==true||write.model!==model||write.id!==row.id||stableStringify(write.fields)!==stableStringify([...step.fields].sort()))return invalid('Source phase differs from its complete original SET prefix.');cursor++;
    }
-   if(cursor!==stamps.length||cursor!==stage)return invalid('Source phase omitted or reordered an actual owner mutation.');
+   if(cursor!==stamps.length||cursor!==checkpoint)return invalid('Source phase omitted or reordered an actual owner mutation.');
    if(await store.readRevision()!==call.revision)throw new StateError('conflict','Source phase snapshot revision changed.');healthy();
-   return stage;
+   return checkpoint;
 }
 export async function openScenarioSourceRequirePhase(call:AdmittedCall,store:StoragePort,node:{readonly start:number;readonly end:number}):Promise<ScenarioSourceRequirePhase>{
  const state=capture(call,store),owner=ownerSessions.get(call),plan=sourceRequirePhaseProducers.get(call.def as GeneratedOperationDef);
@@ -8190,7 +8198,12 @@ function sourceEffectGrantSlot(owner:ReceiptOwnerSession,producer:ScenarioReceip
       maximum+=site.parameters.reduce((total,parameter)=>total+sourceEffectParameterGuardMaximum(parameter),0)+(site.queries?.length??0)*owner.maxRows;
   }else if(producer!==undefined&&producer===sourceQueryRowsProducers.get(def)){
     const sites=sourceQueryRowsProducers.get(def)!.sites;
-    maximum=sites.reduce((total,site)=>total+site.queries.reduce((sum,query)=>sum+owner.maxRows+1+(query.parent===undefined?0:1),0),0);
+    maximum=sites.reduce((total,site)=>{
+      const value=sourceQueryValueProducers.get(def)?.sites.find(value=>stableStringify(value.node)===stableStringify(site.node));
+      const loop=value?.loop===undefined?undefined:sourceBodyLoopProducers.get(def)?.loops.find(loop=>loop.id===value.loop!.id);
+      if(value?.loop!==undefined&&loop===undefined)return invalid('Values query observation lost its original finite loop.');
+      return total+(loop?.maximum??1)*site.queries.reduce((sum,query)=>sum+owner.maxRows+1+(query.parent===undefined?0:1),0);
+    },0);
   }else if(producer!==undefined&&producer===sourceSendDataProducers.get(def)){
     for(const site of sourceSendDataProducers.get(def)!.sites){
       const ids=new Set(site.parameters.flatMap(parameter=>parameter.loop===undefined?[]:[parameter.loop]));
@@ -8376,7 +8389,7 @@ interface SourceLetDataProducer extends ScenarioReceiptReferenceProducer {readon
 const sourceLetDataProducers=new WeakMap<GeneratedOperationDef,SourceLetDataProducer>();
 const consumedSourceLetData=new WeakMap<AdmittedCall,Set<string>>();
 const SOURCE_PRIMITIVE_LET_TYPES=new Set(['bool','int','decimal','text','email','url','locale','date','datetime','duration','timezone','currency','money']);
-interface SourceLetValueCapture {readonly owner:ReceiptOwnerSession;readonly store:StoragePort;readonly revision:number;readonly stage:number;readonly site:Pick<ScenarioSourceLetDataSource,'source'|'owner'|'node'|'binding'|'valueType'|'loop'> & {readonly stage:number};readonly wire:unknown;}
+interface SourceLetValueCapture {readonly owner:ReceiptOwnerSession;readonly store:StoragePort;readonly revision:number;readonly stage:number;readonly site:Pick<ScenarioSourceLetDataSource,'source'|'owner'|'node'|'binding'|'valueType'|'loop'> & {readonly stage:number};readonly wire:unknown;readonly item?:SourceBodyLoopItem;}
 const sourceLetValueCaptures=new WeakMap<AdmittedCall,Map<string,SourceLetValueCapture>>();
 
 /** A compiler-issued original LET expression may complete with plain Values.
@@ -8386,6 +8399,7 @@ export interface ScenarioSourceQueryValueSource {
  readonly node:{readonly start:number;readonly end:number};readonly value:{readonly start:number;readonly end:number};
  readonly binding:string;readonly typeId:CanTypeId;readonly stage:number;
  readonly mutationPrefix?:ScenarioSourceRequirePhasePlan['phases'][number]['prefix'];
+ readonly loop?:{readonly id:string;readonly before:number;readonly fields:readonly (readonly string[])[]};
  readonly receiptQueryId?:string;
  readonly receiptDependencies?:readonly {readonly ordinaryDependencyId:string;readonly queryDependencyId:string}[];
  readonly receiptCases?:Readonly<{readonly empty:readonly string[];readonly nonempty:readonly string[]}>;
@@ -8403,7 +8417,7 @@ function requireQueryValueEmptyProducers(def:GeneratedOperationDef,bound:BoundPl
  if(bound.queryValueEmptyReturns.some(required=>!sourceQueryValueProducers.get(def)?.sites.some(site=>site.receiptQueryId===required.queryId&&site.receiptCases?.empty.includes(required.returnId))))return invalid('Model query empty return requires its independently bound original Values producer before execution or replay.');
 }
 
-interface SourceQueryValueLease{readonly call:AdmittedCall;readonly site:ScenarioSourceQueryValueSource;readonly stage:number;readonly stamps:readonly SourceMutationStamp[];}
+interface SourceQueryValueLease{readonly call:AdmittedCall;readonly site:ScenarioSourceQueryValueSource;readonly stage:number;readonly stamps:readonly SourceMutationStamp[];readonly item?:SourceBodyLoopItem;}
 const sourceQueryValueActive=new WeakMap<ReceiptOwnerSession,SourceQueryValueLease>();
 const sourceQueryValueSelections=new WeakMap<QueryExecution,{readonly lease:SourceQueryValueLease;next:number}>();
 const sourceQueryValueRowScopes=new WeakMap<QueryExecution,{readonly lease:SourceQueryValueLease;readonly slot:ScenarioReceiptQuerySlot}>();
@@ -8419,7 +8433,7 @@ export function bindScenarioSourceQueryValueProducer(def:GeneratedOperationDef,v
  if(raw['owner']!==def.name||stableStringify(source)!==stableStringify(bound.plan.source))return invalid('Query LET Values differ from their original source owner.');
  const ids=new Set<string>(),bindings=new Set<string>();
  const sites=list(dataCopy(raw['sites'])).map(value=>{
-  const site=object(value,['source','owner','node','value','binding','typeId','stage','queries',...(Object.hasOwn(value as object,'receiptQueryId')?['receiptQueryId']:[]),...(Object.hasOwn(value as object,'receiptCases')?['receiptCases']:[]),...(Object.hasOwn(value as object,'receiptDependencies')?['receiptDependencies']:[]),...(Object.hasOwn(value as object,'captures')?['captures']:[]),...(Object.hasOwn(value as object,'mutationPrefix')?['mutationPrefix']:[])]);
+  const site=object(value,['source','owner','node','value','binding','typeId','stage','queries',...(Object.hasOwn(value as object,'receiptQueryId')?['receiptQueryId']:[]),...(Object.hasOwn(value as object,'receiptCases')?['receiptCases']:[]),...(Object.hasOwn(value as object,'receiptDependencies')?['receiptDependencies']:[]),...(Object.hasOwn(value as object,'captures')?['captures']:[]),...(Object.hasOwn(value as object,'mutationPrefix')?['mutationPrefix']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[])]);
   const node=object(site['node'],['start','end']),expression=object(site['value'],['start','end']);
   const binding=text(site['binding']),type=text(site['typeId']);
   const valid=(span:Record<string,unknown>)=>Number.isSafeInteger(span['start'])&&Number.isSafeInteger(span['end'])&&Number(span['start'])>=0&&Number(span['start'])<Number(span['end']);
@@ -8432,6 +8446,12 @@ export function bindScenarioSourceQueryValueProducer(def:GeneratedOperationDef,v
    if(completeReceipt||Number(site['stage'])!==prefix.length||prefix.length===0||prefix.some(step=>typeof step!=='object'||step===null||Object.getOwnPropertyDescriptor(step,'kind')?.value!=='create'))return invalid('Staged LET Values require their complete original CREATE prefix and source-only owner.');
    bindSourceMutationPrefix(def,bound,site['mutationPrefix']);
   }else if(site['stage']!==0)return invalid('Query LET Values require their exact original phase.');
+  if(Object.hasOwn(site,'loop')){
+   const phase=object(site['loop'],['id','before','fields']),loop=sourceBodyLoopProducers.get(def)?.loops.find(loop=>loop.id===text(phase['id']));
+   const fields=list(phase['fields']);
+   if(completeReceipt||!Object.hasOwn(site,'mutationPrefix')||loop===undefined||loop.condition!==undefined||loop.sends!==0||loop.work!==undefined||fields.length!==loop.writes||!Number.isSafeInteger(phase['before'])||Number(phase['before'])<0||Number(phase['before'])>fields.length||Number(node['start'])<=loop.node.start||Number(node['end'])>=loop.node.end)return invalid('Loop LET Values lack their exact original write-only item phase.');
+   for(const value of fields){const names=list(value).map(text);if(names.length===0||new Set(names).size!==names.length||names.some((name,index)=>index>0&&names[index-1]!>=name||!bound.artifactModels.get(loop.model)?.fields.some(field=>field.name===name&&field.default?.kind!=='derived')))return invalid('Loop LET Values differ from their original ordered item fields.');}
+  }
   const queries=list(site['queries']);if(queries.length>1)return invalid('Query LET Values exceed their original initial query census.');
   for(const value of queries){const query=object(value,['node','model',...(typeof value==='object'&&value!==null&&Object.hasOwn(value,'reader')?['reader']:[])]),at=object(query['node'],['start','end']);
    if(Object.hasOwn(query,'reader')!==Object.hasOwn(site,'mutationPrefix'))return invalid('Staged Values require their complete private original query reader.');
@@ -8473,6 +8493,31 @@ export function bindScenarioSourceQueryValueProducer(def:GeneratedOperationDef,v
  if(bound.queryValueEmptyReturns.some(required=>!sites.some(site=>site.receiptQueryId===required.queryId&&site.receiptCases?.empty.includes(required.returnId))))return invalid('Model query empty return lacks its exact original Values case producer.');
  sourceQueryValueProducers.set(def,Object.freeze({source:bound.plan.source,owner:def.name,sites:Object.freeze(sites),original:original as SourceQueryValueProducer['original']}));
 }
+/** Resolve a repeated LET against actual ordered item completion, never a
+ * supplied row id, iteration counter or a guessed conditional answer. */
+async function checkedSourceQueryLoopPhase(call:AdmittedCall,store:StoragePort,owner:ReceiptOwnerSession,site:ScenarioSourceQueryValueSource):Promise<SourceBodyLoopItem>{
+ const phase=site.loop,item=sourceBodyLoopItems.get(owner),execution=item?.execution;
+ if(phase===undefined||item===undefined||execution===undefined||execution.loop.id!==phase.id||execution.next!==item.ordinal||execution.stage!==site.stage||site.mutationPrefix===undefined)return invalid('Loop LET Values lost their genuine active selected item.');
+ await checkedSourceMutationPrefix(call,store,owner,site.mutationPrefix,execution.stage);
+ const stamps=sourceMutationStamps.get(owner)??[];let cursor=execution.stage;
+ const check=(row:StoredRow,fields:readonly string[],retained?:SourceMutationStamp)=>{
+  const stamp=stamps[cursor],write=stamp?.writes[0];
+  if(retained!==undefined&&retained!==stamp||stamp?.stage!==cursor||stamp.call!==call||stamp.loop?.id!==phase.id||stamp.loop.item!==row.id||stamp.writes.length!==1||write?.op!=='update'||write.plain!==true||write.model!==execution.loop.model||write.id!==row.id||stableStringify(write.fields)!==stableStringify(fields))return invalid('Loop LET Values changed an original selected-item write.');cursor++;
+ };
+ for(const entry of execution.rows.values()){
+  if(entry.ordinal>=item.ordinal){if(entry.completed||entry.completion!==undefined)return invalid('Loop LET Values crossed an unfinished original item.');continue;}
+  const completed=entry.completion;
+  if(!entry.completed||completed===undefined||completed.answer!==undefined||completed.stage!==cursor||completed.endStage!==cursor+phase.fields.length||completed.stamps.length!==phase.fields.length)return invalid('Loop LET Values lack their actual preceding completed item.');
+  for(const [index,fields]of phase.fields.entries())check(entry.row,fields,completed.stamps[index]);
+ }
+ if(cursor!==item.stage)return invalid('Loop LET Values changed their actual item entry stage.');
+ for(const fields of phase.fields.slice(0,phase.before))check(item.row,fields);
+ if(cursor!==owner.stage||stamps.length!==cursor)return invalid('Loop LET Values omitted or added an actual item mutation.');
+ const current=await owner.session!.views.final.get(execution.loop.model,item.row.id);ownerHealthy(owner);
+ if(current===null||current.archivedAt!==null||!sameModelLifetime(item.row,current)||sourceBodyLoopItems.get(owner)!==item||owner.stage!==cursor)return invalid('Loop LET Values selected item lifetime changed.');
+ if(await store.readRevision()!==call.revision)throw new StateError('conflict','Loop LET Values revision changed.');
+ return item;
+}
 export async function executeScenarioSourceQueryValue(call:AdmittedCall,store:StoragePort,input:{readonly source:ScenarioSourceQueryValueSource;readonly body:Function;readonly context:unknown}):Promise<unknown>{
  const state=capture(call,store),owner=ownerSessions.get(call);
  try{
@@ -8489,14 +8534,18 @@ export async function executeScenarioSourceQueryValue(call:AdmittedCall,store:St
     if(prior===undefined||prior.owner!==owner||prior.store!==store||prior.revision!==call.revision||prior.stage!==0||prior.site.stage!==0||prior.site.loop!==undefined||prior.site.binding!==captured.binding||prior.site.valueType!==captured.typeId||prior.site.node.start!==captured.node.start||prior.site.node.end!==captured.node.end||prior.site.owner!==site.owner||stableStringify(prior.site.source)!==stableStringify(site.source)||stableStringify(encodeValue(captured.typeId,lexical[captured.binding]as Parameters<typeof encodeValue>[1],undefined,state.bound.valueSchema))!==stableStringify(prior.wire))return invalid('Pure native Values differ from their genuine original immutable LET capture.');
    }
   }
-  if(owner.stage!==site.stage)return invalid('Query LET Values differ from their exact original stage.');
-  if(site.mutationPrefix!==undefined)await ownerOperation(owner,()=>checkedSourceMutationPrefix(call,store,owner,site.mutationPrefix!),call);
-  else if(owner.stage!==0)return invalid('Initial LET Values cannot consume a staged owner.');
+  let item:SourceBodyLoopItem|undefined;
+  if(site.loop!==undefined)item=await ownerOperation(owner,()=>checkedSourceQueryLoopPhase(call,store,owner,site),call);
+  else{
+   if(sourceBodyLoopItems.has(owner)||owner.stage!==site.stage)return invalid('Query LET Values differ from their exact original stage.');
+   if(site.mutationPrefix!==undefined)await ownerOperation(owner,()=>checkedSourceMutationPrefix(call,store,owner,site.mutationPrefix!),call);
+   else if(owner.stage!==0)return invalid('Initial LET Values cannot consume a staged owner.');
+  }
   if(site.mutationPrefix!==undefined){
    const rows=sourceQueryRowsProducers.get(call.def as GeneratedOperationDef)?.sites.find(candidate=>stableStringify(candidate.node)===stableStringify(site.node));
    if(rows===undefined||site.queries.some(query=>query.reader===undefined||!rows.queries.some(row=>stableStringify(row)===stableStringify(query.reader))))return invalid('Staged LET Values lack their independently bound original State query reader.');
   }
-  const key=`${site.node.start}:${site.node.end}`;
+  const key=`${site.node.start}:${site.node.end}${item===undefined?'':`:${item.execution.loop.id}:${item.ordinal}`}`;
   if(sourceLetValueCaptures.get(call)?.has(key))return invalid('Query LET Values repeat their original declaration.');
   if(site.receiptQueryId!==undefined){
    const receipt=queryProducers.get(call.def as GeneratedOperationDef);
@@ -8504,8 +8553,8 @@ export async function executeScenarioSourceQueryValue(call:AdmittedCall,store:St
   }
   const queryCount=state.queries.length;
   const pure=site.captures!==undefined,observations=state.observations.length,guards=owner.callGuards.length,sourceGuards=sourceEffectGuards.get(owner)?.length??0,ordinal=owner.framework?.ordinal??0,calls=owner.calls.length;
-  const lease=Object.freeze({call,site,stage:owner.stage,stamps:Object.freeze([...(sourceMutationStamps.get(owner)??[])])});sourceQueryValueActive.set(owner,lease);
-  const healthy=()=>{ownerHealthy(owner);capture(call,store);if(sourceQueryValueActive.get(owner)!==lease||owner.executingCall!==call||owner.stage!==lease.stage||owner.busy||state.pending!==0)return invalid('Query LET Values crossed their original initial checkpoint.');if((sourceMutationStamps.get(owner)??[]).length!==lease.stamps.length||(sourceMutationStamps.get(owner)??[]).some((stamp,index)=>stamp!==lease.stamps[index]))return invalid('Query LET Values changed their verified original mutation prefix.');};
+  const lease=Object.freeze({call,site,stage:owner.stage,stamps:Object.freeze([...(sourceMutationStamps.get(owner)??[])]),...(item===undefined?{}:{item})});sourceQueryValueActive.set(owner,lease);
+  const healthy=()=>{ownerHealthy(owner);capture(call,store);if(sourceQueryValueActive.get(owner)!==lease||owner.executingCall!==call||owner.stage!==lease.stage||sourceBodyLoopItems.get(owner)!==lease.item||owner.busy||state.pending!==0)return invalid('Query LET Values crossed their original initial checkpoint.');if((sourceMutationStamps.get(owner)??[]).length!==lease.stamps.length||(sourceMutationStamps.get(owner)??[]).some((stamp,index)=>stamp!==lease.stamps[index]))return invalid('Query LET Values changed their verified original mutation prefix.');};
   try{
    if(await store.readRevision()!==call.revision)throw new StateError('conflict','Query LET Values admission revision changed.');healthy();
    const value=await Reflect.apply(raw['body'],undefined,[]);healthy();
@@ -8525,7 +8574,7 @@ export async function executeScenarioSourceQueryValue(call:AdmittedCall,store:St
    if(await store.readRevision()!==call.revision)throw new StateError('conflict','Query LET Values result revision changed.');healthy();
    let captures=sourceLetValueCaptures.get(call);if(captures===undefined){captures=new Map();sourceLetValueCaptures.set(call,captures);}
    if(captures.size>=MAX_ITEMS||captures.has(key))return invalid('Query LET Values exceed their finite original capture census.');
-   captures.set(key,Object.freeze({owner,store,revision:call.revision,stage:lease.stage,site:Object.freeze({source:site.source,owner:site.owner,node:site.node,binding:site.binding,valueType:site.typeId,stage:lease.stage}),wire}));
+   captures.set(key,Object.freeze({owner,store,revision:call.revision,stage:lease.stage,site:Object.freeze({source:site.source,owner:site.owner,node:site.node,binding:site.binding,valueType:site.typeId,stage:lease.stage,...(item===undefined?{}:{loop:item.execution.loop.id})}),wire,...(item===undefined?{}:{item})}));
    if(completed!==undefined){
     completed.selectionConsumed=true;
     const cases=site.receiptCases;if(cases===undefined)return invalid('Query LET Values omitted their original return case census.');
@@ -8628,7 +8677,7 @@ export async function executeScenarioSourceQueryRows(call:AdmittedCall,store:Sto
   let consumed=sourceQueryRowsConsumed.get(lease);if(consumed===undefined){consumed=new Set();sourceQueryRowsConsumed.set(lease,consumed);}
   if(consumed.has(id))return invalid('Values query repeats its original occurrence.');consumed.add(id);
   return await ownerOperation(owner,async()=>{
-   const healthy=()=>{ownerHealthy(owner);capture(call,store);if(sourceQueryValueActive.get(owner)!==lease||owner.executingCall!==call||owner.stage!==lease.stage||!owner.busy||state.pending!==0)return invalid('Values query crossed its original capture checkpoint.');};
+   const healthy=()=>{ownerHealthy(owner);capture(call,store);if(sourceQueryValueActive.get(owner)!==lease||owner.executingCall!==call||owner.stage!==lease.stage||sourceBodyLoopItems.get(owner)!==lease.item||!owner.busy||state.pending!==0)return invalid('Values query crossed its original capture checkpoint.');};
    if(!sourceEffectGrantSlot(owner,producer))return invalid('Values query exceeds its original bounded observation census.');
    let parent:Readonly<{model:ModelName;id:RecordId}>|undefined;
    if(query.parent!==undefined){

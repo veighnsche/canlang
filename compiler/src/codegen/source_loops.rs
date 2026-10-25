@@ -474,24 +474,41 @@ fn body_counts(
     parent_model: SymbolId,
     values: &BTreeSet<String>,
 ) -> Option<(usize, usize, Vec<serde_json::Value>)> {
+    // LET phases currently prove only their original straight-line SET body.
+    // Conditional CREATE/Work needs its independently sealed item prefix.
+    if body
+        .iter()
+        .any(|statement| matches!(statement, IrStmt::Let { .. }))
+        && body.iter().any(|statement| {
+            !matches!(
+                statement,
+                IrStmt::Let { .. } | IrStmt::Set { when: None, .. }
+            )
+        })
+    {
+        return None;
+    }
+    let mut values = values.clone();
     let mut writes = 0;
     let mut sends = 0;
     let mut work = Vec::new();
     let mut deliveries = HashMap::new();
     for statement in body {
         match statement{
+        IrStmt::Let{name,value,..} if super::source_let_data::capture_plain_value(ir,&value.ty,0)
+            &&(super::source_let_data::query_value_expression(value).is_some()||super::source_send_data::send_value(ir,value,&values,0))=>{values.insert(name.clone());},
         IrStmt::If{cond,then_branch,else_branch,..}if else_branch.is_empty()
             && context.original().scenario_disclosures().values().filter_map(|checked|checked.source_facts())
                 .any(|facts|facts.source_requires.as_deref().unwrap_or(&[]).iter().any(|site|
                     site.node.file==cond.span.file&&site.node.start==cond.span.start&&site.node.end==cond.span.end
                     &&matches!(site.position.as_slice(),[crate::analysis::scenario_disclosure::CheckedDecisionPosition::Body(_),crate::analysis::scenario_disclosure::CheckedDecisionPosition::Loop(_)])))=>{
-            let (child_writes,child_sends,child_work)=body_counts(ir,context,then_branch,item,model,parameter,parent_model,values)?;
+            let (child_writes,child_sends,child_work)=body_counts(ir,context,then_branch,item,model,parameter,parent_model,&values)?;
             if child_sends!=0||!child_work.is_empty()&&(child_writes!=0||child_work.len()!=1||child_work[0]["kind"]!="schedule"){return None;}
             for mut site in child_work{site["stage"]=serde_json::json!(writes+site["stage"].as_u64()? as usize);site["conditional"]=serde_json::json!(true);work.push(site);}writes+=child_writes;
         },
         IrStmt::Set{record,changes,when:None,..}if matches!(&record.expr,IrExpr::Name(name)if name==item)
             &&record.ty==(ResolvedType::Record{symbol:model,stored:true})
-            &&loop_write_value(ir,changes,values,&deliveries)=>{writes+=1;},
+            &&loop_write_value(ir,changes,&values,&deliveries)=>{writes+=1;},
         IrStmt::Cancel{key,span,..}|IrStmt::Schedule{key,span,..}=>{
             if !matches!(&key.expr,IrExpr::Member{base,field}if field=="id"&&matches!(&base.expr,IrExpr::Name(name)if name==item)
                 &&base.ty==(ResolvedType::Record{symbol:model,stored:true}))||key.ty!=ResolvedType::Scalar(Scalar::Text){return None;}
@@ -514,7 +531,7 @@ fn body_counts(
                 }else if matches!(&value.expr,IrExpr::Name(name)if name==item)&&value.ty==(ResolvedType::Record{symbol:model,stored:true}){
                     // The actual selected view remains an opaque reference; ordinary
                     // CREATE reference authorization still owns the target grant.
-                }else if !super::source_send_data::send_value(ir,value,values,0){
+                }else if !super::source_send_data::send_value(ir,value,&values,0){
                     let IrExpr::Name(name)=&value.expr else{return None;};
                     if !deliveries.get(name).is_some_and(|actual|delivery_operation_matches(ir,&value.ty,actual)){return None;}
                 }

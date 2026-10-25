@@ -2784,6 +2784,23 @@ pub(super) fn serialize_let_mutation_prefix(
     serialize_mutation_prefix(sources, owner, &[Position::Body(index)], source)
 }
 
+/// The active loop keeps its own source kind; its preceding owner writes use
+/// exactly the same independently joined prefix as top-level LET producers.
+pub(super) fn serialize_loop_mutation_prefix(
+    sources: &FreshSourceContext<'_>,
+    owner: &IrItem,
+    statement: Span,
+    source: &serde_json::Value,
+) -> Option<serde_json::Value> {
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return None;
+    };
+    let index = effects
+        .iter()
+        .position(|effect| matches!(effect, IrStmt::For { span, .. } if *span == statement))?;
+    serialize_mutation_prefix(sources, owner, &[Position::Body(index)], source)
+}
+
 fn serialize_mutation_prefix(
     sources: &FreshSourceContext<'_>,
     owner: &IrItem,

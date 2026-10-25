@@ -1062,6 +1062,133 @@ pub(super) fn collect_query_values(
         }
         output.insert(*span, descriptor);
     }
+    // Repeated source LETs keep the genuine loop's identity. This initial
+    // form admits only straight-line selected-item SETs; branch/CREATE proof
+    // remains a separate, explicit extension of the same ordered census.
+    let loops = super::source_loops::collect_phase_prefix(ir, owner, context, source, module);
+    for statement in effects {
+        let IrStmt::For {
+            body,
+            span: loop_span,
+            ..
+        } = statement
+        else {
+            continue;
+        };
+        let Some(loop_source) = loops
+            .as_ref()
+            .and_then(|plan| plan["loops"].as_array())
+            .and_then(|loops| {
+                loops.iter().find(|entry| {
+                    entry["node"]["start"] == loop_span.start
+                        && entry["node"]["end"] == loop_span.end
+                })
+            })
+        else {
+            continue;
+        };
+        if loop_source.get("condition").is_some()
+            || loop_source.get("work").is_some()
+            || loop_source["sends"] != 0
+        {
+            continue;
+        }
+        let Some(prefix) = super::scenario_decisions::serialize_loop_mutation_prefix(
+            context, owner, *loop_span, source,
+        ) else {
+            continue;
+        };
+        if !prefix
+            .as_array()?
+            .iter()
+            .all(|step| step["kind"] == "create")
+        {
+            continue;
+        }
+        let fields = body
+            .iter()
+            .filter_map(|statement| {
+                if let IrStmt::Set {
+                    changes,
+                    when: None,
+                    ..
+                } = statement
+                {
+                    Some(changes)
+                } else {
+                    None
+                }
+            })
+            .map(|changes| {
+                let IrExpr::Object(fields) = &changes.expr else {
+                    return None;
+                };
+                let mut names = fields
+                    .iter()
+                    .map(|(name, _)| name.clone())
+                    .collect::<Vec<_>>();
+                names.sort();
+                Some(names)
+            })
+            .collect::<Option<Vec<_>>>()?;
+        if fields.len() as u64 != loop_source["writes"].as_u64()?
+            || body.iter().any(|statement| {
+                !matches!(
+                    statement,
+                    IrStmt::Let { .. } | IrStmt::Set { when: None, .. }
+                )
+            })
+        {
+            continue;
+        }
+        let mut before = 0;
+        for statement in body {
+            let IrStmt::Let { name, value, span } = statement else {
+                before += 1;
+                continue;
+            };
+            let Some((query_value, query)) = query_value_expression(value) else {
+                continue;
+            };
+            let IrQueryDomain::Model(model) = &query.domain else {
+                continue;
+            };
+            let Some(original) = query.source.as_ref() else {
+                continue;
+            };
+            if !capture_plain_value(ir, &value.ty, 0)
+                || original.node.file != span.file
+                || original.node.start != query_value.span.start
+                || original.node.end != query_value.span.end
+            {
+                continue;
+            }
+            let Some(type_id) =
+                super::scenario_decisions::serial_type(&value.ty, context.original(), ir, 0)
+            else {
+                continue;
+            };
+            let mut descriptor = serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},"owner":owner.canonical,
+                "node":{"start":span.start,"end":span.end},"value":{"start":value.span.start,"end":value.span.end},"binding":name,"typeId":type_id,
+                "stage":prefix.as_array()?.len(),"mutationPrefix":prefix,"loop":{"id":loop_source["id"],"before":before,"fields":fields},
+                "queries":[{"node":{"start":query_value.span.start,"end":query_value.span.end},"model":model}]});
+            let readers = collect_query_rows(
+                ir,
+                owner,
+                context,
+                &HashMap::from([(*span, descriptor.clone())]),
+            );
+            let Some(reader) = readers
+                .get(span)
+                .and_then(|site| site["queries"].as_array())
+                .and_then(|queries| queries.first())
+            else {
+                continue;
+            };
+            descriptor["queries"][0]["reader"] = reader.clone();
+            output.insert(*span, descriptor);
+        }
+    }
     Some(output)
 }
 
@@ -1309,7 +1436,11 @@ pub(super) fn collect_query_rows(
     let IrItemKind::Scenario { effects, .. } = &owner.kind else {
         return out;
     };
-    for effect in effects {
+    let statements = effects.iter().flat_map(|statement| match statement {
+        IrStmt::For { body, .. } => body.iter().collect::<Vec<_>>(),
+        _ => vec![statement],
+    });
+    for effect in statements {
         let IrStmt::Let { value, span, .. } = effect else {
             continue;
         };

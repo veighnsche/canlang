@@ -1185,7 +1185,7 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
     try {
       const source = join(directory,'phase-prefix.can');
       const original=await readFile(join(root,'compiler/tests/fixtures/native-require-missing-owner-frame.can'),'utf8');
-      await writeFile(source,original.replace('Given\n','Given\n contract Selected {active:bool}\n StagedSettlement in Root {amount:money,visible:bool=true}\n StagedAllocation in StagedSettlement {amount:money}\n policy StagedSettlement read=members where=row.visible\n policy StagedAllocation read=members\n').replace('Child in Root {active:bool=true}','Child in Root {active:bool=true,marked:bool=false}').replace('Then\n',' scenario staged(root:Root) by=members\n  do\n   let probe_values=Child as child select child.active\n   let original=root.capacity\n   require count(probe_values)>0\n   set root {checked=true,capacity=root.capacity+1}\n   for child in root.Child limit=10\n    set child {marked=true}\n   require root.checked and root.capacity>original and allowed(root)\n   if root.checked and allowed(root)\n    set root {capacity=root.capacity+1}\n scenario query_value(root:Root) by=members\n  require root.capacity>0\n  do\n   let values=root.Child as child select Selected {active=child.active}\n   require count(values)>0 and all(values as selected,selected.active)\n   let first_value=at(values,0)\n   require first_value!=null\n   set root {checked=true}\n scenario staged_values(root:Root,other:Root,amount:money) by=members\n  require root.capacity>0 and amount.minor>0\n  do\n   create StagedSettlement {parent=root,amount,visible=true} as settlement\n   let staged_total=sum(root.StagedSettlement as entry select entry.amount,amount.currency)\n   let no_allocations=sum(settlement.StagedAllocation as entry select entry.amount,amount.currency)\n   require staged_total==amount and no_allocations==money(0,amount.currency)\n scenario created(root:Root) by=members\n  do\n   create Child {parent=root,active=true,marked=false} as child\n   require root.capacity>0 and allowed(root)\n   for item in root.Child limit=10\n    set item {marked=true}\nThen\n'));
+      await writeFile(source,original.replace('Given\n','Given\n contract Selected {active:bool}\n StagedSettlement in Root {amount:money,visible:bool=true}\n StagedAllocation in StagedSettlement {amount:money}\n StagedCredit in Root {amount:money,total:money}\n policy StagedCredit read=members\n policy StagedSettlement read=members where=row.visible\n policy StagedAllocation read=members\n').replace('Child in Root {active:bool=true}','Child in Root {active:bool=true,marked:bool=false}').replace('Then\n',' scenario staged(root:Root) by=members\n  do\n   let probe_values=Child as child select child.active\n   let original=root.capacity\n   require count(probe_values)>0\n   set root {checked=true,capacity=root.capacity+1}\n   for child in root.Child limit=10\n    set child {marked=true}\n   require root.checked and root.capacity>original and allowed(root)\n   if root.checked and allowed(root)\n    set root {capacity=root.capacity+1}\n scenario query_value(root:Root) by=members\n  require root.capacity>0\n  do\n   let values=root.Child as child select Selected {active=child.active}\n   require count(values)>0 and all(values as selected,selected.active)\n   let first_value=at(values,0)\n   require first_value!=null\n   set root {checked=true}\n scenario loop_values(root:Root,amount:money) by=members\n  require root.capacity>0 and amount.minor>0\n  do\n   create StagedSettlement {parent=root,amount,visible=true} as settlement\n   for credit in root.StagedCredit limit=10\n    set credit {total=amount}\n    let running=sum(root.StagedCredit as entry select entry.total,amount.currency)\n    set credit {total=running}\n scenario staged_values(root:Root,other:Root,amount:money) by=members\n  require root.capacity>0 and amount.minor>0\n  do\n   create StagedSettlement {parent=root,amount,visible=true} as settlement\n   let staged_total=sum(root.StagedSettlement as entry select entry.amount,amount.currency)\n   let no_allocations=sum(settlement.StagedAllocation as entry select entry.amount,amount.currency)\n   require staged_total==amount and no_allocations==money(0,amount.currency)\n scenario created(root:Root) by=members\n  do\n   create Child {parent=root,active=true,marked=false} as child\n   require root.capacity>0 and allowed(root)\n   for item in root.Child limit=10\n    set item {marked=true}\nThen\n'));
       const { stdout } = await promisify(execFile)(compiler,
         ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
@@ -1205,6 +1205,66 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
         const artifact=JSON.parse(result.stdout)as CompileArtifact;
         const assembly=await assembleModules({artifact,sourcePath:variant},{workDir:join(directory,mode),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
         queryVariants.set(mode,{artifact,asm:assembly});
+      }
+      {
+        const callable=artifact.callables.find(callable=>callable.id==='GuardOwnerFrame.loop_values');assert.ok(callable);
+        const module=await import(asm.moduleUrls[callable.module]!);
+        const values=module.canScenarioQueryValueSources()as Record<string,Parameters<typeof state.bindScenarioSourceQueryValueProducer>[1]['sites']>;
+        const running=values[callable.id]?.find(site=>site.binding==='running');assert.ok(running?.loop,'actual compiled LET uses the independently bound active-item Values producer');
+        assert.equal(running.stage,1);assert.equal(running.loop.before,1);assert.deepEqual(running.loop.fields,[['total'],['total']]);
+        const loops=module.canScenarioBodyLoopSources()as Record<string,Parameters<typeof state.bindScenarioSourceLoopProducer>[1]>;
+        assert.equal(loops[callable.id]?.loops[0]?.id,running.loop.id,'Values phase uses the genuine original selected-item source');
+        const unqualified=join(directory,'loop-model-result.can');
+        const modelSource=(await readFile(source,'utf8')).replace('scenario loop_values(root:Root,amount:money) by=members','scenario loop_values(root:Root,amount:money) by=members -> StagedSettlement').replace('    set credit {total=running}\n scenario staged_values','    set credit {total=running}\n   return settlement\n scenario staged_values');
+        await writeFile(unqualified,modelSource);
+        let diagnostics:readonly {readonly code:string}[]=[];
+        try{const result=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,unqualified],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});diagnostics=(JSON.parse(result.stdout)as {diagnostics:readonly {code:string}[]}).diagnostics;}catch(error){diagnostics=(JSON.parse((error as {stdout:string}).stdout)as {diagnostics:readonly {code:string}[]}).diagnostics;}
+        assert.ok(diagnostics.some(diagnostic=>diagnostic.code==='E6008'),'source-only active phase grants no complete native Model result association');
+      }
+      const loopVariants=new Map<string,{artifact:CompileArtifact;asm:typeof asm}>();
+      {
+        const path=join(directory,'loop-withheld.can');await writeFile(path,(await readFile(source,'utf8')).replace('policy StagedCredit read=members','policy StagedCredit read=members fields=amount'));
+        const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,path],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+        const checked=JSON.parse(stdout)as CompileArtifact;
+        loopVariants.set('withheld',{artifact:checked,asm:await assembleModules({artifact:checked,sourcePath:path},{workDir:join(directory,'loop-withheld'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')})});
+      }
+      for(const mode of ['wrong-item-prefix','wrong-item-fields']){
+        const forged=JSON.parse(JSON.stringify(artifact))as CompileArtifact;let changed=0;
+        const alter=(value:unknown):void=>{
+          if(typeof value!=='object'||value===null)return;
+          const object=value as Record<string,unknown>;
+          if(object.owner==='GuardOwnerFrame.loop_values'&&object.binding==='running'&&typeof object.loop==='object'&&object.loop!==null){
+            const loop=object.loop as {before:number;fields:string[][]};
+            if(mode==='wrong-item-prefix')loop.before=0;else loop.fields[0]=['amount'];changed++;
+          }
+          for(const child of Object.values(object))alter(child);
+        };
+        for(const module of forged.modules)module.js=module.js.replace(/"(?:[^"\\]|\\.)*"/g,literal=>{
+          try{const text=JSON.parse(literal);if(typeof text!=='string')return literal;const value=JSON.parse(text),before=changed;alter(value);return before===changed?literal:JSON.stringify(JSON.stringify(value));}catch{return literal;}
+        });
+        assert.ok(changed>0,mode+': alters actual source-issued item prefix metadata');
+        loopVariants.set(mode,{artifact:forged,asm:await assembleModules({artifact:forged,sourcePath:source},{workDir:join(directory,mode),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')})});
+      }
+      for(const mode of ['allowed','withheld','identity-during-query','wrong-item-prefix','wrong-item-fields']){
+        const {now,identities,identity,membership}=await member('active-loop-values-'+mode),store=createMemoryStorage();
+        const rootModel=model('GuardOwnerFrame','Root'),creditModel=model('GuardOwnerFrame','StagedCredit');
+        const parent={...makeRow({id:asId('root'),data:{capacity:'2',checked:false}}),parent:null};
+        const credits=['credit-a','credit-b'].map(id=>({...makeRow({id:asId(id),data:{amount:{minor:'7',currency:'EUR'},total:{minor:'0',currency:'EUR'}}}),parent:{model:rootModel,id:parent.id}}));
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:rootModel,row:parent},...credits.map(row=>({kind:'insert' as const,model:creditModel,row}))]}));
+        const query=store.query.bind(store);let reads=0,raced=false;
+        store.query=async spec=>{if(spec.model===creditModel&&++reads===2&&mode==='identity-during-query'){raced=true;await identities.removeMembership(membership.membership_id);}return query(spec);};
+        const variant=loopVariants.get(mode),invoke=buildInvoker(variant?.artifact??artifact,variant?.asm??asm,store,{memberships:identities,now:()=>now});
+        const request={operation:'GuardOwnerFrame.loop_values',operation_id:operationId(now),inputs:{root:{id:'root',version:'1'},amount:{minor:'7',currency:'EUR'}}};
+        const result=await invoke.invokeMutation(request,identity);
+        assert.equal('result'in result,mode==='allowed',mode+': '+JSON.stringify(result));
+        if(mode==='identity-during-query'){assert.equal(raced,true);assert.ok('error'in result);assert.equal(result.error.code,'forbidden');}
+        if(mode==='wrong-item-prefix'||mode==='wrong-item-fields'){assert.ok('error'in result);assert.equal(result.error.code,'validation');assert.match(result.error.message,/actual item mutation|original selected-item write/);}
+        const actual=await query({model:creditModel,authority:'owner',order:[{field:'id',direction:'asc'}]});
+        if(mode==='allowed'){
+          assert.deepEqual(actual.map(row=>row.data.total),[{minor:'7',currency:'EUR'},{minor:'14',currency:'EUR'}],'each original LET sees prior completed item writes and its own current SET');
+          const replay=await invoke.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');assert.deepEqual(await query({model:creditModel,authority:'owner',order:[{field:'id',direction:'asc'}]}),actual);
+        }else assert.deepEqual(actual,credits,'failed item phase or current DATA/Identity denial rolls back all earlier item writes');
+        assert.equal((await store.query({model:model('GuardOwnerFrame','StagedSettlement'),authority:'owner'})).length,mode==='allowed'?1:0);assert.deepEqual(await store.outboxPending(),[]);
       }
       const stagedVariants=new Map<string,{artifact:CompileArtifact;asm:typeof asm}>();
       for(const [mode,policy] of [['withheld','policy StagedSettlement read=members fields=visible where=row.visible'],['hidden','policy StagedSettlement read=members where=not row.visible']] as const){
