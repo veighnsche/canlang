@@ -203,38 +203,27 @@ fn desk_non_bool_derive_selector_refuses() {
     );
 }
 
-/// A nullable member selector keeps refusing: Lane E admits only the
-/// nullable stored `user?` shape — no symmetry generalization to
-/// nullable `member`, nullable enums, or any other nullable shape.
+/// Nullable member selectors lower through the owning identity filter.
 #[test]
-fn desk_nullable_member_still_refuses() {
-    assert_refuses(
+fn desk_nullable_member_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Ticket { subject:text, handler:member? }\n policy Ticket read=public\nWhen\nThen\n page /s title=\"S\"\n  list Ticket columns=subject filter=handler\n   pagination\n",
-        "E6008",
-        "need distinct checked owned enum fields",
     );
 }
 
-/// A nullable-bool stored field keeps refusing: only plain bool toggles
-/// lower (recorded `active`/`done` profile, unchanged by Lane E).
+/// Nullable bool selectors use the same checked bool control.
 #[test]
-fn desk_nullable_bool_still_refuses() {
-    assert_refuses(
+fn desk_nullable_bool_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Ticket { subject:text, active:bool? }\n policy Ticket read=public\nWhen\nThen\n page /s title=\"S\"\n  list Ticket columns=subject filter=active\n   pagination\n",
-        "E6008",
-        "need distinct checked owned enum fields",
     );
 }
 
-/// A user-typed default keeps refusing: reference filters admit only a
-/// direct saved read or null, and no literal user spelling exists. The
-/// recorded Desk profile carries no `assignee` default.
+/// A direct saved user preference remains an opaque identity default.
 #[test]
-fn desk_user_default_refuses() {
-    assert_refuses(
+fn desk_user_default_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Ticket { subject:text, assignee:user? }\n policy Ticket read=public\nWhen\nThen\n preferences { handler:user? }\n page /s title=\"S\"\n  list Ticket columns=subject filter=assignee defaults={assignee=preferences.handler}\n   pagination\n",
-        "E6008",
-        "need distinct checked owned enum fields",
     );
 }
 

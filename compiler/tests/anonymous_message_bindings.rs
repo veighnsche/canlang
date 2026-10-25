@@ -589,7 +589,7 @@ fn buttons_require_one_binding_and_inherited_submit_ownership() {
         ),
         (
             "  preferences\n   fieldset \"Settings\"\n    button submit=true\n",
-            true,
+            false,
         ),
         ("  button action=save\n", true),
         ("  button target=\"/\" caption=\"Home\"\n", true),

@@ -24,8 +24,8 @@
 //! collection pipeline (B20), and agenda `calendar columns=` names owned
 //! row fields the calendarAgenda factory renders (CAN18-v1 agenda columns
 //! batch). Anything outside the recorded set keeps the exact E6008
-//! refusals below, including inline `preferences` panels, which need the
-//! settings save production no owned contract provides.
+//! refusals below. Inline `preferences` panels use the owning versioned
+//! settings-save production.
 //! Catalog-free: every test drives check -> IR build -> per-page JS UI
 //! lowering in process.
 use canlang_compiler::analysis::check_program;
@@ -382,14 +382,11 @@ fn empty_hero_refuses() {
     );
 }
 
-/// Inline preference panels need the settings save production no owned
-/// contract provides: the exact refusal is preserved.
+/// Inline preference controls use the versioned settings save producer.
 #[test]
-fn inline_preferences_panel_refuses() {
-    assert_refuses(
+fn inline_preferences_panel_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Location { name:text }\n policy Location read=public\nWhen\nThen\n preferences { arrival_open:bool=false label=\"Show\" }\n page /w title=\"W\"\n  preferences\n   toggle arrival_open\n  list Location columns=name\n",
-        "E6008",
-        "no supported source-to-factory profile",
     );
 }
 

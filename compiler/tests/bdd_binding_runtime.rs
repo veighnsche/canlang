@@ -3,6 +3,40 @@
 //! genuine native D1/Identity qualification have separate scopes.
 
 #[cfg(unix)]
+fn write_fixture_linker(root: &std::path::Path, scratch: &std::path::Path) {
+    let resolver = root.join("packages/cloudflare/dist/runtime/example-fixture-imports.js");
+    let source = r#"
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import {resolve,dirname} from 'node:path';
+import {pathToFileURL,fileURLToPath} from 'node:url';
+const {resolveExampleFixtureImports}=await import(pathToFileURL(__CAN_FIXTURE_RESOLVER__).href);
+const base=dirname(fileURLToPath(import.meta.url));
+export const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
+export async function linkExample(scope, bindings, source=artifact, prefix='linked') {
+ const urls=Object.create(null);
+ for(const module of [...source.modules,...source.tests.map(test=>test.module)]) {
+  const path=resolve(base,prefix,module.path);
+  mkdirSync(dirname(path),{recursive:true});writeFileSync(path,module.js);
+  urls[module.path]=pathToFileURL(path).href;
+ }
+ const selected=source.tests.filter(test=>test.scope===scope && test.fixtures.length===0);
+ assert.equal(selected.length,1,`one example consumer for ${scope}`);
+ const test=selected[0],url=urls[test.module.path];
+ const initial=new Proxy(bindings,{get(target,key,receiver){return key==='imported' ? {} : Reflect.get(target,key,receiver);}});
+ const imported=await resolveExampleFixtureImports(source.tests,urls,test,initial);
+ const resolved=new Proxy(bindings,{get(target,key,receiver){return key==='imported' ? imported : Reflect.get(target,key,receiver);}});
+ return {test,url,module:await import(url),bindings:resolved};
+}
+"#.replace("__CAN_FIXTURE_RESOLVER__", &serde_json::to_string(&resolver).unwrap());
+    std::fs::write(scratch.join("fixture-links.mjs"), source).unwrap();
+    if !scratch.join("node_modules").exists() {
+        std::os::unix::fs::symlink(root.join("node_modules"), scratch.join("node_modules"))
+            .unwrap();
+    }
+}
+
+#[cfg(unix)]
 #[test]
 fn repeated_named_users_are_dependencies_of_each_isolated_example_row() {
     use std::{path::PathBuf, process::Command};
@@ -52,6 +86,12 @@ Then
     );
     let artifact: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
     std::fs::write(
+        scratch.path().join("artifact.json"),
+        serde_json::to_vec(&artifact).unwrap(),
+    )
+    .unwrap();
+    write_fixture_linker(&root, scratch.path());
+    std::fs::write(
         scratch.path().join("examples.mjs"),
         artifact["tests"][0]["module"]["js"].as_str().unwrap(),
     )
@@ -60,18 +100,19 @@ Then
     std::fs::write(&runner, r#"
 import assert from 'node:assert/strict';
 import {loadExampleSuite,stashedRowOf} from '@canlang/testkit';
-import {exampleFixtures} from './examples.mjs';
-const bindings={self:'self',other:'other',outsider:'outsider',imported:{}};
-const emitted=exampleFixtures(bindings),table=emitted.examples[0];
-for(const row of table.rows) assert.deepEqual(row.dependencies,[emitted.fixtures.editor]);
+import {linkExample} from './fixture-links.mjs';
+const linked=await linkExample('RowUsers.inspect',{self:'self',other:'other',outsider:'outsider'});
+const bindings=linked.bindings;
+const emitted=linked.module.exampleFixtures(bindings),table=emitted.examples[0];
+for(const row of table.rows) assert.deepEqual(row.dependencies,[emitted.fixtures['RowUsers.editor']]);
 let sequence=0;
-const suite=await loadExampleSuite(new URL('./examples.mjs',import.meta.url).href,bindings,{
+const suite=await loadExampleSuite(linked.url,bindings,{
  prepareFixtures:async(scope,values,required)=>new Map([...values].map(([name,value])=>
   [name,required.find(recipe=>recipe.name===name).kind==='user'?{id:`row-${sequence}-${name}`}:value]))
 });
 assert.equal(suite.rows.length,4);
 for(const row of suite.rows){
- const isEditor=sequence<3,name=isEditor?'editor':'bob',excluded=isEditor?'bob':'editor';
+ const isEditor=sequence<3,name=isEditor?'RowUsers.editor':'RowUsers.bob',excluded=isEditor?'RowUsers.bob':'RowUsers.editor';
  assert(row.seed.includes(name));assert(!row.seed.includes(excluded),'module discovery never seeds unrelated user recipes');
  const scope={snapshot:async()=>null,dispose:async()=>{}};
  await row.setup(scope);
@@ -130,6 +171,12 @@ Then
     );
     let artifact: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
     std::fs::write(
+        scratch.path().join("artifact.json"),
+        serde_json::to_vec(&artifact).unwrap(),
+    )
+    .unwrap();
+    write_fixture_linker(&root, scratch.path());
+    std::fs::write(
         scratch.path().join("examples.mjs"),
         artifact["tests"][0]["module"]["js"].as_str().unwrap(),
     )
@@ -137,17 +184,18 @@ Then
     let runner = scratch.path().join("check.mjs");
     std::fs::write(&runner, r#"
 import assert from 'node:assert/strict';
-import {exampleFixtures} from './examples.mjs';
-const suite=exampleFixtures({self:'stale-self',other:'stale-other',imported:{}});
+import {linkExample} from './fixture-links.mjs';
+const linked=await linkExample('LiveAccounts.echo',{self:'stale-self',other:'stale-other'});
+const suite=linked.module.exampleFixtures(linked.bindings);
 const c={self:{id:'live-self'},other:{id:'live-other'},outsider:{id:'live-outsider'}};
-assert.deepEqual(await suite.fixtures.owned.value(c,{}),{owner:c.other});
+assert.deepEqual(await suite.fixtures['LiveAccounts.owned'].value(c,{}),{owner:c.other});
 const table=suite.examples[0],row=table.rows[0];
 assert.deepEqual(await table.inputs(c,{}),{value:c.other});
 assert.deepEqual(await row.values(c,{}),[c.self]);
 assert.deepEqual(await row.expected(c,{}),[c.self,c.other,c.outsider]);
 assert.deepEqual(await Promise.all(table.observations.map(observe=>observe(c,{}))),[c.self,c.other,c.outsider]);
 c.other={id:'next-row-other'};
-assert.equal((await suite.fixtures.owned.value(c,{})).owner,c.other);
+assert.equal((await suite.fixtures['LiveAccounts.owned'].value(c,{})).owner,c.other);
 assert.deepEqual(await row.expected(c,{}),[c.self,c.other,c.outsider]);
 "#).unwrap();
     let result = Command::new("node").arg(runner).output().unwrap();
@@ -211,6 +259,7 @@ Then
         String::from_utf8_lossy(&compiled.stderr)
     );
     std::fs::write(scratch.path().join("artifact.json"), compiled.stdout).unwrap();
+    write_fixture_linker(&root, scratch.path());
     let runner = scratch.path().join("request-binding.mjs");
     std::fs::write(&runner, r#"
 import assert from 'node:assert/strict';
@@ -246,9 +295,9 @@ const hooks={...createExampleHooks({
   business.title=call.inputs.note;
   return {ok:true};
  },
- readLive:name=>name==='one'?activeFixture:undefined,
+ readLive:name=>name==='RequestBinding.one'?activeFixture:undefined,
 }),prepareRowCells:async input=>{
- const original=input.fixtures.get('one');
+ const original=input.fixtures.get('RequestBinding.one');
  const business=input.inputs.request ?? input.inputs.task;
  assert.equal(original.title,'fixture');
  assert.equal(business.id,original.id);
@@ -259,15 +308,17 @@ const hooks={...createExampleHooks({
  } else {
   assert.equal(business,original,'whole fixture cell retains its provisioned identity');
  }
- const fixtures=new Map(input.fixtures);fixtures.set('one',business);
+ const fixtures=new Map(input.fixtures);fixtures.set('RequestBinding.one',business);
  return {fixtures,inputs:input.inputs};
 }};
 let tableIndex=0;
-for(const test of artifact.tests) {
+const {linkExample}=await import('./fixture-links.mjs');
+for(const test of artifact.tests.filter(test=>test.fixtures.length===0)) {
  const path=resolve(base,test.module.path);
  mkdirSync(dirname(path),{recursive:true});writeFileSync(path,test.module.js);
  const url=pathToFileURL(path).href;
- const emitted=await import(url), produced=emitted.exampleFixtures(bindings);
+ const linked=await linkExample(test.scope,bindings);
+ const emitted=linked.module, produced=emitted.exampleFixtures(linked.bindings);
  for(const table of produced.examples) {
   const channels=table.selectorChannels;
   assert.equal(Array.isArray(channels),true);
@@ -275,12 +326,12 @@ for(const test of artifact.tests) {
   for(let index=0;index<channels.length;index++) assert.equal(Object.hasOwn(channels,index),true);
   assert.deepEqual(channels,['caller',table.operation==='RequestBinding.wire'?'request':'input']);
  }
- const suite=await loadExampleSuite(url,bindings,hooks);
+ const suite=await loadExampleSuite(linked.url,linked.bindings,hooks);
  for(const row of suite.rows) {
   const scope={snapshot:async()=>null,dispose:async()=>{}};
   await row.setup(scope);
   const stash=stashedRowOf(scope);
-  activeFixture=stash.fixtures.get('one');
+  activeFixture=stash.fixtures.get('RequestBinding.one');
   expectedCaller=stash.cells[0];
   expectedInitial=tableIndex===0?'row':'fixture';
   assert.equal(activeFixture.title,expectedInitial);
@@ -353,6 +404,7 @@ Then
         String::from_utf8_lossy(&compiled.stderr)
     );
     std::fs::write(scratch.path().join("artifact.json"), compiled.stdout).unwrap();
+    write_fixture_linker(&root, scratch.path());
     let runner = scratch.path().join("native-request-binding.mjs");
     std::fs::write(
         &runner,
@@ -427,17 +479,26 @@ fn generation_table_binds_same_named_fixture_before_row_evaluation() {
         String::from_utf8_lossy(&compiled.stderr)
     );
     let artifact: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
+    std::fs::write(
+        scratch.path().join("artifact.json"),
+        serde_json::to_vec(&artifact).unwrap(),
+    )
+    .unwrap();
+    write_fixture_linker(&root, scratch.path());
     let suite = artifact["tests"]
         .as_array()
         .unwrap()
         .iter()
         .find(|test| test["scope"] == "Generation.queue")
         .expect("queue suite");
-    assert_eq!(suite["fixtures"], serde_json::json!(["Generation.job"]));
+    assert_eq!(suite["fixtures"], serde_json::json!([]));
     let js = suite["module"]["js"].as_str().unwrap();
-    assert!(js.contains("inputs:async(c,s)=>({job:s.job})"), "{js}");
     assert!(
-        js.contains("observations:[async(c,s)=>s.job.status]"),
+        js.contains("inputs:async(c,s)=>({job:s[\"Generation.job\"]})"),
+        "{js}"
+    );
+    assert!(
+        js.contains("observations:[async(c,s)=>s[\"Generation.job\"].status]"),
         "{js}"
     );
     let module = scratch.path().join("suite.mjs");
@@ -445,18 +506,19 @@ fn generation_table_binds_same_named_fixture_before_row_evaluation() {
     let check = scratch.path().join("check.mjs");
     std::fs::write(&check, r#"
 import assert from 'node:assert/strict';
-import { exampleFixtures } from './suite.mjs';
-const suite=exampleFixtures({self:'self',other:'other',imported:{}});
-assert.deepEqual(Object.keys(suite.fixtures),['job']);
-const recipe=suite.fixtures.job;
+import {linkExample} from './fixture-links.mjs';
+const linked=await linkExample('Generation.queue',{self:'self',other:'other'});
+const suite=linked.module.exampleFixtures(linked.bindings);
+assert.deepEqual(Object.keys(suite.fixtures),['Generation.job']);
+const recipe=suite.fixtures['Generation.job'];
 assert.equal(recipe.model,'Generation.Job');
 assert.deepEqual(await recipe.value({},new Map()),{prompt:'A misty forest'});
 const table=suite.examples[0];
 assert.equal(table.dependencies[0],recipe);
 const stored={id:'job-1',version:1n,prompt:'A misty forest',status:'idle'};
-assert.equal((await table.inputs({}, {job:stored})).job,stored);
-assert.deepEqual(await Promise.all(table.observations.map(observe=>observe({}, {job:stored}))),['idle']);
-assert.deepEqual(await table.rows[0].expected({}, {job:stored}),['queued']);
+assert.equal((await table.inputs({}, {'Generation.job':stored})).job,stored);
+assert.deepEqual(await Promise.all(table.observations.map(observe=>observe({}, {'Generation.job':stored}))),['idle']);
+assert.deepEqual(await table.rows[0].expected({}, {'Generation.job':stored}),['queued']);
 "#).unwrap();
     let outcome = Command::new("node").arg(check).output().unwrap();
     assert!(
@@ -497,6 +559,7 @@ fn imported_example_helpers_use_actual_production_registry() {
         String::from_utf8_lossy(&compiled.stderr)
     );
     std::fs::write(scratch.path().join("artifact.json"), compiled.stdout).unwrap();
+    write_fixture_linker(&root, scratch.path());
     let runner = scratch.path().join("imported-helpers.mjs");
     std::fs::write(
         &runner,
@@ -592,6 +655,7 @@ Then
         String::from_utf8_lossy(&compiled.stderr)
     );
     std::fs::write(scratch.path().join("artifact.json"), compiled.stdout).unwrap();
+    write_fixture_linker(&root, scratch.path());
     let runner = scratch.path().join("requests.mjs");
     std::fs::write(
         &runner,
@@ -606,8 +670,8 @@ const testkit = process.env.CAN_TESTKIT_DIST
 const {loadExampleSuite,fixtureValuesOf,createExampleHooks} = await import(testkit);
 const base=dirname(new URL(import.meta.url).pathname);
 const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
-assert.equal(artifact.tests.length,1);
-const test=artifact.tests[0];
+assert.equal(artifact.tests.filter(test=>test.fixtures.length===0).length,1);
+const test=artifact.tests.find(test=>test.fixtures.length===0);
 const modulePath=resolve(base,test.module.path);
 mkdirSync(dirname(modulePath),{recursive:true});writeFileSync(modulePath,test.module.js);
 const events=[],calls=[];
@@ -628,11 +692,13 @@ const hooks=createExampleHooks({
  readLive:()=>undefined,
 });
 const bindings={self:'self-context',other:'other-context',imported:null};
-const suite=await loadExampleSuite(pathToFileURL(modulePath).href,bindings,hooks);
+const {linkExample}=await import('./fixture-links.mjs');
+const linked=await linkExample(test.scope,bindings);
+const suite=await loadExampleSuite(linked.url,linked.bindings,hooks);
 assert.equal(suite.rows.length,1);
 const row=suite.rows[0],scope={snapshot:async()=>null,dispose:async()=>{}};
 await row.setup(scope);
-fixture=fixtureValuesOf(scope).get('class');
+fixture=fixtureValuesOf(scope).get('SequenceRequests.class');
 Object.defineProperty(fixture,'title',{get(){events.push('inputs');return 'fixture';}});
 Object.defineProperty(fixture,'version',{configurable:true,get(){events.push('request');return 7n;}});
 assert.deepEqual(await row.invoke(scope),{ok:true});
@@ -727,6 +793,7 @@ fn fixture_bindings_and_suite_paths_execute_through_testkit() {
     let sequence_file = scratch.0.join("sequence.can");
     std::fs::write(&sequence_file, "app BddSequence\nGiven\n contract Result { ok:bool }\nWhen\n scenario echo(value:text) read=true -> Result by=members\n  do return Result {ok=true}\n  examples\n   do\n    let class=\"é😀\"\n    let get=class\n    let size=get\n    let __proto__=size\n    call echo {value=__proto__} by=self as default\n    let later=default.ok\n    call flag {value=later} by=other\n    class,get,size,__proto__,later -> \"é😀\",\"é😀\",\"é😀\",\"é😀\",true\n scenario flag(value:bool) read=true -> bool by=members\n  do return value\nThen\n").unwrap();
     compile(&sequence_file, "sequence.json");
+    write_fixture_linker(&root, &scratch.0);
     let runner = scratch.0.join("check.mjs");
     std::fs::write(&runner, r#"
 import assert from 'node:assert/strict';
@@ -738,15 +805,18 @@ import {runSequenceSteps} from '@canlang/testkit/runner/steps';
 const base=dirname(new URL(import.meta.url).pathname);
 function stage(name){const artifact=JSON.parse(readFileSync(resolve(base,name+'.json'),'utf8'));for(const test of artifact.tests){const path=resolve(base,name,test.module.path);mkdirSync(dirname(path),{recursive:true});writeFileSync(path,test.module.js);}return artifact;}
 const bindings={self:'self-context',other:'other-context',imported:null};
-const artifact=stage('artifact');assert.equal(artifact.tests.length,1);
-const test=artifact.tests[0];const url=pathToFileURL(resolve(base,'artifact',test.module.path));
-const emitted=await import(url);const produced=emitted.exampleFixtures(bindings);
+const artifact=stage('artifact');assert.equal(artifact.tests.filter(test=>test.fixtures.length===0).length,1);
+const {linkExample}=await import('./fixture-links.mjs');
+const linked=await linkExample('BddBindings.echo',bindings,artifact,'artifact');
+const test=linked.test,url=linked.url,emitted=linked.module;
+const produced=emitted.exampleFixtures(linked.bindings);
 const names=['ordinary','class','await','default','c','s','b','self','other','imported','__proto__'];
-assert.deepEqual(Object.keys(produced.fixtures),[...names,'child']);
+assert.deepEqual(Object.keys(produced.fixtures),[...names,'child'].map(name=>`BddBindings.${name}`));
 assert.equal(Object.getPrototypeOf(produced.fixtures),Object.prototype);
-assert(produced.fixtures.__proto__.model==='BddBindings.Task');
-assert.equal(produced.fixtures.child.dependencies[0],produced.fixtures.class,'dependency keeps exact recipe identity');
-const suite=await loadExampleSuite(url.href,bindings);assert.equal(suite.rows.length,names.length+1);
+assert.equal(produced.fixtures['BddBindings.__proto__'].model,'BddBindings.Task');
+assert.equal(Object.hasOwn(produced.fixtures,'__proto__'),false,'canonical recipe cannot replace the prototype');
+assert.equal(produced.fixtures['BddBindings.child'].dependencies[0],produced.fixtures['BddBindings.class'],'dependency keeps exact recipe identity');
+const suite=await loadExampleSuite(url,linked.bindings);assert.equal(suite.rows.length,names.length+1);
 for(const [index,row]of suite.rows.entries()){
  const scope={snapshot:async()=>null,dispose:async()=>{}};
  await row.setup(scope,{self:'self-context',other:'other-context',outsider:'outsider',users:{}});
@@ -755,14 +825,16 @@ for(const [index,row]of suite.rows.entries()){
  assert.deepEqual(stash.expectedValues,expected);assert.deepEqual(await row.observe(scope),expected);
 }
 const collisions=stage('collision');
-assert.deepEqual(collisions.tests.map(test=>test.scope),['alpha.echo_value','ALPHA.echo_value','alpha_echo.value']);
+const consumers=collisions.tests.filter(test=>test.fixtures.length===0);
+assert.deepEqual(consumers.map(test=>test.scope),['alpha.echo_value','ALPHA.echo_value','alpha_echo.value']);
 const expectedOwners=['alpha','ALPHA','alpha_echo'];
 const paths=collisions.tests.map(test=>test.module.path);
 assert.equal(new Set(paths.map(path=>path.toLowerCase())).size,paths.length,'portable distinct owner paths');
-for(const [index,test]of collisions.tests.entries()){const loaded=await loadExampleSuite(pathToFileURL(resolve(base,'collision',test.module.path)).href,bindings);assert.equal(loaded.rows.length,1);for(const row of loaded.rows){const scope={snapshot:async()=>null,dispose:async()=>{}};await row.setup(scope);assert.deepEqual(await row.observe(scope),[expectedOwners[index]]);}}
+for(const [index,test]of consumers.entries()){const linked=await linkExample(test.scope,bindings,collisions,'collision');const loaded=await loadExampleSuite(linked.url,linked.bindings);assert.equal(loaded.rows.length,1);for(const row of loaded.rows){const scope={snapshot:async()=>null,dispose:async()=>{}};await row.setup(scope);assert.deepEqual(await row.observe(scope),[expectedOwners[index]]);}}
 const sequence=stage('sequence');assert.equal(sequence.tests.length,1);
+const sequenceLinked=await linkExample(sequence.tests[0].scope,bindings,sequence,'sequence');
 const calls=[];
-const sequenceSuite=await loadExampleSuite(pathToFileURL(resolve(base,'sequence',sequence.tests[0].module.path)).href,bindings,{
+const sequenceSuite=await loadExampleSuite(sequenceLinked.url,sequenceLinked.bindings,{
  invokeCall:async request=>{calls.push([request.operation,request.by,request.inputs]);return {ok:true};}
 });
 const sequenceRow=sequenceSuite.rows[0];const sequenceScope={snapshot:async()=>null,dispose:async()=>{}};
@@ -838,13 +910,19 @@ Then
         String::from_utf8_lossy(&compiled.stderr)
     );
     let artifact: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
+    std::fs::write(
+        scratch.path().join("artifact.json"),
+        serde_json::to_vec(&artifact).unwrap(),
+    )
+    .unwrap();
+    write_fixture_linker(&root, scratch.path());
     let suite = artifact["tests"]
         .as_array()
         .unwrap()
         .iter()
         .find(|suite| suite["scope"] == "QueryFixture.inspect")
         .expect("authored inspect suite");
-    assert_eq!(suite["fixtures"], serde_json::json!(["QueryFixture.task"]));
+    assert_eq!(suite["fixtures"], serde_json::json!([]));
     std::fs::write(
         scratch.path().join("suite.mjs"),
         suite["module"]["js"].as_str().unwrap(),
@@ -854,7 +932,9 @@ Then
     std::fs::write(&runner, r#"
 import assert from 'node:assert/strict';
 import {loadExampleSuite,stashedRowOf} from '@canlang/testkit';
-const suite=await loadExampleSuite(new URL('./suite.mjs',import.meta.url).href,{self:'self',other:'other',imported:{}});
+const {linkExample}=await import('./fixture-links.mjs');
+const linked=await linkExample('QueryFixture.inspect',{self:'self',other:'other'});
+const suite=await loadExampleSuite(linked.url,linked.bindings);
 assert.equal(suite.rows.length,1);
 const row=suite.rows[0];
 const scope={snapshot:async()=>null,dispose:async()=>{}};
@@ -898,6 +978,12 @@ fn fixture_alias_rewriting_preserves_model_query_row_binder() {
         String::from_utf8_lossy(&compiled.stderr)
     );
     let artifact: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
+    std::fs::write(
+        scratch.path().join("artifact.json"),
+        serde_json::to_vec(&artifact).unwrap(),
+    )
+    .unwrap();
+    write_fixture_linker(&root, scratch.path());
     let suite = artifact["tests"]
         .as_array()
         .unwrap()
@@ -918,7 +1004,7 @@ fn fixture_alias_rewriting_preserves_model_query_row_binder() {
         "query binder must shadow the fixture: {js}"
     );
     assert!(
-        js.contains("async(c,s)=>s.row.rank"),
+        js.contains("async(c,s)=>s[\"ModelQuery.row\"].rank"),
         "outer observation must retain the fixture: {js}"
     );
 }

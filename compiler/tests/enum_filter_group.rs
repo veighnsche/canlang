@@ -354,15 +354,11 @@ fn table_text_selector_lowers() {
     );
 }
 
-/// A nullable owned `text?` model field is not admitted from the
-/// admitted plain `text` selector: the selector gate takes the exact
-/// non-nullable text type, mirroring the enum precedent.
+/// Nullable owned text fields use the checked text equality filter.
 #[test]
-fn nullable_text_model_field_refuses() {
-    assert_refuses(
+fn nullable_text_model_field_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Request { bucket:text? }\n policy Request read=public\nWhen\nThen\n preferences { bucket:text? }\n page /requests title=\"Requests\"\n  list Request columns=bucket filter=bucket defaults={bucket=preferences.bucket}\n",
-        "E6008",
-        "need distinct checked owned enum fields",
     );
 }
 
@@ -445,15 +441,11 @@ fn table_date_selector_lowers() {
     );
 }
 
-/// A nullable owned `date?` model field is not admitted from the
-/// admitted plain `date` selector: the selector gate takes the exact
-/// non-nullable date type, mirroring the text/enum precedent.
+/// Nullable owned dates retain the canonical civil-date filter.
 #[test]
-fn nullable_date_model_field_refuses() {
-    assert_refuses(
+fn nullable_date_model_field_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Reimbursement { paid:date? }\n policy Reimbursement read=public\nWhen\nThen\n preferences { paid:date? }\n page /reimbursements title=\"Reimbursements\"\n  list Reimbursement columns=paid filter=paid defaults={paid=preferences.paid}\n",
-        "E6008",
-        "need distinct checked owned enum fields",
     );
 }
 

@@ -4,7 +4,6 @@
 use canlang_compiler::cli::{self, CatalogAnalyzer, StubAnalyzer, dispatch, dispatch_with};
 use canlang_compiler::{exit, lsp};
 use std::io::{BufReader, Read};
-use std::sync::atomic::{AtomicU32, Ordering};
 
 fn argv(words: &[&str]) -> Vec<String> {
     std::iter::once("can")
@@ -13,20 +12,26 @@ fn argv(words: &[&str]) -> Vec<String> {
         .collect()
 }
 
-static TEMP_COUNTER: AtomicU32 = AtomicU32::new(0);
-
 /// Write a temp `.can` fixture; removed when the guard drops.
 struct TempFile {
+    _directory: tempfile::TempDir,
     path: std::path::PathBuf,
 }
 
 impl TempFile {
     fn new(name: &str, text: &str) -> Self {
-        let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
-        let path =
-            std::env::temp_dir().join(format!("can-authoring-{}-{id}-{name}", std::process::id()));
+        // Each source owns its project root; scanning the shared system temp
+        // directory would include unrelated, potentially unreadable projects.
+        let directory = tempfile::Builder::new()
+            .prefix("can-authoring-")
+            .tempdir()
+            .unwrap();
+        let path = directory.path().join(name);
         std::fs::write(&path, text).unwrap();
-        Self { path }
+        Self {
+            _directory: directory,
+            path,
+        }
     }
 
     fn arg(&self) -> String {
@@ -168,7 +173,7 @@ fn cli_compile_with_stub_reports_e7001() {
 }
 
 #[test]
-fn cli_compile_teamtasks_reports_emission_diagnostics() {
+fn cli_compile_teamtasks_publishes_real_artifact() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
@@ -184,14 +189,21 @@ fn cli_compile_teamtasks_reports_emission_diagnostics() {
         &argv(&["compile", "--format=json", &example.to_string_lossy()]),
         &analyzer,
     );
-    // TeamTasks checks clean but has unlowerable UI factories: emission
-    // diagnostics, exit 10, no artifact.
-    assert_eq!(result.code, exit::DIAGNOSTICS, "{}", result.stdout);
+    assert_eq!(result.code, exit::OK, "{}", result.stdout);
     assert!(result.stderr.is_empty());
+    let artifact: serde_json::Value = serde_json::from_str(&result.stdout).unwrap();
+    assert_eq!(artifact["artifact_version"], 1);
     assert!(
-        result.stdout.contains("\"code\":\"E6008\""),
-        "{}",
-        result.stdout
+        artifact["modules"]
+            .as_array()
+            .is_some_and(|modules| !modules.is_empty())
+    );
+    assert!(
+        artifact["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|operation| operation["name"] == "TeamTasks.Todo.create")
     );
 }
 
@@ -811,7 +823,12 @@ fn collect_can_files(dir: &str, out: &mut Vec<std::path::PathBuf>) {
         .collect();
     entries.sort();
     for path in entries {
-        if path.is_dir() && path.file_name().is_some_and(|name| name != "can.generated") {
+        if path.is_dir()
+            && path.file_name().is_some_and(|name| {
+                let name = name.to_string_lossy();
+                name != "can.generated" && !name.starts_with('.')
+            })
+        {
             collect_can_files(path.to_str().unwrap(), out);
         } else if path.extension().is_some_and(|e| e == "can") {
             out.push(path);

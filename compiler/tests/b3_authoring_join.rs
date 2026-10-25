@@ -26,7 +26,6 @@ mod lsp_driver;
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::atomic::{AtomicU32, Ordering};
 
 /// Repo root (`compiler/../`).
 fn repo_root() -> PathBuf {
@@ -48,20 +47,26 @@ fn fixture_source() -> PathBuf {
         .join("AuthoringDemo.can")
 }
 
-static TEMP_COUNTER: AtomicU32 = AtomicU32::new(0);
-
 /// Temp working copy of the fixture; removed when the guard drops.
 struct TempFile {
+    _directory: tempfile::TempDir,
     path: PathBuf,
 }
 
 impl TempFile {
     fn copy_of(name: &str, text: &str) -> Self {
-        let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
-        let path =
-            std::env::temp_dir().join(format!("can-b3-i3-{}-{id}-{name}", std::process::id()));
+        // Each source owns its project root; scanning the shared system temp
+        // directory would include unrelated, potentially unreadable projects.
+        let directory = tempfile::Builder::new()
+            .prefix("can-b3-i3-")
+            .tempdir()
+            .unwrap();
+        let path = directory.path().join(name);
         std::fs::write(&path, text).unwrap();
-        Self { path }
+        Self {
+            _directory: directory,
+            path,
+        }
     }
 
     fn arg(&self) -> String {

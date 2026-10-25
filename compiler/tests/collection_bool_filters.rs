@@ -5,9 +5,8 @@
 //! correspondence. The checker admits distinct owned plain-bool selectors
 //! with matching defaults, the lowering validator accepts `bool` columns
 //! with `true`/`false` captions, and data-only/absent `where` keeps
-//! working. Non-bool kinds (int/nullable bool), duplicate/
-//! undeclared selectors, dotted paths and lambda-where filter composition
-//! keep the exact E6008 refusals below. Plain `text` selectors lower
+//! working. Duplicate/undeclared selectors and dotted paths retain their
+//! exact refusals; nullable bools and checked lambda composition are supported. Plain `text` selectors lower
 //! through the CAN18-v1 C2 text-equality rule (DESIGN 975 scalar +
 //! operator table); see `enum_filter_group.rs` for the text pins.
 //! Plain `date` selectors lower through the CAN18-v1 C3 civil-date
@@ -438,13 +437,11 @@ fn model_reference_filter_lowers() {
     );
 }
 
-/// Nullable bool fields stay refused: only plain bool toggles lower.
+/// Nullable bool selectors retain the owned bool filter codec.
 #[test]
-fn nullable_bool_filter_refuses() {
-    assert_refuses(
+fn nullable_bool_filter_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Customer { name:text, active:bool? }\n policy Customer read=public\nWhen\nThen\n page /customers title=\"Customers\"\n  list Customer columns=name,active filter=active\n",
-        "E6008",
-        "need distinct checked owned enum fields",
     );
 }
 
@@ -471,24 +468,12 @@ fn undeclared_bool_default_refuses() {
     );
 }
 
-/// Recorded nesting (CanSuccess/CanContract): a refused outer list keeps
-/// its checker refusal while an admitted nested bool table lowers quietly
-/// alongside it. (The harness returns after checker diagnostics, so the
-/// lowering-stage outer refusal surfaces only in the full CLI pipeline;
-/// the nested table must stay quiet in both.)
-///
-/// C2 note: the recorded outer `category:text` filter is now admitted by
-/// the text-equality rule, so this pin carries the outer refusal on the
-/// still-refused `due:date` follower instead; the nesting contract under
-/// test is unchanged.
-/// C3 note: the `due:date` follower is now admitted by the civil-date
-/// equality rule, so this pin carries the outer refusal on the
-/// still-refused nullable `rank:int?` follower instead; the nesting contract
-/// under test is unchanged.
+/// An unsupported validated email selector on an outer list must not
+/// introduce a refusal in its independently supported nested bool table.
 #[test]
 fn refused_outer_list_keeps_admitted_nested_bool_table_quiet() {
     let diags = emit_all(
-        "app Probe\nGiven\n Account { title:text, category:text, rank:int? }\n Milestone in Account { title:text, done:bool=false }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=title,category filter=rank\n   table row.Milestone columns=title,done order=title filter=done\n",
+        "app Probe\nGiven\n Account { title:text, category:text, contact:email? }\n Milestone in Account { title:text, done:bool=false }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=title,category filter=contact\n   table row.Milestone columns=title,done order=title filter=done\n",
     );
     assert!(
         diags
