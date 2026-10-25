@@ -936,11 +936,14 @@ fn source_only_work(
     kind: SourceWorkKind,
     loans: &HashMap<Span, serde_json::Value>,
     loops: Option<&serde_json::Value>,
+    native_source: Option<&serde_json::Value>,
 ) -> Option<HashMap<Span, serde_json::Value>> {
-    let source = requires
-        .values()
-        .find(|source| source["owner"] == owner.canonical)?["source"]
-        .clone();
+    let source = native_source.cloned().or_else(|| {
+        requires
+            .values()
+            .find(|source| source["owner"] == owner.canonical)
+            .map(|source| source["source"].clone())
+    })?;
     let IrItemKind::Scenario {
         params,
         effects,
@@ -1027,6 +1030,11 @@ fn source_only_work(
             loop_root: None,
         },
     );
+    if native_source.is_some() {
+        collector
+            .output
+            .retain(|_, source| source["loop"].is_string());
+    }
     Some(collector.output)
 }
 // Work identity recipes authorize their exact key/payload linkage, rather than
@@ -3112,6 +3120,7 @@ fn emit_program_with_sources(
                     SourceWorkKind::Cancel,
                     &emitter.source_let_data,
                     None,
+                    None,
                 )
                 .unwrap_or_default();
                 let schedules = source_only_work(
@@ -3122,6 +3131,7 @@ fn emit_program_with_sources(
                     &module_path(&entry_name),
                     SourceWorkKind::Schedule,
                     &emitter.source_let_data,
+                    None,
                     None,
                 )
                 .unwrap_or_default();
@@ -3186,6 +3196,36 @@ fn emit_program_with_sources(
                         } else {
                             emitter.unsupported("source loop SEND DATA", "stored DATA in a native source loop needs its exact original SEND observer", owner.span);
                         }
+                        let cancels = source_only_work(
+                            ir,
+                            owner,
+                            context,
+                            &emitter.source_requires,
+                            &module_path(&entry_name),
+                            SourceWorkKind::Cancel,
+                            &emitter.source_let_data,
+                            Some(&loops),
+                            Some(&source),
+                        )
+                        .unwrap_or_default();
+                        let complete = loops["loops"].as_array().is_some_and(|entries| {
+                            entries.iter().all(|entry| {
+                                entry["work"].as_array().is_none_or(|work| {
+                                    work.iter().filter(|site| site["kind"] == "cancel").all(
+                                        |site| {
+                                            cancels.values().any(|cancel| {
+                                                cancel["loop"] == entry["id"]
+                                                    && cancel["node"] == site["node"]
+                                            })
+                                        },
+                                    )
+                                })
+                            })
+                        });
+                        if !complete {
+                            emitter.unsupported("source loop CANCEL", "native source loop needs its exact original scoped Work cancellation", owner.span);
+                        }
+                        emitter.source_cancels.extend(cancels);
                         emitter
                             .source_body_loops
                             .insert(owner.canonical.clone(), loops);
@@ -3258,6 +3298,7 @@ fn emit_program_with_sources(
                 SourceWorkKind::Cancel,
                 &emitter.source_let_data,
                 emitter.source_body_loops.get(&owner.canonical),
+                None,
             ) {
                 emitter.source_cancels.extend(cancels);
             }
@@ -3270,6 +3311,7 @@ fn emit_program_with_sources(
                 SourceWorkKind::Schedule,
                 &emitter.source_let_data,
                 emitter.source_body_loops.get(&owner.canonical),
+                None,
             ) {
                 emitter.source_schedules.extend(schedules);
             }

@@ -31630,6 +31630,44 @@ impl<'a> Closure<'a> {
         key: NodeKey,
         paths: Vec<ValuePath>,
     ) -> Result<Vec<ValuePath>, DisclosureDecline> {
+        if effect.verb == EffectVerb::Cancel
+            && calls.is_empty()
+            && effect.value == Some(key)
+            && let Some(loop_node) = self.loop_node
+            && let Some((base, field)) = self.count_member(key)
+            && field == "id"
+            && matches!(self.query_binding(base),Some(Binding::ForItem{node})if *node==loop_node)
+            && let Some(ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            }) = self.types.node_types.get(&base)
+            && self.resolve.symbols.get(model.0 as usize).is_some_and(|model|
+                matches!(&model.kind,SymbolKind::Model{fields,..}if fields.iter().all(|field|
+                    self.resolve.symbols.get(field.0 as usize).is_some_and(|field|field.name!="id"))))
+            && self.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Text))
+            && env.get(&Local::For(loop_node)).is_some_and(|value| {
+                value.record == Some(*model)
+                    && value.reference_origin.is_none()
+                    && value.model_result.is_none()
+            })
+            && self.effects.scenarios.values().any(|scenario| {
+                scenario.module == module
+                    && self.source_anchor(scenario, key)
+                    && scenario.effects.iter().any(|original| {
+                        original.node == loop_node
+                            && original.verb == EffectVerb::For
+                            && original.then_effects.iter().any(|child| {
+                                child.node == effect.node
+                                    && child.verb == EffectVerb::Cancel
+                                    && child.value == Some(key)
+                            })
+                    })
+            })
+        {
+            // The separately checked loop Work occurrence consumes its issued
+            // item's identity. It is neither a Model DATA read nor an input.
+            return Ok(paths);
+        }
         let values = self.expr(key, module, env, calls)?;
         if values
             .iter()
@@ -34193,7 +34231,7 @@ impl<'a> Closure<'a> {
         } else if effect
             .then_effects
             .iter()
-            .any(|child| child.verb == EffectVerb::Send)
+            .any(|child| matches!(child.verb, EffectVerb::Send | EffectVerb::Cancel))
             || !effect.then_effects.is_empty()
                 && effect
                     .then_effects

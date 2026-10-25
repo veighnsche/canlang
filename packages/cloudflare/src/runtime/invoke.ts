@@ -5691,7 +5691,7 @@ function checkedFirstQueryCensus(raw: unknown,
  * SCHEDULE alone adds an event, Values time and optional genuine CREATE root. */
 async function bindNativeSourceWork(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors):Promise<void>{
   for(const value of loaded.registry.values()){
-    const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def);
+    const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def)??def.descriptor.result?.disclosure?.source;
     if(def===undefined||source===undefined)continue;
     const callable=artifact.callables.find(entry=>entry.kind==='operation'&&entry.id===def.name&&entry.module===source.module);
     if(callable?.inputStyle!=='parameters')throw new AssemblyCorrespondenceError('Source CANCEL/SCHEDULE lacks its original parameter-style operation.');
@@ -5720,7 +5720,7 @@ async function bindNativeSourceWork(asm:AssembledModules,artifact:CompileArtifac
               Number(expression.end)>Number(node.end)||Number(expression.end)<=Number(expression.start)||typeof privateSourceMember(module,'canScenarioWorkSource')!=='function')
             throw new AssemblyCorrespondenceError('Source SCHEDULE lacks its original dynamic expression and issuer.');
         }else if(schedule)sourceScheduleOffset(site.at);
-        if(seen.has(key)||site.owner!==def.name||stableStringify(site.source)!==stableStringify(source)||
+        if(!sourceRequireFrames.has(def)&&site.loop===undefined||seen.has(key)||site.owner!==def.name||stableStringify(site.source)!==stableStringify(source)||
             site.ownerPackage!==def.name.slice(0,def.name.lastIndexOf('.'))||!Number.isSafeInteger(node.start)||!Number.isSafeInteger(node.end)||
             Number(node.start)<0||Number(node.end)<=Number(node.start)||!loaded.models.some(model=>model.name===site.model)||
             (site.loop!==undefined?(loop===undefined||loop.item!==site.parameter||loop.model!==site.model||created!==undefined||
@@ -11820,7 +11820,7 @@ async function runScenarioExecution(
           if (parent === undefined) return refuseRecordBinding('Child cancellation lost its live parent owner.');
           return await parent.cancel(child, key, ownerPackage);
         }
-        if(sourceRequireAware&&(activeSourceCancellation===null||activeSourceCancellation.key!==key||activeSourceCancellation.ownerPackage!==ownerPackage)){
+        if((sourceRequireAware||activeSourceLoopItem!==null)&&(activeSourceCancellation===null||activeSourceCancellation.key!==key||activeSourceCancellation.ownerPackage!==ownerPackage)){
           return refuseRecordBinding('Source CANCEL needs its exact live admitted root key and original scope.');
         }
         const selected = await scheduleScope(ownerPackage);
@@ -13280,7 +13280,7 @@ async function runScenarioExecution(
       });
     }
   }
-  if(sourceRequireAware&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined
+  if(hasExecutionFrame&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined
       &&(nativeSourceCancels.has(scenarioDef)||nativeSourceSchedules.has(scenarioDef))){
     const actual=call as AdmittedCall,parameters=localPolicyObject(argument);
     // These shared checks issue no Work effect. Each effect retains its own

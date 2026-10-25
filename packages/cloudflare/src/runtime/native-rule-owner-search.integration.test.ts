@@ -2489,6 +2489,59 @@ it('keeps cancellation result DATA private and cancels only the admitted root th
         else assert.deepEqual(replay,{result:{status:'replayed',operation_id:request.operation_id,result:null,records:[]}});
         assert.deepEqual(await store.query({model:asModel('work.schedule'),authority:'owner'}),before);assert.deepEqual(await store.readReceipt(saved.identity),saved);
       }
+      for(const mode of ['allowed','inactive','late-refusal','identity-race','schedule-race']){
+        const {now,identities,identity,membership}=await member(`loop-work-${mode}`);
+        const store=createMemoryStorage(),rootModel=model('SourceGuardCancel','Root'),childModel=model('SourceGuardCancel','Child');
+        const parent={...makeRow({id:asId('root'),data:{capacity:'3',checked:false}}),parent:null},other={...parent,id:asId('other-root')};
+        const children=['first','second','inactive','other-child'].map(id=>({...makeRow({id:asId(id),data:{active:mode!=='inactive'&&id!=='inactive'}}),parent:{model:rootModel,id:id==='other-child'?other.id:parent.id}}));
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:rootModel,row:parent},{kind:'insert',model:rootModel,row:other},...children.map(row=>({kind:'insert' as const,model:childModel,row}))]}));
+        const scope={app:'SourceGuardCancel',owner:membership.team_id,ownerPackage:'SourceGuardCancel'},foreign={...scope,owner:'foreign-owner'};
+        const stageContext={actor:'loop-work-fixture',now,operation:'SourceGuardCancel.seed',load:store.load.bind(store),query:store.query.bind(store)};
+        const stages=[];
+        for(const current of [scope,foreign])for(const child of children)stages.push(await workSchedulePutCommand.stage({key:child.id,scope:current,at:now+10000,event:'SourceGuardCancel.Due',payload:{message:'Original child schedule'},occurrenceId:`${current.owner}-${child.id}`},stageContext));
+        await store.commit(makeBatch(await store.readRevision(),{writes:stages.flatMap(stage=>stage.writes??[]),schedules:stages.flatMap(stage=>stage.schedules??[])}));
+        const scheduleKey=(current:typeof scope,id:string)=>[current.app,current.ownerPackage,current.owner,id].map(encodeURIComponent).join('/');
+        const foreignSlots=await Promise.all(children.map(child=>store.scheduleGet(scheduleKey(foreign,child.id))));
+        let raced=false;const attempts:number[]=[];
+        if(mode==='identity-race'){
+          const query=store.query.bind(store);store.query=async spec=>{if(!raced&&spec.model==='work.schedule'){raced=true;await identities.removeMembership(membership.membership_id);}return query(spec);};
+        }
+        if(mode==='schedule-race'){
+          const commit=store.commit.bind(store);store.commit=async batch=>{
+            if(batch.writes.some(write=>write.model===childModel&&write.kind==='update'))attempts.push(batch.expectedRevision);
+            if(!raced&&batch.writes.some(write=>write.model===childModel&&write.kind==='update')){
+              raced=true;const stage=await workScheduleCancelCommand.stage({key:children[0]!.id,scope},{...stageContext,actor:'external-cancel',operation:'external-cancel'});
+              await commit(makeBatch(await store.readRevision(),{writes:stage.writes??[],schedules:stage.schedules??[]}));
+            }
+            return commit(batch);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const request={operation:'SourceGuardCancel.cancel_children',operation_id:operationId(now),inputs:{root:{id:parent.id,version:String(parent.version)},fail:mode==='late-refusal'}};
+        const outcome=await invoker.invokeMutation(request,identity),allowed=mode==='allowed'||mode==='schedule-race';
+        assert.equal('result'in outcome?outcome.result.status:outcome.error.code,allowed?'committed':mode==='inactive'||mode==='late-refusal'?'rule_failed':'forbidden',`${mode}: ${JSON.stringify(outcome)}`);
+        for(const [index,child]of children.entries()){
+          const selected=index<2;
+          const actual=await store.load(childModel,child.id);assert.ok(actual);
+          assert.equal(actual.data.active,allowed&&selected?false:child.data.active,`${mode}: child writes rollback atomically`);
+          assert.equal(actual.version,child.version+(allowed&&selected?1:0),`${mode}: each selected child commits at most once`);
+          const slot=await store.scheduleGet(scheduleKey(scope,child.id));
+          assert.equal(slot===null,allowed&&selected||mode==='schedule-race'&&index===0,`${mode}: only selected original child Work keys change`);
+          assert.deepEqual(await store.scheduleGet(scheduleKey(foreign,child.id)),foreignSlots[index],`${mode}: foreign Work scope remains intact`);
+        }
+        assert.deepEqual(await store.outboxPending(),[]);
+        if(mode==='identity-race'||mode==='schedule-race')assert.equal(raced,true,mode);
+        if(mode==='schedule-race'){
+          assert.equal(attempts.length,2,'stale Work attempt is retried from a new source revision');assert.equal(attempts[1],attempts[0]!+1);
+          const external=await store.load(asModel('work.schedule'),asId(`${scope.owner}-${children[0]!.id}`));assert.ok(external);
+          assert.equal(external.version,2);assert.equal(external.updatedBy,'external-cancel','fresh retry preserves the concurrent Work cancellation');
+        }
+        if(allowed){
+          const before=await store.query({model:asModel('work.schedule'),authority:'owner'}),replay=await invoker.invokeMutation(request,identity);
+          assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.result,null);
+          assert.deepEqual(await store.query({model:asModel('work.schedule'),authority:'owner'}),before,'replay stages no additional Work');
+        }
+      }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
 

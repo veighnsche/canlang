@@ -4893,6 +4893,79 @@ fn contained_cancel_loop_preserves_original_domain_work_and_delivery_carrier() {
             "{mode}"
         );
     }
+    let source =
+        include_str!("../../packages/cloudflare/test/fixtures/native-source-require-cancel.can");
+    let (db, program, ir, catalog) = fixture_source("loop-work-identity.can", source);
+    let owner = item(&ir, "SourceGuardCancel.cancel_children");
+    assert!(
+        matches!(
+            &ir.scenario_disclosures[&owner.id],
+            ScenarioDisclosure::Complete(_)
+        ),
+        "{:?}",
+        ir.scenario_disclosures[&owner.id]
+    );
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let code = artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|module| module["js"].as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(code.contains("nativeScenarioSourceCancel(c,"));
+    assert!(code.contains("canScenarioCancelSources"));
+    for mode in ["key", "root", "model", "bound"] {
+        let mut changed = ir.clone();
+        let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.id.0 as usize].kind
+        else {
+            panic!("scenario")
+        };
+        let IrStmt::For {
+            body,
+            limit: Some(limit),
+            ..
+        } = effects
+            .iter_mut()
+            .find(|effect| matches!(effect, IrStmt::For { .. }))
+            .unwrap()
+        else {
+            panic!("loop")
+        };
+        if mode == "bound" {
+            limit.expr = IrExpr::Int(11);
+        } else {
+            let IrStmt::Cancel { key, .. } = &mut body[1] else {
+                panic!("cancel")
+            };
+            let IrExpr::Member { base, field } = &mut key.expr else {
+                panic!("identity")
+            };
+            match mode {
+                "key" => *field = "active".into(),
+                "root" => base.expr = IrExpr::Name("root".into()),
+                "model" => {
+                    base.ty = ResolvedType::Record {
+                        symbol: item(&ir, "SourceGuardCancel.Root").id,
+                        stored: true,
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+        assert!(
+            serialize_decision_sources(
+                &program,
+                &changed,
+                &changed.items[owner.id.0 as usize],
+                &db,
+                Some(&catalog)
+            )
+            .is_none(),
+            "{mode}"
+        );
+    }
 }
 
 #[test]

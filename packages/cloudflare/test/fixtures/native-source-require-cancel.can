@@ -9,6 +9,13 @@ Given
  policy Child read=owner
  invariant Root: row.capacity>=0
 When
+ scenario cancel_children(root:Root,fail:bool=false) by=members
+  require allowed(root)
+  do
+   for child in root.Child as child where child.active limit=10
+    set child {active=false}
+    cancel child.id
+   require not fail
  scenario notify(root:Root) -> date by=members
   require root.remaining>0
   require allowed(root)
