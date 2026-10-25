@@ -226,12 +226,17 @@ fn collect_leading_guard<'a>(
                     template_receiver_ty,
                     nullable_revision,
                 )
-                || !current_value(
+                || !(current_value(
                     published_reference,
                     parameter_name,
                     template_receiver_ty,
                     nullable_revision,
-                )
+                ) || current_value(
+                    published_reference,
+                    parameter_name,
+                    template_receiver_ty,
+                    &revision_value.ty,
+                ))
             {
                 continue;
             }
@@ -1207,7 +1212,7 @@ impl SourceSites<'_> {
             .iter()
             .filter(|(at, _)| *at == key);
         let original_ty = &typed.next()?.1;
-        // Member-chain lowering reconstructs this raw current getter with its
+        // Member-chain lowering may reconstruct the current getter with its
         // declared nullable type. The checked published occurrence and its
         // CONTROL observation remain narrowed; no other site borrows this
         // representation exception.

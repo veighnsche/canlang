@@ -18862,6 +18862,12 @@ impl<'a> Closure<'a> {
         {
             return Some(Vec::new());
         }
+        // This checked consumer promotes its original current/published/digest
+        // CONTROL observations at the later DATA use. The generic Require
+        // observer cannot replace those return-linked promotion identities.
+        if self.checked_current_revision_source(scenario).is_some() {
+            return Some(Vec::new());
+        }
         if !self.source_require_params_ok(scenario) {
             return Some(Vec::new());
         }
