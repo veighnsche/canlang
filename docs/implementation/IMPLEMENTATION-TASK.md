@@ -6,7 +6,7 @@ Bring the complete original 24-source CanLang draft composition to **zero native
 
 This is the executable task list for the [complete work inventory](WORK-INVENTORY.md). Work through the zero-diagnostic sequence first. The wider inventory is assigned concrete follow-on tasks below; pull one forward only when it supplies a demonstrated dependency of the zero-diagnostic work. Optional proposals do not expand the objective automatically.
 
-The latest complete measurement on the implementation committed as `ac5fe4d6` has 18 diagnostics, zero analysis errors, 26 source records and no omissions. The malformed `a0918b49` snapshot has been repaired and independently validated. Preserve the two remaining local implementation packets: constructor COUNT publication and Refer aggregate loops.
+The latest complete measurement on the implementation committed as `3513cbc1` has 18 diagnostics, zero analysis errors, 26 source records and no omissions. The malformed `a0918b49` snapshot has been repaired and independently validated. Preserve the two remaining local implementation packets: constructor COUNT publication and Refer aggregate loops.
 
 ## Current execution status
 
@@ -18,17 +18,27 @@ remain blocked by other receipt correspondence, so Z03's full original-consumer
 completion is still open. Its complete 24-operand capture finishes in 232.56
 seconds with 18 diagnostics, 26 source records and zero omissions; both source
 and diagnostic arrays match the repaired Z01 baseline. No diagnostic reduction
-is claimed for this packet. Next take the independently ready Z04 constructor
-COUNT producer and its exact original receiving consumer.
+is claimed for this packet. Z04's shared producer/emitter mechanism is now committed
+as `802d8fd4`: the existing real State integration passes its single/many-guard
+permission, stale-reference, hidden-sibling, race and replay matrix. Its full
+capture takes 314.19 seconds and still has 18 diagnostics with the same 26
+source records. Original fulfill_free advances beyond the old first-query
+refusal but still lacks its complete source-guard receipt; Z04 remains open at
+that original-workflow boundary. Proceed with Z05's exact returned-primary
+constructor association while retaining that closure work.
 
 GitHub confirms the repaired syntax/build stages and browser/security job pass
 at `73094a16`. Its earlier nullable-receipt assertion failure is fixed by Z02;
 its workspace run additionally exposes the selected original CanCreative publish
 fixture's first nullable stored-delivery selector, `revision.validation?.status`.
-This needs the original State/Work observation join with exact identity, schema,
-permission and revision checks; later result selectors must retain the same
-delivery correlation. Preserve the original guards and resolve this under Z18.
-Latest-main CI remains unqualified.
+The bounded fix now qualifies the original State/Work observation join, exact
+declared selector/schema and required original receiver. Its unchanged original
+SQLite/R2/Work publication journey passes, including a new status-only grant
+that denies result DATA without writes; all five existing native receipt
+integrations pass. No runtime trust/API change is needed. The combined compiler
+with COUNT also passes Clippy for all targets. `3513cbc1` fixes a separate obsolete
+CI expectation for explicit email/URL input codec metadata; all three owning
+operation-result integrations pass. Latest-main CI remains unqualified.
 
 ## Completion criteria for the zero-diagnostic objective
 

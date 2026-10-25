@@ -492,6 +492,33 @@ it('executes original CanCreative graph review and generated publication', async
       assert.equal(validation.status, 'succeeded');
       assert.deepEqual(validation.result, { valid: true, digest: installed.validation, detail: null });
       assert.ok(graphReads >= 3, 'inspect, reconcile and validate read actual retained source Files');
+      // The same owner/role may see status without receiving the provider
+      // result. A successful receipt cannot turn that partial grant into DATA.
+      const statusOnlySource = join(directory, 'status-only.can');
+      const selectedSource = await readFile(source, 'utf8');
+      const statusOnlyText = selectedSource.replace(
+        '  policy Revision read=creative_manager and row.parent.owner==actor',
+        '  policy Revision read=creative_manager and row.parent.owner==actor fields=parent,published,validation.status');
+      assert.notEqual(statusOnlyText, selectedSource);
+      await writeFile(statusOnlySource, statusOnlyText);
+      const statusOnlyArtifact = JSON.parse(execFileSync(process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can'),
+        ['compile', '--format=json', '--native-scenario-receipts', '--catalog',
+          process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json'), statusOnlySource],
+        { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024, encoding: 'utf8' })) as CompileArtifact;
+      const statusOnlyAsm = await assembleModules({ artifact: statusOnlyArtifact, sourcePath: statusOnlySource },
+        { ...assemblyOptions, workDir: join(directory, 'status-only') });
+      const statusOnlyInvoker = buildInvoker(statusOnlyArtifact, statusOnlyAsm, reopened,
+        { memberships: identities, now: () => now, files: reopenedFiles.canonical });
+      const beforeWithheldRevision = await reopened.load(asModel('creative.Revision'), workflowRevision.id);
+      const beforeWithheldTemplate = await reopened.load(asModel('creative.Template'), row.id);
+      const beforeWithheldOutbox = await reopened.outboxPending();
+      const withheld = await statusOnlyInvoker.invokeMutation({ operation: 'creative.publish', operation_id: uuidv7(now, ++sequence),
+        inputs: { revision: { id: workflowRevision.id, version: String(workflowRevision.version) } } }, identity);
+      assert.ok('error' in withheld, JSON.stringify(withheld));
+      assert.equal(withheld.error.code, 'forbidden');
+      assert.deepEqual(await reopened.load(asModel('creative.Revision'), workflowRevision.id), beforeWithheldRevision);
+      assert.deepEqual(await reopened.load(asModel('creative.Template'), row.id), beforeWithheldTemplate);
+      assert.deepEqual(await reopened.outboxPending(), beforeWithheldOutbox);
       const publishRequest = { operation: 'creative.publish', operation_id: uuidv7(now, ++sequence),
         inputs: { revision: { id: workflowRevision.id, version: String(workflowRevision.version) } } };
       const published = await reopenedInvoker.invokeMutation(publishRequest, identity);
