@@ -60,6 +60,7 @@ export {
   bindArtifactOwnerModelPolicies,
   checkOwnerModelPolicyDescriptors,
   assertCheckedOwnerModelPolicies,
+  evaluateOwnerRuleReadPolicy,
   type CheckedOwnerModelPolicies,
   type SourceVerifiedOwnerModelPolicyModule,
   type OwnerModelChange,

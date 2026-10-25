@@ -8,6 +8,8 @@ import type { LoadedArtifactDescriptors } from '../invocation/registry.js';
 import { StateError } from '../errors.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
 import { getModelFieldValueSchema, type InterimHook, type InterimHookContext, type InterimModelDef, type ModelTable } from './models.js';
+import type { MembershipReader } from '../policy/roles.js';
+import type { InstalledSourceReadPredicate } from '../receipt/read-policy-membership.js';
 import { assertOwnerMutationHookContext, type OwnerMutationHookContext } from './pipeline.js';
 
 export interface OwnerModelChange {
@@ -33,6 +35,30 @@ export interface OwnerRuleContext {
   readonly maxRows: number;
   /** Entry-only for locks; final-only for invariants. Decision reads confer no grant. */
   readonly read: OwnerModelReadView;
+}
+type OwnerPolicyReadObservation = (input: {
+  readonly context: InvocationContext; readonly row: StoredRow; readonly ownerRows: OwnerModelReadView;
+  readonly read: InstalledSourceReadPredicate; readonly memberships: MembershipReader;
+}) => Promise<{ readonly value: boolean; readonly revalidate: () => Promise<void> }>;
+const ownerPolicyReadObservers = new WeakMap<OwnerModelPolicyViews, OwnerPolicyReadObservation>();
+const ownerRuleReads = new WeakMap<OwnerRuleContext, { active: boolean; used: boolean;
+  readonly observe: (read: InstalledSourceReadPredicate, memberships: MembershipReader) => ReturnType<OwnerPolicyReadObservation> }>();
+/** Internal owner pipeline issuer; this installer is absent from public barrels. */
+export function bindOwnerPolicyReadObserver(views: OwnerModelPolicyViews, observe: OwnerPolicyReadObservation): void {
+  if (ownerPolicyReadObservers.has(views) || !Object.isFrozen(views)) {
+    throw new StateError('validation', 'Owner policy observation requires one original frozen owner view.');
+  }
+  ownerPolicyReadObservers.set(views, observe);
+}
+/** Only the live State-issued rule context can open its original source read. */
+export async function evaluateOwnerRuleReadPolicy(context: OwnerRuleContext, read: InstalledSourceReadPredicate,
+  memberships: MembershipReader): ReturnType<OwnerPolicyReadObservation> {
+  const owner = ownerRuleReads.get(context);
+  if (owner?.active !== true || owner.used) throw new StateError('validation', 'Original live owner rule observation required.');
+  owner.used = true;
+  const result = await owner.observe(read, memberships);
+  if (!owner.active) throw new StateError('validation', 'Owner rule observation outlived its predicate.');
+  return result;
 }
 interface BindingIdentity {
   readonly id: string;
@@ -352,9 +378,18 @@ export function bindOwnerModelPolicies(input: {
     views.consumeWork();
     const binding = bindingMap.get(id)!;
     if (binding.kind !== 'invariant' && binding.kind !== 'lock') return fail('Invalid predicate binding.');
-    const answer = await binding.evaluate(Object.freeze({ context: views.context, maxRows: views.maxRows, read: views[mode] }), frozen(row));
-    if (typeof answer !== 'boolean') return fail('Native model predicate did not return bool.');
-    return answer;
+    const actualRow = frozen(row);
+    const context = Object.freeze({ context: views.context, maxRows: views.maxRows, read: views[mode] });
+    const observe = ownerPolicyReadObservers.get(views);
+    const lifetime = observe === undefined ? undefined : { active: true, used: false,
+      observe: (read: InstalledSourceReadPredicate, memberships: MembershipReader) => observe({
+        context: views.context, row: actualRow, ownerRows: views[mode], read, memberships }) };
+    if (lifetime !== undefined) ownerRuleReads.set(context, lifetime);
+    try {
+      const answer = await binding.evaluate(context, actualRow);
+      if (typeof answer !== 'boolean') return fail('Native model predicate did not return bool.');
+      return answer;
+    } finally { if (lifetime !== undefined) lifetime.active = false; }
   };
   const policies: CheckedOwnerModelPolicies = Object.freeze({
     // Return fresh maps: mutating a public Map cannot replace installed hooks.

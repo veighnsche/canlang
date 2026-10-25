@@ -81,7 +81,7 @@ export function checkedAuthoritySnapshot(value: MembershipSnapshot, team: string
 /** Discovery cannot authorize a conjunction. Re-evaluate only the policy AST
  * against one complete snapshot before any caller predicate or disclosure. */
 export async function observeRowGrantAuthority<T>(context: ByContext,
-  evaluate: (context: ByContext) => Promise<T>): Promise<{ readonly value: T; readonly revalidate: () => Promise<void> }> {
+  evaluate: (context: ByContext) => Promise<T>, options: { readonly observeCaller?: boolean } = {}): Promise<{ readonly value: T; readonly revalidate: () => Promise<void> }> {
   const facts = new Map<string, { team: string; user: string; fact: Membership | null }>(); let drift = false;
   const record = (team: string, user: string, value: unknown) => {
     if (team !== context.teamId) return refuse('Row grant authority crossed its actual Team.');
@@ -93,9 +93,12 @@ export async function observeRowGrantAuthority<T>(context: ByContext,
     }
     return fact;
   };
-  const membership = context.actorUserId !== null && context.teamId !== null
+  const observeCaller = options.observeCaller !== false;
+  const membership = observeCaller && context.actorUserId !== null && context.teamId !== null
     ? record(context.teamId, context.actorUserId, context.membership) : null;
-  const discovery = await evaluate({ ...context, membership, memberships: {
+  // Owner decisions carry the actual actor/team but no implicit caller grant.
+  // Observe only subjects whose original active_member calls are reached.
+  const discovery = await evaluate({ ...context, ...(observeCaller ? { membership } : {}), memberships: {
     findMembership: async (team, user) => record(team, user, await context.memberships.findMembership(team, user)),
   } });
   const changed = (): never => { throw new StateError('forbidden', 'Row grant authority changed during its complete observation.'); };
@@ -112,7 +115,7 @@ export async function observeRowGrantAuthority<T>(context: ByContext,
   const observed = await snapshot();
   if ([...facts].some(([identity, fact]) => JSON.stringify(observed.get(identity)) !== JSON.stringify(fact.fact))) return changed();
   const value = await evaluate({ ...context,
-    membership: context.actorUserId === null ? null : observed.get(key(context.teamId, context.actorUserId))!,
+    ...(observeCaller ? { membership: context.actorUserId === null ? null : observed.get(key(context.teamId, context.actorUserId))! } : {}),
     memberships: { findMembership: async (team, user) => {
       const identity = key(team, user); if (!observed.has(identity)) return changed(); return observed.get(identity)!;
     } },

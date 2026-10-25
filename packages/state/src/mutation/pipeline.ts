@@ -36,8 +36,10 @@ import type {
 } from '@canlang/contracts';
 import type { StoragePort } from '../storage/port.js';
 import { StateError } from '../errors.js';
+import { observeRowGrantAuthority } from '../policy/membership-facts.js';
+import { evaluateInstalledReadPolicy } from '../receipt/read-policy-membership.js';
 import { stageOwnerMutationSources, retainOwnerMutationBusinessWrites, type OwnerMutationFinalChange, type OwnerMutationSourceStager } from './source-finalization.js';
-import { assertCheckedOwnerModelPolicies, type CheckedOwnerModelPolicies, type OwnerModelChange, type OwnerModelReadView, type OwnerModelPolicyViews } from './model-policies.js';
+import { bindOwnerPolicyReadObserver, assertCheckedOwnerModelPolicies, type CheckedOwnerModelPolicies, type OwnerModelChange, type OwnerModelReadView, type OwnerModelPolicyViews } from './model-policies.js';
 import { openTransitiveScope, type FenceScope } from '../invocation/admission.js';
 import {
   STAGING_MAX_ID_LENGTH,
@@ -850,6 +852,19 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     final: Object.freeze({ get: (model: ModelName, id: RecordId) => guardedRead(() => getRow(model, id)),
       query: (spec: OwnerMutationQuery) => guardedRead(() => ownerQuery(spec, 'final')) }),
   });
+  const bindPolicyObserver = (views: OwnerMutationViews): void => bindOwnerPolicyReadObserver(views, async input => {
+    healthy(); consumeWork(); await checkRevision();
+    const observationRevision = revision;
+    if (observationRevision === undefined) throw new StateError('validation', 'Owner policy requires its actual transaction revision.');
+    const actor = input.context.actor?.userId ?? null, team = input.context.team?.teamId ?? null;
+    const observed = await observeRowGrantAuthority({ actorUserId: actor, teamId: team,
+      memberships: input.memberships }, tracked => evaluateInstalledReadPolicy(input.read,
+        Object.freeze({ context: tracked, row: input.row, revision: observationRevision, fence: undefined }), store, undefined,
+        { read: input.ownerRows.get, assertHealthy: healthy }), { observeCaller: false });
+    healthy(); await checkRevision(); await observed.revalidate(); healthy();
+    return observed;
+  });
+  bindPolicyObserver(policyViews);
   let stagePolicyViews = policyViews;
   const beforeStage = async (model: ModelName, id: RecordId, after: StoredRow | null): Promise<void> => {
     if (fixtureSession === true || owner?.policies === undefined) return;
@@ -2772,6 +2787,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       try {
         stageContext = childContext;
         stagePolicyViews = childContext === context ? policyViews : Object.freeze({ ...policyViews, context: childContext });
+        if (stagePolicyViews !== policyViews) bindPolicyObserver(stagePolicyViews);
         await processWrites(frozenWrites as readonly MutationWrite[], frozenOptions);
       } finally {
         stageContext = context;

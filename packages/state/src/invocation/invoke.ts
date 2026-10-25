@@ -876,6 +876,7 @@ export async function invokeReadScenario<Result = unknown>(input: InvokeReadScen
     const originals = new Map<string, StoredRow>();
     const refKey = (ref: { model: ModelName; id: RecordId }) => JSON.stringify([ref.model, ref.id]);
     const authority = await observeRowGrantAuthority({ actorUserId, teamId, membership, memberships: input.memberships }, async current => {
+      if (current.membership === undefined) throw new StateError('validation', 'Viewer grant observation requires its caller membership snapshot.');
       await authorize(current.membership, current.memberships);
       const project = async (ref: Pick<AdmittedCall['recordRefs'][number], 'model' | 'id'>, row: StoredRow): Promise<StoredRow> => {
         const visible = await projectCurrentRecordForViewerPolicy({ policy: input.policy.get(ref.model), context: current, row });

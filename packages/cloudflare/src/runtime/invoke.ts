@@ -3056,10 +3056,26 @@ async function joinOwningUnconditionalUniques(
         boolean: 'bool', date: 'date', duration: 'duration', user: 'user',
       } as Readonly<Record<string, string>>)[sourceField.field.kind];
       const scalarType = sourceField?.valueType ?? inferredScalar;
+      if (conditional && sourceField?.field.kind === 'user') {
+        // Conditional user keys retain the same opaque identity codec used by
+        // State's canonicalUniqueFieldValue. Require the original declaration,
+        // artifact and canonical field to agree; an object or model reference
+        // cannot borrow this user key, and the predicate still joins below.
+        const declaredFields = readMetadataMember(modelDeclaration, 'fields', where)?.value;
+        const declaredField = isUnknownRecord(declaredFields)
+          ? readMetadataMember(declaredFields, field, where)?.value : undefined;
+        const declaredType = isUnknownRecord(declaredField)
+          ? readMetadataMember(declaredField, 'type', where)?.value : undefined;
+        if (declaredType !== 'user' || scalarType !== 'user' || canonicalField?.valueType !== 'user' ||
+            sourceField.required !== true || canonicalField.required !== true ||
+            sourceField.nullable === true || (refs.get(name) ?? []).some(reference => reference.field === field)) {
+          throw new AssemblyCorrespondenceError(`${where}: conditional unique user field lacks its original identity codec.`);
+        }
+      }
       if (!Object.hasOwn(canonical[0]!.fields, field) ||
           originalField.length !== 1 || canonicalField === undefined ||
           sourceField === undefined || !['string', 'integer', 'decimal', 'money', 'datetime', 'boolean', 'date', 'duration', 'user'].includes(sourceField.field.kind) ||
-          conditional && !['string', 'integer', 'boolean'].includes(sourceField.field.kind) ||
+          conditional && !['string', 'integer', 'boolean', 'user'].includes(sourceField.field.kind) ||
           sourceField.array !== undefined || canonicalField.array !== undefined ||
           (sourceField.field.kind === 'string' && sourceField.valueType === undefined) ||
           scalarType === undefined || scalarType !== canonicalField.valueType ||
@@ -6398,6 +6414,49 @@ async function originalAppForOperation(asm: AssembledModules, artifact: CompileA
   return app;
 }
 
+/** Private declarations remain outside the public registry. Verify the owning
+ * callable and source before deferring their membership producer to execution. */
+async function checkedPrivateMembershipOwner(asm: AssembledModules, artifact: CompileArtifact,
+  owner: string, sites: readonly ScenarioReceiptMembershipSite[]): Promise<string> {
+  const callables = artifact.callables.filter(value => value.kind === 'handler' && value.id === owner);
+  const source = sites[0]?.source, callable = callables[0];
+  if (callables.length !== 1 || callable === undefined || source === undefined ||
+      stableStringify(callable.member) !== stableStringify([owner]) || callable.source !== undefined && callable.source !== source.path ||
+      sites.some(site => site.owner !== owner || stableStringify(site.source) !== stableStringify(source)) ||
+      !artifact.sources.some(original => original.path === source.path && original.sha256 === source.sha256)) {
+    throw new AssemblyCorrespondenceError('Private membership owner lacks its exact handler callable and original source census.');
+  }
+  const imported = await importVerifiedAssemblyModule(asm, callable.module, artifact);
+  const definition = privateSourceMember(imported, 'appDefinition');
+  const app = privateSourceMember(definition, 'id');
+  const operation = privateSourceMember(privateSourceMember(definition, 'operations'), owner);
+  if (privateSourceMember(imported, callable.export) !== owner || typeof app !== 'string' || app === '' ||
+      privateSourceMember(operation, 'handler') !== owner || typeof privateSourceMember(operation, 'event') !== 'string' ||
+      privateSourceMember(operation, 'event') === '') {
+    throw new AssemblyCorrespondenceError('Private membership owner differs from its verified app and handler declaration.');
+  }
+  return app;
+}
+
+async function bindPrivateOwnerMembership(asm: AssembledModules, artifact: CompileArtifact,
+  loaded: LoadedCanonicalDescriptors, def: GeneratedOperationDef): Promise<void> {
+  const sites = (loaded.membershipSources.get(def.name) ?? []).filter(site =>
+    site.stage !== 'read-policy' && site.stage !== 'read-predicate' && site.stage !== 'send-dispatch');
+  if (!sites.some(site => site.calls.some(call => call.target.kind === 'builtin' && call.target.id === 'active_member'))) return;
+  const app = await checkedPrivateMembershipOwner(asm, artifact, def.name, sites);
+  const transport = def.descriptor.result?.disclosure?.source;
+  const callable = artifact.callables.find(value => value.kind === 'handler' && value.id === def.name);
+  if (transport === undefined || transport.module !== callable?.module || transport.path !== sites[0]!.source.path ||
+      transport.sha256 !== sites[0]!.source.sha256) {
+    throw new AssemblyCorrespondenceError('Private membership execution lacks its original checked State disclosure.');
+  }
+  if (!nativeSourceSendGuards.has(def)) {
+    const state = await import('@canlang/state/invocation');
+    state.bindScenarioReceiptMembershipSource(def, { logical: sites[0]!.source, transport });
+  }
+  bindNativeOwnerMembership(def, { source: sites[0]!.source, app, sites });
+}
+
 const canonicalStoreLoads = new WeakMap<CompileArtifact, WeakMap<StoragePort, Promise<LoadedCanonicalDescriptors>>>();
 
 /** Executing owners receive genuine definitions unique to their literal store.
@@ -6701,8 +6760,10 @@ async function loadCanonicalDescriptorsInternal(
     const ownerSites = sites.filter(site => site.stage !== 'read-policy' && site.stage !== 'read-predicate' && site.stage !== 'send-dispatch');
     if (!ownerSites.some(site => site.calls.some(call => call.target.kind === 'builtin' && call.target.id === 'active_member'))) continue;
     const def = generatedScenarioDef({ def: canonical.registry.get(owner) });
-    if (def === undefined && (owner === 'maintain.remind' || isSuccessNoticeOwner(owner)) && artifact.callables.some(callable =>
-      callable.id === owner && callable.kind === 'handler')) continue;
+    if (def === undefined && artifact.callables.some(callable => callable.id === owner && callable.kind === 'handler')) {
+      await checkedPrivateMembershipOwner(asm, artifact, owner, ownerSites);
+      continue;
+    }
     if (def === undefined) throw new AssemblyCorrespondenceError('Membership owner lacks its original checked scenario.');
     const report = artifact.operations?.find(operation => operation.name === owner && operation.kind === 'read');
     if (report?.authorityQuerySites !== undefined) {
@@ -6719,7 +6780,7 @@ async function loadCanonicalDescriptorsInternal(
     // needs the same one-time association before its producer can be bound.
     if (!nativeSourceSendGuards.has(def)) {
       const transport = def.descriptor.result?.disclosure?.source ?? sourceRequireFrames.get(def);
-      if (transport === undefined) throw new AssemblyCorrespondenceError('Membership owner lacks its original checked disclosure source.');
+      if (transport === undefined) throw new AssemblyCorrespondenceError(`Membership owner ${JSON.stringify(owner)} lacks its original checked disclosure source.`);
       const state = await import('@canlang/state/invocation');
       state.bindScenarioReceiptMembershipSource(def, { logical: ownerSites[0]!.source, transport });
     }
@@ -8082,9 +8143,10 @@ async function createContainmentNavigation(input: {
         !loaded.models.some(candidate => candidate.name === model)) {
       throw new StateError('validation', 'Parent navigation requires a checked model read.');
     }
-    const membership = input.coherentContext !== undefined ? input.coherentContext.membership : (input.actorUserId !== null && input.teamId !== null
-      ? await input.memberships.findMembership(input.teamId, input.actorUserId) : null);
-    const context = input.coherentContext ?? { actorUserId: input.actorUserId, teamId: input.teamId, membership, memberships: input.memberships };
+    const context = input.coherentContext ?? { actorUserId: input.actorUserId, teamId: input.teamId,
+      membership: input.actorUserId !== null && input.teamId !== null
+        ? await input.memberships.findMembership(input.teamId, input.actorUserId) : null,
+      memberships: input.memberships };
     const producer = await viewer();
     if (!(await producer.by(def.by, context))) throw new StateError('not_found', 'Parent record not found.');
     const policy = loaded.policy as ReadonlyMap<ModelName, import('@canlang/state/policy/grants').InterimModelPolicy>;
@@ -8474,7 +8536,7 @@ interface LocalOwnerPolicyControl {
   /** Install attaches the read-grant policy table once it exists; per-fire value projection reads it. */
   setParentValuePolicies(policy: import('@canlang/state/policy/grants').PolicyTable): void;
   verifyAssembly(asm: AssembledModules, artifact: CompileArtifact): Promise<void>;
-  createOwnerFrame(input: { readonly deploymentBase?: string; readonly call: CanonicalSeamCall; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'>; readonly memberships?: CanonicalMembershipReader; readonly emitDeclared?: HookDeclaredEmitter; readonly retainQueuedCreate?: HookCreateRetainer }): { close(): void };
+  createOwnerFrame(input: { readonly deploymentBase?: string; readonly call: CanonicalSeamCall; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'>; readonly memberships?: CanonicalMembershipReader; readonly emitDeclared?: HookDeclaredEmitter; readonly retainQueuedCreate?: HookCreateRetainer }): { close(): void; readonly guard: CanonicalGuardRevalidation };
   createFixtureFrame(input: { readonly deploymentBase?: string; readonly context: InvocationContext; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }): { close(): void };
 }
 const localOwnerPolicyControls = new WeakMap<LoadedCanonicalDescriptors, LocalOwnerPolicyControl>();
@@ -8750,7 +8812,8 @@ async function loadLocalOwnerPolicyControl(input: {
       throw new Error('Local owner policies require nonempty claims.');
     }
   }
-  const activeFrames = new WeakMap<InvocationContext, { active: boolean; readonly deploymentBase?: string; readonly memberships?: CanonicalMembershipReader; readonly emitDeclared?: HookDeclaredEmitter; readonly retainQueuedCreate?: HookCreateRetainer }>();
+  const membershipSources = await loadCheckedMembershipSources(input.asm, input.artifact);
+  const activeFrames = new WeakMap<InvocationContext, { active: boolean; readonly membershipChecks: (() => Promise<void>)[]; readonly deploymentBase?: string; readonly memberships?: CanonicalMembershipReader; readonly emitDeclared?: HookDeclaredEmitter; readonly retainQueuedCreate?: HookCreateRetainer }>();
   const hookCallables = new Set<string>();
   const hookOperations = new Set<string>();
   // Install-attached read-grant policy table (set once from the canonical
@@ -9235,7 +9298,7 @@ async function loadLocalOwnerPolicyControl(input: {
               })();
               return currentView;
             };
-            const readRecords = async (model: string, query: CanonicalReadQuery): Promise<ReadonlyArray<Record<string, unknown>>> => {
+            const readRecords = async (model: string, query: CanonicalReadQuery, context: HandlerContext): Promise<ReadonlyArray<Record<string, unknown>>> => {
               pendingQueries++;
               try {
                 assertLive();
@@ -9268,7 +9331,7 @@ async function loadLocalOwnerPolicyControl(input: {
                   }
                   const candidate = await pending; assertLive();
                   if (where !== undefined) {
-                    const answer: unknown = await (where as (candidate: Record<string, unknown>, context: HandlerContext) => unknown)(candidate, c);
+                    const answer: unknown = await (where as (candidate: Record<string, unknown>, context: HandlerContext) => unknown)(candidate, context);
                     assertLive();
                     if (typeof answer !== 'boolean') return poison(new input.native.producers.errors('validation', 'Owner query predicate did not return bool.'));
                     if (!answer) continue;
@@ -9279,55 +9342,77 @@ async function loadLocalOwnerPolicyControl(input: {
               } catch (error) { return poison(error); }
               finally { pendingQueries--; }
             };
-            const c = createContext({
-              ...(queryCarrier === undefined ? {} : { canonical: Object.freeze({ operation: owner.context.operation,
-                stageWrite: async () => refuse(), createRecord: async () => refuse(), setRecord: async () => refuse(),
-                deleteRecord: async () => refuse(), readModel: async () => refuse(), readRecords }) }),
-              ...(frame.deploymentBase === undefined ? {} : { deploymentBase: frame.deploymentBase }),
-              caller: Object.freeze({ userId: owner.context.actor?.userId ?? 'anonymous', roles: Object.freeze([]) as unknown as string[] }),
-              store, clock: () => { assertLive(); return owner.context.now; },
-              memberships: Object.freeze([]) as unknown as string[], preferences: Object.freeze(Object.create(null)) as Record<string, Record<string, unknown>>,
-              qualified: owner.context,
-            });
-            bindNativeSourceReferenceReader(c, async (reference, field) => {
-              pendingReferences++;
+            type OwnerRead = import('@canlang/state').InstalledSourceReadPredicate;
+            const sites = membershipSources.get(rule.id);
+            let installed: OwnerRead | undefined;
+            const execute = async (observation?: Parameters<OwnerRead>[0]): Promise<boolean> => {
+              const c = createContext({
+                ...(queryCarrier === undefined ? {} : { canonical: Object.freeze({ operation: owner.context.operation,
+                  stageWrite: async () => refuse(), createRecord: async () => refuse(), setRecord: async () => refuse(),
+                  deleteRecord: async () => refuse(), readModel: async () => refuse(),
+                  readRecords: (model: string, query: CanonicalReadQuery) => readRecords(model, query, c) }) }),
+                ...(frame.deploymentBase === undefined ? {} : { deploymentBase: frame.deploymentBase }),
+                caller: Object.freeze({ userId: owner.context.actor?.userId ?? 'anonymous', roles: Object.freeze([]) as unknown as string[] }),
+                store, clock: () => { assertLive(); return owner.context.now; },
+                memberships: Object.freeze([]) as unknown as string[], preferences: Object.freeze(Object.create(null)) as Record<string, Record<string, unknown>>,
+                qualified: owner.context,
+              });
+              bindNativeSourceReferenceReader(c, async (reference, field) => {
+                pendingReferences++;
+                try {
+                  assertLive();
+                  if (field !== undefined) poison(new input.native.producers.errors('validation', 'Owner rule reference reads require the actual evaluated receiver.'));
+                  if (typeof reference !== 'object' || reference === null) {
+                    return poison(new input.native.producers.errors('validation', 'Owner rule reference requires an issued view or field value.'));
+                  }
+                  if (issuedViews.has(reference)) return reference;
+                  const target = issuedReferences.get(reference);
+                  if (target === undefined) return poison(new input.native.producers.errors('validation', 'Owner rule reference is copied, foreign or unbound.'));
+                  const key = stagedKey(target.model, target.id);
+                  let pending = referenceViews.get(key);
+                  if (pending === undefined) {
+                    pending = (async () => {
+                      const current = await owner.read.get(target.model as ModelName, target.id as RecordId);
+                      assertLive();
+                      if (current === null || current.id !== target.id || current.archivedAt !== null) {
+                        return poison(new input.native.producers.errors('validation', 'Owner rule reference is unavailable in its owning view.'));
+                      }
+                      const view = await hydrate(target.model, current);
+                      assertLive(); return view;
+                    })();
+                    referenceViews.set(key, pending);
+                  }
+                  const view = await pending;
+                  assertLive(); return view;
+                } catch (error) { return poison(error); }
+                finally { pendingReferences--; }
+              });
+              freezeScenarioSnapshot(c);
+              const membership = observation === undefined || installed === undefined ? undefined
+                : openNativeReadMembershipFrame(c, installed, observation, rule.id, owner.context.team, poison);
               try {
-                assertLive();
-                if (field !== undefined) poison(new input.native.producers.errors('validation', 'Owner rule reference reads require the actual evaluated receiver.'));
-                if (typeof reference !== 'object' || reference === null) {
-                  return poison(new input.native.producers.errors('validation', 'Owner rule reference requires an issued view or field value.'));
-                }
-                if (issuedViews.has(reference)) return reference;
-                const target = issuedReferences.get(reference);
-                if (target === undefined) return poison(new input.native.producers.errors('validation', 'Owner rule reference is copied, foreign or unbound.'));
-                const key = stagedKey(target.model, target.id);
-                let pending = referenceViews.get(key);
-                if (pending === undefined) {
-                  pending = (async () => {
-                    const current = await owner.read.get(target.model as ModelName, target.id as RecordId);
-                    assertLive();
-                    if (current === null || current.id !== target.id || current.archivedAt !== null) {
-                      return poison(new input.native.producers.errors('validation', 'Owner rule reference is unavailable in its owning view.'));
-                    }
-                    const view = await hydrate(target.model, current);
-                    assertLive(); return view;
-                  })();
-                  referenceViews.set(key, pending);
-                }
-                const view = await pending;
-                assertLive(); return view;
-              } catch (error) { return poison(error); }
-              finally { pendingReferences--; }
-            });
-            freezeScenarioSnapshot(c);
-            const callback = evaluate as (c: HandlerContext, row: Record<string, unknown>,
-              readCurrent?: (reference: unknown) => Promise<Record<string, unknown>>) => unknown;
-            const answer: unknown = dependency === undefined ? await callback(c, nativeRow)
-              : await callback(c, nativeRow, readCurrent);
-            assertLive();
-            if (pendingReferences !== 0 || pendingQueries !== 0) poison(new input.native.producers.errors('validation', 'Owner rule reads must complete before its predicate.'));
-            if (typeof answer !== 'boolean') throw new input.native.producers.errors('validation', 'Native owner model predicate did not return bool.');
-            return answer;
+              const callback = evaluate as (c: HandlerContext, row: Record<string, unknown>,
+                readCurrent?: (reference: unknown) => Promise<Record<string, unknown>>) => unknown;
+              const answer: unknown = dependency === undefined ? await callback(c, nativeRow)
+                : await callback(c, nativeRow, readCurrent);
+              assertLive();
+              if (pendingReferences !== 0 || pendingQueries !== 0) poison(new input.native.producers.errors('validation', 'Owner rule reads must complete before its predicate.'));
+              if (typeof answer !== 'boolean') throw new input.native.producers.errors('validation', 'Native owner model predicate did not return bool.');
+              membership?.assertCompleted();
+              return answer;
+              } finally { membership?.close(); }
+            };
+            if (sites === undefined) return await execute();
+            if (frame.memberships === undefined || sites.length === 0 || sites.some(site => site.stage !== 'read-policy' || site.owner !== rule.id)) {
+              throw new input.native.producers.errors('validation', 'Owner invariant membership lacks its actual Identity reader and original source.');
+            }
+            installed = async observation => execute(observation);
+            bindNativeReadMembership(installed, { source: sites[0]!.source, rule: rule.id, sites });
+            const observe = requireProducerFn(producer, 'evaluateOwnerRuleReadPolicy', 'owner model-policy observation') as
+              typeof import('@canlang/state/mutation').evaluateOwnerRuleReadPolicy;
+            const observed = await observe(owner, installed, frame.memberships);
+            frame.membershipChecks.push(observed.revalidate);
+            return observed.value;
           } finally { active = false; }
         },
       }));
@@ -9407,11 +9492,16 @@ async function loadLocalOwnerPolicyControl(input: {
     if (!Object.isFrozen(context) || localPolicyContextFacts(context) !== localPolicyContextFacts(source) || activeFrames.has(context)) {
       throw new input.native.producers.errors('validation', 'Owner model frame requires its exact fresh session context.');
     }
-    const frame = { active: true, ...(deploymentBase === undefined ? {} : { deploymentBase }),
+    const frame = { active: true, membershipChecks: [] as (() => Promise<void>)[], ...(deploymentBase === undefined ? {} : { deploymentBase }),
       ...(memberships === undefined ? {} : { memberships }), ...(emitDeclared === undefined ? {} : { emitDeclared }),
       ...(retainQueuedCreate === undefined ? {} : { retainQueuedCreate }) };
     activeFrames.set(context, frame);
-    return Object.freeze({ close() { frame.active = false; } });
+    return Object.freeze({ close() { frame.active = false; }, guard: Object.freeze({
+      name: 'owner.model.membership', evaluate: async () => {
+        for (const check of frame.membershipChecks) await check();
+        return true;
+      },
+    }) });
   };
   return Object.freeze({ policies, hookCallables, hookOperations, setParentValuePolicies(policy: import('@canlang/state/policy/grants').PolicyTable) {
     parentValuePolicies.current = policy;
@@ -10257,13 +10347,14 @@ async function runScenarioExecution(
     });
   const ownerSession: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> | undefined = child?.session ?? rootOwnerSession;
   let retainedNavigationActive = true;
-  let ownerPolicyFrame: { close(): void } | undefined;
+  let ownerPolicyFrame: { close(): void; readonly guard: CanonicalGuardRevalidation } | undefined;
   let scenarioReceiptFrame: ScenarioReceiptFrame | undefined;
   let nativeMembershipFrame: NativeMembershipFrame | undefined;
   try {
   if (ownerSession !== undefined && ownerControl !== undefined) {
     ownerPolicyFrame = ownerControl.createOwnerFrame({ call, session: ownerSession, memberships: opts.memberships,
       ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }) });
+    seamGuards.push(ownerPolicyFrame.guard);
   }
   const staged: Map<string, StoredRow | null> = new Map();
   const ownerRows = new Map<string, StoredRow | null>();
@@ -15114,7 +15205,7 @@ async function invokeCanonicalMutation(
       if (typeof executeOwner !== 'function') {
         throw new StateError('validation', 'Installed State producer lacks generatedCrudExecuteOwnerSession.');
       }
-      const candidateGuards = new WeakMap<InvocationContext, CanonicalGuardRevalidation>();
+      const candidateGuards = new WeakMap<InvocationContext, readonly CanonicalGuardRevalidation[]>();
       const execute = executeOwner({ ...crudInput, table: loaded.table as ModelTable,
         secretFields: loaded.secretFields as ReadonlyMap<ModelName, readonly string[]>,
         ...(ownerControl === undefined ? {} : { ownerPolicies: ownerControl.policies }),
@@ -15135,7 +15226,8 @@ async function invokeCanonicalMutation(
           const binding = candidateBindings?.get(call.context.operation);
           try {
             const candidate = binding === undefined ? undefined : await createNativeCrudCandidateFrame({ loaded, opts, call, session, binding });
-            if (candidate !== undefined) candidateGuards.set(call.context, candidate.guard);
+            candidateGuards.set(call.context, [...(ordinary === undefined ? [] : [ordinary.guard]),
+              ...(candidate === undefined ? [] : [candidate.guard])]);
             return Object.freeze({ close() { candidate?.close(); ordinary?.close(); },
               ...(candidate === undefined ? {} : { admitCandidate: candidate.admitCandidate }) });
           } catch (error) { ordinary?.close(); throw error; }
@@ -15145,7 +15237,7 @@ async function invokeCanonicalMutation(
       crudExecute = async call => {
         const effects = await (execute as unknown as (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>)(call);
         const guard = candidateGuards.get(call.context);
-        return guard === undefined ? effects : { ...effects, guards: [...effects.guards ?? [], guard] };
+        return guard === undefined ? effects : { ...effects, guards: [...effects.guards ?? [], ...guard] };
       };
     }
   }
@@ -17554,6 +17646,31 @@ class DueScheduleChanged extends Error {
  * Anything else keeps the existing refusal (no binding, no frame);
  * the caller still owns admission, fencing and replay.
  */
+/** Compare complete source metadata in finite sections. Caller/preclaim input
+ * limits stay unchanged; a full receipt may contain many independent returns. */
+function privateHandlerDisclosureData(value: unknown): unknown {
+  const plan = localPolicyObject(value);
+  const keys = Object.keys(plan);
+  if (keys.length > 32) throw new AssemblyCorrespondenceError('Private handler disclosure exceeds its finite section census.');
+  let bytes = 0;
+  const section = (part: unknown): unknown => {
+    const captured = captureDispatchPreclaimData(part);
+    bytes += stableStringify(captured).length;
+    if (bytes > 1_000_000) throw new AssemblyCorrespondenceError('Private handler disclosure exceeds its finite source bound.');
+    return captured;
+  };
+  return Object.fromEntries(keys.map(key => {
+    const part = plan[key];
+    return [key, Array.isArray(part) ? nativeCallArray(part, 200).map(entry => {
+      if (key !== 'returns') return section(entry);
+      const returned = localPolicyObject(entry);
+      if (Object.keys(returned).length > 32) throw new AssemblyCorrespondenceError('Private handler return exceeds its finite section census.');
+      return Object.fromEntries(Object.entries(returned).map(([name, member]) =>
+        [name, name === 'dependencies' ? nativeCallArray(member, 200).map(section) : section(member)]));
+    }) : section(part)];
+  }));
+}
+
 async function bindPrivateDueHandlerProducers(
   asm: AssembledModules,
   artifact: CompileArtifact,
@@ -17564,7 +17681,11 @@ async function bindPrivateDueHandlerProducers(
   sourceInput: Pick<CanonicalMutationOpts, 'identity' | 'store'> & { readonly now: () => number },
 ): Promise<void> {
   const plan = privateDef.descriptor.result?.disclosure;
-  if (plan === undefined || (plan.queries?.length ?? 0) === 0 && plan.retainedGuardedHandler===undefined) return;
+  if (plan === undefined) return;
+  const models = nativeScenarioModelConsumers(loaded, privateDef);
+  const mutationData = privateDef.kind === 'scenario' && plan.returns.some(returned =>
+    returned.dependencies.some(dependency => dependency.role === 'data' && dependency.queryId === undefined));
+  if ((plan.queries?.length ?? 0) === 0 && plan.retainedGuardedHandler === undefined && !mutationData) return;
   const where = `Due handler query ${JSON.stringify(privateDef.name)}`;
   const member = (value: unknown, key: string): unknown =>
     isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
@@ -17595,7 +17716,7 @@ async function bindPrivateDueHandlerProducers(
   const inventory = (sourcesFn as () => unknown)();
   // The inventory returns a parsed JSON object keyed by handler id.
   const planValue = isUnknownRecord(inventory) ? (inventory as Record<string, unknown>)[privateDef.name] : undefined;
-  if (planValue === undefined || stableStringify(captureDispatchPreclaimData(planValue)) !== stableStringify(captureDispatchPreclaimData(plan))) {
+  if (planValue === undefined || stableStringify(privateHandlerDisclosureData(planValue)) !== stableStringify(privateHandlerDisclosureData(plan))) {
     throw new AssemblyCorrespondenceError('Due handler query differs from its verified module inventory plan.');
   }
   if(plan.retainedGuardedHandler!==undefined) {
@@ -17624,19 +17745,27 @@ async function bindPrivateDueHandlerProducers(
   const sourceReads = createSourceReadPolicyAdapter({ loaded,
     opts: { asm, artifact, identity: sourceInput.identity, store: sourceInput.store, source: 'schedule' },
     now: sourceInput.now, app });
-  const readPolicies = new Map<ModelName, import('@canlang/state/query').ViewerSourceReadPolicy>();
-  for (const query of plan.queries ?? []) {
-    for (const [model, policy] of sourceReads.policies(query.model)) if (!readPolicies.has(model)) readPolicies.set(model, policy);
+  // Private handlers consume the same original field/ancestor policy census
+  // as ordinary native mutations, including DATA copied before a void result.
+  const readPolicies = sourceDataReadPolicies(sourceReads, models as readonly ModelName[]);
+  if ((plan.queries?.length ?? 0) !== 0) {
+    const bindQuery = loaded.producers.invoke.bindScenarioReceiptQueryProducer;
+    if (bindQuery === undefined) throw new AssemblyCorrespondenceError('Due handler query requires its installed State producer.');
+    bindQuery(privateDef, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bindQuery>[1]['policy'],
+      ...(readPolicies.size === 0 ? {} : { readPolicies }),
+      ...(first.length === 0 ? {} : { first }) });
   }
-  const bindQuery = loaded.producers.invoke.bindScenarioReceiptQueryProducer;
-  if (bindQuery === undefined) throw new AssemblyCorrespondenceError('Due handler query requires its installed State producer.');
-  bindQuery(privateDef, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bindQuery>[1]['policy'],
-    ...(readPolicies.size === 0 ? {} : { readPolicies }),
-    ...(first.length === 0 ? {} : { first }) });
   // Execution (require-observed) dependencies ride the reference producer
   // with their original owning Require census, mirroring the ordinary path.
   const rawExecution = member(operation, 'executionDependencies');
-  if (rawExecution === undefined) return;
+  if (rawExecution === undefined) {
+    if (!mutationData) return;
+    const bindRef = loaded.producers.invoke.bindScenarioReceiptReferenceProducer;
+    if (bindRef === undefined) throw new AssemblyCorrespondenceError('Due handler DATA requires its installed State producer.');
+    bindRef(privateDef, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bindRef>[1]['policy'],
+      readPolicies });
+    return;
+  }
   const executionDependencies = captureDispatchPreclaimData(nativeCallArray(rawExecution, 200)) as
     NonNullable<Parameters<NonNullable<typeof loaded.producers.invoke.bindScenarioReceiptReferenceProducer>>[1]['executionDependencies']>;
   const executionSites = (loaded.membershipSources.get(privateDef.name) ?? [])
@@ -17654,9 +17783,9 @@ async function bindPrivateDueHandlerProducers(
   const state = await import('@canlang/state/invocation');
   const hasActiveMember = executionSites.some(site => site.calls.some(call =>
     call.target.kind === 'builtin' && call.target.id === 'active_member'));
-  if (!hasActiveMember) {
+  if (!hasActiveMember && !nativeSourceSendGuards.has(privateDef)) {
     const transport = plan.source;
-    // The nativeSourceSendGuards map is keyed by def; a due handler has none.
+    // Framework SEND binding has already associated its exact logical source.
     // Each private handler def is fresh per delivery (new registry per
     // invokeDueScheduleCanonical call), so this binds exactly once; any
     // failure (including already-bound with a differing source) propagates
@@ -17820,42 +17949,12 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
   // The source-policy adapter needs the full registry (Budget.read lives
   // there, not in the single-entry private registry); the producers bind
   // to the private handler def via State's per-def plan inventory.
+  // Each private State definition receives the verified framework and owner
+  // membership census before its query/reference producers consume that source.
+  await bindScenarioFrameworkProducers(opts.asm, opts.artifact, privateLoaded, opts.handler);
+  await bindPrivateOwnerMembership(opts.asm, opts.artifact, privateLoaded, privateDef);
   await bindPrivateDueHandlerProducers(opts.asm, opts.artifact, loaded, privateDef, definition, handler,
     { identity, store: opts.store, now: () => now });
-  // The public framework inventory is bound at assembly load. A private due
-  // handler gets its own one-shot State definition and exact verified module
-  // guard inventory only after Work selects the genuine handler/source.
-  await bindScenarioFrameworkProducers(opts.asm, opts.artifact, privateLoaded, opts.handler);
-  if (privateDef.name === 'maintain.remind') {
-    const sites = (privateLoaded.membershipSources.get(privateDef.name) ?? []).filter(site =>
-      site.stage === 'body-condition');
-    const app = isUnknownRecord(definition) ? readMetadataMember(definition, 'id', 'Maintain event membership')?.value : undefined;
-    const operations = isUnknownRecord(definition) ? readMetadataMember(definition, 'operations', 'Maintain event membership')?.value : undefined;
-    if (sites.length !== 1 || !sites[0]!.calls.some(call =>
-        call.target.kind === 'builtin' && call.target.id === 'active_member') ||
-        typeof app !== 'string' || app === '' || !isUnknownRecord(operations) ||
-        readMetadataMember(operations, privateDef.name, 'Maintain event membership') === undefined) {
-      throw new AssemblyCorrespondenceError('Maintain event IF lacks its exact original nested membership source.');
-    }
-    bindNativeOwnerMembership(privateDef, { source: sites[0]!.source,
-      app, sites });
-  }
-  if (isSuccessNoticeOwner(privateDef.name)) {
-    const sites = (privateLoaded.membershipSources.get(privateDef.name) ?? []).filter(site =>
-      site.stage === 'body-condition');
-    const app = isUnknownRecord(definition) ? readMetadataMember(definition, 'id', 'Success renewal membership')?.value : undefined;
-    const operations = isUnknownRecord(definition) ? readMetadataMember(definition, 'operations', 'Success renewal membership')?.value : undefined;
-    const operation = isUnknownRecord(operations) ? readMetadataMember(operations, privateDef.name, 'Success renewal membership')?.value : undefined;
-    const sendGuards = isUnknownRecord(operation) ? readMetadataMember(operation, 'sendGuards', 'Success renewal membership')?.value : undefined;
-    if (sites.length !== 1 || !sites[0]!.calls.some(call =>
-        call.target.kind === 'builtin' && call.target.id === 'active_member') ||
-        typeof app !== 'string' || app === '' || !isUnknownRecord(operations) ||
-        operation === undefined || !Array.isArray(sendGuards) || sendGuards.length !== 1) {
-      throw new AssemblyCorrespondenceError('Success renewal IF lacks its exact original nested membership source.');
-    }
-    bindNativeOwnerMembership(privateDef, { source: sites[0]!.source,
-      app, sites });
-  }
   // C24 scope-1: the State receipt result stays void-null inside the
   // admission; the Work delivery outcome (completed/failed + occurrence)
   // rides a side channel so the same fence still commits schedule,
@@ -18047,10 +18146,8 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
     rentNoticeAppDefault = declaredDefault;
   }
   const privateLoaded = { ...loaded, registry: descriptors.registry };
-  if ((selector.handler === 'rent_reservations.correspondence' || selector.handler === 'events.attendee_notice') ||
-      privateDef.descriptor.result?.disclosure?.retainedGuardedHandler!==undefined) {
-    await bindScenarioFrameworkProducers(opts.asm, opts.artifact, privateLoaded, selector.handler);
-  }
+  await bindScenarioFrameworkProducers(opts.asm, opts.artifact, privateLoaded, selector.handler);
+  await bindPrivateOwnerMembership(opts.asm, opts.artifact, privateLoaded, privateDef);
   const handlerModule = await loadProducerModule('@canlang/work/kernel/handler-occurrence', 'retained private handler');
   const stageRetained = requireProducerFn(handlerModule, 'stageRetainedHandlerOccurrence', 'retained private handler') as
     typeof import('@canlang/work/kernel/handler-occurrence').stageRetainedHandlerOccurrence;

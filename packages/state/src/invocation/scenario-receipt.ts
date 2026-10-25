@@ -7794,6 +7794,77 @@ function sourceEffectGrantSlot(owner:ReceiptOwnerSession,producer:ScenarioReceip
   if(!Number.isSafeInteger(maximum)||maximum<=0||count>=maximum)return false;
   counts.set(key!,count+1);return true;
 }
+/** A private event owns only its admitted root and its actual containment
+ * ancestors. The installed source plan selects the field; authenticated Work
+ * selects the root. This does not confer viewer or query authority. */
+async function observeAdmittedEventDataSource(call: AdmittedCall, store: StoragePort, owner: ReceiptOwnerSession,
+  state: Capture, dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number],
+  model: ModelName, row: StoredRow): Promise<(() => Promise<void>) | undefined> {
+  const def = call.def as GeneratedOperationDef, event = eventIntrinsicProfiles.get(def);
+  const admission = dueWorkAdmissions.get(call) ?? retainedEventAdmissions.get(call);
+  if (event === undefined || admission === undefined) return undefined;
+  const stage = owner.stage, source = frameworkProducers.get(def);
+  if (owner.session === null || owner.call !== call || owner.executingCall !== call || !owner.busy || state.pending !== 1 ||
+      call.context.kind !== 'trusted' || call.context.actor !== null || call.context.source !== 'schedule' ||
+      event.handler !== def.name || event.event !== admission.event || source?.app !== call.context.app ||
+      stableStringify(source.source) !== stableStringify(state.bound.plan.source) ||
+      call.context.trustedSource !== `${dueWorkAdmissions.has(call) ? 'schedule' : 'event'}:${event.event}` ||
+      admission.scope.app !== call.context.app || admission.scope.owner !== (call.context.team?.teamId ?? call.context.app) ||
+      admission.scope.ownerPackage !== def.name.slice(0, def.name.lastIndexOf('.')) ||
+      !state.bound.plan.returns.some(returned => returned.dependencies.includes(dependency))) {
+    return invalid('Event DATA lacks its actual original source, owner scope and admitted Work occurrence.');
+  }
+  const root = call.recordRefs.filter(ref => ref.param === event.modelField.name && ref.model === event.modelField.model);
+  const payload = object(admission.eventPayload, eventPayloadFields(call, event));
+  const original = decodeValue(event.modelField.model, payload[event.modelField.name]) as { readonly id: string };
+  if (root.length !== 1 || root[0]!.id !== original.id) return invalid('Event DATA differs from its exact admitted payload root.');
+  const healthy = () => {
+    capture(call, store); ownerHealthy(owner);
+    if (owner.executingCall !== call || owner.stage !== stage || !owner.busy || state.pending !== 1 || state.returnId !== null)
+      return invalid('Event DATA crossed its original serial owner stage.');
+  };
+  const path: Array<{ readonly model: ModelName; readonly row: StoredRow }> = [];
+  let next: { readonly model: ModelName; readonly id: RecordId } | null = root[0]!;
+  while (next !== null) {
+    if (path.length >= MAX_ITEMS || path.some(part => part.model === next!.model && part.row.id === next!.id))
+      return invalid('Event DATA containment exceeds its finite original owner path.');
+    const current = await owner.session.views.final.get(next.model, next.id); healthy();
+    if (current === null || current.archivedAt !== null || path.length === 0 && !sameModelLifetime(root[0]!.row, current))
+      return invalid('Event DATA lost its live original admitted owner row.');
+    path.push({ model: next.model, row: current });
+    if (next.model === model && current.id === row.id) break;
+    const parentModel: string | undefined = state.bound.artifactModels.get(next.model)?.parent;
+    const parent = current.parent;
+    if (parentModel === undefined || parent === null || parent === undefined || parent.model !== parentModel) return undefined;
+    next = parent;
+  }
+  const selected = path[path.length - 1];
+  if (selected?.model !== model || selected.row.id !== row.id) return undefined;
+  if (!sameModelLifetime(row, selected.row) || stableStringify(getDataPath(row.data, dependency.field)) !==
+      stableStringify(getDataPath(selected.row.data, dependency.field))) return invalid('Event DATA differs from its genuine current source field.');
+  const validate = async (read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>, check: () => void) => {
+    for (const part of path) {
+      const current = await read(part.model, part.row.id); check();
+      if (current === null || current.archivedAt !== null || !sameModelLifetime(part.row, current) ||
+          stableStringify(current.parent) !== stableStringify(part.row.parent))
+        throw new StateError('forbidden', 'Event DATA lost its original admitted root or containment ancestry.');
+    }
+  };
+  if (owner.callGuards.length >= MAX_ITEMS) return invalid('Event DATA exceeds its finite source guard census.');
+  owner.callGuards.push(Object.freeze({ name: `event-data:${def.name}:${dependency.id}`, evaluate: async () => {
+    const final = owner.finalized;
+    if (final === null || owner.capture.poisoned) return invalid('Event DATA lost its finalized original owner.');
+    const check = () => { if (owner.finalized !== final || owner.capture.poisoned) return invalid('Event DATA final owner changed.'); };
+    await validate(async (model, id) => {
+      const write = final.writes.find(write => write.model === model && (write.kind === 'insert' ? write.row.id : write.id) === id);
+      return write === undefined ? store.cohortLoad({ model, id, expectedRevision: call.revision }) : write.kind === 'remove' ? null : write.row;
+    }, check);
+    if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Event DATA moved beyond its original checkpoint.');
+    return true;
+  } }));
+  return () => validate((model, id) => owner.session!.views.final.get(model, id), healthy);
+}
+
 /** Original first-query rows reuse the installed source/ancestor projector and
  * complete Identity observation, both now and against actual final effects. */
 async function observeModelQuerySourceAuthority<AllowAbsent extends boolean = false>(call: AdmittedCall, store: StoragePort, owner: ReceiptOwnerSession,
@@ -10038,6 +10109,9 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
       execution===undefined&&constructor===undefined&&recipient?.leafId!==dependency.id&&id===undefined&&reference===undefined&&file===undefined&&nominal?.profile.hasFiles!==true;
     if(bodyData){
       if(owner===undefined||owner.session===null)return invalid('native mutation DATA requires its actual owning stage.');
+      const eventSource = await observeAdmittedEventDataSource(call, store, owner, state, dependency, observed.model, row);
+      if (eventSource !== undefined) referenceRevalidate = eventSource;
+      else {
       const producer=referenceProducers.get(call.def as GeneratedOperationDef);
       const read=producer?.readPolicies?.get(observed.model);
       if(producer===undefined||read===undefined||!('grants'in read))return invalid('native mutation DATA requires its genuine original source field grants.');
@@ -10048,6 +10122,7 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
       }
       const authority=await observeModelQuerySourceAuthority(call,store,owner,state,observed.model,current,[dependency.field],1,undefined,undefined,producer);
       referenceRevalidate=()=>authority.requireFields([dependency.field]);
+      }
     }
     const current = await store.load(observed.model, row.id);
     capture(call, store);

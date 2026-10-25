@@ -65,7 +65,7 @@ export async function hasRole(
  * a context bound by withPolicyRow to the validated owning model policy.
  */
 function evaluateTeamGate(by: 'members' | 'owner', ctx: ByContext): boolean {
-  if (ctx.actorUserId === null || ctx.teamId === null || ctx.membership === null) return false;
+  if (ctx.actorUserId === null || ctx.teamId === null || ctx.membership == null) return false;
   if (ctx.membership.team_id !== ctx.teamId || ctx.membership.status !== 'active') return false;
   return by === 'members' || ctx.membership.is_owner;
 }

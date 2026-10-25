@@ -60,7 +60,8 @@ export type PolicyTable = ReadonlyMap<ModelName, InterimModelPolicy>;
 export interface ByContext {
   readonly actorUserId: string | null;
   readonly teamId: string | null;
-  readonly membership: Membership | null;
+  /** Absent in owner decisions, which confer no caller team grant. */
+  readonly membership?: Membership | null;
   readonly memberships: MembershipReader;
 }
 
