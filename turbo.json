@@ -47,12 +47,17 @@
       "outputs": ["dist/native/recovery.wasm", "dist/native/BUILD.json"]
     },
     "@canlang/cloudflare#test:runtime": {
-      "dependsOn": ["build", "@canlang/work-kernel#build:wasm", "@canlang/values#catalog:emit"],
+      "dependsOn": ["build", "@canlang/work-kernel#build:wasm", "@canlang/values#catalog:emit", "catalog:emit"],
       "cache": false
+    },
+    "@canlang/cloudflare#catalog:emit": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "outputs": ["dist/native-catalog.json", "dist/native-dev-catalog.json"]
     },
     "//#typecheck:root": { "dependsOn": ["^build"], "cache": false },
     "//#typecheck:e2e:check": { "dependsOn": ["^build"], "cache": false },
-    "//#test:root": { "dependsOn": ["^build", "@canlang/values#catalog:emit"], "cache": false },
+    "//#test:root": { "dependsOn": ["^build", "@canlang/values#catalog:emit", "@canlang/cloudflare#catalog:emit"], "cache": false },
     "//#test:e2e:run": { "dependsOn": ["^build"], "cache": false },
     "//#release:stamp": { "dependsOn": ["^build"], "cache": false },
     "//#release:manifest": { "dependsOn": ["release:stamp"], "cache": false },

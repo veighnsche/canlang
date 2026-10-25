@@ -43,7 +43,7 @@
     "capture:dev-frontend": "node scripts/capture-dev-frontend.mjs",
     "test:draft": "playwright test --config=playwright.drafts.config.ts",
     "typecheck:draft": "tsc -p tests/e2e/drafts/tsconfig.json",
-    "catalog": "node scripts/run-tasks.mjs catalog:emit --filter=@canlang/values",
+    "catalog": "node scripts/run-tasks.mjs catalog:emit --filter=@canlang/values --filter=@canlang/cloudflare",
     "build:compiler": "node scripts/run-tasks.mjs native:compiler:build",
     "test:compiler": "node scripts/run-tasks.mjs native:compiler:test",
     "lint:compiler": "node scripts/run-tasks.mjs native:compiler:lint",
