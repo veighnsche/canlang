@@ -3570,6 +3570,7 @@ type SourceCancelSource=SourceWorkSource;
 const nativeSourceCancels=new WeakMap<GeneratedOperationDef,readonly SourceCancelSource[]>();
 interface SourceScheduleSource extends SourceWorkSource{
   readonly event:string;readonly at:'now'|{readonly offset:string}|{readonly expression:{readonly start:number;readonly end:number}};
+  readonly rootKey?:true;
   readonly created?:import('@canlang/state/invocation').ScenarioSourceCreatedRoot;
 }
 function sourceScheduleOffset(value:unknown):bigint{
@@ -5704,7 +5705,7 @@ async function bindNativeSourceWork(asm:AssembledModules,artifact:CompileArtifac
       const seen=new Set<string>();
       for(const value of sites){
         const site=localPolicyObject(value,['source','owner','node','parameter','model','ownerPackage',...(schedule?['event','at']:[]),
-          ...(Object.hasOwn(value as object,'key')?['key']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[]),...(schedule&&Object.hasOwn(value as object,'created')?['created']:[])]);
+          ...(Object.hasOwn(value as object,'key')?['key']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[]),...(schedule&&Object.hasOwn(value as object,'created')?['created']:[]),...(schedule&&Object.hasOwn(value as object,'rootKey')?['rootKey']:[])]);
         const node=localPolicyObject(site.node,['start','end']),key=`${node.start}:${node.end}`;
         const parameter=def.descriptor.inputs.find(input=>input.name===site.parameter);
         sourceScheduleKey(site.key,'identity');
@@ -5714,13 +5715,19 @@ async function bindNativeSourceWork(asm:AssembledModules,artifact:CompileArtifac
           ? (localPolicyObject(loopsGetter())[def.name] as SourceBodyLoopPlan|undefined)?.loops:undefined;
         const loop=loops?.find(loop=>loop.id===site.loop);
         const dynamic=schedule&&isUnknownRecord(site.at)&&Object.hasOwn(site.at,'expression');
+        if(Object.hasOwn(site,'rootKey') && (site.rootKey!==true || !schedule || !dynamic
+            ||site.key!==undefined||site.created!==undefined||site.loop!==undefined
+            ||parameter?.kind!=='ref'||!parameter.required||parameter.nullable===true
+            ||def.descriptor.result?.disclosure===undefined
+            ||stableStringify(def.descriptor.result.disclosure.source)!==stableStringify(source)))
+          throw new AssemblyCorrespondenceError('Native Work key lacks its exact required original input and full receipt source.');
         if(dynamic){
           const expression=localPolicyObject(localPolicyObject(site.at,['expression']).expression,['start','end']);
           if(!Number.isSafeInteger(expression.start)||!Number.isSafeInteger(expression.end)||Number(expression.start)<Number(node.start)||
               Number(expression.end)>Number(node.end)||Number(expression.end)<=Number(expression.start)||typeof privateSourceMember(module,'canScenarioWorkSource')!=='function')
             throw new AssemblyCorrespondenceError('Source SCHEDULE lacks its original dynamic expression and issuer.');
         }else if(schedule)sourceScheduleOffset(site.at);
-        if(!sourceRequireFrames.has(def)&&site.loop===undefined||seen.has(key)||site.owner!==def.name||stableStringify(site.source)!==stableStringify(source)||
+        if(!sourceRequireFrames.has(def)&&site.loop===undefined&&site.rootKey!==true||seen.has(key)||site.owner!==def.name||stableStringify(site.source)!==stableStringify(source)||
             site.ownerPackage!==def.name.slice(0,def.name.lastIndexOf('.'))||!Number.isSafeInteger(node.start)||!Number.isSafeInteger(node.end)||
             Number(node.start)<0||Number(node.end)<=Number(node.start)||!loaded.models.some(model=>model.name===site.model)||
             (site.loop!==undefined?(loop===undefined||loop.item!==site.parameter||loop.model!==site.model||created!==undefined||
@@ -11702,7 +11709,7 @@ async function runScenarioExecution(
     },
     scheduleDeferred: async (key, at, event, payload, ownerPackage) => {
       try {
-        if(sourceRequireAware&&(activeSourceSchedule===null||activeSourceSchedule.key!==key||activeSourceSchedule.event!==event||activeSourceSchedule.ownerPackage!==ownerPackage)){
+        if((sourceRequireAware||activeSourceSchedule!==null)&&(activeSourceSchedule===null||activeSourceSchedule.key!==key||activeSourceSchedule.event!==event||activeSourceSchedule.ownerPackage!==ownerPackage)){
           return refuseRecordBinding('Source SCHEDULE needs its exact live admitted root, event and scope.');
         }
         const selected = await scheduleScope(ownerPackage);
@@ -11757,7 +11764,7 @@ async function runScenarioExecution(
               throw new Error('Scheduled File receiving authority changed.');
           }
         });
-        if(sourceRequireAware&&opaque===null)return refuseRecordBinding('Source SCHEDULE needs its installed owning opaque event origin inventory.');
+        if((sourceRequireAware||activeSourceSchedule!==null)&&opaque===null)return refuseRecordBinding('Source SCHEDULE needs its installed owning opaque event origin inventory.');
         if (opaque !== null) {
           // Select the genuine producer family by its owning exported name.
           const tables = await loadProducerModule('@canlang/work/kernel/tables', 'scheduled File row');
@@ -13355,7 +13362,7 @@ async function runScenarioExecution(
           consumed.add(key);activeSourceSchedule=Object.freeze({key:scheduleKey,event:source.event,ownerPackage:source.ownerPackage});
           try{
             if(dynamic){
-              const evaluated=localPolicyObject(await body!(ctx),['key','at','payload']);
+              const evaluated=localPolicyObject(await body!(ctx,source.rootKey===true?scheduleKey:undefined),['key','at','payload']);
               if(Object.keys(evaluated).length!==3||!Object.hasOwn(evaluated,'key')||!Object.hasOwn(evaluated,'at')||!Object.hasOwn(evaluated,'payload'))
                 return refuseRecordBinding('Dynamic source SCHEDULE lacks its exact evaluated key, time and payload.');
               originalKey=evaluated.key;at=evaluated.at;payload=evaluated.payload;

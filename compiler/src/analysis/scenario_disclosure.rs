@@ -31931,6 +31931,30 @@ impl<'a> Closure<'a> {
         key: NodeKey,
         paths: Vec<ValuePath>,
     ) -> Result<Vec<ValuePath>, DisclosureDecline> {
+        if effect.verb == EffectVerb::Schedule
+            && effect.key == Some(key) && calls.is_empty() && self.loop_node.is_none()
+            && let Some((base, field)) = self.count_member(key)
+            && field == "id"
+            && let Some(Binding::Symbol(parameter)) = self.query_binding(base)
+            && let Some(ResolvedType::Record {symbol:model,stored:true}) = self.types.node_types.get(&base)
+            && self.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Text))
+            && self.types.symbol_types.get(parameter) == self.types.node_types.get(&base)
+            && self.resolve.symbols.get(model.0 as usize).is_some_and(|model|
+                matches!(&model.kind,SymbolKind::Model{fields,..}if fields.iter().all(|field|
+                    self.resolve.symbols.get(field.0 as usize).is_some_and(|field|field.name!="id"))))
+            && env.get(&Local::Symbol(*parameter)).is_some_and(|value|
+                value.record == Some(*model)
+                && value.reference_origin == Some(ReferenceOrigin::Parameter(*parameter))
+                && value.model_result.is_none() && value.first_query.is_none())
+            && self.effects.scenarios.values().any(|scenario|
+                scenario.module == module && !scenario.read && scenario.on.is_none()
+                && self.source_anchor(scenario,key)
+                && scenario.params.iter().any(|input| input.param == *parameter && input.default.is_none()))
+        {
+            // Only the independent original Work occurrence consumes this
+            // admitted identity. A result or payload id remains ordinary DATA.
+            return Ok(paths);
+        }
         if effect.verb == EffectVerb::Cancel
             && calls.is_empty()
             && effect.value == Some(key)

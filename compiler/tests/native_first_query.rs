@@ -3377,6 +3377,51 @@ fn original_event_effects_seal_defining_schema_without_mutating_source_or_payloa
             serialize_decision_sources(&program, &ir, owner, &db, Some(&catalog)).is_some(),
             "original {path}"
         );
+        if owner_name == "SourceGuardSchedule.notify" {
+            let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let operation = artifact["operations"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|item| item["name"] == "SourceGuardSchedule.notify_content")
+                .unwrap();
+            let disclosure = &operation["result"]["disclosure"];
+            assert!(
+                disclosure.is_object(),
+                "full native DATA consumer required: {operation}"
+            );
+            let dependencies = disclosure["returns"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .flat_map(|returned| returned["dependencies"].as_array().unwrap())
+                .collect::<Vec<_>>();
+            assert!(
+                dependencies
+                    .iter()
+                    .any(|read| read["model"] == "SourceGuardSchedule.Content"
+                        && read["field"] == "message"
+                        && read["role"] == "data")
+            );
+            assert!(
+                !dependencies
+                    .iter()
+                    .any(|read| read["model"] == "SourceGuardSchedule.Root"
+                        && read["field"] == "id"
+                        && read["role"] == "data"),
+                "Work key never becomes row DATA"
+            );
+            let code = artifact["modules"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|module| module["js"].as_str())
+                .collect::<Vec<_>>()
+                .join("\n");
+            assert!(code.contains("rootKey"));
+            assert!(code.contains("async(c,$can$work$key)=>"));
+        }
         for mode in [
             "field-order",
             "field-type",

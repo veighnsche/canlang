@@ -2637,7 +2637,7 @@ it('schedules original admitted roots through genuine Work sources and ordinary 
     const directory=await mkdtemp(join(tmpdir(),'can-source-only-schedule-'));
     try{
       const {artifact,asm}=await installed('native-source-require-schedule.can',directory);
-      for(const name of ['notify','abort'])assert.equal(artifact.operations?.find(operation=>operation.name===`SourceGuardSchedule.${name}`)?.result?.disclosure,undefined);
+      for(const name of ['notify','abort'])assertSourceOnlyReceipt(artifact,`SourceGuardSchedule.${name}`);
       const original=await readFile(fixture('native-source-require-schedule.can'),'utf8');
       const refused=join(directory,'literal-key.can');
       await writeFile(refused,original.replaceAll('schedule root.id at=now','schedule "arbitrary" at=now'));
@@ -2704,11 +2704,12 @@ it('schedules original admitted roots through genuine Work sources and ordinary 
         assert.ok(await store.scheduleGet(key));
         const saved=await store.readReceipt({app:'SourceGuardSchedule',owner:membership.team_id,principal:membership.user_id,
           operation:request.operation,operationId:request.operation_id} as Parameters<typeof store.readReceipt>[0]);assert.ok(saved);
-        assert.ok(saved.outcome.status==='committed');assert.equal(saved.outcome.scenario,undefined);
+        assertSavedSourceReceipt(artifact,saved);
         const visible=await invoker.invokeRead({operation:'SourceGuardSchedule.Root.read',inputs:{}},identity);
         assert.ok('error'in visible||((visible.result as {records:unknown[]}).records.length===0));
         const replay=await invoker.invokeMutation(request,identity);
-        assert.ok('error'in replay&&replay.error.code==='validation',JSON.stringify(replay));
+        assert.ok('result'in outcome);assert.equal(typeof outcome.result.result,'string');
+        assertDateReplay(replay,outcome.result.result as string);
         assert.deepEqual(await store.query({model:asModel('work.schedule'),authority:'owner'}),sources);
         if(mode==='replacement'){
           const again=await invoker.invokeMutation({...request,operation_id:operationId(now),inputs:{root:{id:rootRow.id,version:String(actual.version)},message:'Replacement event'}},identity);
@@ -2725,6 +2726,37 @@ it('schedules original admitted roots through genuine Work sources and ordinary 
         assert.equal((await deliver() as {status:string}).status,'replayed');
         assert.equal((await store.load(rootModel,rootRow.id))?.data.seen,true);
         assert.deepEqual(await store.readReceipt(saved.identity),saved,'consumer never rewrites the ordinary source receipt');
+      }
+      const full=artifact.operations?.find(operation=>operation.name==='SourceGuardSchedule.notify_content')?.result?.disclosure;
+      assert.ok(full,'genuine native content DATA receipt required');
+      assert.ok(full.returns.some(returned=>returned.dependencies.some(read=>read.model==='SourceGuardSchedule.Content'&&read.field==='message'&&read.role==='data')));
+      assert.ok(full.returns.every(returned=>returned.dependencies.every(read=>read.model!=='SourceGuardSchedule.Root'||read.field!=='id'||read.role!=='data')),'Work key must not mint root DATA');
+      for(const mode of ['native-allowed','native-hidden-content','native-identity-race','native-root-race']){
+        const {now,identities,identity,membership}=await member(mode);
+        const scope={app:'SourceGuardSchedule',owner:membership.team_id,ownerPackage:'SourceGuardSchedule'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'native-work-key',fileStoreId:'native-work-key-files',receiver:{app:scope.app,owner:scope.owner,team:scope.owner}};
+        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(scope.owner));}});
+        const rootModel=model('SourceGuardSchedule','Root'),rootRow=makeRow({id:asId('root'),data:{capacity:'2',checked:false,seen:false,secret:'Hidden field'}});
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:rootModel,row:rootRow},
+          {kind:'insert',model:model('SourceGuardSchedule','Content'),row:makeRow({id:asId('content'),data:{message:'Original content',visible:mode!=='native-hidden-content'}})},
+          {kind:'insert',model:model('SourceGuardSchedule','Child'),row:{...makeRow({id:asId('child'),data:{active:true}}),parent:{model:rootModel,id:rootRow.id}}}]}));
+        let raced=false;const inventory=store.readFileReferenceInventory.bind(store),commit=store.commit.bind(store);
+        store.readFileReferenceInventory=async owner=>{if(mode==='native-identity-race'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return inventory(owner);};
+        store.commit=async batch=>{if(mode==='native-root-race'&&!raced&&batch.writes.some(write=>write.model==='work.schedule')){
+          raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:rootModel,id:rootRow.id,expectedVersion:rootRow.version,row:{...rootRow,version:asVersion(rootRow.version+1),archivedAt:now}}]}));
+        }return commit(batch);};
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const request={operation:'SourceGuardSchedule.notify_content',operation_id:operationId(now),inputs:{root:{id:'root',version:'1'},content:{id:'content',version:'1'}}};
+        const result=await invoker.invokeMutation(request,identity),allowed=mode==='native-allowed';
+        assert.equal('result'in result,allowed,mode+': '+JSON.stringify(result));
+        if(mode.endsWith('-race'))assert.equal(raced,true,mode);
+        const sources=await store.query({model:asModel('work.schedule'),authority:'owner'});
+        assert.equal(sources.length,allowed?1:0,mode);assert.equal((await store.load(rootModel,rootRow.id))?.data.checked,allowed,mode);
+        if(allowed){assert.equal(sources[0]!.data.key,'root');assert.deepEqual(sources[0]!.data.payload,{root:{id:'root',version:'2'},message:'Original content'});
+          const visible=await invoker.invokeRead({operation:'SourceGuardSchedule.Root.read',inputs:{}},identity);
+          assert.ok('error'in visible||((visible.result as {records:unknown[]}).records.length===0),'native Work authority grants no root read');
+        }
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });

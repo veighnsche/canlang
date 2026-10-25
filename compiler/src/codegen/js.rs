@@ -499,6 +499,58 @@ fn source_event_payload(
         })
 }
 
+fn source_schedule_input_key<'a>(
+    ir: &IrProgram,
+    owner: &IrItem,
+    key: &'a TypedExpr,
+) -> Option<&'a str> {
+    let IrItemKind::Scenario {
+        params,
+        trusted: false,
+        read: false,
+        event_source: None,
+        hook: None,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let IrExpr::Member { base, field } = &key.expr else {
+        return None;
+    };
+    let IrExpr::Name(name) = &base.expr else {
+        return None;
+    };
+    let ResolvedType::Record {
+        symbol,
+        stored: true,
+    } = base.ty
+    else {
+        return None;
+    };
+    let model = ir.items.get(symbol.0 as usize)?;
+    let IrItemKind::Model { fields, .. } = &model.kind else {
+        return None;
+    };
+    (field == "id"
+        && key.ty == ResolvedType::Scalar(Scalar::Text)
+        && fields.iter().all(|id| {
+            ir.items
+                .get(id.0 as usize)
+                .is_some_and(|field| field.name != "id")
+        })
+        && params
+            .iter()
+            .filter_map(|id| ir.items.get(id.0 as usize))
+            .any(|parameter| {
+                parameter.name == *name
+                    && matches!(&parameter.kind,
+                IrItemKind::Param {owner:actual,ty:IrType::Known(ty),default:None,..}
+                    if *actual==owner.id && ty==&base.ty)
+            }))
+    .then_some(name.as_str())
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SourceWorkKind {
     Cancel,
@@ -525,6 +577,7 @@ struct SourceWorkCollector<'a, 's> {
     creates: Vec<serde_json::Value>,
     loans: &'a HashMap<Span, serde_json::Value>,
     loops: Option<&'a serde_json::Value>,
+    native_input_key: bool,
     output: HashMap<Span, serde_json::Value>,
 }
 impl SourceWorkCollector<'_, '_> {
@@ -701,8 +754,20 @@ impl SourceWorkCollector<'_, '_> {
                     let Some((parameter, template)) = self.key(key, &bindings.roots) else {
                         continue;
                     };
+                    let native_key = self.native_input_key
+                        && bindings.loop_root.is_none()
+                        && !bindings.created.contains_key(parameter)
+                        && template.is_none()
+                        && source_schedule_input_key(self.ir, self.owner, key) == Some(parameter);
+                    if self.native_input_key && !native_key {
+                        continue;
+                    }
+                    if native_key && self.context.same_event_schema(event).is_none() {
+                        continue;
+                    }
                     let static_time = source_work_time(at);
-                    let dynamic = static_time.is_none()
+                    let dynamic = native_key
+                        || static_time.is_none()
                         || !source_event_payload(
                             self.ir,
                             self.owner,
@@ -713,6 +778,7 @@ impl SourceWorkCollector<'_, '_> {
                             Some(self.context),
                         );
                     if dynamic
+                        && !native_key
                         && (!source_work_value(
                             self.ir,
                             at,
@@ -746,6 +812,9 @@ impl SourceWorkCollector<'_, '_> {
                             continue;
                         }
                         site["loop"] = serde_json::json!(id);
+                    }
+                    if native_key {
+                        site["rootKey"] = serde_json::json!(true);
                     }
                     site["event"] = serde_json::json!(event);
                     site["at"] = time;
@@ -1019,6 +1088,9 @@ fn source_only_work(
         creates,
         loans,
         loops,
+        native_input_key: native_source.is_some()
+            && loops.is_none()
+            && kind == SourceWorkKind::Schedule,
         output: HashMap::new(),
     };
     collector.walk(
@@ -1031,9 +1103,10 @@ fn source_only_work(
         },
     );
     if native_source.is_some() {
-        collector
-            .output
-            .retain(|_, source| source["loop"].is_string());
+        collector.output.retain(|_, source| {
+            source["loop"].is_string()
+                || kind == SourceWorkKind::Schedule && source["rootKey"] == true
+        });
     }
     Some(collector.output)
 }
@@ -3173,35 +3246,80 @@ fn emit_program_with_sources(
                     emitter.source_cancels.extend(cancels);
                     emitter.source_schedules.extend(schedules);
                 } else {
+                    let source =
+                        serde_json::to_value(&receipt.plan.source).expect("checked source");
+                    let covered = receipt
+                        .plan
+                        .source_loops
+                        .as_ref()
+                        .into_iter()
+                        .chain(receipt.plan.source_emissions.as_ref())
+                        .filter_map(|plan| plan["loops"].as_array())
+                        .flatten()
+                        .map(|entry| entry["node"].clone())
+                        .collect::<Vec<_>>();
+                    let schedules = source_only_work(
+                        ir,
+                        owner,
+                        context,
+                        &emitter.source_requires,
+                        &module_path(&entry_name),
+                        SourceWorkKind::Schedule,
+                        &emitter.source_let_data,
+                        None,
+                        Some(&source),
+                    )
+                    .unwrap_or_default();
+                    fn complete_input_schedules(
+                        ir: &IrProgram,
+                        owner: &IrItem,
+                        body: &[IrStmt],
+                        sites: &HashMap<Span, serde_json::Value>,
+                    ) -> bool {
+                        body.iter().all(|statement| match statement {
+                            IrStmt::Schedule { key, span, .. }
+                                if source_schedule_input_key(ir, owner, key).is_some() =>
+                            {
+                                sites.get(span).is_some_and(|site| site["rootKey"] == true)
+                            }
+                            IrStmt::If {
+                                then_branch,
+                                else_branch,
+                                ..
+                            } => {
+                                complete_input_schedules(ir, owner, then_branch, sites)
+                                    && complete_input_schedules(ir, owner, else_branch, sites)
+                            }
+                            IrStmt::Match { arms, .. } => arms
+                                .iter()
+                                .all(|arm| complete_input_schedules(ir, owner, &arm.body, sites)),
+                            // Loop keys retain their separately checked item mechanism.
+                            _ => true,
+                        })
+                    }
+                    if let IrItemKind::Scenario { effects, .. } = &owner.kind
+                        && !complete_input_schedules(ir, owner, effects, &schedules)
+                    {
+                        emitter.unsupported("source SCHEDULE key","native input Work key needs its exact original scoped schedule producer",owner.span);
+                    }
+                    emitter.source_schedules.extend(schedules);
                     if let Some(mut loops) = super::source_loops::collect_native(
                         ir,
                         owner,
                         context,
-                        &serde_json::to_value(&receipt.plan.source).expect("checked source"),
+                        &source,
                         &module_path(&entry_name),
                     ) {
                         // For lowering already uses the receipt's original loop
                         // before consulting the auxiliary body-loop census.
                         // Publishing that unused second identity would install
                         // two independent readers on one owner context.
-                        let covered = receipt
-                            .plan
-                            .source_loops
-                            .as_ref()
-                            .into_iter()
-                            .chain(receipt.plan.source_emissions.as_ref())
-                            .filter_map(|plan| plan["loops"].as_array())
-                            .flatten()
-                            .map(|entry| entry["node"].clone())
-                            .collect::<Vec<_>>();
                         if let Some(entries) = loops["loops"].as_array_mut() {
                             entries.retain(|entry| !covered.contains(&entry["node"]));
                             if entries.is_empty() {
                                 continue;
                             }
                         }
-                        let source =
-                            serde_json::to_value(&receipt.plan.source).expect("checked source");
                         if let Some(sends) = source_only_data_sends(
                             ir,
                             owner,
@@ -14584,13 +14702,18 @@ impl<'a> Emitter<'a> {
                     self.stdlib.insert("nativeScenarioSourceSchedule".into());
                     let root =
                         self.reference(source["parameter"].as_str().expect("checked source root"));
-                    let key = self.lower_expr(key);
+                    let root_key = source["rootKey"] == true;
+                    let key = if root_key {
+                        "$can$work$key".into()
+                    } else {
+                        self.lower_expr(key)
+                    };
                     let at = self.lower_expr(at);
                     let payload = self.lower_expr(payload);
                     if source["at"].get("expression").is_some() {
                         return vec![(
                             format!(
-                                "{pad}await nativeScenarioSourceSchedule(c,{},{root},undefined,undefined,undefined,$can$work$issue({},c,async(c)=>({{key:{key},at:{at},payload:{payload}}})));",
+                                "{pad}await nativeScenarioSourceSchedule(c,{},{root},undefined,undefined,undefined,$can$work$issue({},c,async(c,$can$work$key)=>({{key:{key},at:{at},payload:{payload}}})));",
                                 descriptor_json(&source),
                                 descriptor_json(&descriptor_json(&source))
                             ),
