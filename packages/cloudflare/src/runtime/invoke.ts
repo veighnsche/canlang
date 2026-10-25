@@ -5796,12 +5796,15 @@ async function bindNativeSourceData(asm:AssembledModules,artifact:CompileArtifac
   const sourceReads=context===undefined?undefined:createSourceReadPolicyAdapter({loaded,opts:context.opts,now:context.now,
     ...(context.preferences===undefined?{}:{preferences:context.preferences})});
   for(const value of loaded.registry.values()){
-    const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def)??(nativeSourceBodyLoops.has(def)?def.descriptor.result?.disclosure?.source:undefined);
+    const def=generatedScenarioDef({def:value});
+    const frameSource=def===undefined?undefined:sourceRequireFrames.get(def)??(nativeSourceBodyLoops.has(def)?def.descriptor.result?.disclosure?.source:undefined);
+    const savedPlan=def?.descriptor.result?.disclosure;
+    const source=frameSource??(savedPlan?.retainedGuardedHandler===undefined?savedPlan?.source:undefined);
     if(def===undefined||source===undefined)continue;
     const callable=artifact.callables.find(callable=>callable.kind==='operation'&&callable.id===def.name&&callable.module===source.module);
     if(callable?.inputStyle!=='parameters')throw new AssemblyCorrespondenceError('Source DATA lacks its original parameter-style operation.');
     const module=await importVerifiedAssemblyModule(asm,callable.module,artifact);
-    const sendData=sourceDataCensus<SourceSendDataSource>(module,def,source,'canScenarioSendDataSources','SEND DATA');
+    const sendData=frameSource===undefined?undefined:sourceDataCensus<SourceSendDataSource>(module,def,source,'canScenarioSendDataSources','SEND DATA');
     if(sendData!==undefined){
       const sites=sendData;
       const original=privateSourceMember(module,'canScenarioSendDataSource'),bind=loaded.producers.invoke.bindScenarioSourceSendDataProducer;
@@ -5816,7 +5819,7 @@ async function bindNativeSourceData(asm:AssembledModules,artifact:CompileArtifac
         bind(def,{source,app,policy:loaded.policy as Parameters<typeof bind>[1]['policy'],readPolicies,sites});
       }
     }
-    const letData=sourceDataCensus<SourceLetDataSource>(module,def,source,'canScenarioLetDataSources','Scalar LET DATA');
+    const letData=frameSource===undefined?undefined:sourceDataCensus<SourceLetDataSource>(module,def,source,'canScenarioLetDataSources','Scalar LET DATA');
     if(letData!==undefined){
       const sites=letData;
       if(sites.some(site=>site.path!==undefined&&site.parents!==undefined))throw new AssemblyCorrespondenceError('Scalar LET DATA cannot combine reference and legacy parent paths.');
@@ -5845,7 +5848,7 @@ async function bindNativeSourceData(asm:AssembledModules,artifact:CompileArtifac
       nativeSourceQueryValues.set(def,{sources:queryValues,original:original as (body:Function)=>unknown});
       if(context!==undefined)bind(def,{source,owner:def.name,sites:queryValues,original:original as (body:Function)=>unknown});
     }
-    const queryRows=sourceDataCensus<SourceQueryRowsSite>(module,def,source,'canScenarioQueryRowsSources','LET State query rows');
+    const queryRows=frameSource===undefined?undefined:sourceDataCensus<SourceQueryRowsSite>(module,def,source,'canScenarioQueryRowsSources','LET State query rows');
     if(queryRows!==undefined){
       if(queryValues===undefined)throw new AssemblyCorrespondenceError('LET State query rows lack their original Values producer.');
       nativeSourceQueryRows.set(def,queryRows);
@@ -5856,7 +5859,7 @@ async function bindNativeSourceData(asm:AssembledModules,artifact:CompileArtifac
         bind(def,{source,app:sourceDataApp(module,'LET State query rows'),policy:loaded.policy as Parameters<typeof bind>[1]['policy'],readPolicies,sites:queryRows.map(site=>({node:site.node,queries:site.queries}))});
       }
     }
-    const emitData=sourceDataCensus<SourceEmitDataSource>(module,def,source,'canScenarioEmitDataSources','EMIT DATA');
+    const emitData=frameSource===undefined?undefined:sourceDataCensus<SourceEmitDataSource>(module,def,source,'canScenarioEmitDataSources','EMIT DATA');
     if(emitData!==undefined){
       const sites=emitData;
       const original=privateSourceMember(module,'canScenarioEmitDataSource'),bind=loaded.producers.invoke.bindScenarioSourceEmitDataProducer;
@@ -13227,21 +13230,22 @@ async function runScenarioExecution(
     });
   }
   let activeSourceValueQuery:Map<SourceLetDataSource,{readonly root:unknown;readonly value:unknown}>|null=null;
-  if(sourceRequireAware&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined){
+  if((sourceRequireAware||savedResultAware)&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined){
     const producer=nativeSourceQueryValues.get(scenarioDef),actual=call as AdmittedCall;
     if(producer!==undefined)bindNativeScenarioSourceQueryValue(ctx,async body=>{
       try{
         const execute=loaded.producers.invoke.executeScenarioSourceQueryValue,assertExecution=loaded.producers.invoke.assertScenarioReceiptCallExecution;
         if(execute===undefined||assertExecution===undefined||nativeScenarioExecutions.get(actual)?.session!==ownerSession)return refuseRecordBinding('LET Values query lacks its actual live State owner.');
-        assertExecution(actual,receiptStore,0);
-        const issued=localPolicyObject(producer.original(body),['source','context']);
+        assertExecution(actual,receiptStore,sourceRequireAware?0:undefined);
+        const raw=producer.original(body),issued=localPolicyObject(raw);
         const source=producer.sources.find(source=>stableStringify(source)===stableStringify(captureDispatchPreclaimData(issued.source)));
         if(issued.context!==ctx||source===undefined)return refuseRecordBinding('LET Values query changed its original callback, context or source census.');
+        localPolicyObject(raw,source.captures===undefined?['source','context']:['source','context','captures']);
         if(activeSourceValueQuery!==null)return refuseRecordBinding('LET Values query cannot replace its active original evaluation.');
         activeSourceValueQuery=new Map();
         try{
           const value=await execute(actual,receiptStore,{source,body,context:ctx});
-          assertExecution(actual,receiptStore,0);return value;
+          assertExecution(actual,receiptStore,sourceRequireAware?0:undefined);return value;
         }finally{activeSourceValueQuery=null;}
       }catch(error){recordEngineFailure(error);throw error;}
     });

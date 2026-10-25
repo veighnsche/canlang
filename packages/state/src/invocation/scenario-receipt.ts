@@ -8212,6 +8212,10 @@ export interface ScenarioSourceQueryValueSource {
  readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
  readonly node:{readonly start:number;readonly end:number};readonly value:{readonly start:number;readonly end:number};
  readonly binding:string;readonly typeId:CanTypeId;readonly stage:0;
+ readonly receiptQueryId?:string;
+ readonly receiptDependencies?:readonly {readonly ordinaryDependencyId:string;readonly queryDependencyId:string}[];
+ readonly receiptCases?:Readonly<{readonly empty:readonly string[];readonly nonempty:readonly string[]}>;
+ readonly captures?:readonly {readonly node:{readonly start:number;readonly end:number};readonly binding:string;readonly typeId:CanTypeId}[];
  readonly queries:readonly {readonly node:{readonly start:number;readonly end:number};readonly model:ModelName}[];
 }
 interface SourceQueryValueProducer {
@@ -8221,17 +8225,23 @@ interface SourceQueryValueProducer {
  readonly original:(body:Function)=>unknown;
 }
 const sourceQueryValueProducers=new WeakMap<GeneratedOperationDef,SourceQueryValueProducer>();
-const sourceQueryValueActive=new WeakMap<ReceiptOwnerSession,{readonly call:AdmittedCall;readonly site:ScenarioSourceQueryValueSource}>();
+interface SourceQueryValueLease{readonly call:AdmittedCall;readonly site:ScenarioSourceQueryValueSource;}
+const sourceQueryValueActive=new WeakMap<ReceiptOwnerSession,SourceQueryValueLease>();
+const sourceQueryValueSelections=new WeakMap<QueryExecution,{readonly lease:SourceQueryValueLease;next:number}>();
+const sourceQueryValueRowScopes=new WeakMap<QueryExecution,{readonly lease:SourceQueryValueLease;readonly slot:ScenarioReceiptQuerySlot}>();
+const sourceQueryValueReturnCases=new WeakMap<Capture,Map<string,{readonly query:QueryExecution;readonly allowed:readonly string[]}>>();
 export function bindScenarioSourceQueryValueProducer(def:GeneratedOperationDef,value:SourceQueryValueProducer):void{
  const bound=boundPlans.get(def);
- if(bound?.sourceRequireOnly!==true||invokedPlans.has(def)||sourceQueryValueProducers.has(def))return invalid('Query LET Values require their original uninvoked source-only owner.');
+ if(bound===undefined||invokedPlans.has(def)||sourceQueryValueProducers.has(def))return invalid('Query LET Values require their original uninvoked bound owner.');
+ const completeReceipt=bound.sourceRequireOnly!==true;
+ if(completeReceipt&&(bound.plan.retainedGuardedHandler!==undefined||def.descriptor.result?.disclosure===undefined||stableStringify(def.descriptor.result.disclosure)!==stableStringify(bound.plan)||def.descriptor.result.type!==bound.type))return invalid('Query LET Values lack their independently complete native receipt.');
  const raw=object(value,['source','owner','sites','original']),original=raw['original'];
  if(typeof original!=='function')return invalid('Query LET Values need their original private closure verifier.');
  const source=dataCopy(raw['source']);origin(source);
  if(raw['owner']!==def.name||stableStringify(source)!==stableStringify(bound.plan.source))return invalid('Query LET Values differ from their original source owner.');
  const ids=new Set<string>(),bindings=new Set<string>();
  const sites=list(dataCopy(raw['sites'])).map(value=>{
-  const site=object(value,['source','owner','node','value','binding','typeId','stage','queries']);
+  const site=object(value,['source','owner','node','value','binding','typeId','stage','queries',...(Object.hasOwn(value as object,'receiptQueryId')?['receiptQueryId']:[]),...(Object.hasOwn(value as object,'receiptCases')?['receiptCases']:[]),...(Object.hasOwn(value as object,'receiptDependencies')?['receiptDependencies']:[]),...(Object.hasOwn(value as object,'captures')?['captures']:[])]);
   const node=object(site['node'],['start','end']),expression=object(site['value'],['start','end']);
   const binding=text(site['binding']),type=text(site['typeId']);
   const valid=(span:Record<string,unknown>)=>Number.isSafeInteger(span['start'])&&Number.isSafeInteger(span['end'])&&Number(span['start'])>=0&&Number(span['start'])<Number(span['end']);
@@ -8243,10 +8253,38 @@ export function bindScenarioSourceQueryValueProducer(def:GeneratedOperationDef,v
   for(const value of queries){const query=object(value,['node','model']),at=object(query['node'],['start','end']);
    if(!valid(at)||Number(at['start'])<Number(expression['start'])||Number(at['end'])>Number(expression['end'])||!bound.artifactModels.has(text(query['model']) as ModelName))return invalid('Query LET Values lack their exact original model query interval.');
   }
+  if(completeReceipt&&Object.hasOwn(site,'captures')){
+   const captures=list(site['captures']),names=new Set<string>(),nodes=new Set<string>();
+   if(queries.length!==0||Object.hasOwn(site,'receiptQueryId')||Object.hasOwn(site,'receiptCases')||Object.hasOwn(site,'receiptDependencies')||captures.length===0)return invalid('Pure native Values need their exact prior immutable LET census.');
+   for(const value of captures){const captured=object(value,['node','binding','typeId']),at=object(captured['node'],['start','end']),name=text(captured['binding']),ty=text(captured['typeId']);
+    const key=stableStringify(at);if(!valid(at)||Number(at['end'])>Number(node['start'])||names.has(name)||nodes.has(key)||bound.inputs.some(input=>input.name===name)||!sourceSendPlainType(bound,ty,new Set(),0,false))return invalid('Pure native Values lost their original earlier plain LET declaration.');names.add(name);nodes.add(key);
+   }
+  }else if(completeReceipt){
+   const queryId=text(site['receiptQueryId']),query=bound.plan.queries?.find(query=>query.id===queryId);
+   if(queries.length!==1||query===undefined||query.model!==(queries[0]as {model:unknown}).model||query.source.path!==(source as {path:unknown}).path||query.source.sha256!==(source as {sha256:unknown}).sha256||!type.endsWith('[]'))return invalid('Query LET Values lack their exact complete native query association.');
+   const pairs=list(site['receiptDependencies']),ordinaryIds=new Set<string>(),queryIds=new Set<string>();
+   if(pairs.length>MAX_ITEMS)return invalid('Query LET Values DATA pairing exceeds its original finite census.');
+   for(const value of pairs){
+    const pair=object(value,['ordinaryDependencyId','queryDependencyId']),ordinaryId=text(pair['ordinaryDependencyId']),queryId=text(pair['queryDependencyId']);
+    const ordinary=bound.plan.returns.flatMap(returned=>returned.dependencies).find(dependency=>dependency.id===ordinaryId),selected=query.dependencies.find(dependency=>dependency.id===queryId);
+    if(ordinary===undefined||selected===undefined||ordinaryIds.has(ordinaryId)||queryIds.has(queryId)||ordinaryId===queryId||
+       ordinary.role!=='data'||selected.role!=='data'||ordinary.queryId!==query.id||ordinary.model!==query.model||ordinary.field!==selected.field||ordinary.type!==selected.type||
+       stableStringify(ordinary.source)!==stableStringify(query.source)||stableStringify(selected.source)!==stableStringify(query.source))return invalid('Query LET Values require their exact original ordinary and selected DATA pair.');
+    ordinaryIds.add(ordinaryId);queryIds.add(queryId);
+   }
+   if(query.dependencies.some(dependency=>dependency.role==='data'&&!queryIds.has(dependency.id)))return invalid('Query LET Values omitted an original selected DATA pair.');
+   const cases=object(site['receiptCases'],['empty','nonempty']),ids=new Set<string>();
+   for(const side of ['empty','nonempty'])for(const value of list(cases[side])){const id=text(value);if(ids.has(id)||!bound.plan.returns.some(returned=>returned.id===id))return invalid('Query LET Values cases differ from their original distinct receipt paths.');ids.add(id);}
+   if(ids.size===0)return invalid('Query LET Values require their original receipt return cases.');
+  }else if(Object.hasOwn(site,'receiptQueryId')||Object.hasOwn(site,'receiptCases')||Object.hasOwn(site,'receiptDependencies')||Object.hasOwn(site,'captures'))return invalid('Source-only Values cannot claim native receipt query authority.');
   ids.add(stableStringify(node));bindings.add(binding);
   return deepFreeze(site)as unknown as ScenarioSourceQueryValueSource;
  });
  if(sites.length===0||sites.length>MAX_ITEMS)return invalid('Query LET Values require a finite original declaration census.');
+ for(const site of sites)for(const capture of site.captures??[]){
+  if(!sites.some(prior=>prior.node.start===capture.node.start&&prior.node.end===capture.node.end&&prior.binding===capture.binding&&prior.typeId===capture.typeId&&prior.node.end<=site.node.start))return invalid('Pure native Values lack their independently bound prior LET producer.');
+ }
+
  sourceQueryValueProducers.set(def,Object.freeze({source:bound.plan.source,owner:def.name,sites:Object.freeze(sites),original:original as SourceQueryValueProducer['original']}));
 }
 export async function executeScenarioSourceQueryValue(call:AdmittedCall,store:StoragePort,input:{readonly source:ScenarioSourceQueryValueSource;readonly body:Function;readonly context:unknown}):Promise<unknown>{
@@ -8257,28 +8295,82 @@ export async function executeScenarioSourceQueryValue(call:AdmittedCall,store:St
       ||sourceQueryValueActive.has(owner)||producer===undefined||typeof raw['body']!=='function')return invalid('Query LET Values need their genuine quiescent initial owner.');
   const source=dataCopy(raw['source']),site=producer.sites.find(site=>stableStringify(site)===stableStringify(source));
   if(site===undefined)return invalid('Query LET Values changed their original declaration.');
-  const issued=object(producer.original(raw['body']),['source','context']);
+  const issued=object(producer.original(raw['body']),['source','context',...(site.captures===undefined?[]:['captures'])]);
   if(issued['context']!==raw['context']||stableStringify(dataCopy(issued['source']))!==stableStringify(site))return invalid('Query LET Values lack their original privately issued expression and context.');
+  if(site.captures!==undefined){
+   const lexical=object(issued['captures'],site.captures.map(capture=>capture.binding));
+   for(const captured of site.captures){const prior=sourceLetValueCaptures.get(call)?.get(`${captured.node.start}:${captured.node.end}`);
+    if(prior===undefined||prior.owner!==owner||prior.store!==store||prior.revision!==call.revision||prior.stage!==0||prior.site.stage!==0||prior.site.loop!==undefined||prior.site.binding!==captured.binding||prior.site.valueType!==captured.typeId||prior.site.node.start!==captured.node.start||prior.site.node.end!==captured.node.end||prior.site.owner!==site.owner||stableStringify(prior.site.source)!==stableStringify(site.source)||stableStringify(encodeValue(captured.typeId,lexical[captured.binding]as Parameters<typeof encodeValue>[1],undefined,state.bound.valueSchema))!==stableStringify(prior.wire))return invalid('Pure native Values differ from their genuine original immutable LET capture.');
+   }
+  }
   const key=`${site.node.start}:${site.node.end}`;
   if(sourceLetValueCaptures.get(call)?.has(key))return invalid('Query LET Values repeat their original declaration.');
+  if(site.receiptQueryId!==undefined){
+   const receipt=queryProducers.get(call.def as GeneratedOperationDef);
+   if(state.bound.sourceRequireOnly===true||receipt?.app!==call.context.app||stableStringify(receipt.source)!==stableStringify(state.bound.plan.source)||state.queries.some(query=>query.plan.id===site.receiptQueryId))return invalid('Query LET Values lack their installed once-only native receipt query producer.');
+  }
+  const queryCount=state.queries.length;
+  const pure=site.captures!==undefined,observations=state.observations.length,guards=owner.callGuards.length,sourceGuards=sourceEffectGuards.get(owner)?.length??0,ordinal=owner.framework?.ordinal??0,calls=owner.calls.length;
   const lease=Object.freeze({call,site});sourceQueryValueActive.set(owner,lease);
   const healthy=()=>{ownerHealthy(owner);capture(call,store);if(sourceQueryValueActive.get(owner)!==lease||owner.executingCall!==call||owner.stage!==0||owner.busy||state.pending!==0)return invalid('Query LET Values crossed their original initial checkpoint.');};
   try{
    if(await store.readRevision()!==call.revision)throw new StateError('conflict','Query LET Values admission revision changed.');healthy();
    const value=await Reflect.apply(raw['body'],undefined,[]);healthy();
+   if(pure&&(state.queries.length!==queryCount||state.observations.length!==observations||owner.callGuards.length!==guards||(sourceEffectGuards.get(owner)?.length??0)!==sourceGuards||(owner.framework?.ordinal??0)!==ordinal||owner.calls.length!==calls))return invalid('Pure native Values performed an unowned query, DATA read or effect.');
    const originalQueries=sourceQueryRowsProducers.get(call.def as GeneratedOperationDef)?.sites.find(candidate=>stableStringify(candidate.node)===stableStringify(site.node))?.queries;
    if(originalQueries!==undefined&&originalQueries.some(query=>sourceQueryRowsConsumed.get(lease)?.has(query.id)!==true))return invalid('Values query capture omitted an original State query occurrence.');
    const wire=deepFreeze(dataCopy(encodeValue(site.typeId,value as Parameters<typeof encodeValue>[1],undefined,state.bound.valueSchema)));
    const decoded=state.bound.valueSchema===undefined?decodeValue(site.typeId,wire):validateValue(state.bound.valueSchema,site.typeId,wire,'create');
    if(stableStringify(encodeValue(site.typeId,decoded,undefined,state.bound.valueSchema))!==stableStringify(wire))return invalid('Query LET Values lost their canonical original schema.');
+   let completed:QueryExecution|undefined;
+   if(site.receiptQueryId!==undefined){
+    const queries=state.queries.slice(queryCount);completed=queries[0];
+    if(queries.length!==1||completed?.plan.id!==site.receiptQueryId||completed.call!==call||completed.owner!==owner||completed.stage!==owner.stage||completed.ownerDecision||!completed.complete||completed.activeSlot!==null||completed.selectionSlot!==null||completed.firstSelected||completed.countSelected||completed.anyConsumed||completed.selectionConsumed||!Array.isArray(wire)||wire.length!==completed.selectedIndices.length||(sourceQueryValueSelections.get(completed)?.next??0)!==completed.selectedIndices.length)return invalid('Query LET Values did not consume their complete original native selected domain.');
+    for(const index of completed.selectedIndices){const candidate=completed.candidates[index];if(candidate===undefined||candidate.pendingRead!==null||completed.plan.dependencies.some(dependency=>dependency.role==='data'&&!candidate.dependencies.has(dependency.id)))return invalid('Query LET Values omitted an original selected DATA dependency.');}
+   }
+   if(completed!==undefined&&sourceQueryValueSelections.get(completed)!==undefined&&sourceQueryValueSelections.get(completed)!.lease!==lease)return invalid('Query LET Values reused a foreign selected-row lifetime.');
    if(await store.readRevision()!==call.revision)throw new StateError('conflict','Query LET Values result revision changed.');healthy();
    let captures=sourceLetValueCaptures.get(call);if(captures===undefined){captures=new Map();sourceLetValueCaptures.set(call,captures);}
    if(captures.size>=MAX_ITEMS||captures.has(key))return invalid('Query LET Values exceed their finite original capture census.');
    captures.set(key,Object.freeze({owner,store,revision:call.revision,stage:0,site:Object.freeze({source:site.source,owner:site.owner,node:site.node,binding:site.binding,valueType:site.typeId,stage:0 as const}),wire}));
+   if(completed!==undefined){
+    completed.selectionConsumed=true;
+    const cases=site.receiptCases;if(cases===undefined)return invalid('Query LET Values omitted their original return case census.');
+    let returns=sourceQueryValueReturnCases.get(state);if(returns===undefined){returns=new Map();sourceQueryValueReturnCases.set(state,returns);}
+    returns.set(key,Object.freeze({query:completed,allowed:Object.freeze([...(completed.selectedIndices.length===0?cases.empty:cases.nonempty)])}));
+   }
    return deepFreeze(decoded);
   }finally{sourceQueryValueActive.delete(owner);}
  }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
 }
+/** A full native projection keeps its original selected slot and DATA reads.
+ * This scope grants no source-only query or saved-result association. */
+export async function executeScenarioReceiptQueryValueRow(call:AdmittedCall,store:StoragePort,input:{readonly slot:ScenarioReceiptQuerySlot;readonly execute:(row:StoredRow)=>unknown|Promise<unknown>}):Promise<unknown>{
+ const state=capture(call,store),owner=ownerSessions.get(call);
+ try{
+  object(input,['slot','execute']);const issued=querySlots.get(input.slot),query=issued?.execution,lease=owner===undefined?undefined:sourceQueryValueActive.get(owner);
+  if(owner===undefined||owner.session===null||lease?.call!==call||lease.site.receiptQueryId===undefined||query?.plan.id!==lease.site.receiptQueryId||query.call!==call||query.owner!==owner||query.stage!==owner.stage||state.bound.sourceRequireOnly===true||state.returnId!==null||!query.complete||query.ownerDecision||query.firstSelected||query.countSelected||query.anyConsumed||query.selectionConsumed||query.activeSlot!==null||query.selectionSlot!==null||sourceQueryValueRowScopes.has(query)||typeof input.execute!=='function')return invalid('Native Values projection lacks its exact active original query and owner.');
+  let selection=sourceQueryValueSelections.get(query);if(selection===undefined){selection={lease,next:0};sourceQueryValueSelections.set(query,selection);}
+  const index=query.selectedIndices[selection.next],candidate=index===undefined?undefined:query.candidates[index];
+  if(selection.lease!==lease||candidate?.slot!==input.slot||issued?.index!==index)return invalid('Native Values projection changed its original selected row order.');
+  const current=selection;
+  return await ownerOperation(owner,async()=>{
+   const scope=Object.freeze({lease,slot:input.slot});sourceQueryValueRowScopes.set(query,scope);query.activeSlot=input.slot;query.selectionSlot=input.slot;
+   ownerRows.set(candidate.row,{session:owner,stage:owner.stage,model:query.plan.model});
+   try{
+    const value=await input.execute(candidate.row);ownerHealthy(owner);capture(call,store);
+    if(sourceQueryValueActive.get(owner)!==lease||sourceQueryValueRowScopes.get(query)!==scope||owner.executingCall!==call||owner.stage!==query.stage||!owner.busy||state.pending!==0||state.returnId!==null||query.activeSlot!==input.slot||query.selectionSlot!==input.slot||candidate.pendingRead!==null||query.plan.dependencies.some(dependency=>dependency.role==='data'&&!candidate.dependencies.has(dependency.id)))return invalid('Native Values projection omitted its original selected DATA reads or checkpoint.');
+    current.next++;return value;
+   }finally{sourceQueryValueRowScopes.delete(query);query.activeSlot=null;query.selectionSlot=null;}
+  },call);
+ }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
+}
+function sourceQueryValueSelectedDependency(query:QueryExecution,dependencyId:string):string|undefined{
+ const scope=sourceQueryValueRowScopes.get(query),lease=sourceQueryValueActive.get(query.owner);
+ if(scope===undefined||scope.lease!==lease||lease.call!==query.call||lease.site.receiptQueryId!==query.plan.id||scope.slot!==query.activeSlot||scope.slot!==query.selectionSlot)return undefined;
+ return lease.site.receiptDependencies?.find(pair=>pair.ordinaryDependencyId===dependencyId)?.queryDependencyId;
+}
+
 /** Original query fields are projected by State during an issued Values LET.
  * The callback receives no owner rows; the query census grants no mutations. */
 export interface ScenarioSourceQueryRows {
@@ -10395,11 +10487,28 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
     else if (nominal === undefined) scalarWire(dependency.type, dependencyObservedWire(dependency, row));
     else storedNominalWire(nominal.profile, getDataPath(row.data, dependency.field));
     if (row.archivedAt !== null) return invalid('cannot observe an archived row.');
+    const valueLease = owner === undefined ? undefined : sourceQueryValueActive.get(owner);
+    const valueQuery = valueLease?.site.receiptQueryId === undefined ? undefined : state.queries.find(query => query.plan.id === valueLease.site.receiptQueryId);
+    const valueScope = valueQuery === undefined ? undefined : sourceQueryValueRowScopes.get(valueQuery);
+    const valueRoot = !rowId && owner !== undefined && owner.stage === 0 && owner.executingCall === call && owner.busy &&
+      valueLease?.call === call && valueQuery?.call === call && valueQuery.owner === owner && valueQuery.stage === owner.stage &&
+      valueQuery.complete && !valueQuery.ownerDecision && !valueQuery.selectionConsumed && valueScope?.lease === valueLease &&
+      valueScope.slot === valueQuery.activeSlot && valueScope.slot === valueQuery.selectionSlot &&
+      sourceQueryValueSelections.get(valueQuery)?.lease === valueLease && valueQuery.selectedIndices.some(index => valueQuery.candidates[index]?.slot === valueScope.slot) &&
+      dependency.role === 'data' && dependency.queryId === undefined && execution === undefined && constructor === undefined &&
+      reference === undefined && id === undefined && file === undefined && sourceSendPlainType(state.bound, dependency.type, new Set(), 0, false) &&
+      stableStringify(dependency.source) === stableStringify(valueLease.site.source)
+      ? call.recordRefs.find(ref => (ref.row === input.row || ownerRows.get(input.row)?.session === owner &&
+        ownerRows.get(input.row)?.stage === owner.stage && ownerRows.get(input.row)?.model === observed.model &&
+        stableStringify(ref.row) === stableStringify(input.row)) && ref.model === observed.model && ref.id === row.id &&
+        ref.expectedVersion !== null && ref.row.version === ref.expectedVersion && requiredVersionedReferenceInput(call.def as GeneratedOperationDef, ref.param, ref.model))
+      : undefined;
+    if (valueRoot !== undefined) admitted = valueRoot;
     const linkedQuery = dependency.queryId === undefined ? undefined : state.queries.find(query => query.plan.id === dependency.queryId);
     const linkedCandidate = linkedQuery?.candidates.find(candidate => candidate.slot === linkedQuery.activeSlot);
     const selectedRead = linkedQuery !== undefined && linkedCandidate !== undefined && input.row === linkedCandidate.row && linkedQuery.selectionSlot === linkedCandidate.slot &&
       linkedQuery.complete && linkedQuery.selectedIndices.includes(linkedQuery.candidates.indexOf(linkedCandidate)) && dependency.role === 'data' &&
-      querySelections.get(call.def as GeneratedOperationDef)?.get(linkedQuery.plan.id)?.fields.some(field => field.dependencyId === dependency.id) === true;
+      (querySelections.get(call.def as GeneratedOperationDef)?.get(linkedQuery.plan.id)?.fields.some(field => field.dependencyId === dependency.id) === true || sourceQueryValueSelectedDependency(linkedQuery,dependency.id)!==undefined);
     if (dependency.queryId !== undefined && (owner === undefined || linkedQuery === undefined || linkedCandidate === undefined ||
         linkedQuery.call !== call || linkedQuery.owner !== owner || linkedQuery.stage !== owner.stage ||
         owner.executingCall !== call || !owner.busy || linkedQuery.complete && !selectedRead || linkedCandidate.pendingRead !== null ||
@@ -10441,7 +10550,7 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
         const activeAdmittedSource = admitted !== undefined && !rowId && (reference?.profile.kind === 'parent' || suppliedPosition) &&
           linkedQuery !== undefined && linkedCandidate !== undefined;
         if (parent !== undefined && (!activeParent || linkedQuery !== undefined && parent.execution !== linkedQuery) ||
-            owner.busy && !activeParent && !activeAdmittedSource && !selectedRead || admitted === undefined &&
+            owner.busy && !activeParent && !activeAdmittedSource && !selectedRead && valueRoot === undefined || admitted === undefined &&
             (issued?.session !== owner || issued.stage !== owner.stage || issued.model !== observed.model)) {
           return invalid('observation requires the actual current-stage owner row and active parent query slot.');
         }
@@ -10562,6 +10671,8 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
       if (linkedQuery.activeSlot !== linkedCandidate!.slot || linkedQuery.complete && !selectedRead || linkedQuery.stage !== owner!.stage ||
           owner!.executingCall !== call || !owner!.busy) return invalid('ordinary observation crossed its active query candidate.');
       linkedCandidate!.dependencies.add(dependency.id);
+      const selectedValueDependency=sourceQueryValueSelectedDependency(linkedQuery,dependency.id);
+      if(selectedRead&&selectedValueDependency!==undefined)linkedCandidate!.dependencies.add(selectedValueDependency);
       queryLinkedObservations.set(observation, { execution: linkedQuery, slot: linkedCandidate!.slot });
     }
     const queryParent = queryParentRows.get(input.row);
@@ -10807,6 +10918,12 @@ export function selectScenarioReceiptReturn(call: AdmittedCall, store: StoragePo
     }
     const returned = state.bound.plan.returns.find(entry => entry.id === returnId);
     if (state.returnId !== null || returned === undefined) return invalid('one actual checked return path required.');
+    for(const site of sourceQueryValueProducers.get(call.def as GeneratedOperationDef)?.sites??[]){
+      if(site.receiptCases===undefined)continue;
+      const actual=sourceQueryValueReturnCases.get(state)?.get(`${site.node.start}:${site.node.end}`);
+      if(actual===undefined){if([...site.receiptCases.empty,...site.receiptCases.nonempty].includes(returnId))return invalid('Return omitted its original completed Values query case.');continue;}
+      if(!actual.allowed.includes(returnId)||actual.query.plan.id!==site.receiptQueryId||actual.query.call!==call||actual.query.owner!==ownerSessions.get(call)||!actual.query.complete||!actual.query.selectionConsumed||!state.queries.includes(actual.query))return invalid('Return differs from the actual original Values query empty/nonempty case.');
+    }
     if (state.bound.termDecision !== undefined && state.termDecision === undefined) {
       return invalid('paid term return omitted its complete original owner decision.');
     }

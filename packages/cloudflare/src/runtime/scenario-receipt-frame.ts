@@ -9,6 +9,7 @@ import { executeScenarioReceiptPurchaseAll as executeStatePurchaseAll,
   observeScenarioReceiptIntrinsic as observeStateIntrinsic,
   selectScenarioReceiptReturn as selectStateReturn,
   executeScenarioReceiptQuery as executeStateQuery,
+  executeScenarioReceiptQueryValueRow as executeStateQueryValueRow,
   selectScenarioReceiptQueryFirstRow as selectStateQueryFirstRow,
   readScenarioReceiptQueryParentRow as readStateQueryParentRow,
   bindScenarioReceiptQueryCount as bindStateQueryCount,
@@ -748,6 +749,70 @@ export function countQuery(c: HandlerContext, value: unknown): Promise<bigint> {
 export function executeScenarioReceiptQuery(c: HandlerContext, queryId: string,
   predicate: (record: Readonly<Record<string, unknown>>) => boolean | Promise<boolean>): Promise<readonly Readonly<Record<string, unknown>>[]> {
   return executeNativeScenarioQuery(c, queryId, predicate, 'query');
+}
+
+/** Only the issued Values completion may project a real selected native row. */
+export async function executeScenarioReceiptQueryValueRow<T>(c: HandlerContext, row: unknown,
+  execute: () => T | Promise<T>): Promise<T> {
+  const frame = checked(c);
+  try {
+    const view = typeof row === 'object' && row !== null ? frame.queryViews.get(row) : undefined;
+    if (frame.pending !== 0 || frame.activeQueryCandidate !== null || typeof execute !== 'function'
+        || view === undefined || view.query.bound || view.query.active !== null
+        || view.query.receiptResult === undefined
+        || !view.query.receiptResult.rows.some(candidate => candidate.slot === view.slot)) {
+      return refuse('Values projection needs its original completed selected native row.');
+    }
+    let result: T | undefined;
+    await executeStateQueryValueRow(frame.call, frame.store, { slot: view.slot, execute: async source => {
+      const reference = nativeRecordReference(row);
+      if (reference?.model !== view.query.plan.model || reference.id !== source.id
+          || reference.version !== BigInt(source.version)) {
+        return refuse('Values projection lost its original selected row lifetime.');
+      }
+      if(activeQueryValueRows.has(frame))return refuse('Values projection cannot replace its active row.');
+      const active=Object.freeze({view,nativeRow:row,source});
+      activeQueryValueRows.set(frame,active);
+      try{result=await execute();}finally{activeQueryValueRows.delete(frame);}
+      checked(c);
+      if (frame.pending !== 0 || view.reads.length !== 0
+          || view.query.plan.dependencies.some(dependency => dependency.role === 'data' && !view.dependencies.has(dependency.id))) {
+        return refuse('Values projection omitted an original selected DATA observation.');
+      }
+      return result;
+    } });
+    return result as T;
+  } catch (error) { return fail(frame, error); }
+}
+
+const activeQueryValueRows = new WeakMap<Frame, {readonly view:NativeQueryView;readonly nativeRow:unknown;readonly source:StoredRow}>();
+
+/** Pair one original selected getter with its separately sealed DATA occurrence.
+ * Only State's actual row callback can open this private lifetime. */
+export async function observeScenarioReceiptQueryValueDependency(c:HandlerContext,model:string,nativeRow:unknown,
+  field:string,ordinaryDependencyId:string,queryDependencyId:string):Promise<void>{
+  const frame=checked(c);
+  try{
+    const active=activeQueryValueRows.get(frame),view=active?.view;
+    const query=view?.query.plan.dependencies.find(dependency=>dependency.id===queryDependencyId);
+    const ordinary=resultPlan(frame)?.returns.flatMap(returned=>returned.dependencies).find(dependency=>dependency.id===ordinaryDependencyId);
+    if(frame.pending!==0||active===undefined||active.nativeRow!==nativeRow||view===undefined||query?.role!=='data'||ordinary?.role!=='data'
+        ||ordinary.queryId!==view.query.plan.id||ordinary.model!==model||view.query.plan.model!==model
+        ||ordinary.field!==field||query.field!==field||ordinary.type!==query.type
+        ||stableStringify(ordinary.source)!==stableStringify(view.query.plan.source)
+        ||view.reads[0]!==field||view.query.bound||view.query.active!==null){
+      return refuse('Values DATA requires its exact original selected getter and paired dependency.');
+    }
+    const healthy=()=>{checked(c);if(activeQueryValueRows.get(frame)!==active||frame.pending!==1||view.reads[0]!==field)return refuse('Values DATA crossed its actual selected row lifetime.');};
+    frame.pending++;
+    try{
+      const files=frame.observeDependency===undefined?undefined:await frame.observeDependency({dependencyId:ordinaryDependencyId,model,row:active.source,field},healthy);
+      healthy();
+      await observeStateDependency(frame.call,frame.store,{dependencyId:ordinaryDependencyId,model:model as ModelName,row:active.source,field,...(files===undefined?{}:{files})});
+      healthy();
+    }finally{frame.pending--;}
+    observeScenarioReceiptQueryDependency(c,model,nativeRow,field,queryDependencyId);
+  }catch(error){fail(frame,error);}
 }
 
 /** Only the active native frame can invoke the checked post-write decision. */

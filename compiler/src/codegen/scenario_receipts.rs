@@ -9,7 +9,7 @@ use crate::analysis::scenario_disclosure::{
     DisclosureIntrinsicKind, DisclosureModelResult, DisclosureSource, InfluenceKind,
     ScenarioDisclosure,
 };
-use crate::analysis::{ResolvedType, Scalar};
+use crate::analysis::{NodeKey, ResolvedType, Scalar};
 use crate::source::{SourceDb, Span, sha256_hex};
 use crate::syntax::{SyntaxKind, SyntaxNode};
 
@@ -600,6 +600,7 @@ pub(super) struct NativeDependency {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum NativeDecisionKind {
     ParameterDefault,
+    QuerySelection,
     If,
     For,
     Match,
@@ -2441,16 +2442,36 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     } else {
         None
     };
-    let first_plan = checked_native_first_query_plan(
-        ir,
-        item,
-        checked,
-        query_plan,
-        entry_module,
-        db,
-        &returned_paths,
-        source_context,
-    );
+    let value_plan = if checked
+        .source_facts
+        .as_deref()?
+        .query_values
+        .as_deref()
+        .is_some_and(|values| !values.is_empty())
+    {
+        Some(checked_native_value_query_plan(
+            source_context?,
+            item,
+            checked,
+            entry_module,
+        )?)
+    } else {
+        None
+    };
+    let first_plan = if value_plan.is_some() {
+        Some(None)
+    } else {
+        checked_native_first_query_plan(
+            ir,
+            item,
+            checked,
+            query_plan,
+            entry_module,
+            db,
+            &returned_paths,
+            source_context,
+        )
+    };
 
     let first_plan = first_plan?;
     // Guard-only plain boolean `any` queries carry no first/count plan, so a
@@ -2460,7 +2481,8 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     } else {
         None
     };
-    let effective_plan = first_plan.or(guard_plan.as_ref());
+    let effective_plan = value_plan.as_ref().or(first_plan).or(guard_plan.as_ref());
+
     let event_notice = if item.canonical == "events.attendee_notice" {
         Some(super::event_notice_audit::checked(
             source_context?,
@@ -2499,6 +2521,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             return None;
         }
     };
+
     if !sites.enum_values.is_empty() {
         let context = source_context?;
         context.same_scenario(ir, item)?;
@@ -2550,6 +2573,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         send_guards,
         source_context,
     )?;
+
     let sealed_created_tail = source_context.is_some_and(|context| {
         checked
             .source_facts
@@ -2778,6 +2802,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     // State's v1 own-data parser bounds each array/global dependency inventory
     // at 200 and the closed plan traversal at 20,000 JSON nodes.
     let mut data_nodes: usize = effective_plan.map_or(7, |plan| 7 + 40 * plan.queries.len());
+
     for returned in returned_paths {
         if (effective_plan.is_none() && !returned.influences.is_empty())
             || returned.node.file != checked.node.file
@@ -2895,6 +2920,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 NativeDecisionKind::If => SyntaxKind::If as u8,
                 NativeDecisionKind::For => SyntaxKind::For as u8,
                 NativeDecisionKind::Match => SyntaxKind::Match as u8,
+                NativeDecisionKind::QuerySelection => SyntaxKind::Query as u8,
                 _ => SyntaxKind::Binary as u8,
             };
             if decision.node.kind != expected {
@@ -2929,6 +2955,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             };
             native_return.decisions.push((key, decision.choice.clone()));
         }
+
         for dependency in &returned.dependencies {
             let result_identity = match returned.model_result {
                 Some(
@@ -3194,10 +3221,51 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 let expression = sites.members.get(&site)?.first()?;
                 checked_inline_selection_member(ir, item, fact, dependency, expression, db?)?;
             }
+            let selected_value = checked
+                .source_facts
+                .as_deref()?
+                .query_values
+                .as_deref()
+                .unwrap_or_default()
+                .iter()
+                .find(|value| {
+                    dependency.query_id.as_deref() == Some(value.query.id.as_str())
+                        && returned.source_values.contains(&value.statement)
+                        && dependency.calls.is_empty()
+                        && dependency.role == DependencyRole::Data
+                        && dependency.model == value.query.model
+                        && value.query.dependencies.iter().any(|original| {
+                            original.node == dependency.node
+                                && original.role == DependencyRole::Data
+                                && original.field == dependency.field
+                                && original.ty == dependency.ty
+                                && original.type_id == dependency.type_id
+                        })
+                });
+            if let Some(value) = selected_value {
+                let expression = *sites.members.get(&site)?.first()?;
+                let IrExpr::Member { base, field } = &expression.expr else {
+                    return None;
+                };
+                let source = context_query_alias_name(source_context?, value)?;
+                if expression.span != node_span(dependency.node)
+                    || expression.ty != dependency.ty
+                    || field != &dependency.field_name
+                    || base.ty
+                        != (ResolvedType::Record {
+                            symbol: value.query.model,
+                            stored: true,
+                        })
+                    || !matches!(&base.expr,IrExpr::Name(name)if name==&source)
+                {
+                    return None;
+                }
+            }
             if dependency.query_id.is_some()
                 && !parent_read
                 && selected_transcript.is_none()
                 && selected_inline.is_none()
+                && selected_value.is_none()
             {
                 return None;
             }
@@ -3815,6 +3883,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 query_id: dependency.query_id.clone(),
             });
         }
+
         for intrinsic in &returned.intrinsics {
             if intrinsic.id.is_empty()
                 || dependency_ids.contains_key(&intrinsic.id)
@@ -4068,6 +4137,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 kind,
             });
         }
+
         recipe.returns.push(native_return);
         recipe.plan.returns.push(plan_return);
     }
@@ -4079,6 +4149,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     {
         return None;
     }
+
     Some(recipe)
 }
 
@@ -6705,6 +6776,25 @@ pub(super) fn checked_scenario_query_influences(
     facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
 ) -> Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
     let queries = facts.queries.as_deref()?;
+    if let Some(values) = facts
+        .query_values
+        .as_deref()
+        .filter(|values| !values.is_empty())
+    {
+        if queries.len() > 200
+            || queries.iter().any(|query| {
+                query.count.is_none() && !values.iter().any(|value| &value.query == query)
+            })
+        {
+            return None;
+        }
+        let mut output = Vec::new();
+        for query in queries {
+            checked_query_influence_census(query)?;
+            output.extend(query.influences.clone());
+        }
+        return Some(output);
+    }
     let transcripts = facts.transcripts.as_deref().unwrap_or_default();
     if let Some([fact]) = facts
         .inline_selections
@@ -6960,6 +7050,274 @@ fn first_query_expected_plan(
         ),
         _ => None,
     }
+}
+
+fn context_query_alias_name(
+    context: &super::source_context::FreshSourceContext<'_>,
+    value: &crate::analysis::scenario_disclosure::CheckedQueryValueSource,
+) -> Option<String> {
+    let query = context.original().types.checked_queries.get(&value.value)?;
+    let clause = query.clauses.first()?;
+    let crate::analysis::types::CheckedQueryClauseKind::As { name } = &clause.kind else {
+        return None;
+    };
+    (clause.node == value.alias).then(|| name.clone())
+}
+
+/// A computed Values selection keeps its native candidate slots and DATA
+/// obligations. Its separate, privately issued LET completion owns the value;
+/// it cannot substitute an unobserved array for a native query result.
+fn checked_native_value_query_plan(
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    entry: &str,
+) -> Option<ReceiptDisclosurePlan> {
+    let ir = context.ir();
+    context.same_scenario(ir, owner)?;
+
+    let facts = checked.source_facts.as_deref()?;
+    let original = context
+        .original()
+        .scenario_disclosures()
+        .get(&owner.id)?
+        .source_facts()?;
+    if original.query_values != facts.query_values || original.queries != facts.queries {
+        return None;
+    }
+
+    let values = facts.query_values.as_deref()?;
+    let queries = facts.queries.as_deref()?;
+    let IrItemKind::Scenario {
+        effects,
+        result: None,
+        read: false,
+        trusted: false,
+        hook: None,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    if values.is_empty()
+        || values.len() > 200
+        || checked.returns.iter().any(|returned| {
+            returned.source_values.is_empty()
+                || returned
+                    .source_values
+                    .iter()
+                    .any(|node| !values.iter().any(|value| value.statement == *node))
+        })
+    {
+        return None;
+    }
+
+    let captures = super::source_let_data::collect_native_query_values(context, owner, entry)?;
+
+    for site in facts.source_requires.as_deref().unwrap_or_default() {
+        for (node, binding) in &context.resolved().node_binding {
+            if node.file == site.node.file
+                && site.node.start <= node.start
+                && node.end <= site.node.end
+                && let crate::analysis::resolve::Binding::Let { node: declaration } = binding
+                && !captures.contains_key(&node_span(*declaration))
+            {
+                return None;
+            }
+        }
+    }
+
+    let census = checked_scenario_query_influences(facts)?;
+    if checked.returns.iter().any(|returned| {
+        returned
+            .influences
+            .iter()
+            .any(|value| !census.contains(value))
+    }) {
+        return None;
+    }
+
+    let mut emitted = Vec::new();
+    for query in queries {
+        let Some(value) = values.iter().find(|value| &value.query == query) else {
+            query.count.as_ref()?;
+            emitted.extend(
+                checked_native_count_query_plan(
+                    ir,
+                    owner,
+                    query,
+                    context.db(),
+                    entry,
+                    Some(context),
+                )?
+                .queries,
+            );
+            continue;
+        };
+        if !super::source_let_data::capture_plain_value(ir, &value.ty, 0) {
+            return None;
+        }
+        let statement=effects.iter().find(|statement|matches!(statement,IrStmt::Let{span,..}if *span==node_span(value.statement)))?;
+        let IrStmt::Let {
+            name,
+            value: expression,
+            ..
+        } = statement
+        else {
+            return None;
+        };
+        let IrExpr::Query(actual) = &expression.expr else {
+            return None;
+        };
+        let alias = context
+            .original()
+            .types
+            .checked_queries
+            .get(&value.value)?
+            .clauses
+            .first()?;
+        let crate::analysis::types::CheckedQueryClauseKind::As { name: alias } = &alias.kind else {
+            return None;
+        };
+        if name != &value.binding
+            || expression.span != node_span(value.value)
+            || expression.ty != value.ty
+            || !matches!(&actual.domain,super::ir::IrQueryDomain::Model(name)if name==&query.model_name)
+            || actual.source.as_ref()?.node != value.value
+            || actual.source.as_ref()?.result != value.ty
+            || actual.select.as_ref()?.span != node_span(value.selected)
+            || actual.select_param.as_deref() != Some(alias)
+            || actual.parent.as_ref()?.span != node_span(value.parent)
+            || actual.parent.as_ref()?.ty
+                != (ResolvedType::Record {
+                    symbol: value.parent_model,
+                    stored: true,
+                })
+            || actual.where_pred.as_ref().map(|value| value.span) != query.predicate.map(node_span)
+            || query.predicate.is_some() && actual.where_param != *alias
+            || actual.value_order.is_some()
+            || actual.limit.is_some()
+            || actual.archived.is_some()
+            || actual.order.len() != query.order.len()
+            || !actual
+                .order
+                .iter()
+                .zip(&query.order)
+                .all(|(actual, original)| {
+                    actual.field == original.field_name && actual.descending == original.descending
+                })
+        {
+            return None;
+        }
+
+        let parameter = ir.items.get(value.parameter.0 as usize)?;
+        let origin = if value.parent_depth == 0 {
+            if !matches!(&actual.parent.as_ref()?.expr,IrExpr::Name(name)if name==&parameter.name) {
+                return None;
+            }
+            ReceiptQueryParentOrigin::AdmittedReference {
+                parameter: parameter.name.clone(),
+            }
+        } else {
+            let dependency = checked
+                .returns
+                .iter()
+                .flat_map(|returned| &returned.dependencies)
+                .find(|dependency| {
+                    dependency.node == value.parent
+                        && dependency.calls.is_empty()
+                        && dependency.query_id.is_none()
+                        && dependency.role == DependencyRole::Data
+                        && dependency.field_name == "parent"
+                        && dependency.ty
+                            == (ResolvedType::Record {
+                                symbol: value.parent_model,
+                                stored: true,
+                            })
+                })?;
+            ReceiptQueryParentOrigin::StoredReference {
+                dependency_id: dependency.id.clone(),
+            }
+        };
+        emitted.push(ReceiptQuery {
+            id: query.id.clone(),
+            source: transport_source(&query.source, entry)?,
+            model: query.model_name.clone(),
+            parent: Some(ReceiptQueryParent {
+                source: transport_source(&query.source, entry)?,
+                model: ir
+                    .items
+                    .get(value.parent_model.0 as usize)?
+                    .canonical
+                    .clone(),
+                origin,
+            }),
+            order: query
+                .order
+                .iter()
+                .map(|order| ReceiptQueryOrder {
+                    field: order.field_name.clone(),
+                    direction: if order.descending { "desc" } else { "asc" }.into(),
+                })
+                .collect(),
+            limit: None,
+            archived: "exclude".into(),
+            dependencies: query
+                .dependencies
+                .iter()
+                .map(|dependency| {
+                    Some(ReceiptQueryDependency {
+                        id: dependency.id.clone(),
+                        source: transport_source(&dependency.source, entry)?,
+                        role: match dependency.role {
+                            DependencyRole::Data => ReceiptRole::Data,
+                            DependencyRole::Control => ReceiptRole::Control,
+                        },
+                        field: dependency.field_name.clone(),
+                        type_id: dependency.type_id.clone(),
+                    })
+                })
+                .collect::<Option<_>>()?,
+        });
+    }
+
+    Some(ReceiptDisclosurePlan {
+        retained_guarded_handler: None,
+        source_loops: None,
+        source_emissions: None,
+        version: 1,
+        event_decision: None,
+        term_decision: None,
+        leave_request_decision: None,
+        leave_decide_decision: None,
+        refer_reject_decision: None,
+        member_retry_decision: None,
+        rent_movement_refund_decision: None,
+        invoice_collect_decision: None,
+        rent_notice_decision: None,
+        invoice_issue_decision: None,
+        observe_venue_decision: None,
+        success_renewal_decision: None,
+        purchase_receive_all: None,
+        event_notice_audit: None,
+        source: transport_source(&facts.source, entry)?,
+        queries: emitted,
+        returns: checked
+            .returns
+            .iter()
+            .map(|returned| {
+                receipt_return(
+                    returned,
+                    entry,
+                    returned
+                        .influences
+                        .iter()
+                        .map(receipt_influence)
+                        .collect::<Option<_>>()?,
+                )
+            })
+            .collect::<Option<_>>()?,
+    })
 }
 
 fn checked_native_first_query_plan<'a>(
@@ -16368,7 +16726,7 @@ fn valid_choice(
             DisclosureChoice::DefaultEvaluated | DisclosureChoice::DefaultProvided,
         ) => true,
         (
-            NativeDecisionKind::If | NativeDecisionKind::For,
+            NativeDecisionKind::If | NativeDecisionKind::For | NativeDecisionKind::QuerySelection,
             DisclosureChoice::Then | DisclosureChoice::Else,
         ) => true,
         (NativeDecisionKind::Match, DisclosureChoice::Match(case)) => {
@@ -16988,8 +17346,15 @@ fn match_effect_proofs(
                     }
                     let mut declared = descriptor.fields.iter().filter(|f| f.name == *name);
                     let emitted = declared.next()?;
+                    let computed_values = source_context.is_some_and(|context| {
+                        checked_query_value_assignment(
+                            context, owner, model_item, ty, emitted, value, proof.node, db,
+                        )
+                        .is_some()
+                    });
                     if declared.next().is_some()
-                        || !(assignment_inventory_matches(ir, ty, emitted)
+                        || !(computed_values
+                            || assignment_inventory_matches(ir, ty, emitted)
                             || source_context.is_some_and(|context| {
                                 checked_declared_delivery_assignment(
                                     context, model_item, ty, emitted, db,
@@ -16999,7 +17364,8 @@ fn match_effect_proofs(
                     {
                         return None;
                     }
-                    let compatible = value.ty == *ty
+                    let compatible = computed_values
+                        || value.ty == *ty
                         || matches!(ty, ResolvedType::Nullable(inner) if value.ty == **inner || value.ty == ResolvedType::Null);
                     if !compatible {
                         return None;
@@ -21830,6 +22196,90 @@ fn assignment_reference_inventory_matches(
 
 /// A declared provider slot uses the exact fresh model descriptor and operation.
 /// The SEND producer and original ordered assignment are checked separately.
+/// A computed array assignment consumes the exact original query LET, not
+/// a stored wire or an arbitrary same-shaped local. Its field inventory is
+/// independently reconstructed from the fresh owning declaration.
+#[allow(clippy::too_many_arguments)]
+fn checked_query_value_assignment(
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+    model: &IrItem,
+    ty: &ResolvedType,
+    field: &JsModelField,
+    value: &TypedExpr,
+    statement: NodeKey,
+    db: Option<&SourceDb>,
+) -> Option<()> {
+    let ir = context.ir();
+    if !matches!(
+        ty,
+        ResolvedType::Array {
+            ordered: true,
+            nonempty: false,
+            ..
+        }
+    ) || !matches!(
+        value.ty,
+        ResolvedType::Array {
+            ordered: true,
+            nonempty: false,
+            ..
+        }
+    ) || !super::source_let_data::capture_plain_value(ir, ty, 0)
+        || !super::source_let_data::capture_plain_value(ir, &value.ty, 0)
+    {
+        return None;
+    }
+    context.same_scenario(ir, owner)?;
+    let IrExpr::Name(name) = &value.expr else {
+        return None;
+    };
+    let binding = [SyntaxKind::NameRef, SyntaxKind::Name, SyntaxKind::Path]
+        .iter()
+        .find_map(|kind| {
+            context.resolved().node_binding.get(&NodeKey {
+                file: value.span.file,
+                start: value.span.start,
+                end: value.span.end,
+                kind: *kind as u8,
+            })
+        })?;
+    let crate::analysis::resolve::Binding::Let { node } = binding else {
+        return None;
+    };
+    let facts = context
+        .original()
+        .scenario_disclosures()
+        .get(&owner.id)?
+        .source_facts()?;
+    let source = facts.query_values.as_deref()?.iter().find(|source| {
+        source.statement == *node && source.binding == *name && source.ty == value.ty
+    })?;
+    if source.statement.file != statement.file
+        || source.statement.end > statement.start
+        || super::scenario_decisions::serial_type(ty, context.original(), ir, 0)?
+            != super::scenario_decisions::serial_type(&value.ty, context.original(), ir, 0)?
+    {
+        return None;
+    }
+    let models = super::js::Emitter::source_models(context.fresh(), db?)?;
+    let mut expected = models
+        .iter()
+        .filter(|candidate| candidate.name == model.canonical);
+    let model = expected.next()?;
+    if expected.next().is_some() {
+        return None;
+    }
+    let mut fields = model
+        .fields
+        .iter()
+        .filter(|candidate| candidate.name == field.name);
+    let expected = fields.next()?;
+    (fields.next().is_none()
+        && serde_json::to_value(expected).ok()? == serde_json::to_value(field).ok()?)
+    .then_some(())
+}
+
 fn checked_declared_delivery_assignment(
     context: &super::source_context::FreshSourceContext<'_>,
     model: &IrItem,
@@ -22557,6 +23007,14 @@ impl<'a> Sites<'a> {
                     }
                     IrExpr::Query(query) => {
                         let facts = super::scenario_calls::checked_source(ir, owner, db?)?;
+                        if let Some(fact)=facts.query_values.as_deref().and_then(|values|values.iter().find(|value|expression.span==node_span(value.value)&&context.calls.is_empty())) {
+                            if query.source.as_ref()?.node!=fact.value || expression.ty!=fact.ty {return None;}
+                            if out.decisions.insert(context.site(expression.span),NativeDecisionKind::QuerySelection).is_some(){return None;}
+                            push!(Visit::Expression(query.parent.as_ref()?));
+                            if let Some(predicate)=query.where_pred.as_ref(){push!(Visit::Expression(predicate));}
+                            push!(Visit::Expression(query.select.as_ref()?));
+                            continue;
+                        }
                         if let Some(fact) = facts.inline_selections.as_deref().and_then(|facts| {
                             facts.iter().find(|fact| {
                                 context.calls.is_empty()

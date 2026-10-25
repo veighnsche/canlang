@@ -332,6 +332,7 @@ pub struct DisclosureReturn {
     pub dependencies: Vec<DisclosureDependency>,
     pub intrinsics: Vec<DisclosureIntrinsic>,
     pub influences: Vec<DisclosureInfluence>,
+    pub(crate) source_values: Vec<NodeKey>,
     /// Checked lexical producer of a singular stored result.
     /// This is source provenance; the native owner must bind its current row.
     pub(crate) model_result: Option<DisclosureModelResult>,
@@ -552,6 +553,7 @@ pub struct CheckedScenarioSource {
     /// Original supported query occurrences; this inventory grants no closure.
     /// Unhandled query uses still decline the executable scenario independently.
     pub queries: Option<Vec<DisclosureQuery>>,
+    pub(crate) query_values: Option<Vec<CheckedQueryValueSource>>,
     /// Original transcript invocations and eager row projections, source only.
     pub(crate) transcripts: Option<Vec<CheckedTranscriptSource>>,
     /// Exact original WHERE-bound inline TextMessage selection; no query/File grant.
@@ -559,6 +561,21 @@ pub struct CheckedScenarioSource {
     /// Private owning stored-field/Contract snapshots and two-parent Model
     /// source operands. File declarations here grant no receipt admission.
     pub(crate) stored_contracts: Option<Vec<CheckedStoredContractSchema>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct CheckedQueryValueSource {
+    pub statement: NodeKey,
+    pub binding: String,
+    pub value: NodeKey,
+    pub ty: ResolvedType,
+    pub alias: NodeKey,
+    pub selected: NodeKey,
+    pub parameter: SymbolId,
+    pub parent: NodeKey,
+    pub parent_model: SymbolId,
+    pub parent_depth: u8,
+    pub query: DisclosureQuery,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1779,6 +1796,7 @@ enum Local {
     Send(NodeKey),
     Call(NodeKey),
     Create(NodeKey),
+    Query(NodeKey),
 }
 type Env = HashMap<Local, ValuePath>;
 
@@ -1824,6 +1842,7 @@ struct ValuePath {
     transcript_messages: Option<NodeKey>,
     transcript_count: bool,
     contract_value: Option<ContractValue>,
+    source_values: Vec<NodeKey>,
     /// Original input and at most two checked implicit containment edges.
     reference_origin: Option<ReferenceOrigin>,
 }
@@ -1884,6 +1903,11 @@ struct CurrentRevisionSource {
 
 impl ValuePath {
     fn join(&mut self, other: &Self) {
+        for value in &other.source_values {
+            if !self.source_values.contains(value) {
+                self.source_values.push(*value);
+            }
+        }
         for influence in &other.influences {
             if !self.influences.iter().any(|prior| prior.id == influence.id) {
                 self.influences.push(influence.clone());
@@ -1961,6 +1985,7 @@ struct ImmutableSourceFacts {
     revisions: HashMap<(SymbolId, ModuleId, NodeKey), Option<CurrentRevisionSource>>,
     revision_owners: HashMap<(NodeKey, ModuleId), Option<CurrentRevisionSource>>,
     reference_identity_operands: Option<HashSet<NodeKey>>,
+    query_values: HashMap<(SymbolId, ModuleId, NodeKey), Option<Vec<CheckedQueryValueSource>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -4407,6 +4432,7 @@ impl<'a> Closure<'a> {
                 })
                 .collect(),
             queries: self.checked_query_sources(scenario),
+            query_values: self.checked_query_value_sources(scenario),
             transcripts: self.checked_transcript_sources(scenario),
             inline_selections: self.checked_inline_selection_sources(scenario),
             stored_contracts: self.checked_stored_contracts(scenario),
@@ -8904,6 +8930,7 @@ impl<'a> Closure<'a> {
                 dependencies: Vec::new(),
                 intrinsics: Vec::new(),
                 influences: query.influences.clone(),
+                source_values: Vec::new(),
                 model_result: None,
             }],
             effects: Vec::new(),
@@ -9072,6 +9099,11 @@ impl<'a> Closure<'a> {
     ) -> Option<Vec<DisclosureQuery>> {
         if !scenario.read {
             let mut first = self.checked_count_query_sources(scenario)?;
+            first.extend(
+                self.checked_query_value_sources(scenario)?
+                    .into_iter()
+                    .map(|value| value.query),
+            );
             first.extend(self.checked_any_query_sources(scenario)?);
             first.extend(self.checked_helper_any_query_sources(scenario)?);
             // Derive-bodied boolean `any` queries share the direct emitter
@@ -15344,25 +15376,35 @@ impl<'a> Closure<'a> {
     /// Original immutable Values inputs carry no row, File, delivery or
     /// opaque-provider authority. Resolve every contract leaf in this check.
     fn source_require_plain_value(&self, ty: &ResolvedType, depth: usize) -> bool {
+        self.source_plain_value(ty, depth, false)
+    }
+
+    fn computed_plain_value(&self, ty: &ResolvedType) -> bool {
+        self.source_plain_value(ty, 0, true)
+    }
+
+    fn source_plain_value(&self, ty: &ResolvedType, depth: usize, computed: bool) -> bool {
         if depth >= 16 {
             return false;
         }
         match ty {
-            ResolvedType::Scalar(scalar) => !matches!(
-                scalar,
-                Scalar::File | Scalar::Secret | Scalar::Member | Scalar::Json | Scalar::Bytes
-            ),
-            ResolvedType::Nullable(inner) => self.source_require_plain_value(inner, depth + 1),
+            ResolvedType::Scalar(scalar) => {
+                !matches!(
+                    scalar,
+                    Scalar::File | Scalar::Secret | Scalar::Member | Scalar::Json | Scalar::Bytes
+                ) && (!computed || *scalar != Scalar::User)
+            }
+            ResolvedType::Nullable(inner) => self.source_plain_value(inner, depth + 1, computed),
             ResolvedType::Array {
                 element,
                 ordered: true,
                 ..
-            } => self.source_require_plain_value(element, depth + 1),
+            } => self.source_plain_value(element, depth + 1, computed),
             ResolvedType::Object(fields) => {
                 fields.len() <= 200
                     && fields
                         .iter()
-                        .all(|(_, ty)| self.source_require_plain_value(ty, depth + 1))
+                        .all(|(_, ty)| self.source_plain_value(ty, depth + 1, computed))
             }
             ResolvedType::Record { symbol, .. } => match self
                 .resolve
@@ -15377,11 +15419,12 @@ impl<'a> Closure<'a> {
                             self.types
                                 .symbol_types
                                 .get(field)
-                                .is_some_and(|ty| self.source_require_plain_value(ty, depth + 1))
+                                .is_some_and(|ty| self.source_plain_value(ty, depth + 1, computed))
                         })
                 }
                 _ => false,
             },
+            ResolvedType::Enum { cases, .. } if computed => !cases.is_empty(),
             _ => false,
         }
     }
@@ -20524,6 +20567,433 @@ impl<'a> Closure<'a> {
         (formal_case(left, right) || formal_case(right, left)).then_some(*predicate)
     }
 
+    /// The initial selection producer has no effects and never yields a Model,
+    /// identity, File or opaque carrier. Its native query still owns the domain,
+    /// candidate controls and every selected DATA observation.
+    fn checked_query_value_sources(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<Vec<CheckedQueryValueSource>> {
+        // This classifier reads only immutable source/type/effect tables.
+        // Copies still receive the complete check; only authentic declarations
+        // reuse completed results, including a completed refusal.
+        if !self
+            .effects
+            .scenarios
+            .get(&scenario.scenario)
+            .is_some_and(|original| std::ptr::eq(original, scenario))
+        {
+            return self.check_query_value_sources(scenario);
+        }
+        let key = (scenario.scenario, scenario.module, scenario.node);
+        if let Some(result) = self.source_facts.borrow().query_values.get(&key) {
+            return result.clone();
+        }
+        let result = self.check_query_value_sources(scenario);
+        self.source_facts
+            .borrow_mut()
+            .query_values
+            .insert(key, result.clone());
+        result
+    }
+
+    fn check_query_value_sources(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<Vec<CheckedQueryValueSource>> {
+        if scenario.read
+            || scenario.on.is_some()
+            || scenario.cohort.is_some()
+            || scenario.scope_authority
+            || self.types.symbol_results.get(&scenario.scenario)?.is_some()
+        {
+            return Some(Vec::new());
+        }
+        let mut output = Vec::new();
+        for statement in &scenario.effects {
+            if statement.verb == EffectVerb::Require {
+                continue;
+            }
+            if statement.verb != EffectVerb::Let {
+                break;
+            }
+            let Some(value) = statement.value.and_then(|value| self.query_group(value)) else {
+                continue;
+            };
+            let Some(query) = self.types.checked_queries.get(&value) else {
+                continue;
+            };
+            let ResolvedType::Array {
+                element,
+                ordered: true,
+                nonempty: false,
+            } = &query.domain_type
+            else {
+                continue;
+            };
+            let ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            } = element.as_ref()
+            else {
+                continue;
+            };
+            let Some((parent, name)) = self.count_member(query.domain) else {
+                continue;
+            };
+            let model_symbol = self.resolve.symbols.get(model.0 as usize)?;
+            let ModelOwner::ChildOf(parent_model) = self.effects.models.get(model)?.owner else {
+                continue;
+            };
+            if name != model_symbol.name
+                || self.model_has_field(parent_model, name)
+                || self.types.node_types.get(&parent)
+                    != Some(&ResolvedType::Record {
+                        symbol: parent_model,
+                        stored: true,
+                    })
+            {
+                continue;
+            }
+            let Some((parameter, depth)) = scenario
+                .params
+                .iter()
+                .filter(|parameter| parameter.default.is_none())
+                .find_map(|parameter| {
+                    self.checked_call_parent_path(parent, parameter.param, 0)
+                        .filter(|(model, _)| *model == parent_model)
+                        .map(|(_, depth)| (parameter.param, depth))
+                })
+            else {
+                continue;
+            };
+            if depth > 2
+                || !query.matches_source(
+                    self.nodes.get(&value)?,
+                    &self.db.get(value.file)?.text,
+                    expression,
+                )
+                || query.projection.is_some()
+                || !self.source_require_plain_value(&query.result, 0)
+            {
+                continue;
+            }
+            let mut clauses = query.clauses.iter();
+            let Some(alias) = clauses.next() else {
+                continue;
+            };
+            if !matches!(alias.kind, CheckedQueryClauseKind::As { .. })
+                || !alias.expressions.is_empty()
+            {
+                continue;
+            }
+            let mut predicate = None;
+            let mut order = Vec::new();
+            let mut selected = None;
+            let mut valid = true;
+            for clause in clauses {
+                let [expression] = clause.expressions.as_slice() else {
+                    valid = false;
+                    break;
+                };
+                match clause.kind {
+                    CheckedQueryClauseKind::Where
+                        if predicate.is_none() && order.is_empty() && selected.is_none() =>
+                    {
+                        if self.types.node_types.get(expression)
+                            != Some(&ResolvedType::Scalar(Scalar::Bool))
+                        {
+                            valid = false;
+                            break;
+                        }
+                        predicate = Some(*expression);
+                    }
+                    CheckedQueryClauseKind::Order if order.is_empty() && selected.is_none() => {
+                        let Some(field) = self.query_member(*expression, alias.node, *model) else {
+                            valid = false;
+                            break;
+                        };
+                        let symbol = self.resolve.symbols.get(field.0 as usize)?;
+                        if !self
+                            .types
+                            .symbol_types
+                            .get(&field)
+                            .is_some_and(primitive_type)
+                        {
+                            valid = false;
+                            break;
+                        }
+                        order.push(DisclosureQueryOrder {
+                            field: Some(field),
+                            field_name: symbol.name.clone(),
+                            descending: false,
+                            node: *expression,
+                        });
+                    }
+                    CheckedQueryClauseKind::Select if selected.is_none() => {
+                        selected = Some(*expression)
+                    }
+                    _ => {
+                        valid = false;
+                        break;
+                    }
+                }
+            }
+            let Some(selected) = selected.filter(|_| valid) else {
+                continue;
+            };
+            if !matches!(&query.result,ResolvedType::Array{element,ordered:true,nonempty:false}
+                if self.types.node_types.get(&selected)==Some(element.as_ref()))
+            {
+                continue;
+            }
+            let source = self.source(scenario.module, value).ok()?;
+            let id = self.opaque("value-query", value, "").ok()?;
+            let mut dependencies = Vec::new();
+            for (root, role) in predicate
+                .into_iter()
+                .map(|node| (node, DependencyRole::Control))
+                .chain(
+                    order
+                        .iter()
+                        .map(|order| (order.node, DependencyRole::Control)),
+                )
+                .chain(std::iter::once((selected, DependencyRole::Data)))
+            {
+                let mut pending = vec![root];
+                let mut visits = 0;
+                while let Some(node) = pending.pop() {
+                    visits += 1;
+                    if visits > 16384 {
+                        return None;
+                    }
+                    let actual = self.nodes.get(&node)?;
+                    if actual.kind == SyntaxKind::Member
+                        && let Some((receiver, _)) = self.count_member(node)
+                        && matches!(self.query_binding(receiver),Some(Binding::QueryAlias{node})if *node==alias.node)
+                    {
+                        let Some(field) = self.query_member(node, alias.node, *model) else {
+                            valid = false;
+                            break;
+                        };
+                        let ty = self.types.symbol_types.get(&field)?;
+                        if !primitive_type(ty)
+                            && !matches!(ty,ResolvedType::Enum{cases,..}if !cases.is_empty())
+                        {
+                            valid = false;
+                            break;
+                        }
+                        let dependency =
+                            self.query_dependency(node, scenario.module, *model, field, role, &id)?;
+                        if !dependencies
+                            .iter()
+                            .any(|prior: &DisclosureDependency| prior.id == dependency.id)
+                        {
+                            dependencies.push(dependency);
+                        }
+                        continue;
+                    }
+                    if role == DependencyRole::Control
+                        && actual.kind == SyntaxKind::Member
+                        && self.count_member(node).is_some_and(|(receiver, _)| {
+                            matches!(
+                                self.types.node_types.get(&receiver),
+                                Some(ResolvedType::Record { stored: true, .. })
+                            )
+                        })
+                    {
+                        valid = false;
+                        break;
+                    }
+                    if actual.kind == SyntaxKind::Call {
+                        let Some(call) = self.types.selected_calls.get(&node) else {
+                            valid = false;
+                            break;
+                        };
+                        let SelectedCallTarget::Builtin { id, .. } = &call.target else {
+                            valid = false;
+                            break;
+                        };
+                        if self.catalog?.effects(id) != Some(Effects::Pure) {
+                            valid = false;
+                            break;
+                        }
+                    }
+                    pending.extend(
+                        actual
+                            .children
+                            .iter()
+                            // Object fields and call arguments own expression children;
+                            // skipping their wrappers loses selected DATA occurrences.
+                            .filter(|child| {
+                                expression(child.kind)
+                                    || matches!(
+                                        child.kind,
+                                        SyntaxKind::ObjectEntry | SyntaxKind::Argument
+                                    )
+                            })
+                            .map(NodeKey::of),
+                    );
+                }
+                if !valid {
+                    break;
+                }
+            }
+            if !valid || dependencies.len() > 200 {
+                continue;
+            }
+            let influences = [
+                InfluenceKind::QueryExistence,
+                InfluenceKind::QueryCardinality,
+                InfluenceKind::QueryMembership,
+                InfluenceKind::QueryOrder,
+            ]
+            .into_iter()
+            .map(|kind| {
+                Some(DisclosureInfluence {
+                    id: self
+                        .opaque("query-influence", value, &format!("{id}:{kind:?}"))
+                        .ok()?,
+                    source: source.clone(),
+                    node: value,
+                    kind,
+                    query_id: Some(id.clone()),
+                })
+            })
+            .collect::<Option<Vec<_>>>()?;
+            output.push(CheckedQueryValueSource {
+                statement: statement.node,
+                binding: statement.binding.clone()?,
+                value,
+                ty: query.result.clone(),
+                alias: alias.node,
+                selected,
+                parameter,
+                parent,
+                parent_model,
+                parent_depth: depth,
+                query: DisclosureQuery {
+                    id,
+                    source,
+                    node: value,
+                    domain: query.domain,
+                    model: *model,
+                    model_name: model_symbol.canonical.clone(),
+                    alias: Some(alias.node),
+                    predicate,
+                    inputs: vec![(parent, parameter)],
+                    dependencies,
+                    order,
+                    limit: None,
+                    archived: false,
+                    cardinality_guard: None,
+                    return_node: scenario.effects.last()?.node,
+                    projection: None,
+                    first: None,
+                    count: None,
+                    influences,
+                },
+            });
+            if output.len() > 200 {
+                return None;
+            }
+        }
+        Some(output)
+    }
+
+    fn native_query_value(
+        &mut self,
+        key: NodeKey,
+        module: ModuleId,
+        env: &Env,
+        calls: &[NodeKey],
+    ) -> Option<Result<Vec<ValuePath>, DisclosureDecline>> {
+        if !calls.is_empty()
+            || self.authorization
+            || self.statement_depth != 1
+            || self.loop_node.is_some()
+        {
+            return None;
+        }
+        let fact = self
+            .effects
+            .scenarios
+            .values()
+            .filter(|scenario| {
+                scenario.module == module
+                    && scenario.node.file == key.file
+                    && scenario.node.start <= key.start
+                    && key.end <= scenario.node.end
+            })
+            .find_map(|scenario| {
+                self.checked_query_value_sources(scenario)?
+                    .into_iter()
+                    .find(|value| value.value == key)
+            })?;
+        Some((|| {
+            let mut local = env.clone();
+            local.insert(
+                Local::Query(fact.alias),
+                ValuePath {
+                    record: Some(fact.query.model),
+                    ..ValuePath::default()
+                },
+            );
+            let mut parent = self.expr(fact.parent, module, env, calls)?;
+            if parent.len() != 1 || parent[0].record != Some(fact.parent_model) {
+                return Err(self.fail(key, "Values query lost its original admitted parent"));
+            }
+            let mut selected = self.expr(fact.selected, module, &local, calls)?;
+            if selected.len() != 1 {
+                return Err(self.fail(
+                    key,
+                    "native Values projection needs one total pure expression path",
+                ));
+            }
+            for value in &mut selected {
+                for dependency in &mut value.reads {
+                    if self.count_member(dependency.node).is_some_and(|(receiver,_)|
+                        matches!(self.query_binding(receiver),Some(Binding::QueryAlias{node})if *node==fact.alias)) {
+                        if !fact.query.dependencies.iter().any(|original|original.node==dependency.node
+                            &&original.role==DependencyRole::Data&&original.field==dependency.field&&original.ty==dependency.ty)
+                        {return Err(self.fail(key,"Values query DATA differs from its original selected field"));}
+                        dependency.query_id=Some(fact.query.id.clone());
+                    }
+                }
+                value.record = None;
+                value.reference = None;
+                value.reference_origin = None;
+                value.model_result = None;
+                value.members = None;
+                value.schema = None;
+                value.source_values.push(fact.statement);
+                value.decisions.push(DisclosureDecision {
+                    node: fact.value,
+                    calls: Vec::new(),
+                    choice: DisclosureChoice::Then,
+                });
+                value.influences.extend(fact.query.influences.clone());
+                value.contract_value = None;
+            }
+            let mut empty = ValuePath {
+                source_values: vec![fact.statement],
+                influences: fact.query.influences.clone(),
+                decisions: vec![DisclosureDecision {
+                    node: fact.value,
+                    calls: Vec::new(),
+                    choice: DisclosureChoice::Else,
+                }],
+                ..ValuePath::default()
+            };
+            empty.record = None;
+            selected.push(empty);
+            parent[0].record = None;
+            parent[0].reference = None;
+            parent[0].reference_origin = None;
+            self.product(key, &parent, &selected)
+        })())
+    }
+
     fn constructor_value_order_query(
         &mut self,
         key: NodeKey,
@@ -20655,6 +21125,9 @@ impl<'a> Closure<'a> {
                 self.expr(predicate, module, env, calls)
             }
             SyntaxKind::Query => {
+                if let Some(values) = self.native_query_value(key, module, env, calls) {
+                    return values;
+                }
                 if let Some(value) = self.constructor_value_order_query(key, module, env, calls) {
                     Ok(value)
                 } else {
@@ -20717,6 +21190,13 @@ impl<'a> Closure<'a> {
         }
         match binding {
             Some(Binding::Symbol(id)) => self.expr_symbol_binding(key, module, env, calls, ty, *id),
+            Some(Binding::QueryAlias { node }) => env
+                .get(&Local::Query(*node))
+                .cloned()
+                .map(|value| vec![value])
+                .ok_or_else(|| {
+                    self.fail(key, "query alias needs its exact initial Values producer")
+                }),
             Some(Binding::ForItem { node }) => env
                 .get(&Local::For(*node))
                 .cloned()
@@ -21429,6 +21909,26 @@ impl<'a> Closure<'a> {
         ty: &ResolvedType,
         value: &mut ValuePath,
     ) -> Result<bool, DisclosureDecline> {
+        // Computed Values retain their whole observed provenance. A member
+        // projects that value; it never opens a stored Contract/Model read.
+        if !value.source_values.is_empty()
+            && value.record.is_none()
+            && value.reference.is_none()
+            && value.reference_origin.is_none()
+            && value.model_result.is_none()
+            && value.contract_value.is_none()
+            && self.types.node_types.get(&base_key).is_some_and(|base| {
+                self.computed_plain_value(base)
+                    && matches!(base, ResolvedType::Record {symbol,..}
+                    if self.is_contract_symbol(*symbol)
+                    && self.contract_member(*symbol,field_name,ty).is_some())
+            })
+            && self.computed_plain_value(ty)
+        {
+            value.members = None;
+            value.schema = None;
+            return Ok(true);
+        }
         if let Some(origin) = value.contract_value {
             let ContractValue::Singular(contract) = origin else {
                 return Err(self.fail(key, "canonical wire is not a record receiver"));
@@ -26763,6 +27263,40 @@ impl<'a> Closure<'a> {
                 helper_reference_reads,
             ),
             SelectedCallTarget::Builtin { id, .. } => {
+                if calls.is_empty()
+                    && self.loop_node.is_none()
+                    && matches!(id.as_str(), "at" | "count")
+                    && self.catalog.and_then(|catalog| catalog.effects(id)) == Some(Effects::Pure)
+                    && self
+                        .types
+                        .node_types
+                        .get(&key)
+                        .is_some_and(|ty| self.computed_plain_value(ty))
+                    && selected.arguments.iter().all(|argument| {
+                        self.types
+                            .node_types
+                            .get(argument)
+                            .is_some_and(|ty| self.computed_plain_value(ty))
+                    })
+                    && argument_paths.iter().all(|(value, _)| {
+                        !value.source_values.is_empty()
+                            && value.record.is_none()
+                            && value.reference.is_none()
+                            && value.reference_origin.is_none()
+                            && value.model_result.is_none()
+                            && value.contract_value.is_none()
+                    })
+                {
+                    return Ok(argument_paths
+                        .into_iter()
+                        .map(|(mut value, _)| {
+                            value.members = None;
+                            value.schema = None;
+                            value
+                        })
+                        .collect());
+                }
+
                 if id == "first"
                     && selected.slots.as_slice() == [Some(0)]
                     && selected.arguments.len() == 1
@@ -31048,8 +31582,47 @@ impl<'a> Closure<'a> {
                     }),
                     _ => false,
                 });
+        let computed_values = calls.is_empty()
+            && self.loop_node.is_none()
+            && matches!(
+                ty,
+                ResolvedType::Array {
+                    ordered: true,
+                    nonempty: false,
+                    ..
+                }
+            )
+            && self.computed_plain_value(ty)
+            && self.types.node_types.get(&key).is_some_and(|actual| {
+                matches!(
+                    actual,
+                    ResolvedType::Array {
+                        ordered: true,
+                        nonempty: false,
+                        ..
+                    }
+                ) && self.computed_plain_value(actual)
+                    && checked_stored_contract_type_id(actual, None, self.resolve, 0).is_some_and(
+                        |schema| {
+                            checked_stored_contract_type_id(ty, None, self.resolve, 0)
+                                == Some(schema)
+                        },
+                    )
+            })
+            && matches!(self.query_binding(key), Some(Binding::Let { node })
+                if self.effects.scenarios.values().any(|scenario|
+                    scenario.module == module
+                    && self.checked_query_value_sources(scenario).is_some_and(|values|
+                        values.iter().any(|value|value.statement==*node&&self.types.node_types.get(&key)==Some(&value.ty)))))
+            && self.effects.models.get(&model).is_some_and(|owner| {
+                owner
+                    .fields
+                    .iter()
+                    .any(|declaration| declaration.field == field_id)
+            });
         if source_reference_array
             || admitted_answers
+            || computed_values
             || arg
                 .value
                 .is_some_and(|value| self.set_plain_contract_constructor(value, ty, calls))
@@ -33029,6 +33602,7 @@ impl<'a> Closure<'a> {
             dependencies: merged.reads,
             intrinsics: merged.intrinsics,
             influences: merged.influences,
+            source_values: merged.source_values,
             model_result: value.model_result,
         })
     }

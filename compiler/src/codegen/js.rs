@@ -2986,6 +2986,42 @@ fn emit_program_with_sources(
                 }) {
                     emitter.constructor_counts.insert(item.id, counts);
                 }
+                if let Some(facts) = ir
+                    .scenario_disclosures
+                    .get(&item.id)
+                    .and_then(|value| value.source_facts())
+                    && facts
+                        .query_values
+                        .as_deref()
+                        .is_some_and(|values| !values.is_empty())
+                {
+                    emitter.native_query_sources.insert(
+                        item.id,
+                        NativeQuerySource {
+                            owner: item.canonical.clone(),
+                            queries: facts.queries.clone().unwrap_or_default(),
+                            transcripts: Vec::new(),
+                            inline_selections: Vec::new(),
+                            return_id: recipe
+                                .plan
+                                .returns
+                                .first()
+                                .expect("native return")
+                                .id
+                                .clone(),
+                            plan: serde_json::to_value(&recipe.plan).expect("native Values plan"),
+                        },
+                    );
+                    if let Some(values) = decisions.source_context.and_then(|context| {
+                        super::source_let_data::collect_native_query_values(
+                            context,
+                            item,
+                            &module_path(&entry_name),
+                        )
+                    }) {
+                        emitter.source_query_values.extend(values);
+                    }
+                }
                 emitter.native_receipts.insert(item.id, recipe);
             } else if ir
                 .scenario_disclosures
@@ -3689,7 +3725,7 @@ fn emit_program_with_sources(
         );
     }
     if !emitter.source_query_values.is_empty() {
-        body.push(entry_span,Some("canScenarioQueryValueSource".into()),"const $can$query$value=new WeakMap();function $can$query$value$issue(source,context,body){$can$query$value.set(body,{source,context});return body;}export function canScenarioQueryValueSource(body){const issued=$can$query$value.get(body);return issued===undefined?null:{source:JSON.parse(issued.source),context:issued.context};}");
+        body.push(entry_span,Some("canScenarioQueryValueSource".into()),"const $can$query$value=new WeakMap();function $can$query$value$issue(source,context,body,captures){$can$query$value.set(body,captures===undefined?{source,context}:{source,context,captures});return body;}export function canScenarioQueryValueSource(body){const issued=$can$query$value.get(body);return issued===undefined?null:{source:JSON.parse(issued.source),context:issued.context,...(issued.captures===undefined?{}:{captures:issued.captures})};}");
         let mut inventory: BTreeMap<String, Vec<serde_json::Value>> = BTreeMap::new();
         for source in emitter.source_query_values.values() {
             inventory
@@ -3823,7 +3859,15 @@ fn emit_program_with_sources(
                     read.role == super::scenario_receipts::ReceiptRole::Data
                         && read.query_id.is_none()
                 });
-        if recipe.plan.retained_guarded_handler.is_some() || private_data_source {
+        if recipe.plan.retained_guarded_handler.is_some()
+            || private_data_source
+            || ir
+                .scenario_disclosures
+                .get(id)
+                .and_then(|value| value.source_facts())
+                .and_then(|facts| facts.query_values.as_deref())
+                .is_some_and(|values| !values.is_empty())
+        {
             source_plans.insert(
                 item.canonical.clone(),
                 serde_json::to_value(&recipe.plan).expect("private source frame"),
@@ -9276,6 +9320,49 @@ impl<'a> Emitter<'a> {
                     .cloned()
             })
         {
+            if dependency.role == crate::analysis::scenario_disclosure::DependencyRole::Data
+                && let Some(ordinary) = self
+                    .receipt_capture
+                    .as_ref()
+                    .and_then(|recipe| recipe.dependencies.get(&self.receipt_site(span)))
+                    .and_then(|reads| {
+                        reads.iter().find(|read| {
+                            read.model == dependency.model_name
+                                && read.field == dependency.field_name
+                        })
+                    })
+                    .cloned()
+                && self.query_capture.as_ref().is_some_and(|capture| {
+                    capture.queries.iter().any(|query| {
+                        query.dependencies.contains(&dependency)
+                            && self.source_query_values.values().any(|site| {
+                                site["receiptQueryId"] == query.id
+                                    && site["receiptDependencies"].as_array().is_some_and(|pairs| {
+                                        pairs.iter().any(|pair| {
+                                            pair["ordinaryDependencyId"] == ordinary.id
+                                                && pair["queryDependencyId"] == dependency.id
+                                        })
+                                    })
+                            })
+                    })
+                })
+            {
+                self.stdlib
+                    .insert("observeScenarioReceiptQueryValueDependency".into());
+                let receiver = self.lower_expr(base);
+                let value = if expr.ty.nullable_inner().is_some() {
+                    format!("($queryRow[{}]??null)", js_string(field))
+                } else {
+                    format!("$queryRow[{}]", js_string(field))
+                };
+                return format!(
+                    "(await (async($queryRow)=>{{const $queryValue={value};await observeScenarioReceiptQueryValueDependency(c,{},$queryRow,{},{},{});return $queryValue;}})({receiver}))",
+                    js_string(&dependency.model_name),
+                    js_string(field),
+                    js_string(&ordinary.id),
+                    js_string(&dependency.id)
+                );
+            }
             self.stdlib
                 .insert("observeScenarioReceiptQueryDependency".into());
             let receiver = self.lower_expr(base);
@@ -13316,6 +13403,53 @@ impl<'a> Emitter<'a> {
             return self.throw_expr("unavailable provisional viewer query");
         }
         if let Some(capture) = self.query_capture.clone() {
+            if let Some(value) = self
+                .ir
+                .items
+                .iter()
+                .find(|owner| owner.canonical == capture.owner)
+                .and_then(|owner| self.ir.scenario_disclosures.get(&owner.id))
+                .and_then(|proof| proof.source_facts())
+                .and_then(|facts| facts.query_values.as_deref())
+                .and_then(|values| {
+                    values.iter().find(|value| {
+                        value.value.file == span.file
+                            && value.value.start == span.start
+                            && value.value.end == span.end
+                    })
+                })
+                .cloned()
+            {
+                let (Some(parent), Some(selected), Some(parameter)) = (
+                    query.parent.as_ref(),
+                    query.select.as_ref(),
+                    query.select_param.as_ref(),
+                ) else {
+                    self.unsupported(
+                        "native Values query",
+                        "original parent and selected expression are required",
+                        span,
+                    );
+                    return self.throw_expr("missing native Values query source");
+                };
+                let parent = self.lower_expr(parent);
+                self.enter_scope();
+                let row = self.bind(parameter);
+                let predicate = query
+                    .where_pred
+                    .as_ref()
+                    .map(|value| self.lower_expr(value))
+                    .unwrap_or_else(|| "true".into());
+                let selected = self.lower_expr(selected);
+                self.exit_scope();
+                self.stdlib.insert("executeScenarioReceiptQuery".into());
+                self.stdlib
+                    .insert("executeScenarioReceiptQueryValueRow".into());
+                return format!(
+                    "(await (async()=>{{await ({parent});const $selected=await executeScenarioReceiptQuery(c,{},async({row})=>({predicate}));const $values=[];for(const {row} of $selected){{$values.push(await executeScenarioReceiptQueryValueRow(c,{row},async()=>({selected})));}}return $values;}})())",
+                    js_string(&value.query.id)
+                );
+            }
             if let Some(selected) = self.lower_transcript_selection(query, &capture, span) {
                 return selected;
             }
@@ -14062,10 +14196,36 @@ impl<'a> Emitter<'a> {
                     self.source_query_row_context = self.source_query_rows.get(span).cloned();
                     let expression = self.lower_expr(value);
                     self.source_query_row_context = previous_rows;
+                    let captures = source["captures"]
+                        .as_array()
+                        .map(|captures| {
+                            format!(
+                                ",Object.freeze({{{}}})",
+                                captures
+                                    .iter()
+                                    .map(|capture| {
+                                        let name =
+                                            capture["binding"].as_str().expect("original capture");
+                                        format!("{}:{}", object_key(name), self.reference(name))
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join(",")
+                            )
+                        })
+                        .unwrap_or_default();
                     let binding = self.bind(name);
+                    let choice = if source.get("receiptQueryId").is_some() {
+                        format!(
+                            "if({binding}.length===0){{{}}}else{{{}}}",
+                            self.receipt_choice(value.span, "else"),
+                            self.receipt_choice(value.span, "then")
+                        )
+                    } else {
+                        String::new()
+                    };
                     return vec![(
                         format!(
-                            "{pad}const {binding}=await nativeScenarioSourceQueryValue(c,$can$query$value$issue({},c,async()=>({expression})));",
+                            "{pad}const {binding}=await nativeScenarioSourceQueryValue(c,$can$query$value$issue({},c,async()=>({expression}){captures}));{choice}",
                             descriptor_json(&descriptor_json(&source))
                         ),
                         *span,

@@ -1000,6 +1000,184 @@ pub(super) fn collect_query_values(
     Some(output)
 }
 
+/// Full native receipts retain their query slots. This inventory completes only
+/// the original initial LET, then deterministic Values-only lexical successors.
+pub(super) fn collect_native_query_values(
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+    module: &str,
+) -> Option<HashMap<Span, serde_json::Value>> {
+    fn names(value: &TypedExpr, output: &mut BTreeSet<String>, depth: usize) -> Option<()> {
+        if depth > 64 {
+            return None;
+        }
+        let mut child = |value: &TypedExpr| names(value, output, depth + 1);
+        match &value.expr {
+            IrExpr::Name(name) => {
+                output.insert(name.clone());
+            }
+            IrExpr::Member { base, .. } | IrExpr::Unary { operand: base, .. } => child(base)?,
+            IrExpr::Binary { left, right, .. } => {
+                child(left)?;
+                child(right)?;
+            }
+            IrExpr::Array(values)
+            | IrExpr::Call { args: values, .. }
+            | IrExpr::BoundCall { args: values, .. } => {
+                for value in values {
+                    child(value)?;
+                }
+            }
+            IrExpr::Object(fields) => {
+                for (_, value) in fields {
+                    child(value)?;
+                }
+            }
+            IrExpr::Query(_) => return None,
+            _ => {}
+        }
+        Some(())
+    }
+
+    let ir = context.ir();
+    context.same_scenario(ir, owner)?;
+
+    let facts = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
+    let originals = context
+        .original()
+        .scenario_disclosures()
+        .get(&owner.id)?
+        .source_facts()?;
+    if facts.query_values != originals.query_values {
+        return None;
+    }
+
+    let query_values = facts.query_values.as_deref()?;
+    if query_values.is_empty() {
+        return None;
+    }
+    let IrItemKind::Scenario {
+        params,
+        effects,
+        result: None,
+        read: false,
+        trusted: false,
+        hook: None,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let source = serde_json::to_value(super::scenario_receipts::transport_source(
+        &facts.source,
+        module,
+    )?)
+    .ok()?;
+    let mut values=params.iter().filter_map(|id|ir.items.get(id.0 as usize))
+        .filter(|item|matches!(&item.kind,IrItemKind::Param{ty:IrType::Known(ty),..}if capture_plain_value(ir,ty,0)))
+        .map(|item|item.name.clone()).collect::<BTreeSet<_>>();
+    let mut prior = std::collections::BTreeMap::<String, serde_json::Value>::new();
+
+    let mut output = HashMap::new();
+    for statement in effects {
+        if matches!(statement, IrStmt::Require { .. }) {
+            continue;
+        }
+        let IrStmt::Let { name, value, span } = statement else {
+            break;
+        };
+        if !capture_plain_value(ir, &value.ty, 0) {
+            continue;
+        }
+        let type_id = super::scenario_decisions::serial_type(&value.ty, context.original(), ir, 0)?;
+        let mut descriptor = serde_json::json!({"source":source,"owner":owner.canonical,"node":{"start":span.start,"end":span.end},
+            "value":{"start":value.span.start,"end":value.span.end},"binding":name,"typeId":type_id,"stage":0,"queries":[]});
+        if let Some(query) = query_values.iter().find(|query| {
+            query.statement.file == span.file
+                && query.statement.start == span.start
+                && query.statement.end == span.end
+        }) {
+            descriptor["receiptQueryId"] = serde_json::json!(query.query.id);
+            let crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(checked) =
+                ir.scenario_disclosures.get(&owner.id)?
+            else {
+                return None;
+            };
+            let mut pairs = Vec::new();
+            let mut ordinary_ids = BTreeSet::new();
+            for dependency in query.query.dependencies.iter().filter(|dependency| {
+                dependency.role == crate::analysis::scenario_disclosure::DependencyRole::Data
+            }) {
+                let mut matches = checked
+                    .returns
+                    .iter()
+                    .filter(|returned| returned.source_values.contains(&query.statement))
+                    .flat_map(|returned| &returned.dependencies)
+                    .filter(|ordinary| {
+                        ordinary.query_id.as_deref() == Some(query.query.id.as_str())
+                            && ordinary.node == dependency.node
+                            && ordinary.calls == dependency.calls
+                            && ordinary.source == dependency.source
+                            && ordinary.model == dependency.model
+                            && ordinary.field == dependency.field
+                            && ordinary.ty == dependency.ty
+                            && ordinary.type_id == dependency.type_id
+                            && ordinary.role == dependency.role
+                    })
+                    .map(|ordinary| ordinary.id.clone())
+                    .collect::<BTreeSet<_>>();
+                if matches.len() != 1 {
+                    return None;
+                }
+                let ordinary = matches.pop_first()?;
+                if ordinary == dependency.id || !ordinary_ids.insert(ordinary.clone()) {
+                    return None;
+                }
+                pairs.push(serde_json::json!({"ordinaryDependencyId":ordinary,"queryDependencyId":dependency.id}));
+            }
+            descriptor["receiptDependencies"] = serde_json::json!(pairs);
+            let cases = |choice| {
+                checked
+                    .returns
+                    .iter()
+                    .filter(|returned| {
+                        returned.decisions.iter().any(|decision| {
+                            decision.node == query.value
+                                && decision.calls.is_empty()
+                                && decision.choice == choice
+                        })
+                    })
+                    .map(|returned| returned.id.clone())
+                    .collect::<Vec<_>>()
+            };
+            descriptor["receiptCases"] = serde_json::json!({"empty":cases(crate::analysis::scenario_disclosure::DisclosureChoice::Else),"nonempty":cases(crate::analysis::scenario_disclosure::DisclosureChoice::Then)});
+            descriptor["queries"] = serde_json::json!([{"node":{"start":query.value.start,"end":query.value.end},"model":query.query.model_name}]);
+        } else {
+            if !super::source_send_data::send_value(ir, value, &values, 0) {
+                continue;
+            }
+            let mut used = BTreeSet::new();
+            names(value, &mut used, 0)?;
+            let captures = used
+                .iter()
+                .filter_map(|name| prior.get(name).cloned())
+                .collect::<Vec<_>>();
+            if captures.is_empty() {
+                continue;
+            }
+            descriptor["captures"] = serde_json::json!(captures);
+        }
+        values.insert(name.clone());
+        prior.insert(name.clone(),serde_json::json!({"node":{"start":span.start,"end":span.end},"binding":name,"typeId":type_id}));
+        output.insert(*span, descriptor);
+        if output.len() > 200 {
+            return None;
+        }
+    }
+
+    Some(output)
+}
+
 /// A direct plain field projection is the first State-owned Values query.
 /// More complex clauses keep their existing independently checked reader.
 pub(super) fn collect_query_rows(
@@ -1019,6 +1197,10 @@ pub(super) fn collect_query_rows(
         let Some(site) = values.get(span) else {
             continue;
         };
+        // Complete receipt queries retain native slots and DATA obligations.
+        if site.get("receiptQueryId").is_some() {
+            continue;
+        }
         let IrExpr::Query(query) = &value.expr else {
             continue;
         };

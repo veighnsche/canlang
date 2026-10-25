@@ -70,7 +70,7 @@ import { nativeReadSubjectRole } from './native-membership.js';
 
 // Private generated markers resolve only framework-bound scenario lifetimes.
 export { observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, selectScenarioReceiptReturn, invokeScenarioReceiptCall,
-  evaluateScenarioReceiptPurchaseAll, executeScenarioReceiptQuery, executeScenarioReceiptAny, readScenarioReceiptQueryParent, readScenarioReceiptStoredReference, readScenarioReceiptNullableStoredReference, firstQuery, countQuery, observeScenarioReceiptQueryDependency, bindScenarioReceiptQueryResult, bindScenarioReceiptQuerySelection, bindScenarioReceiptModelResult } from './scenario-receipt-frame.js';
+  evaluateScenarioReceiptPurchaseAll, executeScenarioReceiptQuery, executeScenarioReceiptQueryValueRow, executeScenarioReceiptAny, readScenarioReceiptQueryParent, readScenarioReceiptStoredReference, readScenarioReceiptNullableStoredReference, firstQuery, countQuery, observeScenarioReceiptQueryDependency, observeScenarioReceiptQueryValueDependency, bindScenarioReceiptQueryResult, bindScenarioReceiptQuerySelection, bindScenarioReceiptModelResult } from './scenario-receipt-frame.js';
 
 // Generated pure helpers retain their Values producer identity.
 export {
