@@ -39,7 +39,7 @@ import { StateError } from '../errors.js';
 import { observeRowGrantAuthority } from '../policy/membership-facts.js';
 import { evaluateInstalledReadPolicy } from '../receipt/read-policy-membership.js';
 import { stageOwnerMutationSources, retainOwnerMutationBusinessWrites, type OwnerMutationFinalChange, type OwnerMutationSourceStager } from './source-finalization.js';
-import { bindOwnerPolicyReadObserver, assertCheckedOwnerModelPolicies, type CheckedOwnerModelPolicies, type OwnerModelChange, type OwnerModelReadView, type OwnerModelPolicyViews } from './model-policies.js';
+import { bindOwnerCandidateReadObserver, bindOwnerPolicyReadObserver, assertCheckedOwnerModelPolicies, type CheckedOwnerModelPolicies, type OwnerModelChange, type OwnerModelReadView, type OwnerModelPolicyViews } from './model-policies.js';
 import { openTransitiveScope, type FenceScope } from '../invocation/admission.js';
 import {
   STAGING_MAX_ID_LENGTH,
@@ -897,9 +897,12 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         catch (error) { retainFailure(error); throw error; }
       },
     });
+    bindPolicyObserver(candidateViews);
+    const closeObservation = bindOwnerCandidateReadObserver(candidateViews, deepFreeze(structuredClone(candidate)));
     let verdict: unknown;
     try { verdict = await options.admitCandidate(deepFreeze(structuredClone(candidate)), candidateViews); }
     catch (error) { throw failed ? firstFailure : error; }
+    finally { closeObservation(); }
     if (failed) throw firstFailure;
     healthy();
     if (typeof verdict !== 'boolean') throw new StateError('validation', 'CRUD candidate admission must return bool.');

@@ -3580,6 +3580,9 @@ const nativeSourceBodyLoops=new WeakMap<GeneratedOperationDef,{readonly plan:Sou
 type SourceSendDataSource=import('@canlang/state/invocation').ScenarioSourceSendDataSource;
 const nativeSourceSendData=new WeakMap<GeneratedOperationDef,{readonly sources:readonly SourceSendDataSource[];readonly original:(body:Function)=>unknown}>();
 const sourceRequireFrames = new WeakMap<GeneratedOperationDef, ScenarioReceiptRequireSource['source']>();
+// A verified original guarded owner without a complete execution profile
+// remains installed for inventory, but cannot enter its callback or stage effects.
+const unsupportedGuardedOwners = new WeakSet<GeneratedOperationDef>();
 // Only the verified static occurrence installs these explicit stored File slots.
 const nativeScenarioStoredFileSlots = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, {
   readonly target: GeneratedOperationDef;
@@ -6303,13 +6306,13 @@ async function loadCheckedCallbackReadGrants(asm: AssembledModules, artifact: Co
 
 /** Source-Require identities come from the independently sealed compiler
  * inventory, including guards that never call active_member. */
-async function loadCheckedRequireSources(asm: AssembledModules, artifact: CompileArtifact):
+async function loadCheckedRequireSources(asm: AssembledModules, artifact: CompileArtifact, unsupported = false):
   Promise<ReadonlyMap<string, readonly ScenarioReceiptRequireSource[]>> {
   const inventory = new Map<string, readonly ScenarioReceiptRequireSource[]>();
   for (const module of Object.keys(asm.moduleUrls)) {
     const imported = await importVerifiedAssemblyModule(asm, module, artifact);
     const exported = isUnknownRecord(imported)
-      ? readMetadataMember(imported, 'canScenarioRequireSources', 'Scenario Require source')?.value : undefined;
+      ? readMetadataMember(imported, unsupported ? 'canScenarioUnsupportedRequireSources' : 'canScenarioRequireSources', 'Scenario Require source')?.value : undefined;
     if (exported === undefined) continue;
     if (typeof exported !== 'function') throw new AssemblyCorrespondenceError('Scenario Require inventory needs its original emitted function.');
     const raw = localPolicyObject(await exported());
@@ -6328,7 +6331,7 @@ async function loadCheckedRequireSources(asm: AssembledModules, artifact: Compil
         }
         return source;
       });
-      if (sources.length === 0 || new Set(sources.map(site => stableStringify([site.source, site.node]))).size !== sources.length) {
+      if ((!unsupported && sources.length === 0) || new Set(sources.map(site => stableStringify([site.source, site.node]))).size !== sources.length) {
         throw new AssemblyCorrespondenceError('Scenario Require inventory repeats an original site.');
       }
       const previous = inventory.get(owner);
@@ -6730,6 +6733,18 @@ async function loadCanonicalDescriptorsInternal(
   }
   if (ownerPolicyControl !== undefined) localOwnerPolicyControls.set(canonical, ownerPolicyControl);
   if (crudCandidates.size > 0) nativeCrudCandidateBindings.set(canonical, crudCandidates);
+  // Unsupported original guards are an explicit refusal capability, including
+  // owners whose predicates contain no membership call. Never bind them as frames.
+  for (const [owner, sites] of await loadCheckedRequireSources(asm, artifact, true)) {
+    const def = generatedScenarioDef({ def: canonical.registry.get(owner) });
+    const callable = artifact.callables.find(entry => entry.id === owner && entry.kind === 'operation');
+    if (def === undefined || def.kind !== 'scenario' || callable?.inputStyle !== 'parameters' ||
+        canonical.requireSources.has(owner) || sites.some(site => site.owner !== owner ||
+          !artifact.sources.some(original => original.path === site.source.path && original.sha256 === site.source.sha256))) {
+      throw new AssemblyCorrespondenceError('Unsupported Require owner differs from its original scenario/source inventory.');
+    }
+    unsupportedGuardedOwners.add(def);
+  }
   // Verified source guard inventories can bind an execution frame even when
   // this ordinary public scenario has no saved-result disclosure recipe.
   for (const [owner, sites] of canonical.requireSources) {
@@ -6780,7 +6795,10 @@ async function loadCanonicalDescriptorsInternal(
     // needs the same one-time association before its producer can be bound.
     if (!nativeSourceSendGuards.has(def)) {
       const transport = def.descriptor.result?.disclosure?.source ?? sourceRequireFrames.get(def);
-      if (transport === undefined) throw new AssemblyCorrespondenceError(`Membership owner ${JSON.stringify(owner)} lacks its original checked disclosure source.`);
+      if (transport === undefined) {
+        unsupportedGuardedOwners.add(def);
+        continue;
+      }
       const state = await import('@canlang/state/invocation');
       state.bindScenarioReceiptMembershipSource(def, { logical: ownerSites[0]!.source, transport });
     }
@@ -8537,7 +8555,7 @@ interface LocalOwnerPolicyControl {
   setParentValuePolicies(policy: import('@canlang/state/policy/grants').PolicyTable): void;
   verifyAssembly(asm: AssembledModules, artifact: CompileArtifact): Promise<void>;
   createOwnerFrame(input: { readonly deploymentBase?: string; readonly call: CanonicalSeamCall; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'>; readonly memberships?: CanonicalMembershipReader; readonly emitDeclared?: HookDeclaredEmitter; readonly retainQueuedCreate?: HookCreateRetainer }): { close(): void; readonly guard: CanonicalGuardRevalidation };
-  createFixtureFrame(input: { readonly deploymentBase?: string; readonly context: InvocationContext; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }): { close(): void };
+  createFixtureFrame(input: { readonly memberships?: CanonicalMembershipReader; readonly deploymentBase?: string; readonly context: InvocationContext; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }): { close(): void; readonly guard: CanonicalGuardRevalidation };
 }
 const localOwnerPolicyControls = new WeakMap<LoadedCanonicalDescriptors, LocalOwnerPolicyControl>();
 
@@ -9517,12 +9535,13 @@ async function loadLocalOwnerPolicyControl(input: {
     return openFrame({ context: call.context, session, ...(deploymentBase === undefined ? {} : { deploymentBase }),
       ...(memberships === undefined ? {} : { memberships }), ...(emitDeclared === undefined ? {} : { emitDeclared }),
       ...(retainQueuedCreate === undefined ? {} : { retainQueuedCreate }) });
-  }, createFixtureFrame({ context, session, deploymentBase }: { readonly deploymentBase?: string; context: InvocationContext;
+  }, createFixtureFrame({ context, session, deploymentBase, memberships }: { readonly memberships?: CanonicalMembershipReader; readonly deploymentBase?: string; context: InvocationContext;
     session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }) {
     if (context.kind !== 'test' || session.views.context.kind !== 'test') {
       throw new input.native.producers.errors('validation', 'Fixture model frame requires an isolated test context.');
     }
-    return openFrame({ context, session, ...(deploymentBase === undefined ? {} : { deploymentBase }) });
+    return openFrame({ context, session, ...(deploymentBase === undefined ? {} : { deploymentBase }),
+      ...(memberships === undefined ? {} : { memberships }) });
   } });
 }
 
@@ -9533,6 +9552,7 @@ export async function materializeCanonicalExampleSnapshots(input: {
   readonly artifact: CompileArtifact;
   readonly store: StoragePort;
   readonly identity: ResolvedIdentity;
+  readonly memberships?: CanonicalMembershipReader;
   readonly now: number;
   readonly operationId: string;
   readonly deploymentBase?: string;
@@ -9612,6 +9632,7 @@ export async function materializeCanonicalExampleSnapshots(input: {
     ...(policies === undefined ? {} : { policies: policies.policies }),
     encodeField: (type, value) => encodeCanonicalWireField(StateError, type, value, loaded.valueSchema) });
   const frame = policies?.createFixtureFrame({ context, session,
+    ...(input.memberships === undefined ? {} : { memberships: input.memberships }),
     ...(input.deploymentBase === undefined ? {} : { deploymentBase: input.deploymentBase }) });
   try {
     await session.stage(writes, { cause: 'fixture' });
@@ -9629,6 +9650,9 @@ export async function materializeCanonicalExampleSnapshots(input: {
     if (result.size !== seen.size) throw new StateError('validation', 'Fixture setup did not retain every requested snapshot.');
     await policies?.verifyAssembly(input.asm, input.artifact);
     await verifyCheckedAssembly(input.asm, input.artifact);
+    if (frame !== undefined && await frame.guard.evaluate() !== true) {
+      throw new StateError('conflict', 'Fixture membership changed before commit.');
+    }
     await input.store.commit({ expectedRevision: revision, writes: effects.writes,
       uniqueClaims: effects.uniqueClaims, uniqueReleases: effects.uniqueReleases,
       history: [], receipt: null, outbox: [], schedules: [] });
@@ -9757,15 +9781,19 @@ async function createNativeCrudCandidateFrame(input: {
   const builtins = ['public', ...(actor === null ? [] : ['authenticated']),
     ...(membership?.status !== 'active' ? [] : ['members', ...(membership.is_owner ? ['owner'] : [])])];
   const roleSnapshot = membership?.status === 'active' ? snapshotCallerRoles(roleGrants, membership.is_owner) : null;
-  const context = createContext({ ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }),
+  const createCandidateContext = () => createContext({ ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }),
     caller: Object.freeze({ userId: actor ?? 'anonymous', roles: Object.freeze([...roleGrants]) as unknown as string[] }), store: deniedStore,
     memberships: Object.freeze([...builtins, ...roleGrants]) as unknown as string[],
     clock: () => { assertLive(); return call.context.now; }, qualified: call.context,
     ...(opts.preferences === undefined ? {} : { preferences: opts.preferences }),
     ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }), canonical: scope });
+  const membershipChecks: (() => Promise<void>)[] = [];
   return Object.freeze({ close() { active = false; },
-    guard: Object.freeze({ name: 'crud.candidate.roles', evaluate: async () => actor === null || team === null
-      ? roleSnapshot === null : await readCallerRolesSnapshot(opts.memberships, team, actor) === roleSnapshot }),
+    guard: Object.freeze({ name: 'crud.candidate.roles', evaluate: async () => {
+      for (const check of membershipChecks) await check();
+      return actor === null || team === null ? roleSnapshot === null
+        : await readCallerRolesSnapshot(opts.memberships, team, actor) === roleSnapshot;
+    } }),
     admitCandidate: async (row: StoredRow, stageViews: OwnerModelPolicyViews): Promise<boolean> => {
       try {
         if (currentViews !== undefined || localPolicyContextFacts(stageViews.context) !== localPolicyContextFacts(session.views.context)) {
@@ -9776,7 +9804,35 @@ async function createNativeCrudCandidateFrame(input: {
         await verifyCheckedAssembly(opts.asm, opts.artifact);
         await navigation.prepare(binding.model, row);
         assertLive();
-        const answer: unknown = await binding.evaluate(context, view(binding.model, row));
+        type CandidateRead = import('@canlang/state').InstalledSourceReadPredicate;
+        const rule = `${binding.model}.crudWhen`;
+        const sites = loaded.membershipSources.get(rule);
+        let installed: CandidateRead | undefined;
+        const evaluate = async (observation?: Parameters<CandidateRead>[0]): Promise<boolean> => {
+          const context = createCandidateContext();
+          const membership = installed === undefined || observation === undefined ? undefined
+            : openNativeReadMembershipFrame(context, installed, observation, rule, call.context.team, fail);
+          try {
+            const value: unknown = await binding.evaluate(context, view(binding.model, row));
+            assertLive();
+            if (typeof value !== 'boolean') throw new StateError('validation', 'CRUD candidate precondition must return bool.');
+            membership?.assertCompleted();
+            return value;
+          } finally { membership?.close(); }
+        };
+        let answer: unknown;
+        if (sites === undefined) answer = await evaluate();
+        else {
+          if (sites.length === 0 || sites.some(site => site.stage !== 'read-policy' || site.owner !== rule)) {
+            throw new StateError('validation', 'CRUD candidate membership lacks its original checked predicate.');
+          }
+          installed = observation => evaluate(observation);
+          bindNativeReadMembership(installed, { source: sites[0]!.source, rule, sites });
+          const state = await import('@canlang/state/mutation');
+          const observed = await state.evaluateOwnerCandidateReadPolicy(stageViews, installed, opts.memberships);
+          membershipChecks.push(observed.revalidate);
+          answer = observed.value;
+        }
         assertLive();
         if (typeof answer !== 'boolean') throw new StateError('validation', 'CRUD candidate precondition must return bool.');
         await verifyCheckedAssembly(opts.asm, opts.artifact);
@@ -9974,6 +10030,10 @@ async function runScenarioExecution(
   stageSources?: OwnerMutationSourceStager,
 ): Promise<{ readonly effects: CanonicalExecutionEffects } | { readonly wire: unknown }> {
   const scenarioDef = generatedScenarioDef(call);
+  if (scenarioDef !== undefined && unsupportedGuardedOwners.has(scenarioDef)) {
+    throw new loaded.producers.errors('validation',
+      `Guarded owner ${JSON.stringify(scenarioDef.name)} lacks its original checked execution source.`);
+  }
   const receiptAware = scenarioDef?.descriptor.result?.disclosure !== undefined;
   const sourceRequireAware = scenarioDef !== undefined && sourceRequireFrames.has(scenarioDef);
   const hasExecutionFrame = receiptAware || sourceRequireAware;

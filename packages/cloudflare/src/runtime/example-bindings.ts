@@ -376,6 +376,10 @@ function rowAliasAccount(by: unknown, accounts: RowAccounts, input: ExampleBindi
 
 function rowActorAccount(by: unknown, rowCaller: ResolvedCaller, fixtures: ReadonlyMap<string, unknown>,
   accounts: RowAccounts, input: ExampleBindingInput, actorAccounts: ReadonlyMap<string, string>): string | null {
+  // A table without an `as` cell passes its already selected row account.
+  // Accept only the exact provisioned caller, never a fabricated account id.
+  if (by === rowCaller.account && [accounts.self, accounts.other, accounts.outsider,
+      ...Object.values(accounts.users).map(user => user.account)].includes(rowCaller.account)) return rowCaller.account;
   const alias = rowAliasAccount(by, accounts, input);
   if (alias !== null) return alias;
   if (typeof by === "string" && Object.hasOwn(accounts.users, by)) return accounts.users[by]!.account;
@@ -626,7 +630,7 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
         return { model: binding.model as ModelName, id: binding.id as RecordId, data, ...(parent === undefined ? {} : { parent }) };
       });
       const stored = snapshots.length === 0 ? new Map<string, StoredRow>()
-        : await materializeCanonicalExampleSnapshots({ asm, artifact, store: scope.store, identity,
+        : await materializeCanonicalExampleSnapshots({ asm, artifact, store: scope.store, identity, memberships: scope.identities,
           now: scope.nowMs, operationId: freshOperationId(), snapshots });
       for (const [name, binding] of rowBindings) {
         const row = stored.get(`${binding.model}\0${binding.id}`);
@@ -756,7 +760,7 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
       };
       await prepareSnapshots();
       const identity = await scope.identityFor("self", { account: "self", team: "current", roles: [], authenticated: true }, fixtures);
-      const saved = await materializeCanonicalExampleSnapshots({ asm, artifact, store: scope.store, identity,
+      const saved = await materializeCanonicalExampleSnapshots({ asm, artifact, store: scope.store, identity, memberships: scope.identities,
         now: scope.nowMs, operationId: freshOperationId(), snapshots });
       // Publish only after the complete override batch passes its owning session.
       const publishOverrides = (): void => {

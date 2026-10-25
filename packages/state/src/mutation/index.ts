@@ -61,6 +61,7 @@ export {
   checkOwnerModelPolicyDescriptors,
   assertCheckedOwnerModelPolicies,
   evaluateOwnerRuleReadPolicy,
+  evaluateOwnerCandidateReadPolicy,
   type CheckedOwnerModelPolicies,
   type SourceVerifiedOwnerModelPolicyModule,
   type OwnerModelChange,

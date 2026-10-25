@@ -41,7 +41,7 @@ type OwnerPolicyReadObservation = (input: {
   readonly read: InstalledSourceReadPredicate; readonly memberships: MembershipReader;
 }) => Promise<{ readonly value: boolean; readonly revalidate: () => Promise<void> }>;
 const ownerPolicyReadObservers = new WeakMap<OwnerModelPolicyViews, OwnerPolicyReadObservation>();
-const ownerRuleReads = new WeakMap<OwnerRuleContext, { active: boolean; used: boolean;
+const ownerRuleReads = new WeakMap<object, { active: boolean; used: boolean;
   readonly observe: (read: InstalledSourceReadPredicate, memberships: MembershipReader) => ReturnType<OwnerPolicyReadObservation> }>();
 /** Internal owner pipeline issuer; this installer is absent from public barrels. */
 export function bindOwnerPolicyReadObserver(views: OwnerModelPolicyViews, observe: OwnerPolicyReadObservation): void {
@@ -58,6 +58,26 @@ export async function evaluateOwnerRuleReadPolicy(context: OwnerRuleContext, rea
   owner.used = true;
   const result = await owner.observe(read, memberships);
   if (!owner.active) throw new StateError('validation', 'Owner rule observation outlived its predicate.');
+  return result;
+}
+/** Internal pipeline lease for one actual candidate callback; never publicly issued. */
+export function bindOwnerCandidateReadObserver(views: OwnerModelPolicyViews, row: StoredRow): () => void {
+  const observe = ownerPolicyReadObservers.get(views);
+  if (observe === undefined || ownerRuleReads.has(views)) throw new StateError('validation', 'Original candidate owner view required.');
+  const lifetime = { active: true, used: false,
+    observe: (read: InstalledSourceReadPredicate, memberships: MembershipReader) =>
+      observe({ context: views.context, row, ownerRows: views.final, read, memberships }) };
+  ownerRuleReads.set(views, lifetime);
+  return () => { lifetime.active = false; };
+}
+/** Only the current State-issued candidate view can observe its source predicate. */
+export async function evaluateOwnerCandidateReadPolicy(views: OwnerModelPolicyViews, read: InstalledSourceReadPredicate,
+  memberships: MembershipReader): ReturnType<OwnerPolicyReadObservation> {
+  const owner = ownerRuleReads.get(views);
+  if (owner?.active !== true || owner.used) throw new StateError('validation', 'Original live candidate observation required.');
+  owner.used = true;
+  const result = await owner.observe(read, memberships);
+  if (!owner.active) throw new StateError('validation', 'Candidate observation outlived its predicate.');
   return result;
 }
 interface BindingIdentity {

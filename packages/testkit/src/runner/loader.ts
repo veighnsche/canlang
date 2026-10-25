@@ -625,7 +625,7 @@ async function mapTableRow(
         operation,
         inputs: stashed.inputs,
         ...(stashed.request === undefined ? {} : { request: stashed.request }),
-        by: asIndex >= 0 ? (stashed.cells[asIndex] as unknown) : null,
+        by: asIndex >= 0 ? (stashed.cells[asIndex] as unknown) : rowCaller.account,
         scope,
       });
     },

@@ -23,6 +23,10 @@
       "types": "./dist/worker/entry.d.ts",
       "default": "./dist/worker/entry.js"
     },
+    "./runtime/example-bindings": {
+      "types": "./dist/runtime/example-bindings.d.ts",
+      "default": "./dist/runtime/example-bindings.js"
+    },
     "./runtime/artifact": {
       "types": "./dist/runtime/artifact.d.ts",
       "default": "./dist/runtime/artifact.js"
