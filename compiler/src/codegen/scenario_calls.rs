@@ -363,6 +363,14 @@ pub fn collect_static_scenario_calls(
     db: &SourceDb,
     entry_module: &str,
 ) -> Option<Vec<StaticScenarioCall>> {
+    // The public collector observes published operations. A partial caller
+    // recipe cannot expose its otherwise valid child CALLs as a whole-parent
+    // join; private emitter preparation seals that caller separately below.
+    operations
+        .iter()
+        .find(|operation| operation.name == parent.canonical)?
+        .disclosure
+        .as_ref()?;
     collect_static_scenario_calls_with_feasibility(
         ir,
         parent,
