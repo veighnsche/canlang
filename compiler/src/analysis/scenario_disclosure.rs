@@ -1714,6 +1714,7 @@ pub fn expression_reads_membership(
 /// Assignment correspondence used by the bounded create source proof. Unknown
 /// values never qualify; concrete arrays may carry a stronger nonempty fact.
 fn created_input_type_matches(
+    resolve: &ResolveTables,
     actual: &ResolvedType,
     expected: &ResolvedType,
     depth: usize,
@@ -1724,10 +1725,10 @@ fn created_input_type_matches(
     match (actual, expected) {
         (ResolvedType::Null, ResolvedType::Nullable(_)) => true,
         (ResolvedType::Nullable(actual), ResolvedType::Nullable(expected)) => {
-            created_input_type_matches(actual, expected, depth + 1)
+            created_input_type_matches(resolve, actual, expected, depth + 1)
         }
         (_, ResolvedType::Nullable(expected)) => {
-            created_input_type_matches(actual, expected, depth + 1)
+            created_input_type_matches(resolve, actual, expected, depth + 1)
         }
         (
             ResolvedType::Array {
@@ -1743,7 +1744,23 @@ fn created_input_type_matches(
         ) => {
             actual_order == expected_order
                 && (!nonempty || *actual_nonempty)
-                && created_input_type_matches(actual, expected, depth + 1)
+                && created_input_type_matches(resolve, actual, expected, depth + 1)
+        }
+        (
+            ResolvedType::Record { symbol: actual, .. },
+            ResolvedType::Record {
+                symbol: expected, ..
+            },
+        ) if actual == expected
+            && matches!(
+                resolve
+                    .symbols
+                    .get(actual.0 as usize)
+                    .map(|symbol| &symbol.kind),
+                Some(SymbolKind::Contract { .. })
+            ) =>
+        {
+            true
         }
         (ResolvedType::StdNominal { .. }, ResolvedType::StdNominal { .. }) => {
             checked_standard_nominal_name(actual).is_some()
@@ -6279,7 +6296,9 @@ impl<'a> Closure<'a> {
                     .fields
                     .iter()
                     .find(|data| data.field == field.field)?;
-                if data.server.is_some() || !created_input_type_matches(ty, &field.ty, 0) {
+                if data.server.is_some()
+                    || !created_input_type_matches(self.resolve, ty, &field.ty, 0)
+                {
                     return None;
                 }
                 Some(field.field)
@@ -6922,7 +6941,7 @@ impl<'a> Closure<'a> {
             && modifiers == data.modifiers
             && default.into_iter().chain(server).all(|key| {
                 self.types.node_types.get(&key).is_some_and(|actual| {
-                    created_input_type_matches(actual, ty, 0)
+                    created_input_type_matches(self.resolve, actual, ty, 0)
                         || *actual == ResolvedType::Scalar(Scalar::Int)
                             && *ty == ResolvedType::Scalar(Scalar::Decimal)
                             && self

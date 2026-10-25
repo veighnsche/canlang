@@ -346,6 +346,45 @@ fn populated_contained_create_returns_its_direct_origin_without_public_crud() {
             .all(|returned| returned.influences.is_empty())
     );
     assert!(plan.returns.iter().all(|returned| returned.intrinsics.iter().any(|input| matches!(input.kind, canlang_compiler::analysis::scenario_disclosure::DisclosureIntrinsicKind::AdmittedInput {parameter_name: ref name, ..} if name == "title"))));
+    // Constructed Contracts are local Values (`stored:false`), while their
+    // owning field types retain `stored:true`. Exact Contract identity must
+    // survive this representation difference, including a nonempty array.
+    let contracts = POPULATED
+        .replace(
+            " Other {title:text}",
+            " Other {title:text}\n contract Interval {start:int,end:int}",
+        )
+        .replace("count:int=0}", "count:int=0,intervals:Interval[]!}")
+        .replace(
+            "payload,owner} as record",
+            "payload,owner,intervals=[Interval {start=1,end=2}]} as record",
+        );
+    let (contract_db, contract_trees, contract_resolve, contract_types, contract_effects) =
+        raw(&contracts);
+    let contract_plans = analyze_scenario_disclosure(
+        &contract_db,
+        &contract_trees,
+        &contract_resolve,
+        &contract_types,
+        &contract_effects,
+    );
+    let contract_owner = id(&contract_resolve, "CreatedInputs.make");
+    let contract_source = contract_plans[&contract_owner]
+        .source_facts()
+        .expect("original source");
+    let contract_creates = contract_source
+        .creates
+        .as_ref()
+        .expect("exact Contract constructor");
+    assert_eq!(contract_creates[0].inputs.last().unwrap().name, "intervals");
+    assert!(
+        matches!(
+            contract_plans[&contract_owner],
+            ScenarioDisclosure::Complete(_)
+        ),
+        "{:?}",
+        contract_plans[&contract_owner]
+    );
     let branched = POPULATED.replace(
         "   create Record {parent,title=caption,payload,owner} as record",
         "   if title==\"early\"\n    require true\n    create Record {parent,title=caption,payload,owner} as early\n    return early\n   create Record {parent,title=caption,payload,owner} as record",
