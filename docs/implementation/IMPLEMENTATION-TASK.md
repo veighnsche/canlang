@@ -6,7 +6,29 @@ Bring the complete original 24-source CanLang draft composition to **zero native
 
 This is the executable task list for the [complete work inventory](WORK-INVENTORY.md). Work through the zero-diagnostic sequence first. The wider inventory is assigned concrete follow-on tasks below; pull one forward only when it supplies a demonstrated dependency of the zero-diagnostic work. Optional proposals do not expand the objective automatically.
 
-The last measured working compiler had 18 diagnostics, zero analysis errors, 26 source records and no omissions. Main `a0918b49` is independently known to contain malformed selectively committed Rust and TypeScript. Its repair precedes any new success claim. Three unqualified local packets must be preserved: WHERE binder correspondence, constructor COUNT publication and Refer aggregate loops.
+The latest complete measurement on the implementation committed as `ac5fe4d6` has 18 diagnostics, zero analysis errors, 26 source records and no omissions. The malformed `a0918b49` snapshot has been repaired and independently validated. Preserve the two remaining local implementation packets: constructor COUNT publication and Refer aggregate loops.
+
+## Current execution status
+
+Z00–Z02 are complete (`73094a16`, `8e01cfaa`). Z03's compiler and real-runtime
+binding fix is committed as `ac5fe4d6`: WHERE and SELECT have their correct
+separate scopes, and granted/unreadable filters, withheld SELECT fields and
+filtered-empty results pass the existing integrations. The original day workflows
+remain blocked by other receipt correspondence, so Z03's full original-consumer
+completion is still open. Its complete 24-operand capture finishes in 232.56
+seconds with 18 diagnostics, 26 source records and zero omissions; both source
+and diagnostic arrays match the repaired Z01 baseline. No diagnostic reduction
+is claimed for this packet. Next take the independently ready Z04 constructor
+COUNT producer and its exact original receiving consumer.
+
+GitHub confirms the repaired syntax/build stages and browser/security job pass
+at `73094a16`. Its earlier nullable-receipt assertion failure is fixed by Z02;
+its workspace run additionally exposes the selected original CanCreative publish
+fixture's first nullable stored-delivery selector, `revision.validation?.status`.
+This needs the original State/Work observation join with exact identity, schema,
+permission and revision checks; later result selectors must retain the same
+delivery correlation. Preserve the original guards and resolve this under Z18.
+Latest-main CI remains unqualified.
 
 ## Completion criteria for the zero-diagnostic objective
 
@@ -125,4 +147,4 @@ The complete original native compile uses the [durable 24-operand command](REMAI
 
 ## How to resume
 
-Start at the first incomplete dependency-ready Z task. Z00 is complete: seven corrected/formatted files were verified in an isolated checkout with all 26 package build tasks, all 40 workspace typecheck tasks, 75 compiler integrations, the real helper permission/replay integration, Clippy and both test-policy gates passing. Z01 confirms 18 E6008 diagnostics, 26 source records and zero omissions on commit `73094a16` in 225.26 seconds. Z02 migrates the obsolete nullable-access expectation and passes all five native receipt integration tests, including absence/presence, withheld DATA, stale/foreign references, a real update race, replay and lifetime/current-authority controls. Start **Z03: qualify normalized WHERE correspondence**; preserve the unfinished constructor and aggregate packets. Finish one coherent change, test its actual proposed commit, commit/push it, then select the next task from current evidence. Update checkboxes and the measured count when verified; keep newly exposed blockers with their owning task. Once Z18 is complete, continue dependency-ready B tasks when broader implementation is requested without reopening the achieved zero-diagnostic result.
+Start at the first incomplete dependency-ready Z task. Z00 is complete: seven corrected/formatted files were verified in an isolated checkout with all 26 package build tasks, all 40 workspace typecheck tasks, 75 compiler integrations, the real helper permission/replay integration, Clippy and both test-policy gates passing. Z01 confirms 18 E6008 diagnostics, 26 source records and zero omissions on commit `73094a16` in 225.26 seconds. Z02 migrates the obsolete nullable-access expectation and passes all five native receipt integration tests, including absence/presence, withheld DATA, stale/foreign references, a real update race, replay and lifetime/current-authority controls. Z03's shared binding implementation is also committed and runtime-qualified; original day receipt closure remains open. Take **Z04: publish sealed constructor COUNT plans** next while preserving the unfinished aggregate packet. Finish one coherent change, test its actual proposed commit, commit/push it, then select the next task from current evidence. Update checkboxes and the measured count when verified; keep newly exposed blockers with their owning task. Once Z18 is complete, continue dependency-ready B tasks when broader implementation is requested without reopening the achieved zero-diagnostic result.
