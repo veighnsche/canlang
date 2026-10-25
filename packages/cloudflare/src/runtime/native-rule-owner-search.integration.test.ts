@@ -3609,35 +3609,35 @@ it('observes original helper parent getters at their authored identity reads', {
   const controlSource=join(root,'compiler/tests/fixtures/helper-created-parent-control.can');
   const controlText=await readFile(controlSource,'utf8');
   const controlVariants=new Map<string,CompileArtifact>();
-  for(const [name,text]of [['full',controlText],['withheld',controlText.replace('policy Booking read=members where=row.visible','policy Booking read=members where=row.visible fields=customer,quantity,visible,parent')]]){
+  for(const [name,text]of [['full',controlText],['withheld',controlText.replace('policy Booking read=members where=row.visible','policy Booking read=members where=row.visible fields=customer,quantity,visible,parent,override')],['withheld-override',controlText.replace('policy Booking read=members where=row.visible','policy Booking read=members where=row.visible fields=customer,quantity,visible,parent,unit')]]){
    const source=join(directory,'helper-control-'+name+'.can');await writeFile(source,text!);
    const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
    const artifact=JSON.parse(stdout)as CompileArtifact;
    const plan=artifact.operations?.find(operation=>operation.name==='reservations.move')?.result?.disclosure;
    assert.ok(plan,'the conditional scalar helper must publish its actual complete receipt');
-   assert.ok(plan.returns.some(returned=>{
-    const data=returned.dependencies.find(read=>read.model==='reservations.Booking'&&read.field==='unit'&&read.role==='data');
-    const control=returned.dependencies.find(read=>read.model==='reservations.Booking'&&read.field==='unit'&&read.role==='control');
+   for(const field of ['unit','override'])assert.ok(plan.returns.some(returned=>{
+    const data=returned.dependencies.find(read=>read.model==='reservations.Booking'&&read.field===field&&read.role==='data');
+    const control=returned.dependencies.find(read=>read.model==='reservations.Booking'&&read.field===field&&read.role==='control');
     return data!==undefined&&control!==undefined&&data.id!==control.id;
    }),'DATA and CONTROL retain independent original identities');
    controlVariants.set(name!,artifact);
   }
   // The deployed compiler module owns its receipt plan. Callers supply only
   // closed business inputs; a claimed plan or role cannot replace that owner.
-  for(const mode of ['hour','day','withheld','identity-race','field-race','caller-plan','wrong-source']){
+  for(const mode of ['hour','day','withheld','identity-race','field-race','caller-plan','wrong-source','override-present','override-null-withheld','override-present-withheld','override-race']){
    const {now,identities,identity,membership}=await member('helper-control-'+mode),{store}=createTestMemoryStorage();
    const bookingModel=asModel('reservations.Booking'),movementModel=asModel('reservations.Movement'),evidenceModel=asModel('reservations.Evidence');
    const insert=(model:string,id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({kind:'insert' as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
-   const unit=mode==='day'?'day':'hour';
-   const booking=insert('reservations.Booking','booking',{customer:{id:'customer'},quantity:'3',visible:true,unit},{model:asModel('reservations.Resource'),id:asId('resource')});
+   const unit=mode==='day'?'day':'hour',override=mode==='override-present'||mode==='override-present-withheld'||mode==='override-race'?'5':null;
+   const booking=insert('reservations.Booking','booking',{customer:{id:'customer'},quantity:'3',visible:true,unit,override},{model:asModel('reservations.Resource'),id:asId('resource')});
    await store.commit(makeBatch(await store.readRevision(),{writes:[insert('reservations.Customer','customer',{visible:true}),insert('reservations.Location','location',{visible:true}),insert('reservations.Resource','resource',{visible:true,location:{id:'location'}}),booking]}));
    const history=await store.historyFor(bookingModel,booking.row.id),load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
    store.load=async(model,id)=>{const row=await load(model,id);if(mode==='identity-race'&&model===movementModel&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return row;};
-   store.commit=async batch=>{if(mode==='field-race'&&!raced&&batch.writes.some(write=>write.kind==='insert'&&write.model===movementModel)){
+   store.commit=async batch=>{if((mode==='field-race'||mode==='override-race')&&!raced&&batch.writes.some(write=>write.kind==='insert'&&write.model===movementModel)){
     raced=true;const row=await load(bookingModel,booking.row.id);assert.ok(row);
-    await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:bookingModel,id:row.id,expectedVersion:row.version,row:{...row,version:asVersion(row.version+1),data:{...row.data,unit:'day'}}}]}));
+    await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:bookingModel,id:row.id,expectedVersion:row.version,row:{...row,version:asVersion(row.version+1),data:{...row.data,...(mode==='override-race'?{override:'6'}:{unit:'day'})}}}]}));
    }return commit(batch);};
-   const original=controlVariants.get(mode==='withheld'||mode==='caller-plan'?'withheld':'full')!;
+   const original=controlVariants.get(mode==='override-null-withheld'||mode==='override-present-withheld'?'withheld-override':mode==='withheld'||mode==='caller-plan'?'withheld':'full')!;
    const artifact=JSON.parse(JSON.stringify(original))as CompileArtifact;
    if(mode==='wrong-source'){
     const raw=JSON.parse(JSON.stringify(artifact.operations?.find(operation=>operation.name==='reservations.move')?.result?.disclosure));let changed=0;
@@ -3657,7 +3657,7 @@ it('observes original helper parent getters at their authored identity reads', {
     const asm=await assembleModules({artifact,sourcePath:source},{workDir:join(directory,'helper-control-'+mode),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
     invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});outcome=await invoker.invokeMutation(request,identity);
    }catch(error){failure=error;}
-   const allowed=mode==='hour'||mode==='day';
+   const allowed=mode==='hour'||mode==='day'||mode==='override-present';
    if(mode==='wrong-source'){assert.ok(failure!==undefined||outcome!==undefined&&'error'in outcome,mode+': forged consumer must refuse');
     assert.match(String(failure instanceof Error?failure.message:outcome!==undefined&&'error'in outcome?outcome.error.message:failure),/source|receipt|dependency|control|DATA|field|grant|authority|read/i);
    }else{if(failure!==undefined)throw failure;assert.ok(outcome);assert.equal('result'in outcome,allowed,mode+': '+JSON.stringify(outcome));if(!allowed&&'error'in outcome){if(mode==='caller-plan'){assert.equal(outcome.error.code,'validation');assert.match(outcome.error.message,/receipt_plan|unknown|unexpected|undeclared|input/i);}else assert.ok(['forbidden','conflict','invalid_input'].includes(outcome.error.code),JSON.stringify(outcome));}}
@@ -3665,11 +3665,13 @@ it('observes original helper parent getters at their authored identity reads', {
    const movements=await store.query({model:movementModel,authority:'owner'}),evidence=await store.query({model:evidenceModel,authority:'owner'}),pending=await store.outboxPending();
    assert.equal(movements.length,allowed?1:0,mode);assert.equal(evidence.length,allowed?1:0,mode);assert.equal(pending.length,allowed?1:0,mode+': no partial SEND');
    if(allowed){assert.equal((pending[0]!.arguments as {arguments:{value:{unit:string}}}).arguments.value.unit,unit);assert.equal((evidence[0]!.data.value as {unit:string}).unit,unit);
+    assert.equal((pending[0]!.arguments as {arguments:{value:{quantity:string}}}).arguments.value.quantity,override??'3');assert.equal((evidence[0]!.data.value as {quantity:string}).quantity,override??'3');
     const replay=await invoker!.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
     assert.deepEqual(await store.query({model:movementModel,authority:'owner'}),movements);assert.deepEqual(await store.outboxPending(),pending);
    }
-   if(mode!=='field-race'){assert.deepEqual(await load(bookingModel,booking.row.id),booking.row);assert.deepEqual(await store.historyFor(bookingModel,booking.row.id),history);}
-   else assert.equal((await load(bookingModel,booking.row.id))?.data.unit,'day','external change survives the refused stale attempt');
+   if(mode!=='field-race'&&mode!=='override-race'){assert.deepEqual(await load(bookingModel,booking.row.id),booking.row);assert.deepEqual(await store.historyFor(bookingModel,booking.row.id),history);}
+   else if(mode==='field-race')assert.equal((await load(bookingModel,booking.row.id))?.data.unit,'day','external change survives the refused stale attempt');
+   else assert.equal((await load(bookingModel,booking.row.id))?.data.override,'6','external nullable-field change survives the refused stale attempt');
   }
   const optionalSource=join(root,'compiler/tests/fixtures/nullable-capture-projection.can');
   const optionalOutput=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,optionalSource],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});

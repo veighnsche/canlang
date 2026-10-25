@@ -16062,7 +16062,11 @@ fn checked_helper_control_data<'a>(
 }
 
 fn helper_control_scalar(ty: &ResolvedType) -> bool {
-    matches!(ty, ResolvedType::Scalar(_) | ResolvedType::Enum { .. }) && native_result_type(ty)
+    let scalar = match ty {
+        ResolvedType::Nullable(inner) => matches!(inner.as_ref(), ResolvedType::Scalar(_)),
+        ty => matches!(ty, ResolvedType::Scalar(_) | ResolvedType::Enum { .. }),
+    };
+    scalar && native_result_type(ty)
 }
 
 /// Only a direct checked scalar guard leaf may borrow the retained parent

@@ -14,7 +14,7 @@ package reservations
   Customer {visible:bool=true}
   Location {visible:bool=true}
   Resource {location:Location,visible:bool=true}
-  Booking in Resource {customer:Customer,quantity:int=1,visible:bool=true,unit:Entitlement.unit=hour}
+  Booking in Resource {customer:Customer,quantity:int=1,override:int?,visible:bool=true,unit:Entitlement.unit=hour}
   Movement in Booking {source:text,last:text?}
   policy Customer read=members where=row.visible
   policy Location read=members where=row.visible
@@ -22,7 +22,7 @@ package reservations
   policy Booking read=members where=row.visible
   policy Movement read=members
   derive membership_unit(unit:Entitlement.unit):Entitlement.unit = first([Entitlement.unit.hour] as selected where unit==Entitlement.unit.hour) ?? Entitlement.unit.day
-  derive movement_request(movement:Movement):Entitlement = Entitlement {source=movement.source,customer=movement.parent.customer.id,location=movement.parent.parent.location.id,quantity=movement.parent.quantity,unit=membership_unit(movement.parent.unit)}
+  derive movement_request(movement:Movement):Entitlement = Entitlement {source=movement.source,customer=movement.parent.customer.id,location=movement.parent.parent.location.id,quantity=movement.parent.override ?? movement.parent.quantity,unit=membership_unit(movement.parent.unit)}
  When
   scenario move(booking:Booking) by=members
    do
