@@ -110,10 +110,10 @@ pub(super) fn run_compile(
     let owned = analyzer.analyze_owned(&db, tool_version());
     let mut result = owned.result;
     result.finish();
-    if result.has_errors() {
-        return emit_diagnostics(&result, &db, format);
-    }
     let Some(mut program) = owned.program else {
+        if result.has_errors() {
+            return emit_diagnostics(&result, &db, format);
+        }
         return DispatchResult::tool_error(
             "E7001",
             "can compile needs a pipeline analyzer; this backend keeps no checked program (production dispatch always passes one)".to_string(),

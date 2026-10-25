@@ -149,6 +149,15 @@ fn public_owned_emit_reports_refusal_and_preserves_sibling_outputs() {
         json.as_object_mut().unwrap().remove("sources");
         for module in json["modules"].as_array_mut().unwrap() {
             module.as_object_mut().unwrap().remove("map");
+            // Refused whole-program preparation omits its optional empty
+            // policy-origin inventory; this fixture declares no model rules.
+            // Preserve every nonempty source inventory and executable byte.
+            module["js"] = Value::String(
+                module["js"]
+                    .as_str()
+                    .unwrap()
+                    .replace("modelRuleOrigins:[],", ""),
+            );
         }
         for test in json["tests"].as_array_mut().unwrap() {
             test["module"].as_object_mut().unwrap().remove("map");
