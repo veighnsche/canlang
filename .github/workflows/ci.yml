@@ -128,6 +128,8 @@ jobs:
           test -s packages/values/dist/catalog.json
       - name: Build compiler
         run: bun run build:compiler
+      - name: Install Chromium for native rendering fixtures
+        run: bunx playwright install --with-deps chromium
       - name: Test compiler with real producers
         run: |
           set -euo pipefail
