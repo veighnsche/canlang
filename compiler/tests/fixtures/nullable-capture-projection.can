@@ -1,0 +1,13 @@
+app NullableCapture
+Given
+ Capture {code:text,program:text,captured:datetime,window:duration,visible:bool=true}
+ Booking {attribution:text?,exclusive_program:text?,attributed_at:datetime?,attribution_window:duration?}
+ policy Capture read=members fields=code,captured,window
+ policy Capture read=members where=row.visible fields=program
+ policy Booking read=members
+When
+ scenario copy(capture:Capture?) -> Booking by=members
+  do
+   create Booking {attribution=capture?.code,exclusive_program=capture?.program,attributed_at=capture?.captured,attribution_window=capture?.window} as booking
+   return booking
+Then

@@ -21617,6 +21617,128 @@ impl<'a> Closure<'a> {
         Ok(None)
     }
 
+    /// One original safe scalar getter on its own nullable Model input.
+    /// Presence belongs to the declaration, so all getters share one branch.
+    fn optional_model_scalar_input(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+    ) -> Option<(SymbolId, NodeKey, SymbolId, SymbolId)> {
+        let node = self.nodes.get(&key)?;
+        let (base, name) = self.count_member(key)?;
+        if node.kind != SyntaxKind::Member
+            || !node
+                .children
+                .iter()
+                .any(|child| child.kind == SyntaxKind::Punct && self.word(child) == Some("?."))
+            || self.nodes.get(&base)?.kind != SyntaxKind::NameRef
+        {
+            return None;
+        }
+        let Some(Binding::Symbol(parameter)) = self.query_binding(base) else {
+            return None;
+        };
+        let scenario = self.effects.scenarios.values().find(|scenario| {
+            scenario.module == module
+                && self.source_anchor(scenario, key)
+                && scenario
+                    .params
+                    .iter()
+                    .any(|input| input.param == *parameter)
+        })?;
+        let input = scenario
+            .params
+            .iter()
+            .find(|input| input.param == *parameter)?;
+        let model = self.nullable_model_input(scenario, input)?;
+        if self.types.node_types.get(&base) != self.types.symbol_types.get(parameter) {
+            return None;
+        }
+        let field = self
+            .resolve
+            .symbols
+            .get(model.0 as usize)?
+            .fields_of()
+            .iter()
+            .filter_map(|id| self.resolve.symbols.get(id.0 as usize))
+            .find(|field| {
+                field.name == name
+                    && matches!(field.kind,SymbolKind::Field{owner,..}if owner==model)
+            })?;
+        let ty = self.types.symbol_types.get(&field.id)?;
+        if !primitive_type(ty)
+            || self.types.node_types.get(&key)
+                != Some(&ResolvedType::Nullable(Box::new(ty.clone())))
+        {
+            return None;
+        }
+        self.checked_created_model(model, self.resolve.symbols.get(model.0 as usize)?.module)?;
+        Some((*parameter, input.node, model, field.id))
+    }
+
+    fn expr_optional_model_scalar(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+        env: &Env,
+        calls: &[NodeKey],
+    ) -> Result<Option<Vec<ValuePath>>, DisclosureDecline> {
+        if !calls.is_empty() || self.loop_node.is_some() {
+            return Ok(None);
+        }
+        let Some((parameter, presence, model, field)) =
+            self.optional_model_scalar_input(key, module)
+        else {
+            return Ok(None);
+        };
+        if !env.get(&Local::Symbol(parameter)).is_some_and(|value| {
+            value.record == Some(model)
+                && value.reference_origin == Some(ReferenceOrigin::NullableParameter(parameter))
+                && value.model_result.is_none()
+                && value.first_query.is_none()
+        }) {
+            return Ok(None);
+        }
+        let declaration = self
+            .resolve
+            .symbols
+            .get(field.0 as usize)
+            .ok_or_else(|| self.fail(key, "missing optional scalar field"))?;
+        let ty = self
+            .types
+            .symbol_types
+            .get(&field)
+            .ok_or_else(|| self.fail(key, "missing optional scalar type"))?;
+        let mut absent = ValuePath::default();
+        absent.decisions.push(DisclosureDecision {
+            node: presence,
+            calls: Vec::new(),
+            choice: DisclosureChoice::Else,
+        });
+        let mut present = ValuePath::default();
+        present.decisions.push(DisclosureDecision {
+            node: presence,
+            calls: Vec::new(),
+            choice: DisclosureChoice::Then,
+        });
+        present.reads.push(DisclosureDependency {
+            query_id: None,
+            id: self.opaque("read-data", key, &self.call_stamp(calls)?)?,
+            source: self.source(module, key)?,
+            node: key,
+            calls: Vec::new(),
+            role: DependencyRole::Data,
+            model,
+            field,
+            model_name: self.resolve.symbols[model.0 as usize].canonical.clone(),
+            field_name: declaration.name.clone(),
+            ty: ty.clone(),
+            type_id: self.field_type_id(key, field, ty)?,
+        });
+        present.observed.push((key, Vec::new()));
+        Ok(Some(vec![absent, present]))
+    }
+
     fn expr_member_intrinsics(
         &self,
         key: NodeKey,
@@ -24224,6 +24346,9 @@ impl<'a> Closure<'a> {
         node: &SyntaxNode,
         children: Vec<&SyntaxNode>,
     ) -> Result<Vec<ValuePath>, DisclosureDecline> {
+        if let Some(values) = self.expr_optional_model_scalar(key, module, env, calls)? {
+            return Ok(values);
+        }
         if let Some(values) = self.expr_member_selection_prefix(key, module, env, calls)? {
             return Ok(values);
         }
@@ -30855,6 +30980,12 @@ impl<'a> Closure<'a> {
         let mut next = Vec::new();
         for path in paths {
             for value in &alternatives {
+                // Constructor arguments share the same immutable decisions,
+                // just like object members and other expression products.
+                if !compatible(&path.decisions, &value.decisions) {
+                    continue;
+                }
+
                 if let Some(binding) = value.current_revision {
                     self.create_revision_check(input, model, module, binding)?;
                 }

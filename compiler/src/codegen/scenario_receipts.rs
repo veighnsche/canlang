@@ -600,6 +600,7 @@ pub(super) struct NativeDependency {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum NativeDecisionKind {
     ParameterDefault,
+    OptionalInput(crate::analysis::SymbolId),
     QuerySelection,
     If,
     For,
@@ -2917,6 +2918,18 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             let kind = *sites.decisions.get(&site)?;
             let expected = match kind {
                 NativeDecisionKind::ParameterDefault => decision.node.kind,
+                NativeDecisionKind::OptionalInput(parameter) => {
+                    let original = checked
+                        .source_facts
+                        .as_deref()?
+                        .parameters
+                        .iter()
+                        .find(|input| input.parameter == parameter)?;
+                    if decision.node != original.node || !decision.calls.is_empty() {
+                        return None;
+                    }
+                    original.node.kind
+                }
                 NativeDecisionKind::If => SyntaxKind::If as u8,
                 NativeDecisionKind::For => SyntaxKind::For as u8,
                 NativeDecisionKind::Match => SyntaxKind::Match as u8,
@@ -3157,7 +3170,18 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     .and_then(|expressions| expressions.first())
                     .and_then(|expression| {
                         db.and_then(|db| {
-                            checked_first_optional_actor_member(ir, item, expression, db)
+                            checked_first_optional_actor_member(ir, item, expression, db).or_else(
+                                || {
+                                    checked_optional_parameter_scalar(
+                                        ir,
+                                        item,
+                                        expression,
+                                        checked.source_facts.as_deref()?,
+                                        db,
+                                    )
+                                    .map(|(_, _, field)| field)
+                                },
+                            )
                         })
                     })
                     .is_some_and(|field| {
@@ -14029,16 +14053,36 @@ fn checked_narrowed_parent_parameter(
     base: &TypedExpr,
     db: &SourceDb,
 ) -> Option<crate::analysis::SymbolId> {
+    checked_nullable_model_parameter(ir, owner, base, db, true).map(|(_, model, _)| model)
+}
+
+fn checked_nullable_model_parameter(
+    ir: &IrProgram,
+    owner: &IrItem,
+    base: &TypedExpr,
+    db: &SourceDb,
+    narrowed: bool,
+) -> Option<(
+    crate::analysis::SymbolId,
+    crate::analysis::SymbolId,
+    crate::analysis::NodeKey,
+)> {
     let IrExpr::Name(name) = &base.expr else {
         return None;
+    };
+    let expected_model = match (&base.ty, narrowed) {
+        (ty @ ResolvedType::Record { stored: true, .. }, true) => ty,
+        (ResolvedType::Nullable(inner), false) => inner.as_ref(),
+        _ => return None,
     };
     let ResolvedType::Record {
         symbol,
         stored: true,
-    } = base.ty
+    } = expected_model
     else {
         return None;
     };
+    let symbol = *symbol;
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
     let IrItemKind::Scenario {
         params,
@@ -14071,7 +14115,10 @@ fn checked_narrowed_parent_parameter(
     else {
         return None;
     };
-    let expected = ResolvedType::Nullable(Box::new(base.ty.clone()));
+    let expected = ResolvedType::Nullable(Box::new(ResolvedType::Record {
+        symbol,
+        stored: true,
+    }));
     if *declared != owner.id
         || *index != position
         || fact.parameter != parameter.id
@@ -14096,7 +14143,58 @@ fn checked_narrowed_parent_parameter(
     {
         return None;
     }
-    Some(symbol)
+    Some((parameter.id, symbol, fact.node))
+}
+
+fn checked_optional_parameter_scalar<'a>(
+    ir: &IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    facts: &'a crate::analysis::scenario_disclosure::CheckedScenarioSource,
+    db: &SourceDb,
+) -> Option<(
+    crate::analysis::SymbolId,
+    crate::analysis::NodeKey,
+    &'a crate::analysis::scenario_disclosure::CheckedStoredContractField,
+)> {
+    let IrExpr::Member { base, field } = &value.expr else {
+        return None;
+    };
+    let (parameter, model, presence) =
+        checked_nullable_model_parameter(ir, owner, base, db, false)?;
+    let text = db
+        .get(value.span.file)?
+        .text
+        .get(base.span.end as usize..value.span.end as usize)?
+        .trim();
+    if value.span.file != base.span.file
+        || value.span.start != base.span.start
+        || text.strip_prefix("?.").map(str::trim) != Some(field.as_str())
+    {
+        return None;
+    }
+    let schema = facts
+        .stored_contracts
+        .as_deref()?
+        .iter()
+        .find(|schema| schema.model && schema.id == model)?;
+    let declaration = schema
+        .fields
+        .iter()
+        .find(|original| original.name == *field)?;
+    if !crate::analysis::scenario_disclosure::primitive_type(&declaration.ty)
+        || value.ty != ResolvedType::Nullable(Box::new(declaration.ty.clone()))
+        || !facts
+            .expression_types
+            .as_deref()?
+            .iter()
+            .any(|(node, ty)| node_span(*node) == value.span && *ty == value.ty)
+    {
+        return None;
+    }
+    match_stored_contract_schema(ir, schema, db)?;
+    match_stored_contract_field(ir, declaration, db)?;
+    Some((parameter, presence, declaration))
 }
 
 fn checked_parent_reference_at<'a>(
@@ -16726,7 +16824,10 @@ fn valid_choice(
             DisclosureChoice::DefaultEvaluated | DisclosureChoice::DefaultProvided,
         ) => true,
         (
-            NativeDecisionKind::If | NativeDecisionKind::For | NativeDecisionKind::QuerySelection,
+            NativeDecisionKind::If
+            | NativeDecisionKind::For
+            | NativeDecisionKind::QuerySelection
+            | NativeDecisionKind::OptionalInput(_),
             DisclosureChoice::Then | DisclosureChoice::Else,
         ) => true,
         (NativeDecisionKind::Match, DisclosureChoice::Match(case)) => {
@@ -23055,6 +23156,14 @@ impl<'a> Sites<'a> {
                         push!(Visit::Expression(query.select.as_ref()?));
                     }
                     IrExpr::Member { base, .. } => {
+                        if context.calls.is_empty()
+                            && matches!(&base.ty,ResolvedType::Nullable(inner) if matches!(inner.as_ref(),ResolvedType::Record{stored:true,..}))
+                            && let Some(db)=db
+                            && let Some(facts)=super::scenario_calls::checked_source(ir,owner,db)
+                            && let Some((parameter,presence,_))=checked_optional_parameter_scalar(ir,owner,expression,facts,db) {
+                            let kind=NativeDecisionKind::OptionalInput(parameter);
+                            if out.decisions.insert(context.site(node_span(presence)),kind).is_some_and(|old|old!=kind){return None;}
+                        }
                         out.members
                             .entry(context.site(expression.span))
                             .or_default()

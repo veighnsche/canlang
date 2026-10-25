@@ -9628,14 +9628,31 @@ impl<'a> Emitter<'a> {
                     )
                 })
                 .collect::<String>();
-            let absent = if matches!(&base.ty,ResolvedType::Nullable(inner)
+            let presence = self.receipt_capture.as_ref().and_then(|recipe| {
+                let IrExpr::Name(name) = &base.expr else {
+                    return None;
+                };
+                recipe.decisions.iter().find_map(|(site, kind)| {
+                    let super::scenario_receipts::NativeDecisionKind::OptionalInput(parameter) =
+                        kind
+                    else {
+                        return None;
+                    };
+                    (self.ir.items.get(parameter.0 as usize)?.name == *name).then(|| site.clone())
+                })
+            });
+            let absent = if let Some(site) = presence {
+                format!(
+                    "if($receiptRow==null){{{}return null;}}{}",
+                    self.receipt_choice_at(site.clone(), "else"),
+                    self.receipt_choice_at(site, "then")
+                )
+            } else if matches!(&base.ty,ResolvedType::Nullable(inner)
                 if matches!(inner.as_ref(),ResolvedType::Record{stored:true,..}))
             {
-                // The checked optional FIRST scalar consumer has no getter
-                // or DATA observation on its genuine absent-row branch.
-                "if($receiptRow==null)return null;"
+                "if($receiptRow==null)return null;".into()
             } else {
-                ""
+                String::new()
             };
             return format!(
                 "(await (async($receiptRow)=>{{{absent}const $receiptValue={value};{observations}return $receiptValue;}})({receiver}))"

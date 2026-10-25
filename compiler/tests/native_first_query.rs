@@ -2438,6 +2438,58 @@ fn original_book_and_reschedule_keep_required_reference_and_body_correspondence(
 
 #[test]
 fn parent_timezone_keeps_its_original_stored_dependency() {
+    let nullable = include_str!("fixtures/nullable-capture-projection.can");
+    let (nullable_db, nullable_program, nullable_ir, nullable_catalog) =
+        fixture_source("nullable-capture-projection.can", nullable);
+    let nullable_owner = item(&nullable_ir, "NullableCapture.copy");
+    let ScenarioDisclosure::Complete(proof) = &nullable_ir.scenario_disclosures[&nullable_owner.id]
+    else {
+        panic!("{:?}", nullable_ir.scenario_disclosures[&nullable_owner.id]);
+    };
+    assert_eq!(
+        proof.returns.len(),
+        2,
+        "all four fields share one original input presence"
+    );
+    let mut counts = proof
+        .returns
+        .iter()
+        .map(|returned| {
+            returned
+                .dependencies
+                .iter()
+                .filter(|read| {
+                    read.model_name == "NullableCapture.Capture"
+                        && read.role
+                            == canlang_compiler::analysis::scenario_disclosure::DependencyRole::Data
+                })
+                .count()
+        })
+        .collect::<Vec<_>>();
+    counts.sort();
+    assert_eq!(
+        counts,
+        [0, 4],
+        "absence observes nothing; presence keeps every original field"
+    );
+    let (nullable_artifact, nullable_diagnostics) =
+        prepared_artifact(&nullable_program, &nullable_db, &nullable_catalog);
+    assert!(nullable_diagnostics.is_empty(), "{nullable_diagnostics:?}");
+    let operation = nullable_artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "NullableCapture.copy")
+        .unwrap();
+    assert_eq!(
+        operation["result"]["disclosure"]["returns"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2,
+        "real native constructor receipt required"
+    );
+
     for (name, source) in [
         (
             "native-parent-timezone.can",

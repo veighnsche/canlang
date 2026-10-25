@@ -3454,6 +3454,37 @@ it('observes original helper parent getters at their authored identity reads', {
     const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));
     assert.deepEqual(await store.query({model:asModel('reservations.Movement'),authority:'owner'}),movement);assert.deepEqual(await store.outboxPending(),pending);}
   }
+  const optionalSource=join(root,'compiler/tests/fixtures/nullable-capture-projection.can');
+  const optionalOutput=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,optionalSource],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const optionalArtifact=JSON.parse(optionalOutput.stdout) as CompileArtifact;
+  const optionalPlan=optionalArtifact.operations?.find(operation=>operation.name==='NullableCapture.copy')?.result?.disclosure;
+  assert.ok(optionalPlan);assert.equal(optionalPlan.returns.length,2);
+  const optionalAsm=await assembleModules({artifact:optionalArtifact,sourcePath:optionalSource},{workDir:join(directory,'optional'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['omitted','null','present','withheld-field','stale','foreign-id','identity-race','field-race']){
+   const {now,identities,identity,membership}=await member('optional-capture-'+mode);
+   const {store}=createTestMemoryStorage(),captureModel=asModel('NullableCapture.Capture'),bookingModel=asModel('NullableCapture.Booking');
+   const captured={code:'Original code',program:'Original program',captured:new Date(now).toISOString(),window:'86400000',visible:mode!=='withheld-field'};
+   await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:captureModel,row:makeRow({id:asId('capture'),data:captured})}]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store);let reads=0,raced=false;
+   store.load=async(model,id)=>{if(model===captureModel)reads++;const row=await load(model,id);
+    if(mode==='identity-race'&&model===bookingModel&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return row;};
+   store.commit=async batch=>{if(mode==='field-race'&&batch.writes.some(write=>write.kind==='insert'&&write.model===bookingModel)){
+    raced=true;const row=await load(captureModel,asId('capture'));assert.ok(row);
+    await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:captureModel,id:row.id,expectedVersion:row.version,row:{...row,version:asVersion(row.version+1),data:{...row.data,program:'Changed program'}}}]}));
+   }return commit(batch);};
+   const inputs=mode==='omitted'?{}:{capture:mode==='null'?null:{id:mode==='foreign-id'?'foreign':'capture',version:mode==='stale'?'2':'1'}};
+   const request={operation:'NullableCapture.copy',operation_id:operationId(now),inputs};
+   const invoker=buildInvoker(optionalArtifact,optionalAsm,store,{memberships:identities,now:()=>now});
+   const result=await invoker.invokeMutation(request,identity),allowed=['omitted','null','present'].includes(mode);
+   assert.equal('result'in result,allowed,mode+': '+JSON.stringify(result));
+   if(mode.endsWith('-race'))assert.equal(raced,true,mode);
+   const bookings=await store.query({model:bookingModel,authority:'owner'});assert.equal(bookings.length,allowed?1:0,mode+': atomic constructor');
+   if(mode==='omitted'||mode==='null')assert.equal(reads,0,'absent input never loads a Capture row');
+   if(allowed){assert.deepEqual(bookings[0]!.data,mode==='present'?{attribution:captured.code,exclusive_program:captured.program,attributed_at:captured.captured,attribution_window:captured.window}:{attribution:null,exclusive_program:null,attributed_at:null,attribution_window:null});
+    const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
+    assert.deepEqual(await store.query({model:bookingModel,authority:'owner'}),bookings);
+   }
+  }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
 
