@@ -2170,9 +2170,9 @@ impl<'a> Closure<'a> {
         ))
     }
 
-    /// An original required reference-field argument is consumed by its actual
-    /// derive formal. Its receiver may retain the existing two parent edges;
-    /// this grants no permission to copy or otherwise traverse that reference.
+    /// Original required reference-field shape from a real scenario parameter,
+    /// with at most two parent edges. Each caller independently proves its
+    /// consumer; this path grants no copying or general reference traversal.
     fn checked_required_reference_path(
         &self,
         argument: NodeKey,
@@ -18690,6 +18690,82 @@ impl<'a> Closure<'a> {
         .then_some(())
     }
 
+    /// Membership of one original required stored reference in another input's
+    /// declared reference array remains a Boolean observer. Neither operand
+    /// becomes a row/query capability or a reusable Value.
+    fn source_require_reference_membership(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        key: NodeKey,
+    ) -> Option<()> {
+        if self.types.node_types.get(&key) != Some(&ResolvedType::Scalar(Scalar::Bool)) {
+            return None;
+        }
+        let (left, right) = self.query_binary(key, "in")?;
+        let (left, right) = (self.query_group(left)?, self.query_group(right)?);
+        let (parameter, _, _, _, target, depth) =
+            self.checked_required_reference_path(left, scenario.module)?;
+        if depth != 0
+            || !scenario
+                .params
+                .iter()
+                .any(|input| input.param == parameter && input.default.is_none())
+        {
+            return None;
+        }
+        let (base, name) = self.count_member(right)?;
+        let Some(Binding::Symbol(parameter)) = self.query_binding(base) else {
+            return None;
+        };
+        let input = scenario
+            .params
+            .iter()
+            .find(|input| input.param == *parameter && input.default.is_none())?;
+        let ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        } = self.types.symbol_types.get(&input.param)?
+        else {
+            return None;
+        };
+        if self.checked_call_parent_path(base, input.param, 0) != Some((*model, 0)) {
+            return None;
+        }
+        let field = self
+            .effects
+            .models
+            .get(model)?
+            .fields
+            .iter()
+            .find(|field| {
+                self.resolve
+                    .symbols
+                    .get(field.field.0 as usize)
+                    .is_some_and(|declaration| {
+                        declaration.name == name
+                            && matches!(declaration.kind,
+                    SymbolKind::Field {owner,..} if owner == *model)
+                    })
+            })?;
+        let ty = self.types.symbol_types.get(&field.field)?;
+        if self.types.node_types.get(&right) != Some(ty)
+            || !matches!(ty, ResolvedType::Array {element, ordered: true, nonempty: false}
+                if element.as_ref() == &ResolvedType::Record {symbol: target, stored: true})
+            || !matches!(
+                self.resolve
+                    .symbols
+                    .get(target.0 as usize)
+                    .map(|symbol| &symbol.kind),
+                Some(SymbolKind::Model { .. })
+            )
+            || !self.source_anchor(scenario, left)
+            || !self.source_anchor(scenario, right)
+        {
+            return None;
+        }
+        Some(())
+    }
+
     fn source_require_walk_member(
         &self,
         scenario: &super::effects::ScenarioData,
@@ -18700,6 +18776,13 @@ impl<'a> Closure<'a> {
         supported: &mut bool,
         helper_query: &mut bool,
     ) -> Option<bool> {
+        if node.kind == SyntaxKind::Binary
+            && self
+                .source_require_reference_membership(scenario, key)
+                .is_some()
+        {
+            *helper_query = true;
+        }
         // A nullable admitted model must retain its null/row identity and
         // any later narrowed parent/field reads inside the same observer.
         // Ordinary scalar null checks remain on their existing path.

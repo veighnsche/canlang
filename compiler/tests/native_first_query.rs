@@ -6535,6 +6535,7 @@ fn original_crm_win_admits_only_source_narrowed_nullable_reference_slots() {
 
 #[test]
 fn source_observer_preserves_original_model_and_values_guard_domains() {
+    use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
     let source = r#"app MissingGuard uses=[checks]
 package checks
  Given
@@ -6553,6 +6554,82 @@ package checks
     for (name,source) in [("leading",source.to_owned()),("staged",source.replace("   require allowed(root)\n   do set root {active=false}","   do\n    set root {active=false}\n    if allowed(root)\n     set root {active=true}"))] {
         assert_admitted_source_variant(&format!("original-observer-{name}.can"), &source, "checks.mutate");
     }
+    let membership = r#"app ReferenceMembership
+Given
+ Location {active:bool=true}
+ Resource {location:Location,active:bool=true}
+ Customer {locations:Location[]}
+ policy Location read=members
+ policy Resource read=members
+ policy Customer read=members
+When
+ scenario check(resource:Resource,customer:Customer) by=members
+  require resource.location in customer.locations
+  do set resource {active=false}
+Then
+"#;
+    let (member_db, member_program, member_ir, member_catalog) =
+        fixture_source("reference-membership.can", membership);
+    let (member_artifact, diagnostics) =
+        prepared_artifact(&member_program, &member_db, &member_catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let member_code = member_artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|module| module["js"].as_str())
+        .collect::<String>();
+    assert!(member_code.contains("await nativeScenarioRequire(c,"));
+    let mut forged = member_ir.clone();
+    let customer = item(&forged, "ReferenceMembership.Customer").id;
+    let field = item(&forged, "ReferenceMembership.Customer.locations").id;
+    let IrItemKind::Field { ty, .. } = &mut forged.items[field.0 as usize].kind else {
+        panic!("field")
+    };
+    *ty = ir::IrType::Known(ResolvedType::Array {
+        element: Box::new(ResolvedType::Record {
+            symbol: customer,
+            stored: true,
+        }),
+        ordered: true,
+        nonempty: false,
+    });
+    let member_owner = item(&forged, "ReferenceMembership.check").id;
+    let IrItemKind::Scenario { guards, .. } = &mut forged.items[member_owner.0 as usize].kind
+    else {
+        panic!("scenario")
+    };
+    let guard = guards
+        .iter_mut()
+        .find_map(|guard| match guard {
+            IrStmt::Require { cond: value, .. } if matches!(value.expr, IrExpr::Binary { .. }) => {
+                Some(value)
+            }
+            _ => None,
+        })
+        .expect("membership guard");
+    let IrExpr::Binary { right, .. } = &mut guard.expr else {
+        unreachable!()
+    };
+    right.ty = ResolvedType::Array {
+        element: Box::new(ResolvedType::Record {
+            symbol: customer,
+            stored: true,
+        }),
+        ordered: true,
+        nonempty: false,
+    };
+    assert!(
+        serialize_decision_sources(
+            &member_program,
+            &forged,
+            item(&forged, "ReferenceMembership.check"),
+            &member_db,
+            Some(&member_catalog)
+        )
+        .is_none(),
+        "same-span reference array cannot substitute another target Model"
+    );
     let (db, mut changed, _, catalog) = fixture_source("erased-original-helper-query.can", source);
     let helper = changed
         .symbols

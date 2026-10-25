@@ -1572,6 +1572,54 @@ it('retains exact nullable enum membership through real owner execution and fina
           allowed?'committed':mode==='changed-at-commit'?'conflict':'rule_failed',`${mode}: ${JSON.stringify(outcome)}`);
         assert.equal((await store.load(rootModel,row.id))?.data.checked,allowed,mode);
       }
+      const membershipSource=join(directory,'reference-membership.can');
+      await writeFile(membershipSource,`app ReferenceMembership
+Given
+ Location {active:bool=true}
+ Resource {location:Location,active:bool=true}
+ Customer {locations:Location[],visible:bool=true}
+ policy Location read=members where=row.active
+ policy Resource read=members fields=active
+ policy Customer read=members where=row.visible
+When
+ scenario check(resource:Resource,customer:Customer) by=members
+  require resource.location in customer.locations
+  do set resource {active=false}
+Then
+`);
+      const compiled=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,membershipSource],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const membershipArtifact=JSON.parse(compiled.stdout) as CompileArtifact;
+      const membershipAsm=await assembleModules({artifact:membershipArtifact,sourcePath:membershipSource},{workDir:join(directory,'references'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      for(const mode of ['allowed','different','empty','private-source','revision-race','identity-race']){
+        const {now,identities,identity,membership}=await member('reference-array-'+mode);
+        const store=createMemoryStorage(),resource=model('ReferenceMembership','Resource'),customer=model('ReferenceMembership','Customer'),location=model('ReferenceMembership','Location');
+        const site='location-private',resourceRow={...makeRow({id:asId('resource'),data:{location:{id:site},active:true}}),parent:null};
+        const customerRow={...makeRow({id:asId('customer'),data:{locations:mode==='empty'?[]:[{id:mode==='different'?'different-location':site}],visible:mode!=='private-source'}}),parent:null};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          {kind:'insert',model:location,row:{...makeRow({id:asId(site),data:{active:mode!=='private-source'}}),parent:null}},
+          {kind:'insert',model:resource,row:resourceRow},{kind:'insert',model:customer,row:customerRow}
+        ]}));
+        let raced=false;
+        if(mode==='revision-race'){
+          const commit=store.commit.bind(store);store.commit=async batch=>{
+            if(!raced){raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:customer,id:customerRow.id,expectedVersion:asVersion(customerRow.version),row:{...customerRow,version:asVersion(customerRow.version+1),data:{...customerRow.data,locations:[]}}}]}));}
+            return commit(batch);
+          };
+        }
+        if(mode==='identity-race'){
+          const load=store.load.bind(store);store.load=async(name,id)=>{const row=await load(name,id);if(name===customer&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return row;};
+        }
+        const request={operation:'ReferenceMembership.check',operation_id:operationId(now),inputs:{resource:{id:resourceRow.id,version:'1'},customer:{id:customerRow.id,version:'1'}}};
+        const invoker=buildInvoker(membershipArtifact,membershipAsm,store,{memberships:identities,now:()=>now}),outcome=await invoker.invokeMutation(request,identity);
+        const allowed=mode==='allowed'||mode==='private-source';
+        assert.equal('result'in outcome?outcome.result.status:outcome.error.code,allowed?'committed':mode==='revision-race'?'conflict':'rule_failed',mode+': '+JSON.stringify(outcome));
+        if(mode==='identity-race'){assert.ok('error'in outcome);assert.equal(outcome.error.message,'forbidden');}
+        assert.equal((await store.load(resource,resourceRow.id))!.data.active,!allowed,mode);
+        assert.deepEqual(await store.outboxPending(),[]);
+        assert.ok(!JSON.stringify(outcome).includes(site),'the guard must not release its reference operands');
+        if(mode.endsWith('race'))assert.equal(raced,true,mode);
+        if(allowed){const replay=await invoker.invokeMutation(request,identity);assert.equal('result'in replay?replay.result.status:replay.error.code,'replayed');assert.equal((await store.load(resource,resourceRow.id))!.data.active,false);}
+      }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
 it('authorizes a stored timezone through original parent and required reference paths and rechecks saved disclosure',
