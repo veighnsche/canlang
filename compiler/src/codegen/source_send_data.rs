@@ -1168,6 +1168,7 @@ pub(super) fn source_only_data_sends(
     let_data: &HashMap<Span, serde_json::Value>,
     module: &str,
     loops: Option<&serde_json::Value>,
+    native_source: Option<&serde_json::Value>,
 ) -> Option<HashMap<Span, serde_json::Value>> {
     let IrItemKind::Scenario {
         params,
@@ -1180,10 +1181,13 @@ pub(super) fn source_only_data_sends(
     else {
         return None;
     };
-    let source = requires
-        .values()
-        .find(|source| source["owner"] == owner.canonical)?["source"]
-        .clone();
+    let native_loops = native_source.is_some();
+    let source = native_source.cloned().or_else(|| {
+        requires
+            .values()
+            .find(|source| source["owner"] == owner.canonical)
+            .map(|source| source["source"].clone())
+    })?;
     context.same_scenario(ir, owner)?;
     let creates = super::source_created_rows::collect(ir, owner, context, &source)?;
     let (mut env, mut models) = Environment::admitted(ir, params)?;
@@ -1202,6 +1206,8 @@ pub(super) fn source_only_data_sends(
         source: &serde_json::Value,
         module: &str,
         output: &mut HashMap<Span, serde_json::Value>,
+        native_loops: bool,
+        missing: &mut bool,
     ) {
         for statement in body {
             match statement {
@@ -1254,12 +1260,14 @@ pub(super) fn source_only_data_sends(
                     span,
                     ..
                 } => {
+                    if native_loops && loop_roots.is_empty() {
+                        continue;
+                    }
                     let mut reads = Reads {
                         contract_derives: true,
                         ..Reads::default()
                     };
                     if reads.read(ir, context, args, env, 0).is_none()
-                        || reads.fields.is_empty()
                         || reads.fields.len() > 200
                         || reads.data_paths.keys().any(|name| {
                             loop_roots.contains_key(name) || created_roots.contains_key(name)
@@ -1276,6 +1284,12 @@ pub(super) fn source_only_data_sends(
                             })
                         })
                     {
+                        if native_loops && !send_value(ir, args, &env.values, 0) {
+                            *missing = true;
+                        }
+                        continue;
+                    }
+                    if reads.fields.is_empty() {
                         continue;
                     }
                     let mut parameters = Vec::new();
@@ -1360,6 +1374,8 @@ pub(super) fn source_only_data_sends(
                         source,
                         module,
                         output,
+                        native_loops,
+                        missing,
                     );
                 }
                 IrStmt::If {
@@ -1382,6 +1398,8 @@ pub(super) fn source_only_data_sends(
                         source,
                         module,
                         output,
+                        native_loops,
+                        missing,
                     );
                     walk(
                         ir,
@@ -1398,6 +1416,8 @@ pub(super) fn source_only_data_sends(
                         source,
                         module,
                         output,
+                        native_loops,
+                        missing,
                     );
                 }
                 IrStmt::Match { arms, .. } => {
@@ -1417,6 +1437,8 @@ pub(super) fn source_only_data_sends(
                             source,
                             module,
                             output,
+                            native_loops,
+                            missing,
                         );
                     }
                 }
@@ -1425,6 +1447,7 @@ pub(super) fn source_only_data_sends(
         }
     }
     let mut output = HashMap::new();
+    let mut missing = false;
     walk(
         ir,
         context,
@@ -1440,8 +1463,10 @@ pub(super) fn source_only_data_sends(
         &source,
         module,
         &mut output,
+        native_loops,
+        &mut missing,
     );
-    Some(output)
+    (!missing).then_some(output)
 }
 
 pub(super) fn source_only_data_emits(

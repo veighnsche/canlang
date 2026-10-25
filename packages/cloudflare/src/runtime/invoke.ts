@@ -5789,7 +5789,7 @@ async function bindNativeSourceData(asm:AssembledModules,artifact:CompileArtifac
   const sourceReads=context===undefined?undefined:createSourceReadPolicyAdapter({loaded,opts:context.opts,now:context.now,
     ...(context.preferences===undefined?{}:{preferences:context.preferences})});
   for(const value of loaded.registry.values()){
-    const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def);
+    const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def)??(nativeSourceBodyLoops.has(def)?def.descriptor.result?.disclosure?.source:undefined);
     if(def===undefined||source===undefined)continue;
     const callable=artifact.callables.find(callable=>callable.kind==='operation'&&callable.id===def.name&&callable.module===source.module);
     if(callable?.inputStyle!=='parameters')throw new AssemblyCorrespondenceError('Source DATA lacks its original parameter-style operation.');
@@ -6074,6 +6074,9 @@ function nativeScenarioModelConsumers(loaded: LoadedCanonicalDescriptors, def: G
     add(query.model, true);
   }
   for(const loop of def.descriptor.result?.disclosure?.sourceLoops?.loops??[])if(loop.copy!==undefined)add(loop.model,true);
+  for(const loop of nativeSourceBodyLoops.get(def)?.plan.loops??[]){
+    add(loop.model,true);add(loop.parentModel,true);
+  }
   addScenarioReturnConsumers(add, def);
   // Native mutation DATA is consumed by CREATE/SEND before any result
   // projection. Bind its original source grants even for a void scalar copy.
@@ -6149,7 +6152,7 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
     // alongside file and model-result profiles instead of binding grant-free.
     // Stored references on owners outside the policy table defer the same
     // way: no grant-free bind could supply their viewer policy.
-    if (context === undefined && (def.kind==='scenario' && plan.returns.some(returned=>
+    if (context === undefined && (nativeSourceBodyLoops.has(def) || def.kind==='scenario' && plan.returns.some(returned=>
         returned.dependencies.some(dependency=>dependency.role==='data'&&dependency.queryId===undefined)) || plan.sourceLoops?.loops.some(loop=>loop.copy!==undefined) || [...(nativeSourceSendGuards.get(def)?.values() ?? [])].some(source =>
         source.guard.inputs.some(input => loaded.models.some(model => model.name === input.type))) ||
       (nativeScenarioStoredFileProfiles.get(def)?.size ?? 0) !== 0 || plan.returns.some(returned =>
@@ -13368,7 +13371,7 @@ async function runScenarioExecution(
       });
     }
   }
-  if(sourceRequireAware&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined){
+  if(hasExecutionFrame&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined){
     const data=nativeSourceSendData.get(scenarioDef),actual=call as AdmittedCall;
     if(data!==undefined){
       const parameters=localPolicyObject(argument);

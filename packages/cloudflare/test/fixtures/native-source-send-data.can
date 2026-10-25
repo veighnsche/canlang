@@ -1,16 +1,22 @@
 app SourceSendData
 use std {EmailV1 as Mail} from=deployment.mail
 Given
- Location {enabled:bool=true}
+ Location {enabled:bool=true,visible:bool=true}
  Root {location:Location,capacity:int=2,checked:bool=false,last:text?,source:text="Readable source",reason:text?,secret:text="Hidden source",visible:bool=true}
  Child in Root {active:bool=true}
  derive Root.remaining:int=row.capacity-count(row.Child as child where child.active)
  derive allowed(root:Root):bool=any(root.Child as child,child.active)
- policy Location read=members fields=enabled
- policy Root read=members where=row.visible and row.location.enabled fields=source,reason
+ policy Location read=members where=row.visible fields=enabled
+ policy Root read=members where=row.visible and row.location.enabled fields=source,reason,location
  policy Child read=owner
  invariant Root: row.capacity>=0
 When
+ scenario notify_children(root:Root,to:email) by=members
+  require root.visible
+  do
+   for child in root.Child as child where child.active limit=10
+    set child {active=false}
+    send Mail.send {to,subject=root.location.id,body=root.source} as delivery
  scenario notify(root:Root,to:email,reason:text) -> date by=members
   require root.remaining>0
   require allowed(root)

@@ -2495,6 +2495,7 @@ export function needsScenarioReceiptReferenceProducer(def: GeneratedOperationDef
   if (bound === undefined) return invalid('reference consumer census requires its checked source plan.');
   const modelInputs = frameworkModelInputs.get(def);
   return bound.referenceDependencies.size !== 0 || bound.fileDependencies.size !== 0 || executionDependencies ||
+    sourceBodyLoopProducers.has(def) ||
     bound.plan.sourceLoops?.loops.some(loop => loop.copy !== undefined) === true ||
     def.kind === 'scenario' && bound.plan.returns.some(returned => returned.dependencies.some(dependency => dependency.role === 'data' && dependency.queryId === undefined)) ||
     [...bound.nominalDependencies.values()].some(value => value.profile.hasFiles || value.profile.array && value.dependency.role === 'data') ||
@@ -7967,12 +7968,11 @@ function sourceEffectGrantSlot(owner:ReceiptOwnerSession,producer:ScenarioReceip
     const sites=sourceQueryRowsProducers.get(def)!.sites;
     maximum=sites.reduce((total,site)=>total+site.queries.length*(owner.maxRows+1),0);
   }else if(producer!==undefined&&producer===sourceSendDataProducers.get(def)){
-    const loops=sourceBodyLoopProducers.get(def)?.loops??[];
     for(const site of sourceSendDataProducers.get(def)!.sites){
       const ids=new Set(site.parameters.flatMap(parameter=>parameter.loop===undefined?[]:[parameter.loop]));
       if(ids.size>1)return false;
-      const id=[...ids][0],loop=id===undefined?undefined:loops.find(loop=>loop.id===id);
-      if(id!==undefined&&loop===undefined)return false;
+      const id=[...ids][0],loop=sourceSendBodyLoop(def,site.node);
+      if(id!==undefined&&loop?.id!==id)return false;
       maximum+=(loop?.maximum??1)*(site.parameters.reduce((total,parameter)=>{
         const value=parameter.array===true?admittedInputWire((owner.executingCall??owner.call).inputs,parameter.name):undefined;
         if(parameter.array===true&&(!Array.isArray(value)||value.length>MAX_ITEMS))return invalid('SEND identity array exceeds its admitted bound.');
@@ -8104,7 +8104,7 @@ async function observeModelQuerySourceAuthority<AllowAbsent extends boolean = fa
   const requiredFields = new Set(fields);
   const readable = (value: Awaited<ReturnType<typeof project>>, absent = allowAbsent === true) => value.record === null ? absent : [...requiredFields].every(field => field === 'parent'
     ? value.record!.parent !== null && value.record!.parent.model === state.bound.artifactModels.get(model)?.parent
-    : ('grants' in read ? value.grants.some(grant => grant.fields.includes(field)) : true) && (field === 'id' || computedFields?.has(field)===true || Object.hasOwn(value.record!.data, field)));
+    : ('grants' in read ? field === 'id' ? value.grants.length !== 0 : value.grants.some(grant => grant.fields.includes(field)) : true) && (field === 'id' || computedFields?.has(field)===true || Object.hasOwn(value.record!.data, field)));
   const authority = await observeRowGrantAuthority(context, observed => project(row, observed,
     async (model, id) => { healthy(); const value = await owner.session!.views.final.get(model, id); healthy(); return value; }, healthy,
     predicateDomain === undefined ? undefined : predicateControlDomain(model, predicateDomain, owner.maxRows, healthy)));
@@ -8513,7 +8513,7 @@ async function observeSourceEffectIdentityPaths(call:AdmittedCall,store:StorageP
   for(const [index,profile]of (parameter.identityPaths??[]).entries()){
     const {model,row}=await observeSourceEffectPath(call,store,owner,state,parameter.model,root,profile.path,producer,`${parameter.name}:identity:${index}`);
     // ID is genuine readable row metadata, not a fabricated stored scalar grant.
-    const authority=await observeModelQuerySourceAuthority(call,store,owner,state,model,row,[],0,undefined,undefined,producer);
+    const authority=await observeModelQuerySourceAuthority(call,store,owner,state,model,row,['id'],0,undefined,undefined,producer);
     rows[`${parameter.name}.identity.${index}`]=authority.record;
   }
   for(const [index,profile]of (parameter.dataPaths??[]).entries()){
@@ -8626,10 +8626,14 @@ function checkSourceEffectQueries(bound:BoundPlan,readPolicies:ReadonlyMap<Model
     checkSourceEffectPolicies(bound,readPolicies,model,`${label} query`);
   }
 }
+function sourceSendBodyLoop(def:GeneratedOperationDef,node:{readonly start:number;readonly end:number}):ScenarioSourceBodyLoop|undefined{
+  const loops=sourceBodyLoopProducers.get(def)?.loops.filter(loop=>loop.node.start<=node.start&&node.end<=loop.node.end)??[];
+  return loops.length===1?loops[0]:undefined;
+}
 export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,producer:SourceSendDataProducer):void{
   const bound=boundPlans.get(def),framework=frameworkProducers.get(def);
-  if(!bound?.sourceRequireOnly||invokedPlans.has(def)||sourceSendDataProducers.has(def)||framework===undefined){
-    return invalid('SEND DATA needs its original uninvoked source-only framework owner.');
+  if(bound===undefined||!bound.sourceRequireOnly&&!sourceBodyLoopProducers.has(def)||invokedPlans.has(def)||sourceSendDataProducers.has(def)||framework===undefined){
+    return invalid('SEND DATA needs its original uninvoked source or loop framework owner.');
   }
   object(producer,['source','app','policy','readPolicies','sites']);origin(producer.source);text(producer.app);
   if(stableStringify(producer.source)!==stableStringify(bound.plan.source)||producer.app!==framework.app||!(producer.policy instanceof Map)
@@ -8641,6 +8645,7 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
     if(site['owner']!==def.name||stableStringify(site['source'])!==stableStringify(bound.plan.source))return invalid('SEND DATA source owner mismatch.');
     const node=object(site['node'],['start','end']);
     if(!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start']))return invalid('SEND DATA occurrence is invalid.');
+    if(!bound.sourceRequireOnly&&sourceSendBodyLoop(def,{start:Number(node['start']),end:Number(node['end'])})===undefined)return invalid('Native SEND DATA lacks its exact original source loop.');
     const operation=text(site['operation']),binding=text(site['binding']);
     if(!framework.bindings.some(entry=>entry.binding===binding&&entry.targets.some(target=>target.source===operation)))return invalid('SEND DATA lacks its owning Work route.');
     const parameters=list(site['parameters']);if(parameters.length===0)return invalid('SEND DATA needs its actual source root census.');
@@ -8693,9 +8698,11 @@ export async function executeScenarioSourceSendData(call:AdmittedCall,store:Stor
     const claimed=dataCopy(supplied['source']);
     const producer=sourceSendDataProducers.get(call.def as GeneratedOperationDef);
     const matches=producer?.sites.filter(source=>stableStringify(source)===stableStringify(claimed))??[];
-    if(owner===undefined||owner.session===null||owner.framework===null||!state.bound.sourceRequireOnly||matches.length!==1||producer===undefined
+    const loop=matches.length===1?sourceSendBodyLoop(call.def as GeneratedOperationDef,matches[0]!.node):undefined;
+    const loopItem=owner===undefined?undefined:sourceBodyLoopItems.get(owner),loopOwner=loop!==undefined&&loopItem?.execution.loop===loop;
+    if(owner===undefined||owner.session===null||owner.framework===null||!state.bound.sourceRequireOnly&&!loopOwner||loop!==undefined&&!loopOwner||matches.length!==1||producer===undefined
         ||owner.busy||owner.capture.pending!==0||owner.executingCall!==call||sourceSendDataExecutions.has(owner)||sourceEmitDataExecutions.has(owner))return invalid('SEND DATA lacks its actual quiescent source owner.');
-    const source=matches[0]!,stage=owner.stage,ordinal=owner.framework.ordinal,key=`${source.node.start}:${source.node.end}:${source.parameters.some(parameter=>parameter.loop!==undefined)?sourceBodyLoopItems.get(owner)?.row.id??'unissued-loop':''}`;
+    const source=matches[0]!,stage=owner.stage,ordinal=owner.framework.ordinal,key=`${source.node.start}:${source.node.end}:${loopOwner?loopItem!.row.id:source.parameters.some(parameter=>parameter.loop!==undefined)?sourceBodyLoopItems.get(owner)?.row.id??'unissued-loop':''}`;
     const consumed=consumedSourceSendData.get(call)??new Set<string>();consumedSourceSendData.set(call,consumed);
     if(consumed.has(key))return invalid('SEND DATA repeats its original source occurrence.');consumed.add(key);
     const rows:Record<string,ProjectedRecord>=Object.create(null),createdRows=new Map<string,StoredRow>();

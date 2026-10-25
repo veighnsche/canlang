@@ -2091,7 +2091,7 @@ it('authorizes original SEND scalar DATA with independent current field projecti
         const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
         await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(scope.owner));}});
         const rootModel=model('SourceSendData','Root'),locationModel=model('SourceSendData','Location');
-        const location={...makeRow({id:asId('location'),data:{enabled:true}}),parent:null};
+        const location={...makeRow({id:asId('location'),data:{enabled:true,visible:true}}),parent:null};
         const other={...location,id:asId('other'),data:{enabled:false}};
         const row={...makeRow({id:asId('root'),data:{location:{id:location.id},capacity:'2',checked:false,last:null,
           source:'Readable source',reason:mode==='nonnull'?'Stored reason':null,secret:'Hidden source',visible:mode!=='hidden-row'}}),parent:null};
@@ -2141,6 +2141,45 @@ it('authorizes original SEND scalar DATA with independent current field projecti
         const replay=await invoker.invokeMutation(request,identity);
         assertDateReplay(replay,new Date(now+86400000).toISOString().slice(0,10));
         assert.deepEqual(await store.outboxPending(),pending);assert.deepEqual(await store.readReceipt(saved.identity),saved);
+      }
+      for(const mode of ['allowed','hidden-source','hidden-target','identity-race','source-race']){
+        const {now,identities,identity,membership}=await member(`loop-reference-${mode}`);
+        const scope={app:'SourceSendData',owner:membership.team_id,ownerPackage:'SourceSendData'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'loop-reference-state',fileStoreId:'loop-reference-files',receiver:{app:scope.app,owner:scope.owner,team:scope.owner}};
+        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(scope.owner));}});
+        const rootModel=model('SourceSendData','Root'),locationModel=model('SourceSendData','Location'),childModel=model('SourceSendData','Child');
+        const location={...makeRow({id:asId('location'),data:{enabled:true,visible:mode!=='hidden-target'}}),parent:null};
+        const row={...makeRow({id:asId('root'),data:{location:{id:location.id},capacity:'2',checked:false,last:null,source:'Original source',reason:null,secret:'Secret',visible:mode!=='hidden-source'}}),parent:null};
+        const children=['first','second'].map(id=>({...makeRow({id:asId(id),data:{active:true}}),parent:{model:rootModel,id:row.id}}));
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:locationModel,row:location},{kind:'insert',model:rootModel,row},...children.map(row=>({kind:'insert' as const,model:childModel,row}))]}));
+        let raced=false;
+        if(mode==='identity-race'){
+          const load=store.load.bind(store);store.load=async(model,id)=>{
+            if(!raced&&model==='work.dispatch'){raced=true;await identities.removeMembership(membership.membership_id);}
+            return load(model,id);
+          };
+        }
+        if(mode==='source-race'){
+          const commit=store.commit.bind(store);store.commit=async batch=>{
+            if(!raced&&batch.writes.some(write=>write.model==='work.dispatch')){
+              raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:rootModel,id:row.id,expectedVersion:asVersion(row.version),row:{...row,version:asVersion(row.version+1),data:{...row.data,source:'Changed source'}}}]}));
+            }
+            return commit(batch);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const request={operation:'SourceSendData.notify_children',operation_id:operationId(now),inputs:{root:{id:row.id,version:String(row.version)},to:'recipient@example.test'}};
+        const outcome=await invoker.invokeMutation(request,identity),allowed=mode==='allowed';
+        assert.equal('result'in outcome?outcome.result.status:outcome.error.code,allowed?'committed':mode==='hidden-source'?'rule_failed':mode==='source-race'?'conflict':'forbidden',`${mode}: ${JSON.stringify(outcome)}`);
+        const pending=await store.outboxPending();assert.equal(pending.length,allowed?2:0,mode);
+        for(const child of children)assert.equal((await store.load(childModel,child.id))!.data.active,!allowed,mode);
+        if(mode==='identity-race'||mode==='source-race')assert.equal(raced,true,mode);
+        if(allowed){
+          for(const intent of pending)assert.deepEqual(intent.arguments,{binding:'SourceSendData.Mail',from:'deployment.mail',arguments:{to:'recipient@example.test',subject:location.id,body:'Original source',attachments:[]}});
+          const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));
+          assert.deepEqual(await store.outboxPending(),pending);
+        }
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });

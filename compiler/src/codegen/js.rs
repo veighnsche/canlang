@@ -3170,6 +3170,22 @@ fn emit_program_with_sources(
                         &serde_json::to_value(&receipt.plan.source).expect("checked source"),
                         &module_path(&entry_name),
                     ) {
+                        let source =
+                            serde_json::to_value(&receipt.plan.source).expect("checked source");
+                        if let Some(sends) = source_only_data_sends(
+                            ir,
+                            owner,
+                            context,
+                            &emitter.source_requires,
+                            &emitter.source_let_data,
+                            &module_path(&entry_name),
+                            Some(&loops),
+                            Some(&source),
+                        ) {
+                            emitter.source_data_sends.extend(sends);
+                        } else {
+                            emitter.unsupported("source loop SEND DATA", "stored DATA in a native source loop needs its exact original SEND observer", owner.span);
+                        }
                         emitter
                             .source_body_loops
                             .insert(owner.canonical.clone(), loops);
@@ -3220,6 +3236,7 @@ fn emit_program_with_sources(
                 &emitter.source_let_data,
                 &module_path(&entry_name),
                 emitter.source_body_loops.get(&owner.canonical),
+                None,
             ) {
                 emitter.source_data_sends.extend(sends);
             }
@@ -23754,6 +23771,14 @@ fn checked_string_value_type(ty: &IrType) -> Option<&'static str> {
                 | "text?"
                 | "text[]"
                 | "text[]?"
+                | "email"
+                | "email?"
+                | "email[]"
+                | "email[]?"
+                | "url"
+                | "url?"
+                | "url[]"
+                | "url[]?"
                 | "date"
                 | "date?"
                 | "date[]"

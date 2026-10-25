@@ -2324,6 +2324,68 @@ impl<'a> Closure<'a> {
             .then_some(path)
     }
 
+    /// A bounded source SEND may consume the identity of a required reference
+    /// on its original scenario input. The loop item and copied/local rows do
+    /// not become roots; the SEND collector retains the ordinary root path.
+    fn checked_loop_send_reference_identity(
+        &self,
+        reference: NodeKey,
+        module: ModuleId,
+    ) -> Option<(SymbolId, SymbolId, SymbolId, SymbolId)> {
+        let loop_node = self.loop_node?;
+        let (parameter, receiver, source, field, target, depth) =
+            self.checked_reference_identity_operand(reference, module)?;
+        if depth != 0
+            || !self.original_reference_parameter(receiver, parameter)
+            || self.types.symbol_types.get(&parameter)
+                != Some(&ResolvedType::Record {
+                    symbol: source,
+                    stored: true,
+                })
+        {
+            return None;
+        }
+        let SymbolKind::Param { owner, .. } = self.resolve.symbols.get(parameter.0 as usize)?.kind
+        else {
+            return None;
+        };
+        let scenario = self.effects.scenarios.get(&owner)?;
+        let input = scenario
+            .params
+            .iter()
+            .find(|input| input.param == parameter)?;
+        let loop_effect = scenario
+            .effects
+            .iter()
+            .find(|effect| effect.node == loop_node)?;
+        if scenario.module != module
+            || scenario.read
+            || scenario.on.is_some()
+            || input.default.is_some()
+            || loop_effect.verb != EffectVerb::For
+            || !self.source_anchor(scenario, reference)
+            || !self.source_anchor(scenario, loop_node)
+        {
+            return None;
+        }
+        let reference = self.query_group(reference)?;
+        loop_effect.then_effects.iter().find_map(|effect| {
+            if effect.verb != EffectVerb::Send || effect.when.is_some() {
+                return None;
+            }
+            effect.args.iter().find_map(|argument| {
+                let identity = self.query_group(argument.value?)?;
+                let (base, member) = self.count_member(identity)?;
+                (member == "id"
+                    && self.query_group(base) == Some(reference)
+                    && self.types.node_types.get(&identity)
+                        == Some(&ResolvedType::Scalar(Scalar::Text))
+                    && self.source_anchor(scenario, identity))
+                .then_some((parameter, source, field, target))
+            })
+        })
+    }
+
     /// The original successful presence/published guard narrows exactly one
     /// required Template.current into its original lexical Revision binding.
     fn checked_current_revision_source(
@@ -21473,8 +21535,12 @@ impl<'a> Closure<'a> {
             .scenarios
             .get(scenario)
             .ok_or_else(|| self.fail(key, "missing intrinsic id source scenario"))?;
+        let loop_identity = member
+            && self
+                .checked_loop_send_reference_identity(base_key, module)
+                .is_some_and(|(root, _, _, target)| root == parameter && target == model);
         if !calls.is_empty()
-            || self.loop_node.is_some()
+            || self.loop_node.is_some() && !loop_identity
             || !member
                 && self.checked_call_parent_path(base_key, parameter, 0) != Some((model, 0))
                 && self.narrowed_model_input(base_key, module) != Some((parameter, model))
@@ -22208,6 +22274,16 @@ impl<'a> Closure<'a> {
         field_id: SymbolId,
         value: &ValuePath,
     ) -> Option<SymbolId> {
+        if calls.is_empty()
+            && let Some((parameter, source, field, target)) =
+                self.checked_loop_send_reference_identity(key, module)
+            && source == model
+            && field == field_id
+            && value.reference_origin == Some(ReferenceOrigin::Parameter(parameter))
+            && matches!(self.query_binding(base_key), Some(Binding::Symbol(actual)) if *actual == parameter)
+        {
+            return Some(target);
+        }
         if self.loop_node.is_none()
             && let Some((source, field, target)) =
                 self.helper_reference_source(key, module, calls)

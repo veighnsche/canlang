@@ -4810,6 +4810,89 @@ fn contained_cancel_loop_preserves_original_domain_work_and_delivery_carrier() {
             "{name}: {diagnostics:?}"
         );
     }
+    let source =
+        include_str!("../../packages/cloudflare/test/fixtures/native-source-send-data.can");
+    let (db, program, ir, catalog) = fixture_source("loop-root-reference.can", source);
+    let owner = item(&ir, "SourceSendData.notify_children");
+    assert!(
+        matches!(
+            &ir.scenario_disclosures[&owner.id],
+            ScenarioDisclosure::Complete(_)
+        ),
+        "{:?}",
+        ir.scenario_disclosures[&owner.id]
+    );
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let code = artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|module| module["js"].as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(code.contains("nativeScenarioSourceSendData(c"));
+    assert!(code.contains("identityPaths"));
+    assert!(serialize_decision_sources(&program, &ir, owner, &db, Some(&catalog)).is_some());
+    for mode in ["root", "field", "identity", "bound"] {
+        let mut changed = ir.clone();
+        let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.id.0 as usize].kind
+        else {
+            panic!("scenario")
+        };
+        let IrStmt::For {
+            body,
+            limit: Some(limit),
+            ..
+        } = effects
+            .iter_mut()
+            .find(|effect| matches!(effect, IrStmt::For { .. }))
+            .unwrap()
+        else {
+            panic!("loop")
+        };
+        if mode == "bound" {
+            limit.expr = IrExpr::Int(11);
+        } else {
+            let IrStmt::Send { args, .. } = &mut body[1] else {
+                panic!("send")
+            };
+            let IrExpr::Object(fields) = &mut args.expr else {
+                panic!("arguments")
+            };
+            let subject = &mut fields
+                .iter_mut()
+                .find(|(name, _)| name == "subject")
+                .unwrap()
+                .1;
+            let IrExpr::Member { base, field } = &mut subject.expr else {
+                panic!("identity")
+            };
+            if mode == "identity" {
+                *field = "other".into();
+            } else {
+                let IrExpr::Member { base, field } = &mut base.expr else {
+                    panic!("reference")
+                };
+                if mode == "field" {
+                    *field = "other".into();
+                } else {
+                    base.expr = IrExpr::Name("child".into());
+                }
+            }
+        }
+        assert!(
+            serialize_decision_sources(
+                &program,
+                &changed,
+                &changed.items[owner.id.0 as usize],
+                &db,
+                Some(&catalog)
+            )
+            .is_none(),
+            "{mode}"
+        );
+    }
 }
 
 #[test]
