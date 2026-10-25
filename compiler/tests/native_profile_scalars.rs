@@ -18,8 +18,7 @@ use std::{
 const SOURCE: &str = include_str!("fixtures/source-profile-scalars.can");
 const HASH: &str = "06e8633f8d0b8d1b7b57333447a4bda47db36676db8b43bab5259f6064693995";
 const OWNER: &str = "SourceProfileScalars.ask";
-const LEAVES: [&str; 9] = [
-    "active",
+const LEAVES: [&str; 8] = [
     "input_tokens",
     "output_tokens",
     "system_prompt",
@@ -48,8 +47,11 @@ fn native_owner() -> PathBuf {
     }
 }
 fn checked(path: &str) -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
+    checked_source(path, SOURCE)
+}
+fn checked_source(path: &str, source: &str) -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
     let mut db = SourceDb::new();
-    let file = db.add(path.into(), SOURCE.into());
+    let file = db.add(path.into(), source.into());
     let path = native_owner().join("packages/cloudflare/dist/native-catalog.json");
     let (catalog, diagnostics) = load_catalog(&CatalogRequest {
         flag: Some(&path),
@@ -94,9 +96,9 @@ fn assert_plan(plan: &Value, ir: &IrProgram, path: &str) {
     assert_eq!(returned["id"], original.id);
     assert!(returned["influences"].as_array().unwrap().is_empty());
     let dependencies = returned["dependencies"].as_array().unwrap();
-    assert_eq!(dependencies.len(), 18);
+    assert_eq!(dependencies.len(), 16);
     let mut ids = HashSet::new();
-    for (index, (actual, expected)) in dependencies.iter().zip(&original.dependencies).enumerate() {
+    for (actual, expected) in dependencies.iter().zip(&original.dependencies) {
         assert!(ids.insert(actual["id"].as_str().unwrap()));
         assert_eq!(actual["id"], expected.id);
         assert_eq!(actual["model"], expected.model_name);
@@ -111,7 +113,7 @@ fn assert_plan(plan: &Value, ir: &IrProgram, path: &str) {
                 "data"
             }
         );
-        assert_eq!(actual["role"], if index < 2 { "control" } else { "data" });
+        assert_eq!(actual["role"], "data");
         assert!(actual.get("queryId").is_none());
         assert!(
             actual.get("sourceDependencyId").is_none(),
@@ -128,7 +130,7 @@ fn assert_plan(plan: &Value, ir: &IrProgram, path: &str) {
 }
 
 #[test]
-fn checked_prepared_native_profile_preserves_all_nine_original_pairs() {
+fn checked_prepared_native_profile_preserves_data_pairs_and_source_guard() {
     assert_eq!(sha256_hex(SOURCE.as_bytes()), HASH);
     let (db, program, ir, catalog) = checked("source-profile-scalars.can");
     let mut result = DiagnosticResult::new("native-profile-scalars", "1.0", 1);
@@ -157,15 +159,11 @@ fn checked_prepared_native_profile_preserves_all_nine_original_pairs() {
         "source-profile-scalars.can",
     );
     let raw = js::emit_program_with_native_source_receipts(&ir, true, &db);
-    assert!(raw.diagnostics.is_empty(), "{:#?}", raw.diagnostics);
-    let native = raw
-        .operations
-        .iter()
-        .find(|operation| operation.name == OWNER)
-        .unwrap();
     assert!(
-        native.disclosure.is_some(),
-        "genuine source emitter also joins the original pairs"
+        raw.diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008"),
+        "bare IR emission cannot issue the original guard's fresh source context"
     );
 }
 
@@ -231,15 +229,15 @@ const profile=artifact.models.find(model=>model.name==='SourceProfileScalars.Pro
 assert.deepEqual(profile.fields.map(field=>field.name),['name','provider_key','policy_revision','system_prompt','input_tokens','output_tokens','duration','active']);
 const callable=artifact.callables.find(callable=>callable.id===operation.name),module=await importVerifiedAssemblyModule(assembly,callable.module,artifact),factory=module.canApp();
 let handler=factory;for(const member of callable.member)handler=handler[member];const body=handler.toString();
-for(const [pattern,total] of [[/\bawait readScenarioReceiptStoredReference\(/g,9],[/\bawait observeScenarioReceiptDependency\(/g,18],[/\bawait create\(/g,1],[/\bawait bindScenarioReceiptModelResult\(/g,1],[/\bselectScenarioReceiptReturn\(/g,1]])assert.equal((body.match(pattern)||[]).length,total);
+for(const [pattern,total] of [[/\bawait readScenarioReceiptStoredReference\(/g,8],[/\bawait observeScenarioReceiptDependency\(/g,16],[/\bawait create\(/g,1],[/\bawait bindScenarioReceiptModelResult\(/g,1],[/\bselectScenarioReceiptReturn\(/g,1]])assert.equal((body.match(pattern)||[]).length,total);
 const create=/\bconst ([$\w]+) = await create\(c,"SourceProfileScalars\.Run",\{parent:([$\w]+),/.exec(body);assert.ok(create,'original required Branch supplies Run.parent');
-const [returned]=plan.returns,reads=returned.dependencies,leaves=['active','input_tokens','output_tokens','system_prompt','provider_key','policy_revision','input_tokens','output_tokens','duration'];
-assert.equal(reads.length,18);assert.equal(new Set(reads.map(read=>read.id)).size,18);assert.deepEqual(returned.influences,[]);
+const [returned]=plan.returns,reads=returned.dependencies,leaves=['input_tokens','output_tokens','system_prompt','provider_key','policy_revision','input_tokens','output_tokens','duration'];
+assert.equal(reads.length,16);assert.equal(new Set(reads.map(read=>read.id)).size,16);assert.deepEqual(returned.influences,[]);
 const q=JSON.stringify;let previous=-1;
-for(let index=0;index<9;index++){
+for(let index=0;index<8;index++){
  const source=reads[index*2],scalar=reads[index*2+1];
  assert.equal(source.model,'SourceProfileScalars.Branch');assert.equal(source.field,'profile');assert.equal(source.type,'SourceProfileScalars.Profile');
- assert.equal(scalar.model,'SourceProfileScalars.Profile');assert.equal(scalar.field,leaves[index]);assert.equal(source.role,index===0?'control':'data');assert.equal(scalar.role,source.role);
+ assert.equal(scalar.model,'SourceProfileScalars.Profile');assert.equal(scalar.field,leaves[index]);assert.equal(source.role,'data');assert.equal(scalar.role,source.role);
  assert.deepEqual(source.source,plan.source);assert.deepEqual(scalar.source,plan.source);
  // The exact nested await establishes runtime order: getter/awaited marker
  // produces SAMEref, the facade resolves it, then the outer getter/marker runs.
@@ -248,14 +246,23 @@ for(let index=0;index<9;index++){
  const expression=`(await (async($receiptRow)=>{const $receiptValue=$receiptRow[${q(scalar.field)}];await observeScenarioReceiptDependency(c,${q(scalar.model)},$receiptRow,${q(scalar.field)},${q(scalar.id)});return $receiptValue;})(${resolved}))`;
  assert.equal(body.split(expression).length-1,1,`${index} genuine same-reference once sequence`);
  const position=body.indexOf(expression);assert.ok(position>previous,'original authored occurrence order');previous=position;
- if(index===0)assert.ok(position<create.index,'active checked before Create');
- if(index>2)assert.ok(position>create.index,'Create operands remain authored inside the awaited write');
+ if(index>1)assert.ok(position>create.index,'Create operands remain authored inside the awaited write');
 }
-assert.equal((body.match(/\["profile"\]/g)||[]).length,9,'no reference cache or eager scalar reconstruction');
+assert.equal((body.match(/\["profile"\]/g)||[]).length,8,'no reference cache or eager scalar reconstruction');
+const [guard]=module.canScenarioRequireSources()[operation.name];
+assert.deepEqual(guard.source,{path:process.argv[4],sha256:hash,module:'SourceProfileScalars'});
+const original=readFileSync(process.argv[4]),predicate='branch.profile.active';
+assert.equal(guard.node.start,original.indexOf(Buffer.from('require '+predicate))+Buffer.byteLength('require'));
+assert.equal(guard.node.end,original.indexOf(Buffer.from(predicate))+Buffer.byteLength(predicate));
+assert.equal(original.subarray(guard.node.start,guard.node.end).toString('utf8').trim(),predicate);
+assert.equal(original.subarray(guard.statement.start,guard.statement.end).toString('utf8').trim(),'require '+predicate);
+assert.deepEqual(guard.parameters,[{name:'branch',typeId:'SourceProfileScalars.Branch'}]);
+assert.ok(body.indexOf('await nativeScenarioRequire(c,')<create.index,'source guard precedes every write');
+assert.equal((body.match(/\bawait nativeReadReference\(/g)||[]).length,2,'original guard follows both protected receivers');
 assert.ok(body.includes(`const $receiptValue=${create[1]};`),'same created Run return');
 assert.ok(body.includes('return $receiptModelResult;'));
 assert.equal(/\brecords\(/.test(body),false);
-console.log('Native Profile producer: 9 original pairs, actual CLI/verified factory/installed State and released facade; native execution and application authority remain separate');
+console.log('Native Profile producer: 8 DATA pairs and original shared source guard, actual CLI/verified factory/installed State and released facade; native execution and application authority remain separate');
 "#).unwrap();
     let output = Command::new("node")
         .arg(runner)
@@ -279,7 +286,15 @@ console.log('Native Profile producer: 9 original pairs, actual CLI/verified fact
 
 #[test]
 fn native_profile_source_schema_roles_order_and_original_receiver_mutants_refuse() {
-    let (db, _, ir, _) = checked("source-profile-scalars.can");
+    // This lower-level IR mutation boundary has no source-guard context.
+    // Keep its DATA baseline independent; the unchanged original guard is
+    // exercised through the complete public emission and CLI cases above.
+    let data_source = SOURCE.replace("  require branch.profile.active\n", "");
+    assert_eq!(
+        data_source.matches("require branch.profile.active").count(),
+        0
+    );
+    let (db, _, ir, _) = checked_source("source-profile-scalars.can", &data_source);
     let owner = item(&ir, OWNER).id;
     let baseline = js::emit_program_with_native_source_receipts(&ir, true, &db);
     assert!(

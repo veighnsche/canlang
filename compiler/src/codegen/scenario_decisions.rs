@@ -1457,6 +1457,89 @@ pub(super) fn serialize_read_rule(
     serialize_sites(original, ir, db, sites, Some(&owner))
 }
 
+/// An original owner invariant uses the same checked read-decision grammar.
+/// Its source census grants no membership authority; State still supplies the
+/// coherent observation, selected occurrence, and live Identity fence.
+pub(super) fn serialize_model_rule(
+    sources: &FreshSourceContext<'_>,
+    rule: &IrRuleFn,
+) -> Option<Vec<SerialDecisionSite>> {
+    let origin = rule.origin.as_ref()?;
+    if origin.kind != IrModelRuleKind::Invariant
+        || rule.id != origin.registry_id
+        || rule.span != origin.span
+    {
+        return None;
+    }
+    let original = sources.original();
+    let model = original.effects.models.get(&origin.model)?;
+    let mut declarations = model
+        .invariants
+        .iter()
+        .filter(|declaration| declaration.id == origin.ordinal);
+    let declaration = declarations.next()?;
+    if declarations.next().is_some()
+        || declaration.target != origin.model
+        || declaration.module != origin.module
+        || declaration.node != origin.node
+    {
+        return None;
+    }
+    let predicate = declaration.predicate?;
+    let fresh = sources.fresh();
+    let mut expected_rules = fresh
+        .invariants
+        .iter()
+        .filter(|candidate| candidate.id == rule.id && candidate.span == rule.span);
+    let expected = expected_rules.next()?;
+    if expected_rules.next().is_some() || expected.origin.as_ref() != Some(origin) {
+        return None;
+    }
+    let ir = sources.ir();
+    let mut semantics = SemanticJoin {
+        program: original,
+        actual: ir,
+        expected: fresh,
+        nodes: 0,
+        stack: HashSet::new(),
+    };
+    semantics.expression(&rule.pred, &expected.pred, 0)?;
+    let collected = crate::analysis::scenario_disclosure::collect_read_calls(
+        sources.db(),
+        sources.trees(),
+        sources.resolved(),
+        &original.types,
+        &original.effects,
+        origin.module,
+        predicate,
+    )?;
+    let sites = vec![CheckedDecisionSite {
+        owner: origin.model,
+        source: collected.source,
+        node: predicate,
+        statement: declaration.node,
+        stage: Stage::ReadPolicy,
+        position: Vec::new(),
+        calls: collected.calls,
+    }];
+    let mut consumer = Consumer {
+        program: original,
+        ir,
+        db: sources.db(),
+        catalog: sources.catalog(),
+        nodes: HashMap::new(),
+        steps: 0,
+        count: 0,
+    };
+    consumer.index_required(sources.trees(), &required_site_keys(original, &sites)?)?;
+    index_helper_closure(&mut consumer, sources.trees(), original);
+    consumer.steps = 0;
+    verify_rule_predicates(&mut consumer, &sites, vec![&rule.pred], origin.module)?;
+    let module = original.modules.get(origin.module.0 as usize)?;
+    let owner = format!("{}.{}", module.name, rule.id);
+    serialize_sites(original, ir, sources.db(), sites, Some(&owner))
+}
+
 /// Named-page stored-model collection predicates at their original query sites.
 /// The collection factory erases its Query carrier into `model`/`where` props;
 /// original CST/query facts and fresh render correspondence retain that owner.

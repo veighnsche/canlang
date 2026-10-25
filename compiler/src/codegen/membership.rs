@@ -259,6 +259,16 @@ fn collect_membership_sites(
                 }
         }
     }
+    for rule in &ir.invariants {
+        if let Some(source) = super::scenario_decisions::serialize_model_rule(context, rule)
+            && source.iter().any(|site| site.calls.iter().any(|call| {
+                matches!(&call.target, super::scenario_decisions::SerialDecisionTarget::Builtin { id, .. }
+                    if id == "active_member")
+            })) {
+            let owner = source.first()?.owner.clone();
+            if sites.insert(owner, serde_json::to_value(source).ok()?).is_some() { return None; }
+        }
+    }
     Some(sites)
 }
 

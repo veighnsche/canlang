@@ -7292,7 +7292,14 @@ impl<'a> Closure<'a> {
         {
             return None;
         }
-        self.required_reference_field(key, node, model)
+        let (source, field, target) = self.required_reference_field(key, node, model)?;
+        // Validate both declarations in their owning modules. A checked node
+        // type alone does not authenticate edited resolver canonical ownership.
+        for id in [source, target] {
+            let owner_module = self.resolve.symbols.get(id.0 as usize)?.module;
+            self.checked_created_model(id, owner_module)?;
+        }
+        Some((source, field, target))
     }
 
     /// Whether a member base is an original model reference: a parent
@@ -21837,9 +21844,8 @@ impl<'a> Closure<'a> {
             .or_else(|| self.checked_run_unfinished(key, module));
         let required_reference = self
             .expr_member_required_reference(key, module, calls, base_key, model, field.id, value);
-        if let Some((_, source, reference, target, scalar)) =
-            self.checked_required_reference_scalar(key, module)
-        {
+        let required_scalar = self.checked_required_reference_scalar(key, module);
+        if let Some((_, source, reference, target, scalar)) = required_scalar {
             if !calls.is_empty()
                 || self.loop_node.is_some()
                 || model != target
@@ -21865,7 +21871,6 @@ impl<'a> Closure<'a> {
                     "scalar needs its original required stored reference receiver",
                 ));
             }
-            value.reference_origin = None;
         }
         self.expr_member_profile_scalar_leaf(
             key,
@@ -21877,6 +21882,11 @@ impl<'a> Closure<'a> {
             profile_scalar,
             value,
         )?;
+        // The shared required-reference and narrower scalar correspondence
+        // inspect the same original receiver before either consumes its origin.
+        if required_scalar.is_some() {
+            value.reference_origin = None;
+        }
         let parent_origin = if required_reference.is_some() && !calls.is_empty() {
             None
         } else {

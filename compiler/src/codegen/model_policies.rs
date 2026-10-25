@@ -346,7 +346,15 @@ fn collect_invariant_rule(
     let current_revision = checked_profiles
         .and_then(|profiles| profiles.iter().find(|profile| &profile.origin == origin))
         .cloned();
-    let query_profile = if current_revision.is_none() {
+    // Reuse an already source- and field-sealed pure local rule before the
+    // broader query grammar. Pure scalar callbacks need no record-reader ABI.
+    let checked_local = checked_profiles
+        .and_then(|_| checked_chat_invariant_fields(ir, rule))
+        .is_some_and(|fields| {
+            checked_chat_fields
+                .is_some_and(|checked| fields.iter().all(|field| checked.contains(field)))
+        });
+    let query_profile = if current_revision.is_none() && !checked_local {
         checked_context.and_then(|(program, db, catalog)| {
             checked_query_rule_fields(program, ir, model.id, &rule.pred, db, catalog)
         })

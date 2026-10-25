@@ -166,8 +166,11 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
             "{name}: {field}"
         );
     }
+    assert_eq!(
+        operation(&artifact, "Client.specialized")["result"],
+        json!({"type":"email"})
+    );
     for name in [
-        "Client.specialized",
         "Client.Item.read",
         "Client.Item.create",
         "Client.Item.update",
@@ -219,10 +222,11 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
         .as_array()
         .unwrap()
     {
-        if input["name"] == "day" {
-            assert_eq!(input["valueType"], "date", "{input}");
-        } else {
-            assert!(input.get("valueType").is_none(), "{input}");
+        match input["name"].as_str().unwrap() {
+            "day" => assert_eq!(input["valueType"], "date", "{input}"),
+            "zone" => assert_eq!(input["valueType"], "timezone", "{input}"),
+            "code" => assert_eq!(input["valueType"], "currency", "{input}"),
+            _ => assert!(input.get("valueType").is_none(), "{input}"),
         }
         if input["name"] == "person" {
             assert_eq!(input["field"], json!({"kind":"user"}), "{input}");
@@ -347,8 +351,26 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
             );
         }
     }
+    for (name, ty) in [
+        ("flag", "bool"),
+        ("link", "url"),
+        ("links", "url[]?"),
+        ("code", "currency"),
+    ] {
+        let field = model["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|field| field["name"] == name)
+            .unwrap();
+        assert_eq!(field["valueType"], ty, "{field}");
+    }
     for field in model["fields"].as_array().unwrap().iter().filter(|field| {
         ![
+            "flag",
+            "link",
+            "links",
+            "code",
             "title",
             "optional",
             "titles",

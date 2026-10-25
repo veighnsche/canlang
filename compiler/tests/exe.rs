@@ -106,7 +106,7 @@ fn version_golden_has_versions_and_commit() {
         assert!(output.stderr.is_empty());
         let version = stdout_text(&output);
         assert!(
-            version.starts_with("can 0.1.0"),
+            version.starts_with(&format!("can {} ", env!("CARGO_PKG_VERSION"))),
             "version prefix: {version:?}"
         );
         for token in ["commit ", "language 1.0", "schema 1"] {

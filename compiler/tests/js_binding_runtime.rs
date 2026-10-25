@@ -227,6 +227,13 @@ for(const owner of ['alpha','ALPHA']){
 assert.equal(definition.capabilities['std.EmailV1'].version,1n);
 assert.deepEqual(definition.capabilities['std.EmailV1'].operations.send,{
  inputs:{to:{type:'email'},subject:{type:'text'},body:{type:'text'},attachments:{type:'file[]'}},result:{type:'EmailAccepted'},
+ inputFields:[
+  {name:'to',field:{kind:'string'},required:true,valueType:'email'},
+  {name:'subject',field:{kind:'string'},required:true,valueType:'text'},
+  {name:'body',field:{kind:'string'},required:true,valueType:'text'},
+  {name:'attachments',field:{kind:'file'},required:true,array:{required:false},valueType:'file[]'},
+ ],
+ delivery:{kind:'delivery',capability:'std.EmailV1',operation:'send',version:1,result:{name:'EmailAccepted',fields:[{name:'reference',type:'text'}]}},
 });
 // Actual owning Values validation consumes the generated descriptors directly.
 const values=await import(pathToFileURL(resolve(process.argv[2],'packages/values/dist/src/index.js')));

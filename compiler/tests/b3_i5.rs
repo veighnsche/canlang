@@ -166,7 +166,8 @@ return descriptor;
 }
 export const $can$p$73686f703a64657363726970746f723a2f={owner:"shop",path:"/",title:$can$h$636865636b65645f6d657373616765("Shop",{},undefined,"en"),admit:async(c,routeBindings={})=>{return {};},render:$can$p$73686f703a72656e6465723a2f};
 export async function $can$p$73686f703a72656e6465723a2f(c,bindings){return (await Promise.all([])).filter(value=>value!=null).join('');}
-export const appDefinition={id:"Plain",uses:[],appDefaultLocale:"en",packages:{Plain:{roles:{}},shop:{roles:{}}},bindings:{},contracts:{},events:{},capabilities:{},models:{"shop.Widget":{exported:true,readGrants:[],fields:{title:{type:"text"}}}},preferences:{},operations:{},pages:[$can$p$73686f703a64657363726970746f723a2f],disabled:["shop.Widget.create","shop.Widget.update","shop.Widget.delete"]};
+export const __canlangAppDefaultLocale="en";
+export const appDefinition={id:"Plain",uses:[],runtimeBindingOwners:["Plain"],appDefaultLocale:__canlangAppDefaultLocale,packages:{Plain:{roles:{}},shop:{roles:{}}},bindings:{},runtimeBindings:[],contracts:{},events:{},capabilities:{},models:{"shop.Widget":{exported:true,readGrants:[],fields:{title:{type:"text"}}}},preferences:{},operations:{},pages:[$can$p$73686f703a64657363726970746f723a2f],disabled:["shop.Widget.create","shop.Widget.update","shop.Widget.delete"]};
 export function canApp(){
 return {
 };}

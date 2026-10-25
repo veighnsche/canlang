@@ -3121,7 +3121,8 @@ pub(crate) fn checked_query_rule_fields(
                 ResolvedType::Scalar(_)
                 | ResolvedType::Enum { .. }
                 | ResolvedType::Record { stored: true, .. }
-                | ResolvedType::Null => true,
+                | ResolvedType::Null
+                | ResolvedType::Team => true,
                 ResolvedType::Nullable(inner) => Self::leaf(inner),
                 ResolvedType::Array { element, .. } => Self::leaf(element),
                 ResolvedType::Object(fields) => {
@@ -3268,7 +3269,12 @@ pub(crate) fn checked_query_rule_fields(
             if actual != id
                 || selected.arguments.len() != args.len()
                 || selected.slots != slots
-                || catalog.lookup(id)?.effects != Some(crate::analysis::catalog::Effects::Pure)
+                || catalog.lookup(id)?.effects
+                    != Some(if id == "active_member" {
+                        crate::analysis::catalog::Effects::StateRead
+                    } else {
+                        crate::analysis::catalog::Effects::Pure
+                    })
                 || catalog.overloads(id)?.get(*overload)?.params.len() != args.len()
                 || self.checked.types.node_types.get(&key) != Some(&value.ty)
             {
@@ -3452,6 +3458,31 @@ pub(crate) fn checked_query_rule_fields(
             }
             self.visit_field_member(symbol, field, value, depth)
         }
+        fn visit_team_member(&self, value: &TypedExpr) -> Option<bool> {
+            let IrExpr::Member { base, field } = &value.expr else {
+                return Some(false);
+            };
+            if field != "team"
+                || !matches!(&base.expr, IrExpr::Name(name) if name == "c")
+                || base.ty != ResolvedType::Unknown
+                || base.span != value.span
+                || value.ty != ResolvedType::Team
+            {
+                return Some(false);
+            }
+            let key = NodeKey {
+                file: value.span.file,
+                start: value.span.start,
+                end: value.span.end,
+                kind: crate::syntax::SyntaxKind::NameRef as u8,
+            };
+            (self.checked.types.node_types.get(&key) == Some(&value.ty)
+                && matches!(
+                    self.checked.types.contextual_references.get(&key),
+                    Some(crate::analysis::resolve::ContextVar::Team)
+                ))
+            .then_some(true)
+        }
         fn visit_member(
             &mut self,
             base: &TypedExpr,
@@ -3459,7 +3490,7 @@ pub(crate) fn checked_query_rule_fields(
             value: &TypedExpr,
             depth: usize,
         ) -> Option<bool> {
-            if self.visit_now_member(value)? {
+            if self.visit_now_member(value)? || self.visit_team_member(value)? {
                 return Some(true);
             }
             if !contains_span(value.span, base.span) {
@@ -3816,9 +3847,28 @@ pub(crate) fn checked_query_rule_fields(
                 self.visit_derive_fn_call(value, canonical, args, depth)?;
                 return Some(true);
             }
-            let IrCallTarget::Builtin { id, awaited: false } = target else {
+            let IrCallTarget::Builtin { id, awaited } = target else {
                 return Some(false);
             };
+            if id == "active_member" {
+                if !awaited || value.ty != ResolvedType::Scalar(Scalar::Bool) {
+                    return None;
+                }
+                let formal = self.call_arguments(value, id, args)?;
+                let [person, team] = formal.as_slice() else {
+                    return None;
+                };
+                if person.ty != ResolvedType::Scalar(Scalar::User) || team.ty != ResolvedType::Team
+                {
+                    return None;
+                }
+                self.expr(person, depth + 1)?;
+                self.expr(team, depth + 1)?;
+                return Some(true);
+            }
+            if *awaited {
+                return None;
+            }
             if !matches!(
                 id.as_str(),
                 "any"
