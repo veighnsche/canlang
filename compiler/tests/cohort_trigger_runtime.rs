@@ -42,6 +42,18 @@ fn declared_event_cohorts_publish_checked_child_refs_and_execute_native_bindings
         std::fs::write(path, &output.stdout).unwrap();
     }
     std::fs::write(scratch.path().join("artifact.json"), &output.stdout).unwrap();
+    let periodic = compile(
+        "periodic-cohorts",
+        &source
+            .replace("on=Sweep each", "on=every(1h) each")
+            .replace("event.marker", "\"periodic\""),
+    );
+    assert!(
+        periodic.status.success(),
+        "{}",
+        String::from_utf8_lossy(&periodic.stdout)
+    );
+    std::fs::write(scratch.path().join("periodic.json"), periodic.stdout).unwrap();
     for (name, refused, code) in [
         (
             "unknown-model",
@@ -67,11 +79,9 @@ fn declared_event_cohorts_publish_checked_child_refs_and_execute_native_bindings
             "E4055",
         ),
         (
-            "periodic-trigger",
-            source
-                .replace("on=Sweep each", "on=every(1h) each")
-                .replace("event.marker", "\"periodic\""),
-            "E6008",
+            "periodic-event-payload",
+            source.replace("on=Sweep each", "on=every(1h) each"),
+            "E3001",
         ),
     ] {
         let output = compile(name, &refused);
@@ -171,6 +181,15 @@ await assert.rejects(functions.sweep(context,{event:{marker:'failure'},entry:chi
 assert.equal(probe.calls.length,1);delete probe.failure;probe.calls=[];
 await assert.rejects(functions.scoped(context,{event:{container:{...container,id:'other'},marker:'wrong-parent'},entry:child}),error=>error.constructor.name==='AuthoredRequireFailure');
 assert.deepEqual(probe.calls,[]);
+const periodic=JSON.parse(readFileSync(resolve(base,'periodic.json'),'utf8'));
+for(const module of periodic.modules){const path=resolve(base,'periodic',module.path);mkdirSync(dirname(path),{recursive:true});writeFileSync(path,module.js);}
+const periodicRef=periodic.callables.find(ref=>ref.id==='CohortJourney.sweep');assert(periodicRef);
+const periodicEntry=await import(pathToFileURL(resolve(base,'periodic',periodicRef.module)));
+assert.deepEqual(periodicEntry.appDefinition.operations['CohortJourney.sweep'].on,{every:3600000n});
+assert.deepEqual(periodicEntry.appDefinition.operations['CohortJourney.sweep'].invocation.inputs.fields.map(field=>field.name),['entry']);
+let periodicFn=periodicEntry.canApp();for(const part of periodicRef.member)periodicFn=periodicFn[part];
+await periodicFn(context,{entry:child});
+assert.deepEqual(probe.calls,[{record:child,changes:{count:4n,label:'periodic'}}]);
 console.log('genuine declared-event cohort descriptors, private child refs, native ABI/getters/effects/guards/failure passed');
 "#).unwrap();
     let executed = Command::new("node").arg(runner).output().unwrap();

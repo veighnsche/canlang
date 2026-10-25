@@ -1,6 +1,6 @@
 //! Actual saved comparison handlers through compiled CLI artifacts and native callables.
 //! Approval/hiring use minimal owning contexts and an explicitly published native
-//! membership host; installed catalog refusal and full-app gaps remain separate.
+//! membership host; installed native membership still requires its live binding.
 #![cfg(unix)]
 
 use std::{path::Path, process::Command};
@@ -82,26 +82,41 @@ fn saved_enum_handlers_preserve_captions_and_original_admission() {
             .output()
             .unwrap()
     };
-    // The same source still refuses the installed external builtin. Only
-    // the host which supplies its actual implementation publishes availability.
+    // External membership compiles with its original source census. Runtime
+    // execution still requires the installed host's live owning binding.
     let installed = compile(
         "installed-membership-refusal",
         &owning_context(&packet, "approval", "proposed-match"),
         &installed_catalog,
     );
-    assert_eq!(installed.status.code(), Some(10));
-    let installed: serde_json::Value = serde_json::from_slice(&installed.stdout).unwrap();
-    assert!(installed.get("modules").is_none());
     assert!(
-        installed["diagnostics"]
+        installed.status.success(),
+        "{}",
+        String::from_utf8_lossy(&installed.stdout)
+    );
+    let installed: serde_json::Value = serde_json::from_slice(&installed.stdout).unwrap();
+    assert!(
+        installed["modules"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|d| {
-                d["code"] == "E6007" && d["message"].as_str().unwrap().contains("active_member")
-            }),
+            .any(|module| module["js"]
+                .as_str()
+                .unwrap()
+                .contains("canMembershipSources")),
         "{installed}"
     );
+    std::fs::write(
+        scratch.path().join("native-host.json"),
+        serde_json::to_vec(
+            &root
+                .join("packages/cloudflare/dist/runtime/stdlib.js")
+                .display()
+                .to_string(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
     for domain in ["generation", "approval", "ordinary"] {
         for variant in ["proposed-match", "current-if"] {
             // All three sources qualify the saved callable body and owning
@@ -221,6 +236,10 @@ const user=id=>({kind:'user',id}),location=id=>({kind:'ref',model:'rent_catalog.
 const actor=user('actor'),other=user('other'),site=location('site'),away=location('away');
 const employee={kind:'ref',model:'employee.Employee',id:'worker',version:1n,teamId:'team',user:actor,home:site,locations:[],operator_wide:false,active:true};
 function context(overrides={}){return {actor,team:{id:'team'},memberships:['members'],employees:[employee],activeMembers:['actor'],...overrides};}
+const installedNativeHost=await import(JSON.parse(readFileSync(resolve(base,'native-host.json'),'utf8')));
+const unbound=context();
+await assert.rejects(installedNativeHost.active_member(unbound,actor,unbound.team),
+ error=>error.code==='validation'&&error.message==='Native membership: actual installed framework context required.');
 for(const fn of roleShadows){
  assert.equal(await fn(context({memberships:['members','approve.coordinator']}),{coordinator:true}),false);
  assert.equal(await fn(context(),{coordinator:false}),true);
