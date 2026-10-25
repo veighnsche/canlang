@@ -377,6 +377,7 @@ export interface ScenarioSourceBodyLoop {
   readonly item:string;readonly filtered:boolean;readonly writes:number;readonly sends:number;
   readonly work?:readonly {readonly kind:'cancel'|'schedule';readonly node:{readonly start:number;readonly end:number};readonly stage:number;readonly conditional?:true}[];
   readonly parentDepth?:number;
+  readonly parentPath?:SourceEffectPath;
   readonly control?:{readonly model:ModelName;readonly fields:readonly {readonly name:string;readonly type:string}[]};
   readonly ancestors?:readonly {readonly model:ModelName;readonly fields:readonly {readonly name:string;readonly type:string}[]}[];
   readonly condition?:{readonly node:{readonly start:number;readonly end:number};readonly statement:{readonly start:number;readonly end:number}};
@@ -419,11 +420,16 @@ export function bindScenarioSourceLoopProducer(def:GeneratedOperationDef,value:S
   const loops=list(raw['loops']),ids=new Set<string>();let maximum=0;
   if(loops.length===0||loops.length>MAX_ITEMS)return invalid('Source loop needs a finite complete original census.');
   for(const value of loops){
-    const loop=object(value,['id','node','domain','maximum','parameter','parentModel','model','item','filtered','writes','sends',...(Object.hasOwn(value as object,'parentDepth')?['parentDepth']:[]),...(Object.hasOwn(value as object,'ancestors')?['ancestors','control']:[]),...(Object.hasOwn(value as object,'condition')?['condition']:[]),...(Object.hasOwn(value as object,'work')?['work']:[])]);
+    const loop=object(value,['id','node','domain','maximum','parameter','parentModel','model','item','filtered','writes','sends',...(Object.hasOwn(value as object,'parentDepth')?['parentDepth']:[]),...(Object.hasOwn(value as object,'parentPath')?['parentPath']:[]),...(Object.hasOwn(value as object,'ancestors')?['ancestors','control']:[]),...(Object.hasOwn(value as object,'condition')?['condition']:[]),...(Object.hasOwn(value as object,'work')?['work']:[])]);
     const id=text(loop['id']),parameter=text(loop['parameter']),parent=text(loop['parentModel']) as ModelName,model=text(loop['model']) as ModelName;
     const input=bound.inputs.find(input=>input.name===parameter);
     const node=object(loop['node'],['start','end']),domain=object(loop['domain'],['start','end']);
     let inputModel:string|undefined=input?.kind==='ref'?input.model:undefined;
+    if(Object.hasOwn(loop,'parentPath')){
+      if(inputModel===undefined||Object.hasOwn(loop,'parentDepth')||Object.hasOwn(loop,'ancestors'))return invalid('Source loop has conflicting original parent paths.');
+      if(list(loop['parentPath']).some(edge=>Object.hasOwn(edge as object,'nullable')))return invalid('Source loop parent path requires nonnullable original references.');
+      inputModel=checkSourceEffectPath(bound,inputModel as ModelName,loop['parentPath']);
+    }
     if(Object.hasOwn(loop,'parentDepth')){
       const depth=loop['parentDepth'];if(!Number.isSafeInteger(depth)||Number(depth)<1||Number(depth)>2||Object.hasOwn(loop,'ancestors'))return invalid('Source loop parent path is not bounded original containment.');
       for(let index=0;index<Number(depth);index++)inputModel=inputModel===undefined?undefined:bound.artifactModels.get(inputModel as ModelName)?.parent;
@@ -496,18 +502,24 @@ export async function executeScenarioSourceLoop(call:AdmittedCall,store:StorageP
     if(executions.has(loop.id))return invalid('Source loop repeats its original selection.');
     return await ownerOperation(owner,async()=>{
       const refs=call.recordRefs.filter(ref=>ref.param===loop.parameter),ref=refs[0];
-      if(refs.length!==1||ref===undefined||loop.parentDepth===undefined&&ref.model!==loop.parentModel||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('Source loop lost its original versioned parent input.');
+      if(refs.length!==1||ref===undefined||loop.parentDepth===undefined&&loop.parentPath===undefined&&ref.model!==loop.parentModel||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('Source loop lost its original versioned parent input.');
       let parent=await owner.session!.views.final.get(ref.model,ref.id);ownerHealthy(owner);
       if(parent===null||!sameModelLifetime(ref.row,parent)||parent.archivedAt!==null)return invalid('Source loop parent lifetime changed.');
       let parentModel=ref.model;
+      if(loop.parentPath!==undefined){
+        const producer=querySourceProducer(call.def as GeneratedOperationDef,parentModel);
+        if(producer===undefined)return invalid('Source loop reference path lacks its installed source read policies.');
+        const observed=await observeSourceEffectPath(call,store,owner,state,parentModel,parent,loop.parentPath,producer,`loop:${loop.id}`);
+        parentModel=observed.model;parent=observed.row;
+      }
       for(let index=0;index<(loop.parentDepth??0);index++){
         const edge=parent.parent;
         if(edge==null||edge.model!==state.bound.artifactModels.get(parentModel)?.parent)return invalid('Source loop lost its original containment association.');
         parentModel=edge.model;parent=await owner.session!.views.final.get(edge.model,edge.id);ownerHealthy(owner);
         if(parent===null||parent.archivedAt!==null)return invalid('Source loop parent path is unavailable.');
       }
-      if(parentModel!==loop.parentModel||loop.parentDepth!==undefined&&(input.parent?.model!==parentModel||input.parent.id!==parent.id)
-          ||loop.parentDepth===undefined&&input.parent!==undefined)return invalid('Source loop differs from its evaluated original parent.');
+      if(parentModel!==loop.parentModel||(loop.parentDepth!==undefined||loop.parentPath!==undefined)&&(input.parent?.model!==parentModel||input.parent.id!==parent.id)
+          ||loop.parentDepth===undefined&&loop.parentPath===undefined&&input.parent!==undefined)return invalid('Source loop differs from its evaluated original parent.');
       const parentId=parent.id;
       const rows=await owner.session!.views.final.query({model:loop.model,...(loop.ancestors===undefined?{parent:{model:parentModel,id:parentId}}:{}),authority:'owner',archived:'exclude',
         order:[{field:'id',direction:'asc'}],limit:loop.sends>0?MAX_ITEMS:owner.maxRows});ownerHealthy(owner);
@@ -2860,7 +2872,10 @@ const constructorCountCaptures=new WeakMap<ReceiptOwnerSession,Map<string,Constr
 function bindConstructorCounts(def:GeneratedOperationDef,bound:BoundPlan,raw:unknown):readonly ConstructorCount[] {
   if(raw===undefined)return Object.freeze([]);
   const profiles=list(dataCopy(raw)),ids=new Set<string>(),stages=new Map<number,string[]>();
-  if(bound.type!=='void'||bound.resultModel!==undefined||profiles.length===0||profiles.length>MAX_ITEMS)return invalid('constructor COUNT requires its exact void owner.');
+  // COUNT consumes only its sealed INT constructor field. A full required
+  // Model result retains its separate live-view and ReturnConsumer checks.
+  const fullModel = bound.sourceRequireOnly !== true && bound.resultModel !== undefined && bound.type === bound.resultModel;
+  if((!fullModel&&(bound.type!=='void'||bound.resultModel!==undefined))||profiles.length===0||profiles.length>MAX_ITEMS)return invalid('constructor COUNT requires its exact void or full required Model owner.');
   for(const raw of profiles){
     object(raw,['owner','source','queryId','stage','create','model','field',...(typeof raw==='object'&&raw!==null&&Object.hasOwn(raw,'createdParent')?['createdParent']:[])]);
     const value=raw as ConstructorCount;origin(value.source);firstQueryNode(value.create);

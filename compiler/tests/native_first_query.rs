@@ -4200,7 +4200,8 @@ fn created_parent_keeps_its_exact_original_create_and_required_parent_associatio
             "scenario created_parent(root:Root,allowed:bool) -> Child by=members")
         .replace("    create Snapshot {parent=child.parent,sequence=count(child.parent.Snapshot)+1} as snapshot\n  scenario snapshot_after_writes",
             "    create Snapshot {parent=child.parent,sequence=count(child.parent.Snapshot)+1} as snapshot\n    return child\n  scenario snapshot_after_writes");
-    let (_, _, returned_ir, _) = fixture_source("returned-created-parent.can", &returned);
+    let (returned_db, returned_program, returned_ir, returned_catalog) =
+        fixture_source("returned-created-parent.can", &returned);
     let returned_owner = item(&returned_ir, "count_visibility.created_parent");
     let ScenarioDisclosure::Complete(returned_proof) =
         &returned_ir.scenario_disclosures[&returned_owner.id]
@@ -4220,6 +4221,70 @@ fn created_parent_keeps_its_exact_original_create_and_required_parent_associatio
             .count(),
         1
     );
+
+    let (_, diagnostics) = prepared_artifact(&returned_program, &returned_db, &returned_catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let returned_plan = serialize_complete_query_receipt(
+        &returned_program,
+        &returned_ir,
+        returned_owner,
+        &returned_db,
+        Some(&returned_catalog),
+        module,
+    )
+    .expect("the exact primary CREATE result retains its auxiliary constructor COUNT");
+    assert_eq!(returned_plan["queries"].as_array().unwrap().len(), 1);
+    for mode in ["return-binding", "return-type", "count-offset"] {
+        let mut changed = returned_ir.clone();
+        let IrItemKind::Scenario {
+            effects, result, ..
+        } = &mut changed.items[returned_owner.id.0 as usize].kind
+        else {
+            panic!("scenario");
+        };
+        match mode {
+            "return-binding" => {
+                let IrStmt::Return {
+                    value: Some(value), ..
+                } = effects.last_mut().unwrap()
+                else {
+                    panic!("return");
+                };
+                value.expr = IrExpr::Name("snapshot".into());
+            }
+            "return-type" => {
+                *result = Some(ResolvedType::Scalar(Scalar::Text));
+            }
+            _ => {
+                let IrStmt::Create { input, .. } = &mut effects[1] else {
+                    panic!("auxiliary create");
+                };
+                let IrExpr::Object(fields) = &mut input.expr else {
+                    panic!("input");
+                };
+                let (_, value) = fields
+                    .iter_mut()
+                    .find(|(name, _)| name == "sequence")
+                    .unwrap();
+                let IrExpr::Binary { right, .. } = &mut value.expr else {
+                    panic!("count offset");
+                };
+                right.expr = IrExpr::Int(2);
+            }
+        }
+        assert!(
+            serialize_complete_query_receipt(
+                &returned_program,
+                &changed,
+                &changed.items[returned_owner.id.0 as usize],
+                &returned_db,
+                Some(&returned_catalog),
+                module
+            )
+            .is_none(),
+            "{mode}"
+        );
+    }
 
     for mode in [
         "parent-input",

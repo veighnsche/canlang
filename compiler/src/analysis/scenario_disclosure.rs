@@ -30377,6 +30377,21 @@ impl<'a> Closure<'a> {
         let (parameter, root) = self
             .original_call_model_parameter(base, statement, module)
             .or_else(|| self.original_call_parent_parameter(base, statement, module))
+            .or_else(|| {
+                let (parameter, _, _, _, target, _) =
+                    self.checked_required_reference_path(base, module)?;
+                let scenario = self.effects.scenarios.values().find(|scenario| {
+                    scenario.module == module
+                        && scenario
+                            .params
+                            .iter()
+                            .any(|input| input.param == parameter && input.default.is_none())
+                        && scenario.node.file == statement.file
+                        && scenario.node.start <= statement.start
+                        && statement.end <= scenario.node.end
+                })?;
+                (!scenario.read && scenario.on.is_none()).then_some((parameter, target))
+            })
             .ok_or_else(fail)?;
         let expected_domain = self.types.node_types.get(&domain).ok_or_else(fail)?;
         let ResolvedType::Array {

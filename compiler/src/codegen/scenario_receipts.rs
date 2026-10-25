@@ -6812,8 +6812,26 @@ pub(super) fn constructor_count_queries(
     facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
 ) -> Option<Vec<&crate::analysis::scenario_disclosure::DisclosureQuery>> {
     use crate::analysis::scenario_disclosure::CheckedDecisionStage;
-    if facts.result.is_some() {
-        return None;
+    // This source census grants no query or result authority. A Model result
+    // also needs the independently checked original CREATE/Return below.
+    if let Some(result) = &facts.result {
+        let ResolvedType::Record {
+            symbol,
+            stored: true,
+        } = result
+        else {
+            return None;
+        };
+        if facts
+            .creates
+            .as_deref()?
+            .iter()
+            .filter(|created| created.model == *symbol)
+            .count()
+            != 1
+        {
+            return None;
+        }
     }
     let queries = facts.queries.as_deref()?;
     let mut counts = Vec::new();
@@ -8937,7 +8955,8 @@ fn count_query_target_mismatch(
         || original.model != query_model
         || (!matches!(&owner.kind, IrItemKind::Scenario { result: None, .. })
             && checked_created_model_result(ir, owner) != Some(original.model)
-            && checked_created_pair(ir, owner, db).is_none_or(|pair| pair.1.node != original.node))
+            && checked_created_pair(ir, owner, db).is_none_or(|pair| pair.1.node != original.node)
+            && constructor_model_return_shape(ir, owner, db).is_none())
 }
 
 fn count_query_shape_mismatch(
@@ -9576,9 +9595,7 @@ fn native_count_original(
     if owning.next().is_some()
         || originals.is_empty()
         || (originals.len() > 2
-            && !(originals.len() <= 200
-                && facts.result.is_none()
-                && constructor_count_queries(facts).is_some()))
+            && !(originals.len() <= 200 && constructor_count_queries(facts).is_some()))
         || facts.queries.as_deref()?.len() >= 2
             && originals.len() != 2
             && constructor_count_queries(facts).is_none()
@@ -9980,8 +9997,60 @@ pub(super) fn checked_native_assign_count_query_plan(
     })
 }
 
-/// Seal a void constructor COUNT to its original whole owner and one INT
-/// field. This is a consumption association, never a read-policy grant.
+/// A result-bearing constructor COUNT keeps exactly the original primary
+/// CREATE and every ReturnConsumer; auxiliary writes grant no result identity.
+fn checked_constructor_model_return(
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+) -> Option<()> {
+    context.same_scenario(context.ir(), owner)?;
+    constructor_model_return_shape(context.ir(), owner, context.db())
+}
+
+// Structural source correspondence is also needed by the ordinary CREATE
+// matcher. It confers no authority; the publishing caller retains the fresh
+// owner join above and the normal per-expression/schema/effect checks.
+fn constructor_model_return_shape(ir: &IrProgram, owner: &IrItem, db: &SourceDb) -> Option<()> {
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let ResolvedType::Record {
+        symbol,
+        stored: true,
+    } = facts.result.as_ref()?
+    else {
+        return None;
+    };
+    let mut primary = facts
+        .creates
+        .as_deref()?
+        .iter()
+        .filter(|created| created.model == *symbol);
+    let original = primary.next()?;
+    if primary.next().is_some() || checked_created_model_result(ir, owner) != Some(*symbol) {
+        return None;
+    }
+    created_return_tail_shape(ir, owner, original, db)?;
+    let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    let influences = constructor_count_influences(facts)?;
+    if checked.returns.is_empty()
+        || checked.returns.iter().any(|returned| {
+            returned.model_result
+                != Some(DisclosureModelResult::Create {
+                    model: *symbol,
+                    node: original.node,
+                })
+                || returned.source != facts.source
+                || returned.influences != influences
+        })
+    {
+        return None;
+    }
+    Some(())
+}
+
+/// Seal a constructor COUNT to its original whole owner and one INT field.
+/// This is a consumption association, never a read-policy grant.
 fn constructor_count_source(
     context: &super::source_context::FreshSourceContext<'_>,
     owner: &IrItem,
@@ -10009,7 +10078,11 @@ fn constructor_count_source(
     if !super::scenario_feasibility::same_disclosure(actual, fresh) {
         return None;
     }
-    source_owned_void_create(context, owner, original)?;
+    if facts.result.is_none() {
+        source_owned_void_create(context, owner, original)?;
+    } else {
+        checked_constructor_model_return(context, owner)?;
+    }
     let IrItemKind::Scenario { effects, .. } = &owner.kind else {
         return None;
     };
@@ -10115,8 +10188,14 @@ pub(super) fn constructor_counts(
     owner: &IrItem,
     transport: &ReceiptSource,
 ) -> Option<serde_json::Value> {
-    if !matches!(&owner.kind, IrItemKind::Scenario { result: None, .. }) {
-        return None;
+    match &owner.kind {
+        IrItemKind::Scenario { result: None, .. } => {}
+        IrItemKind::Scenario {
+            result: Some(_), ..
+        } => {
+            checked_constructor_model_return(context, owner)?;
+        }
+        _ => return None,
     }
     let facts = super::scenario_calls::checked_source(context.ir(), owner, context.db())?;
     let counts: Vec<_> = facts
@@ -10169,6 +10248,15 @@ pub(super) fn checked_native_count_query_plan(
     };
     let (input, span) = native_count_create_input(effects, count.statement)?;
     let void_constructor = matches!(&owner.kind, IrItemKind::Scenario { result: None, .. });
+    let returned_constructor = !void_constructor && constructor_count_queries(facts).is_some();
+    if returned_constructor {
+        constructor_count_source(
+            source_context?,
+            owner,
+            query,
+            &transport_source(&query.source, entry)?,
+        )?;
+    }
     let returned = if void_constructor {
         constructor_count_source(
             source_context?,
@@ -10184,7 +10272,7 @@ pub(super) fn checked_native_count_query_plan(
         *span
     };
     let original = native_count_original(facts, count.statement)?;
-    if !void_constructor && facts.creates.as_deref()?.len() == 2 {
+    if !void_constructor && !returned_constructor && facts.creates.as_deref()?.len() == 2 {
         native_count_pair_proofs(
             ir,
             owner,
@@ -19236,12 +19324,20 @@ fn source_owned_created_return_tail(
     owner: &IrItem,
     original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
 ) -> Option<()> {
-    let ir = context.ir();
-    context.same_scenario(ir, owner)?;
-    let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
+    context.same_scenario(context.ir(), owner)?;
+    created_return_tail_shape(context.ir(), owner, original, context.db())
+}
+
+fn created_return_tail_shape(
+    ir: &IrProgram,
+    owner: &IrItem,
+    original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+    db: &SourceDb,
+) -> Option<()> {
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
     let creates = facts.creates.as_deref()?;
     if creates.len() > 1 {
-        return source_owned_created_return_branches(context, owner, original);
+        return created_return_branches_shape(ir, owner, original, db);
     }
     let [created] = creates else {
         return None;
@@ -19257,22 +19353,21 @@ fn source_owned_created_return_tail(
         original.node,
         original.model,
         &original.binding,
-        context.db(),
+        db,
     )
 }
 
 /// Returned constructors retain one actual result identity on every branch.
 /// Auxiliary constructors of other Models leave that identity unchanged. This
 /// proves topology only; ordinary schema, operand and effect checks still run.
-fn source_owned_created_return_branches(
-    context: &super::source_context::FreshSourceContext<'_>,
+fn created_return_branches_shape(
+    ir: &IrProgram,
     owner: &IrItem,
     original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+    db: &SourceDb,
 ) -> Option<()> {
     use crate::analysis::scenario_disclosure::CheckedScenarioDisclosure;
-    let ir = context.ir();
-    context.same_scenario(ir, owner)?;
-    let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
     let creates = facts.creates.as_deref()?;
     let result_model = checked_created_model_result(ir, owner)?;
     let result_creates = creates

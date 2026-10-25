@@ -6152,6 +6152,11 @@ function nativeScenarioModelConsumers(loaded: LoadedCanonicalDescriptors, def: G
   for(const loop of def.descriptor.result?.disclosure?.sourceLoops?.loops??[])if(loop.copy!==undefined)add(loop.model,true);
   for(const loop of nativeSourceBodyLoops.get(def)?.plan.loops??[]){
     add(loop.model,true);add(loop.parentModel,true);
+    if(loop.parentPath!==undefined){
+      const input=def.descriptor.inputs.find(input=>input.name===loop.parameter);
+      if(input?.kind==='ref')add(input.model,true);
+      for(const edge of loop.parentPath)add(edge.model,true);
+    }
   }
   addScenarioReturnConsumers(add, def);
   // Native mutation DATA is consumed by CREATE/SEND before any result
@@ -13010,9 +13015,10 @@ async function runScenarioExecution(
     bindNativeScenarioSourceLoop(ctx,async(id,parent,predicate)=>{
       try{
         const loop=privateSourceBodyLoop.plan.loops.find(loop=>loop.id===id),execute=loaded.producers.invoke.executeScenarioSourceLoop;
-        if(loop===undefined||execute===undefined||loop.parentDepth===undefined&&parent!==parameters[loop.parameter]||loop.filtered!==(typeof predicate==='function'))return refuseRecordBinding('Source loop differs from its original parent/filter.');
-        const binding=loop.parentDepth===undefined?undefined:recordBindings.get(parent as Record<string,unknown>)??ownerNavigation.resolveRecord(parent as Record<string,unknown>)??viewerNavigation.resolveRecord(parent as Record<string,unknown>);
-        if(loop.parentDepth!==undefined&&(binding===undefined||binding.model!==loop.parentModel))return refuseRecordBinding('Source loop lost its genuine evaluated parent reference.');
+        if(loop===undefined||execute===undefined||loop.parentDepth===undefined&&loop.parentPath===undefined&&parent!==parameters[loop.parameter]||loop.filtered!==(typeof predicate==='function'))return refuseRecordBinding('Source loop differs from its original parent/filter.');
+        const origin=loop.parentPath===undefined||typeof parent!=='object'||parent===null?undefined:storedReferences.get(parent);
+        const binding=loop.parentDepth===undefined&&loop.parentPath===undefined?undefined:recordBindings.get(parent as Record<string,unknown>)??ownerNavigation.resolveRecord(parent as Record<string,unknown>)??viewerNavigation.resolveRecord(parent as Record<string,unknown>)??(origin===undefined?undefined:{model:origin.model,id:origin.id});
+        if((loop.parentDepth!==undefined||loop.parentPath!==undefined)&&(binding===undefined||binding.model!==loop.parentModel))return refuseRecordBinding('Source loop lost its genuine evaluated parent reference.');
         if(predicate!==null)original(predicate,loop,false);
         const rows=await execute(actual,receiptStore,{id,...(binding===undefined?{}:{parent:{model:binding.model as ModelName,id:binding.id as RecordId}}),predicate:predicate===null?null:async(row,ancestors)=>{
           if(loop.ancestors!==undefined){

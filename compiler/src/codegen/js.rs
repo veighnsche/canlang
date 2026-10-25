@@ -15407,7 +15407,9 @@ impl<'a> Emitter<'a> {
                     .filter(|(_, loop_)| loop_.get("copy").is_some())
                     .cloned();
                 let domain_text = if let Some((source, loop_)) = source_loop {
-                    let parent = if loop_.get("parentDepth").is_some() {
+                    let parent = if loop_.get("parentDepth").is_some()
+                        || loop_.get("parentPath").is_some()
+                    {
                         let IrExpr::Query(query) = &domain.expr else {
                             unreachable!("checked contained loop");
                         };

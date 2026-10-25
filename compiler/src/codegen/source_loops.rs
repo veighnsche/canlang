@@ -3,7 +3,7 @@
 use super::ir::*;
 use crate::analysis::{ResolvedType, Scalar, SymbolId};
 use crate::source::Span;
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 fn control_type(ty: &ResolvedType) -> bool {
     match ty {
@@ -716,36 +716,63 @@ fn collect_from_source(
                         .iter()
                         .find(|candidate| candidate.canonical == *model)?;
                     let mut parent_depth = 0;
+                    let mut parent_path = Vec::new();
                     let (parameter, parent_model, ancestors) = if let Some(parent) =
                         query.parent.as_deref()
                     {
-                        let parent_model = record_model(ir, parent, roots, 0)?;
-                        let mut base = parent;
-                        while let IrExpr::Member { base: inner, field } = &base.expr {
-                            if field != "parent" || parent_depth >= 2 {
+                        let paths = roots
+                            .iter()
+                            .map(|(name, model)| (name.clone(), *model))
+                            .collect::<BTreeMap<_, _>>();
+                        let (parameter, root_model, path) =
+                            super::source_send_data::scalar_field_receiver(ir, parent, &paths)?;
+                        model_corresponds(context, root_model)?;
+                        for (_, target, _) in &path {
+                            model_corresponds(context, *target)?;
+                        }
+                        // Keep existing containment transport stable; reference paths
+                        // reuse the effect DATA edge schema and permission observations.
+                        let parent_model = path
+                            .last()
+                            .map(|(_, model, _)| *model)
+                            .unwrap_or(root_model);
+                        if path
+                            .iter()
+                            .all(|(field, _, nullable)| field == "parent" && !nullable)
+                        {
+                            if path.len() > 2 {
                                 return None;
                             }
-                            parent_depth += 1;
-                            base = inner;
+                            parent_depth = path.len();
+                        } else {
+                            // The existing required-reference analysis permits one
+                            // original stored edge after at most two containment hops.
+                            if path.iter().any(|(_, _, nullable)| *nullable)
+                                || path.len() > 3
+                                || path[..path.len() - 1]
+                                    .iter()
+                                    .any(|(field, _, _)| field != "parent")
+                            {
+                                return None;
+                            }
+                            parent_path = path.iter().map(|(field, model, _)| serde_json::json!({"field":field,"model":ir.items[model.0 as usize].canonical})).collect();
                         }
-                        let IrExpr::Name(parameter) = &base.expr else {
-                            return None;
-                        };
                         if !matches!(model.kind,IrItemKind::Model{owner:IrOwner::ChildOf(parent),..}if parent==parent_model)
                         {
                             return None;
                         }
-                        (parameter.as_str(), parent_model, Vec::new())
+                        (parameter, parent_model, Vec::new())
                     } else {
-                        descendant_parameter(
+                        let (parameter, parent, ancestors) = descendant_parameter(
                             ir,
                             query.where_pred.as_deref()?,
                             &query.where_param,
                             model.id,
                             roots,
-                        )?
+                        )?;
+                        (parameter.to_owned(), parent, ancestors)
                     };
-                    if item == parameter {
+                    if item == &parameter {
                         return None;
                     }
                     let mut predicate_roots = roots.clone();
@@ -782,7 +809,7 @@ fn collect_from_source(
                         body,
                         item,
                         model.id,
-                        parameter,
+                        &parameter,
                         parent_model,
                         values,
                     )?;
@@ -897,6 +924,9 @@ fn collect_from_source(
                     }
                     if parent_depth > 0 {
                         descriptor["parentDepth"] = serde_json::json!(parent_depth);
+                    }
+                    if !parent_path.is_empty() {
+                        descriptor["parentPath"] = serde_json::json!(parent_path);
                     }
                     if !ancestors.is_empty() {
                         descriptor["ancestors"] = serde_json::Value::Array(

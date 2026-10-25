@@ -2291,6 +2291,7 @@ it('authorizes original SEND scalar DATA with independent current field projecti
     const directory=await mkdtemp(join(tmpdir(),'can-source-send-data-'));
     try{
       const {artifact,asm}=await installed('native-source-send-data.can',directory);
+      assertSourceOnlyReceipt(artifact,'SourceSendData.notify_link_children','void',[[],[]]);
       for(const name of ['notify','lose_grant','change_reference','secret']) {
         const fields = [['SourceSendData.Root','source','data','text'],['SourceSendData.Root','reason','data','text?'],['SourceSendData.Root','reason','control','text?']] as const;
         assertSourceOnlyReceipt(artifact,`SourceSendData.${name}`,'date',name==='secret' ? [[['SourceSendData.Root','secret','data','text']]] : [fields,fields]);
@@ -2369,7 +2370,8 @@ it('authorizes original SEND scalar DATA with independent current field projecti
         assertDateReplay(replay,new Date(now+86400000).toISOString().slice(0,10));
         assert.deepEqual(await store.outboxPending(),pending);assert.deepEqual(await store.readReceipt(saved.identity),saved);
       }
-      for(const mode of ['allowed','hidden-source','hidden-target','identity-race','source-race']){
+      for(const mode of ['allowed','hidden-source','hidden-target','identity-race','source-race','linked','linked-withheld','linked-stale','linked-race']){
+        const linked=mode.startsWith('linked');
         const {now,identities,identity,membership}=await member(`loop-reference-${mode}`);
         const scope={app:'SourceSendData',owner:membership.team_id,ownerPackage:'SourceSendData'};
         const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'loop-reference-state',fileStoreId:'loop-reference-files',receiver:{app:scope.app,owner:scope.owner,team:scope.owner}};
@@ -2380,6 +2382,8 @@ it('authorizes original SEND scalar DATA with independent current field projecti
         const row={...makeRow({id:asId('root'),data:{location:{id:location.id},capacity:'2',checked:false,last:null,source:'Original source',reason:null,secret:'Secret',visible:mode!=='hidden-source'}}),parent:null};
         const children=['first','second'].map(id=>({...makeRow({id:asId(id),data:{active:true}}),parent:{model:rootModel,id:row.id}}));
         await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:locationModel,row:location},{kind:'insert',model:rootModel,row},...children.map(row=>({kind:'insert' as const,model:childModel,row}))]}));
+        const linkModel=model('SourceSendData','Link'),link={...makeRow({id:asId('link'),data:{root:{id:row.id},visible:true,readable:mode!=='linked-withheld'}}),parent:null};
+        if(linked)await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:linkModel,row:link}]}));
         let raced=false;
         if(mode==='identity-race'){
           const load=store.load.bind(store);store.load=async(model,id)=>{
@@ -2387,23 +2391,25 @@ it('authorizes original SEND scalar DATA with independent current field projecti
             return load(model,id);
           };
         }
-        if(mode==='source-race'){
+        if(mode==='source-race'||mode==='linked-race'){
           const commit=store.commit.bind(store);store.commit=async batch=>{
             if(!raced&&batch.writes.some(write=>write.model==='work.dispatch')){
-              raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:rootModel,id:row.id,expectedVersion:asVersion(row.version),row:{...row,version:asVersion(row.version+1),data:{...row.data,source:'Changed source'}}}]}));
+              raced=true;
+              const target=mode==='linked-race'?link:row,targetModel=mode==='linked-race'?linkModel:rootModel;
+              await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:targetModel,id:target.id,expectedVersion:asVersion(target.version),row:{...target,version:asVersion(target.version+1),data:{...target.data,...(mode==='linked-race'?{root:{id:'foreign-root'}}:{source:'Changed source'})}}}]}));
             }
             return commit(batch);
           };
         }
         const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
-        const request={operation:'SourceSendData.notify_children',operation_id:operationId(now),inputs:{root:{id:row.id,version:String(row.version)},to:'recipient@example.test'}};
-        const outcome=await invoker.invokeMutation(request,identity),allowed=mode==='allowed';
-        assert.equal('result'in outcome?outcome.result.status:outcome.error.code,allowed?'committed':mode==='hidden-source'?'rule_failed':mode==='source-race'?'conflict':'forbidden',`${mode}: ${JSON.stringify(outcome)}`);
+        const request={operation:linked?'SourceSendData.notify_link_children':'SourceSendData.notify_children',operation_id:operationId(now),inputs:{[linked?'link':'root']:{id:linked?link.id:row.id,version:mode==='linked-stale'?'2':String(row.version)},to:'recipient@example.test'}};
+        const outcome=await invoker.invokeMutation(request,identity),allowed=mode==='allowed'||mode==='linked';
+        assert.equal('result'in outcome?outcome.result.status:outcome.error.code,allowed?'committed':mode==='hidden-source'?'rule_failed':mode==='source-race'||mode==='linked-race'||mode==='linked-stale'?'conflict':'forbidden',`${mode}: ${JSON.stringify(outcome)}`);
         const pending=await store.outboxPending();assert.equal(pending.length,allowed?2:0,mode);
         for(const child of children)assert.equal((await store.load(childModel,child.id))!.data.active,!allowed,mode);
-        if(mode==='identity-race'||mode==='source-race')assert.equal(raced,true,mode);
+        if(mode==='identity-race'||mode==='source-race'||mode==='linked-race')assert.equal(raced,true,mode);
         if(allowed){
-          for(const intent of pending)assert.deepEqual(intent.arguments,{binding:'SourceSendData.Mail',from:'deployment.mail',arguments:{to:'recipient@example.test',subject:location.id,body:'Original source',attachments:[]}});
+          for(const intent of pending)assert.deepEqual(intent.arguments,{binding:'SourceSendData.Mail',from:'deployment.mail',arguments:{to:'recipient@example.test',subject:linked?'Linked children':location.id,body:linked?'Original link':'Original source',attachments:[]}});
           const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));
           assert.deepEqual(await store.outboxPending(),pending);
         }
@@ -3235,6 +3241,45 @@ it('keeps an original created-row parent as a staged identity across COUNT and C
       assert.equal(audits.length,allowed?1:0);
       if(allowed){assert.deepEqual(audits[0]!.parent,parent);assert.equal(audits[0]!.data['label'],'Original');}
 
+    }
+    // The auxiliary COUNT keeps the same original created-parent witness when
+    // the required result is the primary CREATE rather than a void fallthrough.
+    const returnedSource=join(directory,'ReturnedCount.can');
+    const returnedText=(await readFile(source,'utf8'))
+      .replace('scenario created_parent(root:Root,allowed:bool) by=members','scenario created_parent(root:Root,allowed:bool) -> Child by=members')
+      .replace('    create Snapshot {parent=child.parent,sequence=count(child.parent.Snapshot)+1} as snapshot\n  scenario snapshot_after_writes','    create Snapshot {parent=child.parent,sequence=count(child.parent.Snapshot)+1} as snapshot\n    return child\n  scenario snapshot_after_writes');
+    await writeFile(returnedSource,returnedText);
+    const returnedOutput=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,returnedSource],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+    const returnedArtifact=JSON.parse(returnedOutput.stdout) as CompileArtifact;
+    const returnedOperation=returnedArtifact.operations?.find(operation=>operation.name==='count_visibility.created_parent');
+    assert.equal(returnedOperation?.result?.type,'count_visibility.Child');assert.ok(returnedOperation?.result?.disclosure,'required Model result must publish its genuine native COUNT receipt');
+    const returnedAsm=await assembleModules({artifact:returnedArtifact,sourcePath:returnedSource},{workDir:join(directory,'returned'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+    for(const mode of ['empty','siblings','custom-id','stale','hidden-created','hidden-sibling','identity-race','field-race','domain-race']){
+      const {now,identities,identity,membership}=await member('returned-count-'+mode),{store}=createTestMemoryStorage();
+      const rootModel=asModel('count_visibility.Root'),childModel=asModel('count_visibility.Child'),snapshotModel=asModel('count_visibility.Snapshot');
+      const parent={model:rootModel,id:asId('root')};
+      const sibling=(id:string,sequence:string,hidden=false)=>({kind:'insert' as const,model:snapshotModel,row:{...makeRow({id:asId(id),data:{sequence,hidden}}),parent}});
+      await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:rootModel,row:makeRow({id:parent.id,data:{label:'Original'}})},...(mode==='empty'?[]:[sibling('existing','1',mode==='hidden-sibling')])]}));
+      const query=store.query.bind(store),commit=store.commit.bind(store),load=store.load.bind(store);let raced=false,races=0;
+      store.query=async spec=>{const rows=await query(spec);if(mode==='identity-race'&&spec.model===snapshotModel&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return rows;};
+      store.commit=async batch=>{if(['field-race','domain-race'].includes(mode)&&batch.writes.some(write=>write.kind==='insert'&&write.model===childModel)){
+        raced=true;races++;if(mode==='domain-race')await commit(makeBatch(await store.readRevision(),{writes:[sibling('external:'+races,String(races+1))]}));
+        else{const rootRow=await load(rootModel,parent.id);assert.ok(rootRow);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:rootModel,id:parent.id,expectedVersion:rootRow.version,row:{...rootRow,version:asVersion(rootRow.version+1),data:{label:'External '+races}}}]}));}
+      }return commit(batch);};
+      const invoker=buildInvoker(returnedArtifact,returnedAsm,store,{memberships:identities,now:()=>now,...(mode==='custom-id'?{allocateRecordId:(model:string,index:number)=>`returned:${model}:${index}`}:{})});
+      const request={operation:'count_visibility.created_parent',operation_id:operationId(now),inputs:{root:{id:'root',version:mode==='stale'?'2':'1'},allowed:mode!=='hidden-created'}};
+      const outcome=await invoker.invokeMutation(request,identity),success=['empty','siblings','custom-id'].includes(mode);
+      assert.equal('result'in outcome,success,mode+': '+JSON.stringify(outcome));if(mode.endsWith('-race'))assert.equal(raced,true,mode);
+      const children=await query({model:childModel,authority:'owner'}),snapshots=await query({model:snapshotModel,authority:'owner'});
+      const created=snapshots.filter(row=>row.id!=='existing'&&!row.id.startsWith('external:'));
+      assert.equal(children.length,success?1:0,mode+': primary CREATE rolls back atomically');assert.equal(created.length,success?1:0,mode+': COUNT auxiliary CREATE rolls back atomically');assert.deepEqual(await store.outboxPending(),[]);
+      if(mode==='field-race')assert.match(String((await load(rootModel,parent.id))?.data.label),/^External /);
+      if(mode==='domain-race')assert.ok(snapshots.some(row=>row.id.startsWith('external:')),'external domain writes survive the refused attempt');
+      if(success){assert.ok('result'in outcome);assert.deepEqual(outcome.result.result,{id:children[0]!.id});assert.deepEqual(created[0]!.parent,parent);assert.equal(created[0]!.data.sequence,mode==='empty'?'1':'2');
+        const revision=await store.readRevision(),replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');assert.deepEqual(replay.result.result,outcome.result.result);assert.equal(await store.readRevision(),revision);assert.deepEqual(await query({model:childModel,authority:'owner'}),children);assert.deepEqual(await query({model:snapshotModel,authority:'owner'}),snapshots);
+        const child=children[0]!;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:childModel,id:child.id,expectedVersion:child.version,row:{...child,version:asVersion(child.version+1),data:{...child.data,allowed:false}}}]}));
+        const hiddenReplay=await invoker.invokeMutation(request,identity);assert.ok('result'in hiddenReplay,JSON.stringify(hiddenReplay));assert.equal(hiddenReplay.result.status,'replayed');assert.equal(hiddenReplay.result.result,null,'current result-model read policy still gates the original saved primary identity');
+      }
     }
     const captureSource=join(directory,'Capture.can');
     await writeFile(captureSource,String.raw`app ReferenceCapture

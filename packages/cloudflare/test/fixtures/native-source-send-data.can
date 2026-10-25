@@ -3,14 +3,23 @@ use std {EmailV1 as Mail} from=deployment.mail
 Given
  Location {enabled:bool=true,visible:bool=true}
  Root {location:Location,capacity:int=2,checked:bool=false,last:text?,source:text="Readable source",reason:text?,secret:text="Hidden source",visible:bool=true}
+ Link {root:Root,readable:bool=true,visible:bool=true}
  Child in Root {active:bool=true}
  derive Root.remaining:int=row.capacity-count(row.Child as child where child.active)
  derive allowed(root:Root):bool=any(root.Child as child,child.active)
  policy Location read=members where=row.visible fields=enabled
  policy Root read=members where=row.visible and row.location.enabled fields=source,reason,location
+ policy Link read=members where=row.visible fields=visible,readable
+ policy Link read=members where=row.visible and row.readable fields=root
  policy Child read=owner
  invariant Root: row.capacity>=0
 When
+ scenario notify_link_children(link:Link,to:email) by=members
+  require link.visible
+  do
+   for child in link.root.Child as child where child.active limit=10
+    set child {active=false}
+    send Mail.send {to,subject="Linked children",body="Original link"} as delivery
  scenario notify_children(root:Root,to:email) by=members
   require root.visible
   do
