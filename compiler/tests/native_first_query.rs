@@ -108,6 +108,70 @@ fn operation(artifact: &Value) -> &Value {
         .unwrap()
 }
 
+// A newly authored source variant may use the general query/guard machinery.
+// Editing its checked IR without editing that source must still refuse below.
+fn assert_admitted_source_variant(path: &str, source: &str, owner_name: &str) {
+    let (db, program, ir, catalog) = fixture_source(path, source);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{path}: {diagnostics:?}");
+    let owner = item(&ir, owner_name);
+    assert!(
+        canlang_compiler::codegen::scenario_decisions::serialize_decision_sources(
+            &program,
+            &ir,
+            owner,
+            &db,
+            Some(&catalog)
+        )
+        .is_some(),
+        "{path}: original guard and body retain their source correspondence"
+    );
+    let operation = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == owner_name)
+        .unwrap();
+    let plan = &operation["result"]["disclosure"];
+    if plan.is_null() {
+        assert_eq!(operation["result"]["type"], "void");
+        let callable = artifact["callables"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|callable| callable["id"] == owner_name)
+            .unwrap();
+        let code = artifact["modules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|module| module["path"] == callable["module"])
+            .unwrap()["js"]
+            .as_str()
+            .unwrap();
+        let literal = code
+            .split("export function canScenarioRequireSources(){return JSON.parse(")
+            .nth(1)
+            .unwrap()
+            .split(");}")
+            .next()
+            .unwrap();
+        let payload: String = serde_json::from_str(literal).unwrap();
+        let inventory: Value = serde_json::from_str(&payload).unwrap();
+        let frames = inventory[owner_name].as_array().unwrap();
+        assert!(!frames.is_empty());
+        for frame in frames {
+            assert_eq!(frame["source"]["path"], path);
+            assert_eq!(frame["source"]["sha256"], sha256_hex(source.as_bytes()));
+        }
+        assert!(code.contains("nativeScenarioRequire(c,"));
+    } else {
+        assert_eq!(plan["version"], 1, "{path}");
+        assert_eq!(plan["source"]["path"], path);
+        assert_eq!(plan["source"]["sha256"], sha256_hex(source.as_bytes()));
+    }
+}
+
 fn assert_plan(plan: &Value, path: &str, hash: &str, return_ids: &[&str]) {
     assert_eq!(plan["version"], 1);
     assert_eq!(plan["source"]["path"], path);
@@ -2329,6 +2393,10 @@ fn original_purchase_intake_keeps_unique_key_guard_and_create_correspondence() {
             .replace("    return invoice_document","    require not any(InvoiceDocument as item,item.source==trim(source))\n    return invoice_document")),
     ] {
         assert_ne!(source,changed,"{name}");
+        if !matches!(name, "copied-query-data" | "late-guard") {
+            assert_admitted_source_variant(&format!("{name}.can"), &changed, "purchase.intake_invoice");
+            continue;
+        }
         let (db,program,_,catalog)=fixture_source(&format!("{name}.can"),&changed);
         let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
         assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
@@ -3159,6 +3227,13 @@ fn original_invoice_document_keeps_contained_projection_and_helper_formal_corres
         ),
     ] {
         assert_ne!(source, changed, "{name}");
+        if matches!(
+            name,
+            "positive-global-key" | "disjunctive-global-key" | "different-created-key"
+        ) {
+            assert_admitted_source_variant(&format!("{name}.can"), &changed, "invoice.document");
+            continue;
+        }
         let (db, program, _, catalog) = fixture_source(&format!("{name}.can"), &changed);
         let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
         assert!(
@@ -4419,8 +4494,31 @@ fn affiliate_scalar_let_and_created_schedule_keep_exact_original_source() {
         .filter_map(|module| module["js"].as_str())
         .collect::<Vec<_>>()
         .join("\n");
-    assert!(code.contains("nativeScenarioSourceLetData(c,"));
-    assert!(code.contains("nativeScenarioSourceSchedule(c,"));
+    let plan = &artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "affiliate.settle")
+        .unwrap()["result"]["disclosure"];
+    let dependencies: Vec<_> = plan["returns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|returned| returned["dependencies"].as_array().unwrap())
+        .collect();
+    for (model, field) in [
+        ("affiliate.Partner", "provider_account"),
+        ("affiliate.Settlement", "id"),
+    ] {
+        let dependency = dependencies
+            .iter()
+            .find(|dependency| dependency["model"] == model && dependency["field"] == field)
+            .unwrap();
+        assert_eq!(dependency["role"], "data");
+        assert!(code.contains(&format!("observeScenarioReceiptDependency(c,\"{model}\",")));
+        assert!(code.contains(dependency["id"].as_str().unwrap()));
+    }
+    assert!(code.contains("await schedule(c,format(\"commission-{id}\""));
     for mode in [
         "let-field",
         "let-root",
@@ -5455,14 +5553,8 @@ fn original_crm_win_admits_only_source_narrowed_nullable_reference_slots() {
             source.replace("booking:Booking? unique", "booking:Booking?"),
         ),
     ] {
-        let (db, program, _, catalog) = fixture_source(name, &changed);
-        let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
-        assert!(
-            diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic.code == "E6008"),
-            "{name}: {diagnostics:?}"
-        );
+        assert_ne!(source, changed, "{name}");
+        assert_admitted_source_variant(name, &changed, "crm.win");
     }
 }
 
@@ -5878,7 +5970,10 @@ fn original_invoice_void_joins_its_unique_condition_and_both_owned_cancellations
             emitted.diagnostics
         );
     }
-    for(name,changed)in[("positive-any",source.replace("if not any(BillingCancellation as fence,fence.source==invoice.source)","if any(BillingCancellation as fence,fence.source==invoice.source)")),("different-source",source.replace("create BillingCancellation {source=invoice.source,reason} as fence","create BillingCancellation {source=reason,reason} as fence")),("non-unique",source.replace("BillingCancellation {source:text unique,reason:text}","BillingCancellation {source:text,reason:text}")),("raw-scalar-alias",source.replace("    if not any(BillingCancellation as fence,fence.source==invoice.source)","    let copied=invoice.source\n    if not any(BillingCancellation as fence,fence.source==invoice.source)").replace("create BillingCancellation {source=invoice.source,reason} as fence","create BillingCancellation {source=invoice.source,reason=copied} as fence"))]{let(db,program,_,catalog)=fixture_source(name,&changed);let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");}
+    for(name,changed)in[("positive-any",source.replace("if not any(BillingCancellation as fence,fence.source==invoice.source)","if any(BillingCancellation as fence,fence.source==invoice.source)")),("different-source",source.replace("create BillingCancellation {source=invoice.source,reason} as fence","create BillingCancellation {source=reason,reason} as fence")),("non-unique",source.replace("BillingCancellation {source:text unique,reason:text}","BillingCancellation {source:text,reason:text}")),("raw-scalar-alias",source.replace("    if not any(BillingCancellation as fence,fence.source==invoice.source)","    let copied=invoice.source\n    if not any(BillingCancellation as fence,fence.source==invoice.source)").replace("create BillingCancellation {source=invoice.source,reason} as fence","create BillingCancellation {source=invoice.source,reason=copied} as fence"))]{
+        assert_ne!(source, changed, "{name}");
+        assert_admitted_source_variant(name, &changed, "invoice.void_invoice");
+    }
 }
 
 #[test]
