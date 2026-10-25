@@ -385,14 +385,22 @@ export interface ScenarioSourceBodyLoopPlan {
   readonly loops:readonly ScenarioSourceBodyLoop[];
 }
 const sourceBodyLoopProducers=new WeakMap<GeneratedOperationDef,ScenarioSourceBodyLoopPlan>();
+interface SourceBodyLoopCompletion {
+  readonly stage:number;readonly endStage:number;readonly answer:boolean|undefined;
+  readonly stamps:readonly SourceMutationStamp[];
+}
+interface SourceBodyLoopSelection {
+  readonly row:StoredRow;readonly ordinal:number;completed:boolean;
+  completion?:SourceBodyLoopCompletion;
+}
 interface SourceBodyLoopExecution {
   readonly loop:ScenarioSourceBodyLoop;readonly parent:StoredRow;
-  readonly rows:Map<RecordId,{readonly row:StoredRow;completed:boolean}>;
+  readonly rows:Map<RecordId,SourceBodyLoopSelection>;
   readonly stage:number;
-  work:number;
+  next:number;work:number;
 }
 const sourceBodyLoopExecutions=new WeakMap<ReceiptOwnerSession,Map<string,SourceBodyLoopExecution>>();
-interface SourceBodyLoopItem {readonly execution:SourceBodyLoopExecution;readonly row:StoredRow;readonly stage:number;work:number;answer?:boolean;}
+interface SourceBodyLoopItem {readonly execution:SourceBodyLoopExecution;readonly row:StoredRow;readonly ordinal:number;readonly stage:number;work:number;answer?:boolean;}
 const sourceBodyLoopItems=new WeakMap<ReceiptOwnerSession,SourceBodyLoopItem>();
 /** Static source bounds do not spend commands. Actual reached SEND and loop
  * Work share the unchanged finite invocation budget, including late refusals. */
@@ -502,7 +510,7 @@ export async function executeScenarioSourceLoop(call:AdmittedCall,store:StorageP
       const parentId=parent.id;
       const rows=await owner.session!.views.final.query({model:loop.model,...(loop.ancestors===undefined?{parent:{model:parentModel,id:parentId}}:{}),authority:'owner',archived:'exclude',
         order:[{field:'id',direction:'asc'}],limit:loop.sends>0?MAX_ITEMS:owner.maxRows});ownerHealthy(owner);
-      const selected=new Map<RecordId,{row:StoredRow;completed:boolean}>();
+      const selected=new Map<RecordId,SourceBodyLoopSelection>();
       for(const row of rows){
         const ancestors:StoredRow[]=[];
         if(loop.ancestors!==undefined){
@@ -519,9 +527,9 @@ export async function executeScenarioSourceLoop(call:AdmittedCall,store:StorageP
         ownerRows.set(row,{session:owner,stage:owner.stage,model:loop.model});
         const matches=input.predicate===null?true:await input.predicate(row,ancestors);ownerHealthy(owner);
         if(typeof matches!=='boolean')return invalid('Source loop original predicate did not return bool.');
-        if(matches){selected.set(row.id,{row,completed:false});if(selected.size>loop.maximum)return invalid('Source loop selected domain exceeds its original authored bound.');}
+        if(matches){selected.set(row.id,{row,ordinal:selected.size,completed:false});if(selected.size>loop.maximum)return invalid('Source loop selected domain exceeds its original authored bound.');}
       }
-      executions!.set(loop.id,{loop,parent,rows:selected,stage:owner.stage,work:0});
+      executions!.set(loop.id,{loop,parent,rows:selected,stage:owner.stage,next:0,work:0});
       if(await store.readRevision()!==call.revision)throw new StateError('conflict','Source loop selection moved beyond its original checkpoint.');
       return Object.freeze([...selected.values()].map(entry=>entry.row));
     },call);
@@ -533,9 +541,10 @@ export async function executeScenarioSourceLoopItem(call:AdmittedCall,store:Stor
     object(input,['id','row','execute']);const execution=owner===undefined?undefined:sourceBodyLoopExecutions.get(owner)?.get(input.id),entry=execution?.rows.get(input.row.id);
     if(owner===undefined||owner.session===null||owner.busy||state.pending!==0||owner.executingCall!==call
         ||execution===undefined||entry?.row!==input.row||entry.completed||sourceBodyLoopItems.has(owner)||typeof input.execute!=='function')return invalid('Source loop item lacks its unique actual original selection.');
+    if(entry.ordinal!==execution.next)return invalid('Source loop item changed its original selected order.');
     const current=await ownerOperation(owner,()=>owner.session!.views.final.get(execution.loop.model,entry.row.id),call);
     if(current===null||!sameModelLifetime(entry.row,current)||current.archivedAt!==null)return invalid('Source loop selected item lifetime changed.');
-    const stage=owner.stage,ordinal=owner.framework?.ordinal??0,item:SourceBodyLoopItem={execution,row:entry.row,stage:owner.stage,work:0};sourceBodyLoopItems.set(owner,item);
+    const stage=owner.stage,ordinal=owner.framework?.ordinal??0,item:SourceBodyLoopItem={execution,row:entry.row,ordinal:entry.ordinal,stage:owner.stage,work:0};sourceBodyLoopItems.set(owner,item);
     try{
       await input.execute();ownerHealthy(owner);capture(call,store);
       if(execution.loop.condition!==undefined&&item.answer===undefined)return invalid('Loop omitted its original per-item condition.');
@@ -544,7 +553,12 @@ export async function executeScenarioSourceLoopItem(call:AdmittedCall,store:Stor
       if(item.work!==expectedWork)return invalid('Source loop item omitted an original Work command.');
       if(owner.busy||state.pending!==0||owner.executingCall!==call||owner.stage!==stage+writes
           ||(owner.framework?.ordinal??0)!==ordinal+execution.loop.sends)return invalid('Source loop item did not execute its exact original write/Work stages.');
-      entry.completed=true;
+      // Completion belongs to this genuine selected entry. Later staged
+      // readers can retain the actual branch outcome and exact write objects;
+      // a caller-supplied item id or stage counter cannot recreate this history.
+      const stamps=sourceMutationStamps.get(owner);
+      entry.completion=Object.freeze({stage,endStage:owner.stage,answer:item.answer,stamps:Object.freeze(stamps?.slice(stage,owner.stage)??[])});
+      entry.completed=true;execution.next++;
     }finally{sourceBodyLoopItems.delete(owner);}
   }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
 }
@@ -5243,13 +5257,16 @@ async function checkedSourceMutationPrefix(call:AdmittedCall,store:StoragePort,o
     if(step.kind==='loop'){
      const execution=sourceBodyLoopExecutions.get(owner)?.get(step.id);
      if(execution===undefined||execution.stage!==cursor||[...execution.rows.values()].some(row=>!row.completed))return invalid('Source phase loop has not completed its genuine selected domain.');
-     let item:RecordId|undefined,ordinal=0;const completed=new Set<RecordId>();
-     while(stamps[cursor]?.loop?.id===step.id){const stamp=stamps[cursor]!;
-      if(stamp.loop?.item!==item){if(item!==undefined&&(ordinal!==step.fields.length||completed.has(item)))return invalid('Source phase loop omitted or repeated an ordered item SET.');if(item!==undefined)completed.add(item);item=stamp.loop?.item;ordinal=0;}
-      if(stamp.stage!==cursor||stamp.call!==call||stamp.writes.length!==1||stamp.writes[0]?.op!=='update'||stamp.writes[0]?.plain!==true||stableStringify(stamp.writes[0]?.fields)!==stableStringify(step.fields[ordinal++])||stamp.writes[0]?.model!==execution.loop.model||stamp.writes[0]?.id!==stamp.loop?.item||!execution.rows.has(stamp.loop!.item))return invalid('Source phase loop stamp differs from its actual original item.');cursor++;
+     if(execution.next!==execution.rows.size)return invalid('Source phase loop lost its original completion order.');
+     for(const entry of execution.rows.values()){
+      const completed=entry.completion;
+      if(completed===undefined||completed.stage!==cursor||completed.endStage!==cursor+step.fields.length||completed.stamps.length!==step.fields.length)return invalid('Source phase loop omitted its genuine completed item writes.');
+      for(const fields of step.fields){
+       const stamp=stamps[cursor],write=stamp?.writes[0];
+       if(stamp!==completed.stamps[cursor-completed.stage]||stamp?.stage!==cursor||stamp.call!==call||stamp.loop?.id!==step.id||stamp.loop.item!==entry.row.id||stamp.writes.length!==1||write?.op!=='update'||write.plain!==true||stableStringify(write.fields)!==stableStringify(fields)||write.model!==execution.loop.model||write.id!==entry.row.id)return invalid('Source phase loop stamp differs from its actual original item.');
+       cursor++;
+      }
      }
-     if(item!==undefined&&(ordinal!==step.fields.length||completed.has(item)))return invalid('Source phase loop omitted or repeated its final ordered item SET.');
-     if(completed.size+(item===undefined?0:1)!==execution.rows.size)return invalid('Source phase loop lost its complete original selected item write census.');
      continue;
     }
     const refs=call.recordRefs.filter(ref=>ref.param===step.parameter),ref=refs[0];

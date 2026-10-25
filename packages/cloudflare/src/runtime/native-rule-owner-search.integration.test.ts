@@ -1386,12 +1386,12 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
       }
       // Exercise the actual admitted State owner API independently of the
       // generated IF adapter. A probe always aborts before business commit.
-      for(const mode of ['valid','forged','stale','wrong-prefix','mutable-write','loop-wrong-fields','loop-extra-when','missing-scalar-capture','forged-query-value','wrong-source','reused','revision-race']){
+      for(const mode of ['valid','forged','stale','wrong-prefix','mutable-write','loop-wrong-fields','loop-extra-when','loop-out-of-order','missing-scalar-capture','forged-query-value','wrong-source','reused','revision-race']){
         const {now,identities,identity}=await member('phase-proof-'+mode),store=createMemoryStorage();
         const loaded=await loadCanonicalDescriptors(asm,artifact,store),target=model('GuardOwnerFrame','Root');
         const sourceRow={...makeRow({id:asId('root'),data:{capacity:'2',checked:false}}),parent:null};
         const childModel=model('GuardOwnerFrame','Child'),childRow={...makeRow({id:asId('child'),data:{active:true,marked:false}}),parent:{model:target,id:sourceRow.id}};
-        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:target,row:sourceRow},{kind:'insert',model:childModel,row:childRow}]}));
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:target,row:sourceRow},{kind:'insert',model:childModel,row:childRow},...(['valid','loop-out-of-order'].includes(mode)?[{kind:'insert' as const,model:childModel,row:{...childRow,id:asId('second-child')}}]:[])]}));
         const site=loaded.requireSources.get('GuardOwnerFrame.staged')?.find(site=>site.decision==='if'&&site.mutationPrefix!==undefined);
         assert.ok(site,'fresh compiler/loader independently bind the actual staged IF prefix');
         assert.equal(site.mutationPrefix?.length,2);assert.deepEqual(site.mutationPrefix?.[0],{kind:'set',parameter:'root',model:target,parents:[],fields:['capacity','checked']});
@@ -1420,8 +1420,9 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
             const patch:Record<string,unknown>=['wrong-prefix','mutable-write'].includes(mode)?{capacity:'3'}:{capacity:'3',checked:true};
             const staging=session.stage({op:'update',model:target,id:sourceRow.id,data:patch},{cause:'scenario'});
             if(mode==='mutable-write')patch['checked']=true;await staging;
-            const selected=await state.executeScenarioSourceLoop(call,store,{id:loopStep.id,predicate:null});assert.equal(selected.length,1);
-            for(const row of selected)await state.executeScenarioSourceLoopItem(call,store,{id:loopStep.id,row,execute:()=>session.stage({op:'update',model:childModel,id:row.id,data:mode==='loop-wrong-fields'?{active:false}:{marked:true},...(mode==='loop-extra-when'?{when:{op:'eq' as const,field:'marked',value:true}}:{})},{cause:'scenario'})});
+            const selected=await state.executeScenarioSourceLoop(call,store,{id:loopStep.id,predicate:null});assert.equal(selected.length,['valid','loop-out-of-order'].includes(mode)?2:1);
+            const ordered=mode==='loop-out-of-order'?[...selected].reverse():selected;
+            for(const row of ordered)await state.executeScenarioSourceLoopItem(call,store,{id:loopStep.id,row,execute:()=>session.stage({op:'update',model:childModel,id:row.id,data:mode==='loop-wrong-fields'?{active:false}:{marked:true},...(mode==='loop-extra-when'?{when:{op:'eq' as const,field:'marked',value:true}}:{})},{cause:'scenario'})});
             if(mode==='missing-scalar-capture'){
               const require=loaded.requireSources.get(def.name)!.find(site=>site.decision==='require'&&site.mutationPrefix!==undefined)!;
               assert.deepEqual(require.captures?.map(capture=>[capture.binding,capture.typeId]),[['original','int']]);
@@ -1437,11 +1438,12 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
             catch(error){if(mode==='revision-race'){assert.equal((error as {code:string}).code,'conflict');assert.match((error as Error).message,/revision changed/);phaseRaced=true;}throw error;}
             if(mode==='reused')await state.consumeScenarioSourceRequirePhase(call,store,site.node,token);
             proven=true;throw new Error('phase proof complete; abort probe before business commit');
-          }}),mode==='valid'?/phase proof complete/:['wrong-prefix','mutable-write'].includes(mode)?/complete original SET prefix/:['loop-wrong-fields','loop-extra-when'].includes(mode)?/loop stamp differs/:mode==='missing-scalar-capture'?/genuine original scalar read/:mode==='forged-query-value'?/closed own data shape required/:mode==='wrong-source'?/quiescent original owner/:mode==='revision-race'?(error:unknown)=>{assert.equal((error as {code:string}).code,'conflict');assert.match((error as Error).message,/Stale record version/);return true;}: /forged, stale, foreign or already consumed/);
+          }}),mode==='valid'?/phase proof complete/:['wrong-prefix','mutable-write'].includes(mode)?/complete original SET prefix/:['loop-wrong-fields','loop-extra-when'].includes(mode)?/loop stamp differs/:mode==='loop-out-of-order'?/original selected order/:mode==='missing-scalar-capture'?/genuine original scalar read/:mode==='forged-query-value'?/closed own data shape required/:mode==='wrong-source'?/quiescent original owner/:mode==='revision-race'?(error:unknown)=>{assert.equal((error as {code:string}).code,'conflict');assert.match((error as Error).message,/Stale record version/);return true;}: /forged, stale, foreign or already consumed/);
         assert.equal(entered,true);assert.equal(proven,mode==='valid');assert.equal(phaseRaced,mode==='revision-race','actual phase rejects the changed revision before canonical retry admission');
         assert.equal((await store.load(target,sourceRow.id))?.data.checked,false,'proof probing publishes no staged SET');
         assert.equal((await store.load(target,sourceRow.id))?.data.capacity,mode==='revision-race'?'9':'2');
         assert.deepEqual(await store.load(childModel,childRow.id),childRow,'phase proof publishes no selected item mutation');
+        if(['valid','loop-out-of-order'].includes(mode))assert.deepEqual(await store.load(childModel,asId('second-child')),{...childRow,id:asId('second-child')},'ordered and refused selection both roll back every original item');
         assert.deepEqual(await store.outboxPending(),[]);
       }
     } finally { await rm(directory, { recursive: true, force: true }); }
