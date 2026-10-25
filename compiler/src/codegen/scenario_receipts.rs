@@ -7571,7 +7571,7 @@ fn first_query_shape_valid(
     !query.id.is_empty()
         && first.binding.kind == SyntaxKind::Let as u8
         && query.limit.is_none()
-        && (!query.archived || scan.archived.is_none())
+        && super::scenario_queries::archived_first_matches(query.archived, &scan.archived)
         && query.influences.len() == 4
 }
 
@@ -10864,7 +10864,9 @@ fn first_query_clauses<'x>(
                 crate::analysis::types::CheckedQueryClauseKind::Archived
             ) =>
         {
-            if !query.archived || scan.archived.is_some() {
+            if !query.archived
+                || !super::scenario_queries::archived_first_matches(query.archived, &scan.archived)
+            {
                 return None;
             }
             rest
@@ -10924,7 +10926,7 @@ fn owner_first_query_call_mismatch(
         || query.projection.is_some()
         || query.cardinality_guard.is_some()
         || query.limit.is_some()
-        || (query.archived && scan.archived.is_some())
+        || !super::scenario_queries::archived_first_matches(query.archived, &scan.archived)
 }
 
 fn owner_first_query_source_mismatch(
@@ -10976,7 +10978,6 @@ fn owner_first_query_tail_mismatch(
         || scan.select.is_some()
         || scan.select_param.is_some()
         || scan.limit.is_some()
-        || scan.archived.is_some()
         || scan.contract_collection_call.is_some()
 }
 

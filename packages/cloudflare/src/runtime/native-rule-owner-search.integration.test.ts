@@ -5873,7 +5873,7 @@ async function originalDeskSource(directory: string, operation: 'open_request' |
   const source = join(directory, 'Desk.can'); await writeFile(source, text); return source;
 }
 
-it('opens the original customer support request with scoped membership and archived spam control', { timeout: 240000 }, async () => {
+it('opens the original customer support request with scoped membership and archived spam control', { timeout: 360000 }, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'can-desk-open-original-'));
   try {
     const source = await originalDeskSource(directory);

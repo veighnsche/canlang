@@ -483,7 +483,18 @@ fn original_authorization_source_chain_and_same_span_semantic_edits_refuse() {
     // diagnostics. E6008 prevents public artifact publication and execution.
     // A mutable checked type table cannot rewrite the original owning field
     // schema while leaving its original member occurrence and source intact.
-    let (db, mut program, _, catalog) = checked(SOURCE, "authorization.can");
+    let (db, mut program, original_ir, catalog) = checked(SOURCE, "authorization.can");
+    let original_authorization = serde_json::to_value(
+        serialize_decision_sources(
+            &program,
+            &original_ir,
+            item(&original_ir, OWNER),
+            &db,
+            Some(&catalog),
+        )
+        .expect("genuine authorization source"),
+    )
+    .unwrap();
     let account = program
         .symbols
         .iter()
@@ -496,7 +507,7 @@ fn original_authorization_source_chain_and_same_span_semantic_edits_refuse() {
         .insert(account, ResolvedType::Scalar(Scalar::Text));
     let mut result = DiagnosticResult::new("authorization-schema-mutant", "1.0", 1);
     result.add_sources(&db);
-    let (artifact, diagnostics) = emit(
+    let (_artifact, diagnostics) = emit(
         &program,
         &EmitSources {
             db: &db,
@@ -514,10 +525,22 @@ fn original_authorization_source_chain_and_same_span_semantic_edits_refuse() {
             .any(|diagnostic| diagnostic.code == "E6008"),
         "same-source schema mutation: {diagnostics:?}"
     );
-    let artifact: Value = serde_json::from_str(&to_json(&artifact)).unwrap();
-    assert!(
-        operation(&artifact)["result"]["disclosure"].is_null(),
-        "mutated owning Conversation schema has no native recipe"
+    // Rejected emission can retain independently checked metadata. Mutating a
+    // supplied field type cannot rewrite the original authorization inventory.
+    assert_eq!(
+        serde_json::to_value(
+            serialize_decision_sources(
+                &program,
+                &original_ir,
+                item(&original_ir, OWNER),
+                &db,
+                Some(&catalog),
+            )
+            .expect("original authorization remains independently checked")
+        )
+        .unwrap(),
+        original_authorization,
+        "mutated owning Conversation schema cannot rewrite authorization"
     );
 }
 

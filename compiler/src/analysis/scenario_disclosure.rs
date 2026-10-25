@@ -18868,6 +18868,25 @@ impl<'a> Closure<'a> {
         if self.checked_current_revision_source(scenario).is_some() {
             return Some(Vec::new());
         }
+        // The shared guard query producer currently owns unarchived domains.
+        // Keep archived reads with their original complete query consumer.
+        if self.types.checked_collection_calls.values().any(|call| {
+            call.builtin == "first"
+                && self
+                    .types
+                    .checked_queries
+                    .get(&call.query)
+                    .is_some_and(|query| {
+                        query.node.file == scenario.node.file
+                            && scenario.node.start <= query.node.start
+                            && query.node.end <= scenario.node.end
+                            && query.clauses.iter().any(|clause| {
+                                matches!(clause.kind, CheckedQueryClauseKind::Archived)
+                            })
+                    })
+        }) {
+            return Some(Vec::new());
+        }
         if !self.source_require_params_ok(scenario) {
             return Some(Vec::new());
         }
@@ -20566,7 +20585,7 @@ impl<'a> Closure<'a> {
         field_name: &str,
         ty: &ResolvedType,
         value: &mut ValuePath,
-    ) -> Result<(), DisclosureDecline> {
+    ) -> Result<bool, DisclosureDecline> {
         if let Some(origin) = value.contract_value {
             let ContractValue::Singular(contract) = origin else {
                 return Err(self.fail(key, "canonical wire is not a record receiver"));
@@ -20609,8 +20628,9 @@ impl<'a> Closure<'a> {
             };
             // Selecting a local member consumes the already observed whole
             // owning field. It must never synthesize a dotted stored read.
+            return Ok(true);
         }
-        Ok(())
+        Ok(false)
     }
 
     fn expr_member_composite_value(
@@ -22122,35 +22142,7 @@ impl<'a> Closure<'a> {
             return Ok(());
         }
         self.expr_member_model_guard(key, module, calls, base_key, value)?;
-        let notice_snapshot_title = field_name == "title"
-            && *ty == ResolvedType::Scalar(Scalar::Text)
-            && matches!(value.contract_value, Some(ContractValue::Singular(contract))
-                if self.resolve.symbols.get(contract.0 as usize)
-                    .is_some_and(|contract| contract.canonical == "agreements.ExecutedParties"))
-            && self
-                .count_member(base_key)
-                .is_some_and(|(event_term, name)| {
-                    name == "snapshot"
-                        && self
-                            .hook_delivery_field(event_term, module)
-                            .is_some_and(|(_, field)| {
-                                self.resolve
-                                    .symbols
-                                    .get(field.0 as usize)
-                                    .is_some_and(|field| field.name == "term")
-                            })
-                })
-            && value.reads.iter().any(|read| {
-                read.node == base_key
-                    && read.model_name == "agreements.Term"
-                    && read.field_name == "snapshot"
-                    && read.calls.is_empty()
-                    && read.query_id.is_none()
-            });
-        self.expr_member_contract_value(key, module, base_key, field_name, ty, value)?;
-        if notice_snapshot_title {
-            // The whole nullable Contract was observed at its original Term
-            // field; its checked local title has no separate stored row.
+        if self.expr_member_contract_value(key, module, base_key, field_name, ty, value)? {
             return Ok(());
         }
         let Some(model) = self.expr_member_composite_value(key, base_key, field_name, ty, value)?

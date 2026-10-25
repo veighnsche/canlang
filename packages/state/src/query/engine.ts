@@ -1615,11 +1615,10 @@ async function matchOneViewerRow(
   if (projected === null) {
     return;
   }
-  // Source policies are evaluated per row. A different, unsatisfied grant
-  // must not authorize ordering or aggregation over this visible row.
   const grantedFields = matching.flatMap(grant => [...grant.fields]);
-  for (const term of run.order) checkViewerPath(term.field, grantedFields, run.secrets, run.implicitParent);
-  for (const path of run.extraViewerPaths ?? []) checkViewerPath(path, grantedFields, run.secrets, run.implicitParent);
+  if (run.page !== undefined) for (const path of run.extraViewerPaths ?? []) {
+    checkViewerPath(path, grantedFields, run.secrets, run.implicitParent);
+  }
   const presence = Object.freeze(Object.keys(row.data));
   const candidateIndex = observation?.candidates.length;
   const candidate = observation === undefined ? undefined : {
@@ -1635,6 +1634,12 @@ async function matchOneViewerRow(
   }
   if (run.predicate !== undefined || observation !== undefined) {
     if (!await checkViewerRowPredicate(run, projected, row, presence, index)) return;
+  }
+  // Only surviving rows contribute keys and aggregate values. Their actual
+  // grants must authorize those fields; another row's grant conveys no access.
+  for (const term of run.order) checkViewerPath(term.field, grantedFields, run.secrets, run.implicitParent);
+  if (run.page === undefined) for (const path of run.extraViewerPaths ?? []) {
+    checkViewerPath(path, grantedFields, run.secrets, run.implicitParent);
   }
   const selected = { ...row, data: projected.data };
   retainQuerySourcePresence(selected, input.model, run.revision, presence);

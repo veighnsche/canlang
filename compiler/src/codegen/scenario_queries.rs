@@ -3486,7 +3486,7 @@ fn checked_count_query_plan(
 /// Archived-first correspondence: the disclosure proves the exact
 /// `archived=include` spelling (the grammar admits no other archived
 /// value) while IR drops the valueless clause, so a disclosed include with
-/// no IR archived value is the genuine shape. Any other combination —
+/// no IR archived value or the exact lowered include literal is genuine. Any other combination —
 /// disclosed exclude with an IR value, or an IR non-include value — refuses.
 pub(super) fn archived_first_matches(disclosed: bool, ir: &Option<Box<TypedExpr>>) -> bool {
     match (disclosed, ir) {
@@ -3494,6 +3494,8 @@ pub(super) fn archived_first_matches(disclosed: bool, ir: &Option<Box<TypedExpr>
         (true, None) => true,
         (true, Some(expr)) => {
             matches!(&expr.expr, IrExpr::Name(name) if name == "include")
+                || matches!(&expr.expr, IrExpr::Text(value)
+                    if value == "include" && expr.ty == ResolvedType::Scalar(crate::analysis::Scalar::Text))
         }
         _ => false,
     }
