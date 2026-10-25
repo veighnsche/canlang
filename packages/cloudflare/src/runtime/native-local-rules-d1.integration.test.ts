@@ -52,9 +52,12 @@ function projection(value: unknown): Projection {
 }
 function mutationWire(value: unknown): MutationWire {
   const body = object(value);
+  // Create/update failures include retry data; delete failures use the plain BusinessError.
+  const error = body.retry === undefined ? body : object(body.error);
+  if (error.code !== undefined) { word(error.message); assert.equal(error.retryable, false); }
   if (body.records !== undefined) assert.ok(Array.isArray(body.records));
   return { ...(body.status === undefined ? {} : { status: word(body.status) }),
-    ...(body.code === undefined ? {} : { code: word(body.code) }),
+    ...(error.code === undefined ? {} : { code: word(error.code) }),
     ...(body.records === undefined ? {} : { records: (body.records as unknown[]).map(projection) }) };
 }
 function mcpWire(value: unknown): McpWire {
@@ -442,6 +445,7 @@ for (const contextual of [false, true]) it(contextual
         d1: { binding: 'DB', availability: 'real_local' }, identity: { backingBinding: 'DB', availability: 'real_local' } } }, origin),
         CAN_STATE_OWNERS: { version: 1, owners: owners.map(owner => ({ owner: owner.owner,
           binding: owner.binding, initializeFresh: true })) } } });
+    await bridge.setBackend(worker.backend);
     const identityDb = await worker.getD1Database('DB'), dbs = new Map<string, D1Database>();
     for (const owner of owners) {
       const db: D1Database = await worker.getD1Database(owner.binding); dbs.set(owner.owner, db);
@@ -635,12 +639,25 @@ for (const contextual of [false, true]) it(contextual
       const result = await mutate(original.operation.slice(entryModel.length + 1), original.inputs, original.id);
       assert.equal(result.status, original.status);
       if (original.status === 200) { assert.equal(result.body.status, 'replayed'); assert.deepEqual(result.body.records, original.body.records); }
-      else assert.deepEqual(result.body, original.body);
+      else {
+        assert.deepEqual(Object.keys(result.body).sort(), ['error', 'retry']);
+        assert.deepEqual(result.body.error, original.body.error, 'replay retains the original rejection');
+        const retry = object(result.body.retry), previousRetry = object(original.body.retry);
+        assert.deepEqual(Object.keys(retry), ['operation_id']);
+        assert.deepEqual(Object.keys(previousRetry), ['operation_id']);
+        const fresh = word(retry.operation_id), previous = word(previousRetry.operation_id);
+        for (const id of [fresh, previous]) {
+          assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+          assert.notEqual(id, original.id);
+        }
+        assert.notEqual(fresh, previous, 'each retry offer has its own new operation identity');
+      }
       assert.deepEqual(await resources(), before);
     };
     await replay(created, afterUpdate); await replay(updated, afterUpdate);
     const refused = await mutate('update', { record: { id: current.id, version: '2' }, state: 'proposed', accept: false });
-    assert.equal(refused.status, 422); assert.equal(refused.body.code, 'rule_failed');
+    assert.equal(refused.status, 422); const error = object(refused.body.error);
+    assert.equal(error.code, 'rule_failed'); assert.equal(error.retryable, false);
     const rejectedReceipt = await receipt(refused), rejectedOutcome = object(JSON.parse(rejectedReceipt.outcome));
     assert.equal(rejectedOutcome.status, 'rejected'); assert.equal(rejectedOutcome.code, 'rule_failed');
     const afterReject = await resources(); assertFence(afterUpdate, afterReject, rejectedReceipt, []);
