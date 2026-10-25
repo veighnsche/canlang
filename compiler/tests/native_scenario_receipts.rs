@@ -750,6 +750,7 @@ fn opt_in_native_capture_retains_selected_paths_replays_and_current_state_projec
         "post_write_version",
         "checked",
         "field",
+        "absent",
         "branch",
         "conjunction",
         "disjunction",
@@ -830,7 +831,6 @@ fn opt_in_native_capture_retains_selected_paths_replays_and_current_state_projec
     assert_ne!(imported_origin["sha256"], imported["source"]["sha256"]);
     for name in [
         "query",
-        "absent",
         "composite",
         "model_array",
         "required_array",
@@ -843,6 +843,29 @@ fn opt_in_native_capture_retains_selected_paths_replays_and_current_state_projec
             "whole unsupported recipe omitted: {name}"
         );
     }
+    let absent = &operation(&artifact, "absent")["result"]["disclosure"];
+    assert_eq!(operation(&artifact, "absent")["result"]["type"], "int?");
+    let paths = absent["returns"].as_array().unwrap();
+    assert_eq!(paths.len(), 2);
+    assert_eq!(paths[0]["dependencies"], serde_json::json!([]));
+    assert_eq!(paths[0]["influences"], serde_json::json!([]));
+    let reads = paths[1]["dependencies"].as_array().unwrap();
+    assert_eq!(reads.len(), 1);
+    assert_eq!(reads[0]["model"], "NativeReceipts.Item");
+    assert_eq!(reads[0]["field"], "value");
+    assert_eq!(reads[0]["role"], "data");
+    assert_eq!(reads[0]["type"], "int");
+    assert_eq!(paths[1]["influences"], serde_json::json!([]));
+    let withheld = scratch.path().join("withheld");
+    std::fs::create_dir(&withheld).unwrap();
+    compile_source(
+        &withheld,
+        true,
+        &SOURCE.replace(
+            "policy Item read=members",
+            "policy Item read=members fields=enabled",
+        ),
+    );
     let model = &operation(&artifact, "model")["result"]["disclosure"];
     assert_eq!(model["version"], 1);
     let paths = model["returns"].as_array().unwrap();
@@ -889,7 +912,7 @@ const entry=await import(asm.entryUrl);
 assert.deepEqual(entry.canApp().operations,artifact.operations,'actual imported canApp publication');
 const loaded=await loadCanonicalDescriptors(asm,artifact);
 const {store:backing,probe}=createTestMemoryStorage(),memberships=createMemoryIdentityStore();
-let commits=0;const store={...backing,commit:async batch=>{commits++;return backing.commit(batch);}};
+let commits=0,itemLoads=0;const store={...backing,load:async(model,id)=>{if(model==='NativeReceipts.Item')itemLoads++;return backing.load(model,id);},commit:async batch=>{commits++;return backing.commit(batch);}};
 const member=await seedMember(memberships,{isOwner:false});
 const identity=makeIdentity({membership:member.membership,email:member.user.email});
 const invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
@@ -912,6 +935,7 @@ for(const [name,inputs,expected,fields] of [
  ['literal',{},'7',[]],['input',{value:'9223372036854775807'},'9223372036854775807',[]],
  ['operation_id',{},null,[]],['original_version',{item:ref(yes)},'1',[]],
  ['checked',{item:ref(yes)},'7',[]],['field',{item:ref(yes)},'17',['value']],
+ ['absent',{},null,[]],['absent',{item:null},null,[]],['absent',{item:ref(yes)},'17',['value']],
  ['branch',{item:ref(yes)},'17',['enabled','value']],['branch',{item:ref(no)},'0',['enabled']],
  ['conjunction',{item:ref(yes)},true,['enabled','value']],['conjunction',{item:ref(no)},false,['enabled']],
  ['disjunction',{item:ref(yes)},true,['enabled']],['disjunction',{item:ref(no)},false,['enabled','value']],
@@ -931,7 +955,9 @@ for(const [name,inputs,expected,fields] of [
  ['derived_lazy',{item:ref(yes)},'17',['optional','value','enabled']],['derived_lazy',{item:ref(no)},'9',['optional','enabled']],
  ['derived_match',{item:ref(yes),selected:'a'},'17',['value']],['derived_match',{item:ref(yes),selected:'b'},'18',['value']],
 ]){
+ const loadsBefore=itemLoads;
  const req=request(name,inputs),result=await committed(req),receipt=await receiptFor(req);
+ if(name==='absent'&&inputs.item==null)assert.equal(itemLoads,loadsBefore,'absent input neither admits nor observes an Item row');
  const actualExpected=name==='operation_id'?req.operation_id:expected;
  assert.deepEqual(result.result,actualExpected);assert.deepEqual(receipt.outcome.result,actualExpected);
  assert.equal(JSON.stringify(result).includes('scenario-result/v1'),false,'association metadata remains private');
@@ -984,6 +1010,36 @@ for(const [name,inputs,expected,fields] of [
  assert.deepEqual(projected.result,actualExpected);assert.deepEqual(projected.records,[]);
  saved.push({req,receipt,expected:actualExpected});
 }
+// Optional references retain ordinary existence/version admission, field grants,
+// and the current row fence; absence grants no capability to a present row.
+for(const input of [{id:yes.id,version:'2'},{id:uuidv7(FIXED_NOW,++sequence),version:'1'}]){
+ const req=request('absent',{item:input}),before={row:await store.load('NativeReceipts.Item',yes.id),history:await store.historyFor('NativeReceipts.Item',yes.id),outbox:probe.outboxAll()};
+ const result=await invoke(req);assert.ok('error' in result,JSON.stringify(result));
+ assert.ok(['conflict','not_found','forbidden','validation'].includes(result.error.code),JSON.stringify(result));
+ const rejected=await receiptFor(req);if(rejected!==null)assert.equal(readScenarioReceiptAssociation(rejected),null);
+ assert.deepEqual(await store.load('NativeReceipts.Item',yes.id),before.row);assert.deepEqual(await store.historyFor('NativeReceipts.Item',yes.id),before.history);assert.deepEqual(probe.outboxAll(),before.outbox);
+}
+const withheldArtifact=JSON.parse(readFileSync(resolve(base,'withheld/native.json'),'utf8'));
+const withheldAsm=await assembleModules({artifact:withheldArtifact,sourcePath:resolve(base,'withheld/native-receipts.can')},{workDir:resolve(base,'withheld/modules'),stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href});
+const withheldInvoker=buildInvoker(withheldArtifact,withheldAsm,store,{memberships,now:()=>FIXED_NOW});
+for(const input of [undefined,null,ref(yes)]){
+ const req=request('absent',input===undefined?{}:{item:input}),before={row:await store.load('NativeReceipts.Item',yes.id),history:await store.historyFor('NativeReceipts.Item',yes.id),outbox:probe.outboxAll()};
+ const result=await withheldInvoker.invokeMutation(req,identity);
+ if(input==null){assert.ok('result' in result,JSON.stringify(result));assert.equal(result.result.result,null);assert.deepEqual(readScenarioReceiptAssociation(await receiptFor(req)).observations,[]);}
+ else{assert.ok('error' in result,JSON.stringify(result));assert.equal(result.error.code,'forbidden');const rejected=await receiptFor(req);if(rejected!==null)assert.equal(readScenarioReceiptAssociation(rejected),null);}
+ assert.deepEqual(await store.load('NativeReceipts.Item',yes.id),before.row);assert.deepEqual(await store.historyFor('NativeReceipts.Item',yes.id),before.history);assert.deepEqual(probe.outboxAll(),before.outbox);
+}
+let raced=false,raceLoads=0;
+const racingStore={...store,load:async(model,id)=>{const row=await store.load(model,id);if(model==='NativeReceipts.Item'&&id===yes.id&&++raceLoads===2&&!raced){
+ raced=true;await committed(request('Item.update',{record:ref(row),value:'18'}));
+ }return row;}};
+const racingInvoker=buildInvoker(artifact,asm,racingStore,{memberships,now:()=>FIXED_NOW});
+const racedRequest=request('absent',{item:ref(yes)}),racedResult=await racingInvoker.invokeMutation(racedRequest,identity);
+assert.equal(raced,true,'present nullable input reaches its genuine field observation');
+assert.ok('error' in racedResult,JSON.stringify(racedResult));assert.ok(['conflict','forbidden'].includes(racedResult.error.code),JSON.stringify(racedResult));
+assert.equal((await store.load('NativeReceipts.Item',yes.id)).data.value,'18','external update survives the refused stale observation');
+const racedReceipt=await receiptFor(racedRequest);if(racedReceipt!==null)assert.equal(readScenarioReceiptAssociation(racedReceipt),null);
+assert.deepEqual(probe.outboxAll(),[]);
 // Initial validation/business refusal keeps the actual checked pipeline controls.
 const failed=request('checked',{item:ref(no)}),denied=await invoke(failed);
 assert.ok('error' in denied,JSON.stringify(denied));assert.equal(denied.error.code,'rule_failed');
@@ -1086,7 +1142,8 @@ for(const [name,choice,fields] of [
 const originalVersion=saved.find(value=>value.req.operation==='NativeReceipts.original_version');
 const originalOperation=saved.find(value=>value.req.operation==='NativeReceipts.operation_id');
 const originalInput=saved.find(value=>value.req.operation==='NativeReceipts.input');
-const retainedCases=[field,originalArray,originalDerived,originalVersion,originalOperation,originalInput];
+const optionalCases=saved.filter(value=>value.req.operation==='NativeReceipts.absent');
+const retainedCases=[field,originalArray,originalDerived,originalVersion,originalOperation,originalInput,...optionalCases];
 const snapshot=async()=>({receipts:await Promise.all(retainedCases.map(value=>receiptFor(value.req))),
  revision:await store.readRevision(),rows:await store.query({model:'NativeReceipts.Item',authority:'owner',archived:'include'}),
  history:await Promise.all([yes,no,populated].map(row=>store.historyFor('NativeReceipts.Item',row.id))),

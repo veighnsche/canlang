@@ -9,7 +9,9 @@ supersedes historical current-count claims below: the last tested working compil
 complete original native composition has **18 E6008 diagnostics**, zero analysis
 errors and no omissions. The malformed `a0918b49` snapshot
 was repaired and verified by Z00 in an isolated checkout; a fresh full-corpus
-measurement and current CI result are next. The inventory also
+measurement confirms the same 18 diagnostics on repaired commit `73094a16`;
+the obsolete nullable-receipt test expectation is also repaired and its full
+integration target passes. Current full CI verification remains open. The inventory also
 distinguishes unfinished local implementation, CI verification,
 published Linux artifacts and broader product requirements. The 24 October
 results below remain historical evidence at their recorded scopes.
