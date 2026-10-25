@@ -8150,15 +8150,15 @@ impl<'a> Emitter<'a> {
             link = "$hookRow".to_string();
             cur_kind = "row";
         }
-        for (step_field, step_plan) in &plan {
+        for (index, (step_field, step_plan)) in plan.iter().enumerate() {
             match step_plan {
                 Plan::Parent { canonical } => {
                     let _ = step_field;
                     stmts.push(format!(
-                        "let $hookParent={link}.parent;if($hookParent==null)throw new Error(\"hook parent content missing\");"
+                        "const $hookParent{index}={link}.parent;if($hookParent{index}==null)throw new Error(\"hook parent content missing\");"
                     ));
                     stmts.push(format!(
-                        "$hookRow=await $hookCtx.transitive.load($hookScope,{},$hookParent.id);if($hookRow===null)throw new Error(\"hook parent content missing\");",
+                        "$hookRow=await $hookCtx.transitive.load($hookScope,{},$hookParent{index}.id);if($hookRow===null)throw new Error(\"hook parent content missing\");",
                         js_string(canonical)
                     ));
                     link = "$hookRow".to_string();
@@ -8171,10 +8171,10 @@ impl<'a> Emitter<'a> {
                         format!("{link}.data.{field}")
                     };
                     stmts.push(format!(
-                        "let $hookRef={ref_link};if($hookRef==null)throw new Error(\"hook reference content missing\");"
+                        "const $hookRef{index}={ref_link};if($hookRef{index}==null)throw new Error(\"hook reference content missing\");"
                     ));
                     stmts.push(format!(
-                        "$hookRow=await $hookCtx.transitive.loadReference($hookScope,{},$hookRef.id);if($hookRow===null)throw new Error(\"hook reference content missing\");",
+                        "$hookRow=await $hookCtx.transitive.loadReference($hookScope,{},$hookRef{index}.id);if($hookRow===null)throw new Error(\"hook reference content missing\");",
                         js_string(canonical)
                     ));
                     link = "$hookRow".to_string();

@@ -937,6 +937,23 @@ fn hook_reference_traversal_refused_loud() {
         !js.contains("has no lowering"),
         "no fail-closed placeholder for the admitted shape:\n{js}"
     );
+    let nested = "app T\nGiven\n R { tz:text }\n A in R { target:R }\n M in A { loc:A, t:text }\nWhen\n scenario arm on=M.create\n  do\n   require event.after.parent.parent.tz!=\"\"\nThen\n";
+    let (nested_js, nested_diags, catalog_path) = hook_js(nested);
+    let _ = std::fs::remove_file(catalog_path);
+    assert!(nested_diags.is_empty(), "{nested_diags:?}");
+    let module_path = unique_temp_path("nested-hook-links").with_extension("mjs");
+    std::fs::write(&module_path, nested_js).unwrap();
+    let parsed = std::process::Command::new("node")
+        .arg("--check")
+        .arg(&module_path)
+        .output()
+        .expect("parse actual emitted multi-hop hook module");
+    let _ = std::fs::remove_file(module_path);
+    assert!(
+        parsed.status.success(),
+        "{}",
+        String::from_utf8_lossy(&parsed.stderr)
+    );
 }
 
 /// (Outcome 12, null path.) Nullable comparisons in hooks use the
