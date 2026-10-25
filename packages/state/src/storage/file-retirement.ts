@@ -587,8 +587,10 @@ function modelProfiles(inventories: readonly InstalledFileReferenceInventory[], 
       const current = profile.kind === 'framework' ? { ...profile, installed } : profile;
       if (previous !== undefined) {
         // A shared constructor-captured producer entry has one frozen
-        // declaration. Its exact identity also proves declaration identity.
-        if (previous.kind !== 'framework' || current.kind !== 'framework' || previous.bound !== current.bound) return refuse('colliding installed model declarations');
+        // declaration. Other carriers still require the full comparison.
+        if (previous.kind !== 'framework' || current.kind !== 'framework' || previous.bound !== current.bound ||
+            !owningFrameworkModels.has(previous.bound) &&
+            !fileGuardEqual(previous.bound.declaration, current.bound.declaration)) return refuse('colliding installed model declarations');
         const shared = new Map(previous.owners ?? [[previous.inventory.owner, previous]]);
         if (shared.has(installed.inventory.owner)) return refuse('duplicate framework inventory owner');
         shared.set(installed.inventory.owner, current);
