@@ -354,3 +354,12 @@ export async function nativeScenarioSourceQueryValue(context:unknown,body:Functi
   if(read===undefined||typeof body!=='function')throw new StateError('validation','LET Values query requires its original installed owner.');
   return read(body);
 }
+
+const sourceQueryRowReaders=new WeakMap<object,(id:string)=>Promise<readonly Record<string,unknown>[]>>();
+export function bindNativeScenarioSourceQueryRows(context:object,read:(id:string)=>Promise<readonly Record<string,unknown>[]>):void{
+ if(sourceQueryRowReaders.has(context))throw new StateError('validation','Source Values query reader cannot be rebound.');sourceQueryRowReaders.set(context,read);
+}
+export async function nativeScenarioSourceQueryRows(context:unknown,id:string):Promise<readonly Record<string,unknown>[]>{
+ const read=typeof context==='object'&&context!==null?sourceQueryRowReaders.get(context):undefined;
+ if(read===undefined)throw new StateError('validation','Source Values query needs its actual State capture reader.');return read(id);
+}

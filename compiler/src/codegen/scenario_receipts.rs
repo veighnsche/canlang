@@ -2565,6 +2565,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     let mut profile_scalar_pairs = HashMap::new();
     let mut profile_source_pairs = HashMap::new();
     let mut captured_scalar_sites = HashSet::new();
+    let mut captured_reference_sources = HashSet::new();
     let scalar_result = matches!(
         &item.kind,
         IrItemKind::Scenario {
@@ -2601,6 +2602,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 checked_reference_alias_initializer(ir, item, base, db).unwrap_or(base);
             if !std::ptr::eq(original_receiver, base.as_ref()) {
                 captured_scalar_sites.insert(site.clone());
+                captured_reference_sources.insert(source_site.clone());
             }
             if !std::ptr::eq(*source_expression, original_receiver)
                 || pairs.iter().any(|(source, _)| {
@@ -2621,6 +2623,26 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             for pair in pairs {
                 if !sources.contains(&pair) {
                     sources.push(pair);
+                }
+            }
+        }
+    }
+    // A captured reference may itself follow an original containment edge.
+    // Retain its complete authenticated source chain, including separately
+    // consumed CONTROL reads of the same original getters.
+    let mut pending_sources = captured_reference_sources
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
+    while let Some(site) = pending_sources.pop() {
+        if let Some(pairs) = profile_scalar_pairs.get(&site) {
+            for (source, _) in pairs {
+                let source_site = checked_site(source.node, &source.calls)?;
+                if captured_reference_sources.insert(source_site.clone()) {
+                    if captured_reference_sources.len() > 200 {
+                        return None;
+                    }
+                    pending_sources.push(source_site);
                 }
             }
         }
@@ -2984,7 +3006,25 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     .copied()
                     .find(|(reference, _)| *reference == dependency)
             });
+            let captured_control = captured_reference_sources.contains(&site)
+                && dependency.role == DependencyRole::Control
+                && dependency.calls.is_empty() && dependency.query_id.is_none()
+                && profile_source_pairs.get(&site).is_some_and(|pairs| pairs.iter().any(|(source,_)|
+                    source.role == DependencyRole::Data && source.id != dependency.id
+                        && source.node == dependency.node && source.calls == dependency.calls
+                        && source.source == dependency.source && source.model == dependency.model
+                        && source.field == dependency.field && source.model_name == dependency.model_name
+                        && source.field_name == dependency.field_name && source.ty == dependency.ty
+                        && source.type_id == dependency.type_id && source.query_id.is_none()))
+                && db.is_some_and(|db| sites.members.get(&site).is_some_and(|expressions|
+                    matches!(expressions.as_slice(),[expression] if
+                        stored_reference_operand(ir,item,expression,db).is_some_and(|field|
+                            field.owner == dependency.model && field.id == dependency.field && field.ty == dependency.ty)
+                        || checked_parent_reference(ir,item,expression,db).is_some_and(|(child,parent)|
+                            dependency.model == child.id && dependency.field == child.id && dependency.field_name == "parent"
+                                && dependency.ty == ResolvedType::Record {symbol:parent.id,stored:true}))));
             if result_identity.is_none()
+                && !captured_control
                 && (profile_scalar_pairs.contains_key(&site) && profile_scalar_pair.is_none()
                     || profile_source_pairs.contains_key(&site) && profile_source_pair.is_none())
             {

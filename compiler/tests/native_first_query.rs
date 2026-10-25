@@ -2548,6 +2548,87 @@ fn parent_timezone_keeps_its_original_stored_dependency() {
                 );
             }
         }
+        if name == "native-reference-timezone.can" {
+            let reassigned = item(&ir, "ParentTimezone.reassign");
+            assert!(
+                matches!(
+                    &ir.scenario_disclosures[&reassigned.id],
+                    ScenarioDisclosure::Complete(_)
+                ),
+                "{:?}",
+                ir.scenario_disclosures[&reassigned.id]
+            );
+            let operation = artifact["operations"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|operation| operation["name"] == reassigned.canonical)
+                .unwrap();
+            let returned = operation["result"]["disclosure"]["returns"]
+                .as_array()
+                .unwrap();
+            for field in ["parent", "person"] {
+                for role in ["data", "control"] {
+                    assert!(
+                        returned.iter().any(|entry| entry["dependencies"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .any(|dependency| dependency["field"] == field
+                                && dependency["role"] == role)),
+                        "{field}: {role}"
+                    );
+                }
+            }
+            for mode in ["source-field", "control-use", "data-use"] {
+                let mut changed = ir.clone();
+                let IrItemKind::Scenario { effects, .. } =
+                    &mut changed.items[reassigned.id.0 as usize].kind
+                else {
+                    panic!("scenario");
+                };
+                if mode == "source-field" {
+                    let IrStmt::Let { value, .. } = &mut effects[0] else {
+                        panic!("capture");
+                    };
+                    let IrExpr::Member { field, .. } = &mut value.expr else {
+                        panic!("source");
+                    };
+                    *field = "other_person".into();
+                } else if mode == "control-use" {
+                    let IrStmt::If { cond, .. } = &mut effects[3] else {
+                        panic!("condition");
+                    };
+                    let IrExpr::Binary { right, .. } = &mut cond.expr else {
+                        panic!("comparison");
+                    };
+                    right.expr = IrExpr::Name("replacement".into());
+                } else {
+                    let IrStmt::Emit { payload, .. } = &mut effects[2] else {
+                        panic!("emit");
+                    };
+                    let IrExpr::Object(fields) = &mut payload.expr else {
+                        panic!("payload");
+                    };
+                    let IrExpr::Member { base, .. } = &mut fields[0].1.expr else {
+                        panic!("user");
+                    };
+                    base.expr = IrExpr::Name("replacement".into());
+                }
+                assert!(
+                    serialize_complete_query_receipt(
+                        &program,
+                        &changed,
+                        &changed.items[reassigned.id.0 as usize],
+                        &db,
+                        Some(&catalog),
+                        "$can$m$506172656e7454696d657a6f6e65.mjs"
+                    )
+                    .is_none(),
+                    "{mode}"
+                );
+            }
+        }
         for field_name in ["ParentTimezone.Resource.timezone"].into_iter().chain(
             (name == "native-reference-timezone.can").then_some("ParentTimezone.Booking.location"),
         ) {

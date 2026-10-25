@@ -1185,7 +1185,7 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
     try {
       const source = join(directory,'phase-prefix.can');
       const original=await readFile(join(root,'compiler/tests/fixtures/native-require-missing-owner-frame.can'),'utf8');
-      await writeFile(source,original.replace('Child in Root {active:bool=true}','Child in Root {active:bool=true,marked:bool=false}').replace('Then\n',' scenario staged(root:Root) by=members\n  do\n   let probe_values=[1,2]\n   let original=root.capacity\n   set root {checked=true,capacity=root.capacity+1}\n   for child in root.Child limit=10\n    set child {marked=true}\n   require root.checked and root.capacity>original and allowed(root)\n   if root.checked and allowed(root)\n    set root {capacity=root.capacity+1}\nThen\n'));
+      await writeFile(source,original.replace('Child in Root {active:bool=true}','Child in Root {active:bool=true,marked:bool=false}').replace('Then\n',' scenario staged(root:Root) by=members\n  do\n   let probe_values=Child as child select child.active\n   let original=root.capacity\n   require count(probe_values)>0\n   set root {checked=true,capacity=root.capacity+1}\n   for child in root.Child limit=10\n    set child {marked=true}\n   require root.checked and root.capacity>original and allowed(root)\n   if root.checked and allowed(root)\n    set root {capacity=root.capacity+1}\nThen\n'));
       const { stdout } = await promisify(execFile)(compiler,
         ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
@@ -1198,7 +1198,15 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
       const deniedCompile=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,deniedSource],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
       const deniedArtifact=JSON.parse(deniedCompile.stdout)as CompileArtifact;
       const deniedAsm=await assembleModules({artifact:deniedArtifact,sourcePath:deniedSource},{workDir:join(directory,'withheld'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
-      for (const mode of ['allowed', 'full', 'inactive', 'other-parent', 'capacity-at-commit', 'membership-during-query','stage-allowed','stage-capacity-at-commit','stage-membership-during-query','stage-withheld-capture']) {
+      const queryVariants=new Map<string,{artifact:CompileArtifact;asm:typeof asm}>();
+      for(const [mode,policy] of [['stage-hidden-query','policy Child read=members where=row.marked'],['stage-withheld-query','policy Child read=members fields=marked']] as const){
+        const variant=join(directory,mode+'.can');await writeFile(variant,(await readFile(source,'utf8')).replace('policy Child read=members',policy));
+        const result=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,variant],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+        const artifact=JSON.parse(result.stdout)as CompileArtifact;
+        const assembly=await assembleModules({artifact,sourcePath:variant},{workDir:join(directory,mode),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+        queryVariants.set(mode,{artifact,asm:assembly});
+      }
+      for (const mode of ['allowed', 'full', 'inactive', 'other-parent', 'capacity-at-commit', 'membership-during-query','stage-allowed','stage-capacity-at-commit','stage-membership-during-query','stage-withheld-capture','stage-hidden-query','stage-withheld-query']) {
         const { now, identities, identity, membership } = await member(`source-only-${mode}`);
         const store = createMemoryStorage(), rootModel = model('GuardOwnerFrame', 'Root');
         const rootRow = { ...makeRow({ id: asId('root-1'), data: { capacity: mode === 'full' ? '1' : '2', checked: false } }), parent: null };
@@ -1206,7 +1214,7 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
           { kind: 'insert', model: rootModel, row: rootRow },
           { kind: 'insert', model: rootModel, row: { ...rootRow, id: asId('root-2') } },
           { kind: 'insert', model: model('GuardOwnerFrame', 'Child'), row: {
-            ...makeRow({ id: asId('child-1'), data: { active: mode !== 'inactive' } }),
+            ...makeRow({ id: asId('child-1'), data: { active: mode !== 'inactive',marked:false } }),
             parent: { model: rootModel, id: asId(mode === 'other-parent' ? 'root-2' : 'root-1') },
           } },
         ];
@@ -1235,12 +1243,13 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
             return commit(batch);
           };
         }
-        const invoker = buildInvoker(mode==='stage-withheld-capture'?deniedArtifact:artifact, mode==='stage-withheld-capture'?deniedAsm:asm, store, { memberships: identities, now: () => now });
+        const selected=queryVariants.get(mode)??(mode==='stage-withheld-capture'?{artifact:deniedArtifact,asm:deniedAsm}:{artifact,asm});
+        const invoker = buildInvoker(selected.artifact,selected.asm, store, { memberships: identities, now: () => now });
         const request = { operation:mode.startsWith('stage-')?'GuardOwnerFrame.staged':'GuardOwnerFrame.run', operation_id: operationId(now),
           inputs: { root: { id: rootRow.id, version: String(rootRow.version) } } };
         const outcome = await invoker.invokeMutation(request, identity);
         assert.equal('result' in outcome ? outcome.result.status : outcome.error.code,
-          mode.endsWith('allowed') ? 'committed' : mode.endsWith('capacity-at-commit') ? 'conflict' : mode.endsWith('membership-during-query')||mode==='stage-withheld-capture' ? 'forbidden' : 'rule_failed',
+          mode.endsWith('allowed') ? 'committed' : mode.endsWith('capacity-at-commit') ? 'conflict' : mode.endsWith('membership-during-query')||mode==='stage-withheld-capture'||mode==='stage-withheld-query' ? 'forbidden' : 'rule_failed',
           `${mode}: ${JSON.stringify(outcome)}`);
         assert.equal((await store.load(rootModel, rootRow.id))?.data.checked, mode.endsWith('allowed'));
         if(mode==='stage-allowed')assert.equal((await store.load(rootModel,rootRow.id))?.data.capacity,'4','phase IF reads the actual post-SET checked value');
@@ -1298,7 +1307,7 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
             const selected=await state.executeScenarioSourceLoop(call,store,{id:loopStep.id,predicate:null});assert.equal(selected.length,1);
             for(const row of selected)await state.executeScenarioSourceLoopItem(call,store,{id:loopStep.id,row,execute:()=>session.stage({op:'update',model:childModel,id:row.id,data:mode==='loop-wrong-fields'?{active:false}:{marked:true},...(mode==='loop-extra-when'?{when:{op:'eq' as const,field:'marked',value:true}}:{})},{cause:'scenario'})});
             if(mode==='missing-scalar-capture'){
-              const require=loaded.requireSources.get(def.name)!.find(site=>site.decision==='require')!;
+              const require=loaded.requireSources.get(def.name)!.find(site=>site.decision==='require'&&site.mutationPrefix!==undefined)!;
               assert.deepEqual(require.captures?.map(capture=>[capture.binding,capture.typeId]),[['original','int']]);
               const phase=await state.openScenarioSourceRequirePhase(call,store,require.node);
               await state.executeScenarioReceiptRequire(call,store,{original:require,checked:require,parameter:'root',phase,captures:{original:2n},
@@ -1626,6 +1635,46 @@ it('authorizes a stored timezone through original parent and required reference 
         }
       }
       }
+      }
+      const {artifact:aliasArtifact,asm:aliasAsm}=await installed('native-reference-timezone.can',join(directory,'mixed-roles'));
+      for(const mode of ['different','same','old-user-hidden','new-user-hidden','old-row-hidden','source-hidden','late-refusal','identity-race']){
+        const {now,identities,identity,user,membership}=await member('captured-recipient-'+mode);
+        const originalUser=await identities.createUser({email:'original-'+mode+'@captured.test',password_hash:'unused',email_verified:true});
+        const {store}=createTestMemoryStorage(),personModel=model('ParentTimezone','Person'),unitModel=model('ParentTimezone','Unit'),assignmentModel=model('ParentTimezone','Assignment');
+        const row=(modelName:ReturnType<typeof asModel>,id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({kind:'insert' as const,model:modelName,row:{...makeRow({id:asId(id),data}),parent}});
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          row(personModel,'original',{user:{id:originalUser.user_id},visible:mode!=='old-row-hidden',user_visible:mode!=='old-user-hidden'}),
+          row(personModel,'replacement',{user:{id:user.user_id},visible:true,user_visible:mode!=='new-user-hidden'}),
+          row(unitModel,'unit',{person:{id:'original'}}),
+          row(assignmentModel,'assignment',{visible:mode!=='source-hidden'},{model:unitModel,id:asId('unit')})
+        ]}));
+        let raced=false;const load=store.load.bind(store);
+        store.load=async(modelName,id)=>{const saved=await load(modelName,id);if(mode==='identity-race'&&modelName===personModel&&id==='original'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return saved;};
+        const request={operation:'ParentTimezone.reassign',operation_id:operationId(now),inputs:{assignment:{id:'assignment',version:'1'},replacement:{id:mode==='same'?'original':'replacement',version:'1'},abort:mode==='late-refusal'}};
+        const invoker=buildInvoker(aliasArtifact,aliasAsm,store,{memberships:identities,now:()=>now});
+        const outcome=await invoker.invokeMutation(request,identity),allowed=mode==='different'||mode==='same';
+        assert.equal('result'in outcome,allowed,mode+': '+JSON.stringify(outcome));
+        assert.deepEqual((await store.load(unitModel,asId('unit')))!.data['person'],{id:allowed&&mode!=='same'?'replacement':'original'},mode+': denied recipient DATA rolls back reassignment');
+        const events=await store.query({model:asModel('work.occurrence'),authority:'owner'});
+        assert.equal(events.length,allowed?(mode==='same'?1:2):0,mode+': emitted notices remain atomic');
+        if(mode==='identity-race')assert.equal(raced,true);
+        if(allowed){
+          const recipients=events.map(event=>(event.data['result'] as {payload:{recipient:{id:string}}}).payload.recipient.id).sort();
+          assert.deepEqual(recipients,(mode==='same'?[originalUser.user_id]:[originalUser.user_id,user.user_id]).sort(),'the original target is retained after the source field changes');
+          const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
+          assert.deepEqual(await store.query({model:asModel('work.occurrence'),authority:'owner'}),events);
+          if(mode==='different')for(const mutation of ['model','field','role','id']){
+            const changed=JSON.parse(JSON.stringify(aliasArtifact)) as CompileArtifact;
+            const disclosure=changed.operations!.find(operation=>operation.name==='ParentTimezone.reassign')!.result!.disclosure!;
+            const source=disclosure.returns.flatMap(returned=>returned.dependencies).find(dependency=>dependency.field==='person'&&dependency.role==='data')! as unknown as Record<string,unknown>;
+            source[mutation]=mutation==='model'?'ParentTimezone.Person':mutation==='field'?'user':mutation==='role'?'control':'0'.repeat(64);
+            let refused=false;
+            try{const forged=buildInvoker(changed,aliasAsm,store,{memberships:identities,now:()=>now});const result=await forged.invokeMutation({...request,operation_id:operationId(now)},identity);refused='error'in result;}
+            catch{refused=true;}
+            assert.equal(refused,true,mutation+': source/field/role/node substitution cannot reuse the observed view');
+            assert.deepEqual(await store.query({model:asModel('work.occurrence'),authority:'owner'}),events);
+          }
+        }
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });

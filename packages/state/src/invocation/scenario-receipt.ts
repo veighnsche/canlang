@@ -7963,6 +7963,9 @@ function sourceEffectGrantSlot(owner:ReceiptOwnerSession,producer:ScenarioReceip
   }else if(producer!==undefined&&producer===sourceEmitDataProducers.get(def)){
     for(const site of sourceEmitDataProducers.get(def)!.sites)
       maximum+=site.parameters.reduce((total,parameter)=>total+sourceEffectParameterGuardMaximum(parameter),0)+(site.queries?.length??0)*owner.maxRows;
+  }else if(producer!==undefined&&producer===sourceQueryRowsProducers.get(def)){
+    const sites=sourceQueryRowsProducers.get(def)!.sites;
+    maximum=sites.reduce((total,site)=>total+site.queries.length*(owner.maxRows+1),0);
   }else if(producer!==undefined&&producer===sourceSendDataProducers.get(def)){
     const loops=sourceBodyLoopProducers.get(def)?.loops??[];
     for(const site of sourceSendDataProducers.get(def)!.sites){
@@ -8212,6 +8215,8 @@ export async function executeScenarioSourceQueryValue(call:AdmittedCall,store:St
   try{
    if(await store.readRevision()!==call.revision)throw new StateError('conflict','Query LET Values admission revision changed.');healthy();
    const value=await Reflect.apply(raw['body'],undefined,[]);healthy();
+   const originalQueries=sourceQueryRowsProducers.get(call.def as GeneratedOperationDef)?.sites.find(candidate=>stableStringify(candidate.node)===stableStringify(site.node))?.queries;
+   if(originalQueries!==undefined&&originalQueries.some(query=>sourceQueryRowsConsumed.get(lease)?.has(query.id)!==true))return invalid('Values query capture omitted an original State query occurrence.');
    const wire=deepFreeze(dataCopy(encodeValue(site.typeId,value as Parameters<typeof encodeValue>[1],undefined,state.bound.valueSchema)));
    const decoded=state.bound.valueSchema===undefined?decodeValue(site.typeId,wire):validateValue(state.bound.valueSchema,site.typeId,wire,'create');
    if(stableStringify(encodeValue(site.typeId,decoded,undefined,state.bound.valueSchema))!==stableStringify(wire))return invalid('Query LET Values lost their canonical original schema.');
@@ -8221,6 +8226,71 @@ export async function executeScenarioSourceQueryValue(call:AdmittedCall,store:St
    captures.set(key,Object.freeze({owner,store,revision:call.revision,stage:0,site:Object.freeze({source:site.source,owner:site.owner,node:site.node,binding:site.binding,valueType:site.typeId,stage:0 as const}),wire}));
    return deepFreeze(decoded);
   }finally{sourceQueryValueActive.delete(owner);}
+ }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
+}
+/** Original query fields are projected by State during an issued Values LET.
+ * The callback receives no owner rows; the query census grants no mutations. */
+export interface ScenarioSourceQueryRows {
+ readonly id:string;readonly node:{readonly start:number;readonly end:number};readonly model:ModelName;
+ readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];
+}
+interface SourceQueryRowsProducer extends ScenarioReceiptReferenceProducer {
+ readonly sites:readonly {readonly node:{readonly start:number;readonly end:number};readonly queries:readonly ScenarioSourceQueryRows[]}[];
+}
+const sourceQueryRowsProducers=new WeakMap<GeneratedOperationDef,SourceQueryRowsProducer>();
+const sourceQueryRowsConsumed=new WeakMap<object,Set<string>>();
+export function bindScenarioSourceQueryRowsProducer(def:GeneratedOperationDef,value:SourceQueryRowsProducer):void{
+ const bound=boundPlans.get(def),values=sourceQueryValueProducers.get(def);
+ if(bound?.sourceRequireOnly!==true||values===undefined||invokedPlans.has(def)||sourceQueryRowsProducers.has(def))return invalid('Values query reader needs its original uninvoked capture producer.');
+ object(value,['source','app','policy','readPolicies','sites']);origin(value.source);text(value.app);
+ if(stableStringify(value.source)!==stableStringify(bound.plan.source)||!(value.policy instanceof Map)||!(value.readPolicies instanceof Map))return invalid('Values query reader differs from its original source and policies.');
+ const policy=captureSourcePolicyTable(bound,value.policy,'Values query policy differs from its owning model.'),readPolicies=captureSourceReadPolicies(value.readPolicies);
+ const ids=new Set<string>(),nodes=new Set<string>();
+ const sites=list(dataCopy(value.sites)).map(value=>{
+  const site=object(value,['node','queries']),key=stableStringify(site['node']);
+  const original=values.sites.find(candidate=>stableStringify(candidate.node)===key);
+  if(original===undefined||nodes.has(key))return invalid('Values query reader lost its original LET declaration.');nodes.add(key);
+  const queries=list(site['queries']).map(value=>{
+   const query=object(value,['id','node','model','fields']),id=text(query['id']),model=text(query['model'])as ModelName;
+   if(ids.has(id)||!original.queries.some(candidate=>candidate.model===model&&stableStringify(candidate.node)===stableStringify(query['node'])))return invalid('Values query reader lost its exact original query interval.');ids.add(id);
+   checkSourceEffectPolicies(bound,readPolicies,model,'Values query');
+   const fields=list(query['fields']),names=new Set<string>();
+   for(const value of fields){const field=object(value,['name','type']),name=text(field['name']),type=text(field['type']);
+    if(names.has(name)||bound.models.get(model)?.fields.get(name)!==type)return invalid('Values query reader field census differs from its original stored schema.');names.add(name);
+   }
+   return deepFreeze(query)as unknown as ScenarioSourceQueryRows;
+  });
+  if(queries.length!==original.queries.length||queries.length===0)return invalid('Values query reader must retain its complete original query census.');
+  return Object.freeze({node:original.node,queries:Object.freeze(queries)});
+ });
+ if(sites.length===0)return invalid('Values query reader needs its original finite site census.');
+ sourceQueryRowsProducers.set(def,Object.freeze({source:bound.plan.source,app:value.app,policy,readPolicies,sites:Object.freeze(sites)}));
+}
+export async function executeScenarioSourceQueryRows(call:AdmittedCall,store:StoragePort,input:{readonly id:string}):Promise<readonly ProjectedRecord[]>{
+ const state=capture(call,store),owner=ownerSessions.get(call);
+ try{
+  const id=text(object(input,['id'])['id']),lease=owner===undefined?undefined:sourceQueryValueActive.get(owner),producer=sourceQueryRowsProducers.get(call.def as GeneratedOperationDef);
+  const site=lease===undefined?undefined:producer?.sites.find(site=>stableStringify(site.node)===stableStringify(lease.site.node)),query=site?.queries.find(query=>query.id===id);
+  if(owner===undefined||lease?.call!==call||producer===undefined||query===undefined||owner.session===null||owner.executingCall!==call||owner.busy||state.pending!==0||owner.stage!==0||producer.app!==call.context.app)return invalid('Values query needs its genuine active original capture.');
+  let consumed=sourceQueryRowsConsumed.get(lease);if(consumed===undefined){consumed=new Set();sourceQueryRowsConsumed.set(lease,consumed);}
+  if(consumed.has(id))return invalid('Values query repeats its original occurrence.');consumed.add(id);
+  return await ownerOperation(owner,async()=>{
+   const healthy=()=>{ownerHealthy(owner);capture(call,store);if(sourceQueryValueActive.get(owner)!==lease||owner.executingCall!==call||owner.stage!==0||!owner.busy||state.pending!==0)return invalid('Values query crossed its original capture checkpoint.');};
+   if(!sourceEffectGrantSlot(owner,producer))return invalid('Values query exceeds its original bounded observation census.');
+   const domains=ownerPolicyDomains(owner,healthy),rows=await domains.capture(query.model),projected:ProjectedRecord[]=[];
+   for(const row of rows){
+    const observed=await observeModelQuerySourceAuthority(call,store,owner,state,query.model,row,[],0,undefined,undefined,producer,true);healthy();
+    if(observed.record!==null){await observed.requireFields(query.fields.map(field=>field.name));healthy();projected.push(observed.record);}
+   }
+   if(await store.readRevision()!==call.revision)throw new StateError('conflict','Values query moved beyond its original owner revision.');healthy();
+   appendSourceEffectGuard(owner,producer,Object.freeze({name:`values-query-domain:${id}`,evaluate:async()=>{
+    const final=owner.finalized;if(final===null||owner.capture.poisoned)return invalid('Values query lost its final owner.');
+    const guard=()=>{if(owner.finalized!==final||owner.capture.poisoned)return invalid('Values query final owner changed.');};
+    const retained=await domains.retained(guard)(query.model);if(stableStringify(retained)!==stableStringify(rows))return invalid('Values query retained domain changed.');
+    if(await store.readRevision()!==call.revision)throw new StateError('conflict','Values query domain moved before commit.');return true;
+   }}));
+   return Object.freeze(projected);
+  },call);
  }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
 }
 export function bindScenarioSourceLetDataProducer(def:GeneratedOperationDef,producer:SourceLetDataProducer):void{

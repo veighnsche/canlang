@@ -999,3 +999,70 @@ pub(super) fn collect_query_values(
     }
     Some(output)
 }
+
+/// A direct plain field projection is the first State-owned Values query.
+/// More complex clauses keep their existing independently checked reader.
+pub(super) fn collect_query_rows(
+    ir: &IrProgram,
+    owner: &IrItem,
+    context: &super::source_context::FreshSourceContext<'_>,
+    values: &HashMap<Span, serde_json::Value>,
+) -> HashMap<Span, serde_json::Value> {
+    let mut out = HashMap::new();
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return out;
+    };
+    for effect in effects {
+        let IrStmt::Let { value, span, .. } = effect else {
+            continue;
+        };
+        let Some(site) = values.get(span) else {
+            continue;
+        };
+        let IrExpr::Query(query) = &value.expr else {
+            continue;
+        };
+        let super::ir::IrQueryDomain::Model(model) = &query.domain else {
+            continue;
+        };
+        if query.parent.is_some()
+            || query.where_pred.is_some()
+            || query.limit.is_some()
+            || query.archived.is_some()
+            || !query.order.is_empty()
+            || query.value_order.is_some()
+        {
+            continue;
+        }
+        let (Some(projection), Some(alias)) = (&query.select, &query.select_param) else {
+            continue;
+        };
+        let IrExpr::Member { base, field } = &projection.expr else {
+            continue;
+        };
+        if !matches!(&base.expr,IrExpr::Name(name)if name==alias) {
+            continue;
+        }
+        let Some(model_item) = ir.items.iter().find(|item| item.canonical == *model) else {
+            continue;
+        };
+        let IrItemKind::Model { fields, .. } = &model_item.kind else {
+            continue;
+        };
+        if !fields.iter().filter_map(|id|ir.items.get(id.0 as usize)).any(|item|item.name==*field&&matches!(&item.kind,IrItemKind::Field{ty:IrType::Known(ty),..}if *ty==projection.ty)){continue;}
+        let Some(ty) =
+            super::scenario_decisions::serial_type(&projection.ty, context.original(), ir, 0)
+        else {
+            continue;
+        };
+        let id = crate::source::sha256_hex(
+            format!(
+                "source-values-query/v1:{}:{}:{}",
+                site["source"]["sha256"], value.span.start, value.span.end
+            )
+            .as_bytes(),
+        );
+        out.insert(*span,serde_json::json!({"source":site["source"],"owner":owner.canonical,"node":site["node"],"queries":[{"id":id,"node":{"start":value.span.start,"end":value.span.end},"model":model,"fields":[{"name":field,"type":ty}]}]}));
+    }
+    out
+}

@@ -3205,6 +3205,11 @@ fn emit_program_with_sources(
                 &emitter.source_requires,
                 &module_path(&entry_name),
             ) {
+                emitter
+                    .source_query_rows
+                    .extend(super::source_let_data::collect_query_rows(
+                        ir, owner, context, &values,
+                    ));
                 emitter.source_query_values.extend(values);
             }
             if let Some(sends) = source_only_data_sends(
@@ -3463,6 +3468,26 @@ fn emit_program_with_sources(
             Some("canScenarioSendDataSources".into()),
             &format!(
                 "export function canScenarioSendDataSources(){{return JSON.parse({payload});}}"
+            ),
+        );
+    }
+    if !emitter.source_query_rows.is_empty() {
+        let mut inventory: BTreeMap<String, Vec<serde_json::Value>> = BTreeMap::new();
+        for source in emitter.source_query_rows.values() {
+            inventory
+                .entry(source["owner"].as_str().expect("query owner").to_owned())
+                .or_default()
+                .push(source.clone());
+        }
+        for sites in inventory.values_mut() {
+            sites.sort_by_key(|site| site.to_string());
+        }
+        let payload = descriptor_json(&descriptor_json(&inventory));
+        body.push(
+            entry_span,
+            Some("canScenarioQueryRowsSources".into()),
+            &format!(
+                "export function canScenarioQueryRowsSources(){{return JSON.parse({payload});}}"
             ),
         );
     }
@@ -5552,6 +5577,8 @@ pub struct Emitter<'a> {
     source_data_sends: HashMap<Span, serde_json::Value>,
     source_let_data: HashMap<Span, serde_json::Value>,
     source_query_values: HashMap<Span, serde_json::Value>,
+    source_query_rows: HashMap<Span, serde_json::Value>,
+    source_query_row_context: Option<serde_json::Value>,
     source_data_emits: HashMap<Span, serde_json::Value>,
     source_body_loops: HashMap<String, serde_json::Value>,
     source_data_body: bool,
@@ -5812,6 +5839,8 @@ impl<'a> Emitter<'a> {
             source_data_sends: HashMap::new(),
             source_let_data: HashMap::new(),
             source_query_values: HashMap::new(),
+            source_query_rows: HashMap::new(),
+            source_query_row_context: None,
             source_data_emits: HashMap::new(),
             source_body_loops: HashMap::new(),
             source_data_body: false,
@@ -9206,20 +9235,52 @@ impl<'a> Emitter<'a> {
                 .iter()
                 .any(|read| read.source_dependency_id.is_some() && !read.captured_reference)
             {
-                let last_source = self
+                let sources = self
                     .receipt_capture
                     .as_ref()
-                    .and_then(|recipe| recipe.dependencies.get(&self.receipt_site(base.span)))
-                    .and_then(|reads| reads.last())
-                    .map(|read| read.id.as_str());
-                let Some(scalar) = dependencies
+                    .and_then(|recipe| recipe.dependencies.get(&self.receipt_site(base.span)));
+                let data_read = |read: &super::scenario_receipts::NativeDependency| {
+                    self.receipt_capture.as_ref().is_some_and(|recipe| {
+                        recipe
+                            .plan
+                            .returns
+                            .iter()
+                            .flat_map(|returned| &returned.dependencies)
+                            .any(|dependency| {
+                                dependency.id == read.id
+                                    && dependency.role
+                                        == super::scenario_receipts::ReceiptRole::Data
+                            })
+                    })
+                };
+                // Mixed getter roles keep independent observations. A genuine
+                // DATA pair owns DATA promotion; CONTROL cannot replace it.
+                // Existing CONTROL-only declared-field consumers stay intact.
+                let data_pair = dependencies
                     .iter()
-                    .find(|read| read.source_dependency_id.as_deref() == last_source)
-                else {
+                    .any(|read| read.source_dependency_id.is_some() && data_read(read));
+                let Some(scalar) = dependencies.iter().find(|read| {
+                    (!data_pair || data_read(read))
+                        && read.source_dependency_id.as_ref().is_some_and(|source| {
+                            sources.is_some_and(|reads| reads.iter().any(|read| &read.id == source))
+                        })
+                }) else {
                     return self.throw_expr("Original stored scalar source observation is missing");
                 };
                 if dependencies.iter().any(|read| {
                     read.source_dependency_id.is_none()
+                        && !self.receipt_capture.as_ref().is_some_and(|recipe| {
+                            recipe
+                                .plan
+                                .returns
+                                .iter()
+                                .flat_map(|returned| &returned.dependencies)
+                                .any(|dependency| {
+                                    dependency.id == read.id
+                                        && dependency.role
+                                            == super::scenario_receipts::ReceiptRole::Control
+                                })
+                        })
                         || read.model != scalar.model
                         || read.field != scalar.field
                 }) {
@@ -12968,6 +13029,24 @@ impl<'a> Emitter<'a> {
             );
             return self.throw_expr("mismatched query order");
         }
+        if let Some(source) = self
+            .source_query_row_context
+            .as_ref()
+            .and_then(|site| site["queries"].as_array())
+            .and_then(|queries| {
+                queries.iter().find(|source| {
+                    source["node"]["start"] == span.start && source["node"]["end"] == span.end
+                })
+            })
+            .cloned()
+        {
+            self.stdlib.insert("nativeScenarioSourceQueryRows".into());
+            let rows = format!(
+                "await nativeScenarioSourceQueryRows(c,{})",
+                js_string(source["id"].as_str().expect("original Values query"))
+            );
+            return self.append_select(&rows, true, query);
+        }
         let source_data_query = self.source_data_body
             && (if self.source_send_data_body {
                 &self.source_data_sends
@@ -13782,7 +13861,10 @@ impl<'a> Emitter<'a> {
             IrStmt::Let { name, value, span } => {
                 if let Some(source) = self.source_query_values.get(span).cloned() {
                     self.stdlib.insert("nativeScenarioSourceQueryValue".into());
+                    let previous_rows = self.source_query_row_context.take();
+                    self.source_query_row_context = self.source_query_rows.get(span).cloned();
                     let expression = self.lower_expr(value);
+                    self.source_query_row_context = previous_rows;
                     let binding = self.bind(name);
                     return vec![(
                         format!(

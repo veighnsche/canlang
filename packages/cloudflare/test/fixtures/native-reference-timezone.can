@@ -2,6 +2,14 @@ app ParentTimezone
 Given
  Resource {timezone:timezone,visible:bool=true}
  Booking in Resource {location:Resource,active:bool=true,checked:bool=false,visible:bool=true}
+ Person {user:user,visible:bool=true,user_visible:bool=true}
+ Unit {person:Person}
+ Assignment in Unit {visible:bool=true}
+ event Changed {recipient:user}
+ policy Person read=members where=row.visible fields=visible,user_visible
+ policy Person read=members where=row.visible and row.user_visible fields=user
+ policy Unit read=members
+ policy Assignment read=members where=row.visible
  policy Resource read=members where=row.visible fields=timezone
  policy Booking read=members where=row.visible
 When
@@ -16,4 +24,14 @@ When
    let original=booking.location
    set booking {checked=true,location=other}
    return local_date(now,original.timezone)
+ scenario reassign(assignment:Assignment,replacement:Person,abort:bool=false) -> date by=members
+  require assignment.visible
+  do
+   let original=assignment.parent.person
+   set assignment.parent {person=replacement}
+   emit Changed {recipient=original.user}
+   if replacement!=original
+    emit Changed {recipient=replacement.user}
+   require not abort
+   return local_date(now,"UTC")
 Then

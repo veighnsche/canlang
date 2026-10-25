@@ -160,7 +160,7 @@ import type { ViewerGenerationCallbackReadObservation } from '@canlang/state/rec
 import { bindInstalledSourceQueryPredicate } from '@canlang/state/receipt';
 import { registerNativeUiQueryBinder, forwardNativeUiQueryBinder } from './native-ui-query.js';
 import { bindNativeReadBooleanContext, bindNativeReadBooleanReader, bindNativeSourceReferenceReader } from './native-read-boolean.js';
-import { bindNativeScenarioSourceQueryValue, bindNativeScenarioSourceLetData, bindNativeScenarioSourceEmitQuery, bindNativeScenarioSourceEmitData, bindNativeScenarioSourceSendQuery, bindNativeScenarioSourceSchedule, bindNativeScenarioSourceCancel, bindNativeScenarioSourceSendData, bindNativeScenarioSourceLoopItem, bindNativeScenarioSourceLoopCopy, bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
+import { bindNativeScenarioSourceQueryRows, bindNativeScenarioSourceQueryValue, bindNativeScenarioSourceLetData, bindNativeScenarioSourceEmitQuery, bindNativeScenarioSourceEmitData, bindNativeScenarioSourceSendQuery, bindNativeScenarioSourceSchedule, bindNativeScenarioSourceCancel, bindNativeScenarioSourceSendData, bindNativeScenarioSourceLoopItem, bindNativeScenarioSourceLoopCopy, bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
   bindNativeScenarioLeaveRequestDecision, bindNativeScenarioLeaveDecideDecision,
   bindNativeLeaveDecideAllowance, bindNativeScenarioReferRejectDecision,
   bindNativeScenarioMemberRetryDecision,
@@ -1287,6 +1287,8 @@ interface StateInvokeProducer {
   readonly executeScenarioSourceEmitQuery?: typeof import('@canlang/state/invocation').executeScenarioSourceEmitQuery;
   readonly bindScenarioSourceLetDataProducer?: typeof import('@canlang/state/invocation').bindScenarioSourceLetDataProducer;
   readonly executeScenarioSourceLetData?: typeof import('@canlang/state/invocation').executeScenarioSourceLetData;
+  readonly bindScenarioSourceQueryRowsProducer?: typeof import('@canlang/state/invocation').bindScenarioSourceQueryRowsProducer;
+  readonly executeScenarioSourceQueryRows?: typeof import('@canlang/state/invocation').executeScenarioSourceQueryRows;
   readonly bindScenarioSourceQueryValueProducer?: typeof import('@canlang/state/invocation').bindScenarioSourceQueryValueProducer;
   readonly executeScenarioSourceQueryValue?: typeof import('@canlang/state/invocation').executeScenarioSourceQueryValue;
   readonly bindScenarioSourceCreatedRoots?: typeof import('@canlang/state/invocation').bindScenarioSourceCreatedRoots;
@@ -1615,6 +1617,8 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     ...(typeof scenarioMod['executeScenarioSourceEmitQuery']!=='function'?{}:{executeScenarioSourceEmitQuery:scenarioMod['executeScenarioSourceEmitQuery'] as NonNullable<StateInvokeProducer['executeScenarioSourceEmitQuery']>}),
     ...(typeof scenarioMod['bindScenarioSourceLetDataProducer']!=='function'?{}:{bindScenarioSourceLetDataProducer:scenarioMod['bindScenarioSourceLetDataProducer'] as NonNullable<StateInvokeProducer['bindScenarioSourceLetDataProducer']>}),
     ...(typeof scenarioMod['executeScenarioSourceLetData']!=='function'?{}:{executeScenarioSourceLetData:scenarioMod['executeScenarioSourceLetData'] as NonNullable<StateInvokeProducer['executeScenarioSourceLetData']>}),
+    ...(typeof scenarioMod['bindScenarioSourceQueryRowsProducer']!=='function'?{}:{bindScenarioSourceQueryRowsProducer:scenarioMod['bindScenarioSourceQueryRowsProducer'] as NonNullable<StateInvokeProducer['bindScenarioSourceQueryRowsProducer']>}),
+    ...(typeof scenarioMod['executeScenarioSourceQueryRows']!=='function'?{}:{executeScenarioSourceQueryRows:scenarioMod['executeScenarioSourceQueryRows'] as NonNullable<StateInvokeProducer['executeScenarioSourceQueryRows']>}),
     ...(typeof scenarioMod['bindScenarioSourceQueryValueProducer']!=='function'?{}:{bindScenarioSourceQueryValueProducer:scenarioMod['bindScenarioSourceQueryValueProducer'] as NonNullable<StateInvokeProducer['bindScenarioSourceQueryValueProducer']>}),
     ...(typeof scenarioMod['executeScenarioSourceQueryValue']!=='function'?{}:{executeScenarioSourceQueryValue:scenarioMod['executeScenarioSourceQueryValue'] as NonNullable<StateInvokeProducer['executeScenarioSourceQueryValue']>}),
     ...(typeof scenarioMod['bindScenarioSourceCreatedRoots']!=='function'?{}:{bindScenarioSourceCreatedRoots:scenarioMod['bindScenarioSourceCreatedRoots'] as NonNullable<StateInvokeProducer['bindScenarioSourceCreatedRoots']>}),
@@ -3588,6 +3592,8 @@ const nativeSourceSchedules=new WeakMap<GeneratedOperationDef,{readonly sources:
 type SourceLetDataSource=import('@canlang/state/invocation').ScenarioSourceLetDataSource;
 const nativeSourceLetData=new WeakMap<GeneratedOperationDef,readonly SourceLetDataSource[]>();
 type SourceQueryValueSource=import('@canlang/state/invocation').ScenarioSourceQueryValueSource;
+type SourceQueryRowsSite={readonly source:SourceQueryValueSource['source'];readonly owner:string;readonly node:SourceQueryValueSource['node'];readonly queries:readonly import('@canlang/state/invocation').ScenarioSourceQueryRows[]};
+const nativeSourceQueryRows=new WeakMap<GeneratedOperationDef,readonly SourceQueryRowsSite[]>();
 const nativeSourceQueryValues=new WeakMap<GeneratedOperationDef,{readonly sources:readonly SourceQueryValueSource[];readonly original:(body:Function)=>unknown}>();
 type SourceEmitDataSource=import('@canlang/state/invocation').ScenarioSourceEmitDataSource;
 const nativeSourceEmitData=new WeakMap<GeneratedOperationDef,{readonly sources:readonly SourceEmitDataSource[];readonly original:(body:Function)=>unknown}>();
@@ -5831,6 +5837,17 @@ async function bindNativeSourceData(asm:AssembledModules,artifact:CompileArtifac
       if(typeof original!=='function'||bind===undefined)throw new AssemblyCorrespondenceError('LET Values query lacks its original callback issuer and State producer.');
       nativeSourceQueryValues.set(def,{sources:queryValues,original:original as (body:Function)=>unknown});
       if(context!==undefined)bind(def,{source,owner:def.name,sites:queryValues,original:original as (body:Function)=>unknown});
+    }
+    const queryRows=sourceDataCensus<SourceQueryRowsSite>(module,def,source,'canScenarioQueryRowsSources','LET State query rows');
+    if(queryRows!==undefined){
+      if(queryValues===undefined)throw new AssemblyCorrespondenceError('LET State query rows lack their original Values producer.');
+      nativeSourceQueryRows.set(def,queryRows);
+      if(context!==undefined){
+        const bind=loaded.producers.invoke.bindScenarioSourceQueryRowsProducer;
+        if(bind===undefined)throw new AssemblyCorrespondenceError('LET State query rows lack their installed State producer.');
+        const readPolicies=sourceDataReadPolicies(sourceReads!,queryRows.flatMap(site=>site.queries.map(query=>query.model)));
+        bind(def,{source,app:sourceDataApp(module,'LET State query rows'),policy:loaded.policy as Parameters<typeof bind>[1]['policy'],readPolicies,sites:queryRows.map(site=>({node:site.node,queries:site.queries}))});
+      }
     }
     const emitData=sourceDataCensus<SourceEmitDataSource>(module,def,source,'canScenarioEmitDataSources','EMIT DATA');
     if(emitData!==undefined){
@@ -13184,6 +13201,21 @@ async function runScenarioExecution(
     }
     return projected;
   };
+  if(sourceRequireAware&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined){
+    const sites=nativeSourceQueryRows.get(scenarioDef),actual=call as AdmittedCall;
+    if(sites!==undefined)bindNativeScenarioSourceQueryRows(ctx,async id=>{
+      try{
+        const execute=loaded.producers.invoke.executeScenarioSourceQueryRows,query=sites.flatMap(site=>site.queries).find(query=>query.id===id);
+        if(execute===undefined||query===undefined||nativeScenarioExecutions.get(actual)?.session!==ownerSession)return refuseRecordBinding('LET State query rows lack their actual original execution.');
+        const rows=await execute(actual,receiptStore,{id});
+        return Object.freeze(rows.map(row=>{
+          const fields:Record<string,unknown>=Object.create(null);
+          for(const field of query.fields){const wire=Object.getOwnPropertyDescriptor(row.data,field.name);if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('LET State query lacks its actually granted field.');fields[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);}
+          return Object.freeze(fields);
+        }));
+      }catch(error){recordEngineFailure(error);throw error;}
+    });
+  }
   let activeSourceValueQuery:Map<SourceLetDataSource,{readonly root:unknown;readonly value:unknown}>|null=null;
   if(sourceRequireAware&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined){
     const producer=nativeSourceQueryValues.get(scenarioDef),actual=call as AdmittedCall;

@@ -111,3 +111,5 @@ export {
 export { bindScenarioSourceRequirePhases, openScenarioSourceRequirePhase, consumeScenarioSourceRequirePhase, type ScenarioSourceRequirePhasePlan, type ScenarioSourceRequirePhase } from "./scenario-receipt.js";
 
 export { bindScenarioSourceQueryValueProducer, executeScenarioSourceQueryValue, type ScenarioSourceQueryValueSource } from "./scenario-receipt.js";
+
+export {bindScenarioSourceQueryRowsProducer,executeScenarioSourceQueryRows,type ScenarioSourceQueryRows} from "./scenario-receipt.js";
