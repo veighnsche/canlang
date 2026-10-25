@@ -26,7 +26,7 @@ it('cancels the genuine whole HelpOffice browser consumer after authenticated De
   const controller = new AbortController();
   const capture = await native.captureSingleFileSource(native.prepareLocalPreviewCapture({ checkoutRoot: project,
     appPath: join(project, 'compiler/tests/fixtures/construct-help-first-profile.can'),
-    compilerPath: process.env.CAN_COMPILER_BIN ?? join(project, 'compiler/target/release/can'),
+    compilerPath: process.env.CAN_COMPILER_BIN ?? join(project, 'compiler/target/debug/can'),
     catalogPath: join(project, 'packages/values/dist/catalog.json'),
     helpIndexPath: join(project, 'docs/specification/CONSTRUCT-HELP.md') }));
   const compiled = await native.compileCapturedSingleFile(capture, controller.signal);
@@ -105,6 +105,10 @@ it('cancels the genuine whole HelpOffice browser consumer after authenticated De
         },
         'identity.resolve': async (payload, signal, registry, parent) => {
           const result = await registry.api('identity.resolve', payload, parent, signal) as Awaited<ReturnType<typeof resolveIdentity>>;
+          // Preview admission resolves real Identity before it launches the owned
+          // browser. Browser-login evidence begins only after that launch.
+          if (browserHandle === undefined) { assert.equal(browser, undefined); return result; }
+          assert.ok(browser);
           assert.ok(identityDb);
           const label = (['Ava', 'Ben', 'Cal', 'Dee'] as const).find(name => expectedActors[name].principal === result.actor?.user_id); assert.ok(label);
           assert.ok(payload.cookie.startsWith('can_session='));
