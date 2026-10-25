@@ -13552,29 +13552,32 @@ async function runScenarioExecution(
               bindNativeReadMembership(predicate, { source: original.source, rule: original.owner, sites: original.sites });
             } else bindNativeReadRoleContext(predicate, original.owner);
             bindInstalledSourceQueryPredicate(predicate, { source: original.source, rule: original.owner });
+            const invoiceDecisions = scenarioDef.descriptor.result?.disclosure as {
+              readonly invoiceCollectDecision?: import('@canlang/state/invocation').InvoiceCollectDecisionPlan;
+              readonly invoiceIssueDecision?: import('@canlang/state/invocation').InvoiceIssueDecisionPlan;
+            } | undefined;
+            const invoiceDecision = invoiceDecisions?.invoiceCollectDecision ?? invoiceDecisions?.invoiceIssueDecision;
             adapter = createSourceReadPolicyAdapter({ loaded, opts: { ...opts, store: receiptStore },
               now: () => actualCall.context.now, observer: { predicate, reads,...(loopMarker===undefined?{}:{admittedVersion:actualCall.recordRefs.find(ref=>ref.param===parameter)!.expectedVersion!}) },
-              ...(scenarioDef.name !== 'invoice.collect' ? {} : {
+              ...(invoiceDecision === undefined ? {} : {
                 ownerDecisionQuery: (model: string, query: CanonicalReadQuery,
                   parent: { readonly model: string; readonly id: string } | undefined): void => {
-                  const active = invoiceCollectSlot.current;
-                  const checked = (scenarioDef.descriptor.result?.disclosure as
-                    { readonly invoiceCollectDecision?: import('@canlang/state/invocation').InvoiceCollectDecisionPlan } | undefined)
-                    ?.invoiceCollectDecision;
+                  const active = invoiceDecisions?.invoiceCollectDecision !== undefined
+                    ? invoiceCollectSlot.current : invoiceIssueSlot.current;
                   const source = (query as unknown as Record<string, unknown>)['ownerDecisionSource'];
                   const id = isUnknownRecord(source) && Reflect.ownKeys(source).length === 1 ? source['id'] : undefined;
-                  const site = checked?.querySites.find(candidate => candidate.id === id);
-                  const expectedParent = site?.stage === 'authorityRole' || site?.stage === 'authorityOwn'
+                  const site = invoiceDecision.querySites.find(candidate => candidate.id === id);
+                  const expectedParent = site?.domainKind === 'team' ? undefined :
+                    site?.stage === 'authorityRole' || site?.stage === 'authorityOwn'
                     ? { model: 'customer.Customer', id: active?.invoice.parent?.id } :
-                    site?.stage === 'authorityWork' ? undefined :
                       { model: 'invoice.Invoice', id: active?.invoice.id };
-                  if (active === null || checked === undefined || site === undefined ||
+                  if (active === null || site === undefined ||
                       site.model !== model || query.order !== undefined || query.limit !== undefined ||
                       (expectedParent === undefined ? parent !== undefined :
                         parent?.model !== expectedParent.model || parent.id !== expectedParent.id) ||
                       (site.stage === 'balanceReceivedAttempts' || site.stage === 'refundedAttempts'
                         ? typeof query.where !== 'function' : query.where !== undefined)) {
-                    refuseRecordBinding('Invoice collect Require query differs from its checked owner source.');
+                    refuseRecordBinding('Invoice Require query differs from its checked owner source.');
                   }
                 },
               }) });

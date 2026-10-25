@@ -69,9 +69,12 @@ it('rejects changed issue authority, line pricing, number check, defaults, settl
           ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, path],
           { cwd: root, encoding: 'utf8', timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
         assert.equal(result.status, 10, `${name}: ${result.stderr || result.stdout}`);
-        const report = JSON.parse(result.stdout) as { diagnostics: { code: string }[] };
-        assert.deepEqual(report.diagnostics.map(diagnostic => diagnostic.code), ['E6008', 'E6008'],
-          `${name}: both original issue receipt sites must lose proof`);
+        const report = JSON.parse(result.stdout) as { diagnostics: { code: string; message: string }[] };
+        assert.deepEqual(report.diagnostics.map(diagnostic => diagnostic.code), ['E6008', 'E6008', 'E6008'],
+          `${name}: original owner guard, first query, and SEND guard must lose proof`);
+        assert.deepEqual(report.diagnostics.map(diagnostic => diagnostic.message.split(':')[0]),
+          ['cannot lower scenario source requirement', 'cannot lower first query', 'cannot lower send dispatch guard'],
+          `${name}: refusal must retain all three exact source proof boundaries`);
       }
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
