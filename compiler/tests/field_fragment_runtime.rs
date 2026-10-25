@@ -94,7 +94,7 @@ const load=name=>import(pathToFileURL(require.resolve(name)));
 const {assembleModules,importVerifiedAssemblyModule}=await load('@canlang/cloudflare/runtime/modules');
 const {createTestDeps,testRequest}=await load('@canlang/interfaces/testing');
 const {catalogFromArtifactOperations,deriveOperationInputs}=await load('@canlang/interfaces/http/operations');
-const {deriveCsrfToken}=await load('@canlang/identity');
+const {deriveCsrfToken,toInstant}=await load('@canlang/identity');
 const {fieldInputId,fieldErrorOutletId}=await load('@canlang/ui');
 const internals=name=>import(pathToFileURL(resolve(root,'packages/interfaces/dist/src/http/'+name+'.js')));
 const {resolveRequestIdentity}=await internals('context');
@@ -113,6 +113,8 @@ const create=artifact.operations.find(op=>op.name==='chat.Allowance.create');ass
 assert.deepEqual(update.inputs.fields.map(field=>field.name),['record','cap','parallel','active']);
 assert.deepEqual(create.inputs.fields.map(field=>field.name),['account','cap','parallel']);
 const {deps,identity}=await createTestDeps();
+const membership=await deps.identity.store.findMembership(identity.teamId,identity.userId);assert(membership);
+await deps.identity.store.setMembershipRoles(membership.membership_id,[{role:'chat.ai_manager',granted_at:toInstant(deps.clock.nowMs()),granted_by:identity.userId}]);
 const request=testRequest('/fragments',{cookie:identity.cookie});
 const {identity:principal}=await resolveRequestIdentity(deps.identity.store,request,{clock:deps.clock,teamId:identity.teamId});
 const service=await createSourceFormBindings(new Uint8Array(32).fill(93),'compiler-field-fragments');
@@ -191,7 +193,7 @@ assert.notEqual(prepared[1].props.sourceBindingIdentity,prepared[2].props.source
 assert.equal(count(html,'name="inputs[changes][cap]"'),2);
 assert.equal(count(html,'name="inputs[changes][parallel]"'),2);
 assert.equal(count(html,'name="inputs[changes][active]"'),2);
-assert.equal(count(html,'Cap &lt;bad&gt;'),3);assert.equal(count(html,'Parallel &lt;bad&gt;'),3);
+assert.equal(count(html,'Cap &lt;bad&gt;'),3,html);assert.equal(count(html,'Parallel &lt;bad&gt;'),3,html);
 assert(!html.includes('Cap <bad>'));assert(html.includes('data-cursor="next"'));
 assert.deepEqual(trace,[
  'prepare:start:create','prepare:end:create','field:create:cap','field:create:parallel','query',

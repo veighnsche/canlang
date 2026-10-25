@@ -1,7 +1,7 @@
 app TableFilters
 Given
  Calendar {title:text}
- Window in Calendar {from:datetime,until:datetime,state:enum(open,closed) label={text="Window state",values={open="Open <window>"@{nl="Open venster"},closed="Closed window"@{nl="Gesloten venster"}}},available:bool,rank:int}
+ Window in Calendar {from:datetime,until:datetime,state:enum(open,closed) label={text="Window state",values={open="Open <&>"@{nl="Open venster"},closed="Closed window"@{nl="Gesloten venster"}}},available:bool,rank:int}
  Other {state:enum(open,closed)}
  policy Calendar read=public
  policy Window read=public

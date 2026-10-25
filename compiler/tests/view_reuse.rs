@@ -149,11 +149,32 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
                     .iter()
                     .map(|child| child.factory.as_str())
                     .collect::<Vec<_>>(),
+                ["card"]
+            );
+            let outcome = &node.children[0];
+            assert_eq!(
+                outcome
+                    .children
+                    .iter()
+                    .map(|child| child.factory.as_str())
+                    .collect::<Vec<_>>(),
                 [
-                    "badge", "status", "status", "text", "form", "actions", "history"
+                    "badge",
+                    "status",
+                    "status",
+                    "badge",
+                    "text",
+                    "primaryActions",
+                    "actionMenu",
+                    "primaryActions",
+                    "actionMenu",
+                    "actionMenu",
+                    "history"
                 ]
             );
-            let attendance = &node.children[4];
+            assert_eq!(outcome.children[5].children.len(), 1);
+            let attendance = &outcome.children[5].children[0];
+            assert_eq!(attendance.factory, "form");
             assert!(attendance.props.iter().any(|(key,value)| key == "operation" && matches!(&value.expr, IrExpr::Text(value) if value == "appointments.attendance")));
             let IrExpr::Array(fields) = &attendance
                 .props
@@ -205,7 +226,7 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
                 checked.symbols[symbol.0 as usize].canonical,
                 "appointments.Appointment"
             );
-            let history = &node.children[6];
+            let history = &outcome.children[10];
             assert_eq!(
                 original[history.span.start as usize..history.span.end as usize].trim(),
                 "history"
@@ -352,9 +373,10 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
                 && child.span.end <= node.span.end));
         }
         if node.factory != "form"
-            || !authored
-                .lines()
-                .any(|line| line.trim_start().starts_with("edit"))
+            || !authored.lines().any(|line| {
+                line.trim_start().starts_with("edit")
+                    || line.trim_start().starts_with("primary") && line.contains(".update ")
+            })
         {
             continue;
         }
@@ -1254,8 +1276,8 @@ fn local_views_bind_rows_once_and_keep_native_occurrences_distinct() {
             source.replace("{row=chosen(row)}", "{row=chosen(row),extra=row}"),
         ),
         (
-            "table-children-without-split",
-            source.replace(" display=split", ""),
+            "unknown-table-child",
+            source.replace("   pagination", "   unknown_child"),
         ),
         (
             "unknown-table-display",

@@ -63,9 +63,9 @@ fn type_at<'a>(checked: &'a CheckedProgram, source: &str, expression: &str) -> &
         .types
         .node_types
         .iter()
-        .find_map(|(key, ty)| {
-            (source[key.start as usize..key.end as usize].trim() == expression).then_some(ty)
-        })
+        .filter(|(key, _)| source[key.start as usize..key.end as usize].trim() == expression)
+        .min_by_key(|(key, _)| key.start)
+        .map(|(_, ty)| ty)
         .unwrap_or_else(|| panic!("missing checked expression: {expression}"))
 }
 
@@ -127,8 +127,13 @@ fn standard_completions_keep_declared_nullable_results_and_checked_source_identi
         let ResolvedType::Nullable(result) = type_at(&checked, &source, "event.result") else {
             panic!("completion result must stay nullable: {capability}.{op}");
         };
-        let ResolvedType::Object(fields) = result.as_ref() else {
-            panic!("completion result must retain its declared schema: {result:?}");
+        let fields = match result.as_ref() {
+            ResolvedType::Object(fields) if capability == "EmailV1" => fields,
+            ResolvedType::StdNominal {
+                name: "PaymentState",
+                fields,
+            } if capability == "PaymentsV1" => fields,
+            _ => panic!("completion result must retain its declared schema: {result:?}"),
         };
         let names: Vec<_> = fields.iter().map(|(name, _)| name.as_str()).collect();
         if capability == "EmailV1" {
@@ -387,7 +392,7 @@ fn standard_completion_checks_reject_unknown_targets_unsafe_reads_and_wrong_exam
         );
     }
 
-    // Source typing does not fabricate the unreleased private terminal transport.
+    // Released standard terminal transport retains its original checked completion inventory.
     let scratch = tempfile::tempdir().unwrap();
     let path = scratch.path().join("standard-completion.can");
     std::fs::write(&path, original).unwrap();
@@ -400,21 +405,25 @@ fn standard_completion_checks_reject_unknown_targets_unsafe_reads_and_wrong_exam
         .output()
         .unwrap();
     assert!(
-        !output.status.success(),
-        "unreleased terminal transport must not compile"
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
     );
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let js = value["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|module| module["js"].as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join("\n");
     assert!(
-        value["diagnostics"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|diagnostic| diagnostic["code"] == "E6008"
-                && diagnostic["message"]
-                    .as_str()
-                    .unwrap()
-                    .contains("handler triggers")),
-        "{value}"
+        js.contains("standardCompletions:"),
+        "missing checked terminal source: {js}"
+    );
+    assert!(
+        js.contains("StandardCompletion.Wire.send.completed"),
+        "{js}"
     );
 }
 
@@ -437,8 +446,12 @@ fn standard_declared_events_share_their_own_fields_with_body_examples_and_effect
                 .then_some(ty)
         })
         .unwrap();
-    let ResolvedType::Object(fields) = payload else {
-        panic!("changed event must retain its declared object");
+    let ResolvedType::StdNominal {
+        name: "PaymentState",
+        fields,
+    } = payload
+    else {
+        panic!("changed event must retain its declared nominal schema: {payload:?}");
     };
     assert!(fields.iter().map(|(name, _)| name.as_str()).eq([
         "reference",
@@ -561,7 +574,7 @@ fn standard_declared_events_refuse_unknown_fields_targets_and_transport() {
                 && diagnostic["message"]
                     .as_str()
                     .unwrap()
-                    .contains("handler triggers")),
+                    .contains("checked selected-call binding is not published")),
         "{value}"
     );
 }

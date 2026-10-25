@@ -52,11 +52,13 @@ fn exact_bound_cases_claim_the_selector_enum_without_changing_original_volunteer
     let original = include_str!("../../draft/apps/CanVolunteer/CanVolunteer.can");
     assert_eq!(
         sha256_hex(original.as_bytes()),
-        "f9d6ba874fcbe5c60e064cb17628308be6f523d4dee31b53d95cda2ad0cdcff0"
+        "80fac88b1486b3d01becfd75dde1d7dda097f90c93c5fe8287890d106806bb68"
     );
     assert!(original.contains("    tab assignments\n     require authenticated\n"));
     let (checked, diagnostics) = check(original);
-    for (start, end) in [(22363, 22372), (22766, 22777)] {
+    for case in ["discovery", "assignments"] {
+        let start = (original.find(&format!("tab {case}")).unwrap() + 4) as u32;
+        let end = start + case.len() as u32;
         assert!(
             !diagnostics
                 .iter()
@@ -77,8 +79,9 @@ fn exact_bound_cases_claim_the_selector_enum_without_changing_original_volunteer
         !diagnostics
             .iter()
             .any(|diagnostic| diagnostic.code == "E3001"
-                && diagnostic.primary.start >= 22326
-                && diagnostic.primary.end <= 22778),
+                && diagnostic.primary.start
+                    >= original.find("tabs preferences.view").unwrap() as u32
+                && diagnostic.primary.end <= original.len() as u32),
         "{diagnostics:?}"
     );
 }

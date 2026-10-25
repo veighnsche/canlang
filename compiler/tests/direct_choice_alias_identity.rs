@@ -118,7 +118,7 @@ const require=createRequire(process.argv[2]+'/package.json');
 const load=specifier=>import(pathToFileURL(require.resolve(specifier)).href);
 const {normalizeValueTypes,validateValue}=await load('@canlang/values');
 const {artifactToDescriptorSet}=await load('@canlang/state/invocation/registry');
-const {checkArtifactOperations,catalogFromArtifactOperations,createHttpHandler,handleCsvRequest}=await load('@canlang/interfaces');
+const {checkArtifactOperations,catalogFromArtifactOperations,createHttpHandler,handleCsvRequest,createSourceFormBindings}=await load('@canlang/interfaces');
 const {createTestDeps,testRequest}=await load('@canlang/interfaces/testing');
 const {deriveCsrfToken}=await load('@canlang/identity');
 const {mintOperationId}=await load('@canlang/ui');
@@ -161,7 +161,7 @@ for(const invalid of ['', 'bad name','x'.repeat(81)]){
 const catalog=catalogFromArtifactOperations(artifact);
 const t=await createTestDeps({mutations:{[operation.name]:envelope=>({result:{status:'committed',operation_id:envelope.operation_id}})}});
 const csrf=await deriveCsrfToken(t.identity.sessionToken);
-const deps={...t.deps,catalog};
+const deps={...t.deps,catalog,formBindings:await createSourceFormBindings(new Uint8Array(32).fill(73),'alias-csv')};
 const unused=async()=>new Response('unused',{status:500});
 const http=createHttpHandler(deps,{operations:unused,auth:unused,uploads:unused,ingress:unused,oauth:unused,
  csv:request=>handleCsvRequest(deps,request)});
@@ -196,12 +196,15 @@ assert.equal(review.rows[5].error.fields[0].code,'binding_mismatch');
 const golden='{"candidates":[{"nullable":null,"payload":null,"required":"valid_name"},{"nullable":null,"payload":null,"required":"other_name"}],"operation":"AliasProbe.intake"}';
 const digest=createHash('sha256').update(golden).digest('hex');
 const consent={review_id:'rev-'+digest.slice(0,16),operation:operation.name,principal:t.identity.userId,
- candidates_digest:digest,candidate_count:2};
+ candidates_digest:digest,candidate_count:2,review_token:review.consent.review_token};
+assert.match(consent.review_token,/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
 assert.deepEqual(review.consent,consent);
 assert.equal(t.invoker.mutations.length,0,'review never invokes');
 const repeated=await post('/api/csv/review',{operation:operation.name,csv});
 assert.equal(repeated.status,200);
-assert.deepEqual((await repeated.json()).consent,consent);
+const renewed=(await repeated.json()).consent;
+assert.deepEqual({...renewed,review_token:consent.review_token},consent);
+assert.match(renewed.review_token,/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
 const selections=review.rows.map(row=>({index:row.index,operation_id:mintOperationId()}));
 const committed=await post('/api/csv/commit',{operation:operation.name,csv,consent,rows:selections});
 assert.equal(committed.status,200,await committed.clone().text());

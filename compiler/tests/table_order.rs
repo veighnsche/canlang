@@ -242,9 +242,9 @@ fn malformed_or_unreleased_table_controls_cannot_publish() {
             Some("E3006"),
         ),
         (
-            "nonenum-filter",
-            "order=from filter=available defaults={available=true}",
-            Some("E6008"),
+            "unknown-filter",
+            "order=from filter=missing defaults={missing=true}",
+            Some("E2013"),
         ),
     ] {
         let mut source = SOURCE.replacen("order=from", replacement, 1);

@@ -175,6 +175,7 @@ fn byte_point_maps_reach_independent_decoder_and_current_consumers() {
     );
     let mut command = Command::new("node");
     command
+        .arg("--experimental-transform-types")
         .arg(&runner)
         .arg(&root)
         .arg(&payload_path)

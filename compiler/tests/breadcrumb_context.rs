@@ -22,7 +22,7 @@ Then
   text "Unavailable body"
  page /office/hidden/denied/unavailable/missing/tasks title="Tasks"@{nl="Taken"}
   text "Tasks body"
- page /office/hidden/denied/unavailable/missing/tasks/current title="Current <script>"@{nl="Huidig <script>"}
+ page /office/hidden/denied/unavailable/missing/tasks/current title="Current <&>"@{nl="Huidig <&>"}
   require members
   breadcrumbs
  page /elsewhere title="Unrelated secret"
@@ -52,6 +52,21 @@ fn compile(source: &str, path: &Path) -> (std::process::Output, serde_json::Valu
 fn compiled_breadcrumbs_consume_admitted_full_and_partial_dispatcher_trails() {
     let scratch = tempfile::tempdir().unwrap();
     let source = scratch.path().join("breadcrumbs.can");
+    let (refused, diagnostics) =
+        compile(&SOURCE.replace("Current <&>", "Current <script>"), &source);
+    assert!(
+        !refused.status.success(),
+        "rich markup is outside the source caption profile"
+    );
+    assert!(
+        diagnostics["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "E5007"),
+        "{diagnostics}"
+    );
+    assert!(diagnostics.get("modules").is_none());
     let (output, artifact) = compile(SOURCE, &source);
     assert!(output.status.success(), "{artifact}");
     std::fs::write(
@@ -124,7 +139,7 @@ for(const dynamic of [false,true])for(const partial of [false,true]) {
  assert(trailHtml.includes('<a href="/">Start</a>'));
  assert(trailHtml.includes('<a href="/office">Kantoor &lt;&amp;&gt;</a>'));
  assert(trailHtml.includes('<a href="'+prefix+'">Taken</a>'));
- assert(trailHtml.includes('<span aria-current="page">Huidig &lt;script&gt;</span>'));
+ assert(trailHtml.includes('<span aria-current="page">Huidig &lt;&amp;&gt;</span>'));
  assert(!trailHtml.includes('href="'+currentPath+'"'));
  for(const hidden of ['Hidden secret','Denied secret','Unavailable secret','Unrelated secret',
   'private ancestor failure','/office/hidden/denied/unavailable/missing"','<script>'])assert(!trailHtml.includes(hidden),hidden);

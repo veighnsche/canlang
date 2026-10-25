@@ -658,25 +658,16 @@ fn first_profile_compiler_cards_have_checked_source_and_emitted_owners() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap();
-    let consumer = std::fs::read_to_string(root.join("dev-server/src/construct.rs")).unwrap();
-    let inventory = consumer
-        .split("const INCLUDED: &[&str] = &[")
-        .nth(1)
-        .unwrap()
-        .split("];\n")
-        .next()
-        .unwrap();
-    let ids: BTreeSet<_> = inventory
-        .split('"')
-        .filter(|part| part.starts_with("can.v1."))
-        .collect();
-    assert_eq!(
-        ids,
-        FIRST_PROFILE_LOCATIONS
-            .iter()
-            .map(|(id, _, _)| *id)
-            .collect()
-    );
+    let reference =
+        std::fs::read_to_string(root.join("docs/specification/CONSTRUCT-HELP.md")).unwrap();
+    for (id, _, _) in FIRST_PROFILE_LOCATIONS {
+        assert!(
+            reference
+                .lines()
+                .any(|line| line.starts_with("| <a id=") && line.contains(&format!("`{id}`"))),
+            "missing published card {id}"
+        );
+    }
     let (tree, diagnostics) = syntax::parse_source(SourceId(0), FIRST_PROFILE_SOURCE);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let mut nodes = Vec::new();
@@ -829,30 +820,48 @@ fn first_profile_compiler_cards_have_checked_source_and_emitted_owners() {
         update["module"]["js"].as_str().unwrap(),
     )
     .unwrap();
+    for provider in ["person", "editable"] {
+        let scope = format!("HelpOffice.{provider}");
+        let emitted = artifact["tests"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|test| test["scope"] == scope)
+            .expect("original fixture provider");
+        std::fs::write(
+            scratch.path().join(format!("{provider}.mjs")),
+            emitted["module"]["js"].as_str().unwrap(),
+        )
+        .unwrap();
+    }
     let runner = scratch.path().join("selected-person.mjs");
     std::fs::write(
         &runner,
         r#"
 import assert from 'node:assert/strict';
 import {exampleFixtures} from './update.mjs';
-const other={account:'other'};
-const suite=exampleFixtures({self:{account:'self'},other,imported:{}});
-const personRecipe=suite.fixtures.person;
+import {exampleFixtures as personFixtures} from './person.mjs';
+import {exampleFixtures as editableFixtures} from './editable.mjs';
+const other={account:'other'},self={account:'self'};
+const context={self,other,outsider:'outsider',imported:{}};
+const imported={...personFixtures(context).fixtures,...editableFixtures(context).fixtures};
+const suite=exampleFixtures({...context,imported});
+const personRecipe=suite.fixtures['HelpOffice.person'];
 assert.deepEqual(await personRecipe.user({},{}),{roles:['HelpOffice.reviewer']});
 const table=suite.examples[0];
 assert.equal(table.operation,'HelpOffice.Supply.update');
 assert.deepEqual(table.selectors,['as','changes.name','changes.quantity']);
 assert.equal(table.rows.length,3);
 const person={account:'selected-person'};
-const scope={person,editable:{name:'Reviewed paper',quantity:6n}};
+const scope={'HelpOffice.person':person,'HelpOffice.editable':{name:'Reviewed paper',quantity:6n}};
 const selected=table.rows[1];
 assert.deepEqual(selected.dependencies,[personRecipe]);
-assert.deepEqual(await selected.values({},scope),[person,'Reviewed paper',6n]);
-assert.deepEqual(await selected.expected({},scope),['Reviewed paper',6n]);
-assert.deepEqual(await Promise.all(table.observations.map(read=>read({},scope))),['Reviewed paper',6n]);
-assert.deepEqual(await table.rows[0].values({},scope),[other,'A4 paper',8n]);
-assert.deepEqual(await table.rows[0].expected({},scope),['A4 paper',8n]);
-assert.deepEqual(await table.rows[2].values({},scope),['outsider','Private change',9n]);
+assert.deepEqual(await selected.values(context,scope),[person,'Reviewed paper',6n]);
+assert.deepEqual(await selected.expected(context,scope),['Reviewed paper',6n]);
+assert.deepEqual(await Promise.all(table.observations.map(read=>read(context,scope))),['Reviewed paper',6n]);
+assert.deepEqual(await table.rows[0].values(context,scope),[other,'A4 paper',8n]);
+assert.deepEqual(await table.rows[0].expected(context,scope),['A4 paper',8n]);
+assert.deepEqual(await table.rows[2].values(context,scope),['outsider','Private change',9n]);
 assert.equal(table.rows[2].error,'forbidden');
 "#,
     )
@@ -881,7 +890,7 @@ fn first_profile_compiler_half_refuses_invalid_types_fields_and_ui_options() {
         FIRST_PROFILE_SOURCE.replace("stat count(Supply)", "stat count(Supply) unexplained=true"),
         FIRST_PROFILE_SOURCE.replace(
             "empty=\"No stock\"",
-            "empty=\"No stock\"\n    text row.name",
+            "empty=\"No stock\"\n    text row.missing",
         ),
     ] {
         let (compiled, output) = profile_cli("compile", &source);

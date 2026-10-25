@@ -41,12 +41,12 @@ fn checked_table_time_reaches_native_identity_queries_and_rows() {
                 .replace("until=from", "until=now"),
         ),
         (
-            "unsupported-operator",
-            source.replace("visit.from>=now", "visit.from>now"),
+            "invalid-time-operand",
+            source.replace("visit.from>=now", "visit.from>=true"),
         ),
         (
-            "unsupported-direction",
-            source.replace("visit.from>=now", "now<=visit.from"),
+            "invalid-reversed-operand",
+            source.replace("visit.from>=now", "now<=visit.available"),
         ),
     ] {
         let output = compile(&refused);
@@ -57,10 +57,7 @@ fn checked_table_time_reaches_native_identity_queries_and_rows() {
             String::from_utf8_lossy(&output.stdout)
         );
         let refused: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-        if matches!(
-            name,
-            "cursor-time" | "unsupported-operator" | "unsupported-direction"
-        ) {
+        if matches!(name, "cursor-time") {
             let expected = if name == "cursor-time" {
                 "E1203"
             } else {
@@ -189,14 +186,14 @@ fn paginated_table_time_cli_emits_checked_page_query_now_operand() {
             Some("E1203"),
         ),
         (
-            "unsupported-operator",
-            paged.replace("visit.from>=now", "visit.from>now"),
-            Some("E6008"),
+            "invalid-time-operand",
+            paged.replace("visit.from>=now", "visit.from>=true"),
+            None,
         ),
         (
-            "unsupported-direction",
-            paged.replace("visit.from>=now", "now<=visit.from"),
-            Some("E6008"),
+            "invalid-reversed-operand",
+            paged.replace("visit.from>=now", "now<=visit.available"),
+            None,
         ),
         (
             "duplicate-pagination",
@@ -519,14 +516,31 @@ fn original_canbook_paged_time_keeps_predicates_and_row_body() {
             "show appointment_coordination {row=row}"
         );
         assert!(
-            matches!(&view.view.as_ref().unwrap().argument.expr, IrExpr::Name(name) if name == "row")
+            matches!(&view.view.as_ref().unwrap().argument.expr, IrExpr::Name(name) if name == &table.row_scope.as_ref().unwrap().0)
         );
         assert_eq!(
             view.children
                 .iter()
                 .map(|child| child.factory.as_str())
                 .collect::<Vec<_>>(),
-            ["badge", "status", "status", "actions", "collapse"]
+            ["card"]
+        );
+        assert_eq!(
+            view.children[0]
+                .children
+                .iter()
+                .map(|child| child.factory.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "badge",
+                "status",
+                "status",
+                "actionMenu",
+                "primaryActions",
+                "actionMenu",
+                "actionMenu",
+                "collapse"
+            ]
         );
     }
     assert_eq!(predicates.into_iter().collect::<Vec<_>>(), ["gte", "lt"]);

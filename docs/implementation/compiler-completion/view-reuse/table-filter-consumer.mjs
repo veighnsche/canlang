@@ -22,7 +22,7 @@ const generated=await importVerifiedAssemblyModule(assembly,entry,loaded.artifac
 const page=generated.appDefinition.pages[0];
 assert.equal(page.path,'/table-filters');
 assert.deepEqual(page.preferenceFields,[{name:'window_state',options:['open','closed'],defaultValue:null,nullable:true,
-  optionLabels:{open:{source:'Open <window>',variants:{nl:'Open venster'},sourceLocale:'en'},
+  optionLabels:{open:{source:'Open <&>',variants:{nl:'Open venster'},sourceLocale:'en'},
     closed:{source:'Closed window',variants:{nl:'Gesloten venster'},sourceLocale:'en'}}}]);
 const identity=makeIdentity({actor:null,team:null,membership:null});
 const catalog=catalogFromArtifactOperations(loaded.artifact);
@@ -72,7 +72,7 @@ const initial=await render();
 assert.equal(initial.queries.length,2);assert.ok(initial.queries.every(query=>query.args.where===undefined));
 const occurrences=initial.queries.map(query=>query.args.occurrence);assert.equal(new Set(occurrences).size,2);
 assert.equal(initial.preparations.length,0,'unselected split row has no protected body evaluation');
-assert.ok(initial.html.includes('Open &lt;window&gt;')&&!initial.html.includes('Open <window>'));
+assert.ok(initial.html.includes('Open &lt;&amp;&gt;')&&!initial.html.includes('Open <&>'));
 const selects=[...initial.html.matchAll(/<select\b[^>]*>[\s\S]*?<\/select>/g)].map(match=>match[0]);
 assert.equal(selects.length,2);
 for(const select of selects) assert.deepEqual([...select.matchAll(/<option\b[^>]*value="([^"]*)"/g)].map(match=>match[1]),['','open','closed']);

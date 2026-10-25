@@ -45,7 +45,7 @@ fn explicit_default_and_pinned_fallback_are_independent_of_source_language() {
         let (program, emitted) = emit_clean(&source);
         assert_eq!(locale(&program, "Authored").as_deref(), Some(expected));
         assert!(emitted.contains(&format!(
-            "id:\"Authored\",uses:[],appDefaultLocale:\"{expected}\""
+            "export const __canlangAppDefaultLocale=\"{expected}\""
         )));
     }
 }
@@ -64,11 +64,14 @@ fn recursive_fold_coalesces_explicit_values_before_applying_defaults() {
         assert_eq!(locale(&program, name).as_deref(), Some("nl"));
     }
     assert_eq!(locale(&program, "Plain").as_deref(), Some("en"));
-    assert!(emitted.contains("id:\"Office\",uses:[\"Left\",\"Right\"],appDefaultLocale:\"nl\""));
-    assert!(emitted.contains("\"Left\":{uses:[\"Tasks\",\"Plain\"],appDefaultLocale:\"nl\"}"));
-    assert!(emitted.contains("\"Right\":{uses:[\"Tasks\"],appDefaultLocale:\"nl\"}"));
-    assert!(emitted.contains("\"Tasks\":{uses:[],appDefaultLocale:\"nl\"}"));
-    assert!(emitted.contains("\"Plain\":{uses:[],appDefaultLocale:\"en\"}"));
+    assert!(
+        emitted.contains("id:\"Office\",uses:[\"Left\",\"Right\"],runtimeBindingOwners:")
+            && emitted.contains("export const __canlangAppDefaultLocale=\"nl\"")
+    );
+    assert!(emitted.contains("\"Left\":{uses:[\"Tasks\",\"Plain\"],appDefaultLocale:\"nl\""));
+    assert!(emitted.contains("\"Right\":{uses:[\"Tasks\"],appDefaultLocale:\"nl\""));
+    assert!(emitted.contains("\"Tasks\":{uses:[],appDefaultLocale:\"nl\""));
+    assert!(emitted.contains("\"Plain\":{uses:[],appDefaultLocale:\"en\""));
 
     // Case-equivalent declarations coalesce while retaining the first
     // authored spelling selected by product traversal.
@@ -136,7 +139,10 @@ fn importing_an_implicit_app_package_does_not_import_its_context() {
     assert_eq!(locale(&program, "Office").as_deref(), Some("en"));
     assert_eq!(locale(&program, "Consumer"), None);
     assert_eq!(locale(&program, "Dutch").as_deref(), Some("nl"));
-    assert!(emitted.contains("id:\"Office\",uses:[\"Consumer\"],appDefaultLocale:\"en\""));
+    assert!(
+        emitted.contains("id:\"Office\",uses:[\"Consumer\"],runtimeBindingOwners:")
+            && emitted.contains("export const __canlangAppDefaultLocale=\"en\"")
+    );
 }
 
 #[test]

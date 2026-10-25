@@ -52,10 +52,11 @@ const generated = await import(assembly.entryUrl);
 const pages = generated.appDefinition.pages;
 assert.equal(pages.length, 1);
 assert.equal(pages[0].owner, 'Reporting');
+const caption=(source,nl)=>({source,variants:{nl},sourceLocale:'en'});
 assert.deepEqual(pages[0].preferenceFields, [
-  {name:'status',options:['draft','submitted','approved'],defaultValue:'submitted'},
-  {name:'labelled',options:['draft','submitted','approved'],defaultValue:'approved'},
-  {name:'selection',options:['draft','submitted','approved'],defaultValue:'draft'},
+  {name:'status',options:['draft','submitted','approved'],defaultValue:'submitted',caption:caption('Bridge status','Brugtoestand'),optionLabels:{draft:caption('Bridge draft','Brugconcept'),submitted:caption('Submitted','Ingediend'),approved:caption('Accepted status','Geaccepteerde toestand')}},
+  {name:'labelled',options:['draft','submitted','approved'],defaultValue:'approved',caption:caption('Review','Beoordeling'),optionLabels:{draft:caption('Draft','Concept'),submitted:caption('Submitted','Ingediend'),approved:caption('Accepted','Geaccepteerd')}},
+  {name:'selection',options:['draft','submitted','approved'],defaultValue:'draft',optionLabels:{draft:caption('Bridge draft','Brugconcept'),submitted:caption('Submitted','Ingediend'),approved:caption('Accepted selection','Geaccepteerde selectie')}},
 ]);
 const {deps, identity, logger} = await createTestDeps({descriptors:pages});
 const rows = new Map();

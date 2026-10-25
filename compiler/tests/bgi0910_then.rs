@@ -957,7 +957,7 @@ import {{generatedFields}} from '@canlang/ui';
 import {{catalogFromArtifactOperations}} from '../../../packages/interfaces/dist/src/http/operations.js';
 import {{{page} as page}} from './{entry}';
 const rows=[{{id:'row-a',version:1,fields:{{title:'One'}}}},{{id:'row-b',version:1,fields:{{title:'Two'}}}}];
-const context={{preferredLocales:[],appDefaultLocale:'en',theme:{{mode:'system',accent:'blue',density:'comfortable'}},path:'/',isPartial:false,csrfToken:'test',principal:null,invocation:{{request:'test'}},query:async()=>({{rows,columns:[]}})}};
+const context={{memberships:['public','members'],preferredLocales:[],appDefaultLocale:'en',theme:{{mode:'system',accent:'blue',density:'comfortable'}},path:'/',isPartial:false,csrfToken:'test',principal:null,invocation:{{request:'test'}},query:async()=>({{rows,columns:[]}})}};
 const catalog=catalogFromArtifactOperations(JSON.parse(fs.readFileSync(new URL('./artifact.json',import.meta.url),'utf8')));
 context.prepareForm=request=>{{const derived=catalog.derivedFor(request.operation);return {{status:'ready',props:{{context,operation:request.operation,action:'/api/operations/'+request.operation,operationId:'test-operation',mode:'update',derived,fields:generatedFields(derived,'update'),submit:'Edit',timeZone:'UTC',idPrefix:request.occurrence,record:{{id:request.arguments.record.id,version:String(request.arguments.record.version)}}}}}};}};
 const html=await page.render(context,{{}});
@@ -1004,7 +1004,7 @@ fn repeated_native_row_panels_match_activation_safe_external_openers() {
         r#"import assert from 'node:assert/strict';
 import {{{page} as page}} from './{entry}';
 const rows=[{{id:'row-a',version:1,fields:{{title:'One'}}}},{{id:'row-b',version:1,fields:{{title:'Two'}}}}];
-const context={{preferredLocales:[],appDefaultLocale:'en',theme:{{mode:'system',accent:'blue',density:'comfortable'}},path:'/',isPartial:false,csrfToken:'test',principal:null,invocation:{{request:'test'}},query:async()=>({{rows,columns:[]}})}};
+const context={{memberships:['public','members'],preferredLocales:[],appDefaultLocale:'en',theme:{{mode:'system',accent:'blue',density:'comfortable'}},path:'/',isPartial:false,csrfToken:'test',principal:null,invocation:{{request:'test'}},query:async()=>({{rows,columns:[]}})}};
 const html=await page.render(context,{{}});
 const cards=[...html.matchAll(/<section\b[^>]*data-can-card[^>]*>[\s\S]*?<\/section>/g)].map(match=>match[0]);
 assert.equal(cards.length,2);

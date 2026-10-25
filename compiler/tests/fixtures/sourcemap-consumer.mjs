@@ -109,7 +109,10 @@ assert.equal(fresh.modules[0].path,'$can$m$53686f70.mjs');
 // (line5, column5); app scaffolding remains attributed to app byte zero.
 assert.deepEqual(lookup(fresh.modules[0].map,1,0),{source:sourcePath,line:1,column:1});
 assert.deepEqual(lookup(fresh.modules[0].map,3,0),{source:sourcePath,line:5,column:5,name:'Shop.Gadget.create'});
-assert.deepEqual(lookup(fresh.modules[0].map,6,0),{source:sourcePath,line:1,column:1,name:'appDefinition'});
+assert.deepEqual(lookup(fresh.modules[0].map,6,0),{source:sourcePath,line:1,column:1,name:'__canlangAppDefaultLocale'});
+const appDefinitionLine=fresh.modules[0].js.split('\n').findIndex(line=>line.startsWith('export const appDefinition='))+1;
+assert(appDefinitionLine>6);
+assert.deepEqual(lookup(fresh.modules[0].map,appDefinitionLine,0),{source:sourcePath,line:1,column:1,name:'appDefinition'});
 let points=0;
 for(const module of fresh.modules) {
   assert.deepEqual(Object.keys(module.map),['version','file','sources','sourcesContent','names','mappings']);

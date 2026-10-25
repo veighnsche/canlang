@@ -4002,26 +4002,16 @@ fn t35r25_unknown_in_variant_still_rejected() {
     );
 }
 
-/// (T35/R25) Opposing, both ways: a structurally malformed complex
-/// head fails `E5007` at the profile stage (examples.rs, untouched)
-/// while the slot scan falls back to the flat scan, so the unknown
-/// name inside still fails `E3016` too.
+/// Malformed message heads refuse at their structural owner before slot typing.
 #[test]
-fn t35r25_malformed_head_fallback_still_rejected() {
+fn t35r25_malformed_head_still_rejected() {
     let src = "app T\nGiven\n message t(kind:text) = \"{kind,select,confirmation Event {bogus}}\"@{}\nWhen\nThen\n";
     let diags = check(src, None);
-    assert_eq!(codes(&diags), vec!["E3016", "E5007"], "{diags:?}");
+    assert_eq!(codes(&diags), vec!["E5007"], "{diags:?}");
     assert!(
-        diags[0]
-            .message
-            .contains("'{bogus}' names no message parameter"),
+        diags[0].message.contains("expected '{' to open the branch"),
         "{}",
         diags[0].message
-    );
-    assert!(
-        diags[1].message.contains("expected '{' to open the branch"),
-        "{}",
-        diags[1].message
     );
 }
 

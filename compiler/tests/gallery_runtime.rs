@@ -403,11 +403,11 @@ fn gallery_source_refuses_nonowning_nonsingular_images_slots_and_unconsumed_opti
         ),
         (
             "filter",
-            SOURCE.replace("image=image", "image=image filter=position"),
+            SOURCE.replace("image=image", "image=image filter=missing"),
         ),
         (
             "defaults",
-            SOURCE.replace("image=image", "image=image defaults={position=0}"),
+            SOURCE.replace("image=image", "image=image defaults={missing=0}"),
         ),
         (
             "slot",

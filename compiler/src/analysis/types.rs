@@ -10327,7 +10327,7 @@ impl<'a> Typer<'a> {
                 return false;
             }
         }
-        if collections.len() != 9 {
+        if collections.len() != 10 {
             return false;
         }
         for id in catalog.ids() {
@@ -10366,6 +10366,12 @@ impl<'a> Typer<'a> {
                 &[
                     "columns", "order", "search", "filter", "empty", "defaults", "display",
                 ],
+                false,
+            )),
+            "gallery" => Some((
+                "gallery",
+                "query",
+                &["image", "order", "search", "filter", "empty", "defaults"],
                 false,
             )),
             "board" => Some((
@@ -10544,7 +10550,7 @@ impl<'a> Typer<'a> {
             && self.office_collection_source_profile(cx, node, model)
             && self.office_collection_catalog_complete();
         let gap = if complete {
-            "complete readonly alternatives: list; table with declared columns and display=split. Excluded board: no declared enum grouping; gallery: no image/file selector or native factory; calendar: no declared nonnullable date/datetime endpoints; timeline, carousel, hover_gallery, steps, text_rotate: direct text lacks required item/sequence slots and current native factories (hover_gallery also needs images)"
+            "complete readonly alternatives: list; table with declared columns and display=split. Excluded board: no declared enum grouping; gallery: no declared image/file selector; calendar: no declared nonnullable date/datetime endpoints; timeline, carousel, hover_gallery, steps, text_rotate: direct text lacks required item/sequence slots and current native factories (hover_gallery also needs images)"
         } else if checked {
             "complete replacement coverage is unknown: board, gallery and calendar require distinct selectors, and catalog collections own different child slots"
         } else {
@@ -16069,6 +16075,14 @@ impl<'a> Typer<'a> {
             )
             && let Some(field_name) = name_text(field_parts[2], cx.text)
         {
+            // A judgment's static specification is its checked standard record,
+            // not a nominal enum field path. Let ordinary member typing resolve
+            // the actual JudgmentSpec receiver before selecting its field.
+            if field_name == "specification"
+                && self.tables.judgment_declarations.contains_key(&owner)
+            {
+                return None;
+            }
             let Some(field) = self.record_field_named(owner, field_name) else {
                 self.unknown_member(cx, receiver, field_parts[2], field_name, "enum case owner");
                 return Some(ResolvedType::Error);

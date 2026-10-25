@@ -56,7 +56,11 @@ fn collect_can(dir: &str, out: &mut Vec<PathBuf>) {
         .collect();
     entries.sort();
     for path in entries {
-        if path.is_dir() && path.file_name().is_some_and(|name| name != "can.generated") {
+        if path.is_dir()
+            && path
+                .file_name()
+                .is_some_and(|name| name != "can.generated" && name != ".legacy.saved")
+        {
             collect_can(path.to_str().unwrap(), out);
         } else if path.extension().is_some_and(|e| e == "can") {
             out.push(path);

@@ -250,7 +250,8 @@ fn direct_callback_card_gate_preserves_the_original_row_view() {
         "{}Then\n page / title=\"Direct callback\"\n  list Job\n   card \"Direct\"\n    require row.request?.callback_diagnostics!=null\n    text \"Historical diagnostics available.\"\n",
         SOURCE.split("Then\n").next().unwrap()
     );
-    let path = std::env::temp_dir().join(format!("callback-direct-row-{}.can", std::process::id()));
+    let scratch = tempfile::tempdir().unwrap();
+    let path = scratch.path().join("callback-direct-row.can");
     std::fs::write(&path, source).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_can"))
         .args(["compile", "--format=json", "--catalog"])
@@ -260,7 +261,14 @@ fn direct_callback_card_gate_preserves_the_original_row_view() {
         .output()
         .unwrap();
     std::fs::remove_file(path).unwrap();
-    let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let artifact: serde_json::Value =
+        serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
+            panic!(
+                "{error}: status={} stderr={}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr)
+            )
+        });
     assert!(output.status.success(), "{artifact}");
     let emitted = artifact["modules"][0]["js"].as_str().unwrap();
     assert_eq!(
