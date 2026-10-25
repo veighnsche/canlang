@@ -1,0 +1,33 @@
+app CreatedHelper uses=[reservations]
+package api
+ Given
+  export contract Entitlement {source:text,customer:text,location:text,quantity:int,unit:enum(hour,day)}
+  export capability MembershipV1 version=1
+   reserve(value:Entitlement) -> text
+ When
+ Then
+package reservations
+ use api {Entitlement,MembershipV1 as Membership} from=deployment.membership
+ Given
+  Evidence {value:Entitlement}
+  policy Evidence read=members
+  Customer {visible:bool=true}
+  Location {visible:bool=true}
+  Resource {location:Location,visible:bool=true}
+  Booking in Resource {customer:Customer,quantity:int=1,visible:bool=true,unit:Entitlement.unit=hour}
+  Movement in Booking {source:text,last:text?}
+  policy Customer read=members where=row.visible
+  policy Location read=members where=row.visible
+  policy Resource read=members where=row.visible
+  policy Booking read=members where=row.visible
+  policy Movement read=members
+  derive membership_unit(unit:Entitlement.unit):Entitlement.unit = first([Entitlement.unit.hour] as selected where unit==Entitlement.unit.hour) ?? Entitlement.unit.day
+  derive movement_request(movement:Movement):Entitlement = Entitlement {source=movement.source,customer=movement.parent.customer.id,location=movement.parent.parent.location.id,quantity=movement.parent.quantity,unit=membership_unit(movement.parent.unit)}
+ When
+  scenario move(booking:Booking) by=members
+   do
+    create Movement {parent=booking,source=operation.id} as movement
+    send Membership.reserve {value=movement_request(movement)} as allocation
+    set movement {last=allocation.id}
+    create Evidence {value=movement_request(movement)} as evidence
+ Then

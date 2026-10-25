@@ -4941,6 +4941,88 @@ fn original_helper_parent_reference_keeps_containment_and_field_identity() {
             "{mode}"
         );
     }
+    {
+    // One original helper argument may feed both a result and its lazy
+    // scalar guard. DATA and CONTROL remain distinct original observations.
+    let control_source = include_str!("fixtures/helper-created-parent-control.can");
+    let (control_db, control_program, control_ir, control_catalog) =
+        fixture_source("created-helper-control.can", control_source);
+    let control_owner = item(&control_ir, "reservations.move");
+    let (control_artifact, diagnostics) =
+        prepared_artifact(&control_program, &control_db, &control_catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let operation = control_artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == control_owner.canonical)
+        .unwrap();
+    let returns = operation["result"]["disclosure"]["returns"]
+        .as_array()
+        .expect("helper CONTROL requires a full native receipt");
+    assert!(returns.iter().any(|returned| {
+        let dependencies = returned["dependencies"].as_array().unwrap();
+        let data = dependencies.iter().find(|read| read["model"] == "reservations.Booking" && read["field"] == "unit" && read["role"] == "data");
+        let control = dependencies.iter().find(|read| read["model"] == "reservations.Booking" && read["field"] == "unit" && read["role"] == "control");
+        matches!((data, control), (Some(data), Some(control)) if data["id"] != control["id"] && data["source"] == control["source"])
+    }));
+    let queried = control_source.replace("   do\n    create Movement", "   do\n    let previous=first(booking.Movement as row order=row.id)\n    require previous==null\n    create Movement");
+    let (db, program, ir, catalog) = fixture_source("created-helper-control-forgery.can", &queried);
+    let owner = item(&ir, "reservations.move").id;
+    assert!(
+        serialize_complete_query_receipt(
+            &program,
+            &ir,
+            &ir.items[owner.0 as usize],
+            &db,
+            Some(&catalog),
+            "entry.mjs"
+        )
+        .is_some()
+    );
+    for mode in ["control-role", "control-source", "control-field"] {
+        let mut forged = ir.clone();
+        if mode == "control-field" {
+            let unit = item(&forged, "reservations.Booking.unit").id;
+            let IrItemKind::Field { ty, .. } = &mut forged.items[unit.0 as usize].kind else {
+                panic!("field");
+            };
+            *ty = IrType::Known(ResolvedType::Scalar(
+                canlang_compiler::analysis::Scalar::Text,
+            ));
+        } else {
+            let ScenarioDisclosure::Complete(proof) =
+                forged.scenario_disclosures.get_mut(&owner).unwrap()
+            else {
+                panic!("complete");
+            };
+            let mut changed = false;
+            for returned in &mut proof.returns {
+                for read in &mut returned.dependencies {
+                    if read.model_name == "reservations.Booking" && read.field_name == "unit"
+                        && read.role == canlang_compiler::analysis::scenario_disclosure::DependencyRole::Control {
+                        if mode == "control-role" { read.role = canlang_compiler::analysis::scenario_disclosure::DependencyRole::Data; }
+                        else { read.source.sha256 = "0".repeat(64); }
+                        changed = true;
+                    }
+                }
+            }
+            assert!(changed);
+        }
+        assert!(
+            serialize_complete_query_receipt(
+                &program,
+                &forged,
+                &forged.items[owner.0 as usize],
+                &db,
+                Some(&catalog),
+                "entry.mjs"
+            )
+            .is_none(),
+            "{mode}"
+        );
+    }
+    }
     // A created helper receiver copies one whole declared Contract array;
     // required arrays retain their exact marker rather than element authority.
     for required in [false, true] {

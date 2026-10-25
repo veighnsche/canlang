@@ -16009,6 +16009,137 @@ fn reference_reused_bounds(
     reference_reused_scope(ir, original, inventory, db)
 }
 
+/// A helper guard may consume an already retained DATA getter as CONTROL.
+/// Reuse its real companion occurrence; no role is rewritten or synthesized.
+fn checked_helper_control_data<'a>(
+    context: &'a super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+    read: &crate::analysis::scenario_disclosure::DisclosureDependency,
+) -> Option<&'a crate::analysis::scenario_disclosure::DisclosureDependency> {
+    if read.role != DependencyRole::Control || read.calls.len() != 1 || read.query_id.is_some() {
+        return None;
+    }
+    context.same_scenario(context.ir(), owner)?;
+    let ScenarioDisclosure::Complete(actual) = context.ir().scenario_disclosures.get(&owner.id)?
+    else {
+        return None;
+    };
+    let ScenarioDisclosure::Complete(fresh) =
+        context.fresh().scenario_disclosures.get(&owner.id)?
+    else {
+        return None;
+    };
+    if !super::scenario_feasibility::same_disclosure(actual, fresh) {
+        return None;
+    }
+    let mut companion = None;
+    for returned in actual
+        .returns
+        .iter()
+        .filter(|returned| returned.dependencies.contains(read))
+    {
+        let mut candidates = returned.dependencies.iter().filter(|data| {
+            data.role == DependencyRole::Data
+                && data.id != read.id
+                && data.node == read.node
+                && data.calls == read.calls
+                && data.source == read.source
+                && data.model == read.model
+                && data.field == read.field
+                && data.model_name == read.model_name
+                && data.field_name == read.field_name
+                && data.ty == read.ty
+                && data.type_id == read.type_id
+                && data.query_id == read.query_id
+        });
+        let data = candidates.next()?;
+        if candidates.next().is_some() || companion.is_some_and(|previous| previous != data) {
+            return None;
+        }
+        companion = Some(data);
+    }
+    companion
+}
+
+fn helper_control_scalar(ty: &ResolvedType) -> bool {
+    matches!(ty, ResolvedType::Scalar(_) | ResolvedType::Enum { .. }) && native_result_type(ty)
+}
+
+/// Only a direct checked scalar guard leaf may borrow the retained parent
+/// getter's separate CONTROL occurrence. Other Model CONTROL navigation stays
+/// outside this profile, even if another DATA path names the same model.
+fn helper_control_parent_consumed(
+    context: &super::source_context::FreshSourceContext<'_>,
+    owner: &IrItem,
+    read: &crate::analysis::scenario_disclosure::DisclosureDependency,
+) -> bool {
+    let ResolvedType::Record {
+        symbol: parent,
+        stored: true,
+    } = read.ty
+    else {
+        return false;
+    };
+    let Some(ScenarioDisclosure::Complete(proof)) =
+        context.ir().scenario_disclosures.get(&owner.id)
+    else {
+        return false;
+    };
+    let Some((_, tree)) = context
+        .trees()
+        .iter()
+        .find(|(file, _)| *file == read.node.file)
+    else {
+        return false;
+    };
+    proof
+        .returns
+        .iter()
+        .filter(|returned| returned.dependencies.contains(read))
+        .all(|returned| {
+            returned.dependencies.iter().any(|leaf| {
+                if leaf.role != DependencyRole::Control
+                    || leaf.model != parent
+                    || leaf.calls != read.calls
+                    || leaf.source != read.source
+                    || leaf.query_id.is_some()
+                    || !helper_control_scalar(&leaf.ty)
+                    || checked_helper_control_data(context, owner, leaf).is_none()
+                {
+                    return false;
+                }
+                let mut pending = vec![tree];
+                let mut visits = 0;
+                while let Some(node) = pending.pop() {
+                    visits += 1;
+                    if visits > 16384 {
+                        return false;
+                    }
+                    if node.span.start > leaf.node.start || node.span.end < leaf.node.end {
+                        continue;
+                    }
+                    if NodeKey::of(node) == leaf.node {
+                        return node.kind == SyntaxKind::Member
+                            && node
+                                .children
+                                .iter()
+                                .find(|part| {
+                                    matches!(
+                                        part.kind,
+                                        SyntaxKind::NameRef
+                                            | SyntaxKind::Member
+                                            | SyntaxKind::Group
+                                    )
+                                })
+                                .is_some_and(|receiver| NodeKey::of(receiver) == read.node);
+                    }
+                    pending.extend(node.children.iter().rev());
+                }
+                false
+            })
+        })
+}
+
 /// The same original helper substitution may observe its stored ChildOf
 /// parent. Both original schema owners and the exact parent metadata survive
 /// the source/fresh join; the ordinary parent getter retains its authority.
@@ -16026,6 +16157,13 @@ fn checked_helper_parent_reference<'a>(
         return None;
     };
     context.same_scenario(context.ir(), owner)?;
+    if read.role == DependencyRole::Control {
+        let data = checked_helper_control_data(context, owner, read)?;
+        if !helper_control_parent_consumed(context, owner, read) {
+            return None;
+        }
+        return checked_helper_parent_reference(context, owner, data, value, facts);
+    }
     if read.query_id.is_some()
         || read.role != DependencyRole::Data
         || read.field != read.model
@@ -16074,8 +16212,11 @@ fn checked_helper_identity_reference<'a>(
     };
     let ir = context.ir();
     context.same_scenario(ir, owner)?;
+    let paired_control = read.role == DependencyRole::Control
+        && helper_control_scalar(&read.ty)
+        && checked_helper_control_data(context, owner, read).is_some();
     if read.query_id.is_some()
-        || read.role != DependencyRole::Data
+        || read.role != DependencyRole::Data && !paired_control
         || value.span != node_span(read.node)
         || value.ty != read.ty
         || !matches!(&value.expr,IrExpr::Member{base,field}
