@@ -1454,6 +1454,13 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
         if (!/^[A-Za-z_][A-Za-z0-9_]*(\/[A-Za-z_][A-Za-z0-9_]*)*$/.test(text(dependency['parameter'])) || dependency['type'] !== 'int') {
           return invalid('original reference version requires a declared singular parameter path and int wire.');
         }
+      } else if(kind==='created-model-version'){
+        const created=object(dependency['created'],['id','node','stage','binding','model','parentParameter','parentModel']);
+        const node=object(created['node'],['start','end']);
+        if(dependency['type']!=='int'||!/^[a-f0-9]{64}$/.test(text(created['id']))
+            ||!Number.isSafeInteger(created['stage'])||Number(created['stage'])<0||Number(created['stage'])>=MAX_ITEMS
+            ||!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start']))return invalid('created version requires its exact original CREATE stage and int wire.');
+        for(const key of ['binding','model','parentParameter','parentModel'])text(created[key]);
       } else return invalid('unsupported intrinsic dependency.');
       const encoded = stableStringify(dependency);
       if (local.has(depId) || (dependencies.has(depId) && dependencies.get(depId) !== encoded)) return invalid('dependency identity drifts.');
@@ -1462,13 +1469,6 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
   }
   if (dependencies.size > MAX_ITEMS) return invalid('dependency closure exceeds its finite budget.');
   return deepFreeze(plan as unknown as ScenarioResultDisclosurePlan);
-      } else if(kind==='created-model-version'){
-        const created=object(dependency['created'],['id','node','stage','binding','model','parentParameter','parentModel']);
-        const node=object(created['node'],['start','end']);
-        if(dependency['type']!=='int'||!/^[a-f0-9]{64}$/.test(text(created['id']))
-            ||!Number.isSafeInteger(created['stage'])||Number(created['stage'])<0||Number(created['stage'])>=MAX_ITEMS
-            ||!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start']))return invalid('created version requires its exact original CREATE stage and int wire.');
-        for(const key of ['binding','model','parentParameter','parentModel'])text(created[key]);
 }
 
 const PRIMITIVE_INPUT_KINDS: Readonly<Record<string, string>> = Object.freeze({

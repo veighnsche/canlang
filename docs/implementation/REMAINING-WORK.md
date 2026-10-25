@@ -1,5 +1,14 @@
 # Remaining CanLang work
 
+The [implementation task](IMPLEMENTATION-TASK.md) is the current execution entry
+point, ordered around repairing main and reaching zero native diagnostics.
+
+The consolidated [25 October work inventory](WORK-INVENTORY.md) records current
+completed work, the 18-diagnostic native result, unfinished local changes, CI
+status, release boundaries and the broader requirements below. Use it to select
+current work; historical counts and priorities in this roadmap are not current
+measurements.
+
 The current prioritized audit-derived fixes and simplifications are in the
 [implementation checklist](../ideal-filetree-plan/tasks.md), updated after
 `eb8a8544` on 23 October 2026. Use that checklist for the next implementation

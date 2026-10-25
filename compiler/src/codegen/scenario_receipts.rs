@@ -4073,61 +4073,6 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                         parameter: parameter_name.clone(),
                     }
                 }
-                DisclosureIntrinsicKind::AdmittedReferenceVersion {
-                    parameter,
-                    parameter_name,
-                    model,
-                    model_name,
-                } => {
-                    let IrExpr::Member { base, field } = &expression.expr else {
-                        return None;
-                    };
-                    let nested = checked_contract_parameter_path(ir, item, base, db);
-                    let event_field = checked_delivery_event_row_name(item)
-                        .and_then(|name| checked_notice_event_field(ir, item, base, name, db?));
-                    let event_term =
-                        parameter_name == "eventTerm" && event_field == Some(*parameter);
-                    if let Some((root, path)) = &nested {
-                        if root != parameter || path != parameter_name {
-                            return None;
-                        }
-                        checked_contract_parameter_row(ir, item, base, models, db?)?;
-                    }
-                    if field != "version"
-                        || (!matches!(base.expr, IrExpr::Name(_))
-                            && nested.is_none()
-                            && !event_term)
-                        || base.ty
-                            != (ResolvedType::Record {
-                                symbol: *model,
-                                stored: true,
-                            })
-                        || intrinsic.ty != ResolvedType::Scalar(Scalar::Int)
-                        || intrinsic.type_id != "int"
-                        || (nested.is_none() && !direct_field_name(parameter_name))
-                    {
-                        return None;
-                    }
-                    if !event_term {
-                        let parameter_item = ir.items.get(parameter.0 as usize)?;
-                        let IrItemKind::Param {
-                            owner: parameter_owner,
-                            index,
-                            ty: IrType::Known(parameter_ty),
-                            default,
-                            ..
-                        } = &parameter_item.kind
-                        else {
-                            return None;
-                        };
-                        if parameter_item.id != *parameter
-                            || *parameter_owner != item.id
-                            || params.get(*index) != Some(parameter)
-                            || (nested.is_none()
-                                && (parameter_item.name != *parameter_name
-                                    || parameter_ty != &base.ty))
-                            || default.is_some()
-                        {
                 DisclosureIntrinsicKind::CreatedModelVersion {
                     create,
                     model,
@@ -4184,6 +4129,61 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     })?;
                     NativeIntrinsicKind::CreatedModelVersion { created }
                 }
+                DisclosureIntrinsicKind::AdmittedReferenceVersion {
+                    parameter,
+                    parameter_name,
+                    model,
+                    model_name,
+                } => {
+                    let IrExpr::Member { base, field } = &expression.expr else {
+                        return None;
+                    };
+                    let nested = checked_contract_parameter_path(ir, item, base, db);
+                    let event_field = checked_delivery_event_row_name(item)
+                        .and_then(|name| checked_notice_event_field(ir, item, base, name, db?));
+                    let event_term =
+                        parameter_name == "eventTerm" && event_field == Some(*parameter);
+                    if let Some((root, path)) = &nested {
+                        if root != parameter || path != parameter_name {
+                            return None;
+                        }
+                        checked_contract_parameter_row(ir, item, base, models, db?)?;
+                    }
+                    if field != "version"
+                        || (!matches!(base.expr, IrExpr::Name(_))
+                            && nested.is_none()
+                            && !event_term)
+                        || base.ty
+                            != (ResolvedType::Record {
+                                symbol: *model,
+                                stored: true,
+                            })
+                        || intrinsic.ty != ResolvedType::Scalar(Scalar::Int)
+                        || intrinsic.type_id != "int"
+                        || (nested.is_none() && !direct_field_name(parameter_name))
+                    {
+                        return None;
+                    }
+                    if !event_term {
+                        let parameter_item = ir.items.get(parameter.0 as usize)?;
+                        let IrItemKind::Param {
+                            owner: parameter_owner,
+                            index,
+                            ty: IrType::Known(parameter_ty),
+                            default,
+                            ..
+                        } = &parameter_item.kind
+                        else {
+                            return None;
+                        };
+                        if parameter_item.id != *parameter
+                            || *parameter_owner != item.id
+                            || params.get(*index) != Some(parameter)
+                            || (nested.is_none()
+                                && (parameter_item.name != *parameter_name
+                                    || parameter_ty != &base.ty))
+                            || default.is_some()
+                        {
                             return None;
                         }
                     }
@@ -7781,6 +7781,7 @@ fn checked_native_inline_selection_plan<'a>(
                 DependencyRole::Control => ReceiptRole::Control,
             };
             let kind = match &read.kind {
+                DisclosureIntrinsicKind::CreatedModelVersion { .. } => return None,
                 DisclosureIntrinsicKind::OperationId => NativeIntrinsicKind::OperationId,
                 DisclosureIntrinsicKind::AdmittedInput { parameter_name, .. } => {
                     NativeIntrinsicKind::AdmittedInput {
@@ -7857,7 +7858,6 @@ fn inline_selection_actual<'a>(
                 .find(|(name, actual)| {
                     name == &field.name && actual.span == node_span(field.value_node)
                 })?
-                DisclosureIntrinsicKind::CreatedModelVersion { .. } => return None,
                 .1,
         )
     }

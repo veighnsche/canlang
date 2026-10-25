@@ -322,6 +322,8 @@ export interface ScenarioReceiptAssociation {
   } | {
     readonly dependencyId: string; readonly kind: 'admitted-reference-version'; readonly wire: string;
     readonly model: ModelName; readonly row: StoredRow; readonly secretFields: ReadonlyArray<string>;
+  } | { readonly dependencyId:string;readonly kind:'created-model-version';readonly wire:string;readonly stage:number;
+    readonly model:ModelName;readonly row:StoredRow;readonly secretFields:ReadonlyArray<string>;
   }>;
   readonly changed: ReadonlyArray<{
     readonly model: ModelName;
@@ -333,8 +335,6 @@ export interface ScenarioReceiptAssociation {
     /** Original DATA source for one source-sealed loop constructor. */
     readonly sourceCopy?: {readonly loop:string;readonly row:StoredRow};
   }>;
-  } | { readonly dependencyId:string;readonly kind:'created-model-version';readonly wire:string;readonly stage:number;
-    readonly model:ModelName;readonly row:StoredRow;readonly secretFields:ReadonlyArray<string>;
 }
 
 /** Saved outcome of a committed or rejected operation, for exact replay. */

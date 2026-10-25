@@ -1,5 +1,19 @@
 # Remaining implementation tasks
 
+Start with the [complete implementation task](../implementation/IMPLEMENTATION-TASK.md).
+It assigns the entire inventory to dependency-ordered work, with zero native
+diagnostics as the primary objective. The records below retain earlier results.
+
+The [25 October consolidated inventory](../implementation/WORK-INVENTORY.md)
+supersedes historical current-count claims below: the last tested working compiler's
+complete original native composition has **18 E6008 diagnostics**, zero analysis
+errors and no omissions. The malformed `a0918b49` snapshot
+was repaired and verified by Z00 in an isolated checkout; a fresh full-corpus
+measurement and current CI result are next. The inventory also
+distinguishes unfinished local implementation, CI verification,
+published Linux artifacts and broader product requirements. The 24 October
+results below remain historical evidence at their recorded scopes.
+
 Updated after shared unmatched-mail triage support on 24 October 2026. This is the execution checklist for the audit-derived backlog: **all named packets are complete at their recorded scopes; native emission support remains open**. The initial CanLeave repair and subsequent Duration form-entry repair are complete. The current full native-host check measures **27 E6008 emission diagnostics and zero analysis diagnostics**, attributed below. All 24 operands and both saved contributions remain included. Implemented packet results are recorded below; MIG-CONTRACT defines the required migration contract; File admission retains the stated support limits. Packet counts are not estimates of effort or diagnostic counts.
 
 The [reviews](reviews/index.md) retain the original source reasoning at audit baseline `8d48f969`. Current completion status is recorded here. The [broader product roadmap](../implementation/REMAINING-WORK.md) also contains older feature proposals and app-specific requirements; this checklist does not declare all of those satisfied or all external app semantics reviewed.

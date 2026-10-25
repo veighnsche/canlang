@@ -9446,6 +9446,19 @@ impl<'a> Emitter<'a> {
                 .and_then(|recipe| recipe.intrinsics.get(&self.receipt_site(span)))
                 .cloned()
         {
+            if let [intrinsic] = intrinsics.as_slice()
+                && matches!(
+                    intrinsic.kind,
+                    super::scenario_receipts::NativeIntrinsicKind::CreatedModelVersion { .. }
+                )
+            {
+                self.stdlib
+                    .insert("readScenarioReceiptCreatedVersion".into());
+                return format!(
+                    "(await readScenarioReceiptCreatedVersion(c,{}))",
+                    js_string(&intrinsic.id)
+                );
+            }
             self.stdlib
                 .insert("observeScenarioReceiptIntrinsic".to_string());
             let receiver = self.lower_expr(base);
@@ -9454,6 +9467,7 @@ impl<'a> Emitter<'a> {
                 .iter()
                 .map(|intrinsic| {
                     let (kind, reference) = match &intrinsic.kind {
+                        super::scenario_receipts::NativeIntrinsicKind::CreatedModelVersion{..} => unreachable!("created version uses its State reader"),
                         super::scenario_receipts::NativeIntrinsicKind::OperationId => {
                             ("operation-id", "")
                         }
@@ -9508,19 +9522,6 @@ impl<'a> Emitter<'a> {
                         && first_read.field_name == "parent"
                         && first_read.model == query.model
                         && capture.plan["returns"].as_array()?.iter().any(|returned| {
-            if let [intrinsic] = intrinsics.as_slice()
-                && matches!(
-                    intrinsic.kind,
-                    super::scenario_receipts::NativeIntrinsicKind::CreatedModelVersion { .. }
-                )
-            {
-                self.stdlib
-                    .insert("readScenarioReceiptCreatedVersion".into());
-                return format!(
-                    "(await readScenarioReceiptCreatedVersion(c,{}))",
-                    js_string(&intrinsic.id)
-                );
-            }
                             returned["dependencies"].as_array().is_some_and(|reads| {
                                 reads.iter().any(|read| {
                                     read["id"] == ordinary.id && read["queryId"] == query.id
@@ -9529,7 +9530,6 @@ impl<'a> Emitter<'a> {
                         }))
                     .then(|| {
                         (
-                        super::scenario_receipts::NativeIntrinsicKind::CreatedModelVersion{..} => unreachable!("created version uses its State reader"),
                             query.model_name.clone(),
                             first_read.id.clone(),
                             ordinary.id.clone(),

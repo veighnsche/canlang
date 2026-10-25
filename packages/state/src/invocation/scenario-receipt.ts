@@ -10978,10 +10978,6 @@ export type ScenarioReceiptIntrinsicInput = {
   readonly reference: AdmittedCall['recordRefs'][number];
 };
 
-/** Host reports an actually evaluated checked intrinsic site. State derives
- * identity/version from its protected admission and checks the host's encoded
- * value. This does not attest native evaluation: the verified generated host
- * must check its actual operation/ref binding before calling this producer.
 /** Version is metadata of this invocation's actual staged CREATE, not an
  * admitted input or a stored business-field grant. The caller supplies no wire. */
 export async function readScenarioReceiptCreatedVersion(call:AdmittedCall,store:StoragePort,input:{readonly dependencyId:string}):Promise<bigint>{
@@ -11005,6 +11001,10 @@ export async function readScenarioReceiptCreatedVersion(call:AdmittedCall,store:
   finally{if(acquired){state.pending--;if(owner!==undefined)owner.busy=false;}}
 }
 
+/** Host reports an actually evaluated checked intrinsic site. State derives
+ * identity/version from its protected admission and checks the host's encoded
+ * value. This does not attest native evaluation: the verified generated host
+ * must check its actual operation/ref binding before calling this producer.
  */
 export async function observeScenarioReceiptIntrinsic(call: AdmittedCall, store: StoragePort,
   input: ScenarioReceiptIntrinsicInput): Promise<void> {
@@ -12956,14 +12956,14 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
         if (observed.kind === 'operation-id') continue;
         if (observed.kind === 'admitted-input') { if (!primitiveInput(target, dependency)) dependenciesReadable = false; continue; }
         const projection = await savedProjection(observed.model, observed.row, observed.secretFields, []);
-        if (!versionedReferenceInput(target, dependency) || projection === null || String(projection.version) !== observed.wire) dependenciesReadable = false;
-      }
-    }
-    const returned = association.plan.returns.find(entry => entry.id === association.returnId)!;
         if(observed.kind==='created-model-version'){
           if(dependency.kind!=='created-model-version'||stableStringify(sourceCreatedRootProducers.get(target)?.get(dependency.created.id))!==stableStringify(dependency.created)||projection===null||String(projection.version)!==observed.wire)dependenciesReadable=false;
           continue;
         }
+        if (!versionedReferenceInput(target, dependency) || projection === null || String(projection.version) !== observed.wire) dependenciesReadable = false;
+      }
+    }
+    const returned = association.plan.returns.find(entry => entry.id === association.returnId)!;
     if (!savedNarrowedControls(currentBound, association.observations)) dependenciesReadable = false;
     if (currentBound.resultModel !== undefined && (stableStringify(currentBound.plan) !== stableStringify(association.plan) ||
         !await modelResultReadable(def as GeneratedOperationDef, currentBound, receipt.outcome.status === 'committed' ? receipt.outcome.result : null))) {
@@ -12987,15 +12987,15 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
         if (!primitiveInput(def as GeneratedOperationDef, dependency)) dependenciesReadable = false;
         continue;
       }
-      if (!versionedReferenceInput(def as GeneratedOperationDef, dependency)) { dependenciesReadable = false; continue; }
-      const projection = await savedProjection(observation.model, observation.row, observation.secretFields, []);
-      if (projection === null || String(projection.version) !== observation.wire) dependenciesReadable = false;
-    }
       if(observation.kind==='created-model-version'){
         const projection=await savedProjection(observation.model,observation.row,observation.secretFields,[]);
         if(dependency.kind!=='created-model-version'||stableStringify(sourceCreatedRootProducers.get(def as GeneratedOperationDef)?.get(dependency.created.id))!==stableStringify(dependency.created)||projection===null||String(projection.version)!==observation.wire)dependenciesReadable=false;
         continue;
       }
+      if (!versionedReferenceInput(def as GeneratedOperationDef, dependency)) { dependenciesReadable = false; continue; }
+      const projection = await savedProjection(observation.model, observation.row, observation.secretFields, []);
+      if (projection === null || String(projection.version) !== observation.wire) dependenciesReadable = false;
+    }
     const records: ProjectedRecord[] = [];
     for (const changed of association.changed) {
       // New-row grants cannot launder original source DATA. Recheck only the

@@ -193,7 +193,9 @@ fn assert_plan(plan: &Value, ir: &IrProgram, path: &str) {
             assert_eq!(transported["source"]["path"], source.source.path);
             assert_eq!(transported["source"]["sha256"], source.source.sha256);
             match &source.kind {
-                DisclosureIntrinsicKind::CreatedModelVersion { create, model_name, .. } => {
+                DisclosureIntrinsicKind::CreatedModelVersion {
+                    create, model_name, ..
+                } => {
                     assert_eq!(transported["kind"], "created-model-version");
                     assert_eq!(transported["created"]["model"], model_name.as_str());
                     assert_eq!(transported["created"]["node"]["start"], create.start);
