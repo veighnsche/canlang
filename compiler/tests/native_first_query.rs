@@ -4234,6 +4234,34 @@ fn created_parent_keeps_its_exact_original_create_and_required_parent_associatio
     )
     .expect("the exact primary CREATE result retains its auxiliary constructor COUNT");
     assert_eq!(returned_plan["queries"].as_array().unwrap().len(), 1);
+    // A primary result retains the complete Values and COUNT influences;
+    // neither independently checked query may replace the other.
+    let values_returned = returned
+        .replace("  Child in Root {allowed:bool}",
+            "  contract Line {amount:int}\n  Item in Root {amount:int}\n  policy Item read=members fields=amount\n  Child in Root {allowed:bool,lines:Line[]=[]}")
+        .replace("    create Child {parent=root,allowed} as child\n    create Snapshot",
+            "    let lines=root.Item as item select Line {amount=item.amount}\n    require count(lines)>0\n    create Child {parent=root,allowed,lines} as child\n    create Snapshot");
+    let (values_db, values_program, values_ir, values_catalog) =
+        fixture_source("returned-values-count.can", &values_returned);
+    let values_owner = item(&values_ir, "count_visibility.created_parent");
+    assert!(matches!(
+        &values_ir.scenario_disclosures[&values_owner.id],
+        ScenarioDisclosure::Complete(_)
+    ));
+    let (values_artifact, diagnostics) =
+        prepared_artifact(&values_program, &values_db, &values_catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let values_operation = values_artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == values_owner.canonical)
+        .unwrap();
+    let queries = values_operation["result"]["disclosure"]["queries"]
+        .as_array()
+        .expect("both original Values and constructor COUNT publish with the primary Model result");
+    assert_eq!(queries.len(), 2);
+
     for mode in ["return-binding", "return-type", "count-offset"] {
         let mut changed = returned_ir.clone();
         let IrItemKind::Scenario {

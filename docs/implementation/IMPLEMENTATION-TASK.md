@@ -6,7 +6,7 @@ Bring the complete original 24-source CanLang draft composition to **zero native
 
 This is the executable task list for the [complete work inventory](WORK-INVENTORY.md). Work through the zero-diagnostic sequence first. The wider inventory is assigned concrete follow-on tasks below; pull one forward only when it supplies a demonstrated dependency of the zero-diagnostic work. Optional proposals do not expand the objective automatically.
 
-The latest complete measurement on the implementation committed as `3513cbc1` has 18 diagnostics, zero analysis errors, 26 source records and no omissions. The malformed `a0918b49` snapshot has been repaired and independently validated. Preserve the unfinished Refer aggregate work and isolated account/cohort extensions; only qualified changes belong on main.
+The latest complete original-corpus capture of the Values-plus-COUNT feature on `8f8d01e0` has 15 diagnostics, zero analysis errors, 26 unchanged source records and no omissions. The original hold, hold_days and move_days compiler refusals are gone; their original runtime qualification remains open. The malformed `a0918b49` snapshot has been repaired and independently validated. Preserve the unfinished Refer aggregate work and isolated account/cohort extensions; only qualified changes belong on main.
 
 ## Current execution status
 
@@ -38,7 +38,9 @@ rows/fields, stale input, Identity/domain/reference races, rollback and replay.
 Neither mechanism alone closes the original hold or confirm_account workflow.
 The original d0248133 capture still has 18 diagnostics and 26 identical sources
 in 238.44 seconds; a temporary trace localizes fulfill_free to the query-plan
-join before effect handling. Tracing is removed from the proposed source.
+join before effect handling. Tracing is removed from the proposed source. The combined full capture finishes in 267.60 seconds with 17 diagnostics: original hold lowers, hold_days remains refused. Fulfill_free has a valid constructor census but no supplied query plan, so its next investigation is the original plan producer, not a broader census allowance.
+
+The shared Values-plus-COUNT composition removes two incompatible influence gates, retaining exact query facts, the complete original primary CREATE/Return and independent Values DATA checks. All 84 focused Rust integrations and the existing real State runtime matrix pass, including withheld Item DATA, empty Values, hidden siblings, Identity/item races and replay. Its complete original24 run exits 10 in 314.11 seconds with 15 diagnostics, 26 identical source records and zero omissions: hold_days and move_days now lower. Their complete original runtime qualification, membership ANY-plus-Values, and the remaining closures stay open.
 
 
 GitHub confirms the repaired syntax/build stages and browser/security job pass

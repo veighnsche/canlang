@@ -3281,6 +3281,35 @@ it('keeps an original created-row parent as a staged identity across COUNT and C
         const hiddenReplay=await invoker.invokeMutation(request,identity);assert.ok('result'in hiddenReplay,JSON.stringify(hiddenReplay));assert.equal(hiddenReplay.result.status,'replayed');assert.equal(hiddenReplay.result.result,null,'current result-model read policy still gates the original saved primary identity');
       }
     }
+    // Values and constructor COUNT retain separate observations while the
+    // required result remains the exact primary CREATE.
+    for(const variant of ['allowed','withheld-item']){
+      const valuesSource=join(directory,`ValuesCount-${variant}.can`);
+      const valuesText=returnedText
+        .replace('  Child in Root {allowed:bool}','  contract Line {amount:int}\n  Item in Root {amount:int,twin:int=0}\n  policy Item read=members fields='+ (variant==='withheld-item'?'twin':'amount')+'\n  Child in Root {allowed:bool,lines:Line[]=[]}')
+        .replace('    create Child {parent=root,allowed} as child\n    create Snapshot','    let lines=root.Item as item select Line {amount=item.amount}\n    require count(lines)>0\n    create Child {parent=root,allowed,lines} as child\n    create Snapshot');
+      await writeFile(valuesSource,valuesText);
+      const valuesOutput=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,valuesSource],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const valuesArtifact=JSON.parse(valuesOutput.stdout) as CompileArtifact;
+      assert.equal(valuesArtifact.operations?.find(operation=>operation.name==='count_visibility.created_parent')?.result?.disclosure?.queries?.length,2,'complete Values and COUNT query census');
+      const valuesAsm=await assembleModules({artifact:valuesArtifact,sourcePath:valuesSource},{workDir:join(directory,'values-'+variant),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      for(const mode of variant==='withheld-item'?['withheld-item']:['allowed','empty','hidden-sibling','identity-race','item-race']){
+        const {now,identities,identity,membership}=await member('values-count-'+mode),{store}=createTestMemoryStorage();
+        const rootModel=asModel('count_visibility.Root'),itemModel=asModel('count_visibility.Item'),childModel=asModel('count_visibility.Child'),snapshotModel=asModel('count_visibility.Snapshot');
+        const parent={model:rootModel,id:asId('root')},item={...makeRow({id:asId('item'),data:{amount:'7',twin:'0'}}),parent};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:rootModel,row:makeRow({id:parent.id,data:{label:'Original'}})},...(mode==='empty'?[]:[{kind:'insert' as const,model:itemModel,row:item}]),...(mode==='hidden-sibling'?[{kind:'insert' as const,model:snapshotModel,row:{...makeRow({id:asId('hidden'),data:{sequence:'1',hidden:true}}),parent}}]:[])]}));
+        const query=store.query.bind(store),commit=store.commit.bind(store);let raced=false;
+        store.query=async spec=>{const rows=await query(spec);if(mode==='identity-race'&&spec.model===itemModel&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return rows;};
+        store.commit=async batch=>{if(mode==='item-race'&&batch.writes.some(write=>write.model===childModel)){raced=true;const current=await store.load(itemModel,item.id);assert.ok(current);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:itemModel,id:item.id,expectedVersion:current.version,row:{...current,version:asVersion(current.version+1),data:{amount:String(BigInt(String(current.data.amount))+1n)}}}]}));}return commit(batch);};
+        const invoker=buildInvoker(valuesArtifact,valuesAsm,store,{memberships:identities,now:()=>now});
+        const request={operation:'count_visibility.created_parent',operation_id:operationId(now),inputs:{root:{id:'root',version:'1'},allowed:true}};
+        const outcome=await invoker.invokeMutation(request,identity),success=mode==='allowed';
+        assert.equal('result'in outcome,success,mode+': '+JSON.stringify(outcome));if(mode.endsWith('-race'))assert.equal(raced,true,mode);
+        const children=await query({model:childModel,authority:'owner'}),snapshots=await query({model:snapshotModel,authority:'owner'});
+        assert.equal(children.length,success?1:0);assert.equal(snapshots.filter(row=>row.id!=='hidden').length,success?1:0);assert.deepEqual(await store.outboxPending(),[]);
+        if(success){assert.ok('result'in outcome);assert.deepEqual(children[0]!.data.lines,[{amount:'7'}]);assert.deepEqual(outcome.result.result,{id:children[0]!.id});assert.equal(snapshots[0]!.data.sequence,'1');const revision=await store.readRevision(),replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');assert.deepEqual(replay.result.result,outcome.result.result);assert.equal(await store.readRevision(),revision);}
+      }
+    }
     const captureSource=join(directory,'Capture.can');
     await writeFile(captureSource,String.raw`app ReferenceCapture
 Given

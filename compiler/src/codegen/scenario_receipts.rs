@@ -6845,6 +6845,14 @@ pub(super) fn constructor_count_queries(
             }
             checked_query_influence_census(query)?;
             counts.push(query);
+        } else if facts
+            .query_values
+            .as_deref()
+            .is_some_and(|values| values.iter().any(|value| &value.query == query))
+        {
+            // The Values consumer independently seals its original LET,
+            // candidate fields and DATA pairs before publishing this owner.
+            checked_query_influence_census(query)?;
         } else {
             checked_helper_query_influences(facts, query, true)?;
             let outer = *query.dependencies.first()?.calls.first()?;
@@ -10032,7 +10040,7 @@ fn constructor_model_return_shape(ir: &IrProgram, owner: &IrItem, db: &SourceDb)
     let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
         return None;
     };
-    let influences = constructor_count_influences(facts)?;
+    let influences = checked_scenario_query_influences(facts)?;
     if checked.returns.is_empty()
         || checked.returns.iter().any(|returned| {
             returned.model_result
