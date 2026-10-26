@@ -4,7 +4,7 @@ The [implementation task](IMPLEMENTATION-TASK.md) is the current execution entry
 point, ordered around repairing main and reaching zero native diagnostics.
 
 The consolidated [25 October work inventory](WORK-INVENTORY.md) records current
-completed work, the current 15-diagnostic native result, unfinished local changes, CI
+completed work, the current 14-diagnostic native result, unfinished local changes, CI
 status, release boundaries and the broader requirements below. Use it to select
 current work; historical counts and priorities in this roadmap are not current
 measurements.
