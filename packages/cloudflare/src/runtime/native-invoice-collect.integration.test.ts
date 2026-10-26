@@ -449,6 +449,117 @@ it('executes the four authored Invoice terminals only from retained Work complet
         }
         await writeFile(compiledSource,text);
       }
+      const broadFields=Array.from({length:100},(_,index)=>`field${index}:text`).join(',');
+      const broadHandlers=Array.from({length:70},(_,index)=>
+        `  scenario broad_${index} on=Broad\n   do require event.field0!=""`).join('\n');
+      const routingPackage=`
+package routing
+ Given
+  event Seen {id:text,revision:int}
+  event Broad {${broadFields}}
+  Item_0 {visible:bool=true}
+  policy Item_0 read=members
+  Item_1 {visible:bool=true}
+  policy Item_1 read=members
+ When
+  scenario changed_0 on=Item_0.updated
+   do
+    for changed in Item_0 archived=include as row where row.id==event.id limit=1
+     emit Seen {id=changed.id,revision=event.version}
+  scenario changed_0_second on=Item_0.updated
+   do
+    for changed in Item_0 archived=include as row where row.id==event.id limit=1
+     emit Seen {id=changed.id,revision=event.version}
+  scenario changed_1 on=Item_1.updated
+   do
+    for changed in Item_1 archived=include as row where row.id==event.id limit=1
+     emit Seen {id=changed.id,revision=event.version}
+${broadHandlers}
+ Then
+`;
+      const terminalText=await readFile(compiledSource,'utf8');
+      assert.ok(terminalText.includes('app CanInvoice uses=[invoice]'));
+      const routingSource=join(directory,'large-routing-invoice.can');
+      await writeFile(routingSource,terminalText.replace('app CanInvoice uses=[invoice]',
+        'app CanInvoice uses=[invoice,routing]')+routingPackage);
+      const { stdout:routingStdout } = await promisify(execFile)(compiler,
+        ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, routingSource],
+        { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+      const routingArtifact = JSON.parse(routingStdout) as CompileArtifact;
+      const routingAsm = await assembleModules({ artifact:routingArtifact, sourcePath:routingSource }, { workDir: directory,
+        stdlibUrl: new URL('./stdlib.js', import.meta.url).href,
+        uiUrl: import.meta.resolve('@canlang/ui') });
+      const composed=await loadCanonicalDescriptors(routingAsm,routingArtifact);
+      for(const index of [0,1]) {
+        const event=`routing.Item_${index}.updated`;
+        const handlers=index===0?['routing.changed_0','routing.changed_0_second']:['routing.changed_1'];
+        const entry=composed.committedChanges.get(event);
+        assert.ok(entry,event);
+        assert.deepEqual(entry.descriptor.handlers,handlers);
+        assert.deepEqual(entry.routes.map(route=>route.handler),handlers);
+        for(const route of entry.routes) {
+          assert.equal(route.invocation['name'],route.handler);
+          assert.ok(route.definition!==null && typeof route.definition==='object');
+          const operations=Object.getOwnPropertyDescriptor(route.definition,'operations')?.value as Record<string,{event:string;invocation?:unknown}>;
+          for(let broad=0;broad<70;broad++) {
+            assert.equal(operations[`routing.broad_${broad}`]?.event,'routing.Broad');
+            assert.equal(Object.hasOwn(operations[`routing.broad_${broad}`]!,'invocation'),false,
+              'unrelated headers remain complete without borrowing their invocation payload');
+          }
+          for(const sibling of entry.routes) {
+            assert.deepEqual(operations[sibling.handler]?.invocation,sibling.invocation,
+              'every source-group view retains every complete sibling invocation');
+          }
+          assert.equal(Object.hasOwn(operations[`routing.changed_${1-index}`]!,'invocation'),false,
+            'independent committed source groups keep their own invocation payload');
+        }
+      }
+      const completionHandlers=new Set<string>();
+      for(const completion of composed.standardCompletions?.values() ?? []) for(const route of completion.routes) {
+        completionHandlers.add(route.handler);
+        assert.equal(route.invocation['name'],route.handler);
+        assert.ok(route.definition!==null && typeof route.definition==='object');
+        const operations=Object.getOwnPropertyDescriptor(route.definition,'operations')?.value as Record<string,{event:string;invocation?:unknown}>;
+        assert.ok(operations[route.handler]?.invocation);
+        for(let broad=0;broad<70;broad++) {
+          assert.equal(operations[`routing.broad_${broad}`]?.event,'routing.Broad');
+          assert.equal(Object.hasOwn(operations[`routing.broad_${broad}`]!,'invocation'),false);
+        }
+      }
+      for(const handler of ['invoice.collected','invoice.refunded','invoice.checkout_cancelled','invoice.reconciled']) {
+        assert.ok(completionHandlers.has(handler),handler);
+      }
+      const routingCallable=routingArtifact.callables.find(value=>value.id==='routing.changed_0');assert.ok(routingCallable);
+      const originalModule=await import(routingAsm.moduleUrls[routingCallable.module]!);
+      const originalOperations=originalModule.appDefinition.operations as Record<string,{event?:string;invocation?:unknown}>;
+      const pending:unknown[]=Object.values(originalOperations).filter(value=>typeof value.event==='string').map(value=>value.invocation);
+      let invocationNodes=0;
+      while(pending.length) {
+        const value=pending.pop();invocationNodes++;
+        if(Array.isArray(value)) pending.push(...value);
+        else if(value!==null && typeof value==='object') pending.push(...Object.values(value));
+      }
+      assert.ok(invocationNodes>20000,'real composed private invocation metadata exceeds the old aggregate snapshot bound');
+      const originalCensus=routingArtifact.committedChanges!;
+      for(const mutation of ['omitted','changed-handler','changed-invocation'] as const) {
+        const altered=structuredClone(routingArtifact);
+        if(mutation==='omitted') altered.committedChanges=altered.committedChanges!.filter(value=>value.source!=='routing.Item_0.updated');
+        if(mutation==='changed-handler') altered.committedChanges!.find(value=>value.source==='routing.Item_0.updated')!.handlers=['routing.changed_1'];
+        const before=`committedChanges:${JSON.stringify(originalCensus)}`;
+        const after=`committedChanges:${JSON.stringify(altered.committedChanges)}`;
+        let changed=0;
+        for(const module of altered.modules) {
+          if(mutation==='changed-invocation') {
+            const original='invocation:{"name":"routing.changed_0"';
+            if(module.js.includes(original)) {module.js=module.js.replaceAll(original,'invocation:{"name":"routing.changed_1"');changed++;}
+          } else if(module.js.includes(before)) {module.js=module.js.replaceAll(before,after);changed++;}
+        }
+        assert.ok(changed>0,mutation);
+        const rejected=await assembleModules({artifact:altered,sourcePath:routingSource},{workDir:join(directory,mutation),
+          stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+        await assert.rejects(loadCanonicalDescriptors(rejected,altered),
+          /omitted a matching handler|different private invocation|repeats or lacks|source handler/,mutation);
+      }
       const { stdout } = await promisify(execFile)(compiler,
         ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, compiledSource],
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });

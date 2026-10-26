@@ -2235,8 +2235,12 @@ function readDeclaredMember(value: unknown, key: string, where: string): unknown
 }
 
 function assertReadByAgreement(where: string, by: unknown, spellings: unknown): void {
-  if (by !== undefined && (!Array.isArray(spellings) || spellings.length !== 1 || spellings[0] !== by)) {
-    throw new Error(`${where}: checked by declaration/policy disagreement.`);
+  if (by !== undefined) {
+    if (!Array.isArray(spellings) || spellings.length !== 1 ||
+        stableStringify(mapScenarioPolicyToBy(where, { by: [by] })) !==
+          stableStringify(mapScenarioPolicyToBy(where, { by: spellings }))) {
+      throw new Error(`${where}: checked by declaration/policy disagreement.`);
+    }
   }
   if (by === undefined && spellings !== undefined) {
     throw new Error(`${where}: policy claims an undeclared by gate.`);
@@ -16239,7 +16243,7 @@ async function loadCheckedStandardCompletions(asm: AssembledModules, artifact: C
       }
       // Retain checked data, so a later exported-object mutation cannot change
       // both sides of the next correspondence comparison.
-      const snapshot = committedSourceData({ ...committedSourceDefinition(definition),
+      const snapshot = committedSourceData({ ...committedSourceDefinition(definition, new Set(handlers as string[])),
         standardCompletions: census, events: { [event]: { inputs } },
       });
       routes.push(Object.freeze({ handler, definition: snapshot, invocation, cohort })); listed.add(handler);
@@ -16551,16 +16555,17 @@ function committedSourceData(value: unknown): unknown {
   return copy(value, 0);
 }
 
-/** Source routing consumes declaration data, not executable model defaults or
- * unrelated public operation closures in the same verified app definition. */
-function committedSourceDefinition(raw: unknown): Record<string, unknown> {
+/** Keep the complete private event census, but snapshot invocation payloads
+ * only for this source's checked handlers. Unrelated source families retain
+ * their own bounded views; omitted handlers remain visible in the headers. */
+function committedSourceDefinition(raw: unknown, handlers: ReadonlySet<string> = new Set()): Record<string, unknown> {
   const definition = localPolicyObject(raw);
   const operations = localPolicyObject(localPolicyMember(definition, 'operations'));
   const privateOperations = Object.fromEntries(Object.keys(operations).flatMap(name => {
     const operation = localPolicyObject(localPolicyMember(operations, name));
     const event = localPolicyMember(operation, 'event');
     return typeof event === 'string' ? [[name, { event,
-      invocation: localPolicyMember(operation, 'invocation') }]] : [];
+      ...(handlers.has(name) ? { invocation: localPolicyMember(operation, 'invocation') } : {}) }]] : [];
   }));
   const models = localPolicyObject(localPolicyMember(definition, 'models'));
   const containment = Object.fromEntries(Object.keys(models).map(name => [name, {
@@ -16581,6 +16586,15 @@ async function loadCheckedCommittedChanges(asm: AssembledModules, artifact: Comp
   const census = nativeCallArray(committedSourceData(readMetadataMember(artifact, 'committedChanges', where)?.value ?? []), 200)
     .map(value => localPolicyObject(value, ['source', 'model', 'change', 'handlers']));
   const definitions = new Map<string, Record<string, unknown>>();
+  const sourceDefinitions = new Map<string, ReadonlyMap<string, Record<string, unknown>>>();
+  const scopes = census.map(value => {
+    const source = localPolicyMember(value, 'source');
+    const handlers = nativeCallArray(localPolicyMember(value, 'handlers'), 200);
+    if (typeof source !== 'string' || handlers.some(handler => typeof handler !== 'string')) {
+      throw new AssemblyCorrespondenceError('Committed source lacks its checked source/handler identities.');
+    }
+    return { source, handlers: handlers as string[] };
+  });
   for (const module of artifact.modules) {
     const imported = await importVerifiedAssemblyModule(asm, module.path, artifact);
     const raw = readMetadataMember(imported as object, 'appDefinition', where)?.value;
@@ -16590,7 +16604,16 @@ async function loadCheckedCommittedChanges(asm: AssembledModules, artifact: Comp
     if (stableStringify(published) !== stableStringify(census)) {
       throw new AssemblyCorrespondenceError('Committed source artifact and module census differ.');
     }
+    // Capture every required source view before importing another module:
+    // a later import must not change the original declaration on both sides.
+    const views = new Map<string, Record<string, unknown>>();
+    for (const scope of scopes) {
+      if (artifact.callables.some(callable => callable.kind === 'handler' && callable.module === module.path && scope.handlers.includes(callable.id))) {
+        views.set(scope.source, committedSourceDefinition(raw, new Set(scope.handlers)));
+      }
+    }
     definitions.set(module.path, definition);
+    sourceDefinitions.set(module.path, views);
   }
   const result = new Map<string, CheckedCommittedChange>();
   const listed = new Set<string>();
@@ -16612,7 +16635,7 @@ async function loadCheckedCommittedChanges(asm: AssembledModules, artifact: Comp
       if (matches.length !== 1 || callable === undefined || callable.member.length !== 1 || callable.member[0] !== handler) {
         throw new AssemblyCorrespondenceError('Committed source handler lacks its exact callable.');
       }
-      const definition = definitions.get(callable.module);
+      const definition = sourceDefinitions.get(callable.module)?.get(source);
       if (definition === undefined || localPolicyMember(localPolicyObject(localPolicyMember(definition, 'packages')), ownerPackage) === undefined) {
         throw new AssemblyCorrespondenceError('Committed source handler lacks its checked package/module.');
       }

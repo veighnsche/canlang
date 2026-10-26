@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,7 +13,7 @@ import { resolveIdentity, sha256HexText } from '@canlang/identity';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { createMemoryStorage } from '@canlang/state/storage/memory';
 import { asId, asModel, asVersion, makeBatch, makeRow } from '@canlang/state/testing/invocation/fixtures';
-import { assembleModules } from './modules.js';
+import { assembleModules, importVerifiedAssemblyModule } from './modules.js';
 import { invokeReadCanonical } from './invoke.js';
 
 const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
@@ -31,6 +31,60 @@ it('reports exact current hidden resource and calendar evidence by owner authori
   { timeout: 120000 }, async () => {
     const directory = await mkdtemp(join(tmpdir(), 'can-rent-resource-report-'));
     try {
+      // Structured guards are independently emitted objects. Match their
+      // checked meaning without granting an otherwise denied caller access.
+      const guardSource = join(directory, 'read-guards.can');
+      await writeFile(guardSource, `app ReadGuards
+Given
+ role reviewer
+When
+ scenario inspect() read=true -> bool by=(members and not owner) or reviewer
+  do return true
+Then
+`);
+      const guardOutput = await promisify(execFile)(compiler,
+        ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, guardSource],
+        { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+      const guardArtifact = JSON.parse(guardOutput.stdout) as CompileArtifact;
+      const guardAssembly = async (name: string) => assembleModules({ artifact: guardArtifact, sourcePath: guardSource },
+        { workDir: join(directory, name), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib') });
+      const guardAsm = await guardAssembly('read-guards');
+      const guardIdentities = createMemoryIdentityStore({ clock: createFrozenClock(now) });
+      const guardTeam = await guardIdentities.createTeam({});
+      for (const mode of ['member', 'owner', 'reviewer'] as const) {
+        const user = await guardIdentities.createUser({ email: `${mode}@structured-read.test`,
+          password_hash: 'unused', email_verified: true });
+        await guardIdentities.createMembership({ team_id: guardTeam.team_id, user_id: user.user_id,
+          is_owner: mode !== 'member', roles: mode === 'reviewer'
+            ? [{ role: 'ReadGuards.reviewer', granted_at: nowIso, granted_by: user.user_id }] : [] });
+        const token = `structured-read-${mode}`;
+        await guardIdentities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
+          last_team_id: guardTeam.team_id, expires_at: new Date(now + 3600000).toISOString() });
+        const identity = await resolveIdentity(guardIdentities, { session_token: token }, { clock: createFrozenClock(now) });
+        const read = (asm = guardAsm) => invokeReadCanonical({ asm, artifact: guardArtifact,
+          operation: 'ReadGuards.inspect', inputs: {}, identity, store: createMemoryStorage(),
+          memberships: guardIdentities, now: () => now });
+        if (mode === 'owner') await assert.rejects(read(), (error: unknown) => (error as { code?: string })?.code === 'forbidden');
+        else assert.equal((await read() as { result: boolean }).result, true, mode);
+        if (mode === 'member') {
+          for (const kind of ['different-role', 'getter', 'cycle', 'extra-term'] as const) {
+            const selected = await guardAssembly(kind);
+            const entry = guardArtifact.modules[0]!;
+            const emitted = await importVerifiedAssemblyModule(selected, entry.path, guardArtifact) as {
+              appDefinition: { operations: Record<string, { by: unknown }> };
+            };
+            const declaration = emitted.appDefinition.operations['ReadGuards.inspect']!;
+            let getterCalls = 0;
+            if (kind === 'different-role') declaration.by = { role: 'ReadGuards.other' };
+            if (kind === 'getter') declaration.by = Object.defineProperty({}, 'or', {
+              enumerable: true, get() { getterCalls++; return ['public']; } });
+            if (kind === 'cycle') { const cycle: { not?: unknown } = {}; cycle.not = cycle; declaration.by = cycle; }
+            if (kind === 'extra-term') declaration.by = { and: [declaration.by, 'public'] };
+            await assert.rejects(read(selected), /checked by declaration\/policy disagreement|malformed.*policy|malformed.*by|unknown policy member/);
+            assert.equal(getterCalls, 0, 'guard comparison cannot execute a getter');
+          }
+        }
+      }
       const probe = await readFile(source, 'utf8');
       const rent = await readFile(join(root, 'draft/apps/CanRent/CanRent.can'), 'utf8');
       const locations = await readFile(join(root, 'draft/shared/Locations.can'), 'utf8');
