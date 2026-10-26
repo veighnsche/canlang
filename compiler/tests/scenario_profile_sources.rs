@@ -540,15 +540,20 @@ fn original_required_profile_source_binding_types_schema_and_defaults_cannot_be_
         let (db, trees, resolve, types, effects) = raw(&changed);
         let owner = resolve.by_canonical[OWNER];
         let disclosure = analyze_scenario_disclosure(&db, &trees, &resolve, &types, &effects);
-        if case == 1 {
+        if case == 2 {
             assert!(
-                matches!(disclosure[&owner], ScenarioDisclosure::Complete(_)),
-                "source-owned helper now carries its checked formal and original field dependency"
+                matches!(disclosure[&owner], ScenarioDisclosure::Declined(_)),
+                "multiple-hop source receiver case {case}"
             );
         } else {
             assert!(
-                matches!(disclosure[&owner], ScenarioDisclosure::Declined(_)),
-                "copied/multiple-hop source receiver case {case}"
+                matches!(disclosure[&owner], ScenarioDisclosure::Complete(_)),
+                "{}",
+                if case == 1 {
+                    "source-owned helper now carries its checked formal and original field dependency"
+                } else {
+                    "copied alias keeps its original required reference and field dependency"
+                }
             );
         }
     }

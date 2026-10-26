@@ -11227,12 +11227,29 @@ fn constructor_count_source(
     let IrItemKind::Scenario { effects, .. } = &owner.kind else {
         return None;
     };
-    fn at_stage(
-        body: &[IrStmt],
+    fn loop_body_stage(body: &[IrStmt], mut stage: usize) -> Option<usize> {
+        for statement in body {
+            match statement {
+                IrStmt::Let { .. }
+                | IrStmt::Require { .. }
+                | IrStmt::Cancel { .. }
+                | IrStmt::Send { when: None, .. } => {}
+                IrStmt::Set { when: None, .. } | IrStmt::Create { when: None, .. } => stage += 1,
+                _ => return None,
+            }
+            if stage >= 200 {
+                return None;
+            }
+        }
+        Some(stage)
+    }
+    fn at_stage<'a>(
+        body: &'a [IrStmt],
         target: crate::analysis::NodeKey,
         mut stage: usize,
         depth: usize,
-    ) -> Option<(&TypedExpr, Span, usize)> {
+        disclosed: &'a [DisclosureEffect],
+    ) -> Option<(&'a TypedExpr, Span, usize)> {
         if depth >= 64 {
             return None;
         }
@@ -11259,12 +11276,28 @@ fn constructor_count_source(
                     ..
                 } => {
                     if native_count_create_input(then_branch, target).is_some() {
-                        return at_stage(then_branch, target, stage, depth + 1);
+                        return at_stage(then_branch, target, stage, depth + 1, disclosed);
                     }
                     if native_count_create_input(else_branch, target).is_some() {
-                        return at_stage(else_branch, target, stage, depth + 1);
+                        return at_stage(else_branch, target, stage, depth + 1, disclosed);
                     }
                     return None;
+                }
+                IrStmt::For { body, span, .. } => {
+                    // A preceding selected-profile/command loop advances the
+                    // mutation stage by its exact genuine body writes. The
+                    // loop keeps its original statement, domain and order:
+                    // only an exactly disclosed ForMember with countable
+                    // SET/CREATE body writes composes; any other body shape
+                    // stays refused, and the COUNT target is never matched
+                    // inside a loop body.
+                    if !disclosed.iter().any(|effect| {
+                        node_span(effect.node) == *span
+                            && matches!(effect.kind, DisclosureEffectKind::ForMember { .. })
+                    }) {
+                        return None;
+                    }
+                    stage = loop_body_stage(body, stage)?;
                 }
                 _ => return None,
             }
@@ -11274,7 +11307,7 @@ fn constructor_count_source(
         }
         None
     }
-    let (input, span, stage) = at_stage(effects, count.statement, 0, 0)?;
+    let (input, span, stage) = at_stage(effects, count.statement, 0, 0, &actual.effects)?;
     let IrExpr::Object(entries) = &input.expr else {
         return None;
     };

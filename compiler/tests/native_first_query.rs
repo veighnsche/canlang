@@ -7471,6 +7471,28 @@ fn original_prepare_branch_counts_keep_independent_current_domains() {
         operation["result"]["disclosure"].is_object(),
         "original full owner needs its real native receipt"
     );
+    // A preceding selected loop advances the constructor COUNT stage by its
+    // genuine body writes without commuting effect order: the same owner
+    // keeps its real native receipt with the loop's SET staged first.
+    let looped = source.replace(
+        "    if use_allowance or booking.allowance==pending",
+        "    for policy in booking.parent.ResourcePolicy as policy where policy.baseline limit=1\n     set booking {cancellation_reason=\"loop\"}\n    if use_allowance or booking.allowance==pending",
+    );
+    let (db, program, ir, catalog) =
+        fixture_source("rent-prepare-branch-count-loop.can", looped.as_str());
+    let _owner = item(&ir, "rent_reservations.prepare");
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let operation = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|value| value["name"] == "rent_reservations.prepare")
+        .unwrap();
+    assert!(
+        operation["result"]["disclosure"].is_object(),
+        "loop-first owner keeps its real native receipt at the advanced stage"
+    );
 }
 
 #[test]
