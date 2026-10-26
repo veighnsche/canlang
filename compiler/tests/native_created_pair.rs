@@ -547,22 +547,51 @@ fn same_span_pair_order_binding_reference_type_guard_and_source_mutants_refuse()
     let copied = SOURCE
         .replace("   create Turn", "   let copied=run\n   create Turn")
         .replace("+1,run}", "+1,run=copied}");
-    let (db, program, _, catalog) = checked(&copied, "copied-pair.can");
+    let (db, program, ir, catalog) = checked(&copied, "copied-pair.can");
     let (artifact, diagnostics) = prepared(&program, &db, &catalog);
-    assert!(
-        diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.code == "E6008"),
-        "copied Run: {diagnostics:?}"
+    // A source-authored alias is supported by the shared LET mechanism. It
+    // must retain the original CREATE identity and the same counted domain.
+    assert!(diagnostics.is_empty(), "copied Run: {diagnostics:?}");
+    assert_eq!(operation(&artifact)["result"]["type"], "CreatedPair.Run");
+    assert_plan(
+        &operation(&artifact)["result"]["disclosure"],
+        "copied-pair.can",
+        &sha256_hex(copied.as_bytes()),
     );
-    assert!(
-        artifact["operations"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|operation| operation["name"] == OWNER)
-            .is_none_or(|operation| operation["result"]["disclosure"].is_null())
-    );
+    let owner = item(&ir, OWNER).id;
+    for mode in ["alias-receiver", "alias-type", "alias-order"] {
+        let mut changed = ir.clone();
+        let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind else {
+            panic!("scenario")
+        };
+        if mode == "alias-order" {
+            effects.swap(0, 1);
+        } else {
+            let IrStmt::Let { value, .. } = &mut effects[1] else {
+                panic!("source-authored alias")
+            };
+            if mode == "alias-receiver" {
+                value.expr = IrExpr::Name("branch".into());
+            } else {
+                value.ty = ResolvedType::Record {
+                    symbol: item(&ir, "CreatedPair.Branch").id,
+                    stored: true,
+                };
+            }
+        }
+        assert!(
+            serialize_complete_query_receipt(
+                &program,
+                &changed,
+                &changed.items[owner.0 as usize],
+                &db,
+                Some(&catalog),
+                ENTRY,
+            )
+            .is_none(),
+            "{mode} must not borrow the genuine alias proof"
+        );
+    }
 }
 
 #[test]
