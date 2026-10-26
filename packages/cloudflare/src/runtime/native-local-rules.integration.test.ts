@@ -14,6 +14,10 @@ import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/
 import { hashInputs } from '@canlang/state/invocation/replay';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { distribution } from '@canlang/values/distribution';
+import { STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
+import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work/kernel/file-reference-inventory';
+import { installNativeFileInventory } from './file-inventory.js';
+import { captureVerifiedAssemblerArtifact, verifyAssemblerModuleCapability } from './assembly-verification.js';
 import { prepareLocalPreviewCapture } from './native-dev.test-support.js';
 import { captureIsCurrent, captureSingleFileSource } from './native-dev.test-support.js';
 import { compileCapturedSingleFile } from './native-dev.test-support.js';
@@ -348,6 +352,86 @@ it('refuses loss of the dedicated installed owner-session producer without legac
 
 it('refuses copied and swapped assemblies after native policy descriptors are cached', async () => {
   const loaded = await loadCanonicalDescriptors(asm, artifact);
+  const owned = await captureVerifiedAssemblerArtifact(asm, artifact);
+  assert.notStrictEqual(owned, artifact);
+  assert.deepEqual(owned, artifact);
+  for (const value of [owned, owned.modules, owned.modules[0]!, owned.sources[0]!]) assert.equal(Object.isFrozen(value), true);
+  assert.deepEqual(Reflect.ownKeys(owned.modules), Reflect.ownKeys(artifact.modules), 'no hidden source-array markers');
+  assert.equal(Reflect.set(owned.modules[0]!, 'js', 'changed'), false);
+  assert.throws(() => Object.setPrototypeOf(owned.sources[0]!, null), TypeError);
+  const fakeFrozen = structuredClone(artifact);
+  Object.freeze(fakeFrozen);
+  fakeFrozen.modules[0]!.js += '\nchanged';
+  await assert.rejects(verifyAssemblerModuleCapability(asm, fakeFrozen), /artifact differs/,
+    'a frozen caller object cannot borrow the issued snapshot shortcut');
+  const optionalCaller = structuredClone(artifact);
+  Object.defineProperty(optionalCaller, 'optionalUndefined', { value: undefined, enumerable: true });
+  assert.strictEqual(await captureVerifiedAssemblerArtifact(asm, optionalCaller), optionalCaller,
+    'own optional undefined keeps the ordinary original descriptor path');
+  for (const kind of ['getter', 'symbol', 'function', 'hidden', 'cycle'] as const) {
+    const altered = structuredClone(artifact);
+    let getterCalls = 0;
+    if (kind === 'getter') Object.defineProperty(altered, 'illegal', { enumerable: true, get() { getterCalls++; return null; } });
+    if (kind === 'symbol') Object.defineProperty(altered, Symbol('illegal'), { value: null, enumerable: true });
+    if (kind === 'function') Object.defineProperty(altered, 'illegal', { value: () => null, enumerable: true });
+    if (kind === 'hidden') Object.defineProperty(altered, 'illegal', { value: null });
+    if (kind === 'cycle') Object.defineProperty(altered, 'illegal', { value: altered, enumerable: true });
+    await assert.rejects(captureVerifiedAssemblerArtifact(asm, altered), /own JSON data/, kind);
+    assert.equal(getterCalls, 0, 'eligibility never invokes an accessor');
+  }
+  const repeated = structuredClone(artifact);
+  repeated.sources = [repeated.sources[0]!, repeated.sources[0]!];
+  await assert.rejects(captureVerifiedAssemblerArtifact(asm, repeated), /artifact differs/,
+    'a repeated DAG reaches the real artifact correspondence check, not a false cycle refusal');
+  const priorToJSON = Object.getOwnPropertyDescriptor(Object.prototype, 'toJSON');
+  let ownedSerializations = 0;
+  try {
+    Object.defineProperty(Object.prototype, 'toJSON', { configurable: true, value: function(this: unknown) {
+      if (this === owned) ownedSerializations++;
+      return this;
+    } });
+    await verifyAssemblerModuleCapability(asm, owned);
+    assert.ok(ownedSerializations >= 2, 'inherited toJSON forces the original before/after content comparison');
+  } finally {
+    if (priorToJSON === undefined) delete (Object.prototype as { toJSON?: unknown }).toJSON;
+    else Object.defineProperty(Object.prototype, 'toJSON', priorToJSON);
+  }
+  const now = Date.now(), identities = createMemoryIdentityStore({ clock: createFrozenClock(now) });
+  const team = await identities.createTeam({});
+  const scope = { app: 'NativeLocalRules', owner: team.team_id, ownerPackage: 'NativeLocalRules' };
+  const authority = { app: scope.app, stateOwner: scope.app, stateStoreId: 'snapshot-state', fileStoreId: 'snapshot-files',
+    receiver: { app: scope.app, owner: team.team_id, team: team.team_id } };
+  const { store: inventoryStore } = createTestMemoryStorage(authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+  const originalHash = artifact.sources[0]!.sha256;
+  try {
+    await assert.rejects(installNativeFileInventory({ artifact, asm, store: inventoryStore, authority, scope, now: () => now,
+      verifyOwner: async () => { artifact.sources[0]!.sha256 = 'changed-during-owner-hook'; } }), /original.*changed|differs/i);
+    assert.equal(await inventoryStore.readRevision(), 0, 'mutated caller metadata cannot install an inventory');
+  } finally { artifact.sources[0]!.sha256 = originalHash; }
+  for (const kind of ['undefined', 'getter'] as const) {
+    let getterCalls = 0;
+    try {
+      await assert.rejects(installNativeFileInventory({ artifact, asm, store: inventoryStore, authority, scope, now: () => now,
+        verifyOwner: async () => {
+          Object.defineProperty(artifact, 'lateMetadata', kind === 'getter'
+            ? { configurable: true, enumerable: true, get() { getterCalls++; return null; } }
+            : { configurable: true, enumerable: true, value: undefined });
+        } }), /own JSON data|artifact differs/);
+      assert.equal(getterCalls, 0, 'a hook cannot smuggle an accessor into original caller metadata');
+      assert.equal(await inventoryStore.readRevision(), 0);
+    } finally { Reflect.deleteProperty(artifact, 'lateMetadata'); }
+  }
+  const duringImport = structuredClone(artifact);
+  duringImport.modules[0]!.js += '\nglobalThis.__canSnapshotImportProbe();\n';
+  const importAssembly = await assembleModules({ artifact: duringImport, sourcePath: source }, {
+    workDir: join(staging, 'caller-mutation'), stdlibUrl: pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href });
+  const globals = globalThis as typeof globalThis & { __canSnapshotImportProbe?: () => void };
+  globals.__canSnapshotImportProbe = () => { duringImport.sources[0]!.sha256 = 'changed-during-module-import'; };
+  try {
+    await assert.rejects(installNativeFileInventory({ artifact: duringImport, asm: importAssembly, store: inventoryStore,
+      authority, scope, now: () => now, verifyOwner: async () => {} }), /artifact differs/);
+    assert.equal(await inventoryStore.readRevision(), 0, 'module import cannot replace the original caller metadata');
+  } finally { delete globals.__canSnapshotImportProbe; }
   const copied: AssembledModules = { ...asm, moduleUrls: { ...asm.moduleUrls } };
   const swapped = await assembleModules({ artifact, sourcePath: source }, {
     workDir: join(staging, 'swapped'),
