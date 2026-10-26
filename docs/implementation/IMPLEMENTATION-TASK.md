@@ -8,12 +8,13 @@ This is the executable task list for the [complete work inventory](WORK-INVENTOR
 
 ## Current baseline — 26 October 2026
 
-Implementation baseline: main `44eb8ce8`. Its latest complete original native
-capture has **14 E6008 diagnostics**, zero analysis errors, all 26 unchanged source
-records from the 24 original operands plus saved contributions, zero omissions and
-exit 10 in 341.79 seconds. Source records and diagnostic arrays are identical to
-the preceding `333f4fbe` capture. The draft submodule is initialized at `5749c75b`.
-Prototype results do not change this measured count until integrated and captured.
+The scoped ANY/Values compiler implementation has **13 E6008 diagnostics** in
+its complete original native capture: zero analysis errors, all 26 unchanged
+source records from the 24 original operands plus saved contributions, zero
+omissions, exit 10 in 488.72 seconds. Original `move_membership_days` clears;
+every other diagnostic object is identical to the preceding 14-diagnostic run.
+The draft submodule is initialized at `5749c75b`. Prototype results do not change
+this measured count until integrated and captured.
 
 The build repair, nullable receipt migration, WHERE/SELECT scopes, shared
 constructor COUNT/returned-Model/Values joins, checked Model cohorts, selected
@@ -46,7 +47,7 @@ applies to its required output, not to every activity in the preceding row.
 | 3. **Z04a — Repair fulfill_free's missing query/schema join** | Trace checked owner facts separately from `checked_stored_contracts_inner`, its parameter/expression/decision/query/create/observer seeds and closed schema inventory. Repair the failing producer in `scenario_disclosure.rs` / `scenario_queries.rs`; rejoin through `scenario_receipts.rs`. Coordinator owns attribution; query writer owns agreed producer changes. | Original CanRent:1030 gets a fully checked plan and executes its complete constructor/guard body. Attribution now confirms owner facts exist but the observer-field declaration census counted 16,385 visits for only 2,447 distinct source nodes. The shared census now deduplicates exact source nodes while retaining its 16,384-distinct-node bound; all 99 existing Native FIRST/hook integrations and all-target Clippy pass. The complete original24 native run now clears fulfill_free and retains all other diagnostic objects unchanged: 14 remain, with 26 identical source records and zero omissions. Original fulfill_free runtime acceptance remains open. No broadened schema matching or waived guard census. Depends only on the identified producer output. |
 | 4. **Z05a — Qualify the original hold/day runtime consumers** | Use the unchanged original composition and complete prepared modules with `packages/state` and Cloudflare runtime. Query/runtime writer owns the existing booking recipient. Remove temporary diagnostic export/logging changes before publication. | Actual hold and hold_days execute native CREATE/SET/event/schedule/order/rollback/replay paths; move_days uses its genuine Values/COUNT dependencies. Partial diagnostic exports may aid investigation but cannot close Z17 or certify the complete artifact. The Cloudflare facade now re-exports the existing Values `action`, `divideDecimal`, `lower`, `round` and `subtractDecimal` producers. All 112 actual emitted stdlib imports resolve and the CF emit/type build passes. Original hold/day runtime execution is still under qualification; do not rewrite the artifact or strip owners. Keep Z16a as a dependency only if its binding is actually needed. |
 | 5. **Z18a — Finish unchanged Chat native closures** | Compiler analysis/codegen plus State loop/receipt execution: share exact returned CREATE handling, declared nominal scalar observation and closed per-item conditional SEND/SET accounting. Browser/security lane owns its isolated candidate; coordinator merges shared files. | Unchanged `original_chat_model_policies` integration and actual original Chat runtime pass. Whole owning-field DATA permission and genuine protected File observation remain required. True/false branches, missing grants, races and replay pass without fixture/source edits or a fake File observer. The unchanged original Chat now compiles with zero diagnostics and its original pure-policy callbacks pass. The integrated candidate passes 100 Native FIRST/hook/original Chat Rust integrations, all-target Clippy, State/CF builds and the complete existing SEND scalar DATA integration (15.87 seconds). This includes conditional skips, genuine attached Files, whole-field denials, Identity/field/File races, rollback/history and replay. Five additional native receipt integrations pass at the feature-branch scope. Full Chat application acceptance remains separate under B23; withheld request fields remain denied. This is a CI repair outside the measured diagnostic table; final GitHub CI remains pending. |
-| 6. **Z06 / Z14c — Finish membership and account consumers** | Reuse sealed ANY/Values facts and selected BillingProfile reference/version observations. Complete the original account receipt after Z14a removes its analysis bound. Compiler consumer and State runtime owners. | Original CanRent:531 and :1041 lower and execute with all original guards, finite domain and current authority. Empty/mismatched profile, hidden DATA, stale/revoked reference, late failure and replay behave correctly. Account prototype's later generic refusal remains open. |
+| 6. **Z06 / Z14c — Finish membership and account consumers** | Reuse sealed ANY/Values facts and selected BillingProfile reference/version observations. Complete the original account receipt after Z14a removes its analysis bound. Z06 now composes the sealed contained ANY and Values proof through shared source/IR, declared enum predicate, admitted parent and complete CONTROL census. The integrated three-file candidate passes 106 existing compiler/query integrations (including six new runtime cases), formatting, and the complete original13 capture. Full original move_membership_days runtime acceptance remains open. Compiler consumer and State runtime owners. | Original CanRent:531 and :1041 lower and execute with all original guards, finite domain and current authority. Empty/mismatched profile, hidden DATA, stale/revoked reference, late failure and replay behave correctly. Account prototype's later generic refusal remains open. |
 | 7. **Z12 → Z13 → Z15 — Arrival, cancellation, then parent CALLs** | Complete the original dates/helper/query closure; support ordered Movement observations after prior writes; consume complete child plans through the existing same-owner CALL mechanism. Analysis/query, receipt and State owners hand off exact facts. | Original arrive and cancel_booking pass first, then check_in/cancel. Preserve full arguments/context, child effects, late parent rollback, grant/time boundaries and replay. Clears six measured diagnostics only when the full capture confirms it. |
 | 8. **Z07 → Z08 → Z09 → Z10 → Z11 — Refer settlement** | Finish exact loop/LET/conditional-CREATE/Model-result analysis; independently join fresh source/IR; execute repeated staged queries under State's private item lease; retain all ordered occurrence/DATA/replay witnesses. Compiler producer, compiler consumer and State protocol writers work sequentially on shared files. | Original settle positive/empty/multi-item/overflow/late-failure workflow works with exact Credit order, created Settlement parent and conditional Allocation effects. Forged/missing/reordered witnesses, wrong parent/item, stale phase and withheld grants refuse. Removes five measured diagnostics when confirmed; preserve all seven existing WIP files. |
 | 9. **Z18b — Resolve the three real CI timeouts** | Reproduce Event change/routing, original booking/rescheduling and original Mail triage separately against coherent production outputs. Attribute time to compile, module binding, database, work or runtime before changing that owner. Runtime/CI writer. | Complete original recipients pass with their denial, race, rollback and replay cases. Remove repeated work or fix termination where demonstrated; no blind timeout increases, hidden skips or reduced cases. Reuse existing qualified Invoice and nullable SEND results. |
@@ -68,18 +69,18 @@ to the existing runtime tasks, rather than a separate optimization project:
 | Original location | Count | Implementation tasks |
 | --- | ---: | --- |
 | CanRefer:69, 72, 79, 80, 84 | 5 | Z07–Z11 |
-| CanRent:531 | 1 | Z06 |
 | CanRent:742 | 1 | Z12 |
 | CanRent:769 | 1 | Z13 |
 | CanRent:1041 | 1 | Z14a / Z14c / Z14 |
 | CanRent:1748, 1750, 1756, 1758 | 4 | Z15 after Z12/Z13 |
 | CanShift:188 | 1 | Z16a |
-| **Complete current capture** | **14** | **Z17 measures the integrated result** |
+| **Complete current capture** | **13** | **Z17 measures the integrated result** |
 
 A workflow may emit several diagnostics; a cleared refusal may expose a later one.
 Neither task counts nor compiler acceptance alone are runtime completion counts.
-Original CanRent:1030 (fulfill_free) cleared through Z04a; Z04 stays open for
-its actual original runtime acceptance.
+Original CanRent:1030 (fulfill_free) cleared through Z04a; CanRent:531
+(move_membership_days) clears through Z06. Z04 and Z06 remain open for their
+complete original runtime acceptance.
 
 ## Completion criteria for the zero-diagnostic objective
 

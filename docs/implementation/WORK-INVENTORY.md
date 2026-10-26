@@ -3,10 +3,10 @@
 Use the [implementation task](IMPLEMENTATION-TASK.md) for the dependency-ordered
 checklist and completion criteria. Zero native diagnostics is its primary objective.
 
-Current execution baseline: **26 October 2026, main `333f4fbe`**, initialized draft
+Current execution baseline: **26 October 2026, scoped ANY/Values compiler**, initialized draft
 submodule `5749c75b`. The malformed `a0918b49` baseline was repaired as `73094a16`
 and independently validated; that repair is complete. The latest complete native
-capture of the compiler feature source has **14 diagnostics**, as detailed below.
+capture of the compiler feature source has **13 diagnostics**, as detailed below.
 This inventory separates delivered work, current failures, unfinished local work,
 broader product requirements and optional proposals. Older roadmap IDs overlap;
 they are not an additive count of defects or an effort estimate.
@@ -17,15 +17,15 @@ The immediate objective remains zero native diagnostics for the original 24-sour
 
 | Area | Verified position | Remaining work |
 | --- | --- | --- |
-| Original native composition | `333f4fbe`: 14 E6008 diagnostics, zero analysis errors, 26 unchanged source records, zero omissions, exit 10, 421.30 seconds. Fulfill_free now lowers through the shared distinct-node declaration census; every other diagnostic is unchanged. Original hold/day-hold/day-move/review_swap refusals remain cleared. | Finish remaining native closures and actual original runtime acceptance; produce the complete usable artifact. |
+| Original native composition | Scoped ANY/Values: 13 E6008 diagnostics, zero analysis errors, 26 unchanged source records, zero omissions, exit 10, 488.72 seconds. Original move_membership_days now lowers; every other diagnostic object is identical to the preceding 14-diagnostic run. Fulfill_free remains lowered through the shared distinct-node declaration census. Original hold/day-hold/day-move/review_swap refusals remain cleared. | Finish remaining native closures and actual original runtime acceptance; produce the complete usable artifact. |
 | Main | Z00 restores the intended created-version implementation in all six misplaced files; the repair uses the exact source validated in isolation. | Obtain current CI and original-corpus results; preserve unfinished WIP outside the repair. |
 | Focused verification | Against the working tree, 68 native receipt compiler integrations and seven query producer integrations pass. Nullable helper production integration passes all 11 modes and existing cases. Created-version cases cover CREATE, optional SET, replay, conflicts and forged/missing observations. Clippy and both test-policy gates pass at their recorded working checkpoints. | The isolated Z00 repair separately passes these focused integrations and workspace checks. Full compiler, browser, installed-package and original application coverage remain distinct checks. |
-| Latest inspected CI | [Commit `d0248133`](https://github.com/veighnsche/canlang/actions/runs/40240156644): browser/security passed; compiler and workspace failed. Compiler exposes four original Chat closures. Workspace exposes three runtime timeouts, two Invoice native created-root registrations and an obsolete-or-regressed event-SEND refusal expectation. | Obtain all three completed green jobs on final source; running jobs do not prove success. |
+| Latest inspected CI (partial) | [Commit `333f4fbe`](https://github.com/veighnsche/canlang/actions/runs/40250937455): browser/security passed; compiler failed the obsolete copied-CREATE-reference refusal expectation; workspace was still running at inspection. That expectation is fixed in `a4e12da4` with genuine alias admission and wrong receiver/type/order refusals. The earlier original Chat compiler closures are repaired in `44eb8ce8`; earlier Invoice and nullable SEND repairs retain their actual local scope. | Obtain all three completed green jobs on final source; pending/running jobs and local passes do not establish final CI success. |
 | Earlier CI | At `14d92c78`, browser/security passed; compiler/editor and workspace/installed-artifacts failed. | Diagnose the earlier test failure after the current build blockers; inspect any separate workspace failure once builds are repaired. |
 | Release | [Linux x86-64 v0.1.2](https://github.com/veighnsche/canlang/releases/tag/v0.1.2) exists, targeting `8301d40f`. | Changes after that release are not in the published archive. Qualify final Linux artifacts when a new release is wanted. Mac release remains deferred by user instruction. |
 | Local work | Seven tracked code files in the normal worktree retain the unfinished Refer aggregate packet. The returned-primary COUNT and required-reference loop-parent mechanisms are now qualified. Isolated account-body and private-cohort extensions remain unfinished. Z03's WHERE/SELECT binding implementation is committed as `ac5fe4d6`; original day-hold/day-move now lower through the shared Values-plus-COUNT mechanism. Original runtime qualification and account/cohort work continue. | Keep unfinished aggregate and isolated extensions separate from qualified commits without losing another packet's work. No temporary receipt tracing remains in source. |
 
-The current native count comes from `/tmp/canlang-observer-dedup-original24.json`; its preceding 15-diagnostic comparison is `/tmp/canlang-fulfill-producer-native.json`. This is a diagnostic capture, not a successful full-corpus artifact. Temporary logs are useful local evidence, not retained release assets.
+The current native count comes from `/tmp/canlang-z06-integrated-no-js-original24.json`; its preceding 14-diagnostic comparison is `/tmp/canlang-chat-integrated-original24.json`. This is a diagnostic capture, not a successful full-corpus artifact. Temporary logs are useful local evidence, not retained release assets.
 
 ## Work already delivered
 
@@ -50,8 +50,11 @@ Detailed earlier completion evidence remains in [the audit checklist](../ideal-f
 
 ## Immediate native work
 
-The latest complete original-corpus capture on `333f4fbe` has **14 diagnostics**,
-26 unchanged source records and no omissions (421.30 seconds). Original fulfill_free
+The latest complete original-corpus capture has **13 diagnostics**,
+26 unchanged source records and no omissions (488.72 seconds). Original
+move_membership_days now lowers through shared scoped ANY/Values correspondence.
+Its six focused runtime cases and full 106 compiler/query integrations pass;
+complete original workflow runtime acceptance remains open. Original fulfill_free
 now lowers; the observer-field census had revisited only 2,447 distinct nodes
 16,385 times. Deduplicating this declaration-only walk retains the 16,384 unique-node
 bound and all runtime/permission/occurrence checks. Its 99 focused Rust integrations
@@ -62,13 +65,12 @@ by the compiler. Use the implementation task’s current queue for execution ord
 | Work | Current source | Diagnostics | Remaining mechanism and acceptance |
 | --- | --- | ---: | --- |
 | Refer settlement | CanRefer:69, 72, 79, 80, 84 | 5 | Complete bounded Credit loop with repeated staged SUM queries, conditional Allocation CREATE and original Settlement return. Preserve actual order, parent/item identity, local query outcomes, DATA permissions, finite budgets and replay witnesses. Then qualify the original settle workflow. |
-| Membership day movement | CanRent:531 | 1 | Compose the genuine leading Movement ANY with Values-query influence census. Preserve all original ANY dependencies; admitting Values alone is insufficient. Then qualify later body stages. |
 | Arrival | CanRent:742 | 1 | Support the original is_open helper's dates/collection closure with exact nested query/capture authority. |
 | Cancellation | CanRent:769 | 1 | Complete the original Movement query closure and ordered cancellation workflow, including its stored query after earlier writes. |
 | Account confirmation | CanRent:1041 | 1 | Establish the original finite mutation owner for the filtered BillingProfile domain and execute the complete body. |
 | Parent check-in/cancel calls | CanRent:1748/1750 and 1756/1758 | 4 | Complete arrive/cancel_booking child receipts first, then original parent CALL closure, authority, ordering, rollback and replay. Two child-closure failures and two CALL failures are counted here. |
 | Shift reconciliation | CanShift:188 | 1 | Review_swap now lowers and passes the real cohort runtime matrix. The newly checked native outer DATA phase refuses reconcile; join it to its genuine native receipt observations without dropping required loans or using raw getters. |
-| **Total** | **24 original operands retained** | **14** | **Repeat the complete native compile after qualified changes; a changed refusal reason is not a completed workflow.** |
+| **Total** | **24 original operands retained** | **13** | **Repeat the complete native compile after qualified changes; a changed refusal reason is not a completed workflow.** |
 
 Original hold, hold_days and move_days now lower; their exact original runtime journeys remain open. Existing shared constructor/Values runtime cases already pass permission, stale/race, rollback and replay controls.
 
@@ -271,7 +273,7 @@ These are the existing roadmap rows, grouped under the consolidated inventory ab
 
 | Existing requirement | Recorded outcome or residual | Current disposition |
 | --- | --- | --- |
-| CAN18 outcome14; challenge:T41 current corpus component | Produce the missing post-release original24 composition result and truthful root attribution. | Current capture completed: 14 diagnostics; native repairs and final artifact qualification remain open. |
+| CAN18 outcome14; challenge:T41 current corpus component | Produce the missing post-release original24 composition result and truthful root attribution. | Current capture completed: 13 diagnostics; native repairs and final artifact qualification remain open. |
 | FP.QUALIFY; challenge:T37–T40/G3/G4; SEQ-025/026/040; DFE-05 | Finish full original app/companion required workflow matrices once each. | Roadmap residual; revalidate completed subparts before implementation. |
 | FP.INSTALLED-RELEASE; ports:C04.complete | Finish changed final source/producer/dependency/browser/vendor/native full installed release closure. | v0.1.2 Linux published; final changed release qualification remains. |
 | FP.UPGRADE-JOIN; SEQ-027; CAN18 outcome15/C21/S9-Q08 | Finish original predecessor→desired schema/default/lock/retained-work staged upgrade and recovery. | Contract/unique-claim fix completed; installed binding/custody/activation remains. |
