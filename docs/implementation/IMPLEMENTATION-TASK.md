@@ -6,61 +6,69 @@ Bring the complete original 24-source CanLang draft composition to **zero native
 
 This is the executable task list for the [complete work inventory](WORK-INVENTORY.md). Work through the zero-diagnostic sequence first. The wider inventory is assigned concrete follow-on tasks below; pull one forward only when it supplies a demonstrated dependency of the zero-diagnostic work. Optional proposals do not expand the objective automatically.
 
-The latest complete original-corpus capture of the feature source committed as `18cd1d34` has 15 diagnostics, zero analysis errors, 26 unchanged source records and no omissions (exit 10, 770.65 seconds). Original review_swap now lowers, while the new fail-closed outer-DATA phase check exposes reconcile at CanShift:188; no net reduction is claimed. The original hold, hold_days and move_days compiler refusals are gone; their original runtime qualification remains open. The malformed `a0918b49` snapshot has been repaired and independently validated. Preserve the unfinished Refer aggregate work and isolated account/cohort extensions; only qualified changes belong on main.
+## Current baseline — 26 October 2026
 
-## Current execution status
+Implementation baseline: main `06533885`. The latest qualified complete native capture
+of its compiler feature source (`18cd1d34`; subsequent changes are State/test/docs)
+has **15 E6008 diagnostics**, zero analysis errors, all 26 unchanged source records
+from the 24 original operands plus saved contributions, zero omissions and exit 10
+in 770.65 seconds. The draft submodule is initialized at `5749c75b`.
 
-Z00–Z02 are complete (`73094a16`, `8e01cfaa`). Z03's compiler and real-runtime
-binding fix is committed as `ac5fe4d6`: WHERE and SELECT have their correct
-separate scopes, and granted/unreadable filters, withheld SELECT fields and
-filtered-empty results pass the existing integrations. The original day workflows
-remain blocked by other receipt correspondence, so Z03's full original-consumer
-completion is still open. Its complete 24-operand capture finishes in 232.56
-seconds with 18 diagnostics, 26 source records and zero omissions; both source
-and diagnostic arrays match the repaired Z01 baseline. No diagnostic reduction
-is claimed for this packet. Z04's shared producer/emitter mechanism is now committed
-as `802d8fd4`: the existing real State integration passes its single/many-guard
-permission, stale-reference, hidden-sibling, race and replay matrix. Its full
-capture takes 314.19 seconds and still has 18 diagnostics with the same 26
-source records. Original fulfill_free advances beyond the old first-query
-refusal but still lacks its complete source-guard receipt; Z04 remains open at
-that original-workflow boundary. Proceed with Z05's exact returned-primary
-constructor association while retaining that closure work.
+The build repair, nullable receipt migration, WHERE/SELECT scopes, shared
+constructor COUNT/returned-Model/Values joins, checked Model cohorts, selected
+profile reference/version observations, generated hook lexical bindings and native
+void CREATE-prefix binding have landed. Original hold, hold_days, move_days and
+review_swap now lower. Their scope-specific passing integrations are reusable;
+complete original runtime qualification remains required where still open.
 
-The shared Z05 association now qualifies an exact returned primary Model with
-auxiliary constructor COUNTs, retaining the original full-body, query/schema,
-return-influence and separate result-policy checks. All 84 existing focused Rust
-integrations pass. A second qualified mechanism lets source-owned loops follow
-one required reference after bounded containment, using the existing effect-path
-field permissions and final association fences. Their combined State/Cloudflare
-builds, all-target Clippy and both real runtime recipients pass, including hidden
-rows/fields, stale input, Identity/domain/reference races, rollback and replay.
-Neither mechanism alone closes the original hold or confirm_account workflow.
-The original d0248133 capture still has 18 diagnostics and 26 identical sources
-in 238.44 seconds; a temporary trace localizes fulfill_free to the query-plan
-join before effect handling. Tracing is removed from the proposed source. The combined full capture finishes in 267.60 seconds with 17 diagnostics: original hold lowers, hold_days remains refused. Fulfill_free has a valid constructor census but no supplied query plan, so its next investigation is the original plan producer, not a broader census allowance.
+The latest fully inspected CI run (`d0248133`) passed browser/security and failed
+compiler/editor and workspace/installed artifacts. Its Invoice created-root failures
+and obsolete event-SEND expectation have since been repaired and exercised locally.
+The original Chat closures and Event, booking/rescheduling and Mail runtime timeouts
+remain open until qualified on current source. No all-green final CI is claimed.
 
-The shared Values-plus-COUNT composition removes two incompatible influence gates, retaining exact query facts, the complete original primary CREATE/Return and independent Values DATA checks. All 84 focused Rust integrations and the existing real State runtime matrix pass, including withheld Item DATA, empty Values, hidden siblings, Identity/item races and replay. Its complete original24 run exits 10 in 314.11 seconds with 15 diagnostics, 26 identical source records and zero omissions: hold_days and move_days now lower. Their complete original runtime qualification, membership ANY-plus-Values, and the remaining closures stay open.
+Seven code files in the normal checkout contain unfinished Refer work. Preserve
+that work and use coherent isolated candidates. Account proof reuse and Chat loop
+work are prototypes under qualification, not main behavior and not reductions in
+the measured count.
 
+## Next implementation queue
 
-GitHub confirms the repaired syntax/build stages and browser/security job pass
-at `73094a16`. Its earlier nullable-receipt assertion failure is fixed by Z02;
-its workspace run additionally exposes the selected original CanCreative publish
-fixture's first nullable stored-delivery selector, `revision.validation?.status`.
-The bounded fix now qualifies the original State/Work observation join, exact
-declared selector/schema and required original receiver. Its unchanged original
-SQLite/R2/Work publication journey passes, including a new status-only grant
-that denies result DATA without writes; all five existing native receipt
-integrations pass. No runtime trust/API change is needed. The combined compiler
-with COUNT also passes Clippy for all targets. `3513cbc1` fixes a separate obsolete
-CI expectation for explicit email/URL input codec metadata; all three owning
-operation-result integrations pass. Latest-main CI remains unqualified.
+Use the order below to select work. These are subdivisions of Z00–Z18, not extra
+requirements to count twice. Finish one coherent packet, review it, run its smallest
+meaningful checks, commit/push it, then take the next ready packet. A prerequisite
+applies to its required output, not to every activity in the preceding row.
 
-The checked Model-cohort mechanism now passes the full original Shift recipient: 11 assignment cases and nine real D1 review cases, including fresh domain/membership races, hidden/stale rows, source tampering, terminal outcomes and replay. Shared selected-profile reference/version DATA observation also passes both direct and required-reference domains, hidden-row denial, current grants, finite bounds, Identity/reference/profile races and replay. Reference-only and unrelated outer-phase DATA paths refuse during native compilation. The combined source passes all 99 existing Native FIRST/hook integrations, all-target Clippy, all 40 workspace typechecks and the three affected real runtime recipients in 306.99 seconds; the final outer-phase refusal cases pass separately in 17.48 seconds. The generated multi-hop hook temporary-name collision discovered by the original hold intake is repaired. The complete original24 run confirms 15 diagnostics: review_swap clears and reconcile now correctly refuses the unsupported outer DATA phase. Keep that new failure with the shared native DATA ownership work; do not bypass the refusal. Original confirm_account advances to the unchanged analysis resource bound; original hold runtime still needs its refreshed complete prepared artifact.
+| Order / task | Concrete implementation and current owner | Required result / dependency |
+| --- | --- | --- |
+| 1. **Z14a — Bound repeated account analysis through proof reuse** | In `compiler/src/analysis/scenario_disclosure.rs`, qualify the owner-attempt expression cache keyed by exact original statement, depth, environment, authorization and result context. Reuse only successful effect-free expression proofs; keep walking every actual statement/effect. Account analysis writer. | Compare the complete original corpus with main: unchanged sources, no new refusal, original account within unchanged resource limits. Existing Native FIRST/hook and affected State runtime integrations pass. Prototype completion in 1,838 steps is not account closure; investigate its later consumer refusal under Z14c. |
+| 2. **Z16a — Preserve existing native DATA ownership for reconcile** | In analysis/receipt codegen, distinguish a loan already covered by the exact native receipt site/dependency from a newly selected-loop private item observation. Account writer after Z14a; coordinator integrates shared receipt file changes. | Original CanShift:188 lowers using its genuine typed native DATA observer. Keep exact receiver/source/model/field/type provenance. Unrelated outer-phase DATA, missing loans, hidden fields and forged/stale observations still refuse. Do not delete the new fail-closed guard. |
+| 3. **Z04a — Repair fulfill_free's missing query/schema join** | Trace checked owner facts separately from `checked_stored_contracts_inner`, its parameter/expression/decision/query/create/observer seeds and closed schema inventory. Repair the failing producer in `scenario_disclosure.rs` / `scenario_queries.rs`; rejoin through `scenario_receipts.rs`. Coordinator owns attribution; query writer owns agreed producer changes. | Original CanRent:1030 gets a fully checked plan and executes its complete constructor/guard body. The current coarse `None` trace does not distinguish absent owner facts from absent inventory. No broadened schema matching or waived guard census. Depends only on the identified producer output. |
+| 4. **Z05a — Qualify the original hold/day runtime consumers** | Use the unchanged original composition and complete prepared modules with `packages/state` and Cloudflare runtime. Query/runtime writer owns the existing booking recipient. Remove temporary diagnostic export/logging changes before publication. | Actual hold and hold_days execute native CREATE/SET/event/schedule/order/rollback/replay paths; move_days uses its genuine Values/COUNT dependencies. Partial diagnostic exports may aid investigation but cannot close Z17 or certify the complete artifact. Current original artifact assembles but cannot instantiate: generated CanCRM imports `action`, absent from the Cloudflare runtime stdlib exports. Repair the compiler/runtime capability contract at its genuine owner and qualify this import before hold execution; do not rewrite the artifact or strip owners. Keep Z16a as a dependency only if its binding is actually needed. |
+| 5. **Z18a — Finish unchanged Chat native closures** | Compiler analysis/codegen plus State loop/receipt execution: share exact returned CREATE handling, declared nominal scalar observation and closed per-item conditional SEND/SET accounting. Browser/security lane owns its isolated candidate; coordinator merges shared files. | Unchanged `original_chat_model_policies` integration and actual original Chat runtime pass. Whole owning-field DATA permission and genuine protected File observation remain required. True/false branches, missing grants, races and replay pass without fixture/source edits or a fake File observer. This is a CI prerequisite even though outside the 15-diagnostic table. |
+| 6. **Z06 / Z14c — Finish membership and account consumers** | Reuse sealed ANY/Values facts and selected BillingProfile reference/version observations. Complete the original account receipt after Z14a removes its analysis bound. Compiler consumer and State runtime owners. | Original CanRent:531 and :1041 lower and execute with all original guards, finite domain and current authority. Empty/mismatched profile, hidden DATA, stale/revoked reference, late failure and replay behave correctly. Account prototype's later generic refusal remains open. |
+| 7. **Z12 → Z13 → Z15 — Arrival, cancellation, then parent CALLs** | Complete the original dates/helper/query closure; support ordered Movement observations after prior writes; consume complete child plans through the existing same-owner CALL mechanism. Analysis/query, receipt and State owners hand off exact facts. | Original arrive and cancel_booking pass first, then check_in/cancel. Preserve full arguments/context, child effects, late parent rollback, grant/time boundaries and replay. Clears six measured diagnostics only when the full capture confirms it. |
+| 8. **Z07 → Z08 → Z09 → Z10 → Z11 — Refer settlement** | Finish exact loop/LET/conditional-CREATE/Model-result analysis; independently join fresh source/IR; execute repeated staged queries under State's private item lease; retain all ordered occurrence/DATA/replay witnesses. Compiler producer, compiler consumer and State protocol writers work sequentially on shared files. | Original settle positive/empty/multi-item/overflow/late-failure workflow works with exact Credit order, created Settlement parent and conditional Allocation effects. Forged/missing/reordered witnesses, wrong parent/item, stale phase and withheld grants refuse. Removes five measured diagnostics when confirmed; preserve all seven existing WIP files. |
+| 9. **Z18b — Resolve the three real CI timeouts** | Reproduce Event change/routing, original booking/rescheduling and original Mail triage separately against coherent production outputs. Attribute time to compile, module binding, database, work or runtime before changing that owner. Runtime/CI writer. | Complete original recipients pass with their denial, race, rollback and replay cases. Remove repeated work or fix termination where demonstrated; no blind timeout increases, hidden skips or reduced cases. Reuse existing qualified Invoice and nullable SEND results. |
+| 10. **Z17 — Complete integrated original24 capture** | Coordinator builds the integrated committed candidate with the owning native Cloudflare catalog and runs the durable unchanged command to completion. | Exit 0, zero diagnostics, zero omissions, unchanged complete source membership and a usable full artifact. Attribute newly exposed failures and route them back to the appropriate owner. Do not run another full capture merely while an identical live one is pending. |
+| 11. **Z18 — Final native/runtime/CI closure** | Coordinator reviews exact committed source, source/permission/order/atomicity joins and temporary instrumentation removal. Run warranted original runtime and installed checks, then all three normal CI jobs on final main. | Every completion criterion below passes on the same source. Commit/push qualified fixes early throughout; final green status closes the zero-diagnostic goal. A new release is a separately requested action. |
 
-GitHub's `d0248133` run is complete: browser/security passes; compiler fails four unchanged Chat native closures; workspace fails three real runtime timeouts (Event, booking/rescheduling and Mail triage), two Invoice native created-root registrations and the old event-SEND refusal expectation. These are required CI repairs under Z18. Reproduce each against the current coherent candidate, preserve its negative coverage, and distinguish new native admission from a runtime DATA grant. No CI success is claimed.
+### Measured diagnostic ownership
 
-The two Invoice CI failures are repaired through the private, fully validated native void CREATE-prefix consumer. The exported created-root binder keeps its prior admission checks; exact prefix fields/parent/stage, current grants and final lifetime/revision/Identity checks remain. Both full production runtime recipients pass in 146.70 seconds. The event-SEND expectation is migrated to the supported retained native guard, verifying its executable original source and preserving the separate nullable-recipient native DATA receipt; both existing tests pass in 1.46 seconds. Three CI runtime timeouts and the Chat closure work remain, followed by fresh CI on the final source.
+| Original location | Count | Implementation tasks |
+| --- | ---: | --- |
+| CanRefer:69, 72, 79, 80, 84 | 5 | Z07–Z11 |
+| CanRent:531 | 1 | Z06 |
+| CanRent:742 | 1 | Z12 |
+| CanRent:769 | 1 | Z13 |
+| CanRent:1030 | 1 | Z04a / Z04 |
+| CanRent:1041 | 1 | Z14a / Z14c / Z14 |
+| CanRent:1748, 1750, 1756, 1758 | 4 | Z15 after Z12/Z13 |
+| CanShift:188 | 1 | Z16a |
+| **Complete current capture** | **15** | **Z17 measures the integrated result** |
+
+A workflow may emit several diagnostics; a cleared refusal may expose a later one.
+Neither task counts nor compiler acceptance alone are runtime completion counts.
 
 ## Completion criteria for the zero-diagnostic objective
 
@@ -81,7 +89,7 @@ A later refusal, analysis-only success, missing receipt, legacy fallback, narrow
 - Review, validate and commit coherent changes early. Direct main pushes are already authorized; do not create PRs for these changes. Validate the actual staged/committed source before pushing, including when other work remains dirty.
 - Coordinate one writer per overlapping mechanism and one compiler build at a time. Independent investigation may proceed while a specific prerequisite runs. No scheduler or automation is part of this task.
 
-## Zero-diagnostic sequence
+## Stable zero-diagnostic task definitions
 
 ### Restore a trustworthy implementation baseline
 
@@ -91,7 +99,7 @@ A later refusal, analysis-only success, missing receipt, legacy fallback, narrow
 
 ### Complete the smaller shared query and constructor mechanisms
 
-- [ ] **Z03 — Qualify normalized WHERE correspondence.** Finish the local `checked_native_value_query_plan` change: compare the generated WHERE binder with its corresponding fresh IR query, retaining full original semantic correspondence. Owners: Compiler receipt codegen and existing query producer integration. **Done when:** genuine WHERE/order, withheld-field and filtered-empty cases pass; binder/source/IR mutants refuse; original hold_days/move_days reach or pass the next stage. Depends on Z00 and a coherent local packet.
+- [x] **Z03 — Qualify normalized WHERE correspondence.** Finish the local `checked_native_value_query_plan` change: compare the generated WHERE binder with its corresponding fresh IR query, retaining full original semantic correspondence. Owners: Compiler receipt codegen and existing query producer integration. **Done when:** genuine WHERE/order, withheld-field and filtered-empty cases pass; binder/source/IR mutants refuse; original hold_days/move_days reach or pass the next stage. Depends on Z00 and a coherent local packet.
 - [ ] **Z04 — Publish sealed constructor COUNT plans with many guard queries.** Qualify the local producer change that performs independently sealed constructor selection before the old specialized whole-plan three-query restriction. Preserve the complete leading-Require census, ordinary mixed-plan rules and overall finite bounds. **Done when:** the existing multi-guard constructor integration and original fulfill_free execute with genuine receipts, including permission/race/replay controls. Depends on Z00; owns `scenario_queries.rs` and its existing recipient.
 - [ ] **Z05 — Unify constructor COUNT with an exact returned primary CREATE.** Replace only demonstrated void-only/two-CREATE restrictions with the existing proof of the original primary CREATE/return and complete auxiliary effect sequence. Reuse created-row lifetime, count, policy/evidence, schedule and version mechanisms. **Done when:** both original hold and hold_days have complete native receipts and pass relevant CREATE/optional SET/event/schedule/rollback/replay cases. Depends on Z04, Z03 for the day path, and the repaired created-version implementation from Z00.
 - [ ] **Z06 — Compose leading ANY with Values queries.** Retain the exact original Movement ANY producer and all its influences alongside the genuine Values query plan. Keep local empty/nonempty outcomes and source-stage observations distinct. **Done when:** original move_membership_days passes complete native lowering and relevant runtime/forgery/permission controls. Depends on Z03; do not replace the influence census with a blanket allowance.
@@ -110,7 +118,7 @@ A later refusal, analysis-only success, missing receipt, legacy fallback, narrow
 - [ ] **Z13 — Complete cancellation's staged Movement closure.** Preserve ordered iteration, earlier writes, subsequent Movement observations, membership/billing cancellation, conditional release/refund, failure order and current authority. **Done when:** original cancel_booking has a complete native receipt and atomic/replay qualification. Depends on the relevant staged query/loop mechanisms; reuse Z08–Z10 only where the actual mechanism matches.
 - [ ] **Z14 — Complete account confirmation's finite domain.** Supply the original filtered BillingProfile query's finite mutation owner and qualify the complete confirm_account body. **Done when:** original success, absent/mismatched profile, stale/revoked authority, late failure and replay behave correctly. Depends on Z00 and its exact query consumer.
 - [ ] **Z15 — Complete parent check-in/cancel CALLs.** Consume complete arrive/cancel_booking child plans through the existing same-owner call mechanism. Preserve original arguments/context, child effects, late parent failure and replay. **Done when:** the two child-closure and two CALL refusals disappear and original check_in/cancel execute correctly. Depends on Z12/Z13.
-- [ ] **Z16 — Complete Shift review's FIRST mutation consumer.** Retain travel_entered's exact selected row/helper/native mutation association and current authority. **Done when:** original review_swap lowers and passes absence, wrong/stale/hidden row, permission, rollback and replay cases. Depends on Z00 and only its demonstrated FIRST dependency.
+- [x] **Z16 — Complete Shift review's FIRST mutation consumer.** Retain travel_entered's exact selected row/helper/native mutation association and current authority. **Done when:** original review_swap lowers and passes absence, wrong/stale/hidden row, permission, rollback and replay cases. Depends on Z00 and only its demonstrated FIRST dependency. Qualified through the shared cohort consumer and original D1 runtime; the newly exposed reconcile ownership failure remains open separately as Z16a.
 
 ### Close the zero-diagnostic objective
 
@@ -179,4 +187,24 @@ The complete original native compile uses the [durable 24-operand command](REMAI
 
 ## How to resume
 
-Start at the first incomplete dependency-ready Z task. Z00 is complete: seven corrected/formatted files were verified in an isolated checkout with all 26 package build tasks, all 40 workspace typecheck tasks, 75 compiler integrations, the real helper permission/replay integration, Clippy and both test-policy gates passing. Z01 confirms 18 E6008 diagnostics, 26 source records and zero omissions on commit `73094a16` in 225.26 seconds. Z02 migrates the obsolete nullable-access expectation and passes all five native receipt integration tests, including absence/presence, withheld DATA, stale/foreign references, a real update race, replay and lifetime/current-authority controls. Z03's shared binding implementation is also committed and runtime-qualified; original day receipt closure remains open. Complete the original leading-query/constructor receipt joins and account workflow next, using the qualified shared COUNT and required-reference parent mechanisms while preserving unfinished aggregate work. Finish one coherent change, test its actual proposed commit, commit/push it, then select the next task from current evidence. Update checkboxes and the measured count when verified; keep newly exposed blockers with their owning task. Once Z18 is complete, continue dependency-ready B tasks when broader implementation is requested without reopening the achieved zero-diagnostic result.
+Read the current baseline and next implementation queue above. Select the first
+ready incomplete output; do not restart completed baseline repairs or treat older
+measurements as current. The detailed Z definitions retain stable identifiers and
+acceptance contracts; the queue supplies their current order and subdivisions.
+
+Keep a single physical writer for overlapping analysis/codegen/State mechanisms
+and one shared Cargo writer. Use immutable compiler copies for long captures and
+stable package outputs for runtime imports. Inspect other work read-only until an
+explicit handoff. A live capture is a dependency to poll, not a reason to launch
+another copy. Do not start a scheduler.
+
+For a blocked packet, identify the exact missing input, list practical ways to
+unblock it and choose the smallest correct approach within existing authorization.
+Continue independent ready work. Missing permission or protected authority must
+be supplied through its genuine owner; a refusal must not be bypassed to obtain
+zero. Keep unsupported behavior visible until implemented correctly.
+
+After each qualified packet, record its actual scope in the existing task entry,
+commit/push the coherent change and update the measured total only after a complete
+original capture. Once Z18 closes, the B01–B27 tasks remain the comprehensive
+broader-product queue; take them by their stated dependencies when requested.

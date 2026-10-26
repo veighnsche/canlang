@@ -3,7 +3,13 @@
 Use the [implementation task](IMPLEMENTATION-TASK.md) for the dependency-ordered
 checklist and completion criteria. Zero native diagnostics is its primary objective.
 
-Inventory baseline: 25 October 2026 at main `a0918b49`, with draft submodule `5749c75b` initialized. That baseline did not build: selected Rust and TypeScript additions landed in the wrong locations, while local tests had covered the working tree. **Z00 repairs all six misplaced files and formats the existing integration change (`73094a16`).** The exact corrected source was verified in an isolated checkout: all 26 package build tasks, all 40 workspace typecheck tasks, 75 compiler integrations, the real helper permission/replay integration, Clippy and both test-policy gates pass. Z01 now confirms the same 18-diagnostic result on repaired commit `73094a16`; final CI remains pending. This inventory separates delivered changes, current failures, unfinished local implementation, broader product requirements and optional proposals. The older roadmap contains overlapping IDs and completed subparts; its rows are not an additive count of defects or an effort estimate.
+Current execution baseline: **26 October 2026, main `06533885`**, initialized draft
+submodule `5749c75b`. The malformed `a0918b49` baseline was repaired as `73094a16`
+and independently validated; that repair is complete. The latest complete native
+capture of the compiler feature source has **15 diagnostics**, as detailed below.
+This inventory separates delivered work, current failures, unfinished local work,
+broader product requirements and optional proposals. Older roadmap IDs overlap;
+they are not an additive count of defects or an effort estimate.
 
 The immediate objective remains zero native diagnostics for the original 24-source composition, preserving permissions, original source correspondence, evaluation order, atomicity and replay. Achieving that compile result will not by itself qualify every application or make every roadmap feature release-ready.
 
@@ -35,7 +41,7 @@ These changes should be reused rather than restarted. Completion applies to the 
 | Typed Event SEND | Declaration-owned typed Event slots preserve capture and dispatch authority (`4841f6dc`). |
 | Query Values and loops | Shared staged mutation prefixes, ordered item history, exact query Values maps/enum captures and private repeated-query item phases are committed (`d4d3b757`, `f02c0a32`, `5c03e73a`, `286a6271`). They are prerequisites, not proof that Refer.settle works. |
 | Helper CONTROL/DATA | Genuine matching DATA witnesses support scalar and nullable scalar helper CONTROL reads (`b039551a`, `048e46f2`). The original move_membership refusal is gone in the complete capture. |
-| Created Model metadata | Exact created-parent count provenance is committed (`14d92c78`). State-owned staged version reads pass isolated runtime integration; Z00 restores the intended implementation after the incorrectly assembled `a0918b49` commit. Both Booking holds pass version analysis; the exact returned-primary COUNT work now removes original hold's compiler refusal. hold_days and the original hold runtime qualification remain open. |
+| Created Model metadata | Exact created-parent count provenance is committed (`14d92c78`). State-owned staged version reads pass isolated runtime integration; Z00 restores the intended implementation after the incorrectly assembled `a0918b49` commit. Both Booking holds pass version analysis; the exact returned-primary COUNT work now removes original hold's compiler refusal. Original hold/day runtime qualification remains open; hold_days and move_days compiler refusals have cleared. |
 | Selected runtime and provider journeys | Setup recovery, retained due/cohort D1 execution, generated auth/team delivery, browser refresh and the selected Creative inspect/validate/publish journey are completed at the scopes in the audit checklist. They do not establish complete applications or all live provider profiles. |
 | Migration foundation | Migration contract and bounded unique-claim exchanges are completed; installed migration binding/custody and full activation remain open. |
 | Linux delivery and cleanup | v0.1.2 Linux release is published. Confirmed inactive CanLang build trees reclaimed 18.9 GB while preserving source, active builds and retained artifacts. |
@@ -44,7 +50,7 @@ Detailed earlier completion evidence remains in [the audit checklist](../ideal-f
 
 ## Immediate native work
 
-The latest complete original-corpus capture of the feature source committed as `8f8d01e0` has 17 diagnostics across 11 scenario entrypoints, 26 unchanged source records and no omissions (267.60 seconds). Original hold now lowers; its runtime qualification remains open. Some remaining diagnostics are consequences of unfinished child workflows, not independent implementations.
+The latest complete original-corpus capture has **15 diagnostics**, 26 unchanged source records and no omissions. The compiler feature source is committed as `18cd1d34`; main `06533885` adds qualified State/test changes. Original hold, hold_days, move_days and review_swap lower. Some remaining diagnostics are consequences of unfinished child workflows, not independent implementations. Use the implementation task’s current queue for execution order.
 
 | Work | Current source | Diagnostics | Remaining mechanism and acceptance |
 | --- | --- | ---: | --- |
@@ -66,8 +72,8 @@ The shared Model-cohort and selected-profile reference/version mechanisms now pa
 
 ### Implementation packet status
 
-1. **WHERE binder correspondence — implemented and qualified.** Commit `ac5fe4d6` compares the WHERE binder with fresh IR and gives WHERE/SELECT their separate JavaScript scopes. Existing integrations qualify granted WHERE/order, unreadable filters, withheld SELECT fields and filtered-empty results; all 75 compiler integrations and Clippy pass. The complete original capture still has 18 diagnostics with identical source/diagnostic arrays, so the original day workflows remain unfinished. Separate ANY-plus-Values composition is not implemented.
-2. **Constructor COUNT publication — shared mechanism qualified.** `802d8fd4` publishes independently sealed constructor COUNT plans ahead of the old mixed-plan restriction and registers those same sources in the emitter, preserving overall bounds and original guard census. Existing compiler integrations and the real single/many-guard State permission/race/replay matrix pass. The complete original capture still has 18 diagnostics, 26 identical sources and no omissions in 314.19 seconds: fulfill_free advances beyond the first-query refusal but retains a complete source-guard blocker. Exact returned-primary Model support is being qualified separately; it is not delivered by this change. Exact returned-primary Model support is now also qualified with the original whole-body and return-influence proofs, auxiliary COUNT schema/field/stage checks and separate result policy. All 84 focused Rust integrations and the actual returned-Model permission/race/replay recipient pass. This still does not qualify original hold/hold_days.
+1. **WHERE binder correspondence — implemented and qualified.** `ac5fe4d6` gives WHERE/SELECT their separate scopes and checks the WHERE binder against fresh IR. Granted/unreadable filters, withheld SELECT fields and filtered-empty results pass. Shared Values-plus-COUNT composition has since cleared hold_days and move_days; the separate membership ANY-plus-Values closure remains open.
+2. **Constructor COUNT and returned primary Model — shared mechanisms qualified.** Multi-guard publication, exact returned-primary CREATE, auxiliary COUNT schema/field/stage checks, full-body/return influence and separate result policy are implemented. Focused compiler and actual State permission/race/replay consumers pass. Original hold and day holds now lower, but complete original runtime acceptance remains open. The refreshed original artifact assembles, then module instantiation fails because generated CanCRM imports `action` from a Cloudflare stdlib that does not export it. Repair that actual compiler/runtime capability join before claiming hold execution. Original fulfill_free still needs its checked query/schema producer join.
 3. **Refer aggregate loop.** Local contracts and State parsers add query occurrences, created-parent identity, aggregate census and complete ordered-selection witnesses. Compiler work adds explicit parent scope and initial source-loop/LET/conditional-CREATE facts. The latest Rust additions are uncompiled. New created/global aggregate Consumer paths still refuse; execution, occurrence minting, DATA association and replay are incomplete. A source-mapped State no-emit check passed for an earlier protocol slice; no new production runtime outputs were emitted. This packet is not ready to commit or publish.
 
 The Refer packet still needs this dependency order:
@@ -143,13 +149,17 @@ New scheduler work, multisession resume, new calendar/default/statechart/package
 
 ## Recommended execution order
 
-1. Repair the malformed main commit, preserving the tested implementation and all unrelated WIP. Validate the exact committed snapshot and resolve the observed CI failures.
-2. Preserve and separate the three unfinished packets; establish a coherent buildable checkpoint for each.
-3. Qualify the small WHERE and many-guard COUNT fixes, then unify exact returned-primary constructor counts and ANY-plus-Values composition.
-4. Complete the native Refer aggregate loop and its permission/replay/rollback integration.
-5. Finish remaining arrival/cancellation/account/Shift workflows and dependent parent calls; use complete captures to establish the actual new count and all three green CI jobs.
-6. Qualify original affected runtime journeys and the current Linux installed artifacts/demo.
-7. Take the broader product streams by concrete consumer dependency; continue architectural consolidation inside those changes without turning file moves or optional ports into prerequisites.
+The [implementation task’s current queue](IMPLEMENTATION-TASK.md#next-implementation-queue)
+is authoritative. Complete account proof reuse and native DATA ownership, localize
+fulfill_free’s producer join, qualify the original hold/day runtime, finish Chat’s
+CI closures, then remaining membership/account, arrival/cancellation/parent CALLs
+and Refer settlement. Resolve the real runtime timeouts and qualify the complete
+original24 artifact and all three CI jobs on final main. Independent work may run
+alongside these dependencies with exclusive file/build ownership.
+
+The complete broader inventory maps to B01–B27 in that same document. Pull forward
+only a bounded demonstrated dependency of zero diagnostics; do not reopen completed
+decoder, grammar or baseline repairs to fill an older checklist.
 
 No completion percentage or delivery estimate is justified by these diagnostic, scenario, task or line counts.
 
@@ -255,7 +265,7 @@ These are the existing roadmap rows, grouped under the consolidated inventory ab
 
 | Existing requirement | Recorded outcome or residual | Current disposition |
 | --- | --- | --- |
-| CAN18 outcome14; challenge:T41 current corpus component | Produce the missing post-release original24 composition result and truthful root attribution. | Current capture completed: 18 diagnostics; native repairs remain open. |
+| CAN18 outcome14; challenge:T41 current corpus component | Produce the missing post-release original24 composition result and truthful root attribution. | Current capture completed: 15 diagnostics; native repairs and final artifact qualification remain open. |
 | FP.QUALIFY; challenge:T37–T40/G3/G4; SEQ-025/026/040; DFE-05 | Finish full original app/companion required workflow matrices once each. | Roadmap residual; revalidate completed subparts before implementation. |
 | FP.INSTALLED-RELEASE; ports:C04.complete | Finish changed final source/producer/dependency/browser/vendor/native full installed release closure. | v0.1.2 Linux published; final changed release qualification remains. |
 | FP.UPGRADE-JOIN; SEQ-027; CAN18 outcome15/C21/S9-Q08 | Finish original predecessor→desired schema/default/lock/retained-work staged upgrade and recovery. | Contract/unique-claim fix completed; installed binding/custody/activation remains. |
