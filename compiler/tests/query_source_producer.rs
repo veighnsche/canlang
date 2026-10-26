@@ -1725,10 +1725,23 @@ When
   do
    set root {status=held}
    create Ticket {parent=root,note="start"} as ticket
-   for item in root.Item as row where row.state==ready limit=10
+   for item in root.Item as row where row.state==ready limit=100
     set item {state=cancelling}
     set item {flag=true}
    create Ticket {parent=root,note="after-loop",observed=root.enabled} as after_loop
+ scenario capture_parent_leaf(root:Root,item:Item) by=members
+  require root.enabled
+  do
+   set root {status=held}
+   for entry in root.Item as row where row.state==ready limit=100
+    set entry {state=cancelling}
+   create Ticket {parent=root,note="parent-leaf",observed=item.parent.enabled} as leaf
+ scenario cancel_items(root:Root) by=members
+  require root.enabled
+  do
+   for item in root.Item as row where row.state==ready limit=201
+    set item {state=cancelling}
+    cancel item.id
 Then
 "#).unwrap();
     let staged_source = std::fs::read_to_string(&staged_input).unwrap();
@@ -1829,24 +1842,37 @@ const hidden=JSON.parse(readFileSync(process.argv[6],'utf8'));
 function sourcesOf(artifact,name='canScenarioRequireSources'){const js=artifact.modules[0].js,marker=name+'(){return JSON.parse("',start=js.indexOf(marker);assert.ok(start>=0);const end=js.indexOf('");}',start);assert.ok(end>start);const raw=js.slice(start+marker.length,end).replace(/\\"/g,'"').replace(/\\\\/g,'\\');return{js,start:start+marker.length,end,payload:JSON.parse(raw)};}
 const afterLoopLoans=sourcesOf(base,'canScenarioLetDataSources').payload['StageValues.capture_after_loop'].filter(loan=>loan.field.name==='enabled'&&loan.loop===undefined&&loan.stages!==undefined);
 assert.equal(afterLoopLoans.length,1);
-assert.deepEqual(afterLoopLoans[0].stages,Array.from({length:11},(_,index)=>2+index*2),'only completed two-write iteration stages may reach the constructor');
+assert.deepEqual(afterLoopLoans[0].stages,Array.from({length:101},(_,index)=>2+index*2),'only completed two-write iteration stages may reach the constructor, including the stage beyond 200');
+const parentLeafLoans=sourcesOf(base,'canScenarioLetDataSources').payload['StageValues.capture_parent_leaf'].filter(loan=>loan.field.name==='enabled'&&loan.loop===undefined&&loan.stages!==undefined);
+assert.equal(parentLeafLoans.length,1,'post-loop parent traversal must lower to exactly one LET DATA site');
+assert.deepEqual(parentLeafLoans[0].parents,['StageValues.Root'],'parent loan must keep its exact terminal field-owner path');
+assert.equal(parentLeafLoans[0].parameter,'item');
+assert.equal((parentLeafLoans[0].dependencyIds??[]).length,1,'terminal-model join must redeem the exact return DATA dependency, not the loan root model');
+assert.notEqual(parentLeafLoans[0].dependencyIds[0],afterLoopLoans[0].dependencyIds[0],'each original consumer keeps its own exact dependency provenance');
+assert.deepEqual(parentLeafLoans[0].stages,Array.from({length:101},(_,index)=>1+index),'single-write iterations advance one stage each');
 function corrupt(mut){const artifact=JSON.parse(JSON.stringify(base)),found=sourcesOf(artifact);mut(found.payload);const inner=JSON.stringify(found.payload).replace(/\\/g,'\\\\').replace(/"/g,'\\"');artifact.modules[0].js=found.js.slice(0,found.start)+inner+found.js.slice(found.end);return artifact;}
-async function invoke(artifact,workDir,mode,operation='StageValues.conclude'){
- const asm=await assembleModules({artifact,sourcePath:mode==='hidden_field'?process.argv[7]:process.argv[3]},{workDir,stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href,uiUrl:pathToFileURL(require.resolve('@canlang/ui')).href});
+async function invoke(artifact,workDir,mode,operation='StageValues.conclude',extraInputs={}){
+ artifact=JSON.parse(JSON.stringify(artifact));
+ const withheld=mode==='hidden_field'||mode==='hidden_field_items';
+ const asm=await assembleModules({artifact,sourcePath:withheld?process.argv[7]:process.argv[3]},{workDir,stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href,uiUrl:pathToFileURL(require.resolve('@canlang/ui')).href});
  const {store}=createTestMemoryStorage(),memberships=createMemoryIdentityStore();
  const member=await seedMember(memberships,{isOwner:false}),identity=makeIdentity({membership:member.membership,email:member.user.email});
  const root={...makeRow({id:asId('root'),data:{enabled:true,status:'open'}}),parent:null};
  await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:asModel('StageValues.Root'),row:root}]}));
- const item={...makeRow({id:asId('item'),data:{state:'ready',flag:false}}),parent:{model:asModel('StageValues.Root'),id:root.id}};
- if(mode==='skipped_items')await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:asModel('StageValues.Item'),row:item}]}));
+ const itemCount=mode==='skipped_items'?1:mode==='bounded_items'||mode==='hidden_field_items'?100:mode==='work_items'||mode==='nonmember'&&operation==='StageValues.cancel_items'?201:mode==='race'&&operation==='StageValues.cancel_items'?1:0;
+ const items=Array.from({length:itemCount},(_,index)=>({...makeRow({id:asId('item-'+index),data:{state:'ready',flag:false}}),parent:{model:asModel('StageValues.Root'),id:root.id}}));
+ const item=items[0];
+ if(items.length>0)await store.commit(makeBatch(await store.readRevision(),{writes:items.map(row=>({kind:'insert',model:asModel('StageValues.Item'),row}))}));
  const commit=store.commit.bind(store);let raced=false;
- store.commit=async batch=>{if(mode==='race'&&!raced&&batch.writes.some(write=>write.model==='StageValues.Root')){raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('StageValues.Root'),id:root.id,expectedVersion:root.version,row:{...root,version:asVersion(root.version+1),data:{...root.data,status:'held'}}}]}));}return commit(batch);};
+ store.commit=async batch=>{if(mode==='race'&&!raced&&batch.writes.some(write=>write.model===(operation==='StageValues.cancel_items'?'StageValues.Item':'StageValues.Root'))){raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('StageValues.Root'),id:root.id,expectedVersion:root.version,row:{...root,version:asVersion(root.version+1),data:{...root.data,status:'held'}}}]}));}return commit(batch);};
  if(mode==='nonmember')await memberships.removeMembership(member.membership.membership_id);
  const invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
- const request={operation,operation_id:uuidv7(FIXED_NOW,1),inputs:{root:{id:root.id,version:'1'}}};
+ const request={operation,operation_id:uuidv7(FIXED_NOW,1),inputs:{root:{id:root.id,version:'1'},...extraInputs}};
  const before=await store.readRevision();
+ const beforeRootHistory=await store.historyFor(asModel('StageValues.Root'),root.id);
+ const beforeItemHistories=await Promise.all(items.map(row=>store.historyFor(asModel('StageValues.Item'),row.id)));
  const result=await invoker.invokeMutation(request,identity);
- return{result,store,root,item,raced,invoker,identity,request,before};
+ return{result,store,root,item,items,raced,invoker,identity,request,before,beforeRootHistory,beforeItemHistories};
 }
 for(const mode of ['taken_empty','skipped_items','race','nonmember']){
  const {result,store,root,item,raced,invoker,identity,request,before}=await invoke(mode==='hidden_field'?hidden:base,process.argv[5]+'-'+mode,mode);
@@ -1861,13 +1887,40 @@ for(const mode of ['taken_empty','skipped_items','race','nonmember']){
  assert.deepEqual(await store.outboxPending(),[]);
  if(success){const revision=await store.readRevision();const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.equal(await store.readRevision(),revision);}
 }
-for(const mode of ['taken_empty','skipped_items','race','nonmember','hidden_field']){
- const {result,store,root,before,invoker,identity,request}=await invoke(mode==='hidden_field'?hidden:base,process.argv[5]+'-constructor-'+mode,mode,'StageValues.capture_after_loop');
- const success=mode==='taken_empty'||mode==='skipped_items';
+for(const mode of ['taken_empty','skipped_items','bounded_items','race','nonmember','hidden_field','hidden_field_items']){
+ const withheld=mode==='hidden_field'||mode==='hidden_field_items';
+ const {result,store,root,items,before,invoker,identity,request}=await invoke(withheld?hidden:base,process.argv[5]+'-constructor-'+mode,mode,'StageValues.capture_after_loop');
+ const success=mode==='taken_empty'||mode==='skipped_items'||mode==='bounded_items';
  assert.equal('result'in result,success,'post-loop '+mode+': '+JSON.stringify(result));
- if(success){const tickets=await store.query({model:asModel('StageValues.Ticket'),parent:{model:asModel('StageValues.Root'),id:root.id},authority:'owner'});const after=tickets.find(row=>row.data.note==='after-loop');assert.ok(after);assert.equal(after.data.observed,true);const revision=await store.readRevision();const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.equal(await store.readRevision(),revision);}
- else if(mode==='hidden_field'||mode==='nonmember'){assert.equal(result.error.code,'forbidden');if(mode==='nonmember')assert.equal(await store.readRevision(),before);const current=await store.load(asModel('StageValues.Root'),root.id);assert.equal(current.data.status,'open');assert.equal(current.version,root.version);assert.deepEqual(await store.query({model:asModel('StageValues.Ticket'),authority:'owner'}),[]);}
- else assert.equal(result.error.code,'conflict');
+ if(success){
+  const tickets=await store.query({model:asModel('StageValues.Ticket'),parent:{model:asModel('StageValues.Root'),id:root.id},authority:'owner'});
+  assert.equal(tickets.length,2);const after=tickets.find(row=>row.data.note==='after-loop');assert.ok(after);assert.equal(after.data.observed,true);
+  const current=await store.load(asModel('StageValues.Root'),root.id);assert.equal(current.data.status,'held');assert.equal(current.version,root.version+1);
+  if(mode==='bounded_items')assert.equal(items.length,100);
+  for(const item of items){const staged=await store.load(asModel('StageValues.Item'),item.id);assert.equal(staged.data.state,'cancelling');assert.equal(staged.data.flag,true);assert.equal(staged.version,item.version+1,'one net version bump per row per atomic commit (created+SET keeps its reserved physical version)');}
+  const revision=await store.readRevision();const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.equal(await store.readRevision(),revision);
+ }else if(withheld||mode==='nonmember'){
+  assert.equal(result.error.code,'forbidden');if(mode==='nonmember')assert.equal(await store.readRevision(),before);
+  const current=await store.load(asModel('StageValues.Root'),root.id);assert.equal(current.data.status,'open');assert.equal(current.version,root.version);
+  assert.deepEqual(await store.query({model:asModel('StageValues.Ticket'),authority:'owner'}),[]);
+  if(mode==='hidden_field_items')assert.equal(items.length,100);
+  for(const item of items)assert.deepEqual(await store.load(asModel('StageValues.Item'),item.id),item,'late DATA refusal must roll back every prior item write');
+ }else assert.equal(result.error.code,'conflict');
+ assert.deepEqual(await store.outboxPending(),[]);
+}
+for(const mode of ['taken_empty','work_items','nonmember','race']){
+ const {result,store,root,items,before,invoker,identity,request,raced}=await invoke(base,process.argv[5]+'-work-'+mode,mode,'StageValues.cancel_items');
+ const success=mode!=='nonmember'&&mode!=='race';
+ assert.equal('result'in result,success,'source Work '+mode+': '+JSON.stringify(result));
+ if(success){
+  if(mode==='work_items')assert.equal(items.length,201,'exercise more than 200 actual source Work commands');
+  for(const item of items){const current=await store.load(asModel('StageValues.Item'),item.id);assert.equal(current.data.state,'cancelling');assert.equal(current.version,item.version+1);}
+  const revision=await store.readRevision();const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.equal(await store.readRevision(),revision);
+ }else if(mode==='nonmember'){assert.equal(result.error.code,'forbidden');assert.equal(await store.readRevision(),before);}
+ else{assert.equal(raced,true);assert.equal(result.error.code,'conflict');}
+ if(!success)for(const item of items)assert.deepEqual(await store.load(asModel('StageValues.Item'),item.id),item,'rejection must not retain any item mutation');
+ const currentRoot=await store.load(asModel('StageValues.Root'),root.id);
+ assert.deepEqual(currentRoot,mode==='race'?{...root,version:asVersion(root.version+1),data:{...root.data,status:'held'}}:root);
  assert.deepEqual(await store.outboxPending(),[]);
 }
 const negatives={
@@ -1887,6 +1940,66 @@ for(const [name,mut] of Object.entries(negatives)){
  const current=await store.load(asModel('StageValues.Root'),root.id);
  assert.equal(current.data.enabled,true,name+': refusal must not write');
  assert.equal(current.data.status,'open',name+': refusal must not write');
+}
+for(const mode of ['bounded_items']){
+ const leafInputs={item:{id:asId('item-0'),version:'1'}};
+ const {result,store,root,items,before,invoker,identity,request}=await invoke(base,process.argv[5]+'-leaf-'+mode,mode,'StageValues.capture_parent_leaf',leafInputs);
+ assert.ok('result'in result,'post-loop parent leaf '+mode+': '+JSON.stringify(result));
+ const tickets=await store.query({model:asModel('StageValues.Ticket'),parent:{model:asModel('StageValues.Root'),id:root.id},authority:'owner'});
+ assert.equal(tickets.length,1);assert.equal(tickets[0].data.note,'parent-leaf');assert.equal(tickets[0].data.observed,true);
+ const current=await store.load(asModel('StageValues.Root'),root.id);assert.equal(current.data.status,'held');assert.equal(current.version,root.version+1);
+ for(const item of items){const staged=await store.load(asModel('StageValues.Item'),item.id);assert.equal(staged.data.state,'cancelling');assert.equal(staged.version,item.version+1);}
+ const revision=await store.readRevision();const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.equal(await store.readRevision(),revision);
+ assert.deepEqual(await store.outboxPending(),[]);
+}
+{
+ const leafInputs={item:{id:asId('item-0'),version:'1'}};
+ const {result,store,root,items,before,invoker,identity,request,beforeRootHistory,beforeItemHistories}=await invoke(hidden,process.argv[5]+'-leaf-hidden','bounded_items','StageValues.capture_parent_leaf',leafInputs);
+ assert.ok(!('result'in result),'hidden parent leaf must refuse: '+JSON.stringify(result));
+ assert.equal(result.error.code,'forbidden');
+ assert.match(result.error.message,/Original model query source fields are unavailable/,'hidden leaf must refuse the actual withheld DATA field');
+ assert.equal(result.receipt,'rejected','hidden DATA denial commits its exact rejected receipt');
+ assert.equal(await store.readRevision(),before+1,'business rejection advances exactly one revision with empty domain effects');
+ const current=await store.load(asModel('StageValues.Root'),root.id);assert.deepEqual(current,root,'rejected receipt retains the actual admitted root row');
+ assert.deepEqual(await store.historyFor(asModel('StageValues.Root'),root.id),beforeRootHistory,'rejected receipt stages no domain history');
+ assert.deepEqual(await store.query({model:asModel('StageValues.Ticket'),authority:'owner'}),[],'rejected receipt creates no Ticket rows');
+ for(const item of items)assert.deepEqual(await store.load(asModel('StageValues.Item'),item.id),item,'rejected receipt retains every actual item row');
+ assert.deepEqual(await Promise.all(items.map(row=>store.historyFor(asModel('StageValues.Item'),row.id))),beforeItemHistories,'rejected receipt stages no item history');
+ assert.deepEqual(await store.outboxPending(),[],'rejected receipt stages no outbox effects');
+ assert.deepEqual(await store.schedulesDue(FIXED_NOW,100),[],'rejected receipt stages no schedules');
+ const replay=await invoker.invokeMutation(request,identity);
+ assert.ok(!('result'in replay),'rejected replay must refuse deterministically: '+JSON.stringify(replay));
+ assert.equal(replay.error.code,'forbidden');
+ assert.equal(replay.error.message,result.error.message);
+ assert.equal(await store.readRevision(),before+1,'deterministic rejection replay stages no further revision');
+ assert.deepEqual(await store.outboxPending(),[],'rejection replay stages no outbox effects');
+}
+function corruptLet(mut){const artifact=JSON.parse(JSON.stringify(base)),found=sourcesOf(artifact,'canScenarioLetDataSources');mut(found.payload);const inner=JSON.stringify(found.payload).replace(/\\/g,'\\\\').replace(/"/g,'\\"');artifact.modules[0].js=found.js.slice(0,found.start)+inner+found.js.slice(found.end);return artifact;}
+const letNegatives={
+ letdata_id_unknown:p=>{const loan=p['StageValues.capture_parent_leaf'].find(loan=>loan.dependencyIds?.length);loan.dependencyIds=['0'.repeat(64)];},
+ letdata_id_dropped:p=>{for(const loan of p['StageValues.capture_parent_leaf'])delete loan.dependencyIds;},
+};
+for(const [name,mut] of Object.entries(letNegatives)){
+ const artifact=corruptLet(mut);
+ const leafInputs={item:{id:asId('item-0'),version:'1'}};
+ const {result,store,root,items,before,invoker,identity,request,beforeRootHistory,beforeItemHistories}=await invoke(artifact,process.argv[5]+'-letneg-'+name,'bounded_items','StageValues.capture_parent_leaf',leafInputs);
+ assert.ok(!('result'in result),name+': forged LET DATA IDs must refuse');
+ assert.equal(result.error.code,'validation',name+': forged LET DATA IDs refuse as a validation rejection');
+ assert.match(result.error.message,/Scalar LET DATA/,name+': forged IDs refuse the exact genuine LET DATA parameter graph');
+ assert.equal(result.receipt,'rejected',name+': forged LET DATA refusal commits its exact rejected receipt');
+ assert.equal(await store.readRevision(),before+1,name+': business rejection advances exactly one revision with empty domain effects');
+ assert.deepEqual(await store.outboxPending(),[],name+': refusal must leave no outbox effects');
+ assert.deepEqual(await store.schedulesDue(FIXED_NOW,100),[],name+': refusal must stage no schedules');
+ const current=await store.load(asModel('StageValues.Root'),root.id);
+ assert.deepEqual(current,root,name+': rejected receipt retains the actual admitted root row');
+ assert.deepEqual(await store.historyFor(asModel('StageValues.Root'),root.id),beforeRootHistory,name+': rejected receipt stages no domain history');
+ assert.deepEqual(await store.query({model:asModel('StageValues.Ticket'),authority:'owner'}),[],name+': refusal must retain no created rows');
+ for(const item of items)assert.deepEqual(await store.load(asModel('StageValues.Item'),item.id),item,name+': refusal must roll back every loop write');
+ assert.deepEqual(await Promise.all(items.map(row=>store.historyFor(asModel('StageValues.Item'),row.id))),beforeItemHistories,name+': rejected receipt stages no item history');
+ const replay=await invoker.invokeMutation(request,identity);
+ assert.ok(!('result'in replay),name+': rejected replay must refuse deterministically');
+ assert.equal(replay.error.code,result.error.code,name+': replay preserves the refusal code');
+ assert.equal(await store.readRevision(),before+1,name+': rejection replay stages no further revision');
 }
 "#).unwrap();
     let staged_consumed = Command::new("node")
