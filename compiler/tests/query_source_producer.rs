@@ -1691,4 +1691,218 @@ for(const mode of ['allowed','hidden','empty','race','nonmember','no_rules','hid
         String::from_utf8_lossy(&consumed.stdout),
         String::from_utf8_lossy(&consumed.stderr)
     );
+    // A staged post-write branch reuses a pre-write temporary beside a
+    // contained `any` over the provisional child domain. The shared
+    // source-require phase carries its exact sealed mutation prefix; the
+    // runtime evaluates the predicate at its authored stage. Positive
+    // modes prove the pre-write snapshot, provisional reads, grants,
+    // rollback and replay; forged transports must refuse without effects.
+    let staged_input = scratch.path().join("staged.can");
+    std::fs::write(&staged_input, r#"app StageValues
+Given
+ Root {enabled:bool=true,status:enum(open,held,cancelled)=open}
+ Item in Root {state:enum(ready,cancelling,done)=ready,flag:bool=false}
+ Ticket in Root {note:text,observed:bool=false}
+ policy Root read=members
+ policy Item read=members
+ policy Ticket read=members
+ derive can_capture(root:Root):bool=root.enabled and all(root.Item as entry,entry.state==ready)
+When
+ scenario conclude(root:Root) by=members
+  require root.enabled
+  do
+   let restore=root.status in [open,held]
+   set root {status=cancelled}
+   create Ticket {parent=root,note="cancelled"} as ticket
+   for item in root.Item as row where row.state==ready limit=10
+    set item {state=cancelling}
+   if root.status!=open and not any(root.Item as movement,movement.state in [cancelling,done]) and restore
+    set root {enabled=false}
+   if root.enabled and ticket.note!=""
+    set ticket {note="kept"}
+ scenario capture_after_loop(root:Root) by=members
+  require can_capture(root)
+  do
+   set root {status=held}
+   create Ticket {parent=root,note="start"} as ticket
+   for item in root.Item as row where row.state==ready limit=10
+    set item {state=cancelling}
+    set item {flag=true}
+   create Ticket {parent=root,note="after-loop",observed=root.enabled} as after_loop
+Then
+"#).unwrap();
+    let staged_source = std::fs::read_to_string(&staged_input).unwrap();
+    let (_staged_db, staged_program, staged_original, staged_catalog) =
+        checked_source(&staged_source);
+    let staged_owner = staged_original
+        .items
+        .iter()
+        .find(|item| item.canonical == "StageValues.conclude")
+        .unwrap()
+        .id;
+    assert!(
+        canlang_compiler::codegen::scenario_decisions::serialize_decision_sources(
+            &staged_program,
+            &staged_original,
+            &staged_original.items[staged_owner.0 as usize],
+            &_staged_db,
+            staged_catalog.as_ref()
+        )
+        .is_some()
+    );
+    let staged_compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args([
+            "compile",
+            "--format=json",
+            "--native-scenario-receipts",
+            "--catalog",
+        ])
+        .arg(root().join("packages/values/dist/catalog.json"))
+        .arg(&staged_input)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        staged_compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&staged_compiled.stdout),
+        String::from_utf8_lossy(&staged_compiled.stderr)
+    );
+    let hidden_input = scratch.path().join("staged-hidden.can");
+    std::fs::write(
+        &hidden_input,
+        staged_source.replace(
+            "policy Root read=members",
+            "policy Root read=members fields=status",
+        ),
+    )
+    .unwrap();
+    let hidden_compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args([
+            "compile",
+            "--format=json",
+            "--native-scenario-receipts",
+            "--catalog",
+        ])
+        .arg(root().join("packages/values/dist/catalog.json"))
+        .arg(&hidden_input)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        hidden_compiled.status.success(),
+        "hidden-field compile: {}\n{}",
+        String::from_utf8_lossy(&hidden_compiled.stdout),
+        String::from_utf8_lossy(&hidden_compiled.stderr)
+    );
+    let hidden_artifact = scratch.path().join("staged-hidden-artifact.json");
+    std::fs::write(&hidden_artifact, hidden_compiled.stdout).unwrap();
+    let staged_artifact = scratch.path().join("staged-artifact.json");
+    std::fs::write(&staged_artifact, staged_compiled.stdout).unwrap();
+    let staged_module: Value =
+        serde_json::from_str(&std::fs::read_to_string(&staged_artifact).unwrap()).unwrap();
+    let staged_js = staged_module["modules"][0]["js"].as_str().unwrap();
+    // The require-sources payload travels JS-escaped inside the emitted
+    // module, so markers use its escaped quotes.
+    for marker in [
+        "\\\"decision\\\":\\\"if\\\"",
+        "\\\"mutationPrefix\\\"",
+        "\\\"kind\\\":\\\"set\\\"",
+        "\\\"kind\\\":\\\"create\\\"",
+        "\\\"kind\\\":\\\"loop\\\"",
+    ] {
+        assert!(staged_js.contains(marker), "staged branch omitted {marker}");
+    }
+    let staged_runner = scratch.path().join("staged-consumer.mjs");
+    std::fs::write(&staged_runner, r#"import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {pathToFileURL} from 'node:url';
+const require=createRequire(process.argv[2]+'/package.json');
+const load=specifier=>import(pathToFileURL(require.resolve(specifier)));
+const {assembleModules}=await load('@canlang/cloudflare/runtime/modules');
+const {buildInvoker}=await load('@canlang/cloudflare/worker/assembly');
+const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
+const {FIXED_NOW,createMemoryIdentityStore,seedMember,makeIdentity,asModel,asId,asVersion,makeRow,makeBatch,uuidv7}=await load('@canlang/state/testing/invocation/fixtures');
+const base=JSON.parse(readFileSync(process.argv[4],'utf8'));
+const hidden=JSON.parse(readFileSync(process.argv[6],'utf8'));
+function sourcesOf(artifact,name='canScenarioRequireSources'){const js=artifact.modules[0].js,marker=name+'(){return JSON.parse("',start=js.indexOf(marker);assert.ok(start>=0);const end=js.indexOf('");}',start);assert.ok(end>start);const raw=js.slice(start+marker.length,end).replace(/\\"/g,'"').replace(/\\\\/g,'\\');return{js,start:start+marker.length,end,payload:JSON.parse(raw)};}
+const afterLoopLoans=sourcesOf(base,'canScenarioLetDataSources').payload['StageValues.capture_after_loop'].filter(loan=>loan.field.name==='enabled'&&loan.loop===undefined&&loan.stages!==undefined);
+assert.equal(afterLoopLoans.length,1);
+assert.deepEqual(afterLoopLoans[0].stages,Array.from({length:11},(_,index)=>2+index*2),'only completed two-write iteration stages may reach the constructor');
+function corrupt(mut){const artifact=JSON.parse(JSON.stringify(base)),found=sourcesOf(artifact);mut(found.payload);const inner=JSON.stringify(found.payload).replace(/\\/g,'\\\\').replace(/"/g,'\\"');artifact.modules[0].js=found.js.slice(0,found.start)+inner+found.js.slice(found.end);return artifact;}
+async function invoke(artifact,workDir,mode,operation='StageValues.conclude'){
+ const asm=await assembleModules({artifact,sourcePath:mode==='hidden_field'?process.argv[7]:process.argv[3]},{workDir,stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href,uiUrl:pathToFileURL(require.resolve('@canlang/ui')).href});
+ const {store}=createTestMemoryStorage(),memberships=createMemoryIdentityStore();
+ const member=await seedMember(memberships,{isOwner:false}),identity=makeIdentity({membership:member.membership,email:member.user.email});
+ const root={...makeRow({id:asId('root'),data:{enabled:true,status:'open'}}),parent:null};
+ await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:asModel('StageValues.Root'),row:root}]}));
+ const item={...makeRow({id:asId('item'),data:{state:'ready',flag:false}}),parent:{model:asModel('StageValues.Root'),id:root.id}};
+ if(mode==='skipped_items')await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:asModel('StageValues.Item'),row:item}]}));
+ const commit=store.commit.bind(store);let raced=false;
+ store.commit=async batch=>{if(mode==='race'&&!raced&&batch.writes.some(write=>write.model==='StageValues.Root')){raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('StageValues.Root'),id:root.id,expectedVersion:root.version,row:{...root,version:asVersion(root.version+1),data:{...root.data,status:'held'}}}]}));}return commit(batch);};
+ if(mode==='nonmember')await memberships.removeMembership(member.membership.membership_id);
+ const invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
+ const request={operation,operation_id:uuidv7(FIXED_NOW,1),inputs:{root:{id:root.id,version:'1'}}};
+ const before=await store.readRevision();
+ const result=await invoker.invokeMutation(request,identity);
+ return{result,store,root,item,raced,invoker,identity,request,before};
+}
+for(const mode of ['taken_empty','skipped_items','race','nonmember']){
+ const {result,store,root,item,raced,invoker,identity,request,before}=await invoke(mode==='hidden_field'?hidden:base,process.argv[5]+'-'+mode,mode);
+ const success=mode==='taken_empty'||mode==='skipped_items';
+ assert.equal('result'in result,success,mode+': '+JSON.stringify(result));
+ const current=await store.load(asModel('StageValues.Root'),root.id);assert.ok(current);
+ if(mode==='taken_empty'){assert.equal(current.data.enabled,false);assert.equal(current.data.status,'cancelled');}
+ if(mode==='skipped_items'){assert.equal(current.data.enabled,true);const staged=await store.load(asModel('StageValues.Item'),item.id);assert.ok(staged);assert.equal(staged.data.state,'cancelling');}
+ if(mode==='race'){assert.equal(raced,true);assert.equal(result.error.code,'conflict');}
+ if(mode==='nonmember'||mode==='hidden_field')assert.equal(result.error.code,'forbidden');
+ if(mode==='hidden_field'){assert.equal(await store.readRevision(),before);assert.equal(current.data.status,'open');assert.equal(current.data.enabled,true);}
+ assert.deepEqual(await store.outboxPending(),[]);
+ if(success){const revision=await store.readRevision();const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.equal(await store.readRevision(),revision);}
+}
+for(const mode of ['taken_empty','skipped_items','race','nonmember','hidden_field']){
+ const {result,store,root,before,invoker,identity,request}=await invoke(mode==='hidden_field'?hidden:base,process.argv[5]+'-constructor-'+mode,mode,'StageValues.capture_after_loop');
+ const success=mode==='taken_empty'||mode==='skipped_items';
+ assert.equal('result'in result,success,'post-loop '+mode+': '+JSON.stringify(result));
+ if(success){const tickets=await store.query({model:asModel('StageValues.Ticket'),parent:{model:asModel('StageValues.Root'),id:root.id},authority:'owner'});const after=tickets.find(row=>row.data.note==='after-loop');assert.ok(after);assert.equal(after.data.observed,true);const revision=await store.readRevision();const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.equal(await store.readRevision(),revision);}
+ else if(mode==='hidden_field'||mode==='nonmember'){assert.equal(result.error.code,'forbidden');if(mode==='nonmember')assert.equal(await store.readRevision(),before);const current=await store.load(asModel('StageValues.Root'),root.id);assert.equal(current.data.status,'open');assert.equal(current.version,root.version);assert.deepEqual(await store.query({model:asModel('StageValues.Ticket'),authority:'owner'}),[]);}
+ else assert.equal(result.error.code,'conflict');
+ assert.deepEqual(await store.outboxPending(),[]);
+}
+const negatives={
+ stage_swap:p=>{p['StageValues.conclude'][0].sites[0].stage='body-condition';},
+ prefix_dropped:p=>{delete p['StageValues.conclude'][0].mutationPrefix;},
+ prefix_reordered:p=>{p['StageValues.conclude'][0].mutationPrefix.reverse();},
+ call_target:p=>{p['StageValues.conclude'][0].sites[0].calls[0].target.id='all';},
+ call_node:p=>{p['StageValues.conclude'][0].sites[0].calls[0].node.start+=1;},
+ source_sha:p=>{p['StageValues.conclude'][0].sites[0].calls[0].source.sha256='0'.repeat(64);},
+};
+for(const [name,mut] of Object.entries(negatives)){
+ const artifact=corrupt(mut);
+ const {result,store,root,before}=await invoke(artifact,process.argv[5]+'-neg-'+name,'taken_empty');
+ assert.ok(!('result'in result),name+': forged staged transport must refuse');
+ assert.equal(await store.readRevision(),before,name+': refusal must preserve revision/history');
+ assert.deepEqual(await store.outboxPending(),[],name+': refusal must leave no outbox effects');
+ const current=await store.load(asModel('StageValues.Root'),root.id);
+ assert.equal(current.data.enabled,true,name+': refusal must not write');
+ assert.equal(current.data.status,'open',name+': refusal must not write');
+}
+"#).unwrap();
+    let staged_consumed = Command::new("node")
+        .arg(staged_runner)
+        .arg(root())
+        .arg(&staged_input)
+        .arg(staged_artifact)
+        .arg(scratch.path().join("staged-modules"))
+        .arg(hidden_artifact)
+        .arg(hidden_input)
+        .output()
+        .unwrap();
+    assert!(
+        staged_consumed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&staged_consumed.stdout),
+        String::from_utf8_lossy(&staged_consumed.stderr)
+    );
 }

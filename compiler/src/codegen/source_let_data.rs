@@ -461,8 +461,125 @@ pub(super) fn collect(
         }
     }
     // Constructor field DATA is observed exactly where the original field
-    // expression executes. Unknown branch/loop write counts never guess a
-    // stage, and File/derived fields cannot enter the field loan.
+    // expression executes. A census-admitted bounded loop joins the exact
+    // enumeration of iteration count times exact per-iteration writes
+    // instead of abandoning later statements; stages stay exact reachable
+    // counts, never a guessed point or an open range. File/derived fields
+    // cannot enter the field loan.
+    fn loop_shadowed_names(body: &[IrStmt], depth: usize) -> Option<BTreeSet<String>> {
+        if depth > 64 {
+            return None;
+        }
+        let mut names = BTreeSet::new();
+        for statement in body {
+            match statement {
+                IrStmt::Let { name, .. } => {
+                    names.insert(name.clone());
+                }
+                IrStmt::Create {
+                    binding: Some(name),
+                    ..
+                } => {
+                    names.insert(name.clone());
+                }
+                IrStmt::For { item, body, .. } => {
+                    names.insert(item.clone());
+                    names.extend(loop_shadowed_names(body, depth + 1)?);
+                }
+                IrStmt::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } => {
+                    names.extend(loop_shadowed_names(then_branch, depth + 1)?);
+                    names.extend(loop_shadowed_names(else_branch, depth + 1)?);
+                }
+                IrStmt::Match { arms, .. } => {
+                    for arm in arms {
+                        names.extend(loop_shadowed_names(&arm.body, depth + 1)?);
+                    }
+                }
+                _ => {}
+            }
+        }
+        Some(names)
+    }
+    // Exact per-iteration staged-write counts for a census-admitted loop
+    // body. Mirrors the body_counts admission shape (straight-line writes
+    // plus empty-else conditional branches); anything else refuses, as the
+    // loop census itself would have refused the entry.
+    fn loop_write_sets(body: &[IrStmt], depth: usize) -> Option<BTreeSet<usize>> {
+        if depth > 64 {
+            return None;
+        }
+        let mut total = BTreeSet::<usize>::from([0]);
+        for statement in body {
+            let step = match statement {
+                IrStmt::Let { .. }
+                | IrStmt::Send { .. }
+                | IrStmt::Cancel { .. }
+                | IrStmt::Schedule { .. } => BTreeSet::<usize>::from([0]),
+                IrStmt::Set { .. } | IrStmt::Create { .. } => BTreeSet::from([1]),
+                IrStmt::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } if else_branch.is_empty() => {
+                    let mut when_taken = BTreeSet::<usize>::from([0]);
+                    when_taken.extend(loop_write_sets(then_branch, depth + 1)?);
+                    when_taken
+                }
+                _ => return None,
+            };
+            let mut combined = BTreeSet::new();
+            for have in &total {
+                for add in &step {
+                    combined.insert(have.checked_add(*add).filter(|sum| *sum < 200)?);
+                }
+            }
+            total = combined;
+        }
+        Some(total)
+    }
+    // Exact reachable totals over zero to `maximum` iterations. Any count
+    // reaching the census budget refuses instead of truncating silently.
+    fn loop_write_totals(per_iteration: &BTreeSet<usize>, maximum: u64) -> Option<BTreeSet<usize>> {
+        let mut totals = BTreeSet::<usize>::from([0]);
+        for _ in 0..maximum {
+            let mut grown = BTreeSet::new();
+            for have in &totals {
+                for add in per_iteration {
+                    grown.insert(have.checked_add(*add).filter(|sum| *sum < 200)?);
+                }
+            }
+            totals = totals.union(&grown).copied().collect();
+            if totals.len() > 200 {
+                return None;
+            }
+        }
+        Some(totals)
+    }
+    fn after_loop_stages(
+        stages: &BTreeSet<usize>,
+        body: &[IrStmt],
+        entry: &serde_json::Value,
+    ) -> Option<BTreeSet<usize>> {
+        let maximum = entry["maximum"].as_u64()?;
+        let writes = usize::try_from(entry["writes"].as_u64()?).ok()?;
+        let per_iteration = loop_write_sets(body, 0)?;
+        if per_iteration.last().copied().unwrap_or(0) > writes {
+            return None;
+        }
+        let totals = loop_write_totals(&per_iteration, maximum)?;
+        stages
+            .iter()
+            .flat_map(|stage| {
+                totals
+                    .iter()
+                    .map(move |extra| stage.checked_add(*extra).filter(|stage| *stage < 200))
+            })
+            .collect()
+    }
     fn constructors(
         ir: &IrProgram,
         owner: &IrItem,
@@ -471,9 +588,20 @@ pub(super) fn collect(
         roots: &mut BTreeMap<String, SymbolId>,
         source: &serde_json::Value,
         module: &str,
-        mut stage: usize,
+        mut stages: BTreeSet<usize>,
         loans: &mut HashMap<Span, serde_json::Value>,
-    ) -> Option<usize> {
+        loops: Option<&serde_json::Value>,
+    ) -> Option<BTreeSet<usize>> {
+        fn advance(stages: &BTreeSet<usize>) -> Option<BTreeSet<usize>> {
+            stages
+                .iter()
+                .map(|stage| {
+                    stage
+                        .checked_add(1)
+                        .and_then(|stage| (stage < 200).then_some(stage))
+                })
+                .collect()
+        }
         for statement in body {
             match statement {
                 IrStmt::Create { input, binding, .. } => {
@@ -484,10 +612,23 @@ pub(super) fn collect(
                                 ResolvedType::Scalar(_)
                                     | ResolvedType::Enum { .. }
                                     | ResolvedType::Record { stored: true, .. }
-                            ) && let Some(loan) = scalar_loan(
-                                ir, owner, context, roots, source, module, value, value.span,
-                                stage, name,
+                            ) && let Some(mut loan) = scalar_loan(
+                                ir,
+                                owner,
+                                context,
+                                roots,
+                                source,
+                                module,
+                                value,
+                                value.span,
+                                *stages.first()?,
+                                name,
                             ) {
+                                if stages.len() > 1 {
+                                    let fields = loan.as_object_mut()?;
+                                    fields.remove("stage");
+                                    fields.insert("stages".into(), serde_json::json!(stages));
+                                }
                                 loans.insert(value.span, loan);
                             }
                         }
@@ -495,7 +636,7 @@ pub(super) fn collect(
                     if let Some(name) = binding {
                         roots.remove(name);
                     }
-                    stage = stage.checked_add(1)?;
+                    stages = advance(&stages)?;
                 }
                 IrStmt::If {
                     then_branch,
@@ -510,8 +651,9 @@ pub(super) fn collect(
                         &mut roots.clone(),
                         source,
                         module,
-                        stage,
+                        stages.clone(),
                         loans,
+                        loops,
                     );
                     let right = constructors(
                         ir,
@@ -521,28 +663,81 @@ pub(super) fn collect(
                         &mut roots.clone(),
                         source,
                         module,
-                        stage,
+                        stages.clone(),
                         loans,
+                        loops,
                     );
-                    if left != right {
+                    // Agreeing exact stages keep the single census. Once a
+                    // bounded loop join admitted several reachable counts,
+                    // the join keeps their exact union. Two exact-but-different
+                    // stages still refuse, as before.
+                    match (left, right) {
+                        (Some(left), Some(right)) if left == right => stages = left,
+                        (Some(left), Some(right)) if left.len() > 1 || right.len() > 1 => {
+                            stages = left.union(&right).copied().collect();
+                            if stages.len() > 200 || stages.last().copied().unwrap_or(200) >= 200 {
+                                return None;
+                            }
+                        }
+                        _ => return None,
+                    }
+                }
+                IrStmt::For {
+                    item,
+                    domain,
+                    body,
+                    span,
+                    ..
+                } => {
+                    // The loop census admits only statically bounded loops.
+                    // Later statements observe the exact enumeration of
+                    // iteration count times exact per-iteration writes:
+                    // with two writes per iteration, odd intermediates are
+                    // impossible and never admitted. Any count reaching the
+                    // census budget refuses instead of truncating silently.
+                    let entry = loops
+                        .and_then(|loops| loops.get("loops")?.as_array())?
+                        .iter()
+                        .find(|entry| {
+                            entry["node"]["start"] == span.start && entry["node"]["end"] == span.end
+                        })?;
+                    let ResolvedType::Array { element, .. } = &domain.ty else {
+                        return None;
+                    };
+                    let ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    } = element.as_ref()
+                    else {
+                        return None;
+                    };
+                    if entry["item"] != *item
+                        || entry["model"] != ir.items[symbol.0 as usize].canonical
+                    {
                         return None;
                     }
-                    stage = left?;
+                    // Names bound anywhere in the body stop being stable
+                    // roots afterwards. Loop-body loans stay unrecorded: a
+                    // dynamic iteration count cannot fix their stage.
+                    for name in loop_shadowed_names(body, 0)? {
+                        roots.remove(&name);
+                    }
+                    stages = after_loop_stages(&stages, body, entry)?;
                 }
                 IrStmt::Let { name, .. } => {
                     roots.remove(name);
                 }
                 IrStmt::Set { .. } | IrStmt::Transition { .. } | IrStmt::Delete { .. } => {
-                    stage = stage.checked_add(1)?
+                    stages = advance(&stages)?
                 }
                 IrStmt::Require { .. } | IrStmt::Send { .. } => {}
                 _ => return None,
             }
-            if stage >= 200 {
+            if stages.len() > 200 || stages.last().copied().unwrap_or(200) >= 200 {
                 return None;
             }
         }
-        Some(stage)
+        Some(stages)
     }
     let mut constructor_roots = params
         .iter()
@@ -574,8 +769,9 @@ pub(super) fn collect(
         &mut constructor_roots,
         &source,
         module,
-        0,
+        BTreeSet::from([0]),
         &mut loans,
+        loops,
     );
     // Each scalar field is observed where its original getter executes.
     // Native JavaScript retains lazy operands and earlier Values failures.
@@ -945,9 +1141,14 @@ pub(super) fn collect(
                         loan["loop"] = entry["id"].clone();
                         loans.insert(key, loan);
                     }
-                    // A dynamic number of child writes cannot establish a later
-                    // static stage. Original loop tail execution remains separate.
-                    return None;
+                    // Constructor and expression observations share the same
+                    // exact finite stage join after an authenticated loop.
+                    // Item-local loans remain relative to their private lease.
+                    stages = after_loop_stages(&stages, body, entry)?;
+                    for name in loop_shadowed_names(body, 0)? {
+                        roots.remove(&name);
+                        values.remove(&name);
+                    }
                 }
                 IrStmt::Create { input, binding, .. } => {
                     let mut nested = HashMap::new();

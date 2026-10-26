@@ -18793,8 +18793,19 @@ impl<'a> Closure<'a> {
         site: &CheckedDecisionSite,
         key: NodeKey,
     ) -> Option<()> {
-        if site.stage != CheckedDecisionStage::BodyRequire
-            || self
+        // A post-write branch condition may reuse a temporary captured
+        // before any write. The temporary's own write-free prefix below
+        // already pins its value to committed-state reads; the branch
+        // needs no write-free site prefix because the captured value is
+        // fixed when the temporary executes, exactly as the continuing
+        // closure environment and the emitted statement order reuse it.
+        // Later writes cannot retroactively change that captured value.
+        let staged_condition = site.stage == CheckedDecisionStage::BodyCondition;
+        if site.stage != CheckedDecisionStage::BodyRequire && !staged_condition {
+            return None;
+        }
+        if !staged_condition
+            && self
                 .source_require_body_guard(scenario, &site.position)
                 .is_none()
         {
