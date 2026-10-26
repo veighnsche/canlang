@@ -325,8 +325,15 @@ interface SourceCreatedRootCapture {readonly profile:ScenarioSourceCreatedRoot;r
 const sourceCreatedRootProducers=new WeakMap<GeneratedOperationDef,Map<string,ScenarioSourceCreatedRoot>>();
 const sourceCreatedRootCaptures=new WeakMap<ReceiptOwnerSession,Map<string,SourceCreatedRootCapture>>();
 export function bindScenarioSourceCreatedRoots(def:GeneratedOperationDef,value:{readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;readonly creates:readonly ScenarioSourceCreatedRoot[]}):void{
+  bindSourceCreatedRoots(def,value);
+}
+function bindSourceCreatedRoots(def:GeneratedOperationDef,value:{readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;readonly creates:readonly ScenarioSourceCreatedRoot[]},prefix?:ScenarioSourceRequirePhasePlan['phases'][number]['prefix']):void{
   const bound=boundPlans.get(def),raw=object(dataCopy(value),['source','owner','creates']);origin(raw['source']);
-  if(bound===undefined||(!bound.sourceRequireOnly&&bound.resultModel===undefined)||invokedPlans.has(def)||raw['owner']!==def.name||stableStringify(raw['source'])!==stableStringify(bound.plan.source))return invalid('Created source roots require their uninvoked original source-only owner.');
+  // Only the independently bound original mutation-prefix consumer may add
+  // a native void CREATE. The exported identity-only binder keeps its gate.
+  const nativePrefix=prefix!==undefined&&bound!==undefined&&!bound.sourceRequireOnly&&bound.type==='void'&&bound.resultModel===undefined
+    &&def.descriptor.result?.disclosure!==undefined&&stableStringify(def.descriptor.result.disclosure)===stableStringify(bound.plan);
+  if(bound===undefined||(!bound.sourceRequireOnly&&bound.resultModel===undefined&&!nativePrefix)||invokedPlans.has(def)||raw['owner']!==def.name||stableStringify(raw['source'])!==stableStringify(bound.plan.source))return invalid('Created source roots require their uninvoked original source-only owner.');
   const previous=sourceCreatedRootProducers.get(def)??new Map<string,ScenarioSourceCreatedRoot>(),next=new Map(previous);
   for(const value of list(raw['creates'])){
     const profile=object(value,['id','node','stage','binding','model','parentParameter','parentModel']),id=text(profile['id']);
@@ -336,7 +343,8 @@ export function bindScenarioSourceCreatedRoots(def:GeneratedOperationDef,value:{
         ||!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start'])
         ||input?.kind!=='ref'||input.model!==parent||input.nullable===true||Object.hasOwn(def.inputArrays,parameter)
         ||bound.artifactModels.get(model as ModelName)?.parent!==parent)return invalid('Created source root lost its original stage, model or required admitted parent.');
-    if(!bound.sourceRequireOnly&&!bound.plan.returns.some(returned=>returned.intrinsics?.some(dependency=>dependency.kind==='created-model-version'&&stableStringify(dependency.created)===stableStringify(profile))))return invalid('Native created version lacks its independently bound original CREATE intrinsic.');
+    const originalPrefix=nativePrefix&&prefix!.some(step=>step.kind==='create'&&stableStringify(step.created)===stableStringify(profile));
+    if(!bound.sourceRequireOnly&&!originalPrefix&&!bound.plan.returns.some(returned=>returned.intrinsics?.some(dependency=>dependency.kind==='created-model-version'&&stableStringify(dependency.created)===stableStringify(profile))))return invalid('Native created root lacks its independently bound original CREATE consumer.');
     const prior=next.get(id);if(prior!==undefined&&stableStringify(prior)!==stableStringify(profile))return invalid('Created source root ID changes its original declaration.');
     if([...next.values()].some(other=>other.id!==id&&other.stage===profile['stage']))return invalid('Created source roots overlap an actual linear owner stage.');
     next.set(id,deepFreeze(profile) as unknown as ScenarioSourceCreatedRoot);
@@ -5222,7 +5230,6 @@ function bindSourceMutationPrefix(def:GeneratedOperationDef,bound:BoundPlan,raw:
   for(const value of prefix){
    if(typeof value==='object'&&value!==null&&Object.getOwnPropertyDescriptor(value,'kind')?.value==='create'){
     const step=object(value,['kind','created','fields']);
-    bindScenarioSourceCreatedRoots(def,{source:bound.plan.source,owner:def.name,creates:[step['created'] as ScenarioSourceCreatedRoot]});
     const created=step['created'] as ScenarioSourceCreatedRoot,names=list(step['fields']).map(text);
     if(names.length===0||new Set(names).size!==names.length||names.some((name,index)=>index>0&&names[index-1]!>=name||!bound.artifactModels.get(created.model)?.fields.some(field=>field.name===name&&field.default?.kind!=='derived')))return invalid('Source phase CREATE fields differ from their original stored schema.');
     continue;
@@ -5241,6 +5248,8 @@ function bindSourceMutationPrefix(def:GeneratedOperationDef,bound:BoundPlan,raw:
    for(const value of parents){const parent=text(value) as ModelName;if(bound.artifactModels.get(model)?.parent!==parent||storedReferenceField(bound,model,'parent',parent).target!==parent)return invalid('Source phase SET parent differs from containment.');model=parent;}
    const fields=list(step['fields']).map(text);if(fields.length===0||new Set(fields).size!==fields.length||fields.some(name=>!bound.artifactModels.get(model)?.fields.some(field=>field.name===name&&field.default?.kind!=='derived')))return invalid('Source phase SET field census differs from its actual schema.');
   }
+  const creates=prefix.flatMap(value=>{const step=value as {kind:string;created?:ScenarioSourceCreatedRoot};return step.kind==='create'?[step.created!]:[];});
+  if(creates.length!==0)bindSourceCreatedRoots(def,{source:bound.plan.source,owner:def.name,creates},prefix as unknown as ScenarioSourceRequirePhasePlan['phases'][number]['prefix']);
 }
 export function bindScenarioSourceRequirePhases(def:GeneratedOperationDef,value:ScenarioSourceRequirePhasePlan):void{
  const bound=boundPlans.get(def);if(bound===undefined||invokedPlans.has(def)||sourceRequirePhaseProducers.has(def))return invalid('Source phase needs its original uninvoked bound owner.');

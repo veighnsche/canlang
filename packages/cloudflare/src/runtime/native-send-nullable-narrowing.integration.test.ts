@@ -18,28 +18,44 @@ import { asId, asModel, makeBatch, makeRow } from '@canlang/state/testing/invoca
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work/kernel/file-reference-inventory';
 import { buildInvoker } from '../worker/assembly.js';
 import { installNativeFileInventory } from './file-inventory.js';
-import { assembleModules } from './modules.js';
+import { assembleModules, importVerifiedAssemblyModule } from './modules.js';
 
 const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
 const source = join(root, 'packages/cloudflare/test/fixtures/native-send-nullable-narrowing.can');
 const compiler = process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can');
 const catalog = join(root, 'packages/cloudflare/dist/native-catalog.json');
 
-it('refuses an event-sourced guard without orphaning a separate valid SEND owner', () => {
+it('retains independent native receipts for guarded SEND and declared-event owners', async () => {
   const mixed = join(root, 'packages/cloudflare/test/fixtures/native-send-partial-refusal.can');
   const result = spawnSync(compiler,
     ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, mixed],
     { cwd: root, encoding: 'utf8' });
-  assert.equal(result.status, 10);
-  const report = JSON.parse(result.stdout) as { complete: boolean; diagnostics: {
-    code: string; message: string; primary: { start: number } }[] };
-  assert.equal(report.complete, true);
-  const refused = report.diagnostics.filter(diagnostic => diagnostic.code === 'E6008');
-  assert.ok(refused.some(diagnostic => diagnostic.message.includes('send dispatch guard')));
-  const invalidOwner = readFileSync(mixed, 'utf8').indexOf('scenario ping on=Ping');
-  assert.ok(invalidOwner >= 0);
-  assert.ok(refused.every(diagnostic => diagnostic.primary.start >= invalidOwner),
-    `only the event owner may be refused: ${JSON.stringify(refused)}`);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  const artifact = JSON.parse(result.stdout) as CompileArtifact;
+  const retry = artifact.operations?.find(operation => operation.name === 'NullableSendPartial.retry');
+  assert.equal(retry?.result?.disclosure?.version, 1, 'the nullable SEND retains its separate native receipt');
+  assert.ok(retry?.result?.disclosure?.returns.some(returned => returned.dependencies.some(dependency =>
+    dependency.model === 'NullableSendPartial.Request' && dependency.field === 'recipient' && dependency.role === 'data')));
+  const directory = await mkdtemp(join(tmpdir(), 'can-event-send-origin-'));
+  try {
+    const asm = await assembleModules({ artifact, sourcePath: mixed }, { workDir: directory,
+      stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'), uiUrl: import.meta.resolve('@canlang/ui') });
+    const module = artifact.modules.find(module => module.js.includes('canScenarioQuerySources'));
+    assert.ok(module);
+    const emitted = await importVerifiedAssemblyModule(asm, module.path, artifact) as {
+      canScenarioQuerySources(): Record<string, { retainedGuardedHandler: {
+        owner: string; event: string; source: { path: string; sha256: string }; rules: string[];
+      } }>;
+      canApp(): { sendWhen: Record<string, unknown> };
+    };
+    const retained = emitted.canScenarioQuerySources()['NullableSendPartial.ping']?.retainedGuardedHandler;
+    assert.ok(retained, 'the declared-event guard has its own retained native source consumer');
+    assert.equal(retained.owner, 'NullableSendPartial.ping');
+    assert.equal(retained.event, 'NullableSendPartial.Ping');
+    assert.equal(retained.source.sha256, await sha256HexText(readFileSync(mixed, 'utf8')));
+    assert.equal(retained.rules.length, 1);
+    assert.equal(typeof emitted.canApp().sendWhen[retained.rules[0]!], 'function', 'the original event guard remains executable');
+  } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
 function operationId(now: number): string {
