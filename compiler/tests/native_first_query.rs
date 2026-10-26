@@ -4561,6 +4561,7 @@ package allocation
    do
     let existing=first(Settlement as settlement where settlement.reference==reference order=settlement.id)
     if existing!=null
+     require existing.parent==root and existing.amount==amount and existing.reference==reference
      return existing
     create Settlement {parent=root,amount,reference} as settlement
     for credit in root.Credit as item where item.amount.minor>0 order=item.created limit=500
@@ -4618,7 +4619,43 @@ package allocation
             ]
         );
         let returns = plan["returns"].as_array().unwrap();
-        assert_eq!(returns.len(), 3);
+        assert_eq!(returns.len(), 6);
+        {
+            let checked = match &mix_ir.scenario_disclosures[&mix_owner.id] {
+                ScenarioDisclosure::Complete(value) => value,
+                ScenarioDisclosure::Declined(other) => {
+                    panic!("mixed must stay Complete: {other:?}")
+                }
+            };
+            assert_eq!(checked.returns.len(), 6);
+            let mut ids = std::collections::HashSet::new();
+            for returned in &checked.returns {
+                assert!(ids.insert(&returned.id));
+                assert_eq!(returned.source.path, "mixed-first-values.can");
+                assert_eq!(returned.source.module, "allocation");
+            }
+            let artifact_ids = returns
+                .iter()
+                .map(|value| value["id"].as_str().unwrap())
+                .collect::<Vec<_>>();
+            let checked_ids = checked
+                .returns
+                .iter()
+                .map(|returned| returned.id.as_str())
+                .collect::<Vec<_>>();
+            assert_eq!(artifact_ids, checked_ids);
+            let mut nodes = std::collections::HashSet::new();
+            for returned in &checked.returns {
+                nodes.insert((returned.node.file, returned.node.start, returned.node.end));
+            }
+            assert_eq!(nodes.len(), 2);
+            let full = checked
+                .returns
+                .iter()
+                .filter(|returned| returned.influences.len() == 12)
+                .count();
+            assert_eq!(full, 1);
+        }
         // IR-level seal: dropped, wrong, or partial FIRST groups must refuse
         // through the production emit, not the single-query helper.
         for mode in ["drop-first-group", "wrong-return-group", "partial-group"] {

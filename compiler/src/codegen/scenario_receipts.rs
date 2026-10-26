@@ -11497,8 +11497,13 @@ pub(super) fn checked_first_query_row<'a>(
 ) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema> {
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
     let queries = facts.queries.as_deref()?;
-    checked_native_query_influences(queries)
-        .or_else(|| checked_mixed_helper_query_influences(facts))?;
+    // The common owning census admits the genuine FIRST plus exact Values
+    // cohort (and the other owner-aware compositions it already validates).
+    // The legacy whole-inventory shapes only covered COUNT/helper mixes and
+    // wrongly refused FIRST with aggregate Values queries, even though the
+    // Values composer authenticates exactly that family. Row authority still
+    // comes from the exact FIRST/LET/schema checks below.
+    checked_scenario_query_influences(facts)?;
     let mut selected = queries.iter().filter(|query| query.first.is_some());
     let query = selected.next()?;
     if selected.next().is_some() {
@@ -20772,18 +20777,23 @@ fn created_return_branches_shape(
         return None;
     };
     // The proven FIRST existing-result return may terminate a path with no
-    // created row pending. The replay slice admits exactly one
-    // model_result-free return for the same model; bind the walk to it.
+    // created row pending. The replay slice admits exactly one authored
+    // model_result-free return node for the same model; bind the walk to it.
+    // A conjunction generates multiple checked decision paths to that same
+    // authored return, so every replay candidate must share one original
+    // file+span while all per-path return records stay intact.
     let replay = checked_created_model_result(ir, owner)
         .filter(|model| *model == result_model)
         .and_then(|_| {
             let mut replay = checked
                 .returns
                 .iter()
-                .filter(|returned| returned.model_result.is_none())
-                .map(|returned| node_span(returned.node));
-            let span = replay.next()?;
-            replay.next().is_none().then_some(span)
+                .filter(|returned| returned.model_result.is_none());
+            let first = replay.next()?;
+            let span = node_span(first.node);
+            replay
+                .all(|returned| node_span(returned.node) == span)
+                .then_some(span)
         });
     walk(
         effects,

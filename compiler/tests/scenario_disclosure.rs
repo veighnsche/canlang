@@ -1,7 +1,7 @@
 //! Private checked/IR disclosure facts only; no artifact, marker or receipt qualification.
 use canlang_compiler::analysis::catalog::{CatalogRequest, load_catalog};
 use canlang_compiler::analysis::scenario_disclosure::{
-    CheckedScenarioDisclosure, DependencyRole, DisclosureChoice, InfluenceKind, ScenarioDisclosure,
+    CheckedScenarioDisclosure, DependencyRole, DisclosureChoice, ScenarioDisclosure,
 };
 use canlang_compiler::analysis::{CheckedProgram, check_program};
 use canlang_compiler::codegen::ir;
@@ -266,8 +266,8 @@ When
    return "independent"
 Then
 "#;
-    let (_, program) = checked(&[("refused.can", source)]);
-    for name in ["query", "absent", "composite"] {
+    let (db, program) = checked(&[("refused.can", source)]);
+    for name in ["query", "composite"] {
         assert!(
             matches!(
                 fact(&program, &format!("Refused.{name}")),
@@ -294,15 +294,31 @@ Then
         changed.returns[0].dependencies.is_empty(),
         "a checked constant assignment retains its effect proof without inventing a stored read"
     );
-    let ScenarioDisclosure::Declined(absent) = fact(&program, "Refused.absent") else {
-        unreachable!()
-    };
-    assert!(
-        absent
-            .influences
-            .iter()
-            .any(|i| i.kind == InfluenceKind::AbsentReference)
-    );
+    let absent = complete(&program, "Refused.absent");
+    assert_eq!(absent.source.path, "refused.can");
+    assert_eq!(absent.source.module, "Refused");
+    assert_eq!(absent.source.sha256, sha256_hex(source.as_bytes()));
+    assert_eq!(absent.returns.len(), 2);
+    origins(&db, absent);
+    let empty = absent
+        .returns
+        .iter()
+        .find(|returned| returned.dependencies.is_empty())
+        .expect("absent Else branch carries no stored read");
+    assert!(empty.decisions.iter().any(|decision| decision.choice
+        == canlang_compiler::analysis::scenario_disclosure::DisclosureChoice::Else));
+    assert!(empty.influences.is_empty());
+    let present = absent
+        .returns
+        .iter()
+        .find(|returned| !returned.dependencies.is_empty())
+        .expect("present Then branch reads the original title");
+    assert!(present.decisions.iter().any(|decision| decision.choice
+        == canlang_compiler::analysis::scenario_disclosure::DisclosureChoice::Then));
+    assert_eq!(present.dependencies.len(), 1);
+    assert_eq!(present.dependencies[0].field_name, "title");
+    assert_eq!(present.dependencies[0].role, DependencyRole::Data);
+    assert!(present.influences.is_empty());
     let ScenarioDisclosure::Declined(query) = fact(&program, "Refused.query") else {
         unreachable!()
     };
