@@ -4,6 +4,142 @@ use crate::analysis::{ResolvedType, SymbolId};
 use crate::source::Span;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
+/// Preserve an existing native DATA getter instead of installing a second
+/// auxiliary observer at that same freshly checked original expression.
+pub(super) fn native_owns_data(
+    owner: &IrItem,
+    native: &super::scenario_receipts::NativeScenarioReceipt,
+    span: Span,
+    loan: &serde_json::Value,
+) -> bool {
+    if loan.get("loop").is_some()
+        || loan["owner"] != owner.canonical
+        || loan["source"] != serde_json::to_value(&native.plan.source).unwrap_or_default()
+        || loan["node"]["start"] != span.start
+        || loan["node"]["end"] != span.end
+    {
+        return false;
+    }
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return false;
+    };
+    // LET snapshots need their independent capture bookkeeping, including
+    // when an ordinary native DATA consumer also uses their original value.
+    if effects
+        .iter()
+        .any(|statement| matches!(statement,IrStmt::Let{span:original,..}if *original==span))
+    {
+        return false;
+    }
+    let model = loan["path"]
+        .as_array()
+        .and_then(|path| path.last())
+        .map(|edge| &edge["model"])
+        .or_else(|| loan["parents"].as_array().and_then(|path| path.last()))
+        .unwrap_or(&loan["model"]);
+    let site = super::scenario_receipts::NativeSite {
+        calls: Vec::new(),
+        span,
+        default_selection: false,
+    };
+    let declared = |read: &super::scenario_receipts::NativeDependency| {
+        native
+            .plan
+            .returns
+            .iter()
+            .flat_map(|returned| &returned.dependencies)
+            .find(|dependency| {
+                dependency.id == read.id
+                    && model == &read.model
+                    && loan["field"]["name"] == read.field
+                    && dependency.model == read.model
+                    && dependency.field == read.field
+                    && loan["field"]["type"] == dependency.type_id
+                    && loan["source"]
+                        == serde_json::to_value(&dependency.source).unwrap_or_default()
+            })
+    };
+    native.dependencies.get(&site).is_some_and(|reads| {
+        reads.iter().all(|read| declared(read).is_some())
+            && reads.iter().any(|read| {
+                declared(read).is_some_and(|dependency| {
+                    dependency.role == super::scenario_receipts::ReceiptRole::Data
+                })
+            })
+    })
+}
+
+/// Native owners reuse the same original stage-zero scalar capture consumed
+/// by a later source Require. An unrelated outer DATA read has no such owner.
+pub(super) fn native_guard_capture(
+    owner: &IrItem,
+    native: &super::scenario_receipts::NativeScenarioReceipt,
+    requires: &HashMap<Span, serde_json::Value>,
+    span: Span,
+    loan: &serde_json::Value,
+) -> bool {
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return false;
+    };
+    let Some(value) = effects.iter().find_map(|statement| match statement {
+        IrStmt::Let {
+            name,
+            value,
+            span: original,
+        } if *original == span && loan["binding"] == *name => Some(value),
+        _ => None,
+    }) else {
+        return false;
+    };
+    let site = super::scenario_receipts::NativeSite {
+        calls: Vec::new(),
+        span: value.span,
+        default_selection: false,
+    };
+    // A getter already owned by the complete native recipe must keep its
+    // independent observations. This bridge owns only the guard capture.
+    if native.dependencies.contains_key(&site) || native.intrinsics.contains_key(&site) {
+        return false;
+    }
+    matches!(
+        loan["valueType"].as_str(),
+        Some(
+            "bool"
+                | "int"
+                | "decimal"
+                | "text"
+                | "email"
+                | "url"
+                | "locale"
+                | "date"
+                | "datetime"
+                | "duration"
+                | "timezone"
+                | "currency"
+                | "money"
+        )
+    ) && loan.get("loop").is_none()
+        && loan["stage"] == 0
+        && loan.get("stages").is_none()
+        && loan
+            .get("field")
+            .is_some_and(|field| field.get("metadata").is_none())
+        && requires.values().any(|guard| {
+            guard["owner"] == owner.canonical
+                && guard["decision"] == "require"
+                && guard.get("mutationPrefix").is_some()
+                && guard["source"]["path"] == loan["source"]["path"]
+                && guard["source"]["sha256"] == loan["source"]["sha256"]
+                && guard["captures"].as_array().is_some_and(|captures| {
+                    captures.iter().any(|capture| {
+                        capture["node"] == loan["node"]
+                            && capture["binding"] == loan["binding"]
+                            && capture["typeId"] == loan["valueType"]
+                    })
+                })
+        })
+}
+
 pub(super) fn collect(
     ir: &IrProgram,
     owner: &IrItem,

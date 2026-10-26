@@ -882,6 +882,7 @@ pub(super) fn collect_maintain_receipt(
             returns: vec![returned],
         },
         dependencies: HashMap::new(),
+        reference_captures: Default::default(),
         intrinsics: HashMap::new(),
         decisions: HashMap::new(),
         decision_keys: HashMap::new(),

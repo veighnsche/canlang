@@ -179,6 +179,7 @@ pub(super) fn retained_handler_receipt(
             returns: Vec::new(),
         },
         dependencies: HashMap::new(),
+        reference_captures: Default::default(),
         intrinsics: HashMap::new(),
         decisions: HashMap::new(),
         decision_keys: HashMap::new(),

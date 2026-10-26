@@ -636,6 +636,8 @@ pub(super) struct NativeScenarioReceipt {
     pub plan: ReceiptDisclosurePlan,
     /// One observation site may supply both data and control identities.
     pub dependencies: HashMap<NativeSite, Vec<NativeDependency>>,
+    /// Original immutable reference capture, before any later field consumer.
+    pub reference_captures: HashMap<NativeSite, NativeDependency>,
     pub intrinsics: HashMap<NativeSite, Vec<NativeIntrinsic>>,
     pub decisions: HashMap<NativeSite, NativeDecisionKind>,
     pub decision_keys: HashMap<NativeSite, String>,
@@ -2728,6 +2730,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             returns: Vec::new(),
         },
         dependencies: HashMap::new(),
+        reference_captures: HashMap::new(),
         intrinsics: HashMap::new(),
         decisions: HashMap::new(),
         decision_keys: HashMap::new(),
@@ -2981,6 +2984,61 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         }
 
         for dependency in &returned.dependencies {
+            let alias_identity = (dependency.field == dependency.model
+                && dependency.field_name == "id"
+                && dependency.role == DependencyRole::Data
+                && dependency.calls.is_empty()
+                && dependency.query_id.is_none())
+            .then(|| {
+                let site = checked_site(dependency.node, &[])?;
+                let [value] = sites.members.get(&site)?.as_slice() else {
+                    return None;
+                };
+                let IrItemKind::Scenario { effects, .. } = &item.kind else {
+                    return None;
+                };
+                let statement = effects.iter().find(|statement| {
+                    matches!(statement,
+                    IrStmt::Let { value: original, .. } if std::ptr::eq(original, *value))
+                })?;
+                let IrStmt::Let { name, span, .. } = statement else {
+                    return None;
+                };
+                let syntax = checked_effect_node(
+                    ir,
+                    item,
+                    NodeKey {
+                        file: span.file,
+                        start: span.start,
+                        end: span.end,
+                        kind: SyntaxKind::Let as u8,
+                    },
+                    db?,
+                )?;
+                let text = &db?.get(span.file)?.text;
+                let names = syntax
+                    .children
+                    .iter()
+                    .filter(|node| node.kind == SyntaxKind::Name)
+                    .collect::<Vec<_>>();
+                let [keyword, binding] = names.as_slice() else {
+                    return None;
+                };
+                if keyword.token()?.text(text) != "let"
+                    || binding.token()?.text(text) != name
+                    || !syntax
+                        .children
+                        .iter()
+                        .any(|node| node.kind == SyntaxKind::Member && node.span == value.span)
+                {
+                    return None;
+                }
+                super::scenario_calls::checked_original_expression(ir, item, value, db?)?;
+                let target = checked_reference_model_result(ir, item, value, models, db?)?;
+                (target.id == dependency.model && target.canonical == dependency.model_name)
+                    .then_some(*value)
+            })
+            .flatten();
             let result_identity = match returned.model_result {
                 Some(
                     DisclosureModelResult::Parameter { model, node, .. }
@@ -3015,6 +3073,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     .is_some_and(|expressions| matches!(expressions.as_slice(), [expression]
                         if db.is_some_and(|db| checked_set_parent_receiver(ir, item, expression, db).is_some())));
             if (result_identity.is_none()
+                && alias_identity.is_none()
                 && !is_transition
                 && !parent_set
                 && dependency.node.kind != SyntaxKind::Member as u8)
@@ -3075,6 +3134,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                             dependency.model == child.id && dependency.field == child.id && dependency.field_name == "parent"
                                 && dependency.ty == ResolvedType::Record {symbol:parent.id,stored:true}))));
             if result_identity.is_none()
+                && alias_identity.is_none()
                 && !captured_control
                 && (profile_scalar_pairs.contains_key(&site) && profile_scalar_pair.is_none()
                     || profile_source_pairs.contains_key(&site) && profile_source_pair.is_none())
@@ -3083,6 +3143,22 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             }
             let source_dependency_id = profile_scalar_pair
                 .map(|(reference, _)| reference.id.clone())
+                .or_else(|| {
+                    alias_identity.and_then(|value| {
+                        let field = stored_reference_operand(ir, item, value, db?)?;
+                        let mut reads = returned.dependencies.iter().filter(|read| {
+                            read.node == dependency.node
+                                && read.model == field.owner
+                                && read.field == field.id
+                                && read.ty == field.ty
+                                && read.role == DependencyRole::Data
+                                && read.calls.is_empty()
+                                && read.query_id.is_none()
+                        });
+                        let read = reads.next()?;
+                        reads.next().is_none().then(|| read.id.clone())
+                    })
+                })
                 .or_else(|| {
                     reminder_recipient.as_ref().and_then(|(source, leaf)| {
                         if dependency.id != *leaf {
@@ -3138,7 +3214,8 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 .as_ref()
                 .is_some_and(|current| current.digest_data.dependency == dependency);
             let result_id_field = "id".to_string();
-            let (base, field, transition) = if let Some(value) = result_identity {
+            let (base, field, transition) = if let Some(value) = result_identity.or(alias_identity)
+            {
                 (value, &result_id_field, None)
             } else if is_transition {
                 if !dependency.calls.is_empty() || dependency.role != DependencyRole::Control {
@@ -3316,14 +3393,15 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 {
                     return None;
                 }
-                let expression = match result_identity {
+                let expression = match result_identity.or(alias_identity) {
                     Some(value) => value,
                     None => *sites.members.get(&site)?.first()?,
                 };
-                let original = if matches!(
-                    returned.model_result,
-                    Some(DisclosureModelResult::Reference { .. })
-                ) {
+                let original = if alias_identity.is_some()
+                    || matches!(
+                        returned.model_result,
+                        Some(DisclosureModelResult::Reference { .. })
+                    ) {
                     checked_reference_model_result(ir, item, expression, models, db?)?
                 } else {
                     checked_parameter_row_id(ir, item, expression, models, db?)
@@ -3876,7 +3954,24 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 ) || result_identity.is_some_and(|value| {
                     checked_contract_parameter_path(ir, item, value, db).is_some()
                 }));
-            if reference_result {
+            if alias_identity.is_some() {
+                let capture = NativeDependency {
+                    id: dependency.id.clone(),
+                    model: dependency.model_name.clone(),
+                    field: "id".into(),
+                    source_dependency_id: Some(source_dependency_id.clone()?),
+                    captured_reference: false,
+                };
+                if let Some(previous) = recipe.reference_captures.get(&site) {
+                    if previous.id != capture.id
+                        || previous.source_dependency_id != capture.source_dependency_id
+                    {
+                        return None;
+                    }
+                } else {
+                    recipe.reference_captures.insert(site, capture);
+                }
+            } else if reference_result {
                 if !matches!(
                     returned.model_result,
                     Some(DisclosureModelResult::Reference { .. })
