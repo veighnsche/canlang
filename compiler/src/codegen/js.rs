@@ -21337,6 +21337,24 @@ impl<'a> Emitter<'a> {
                     if nullable { "?" } else { "" }
                 )));
             }
+            // Declared contract results keep their canonical name even when
+            // the contract stays outside the bounded value inventory (an
+            // action leaf has no section-13 type id, so such contracts never
+            // join it). The declaration always publishes the same name and
+            // install-time correspondence requires the descriptor to agree;
+            // only the name travels here, never leaf schema or new authority.
+            if let ResolvedType::Record { symbol, .. } = element
+                && let Some(contract) = self.ir.items.get(symbol.0 as usize)
+                && contract.id == *symbol
+                && matches!(contract.kind, IrItemKind::Contract { .. })
+            {
+                return Some(Cow::Owned(format!(
+                    "{}{}{}",
+                    contract.canonical,
+                    if array { "[]" } else { "" },
+                    if nullable { "?" } else { "" }
+                )));
+            }
         }
         if let Some(result) = result {
             let outer = match result {

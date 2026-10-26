@@ -4904,6 +4904,20 @@ fn d03_empty_desc_stays_present() {
     );
 }
 
+/// A read scenario returning a contract keeps its declared result in the
+/// operation descriptor even when the contract stays outside the bounded
+/// value inventory (an action leaf has no section-13 type id, so the
+/// contract never joins it). Install-time declaration/descriptor
+/// correspondence requires the name; absence refuses the whole install.
+#[test]
+fn read_contract_result_with_action_leaf_keeps_descriptor_result() {
+    let src = "app Shop\nGiven\n Gadget {title:text}\n policy Gadget read=members\n contract Batch { title:text, go:action(pick) }\nWhen\n scenario pick(gadget:Gadget) by=members\n  do let x = 1\n export scenario get(batch:Batch) read=true by=members -> Batch\n  do return batch\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(diags.is_empty(), "clean lowering: {diags:?}");
+    let op = d03_operation(&artifact, "Shop.get");
+    assert_eq!(op.result.as_deref(), Some("Shop.Batch"));
+}
+
 /// C01 witnesses have fixed decoded strings and JS literals, independent
 /// of either the old decoder or the emitter. This traverses real source,
 /// analysis, CST reparse, IR and emission under the test-only catalog;
