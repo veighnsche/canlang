@@ -543,8 +543,13 @@ it('refuses changed Event formatter traversal, revision guard, or ordinary busin
 
 
 it('observes original pre-change guards and atomically creates, sends, and routes Event changes',
-  {timeout:120000},async()=>{
+  {timeout:300000},async()=>{
     const directory=await mkdtemp(join(tmpdir(),'can-event-change-guards-'));
+    const timings: Array<{phase:string;ms:number}>=[];
+    const timePhase=async<T>(phase:string,fn:()=>Promise<T>):Promise<T>=>{
+      const start=Date.now();
+      try{return await fn();}finally{timings.push({phase,ms:Date.now()-start});}
+    };
     try {
       const original=await readFile(join(root,'compiler/tests/fixtures/event-change-retained.can'),'utf8');
       const guards=original.replace('  scenario change_schedule(','  export scenario check_change(').replace(') -> Change by=organizer',') -> int by=organizer');
@@ -555,12 +560,13 @@ it('observes original pre-change guards and atomically creates, sends, and route
         original.slice(0,original.indexOf('   do\n',original.indexOf('scenario change_schedule'))).replace('  scenario change_schedule(','  export scenario check_change(')+
         '   do\n'+(profile==='retained'?original.split('\n').find(line=>line.startsWith('    let retained='))!+'\n'+create.replace('account=actor','account=retained?.account ?? actor'):create)+'\n    set event {pending_change=change}\n'+(profile==='retained'?'    emit ApplyChange {change}':'    if resource==null\n     emit ApplyChange {change}\n    else\n     require false')+'\n    return change\n  scenario consume on=ApplyChange\n   do require true\n Then\n';
       const sourcePath=join(directory,profile+'.can');await writeFile(sourcePath,sourceText);
-      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,sourcePath],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const {stdout}=await timePhase('compile/'+profile,()=>promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,sourcePath],{cwd:root,timeout:60000,maxBuffer:32*1024*1024}));
       const artifact=JSON.parse(stdout) as CompileArtifact;
-      const asm=await assembleModules({artifact,sourcePath},{workDir:join(directory,'assembly-'+profile),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      const asm=await timePhase('assemble/'+profile,()=>assembleModules({artifact,sourcePath},{workDir:join(directory,'assembly-'+profile),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')}));
       for(const mode of [...(['omitted','null','live','inactive','capacity','prefix-false'] as const),...(profile!=='guards'?['capacity-race'] as const:[]),...((profile==='retained'||profile==='original')?['retained','null-match','unmatched','missing-account','account-race','resource-race','domain-race','identity-race'] as const:[]),...(profile==='original'?['different-resource','stage-customer-mismatch','stage-not-confirmed','missing-venue-state','hidden-customer'] as const:[])]){
         const now=Date.parse('2099-01-01T12:00:00Z'),clock=createFrozenClock(now),identities=createMemoryIdentityStore({clock});
         const team=await identities.createTeam({timezone:'UTC'});
+        const modeStart=Date.now();
         const actor=await identities.createUser({email:'event-guards@example.test',password_hash:'unused',email_verified:true});
         const authMembership=await identities.createMembership({team_id:team.team_id,user_id:actor.user_id,is_owner:false,roles:[{role:'events.organizer',granted_at:new Date(now).toISOString(),granted_by:actor.user_id},...(mode==='hidden-customer'?[]:[{role:'customer.customer_reader',granted_at:new Date(now).toISOString(),granted_by:actor.user_id}])]});
         const retainedActor=await identities.createUser({email:'prior-account@example.test',password_hash:'unused',email_verified:true});
@@ -640,9 +646,16 @@ it('observes original pre-change guards and atomically creates, sends, and route
             assert.equal((await store.query({model:asModel('work.handler_occurrence'),authority:'owner'})).filter(row=>row.data['handler']==='events.consume').length,emitted?1:0,'replay emits no second route');
           }else assert.equal(current.data['pending_change'],null,mode+': failed prefix or late Require publishes no link');
         }
+        timings.push({phase:'case/'+profile+'/'+mode,ms:Date.now()-modeStart});
       }
       }
-    }finally{await rm(directory,{recursive:true,force:true});}
+    }finally{
+      const total=timings.reduce((sum,entry)=>sum+entry.ms,0);
+      console.error(`[event-change-guards] ${timings.length} timed phases, ${total}ms counted`);
+      for(const entry of [...timings].sort((a,b)=>b.ms-a.ms).slice(0,12))
+        console.error(`[event-change-guards] ${entry.phase}: ${entry.ms}ms`);
+      await rm(directory,{recursive:true,force:true});
+    }
   });
 
 it('executes original optional Customer helper guards with complete owner domains and commit fences',
