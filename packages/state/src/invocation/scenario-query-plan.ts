@@ -1,8 +1,8 @@
 /** Finite checked query projections and their saved disclosure closure. */
 import type {
   ArtifactModel, ArtifactModelField, CanTypeId, ModelName, ProjectedRecord,
-  ScenarioReceiptQueryObservation, ScenarioReceiptQueryPlan, ScenarioReceiptQueryProjection,
-  ScenarioResultDisclosurePlan, StoredRow,
+  ScenarioReceiptQueryObservation, ScenarioReceiptQueryOccurrence, ScenarioReceiptQueryPlan, ScenarioReceiptQueryProjection, ScenarioReceiptCreatedRoot,
+  ScenarioResultDisclosurePlan, ScenarioReceiptAssociation, StoredRow,
 } from '@canlang/contracts';
 import {
   compareInt, compareDecimal, compareMoney, decodeValue, encodeValue,
@@ -25,11 +25,11 @@ const text = (value: unknown): string => typeof value === 'string' && value.leng
   ? value : fail('bounded nonempty identity required.');
 
 /** Reject accessors, cycles, sparse arrays and exotic objects before inspection. */
-function copy(value: unknown): unknown {
+function copy(value: unknown, maximum = 20000): unknown {
   let nodes = 0;
   const seen = new Set<object>();
   const visit = (part: unknown, depth: number): unknown => {
-    if (++nodes > 20000 || depth > 32) return fail('own data budget exceeded.');
+    if (++nodes > maximum || depth > 32) return fail('own data budget exceeded.');
     if (part === null || typeof part === 'string' || typeof part === 'boolean') return part;
     if (typeof part === 'number' && Number.isFinite(part)) return part;
     if (typeof part !== 'object' || part === null || seen.has(part) ||
@@ -55,12 +55,61 @@ function object(value: unknown, keys: readonly string[]): Record<string, unknown
         return member === undefined || !('value' in member) || !member.enumerable; })) return fail('closed own shape required.');
   return value as Record<string, unknown>;
 }
-function list(value: unknown): unknown[] {
-  if (!Array.isArray(value) || value.length > MAX) return fail('bounded array required.');
+function list(value: unknown, maximum = MAX): unknown[] {
+  if (!Array.isArray(value) || value.length > maximum) return fail('bounded array required.');
   return value;
 }
 function unique(values: readonly string[]): void {
   if (new Set(values).size !== values.length) fail('duplicate identity.');
+}
+
+export interface AggregateReceiptLimits {
+  readonly maxQueries: number;
+  readonly maxRows: number;
+  readonly maxObservations: number;
+  readonly maxNodes: number;
+}
+
+/** Counts retained executions, never authority. Callers select this only from
+ * their independently checked original owner plan; persisted headers cannot
+ * authorize a larger decoding budget. Every payload retains the existing
+ * own-data allowance inside the source's finite execution census. */
+export function aggregateReceiptLimits(plan: ScenarioResultDisclosurePlan): AggregateReceiptLimits | undefined {
+  const loops = plan.sourceLoops?.loops.filter(loop => loop.aggregate !== undefined) ?? [];
+  if (loops.length === 0) return undefined;
+  const queries = checkQueries(plan.queries ?? []);
+  let maximum = 0;
+  const ids = new Set<string>();
+  for (const loop of loops) {
+    if (ids.has(loop.id) || !Number.isSafeInteger(loop.maximum) || loop.maximum < 1 || loop.maximum > 1000 ||
+        loop.writes !== 1 || loop.sends !== 0) fail('aggregate receipt lost its original finite execution census.');
+    ids.add(loop.id); maximum += loop.maximum;
+    const owned = queries.filter(query => query.iteration === loop.id);
+    if (owned.length === 0 || owned.length !== loop.aggregate!.queries.length ||
+        new Set(loop.aggregate!.queries).size !== owned.length ||
+        loop.aggregate!.queries.some(id => !owned.some(query => query.id === id))) fail('aggregate receipt query census differs.');
+  }
+  if (maximum > 1000 || queries.some(query => query.iteration !== undefined && !ids.has(query.iteration))) {
+    fail('aggregate receipt has a foreign or unbounded iteration.');
+  }
+  const maxRows = MAX + loops.reduce((total, loop) => total + loop.maximum * (loop.writes! + 1), 0);
+  let maxQueries = queries.filter(query => query.iteration === undefined).length;
+  let maxObservations = MAX;
+  for (const loop of loops) {
+    const owned = queries.filter(query => query.iteration === loop.id);
+    const linked = new Set(plan.returns.flatMap(returned => returned.dependencies)
+      .filter(dependency => owned.some(query => query.id === dependency.queryId)).map(dependency => dependency.id));
+    maxQueries += loop.maximum * owned.length;
+    maxObservations += loop.maximum * (loop.aggregate!.dependencies.length + maxRows * linked.size);
+  }
+  // Each candidate retains both its source row and its granted projection;
+  // each execution may retain a parent, and ordinary/item observations retain
+  // their own rows. Preserve the existing allowance for each bounded payload.
+  const maxNodes = 20000 * (1 + maxRows + maxObservations + maxQueries * (2 * maxRows + 1));
+  if (![maxQueries, maxRows, maxObservations, maxNodes].every(value => Number.isSafeInteger(value) && value > 0)) {
+    fail('aggregate receipt execution budget overflow.');
+  }
+  return Object.freeze({ maxQueries, maxRows, maxObservations, maxNodes });
 }
 function source(value: unknown): void {
   const item = object(value, ['path', 'sha256', 'module']); text(item.path); text(item.module);
@@ -77,22 +126,39 @@ function checkedType(value: unknown, nominal = false, files = false): CanTypeId 
   return value as CanTypeId;
 }
 
+/** Shared closed identity of one genuine selected item. The checked plan and
+ * saved complete selection below supply its source and lifetime witnesses. */
+export function checkQueryOccurrence(value:unknown):ScenarioReceiptQueryOccurrence{
+ const raw=object(copy(value),['loop','ordinal']);
+ if(!/^[a-f0-9]{64}$/.test(text(raw.loop))||!Number.isSafeInteger(raw.ordinal)||(raw.ordinal as number)<0||(raw.ordinal as number)>=1000)fail('original bounded loop item occurrence required.');
+ return deepFreeze(raw)as unknown as ScenarioReceiptQueryOccurrence;
+}
+function createdQueryRoot(value:unknown):ScenarioReceiptCreatedRoot{
+ const raw=object(value,['id','node','stage','binding','model','parentParameter','parentModel']),node=object(raw.node,['start','end']);
+ if(!/^[a-f0-9]{64}$/.test(text(raw.id))||!Number.isSafeInteger(raw.stage)||(raw.stage as number)<0||(raw.stage as number)>=MAX||!Number.isSafeInteger(node.start)||!Number.isSafeInteger(node.end)||(node.start as number)<0||(node.start as number)>=(node.end as number))fail('exact original created query parent required.');
+ for(const key of ['binding','model','parentParameter','parentModel'])text(raw[key]);
+ return raw as unknown as ScenarioReceiptCreatedRoot;
+}
+
 export function checkQueries(value: unknown): readonly ScenarioReceiptQueryPlan[] {
   const queries = list(copy(value));
   const ids: string[] = [];
   const dependencyIds = new Map<string, string>();
   for (const value of queries) {
     const query = object(value, ['id', 'source', 'model', 'order', 'limit', 'archived', 'dependencies',
-      ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'parent') ? ['parent'] : [])]);
+      ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'parent') ? ['parent'] : []),
+      ...(typeof value === 'object' && value !== null && Object.hasOwn(value,'iteration')?['iteration']:[])]);
+    if(Object.hasOwn(query,'iteration')&&!/^[a-f0-9]{64}$/.test(text(query.iteration)))fail('exact original query iteration required.');
     ids.push(text(query.id)); text(query.model); source(query.source);
     if (Object.hasOwn(query, 'parent')) {
       const parent = object(query.parent, ['source', 'model', 'origin']);
       source(parent.source); text(parent.model);
       const kind = typeof parent.origin === 'object' && parent.origin !== null
         ? (parent.origin as Record<string, unknown>).kind : undefined;
-      if (kind !== 'admitted-reference' && kind !== 'stored-reference') fail('closed parent origin required.');
-      const origin = object(parent.origin, ['kind', kind === 'admitted-reference' ? 'parameter' : 'dependencyId']);
+      if (kind !== 'admitted-reference' && kind !== 'stored-reference' && kind !== 'created-reference') fail('closed parent origin required.');
+      const origin = object(parent.origin, ['kind', kind === 'admitted-reference' ? 'parameter' : kind==='created-reference'?'created':'dependencyId']);
       if (kind === 'admitted-reference') fieldName(origin.parameter);
+      else if(kind==='created-reference'){if(createdQueryRoot(origin.created).model!==parent.model)fail('created query parent model differs.');}
       else text(origin.dependencyId);
     }
     if (query.limit !== null && (!Number.isSafeInteger(query.limit) || (query.limit as number) < 0 || (query.limit as number) > MAX)) fail('bounded query limit required.');
@@ -261,12 +327,17 @@ export function checkQueryInventory(plan: ScenarioResultDisclosurePlan, type: Ca
   }
   for (const query of queries) {
     const model = models.find(model => model.name === query.model) ?? fail('query requires its owning model inventory.');
+    if(query.iteration!==undefined){const loop=plan.sourceLoops?.loops.find(loop=>loop.id===query.iteration);if(loop?.aggregate===undefined||!loop.aggregate.queries.includes(query.id)||!same(plan.sourceLoops!.source,plan.source))fail('repeated query requires its exact original aggregate loop association.');}
     if (query.parent !== undefined) {
       const parentModel = query.parent.model;
       if (model.fields.some(field => field.name === 'parent') || Object.hasOwn(model, 'scope') || model.parent !== parentModel ||
           !models.some(parent => parent.name === parentModel) || schema &&
           (Object.hasOwn(schema.contracts, parentModel) || Object.hasOwn(schema.enums, parentModel) ||
             Object.hasOwn(schema.aliases ?? {}, parentModel))) fail('scoped query requires unshadowed declared parent containment.');
+      if(query.parent.origin.kind==='created-reference'){
+        const created=query.parent.origin.created,owner=models.find(model=>model.name===created.model);
+        if(owner===undefined||owner.parent!==created.parentModel||created.model!==parentModel||!models.some(model=>model.name===created.parentModel)||!same(query.parent.source,plan.source))fail('created query parent differs from its original declared containment.');
+      }
       if (query.parent.origin.kind === 'stored-reference') {
         const dependencyId = query.parent.origin.dependencyId;
         const consumers = plan.returns.filter(returned => returnQueryIds(returned).includes(query.id));
@@ -305,6 +376,19 @@ export function checkQueryInventory(plan: ScenarioResultDisclosurePlan, type: Ca
       if (term.field === 'parent') fail('parent metadata is not an ordered business field.');
       if (['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt'].includes(term.field)) continue;
       if (!query.dependencies.some(dep => dep.role === 'control' && dep.field === term.field)) fail('ordering requires its actual control dependency.');
+    }
+  }
+  for(const loop of plan.sourceLoops?.loops??[]){
+    if(loop.aggregate===undefined)continue;
+    const owned=queries.filter(query=>query.iteration===loop.id);
+    if(owned.length!==loop.aggregate.queries.length||loop.aggregate.queries.some(id=>!owned.some(query=>query.id===id)))fail('aggregate loop differs from its complete original query census.');
+    for(const id of loop.aggregate.dependencies)if(!plan.returns.some(returned=>returned.dependencies.some(dependency=>dependency.id===id&&dependency.queryId===undefined)))fail('aggregate loop has a foreign original item DATA dependency.');
+    if(!models.some(model=>model.name===loop.model&&model.parent===loop.parentModel))fail('aggregate loop lost its declared original item containment.');
+    const parent=models.find(model=>model.name===type),write=models.find(model=>model.name===loop.aggregate!.write.model);
+    if(parent?.parent!==loop.parentModel||write?.parent!==parent.name||
+        loop.aggregate.write.fields.some(name=>!write.fields.some(field=>field.name===name))||
+        owned.some(query=>query.parent?.origin.kind==='created-reference'&&query.parent.origin.created.binding!==loop.aggregate!.write.parent)){
+      fail('aggregate constructor differs from its declared result parent and owning fields.');
     }
   }
   if (!plan.returns.some(returned => returned.projection !== undefined)) return;
@@ -464,19 +548,52 @@ function compare(left: Candidate, right: Candidate, query: ScenarioReceiptQueryP
   return left.row.id === right.row.id ? 0 : left.row.id < right.row.id ? -1 : 1;
 }
 
+/** The complete original selection makes zero executions meaningful and
+ * prevents a retained iteration from borrowing another item's DATA witness. */
+export function savedAggregateSelections(plan:ScenarioResultDisclosurePlan,value:unknown):ReadonlyMap<string,readonly StoredRow[]>{
+ const output=new Map<string,readonly StoredRow[]>();
+ const limits=aggregateReceiptLimits(plan);
+ for(const raw of list(copy(value??[],limits?.maxNodes))){
+  const root=object(raw,['loop','parameter','model','row',...(Object.hasOwn(raw as object,'selection')?['selection']:[])]);
+  const loop=plan.sourceLoops?.loops.find(loop=>loop.id===root.loop);
+  if(loop?.aggregate===undefined){if(Object.hasOwn(root,'selection'))fail('foreign saved aggregate selection.');continue;}
+  if(root.parameter!==loop.parameter||root.model!==loop.parentModel||output.has(loop.id))fail('aggregate selection differs from its original parent.');
+  const parent=row(root.row),selection=root.selection;
+  if(parent.archivedAt!==null||!Array.isArray(selection)||selection.length>loop.maximum)fail('complete finite aggregate item selection required.');
+  const selected=(selection as readonly unknown[]).map(value=>row(value)),ids=selected.map(value=>value.id);unique(ids);
+  for(const value of selected)if(value.archivedAt!==null||value.parent?.model!==loop.parentModel||value.parent.id!==parent.id)fail('aggregate item differs from its genuine contained parent.');
+  const order=loop.aggregate.order[0]??fail('aggregate selection lacks its original order.');
+  for(let index=1;index<selected.length;index++){
+   const left=selected[index-1]!,right=selected[index]!;
+   if(order.field==='created'&&left.created>right.created||(order.field==='id'||left.created===right.created)&&left.id>right.id)fail('aggregate item selection changed its original order.');
+  }
+  output.set(loop.id,Object.freeze(selected));
+ }
+ return output;
+}
+
 export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
-  returned: ScenarioResultDisclosurePlan['returns'][number], value: unknown, result: unknown, schema?: NormalizedSchema): void {
+  returned: ScenarioResultDisclosurePlan['returns'][number], value: unknown, result: unknown, schema?: NormalizedSchema, roots?:ScenarioReceiptAssociation['sourceLoopRoots']): void {
   checkQueryProjection(returned as unknown as Record<string, unknown>, checkQueries(plan.queries ?? []));
   const required = returnQueryIds(returned);
   if (required.length === 0) { if (value !== undefined && list(copy(value)).length !== 0) fail('return has foreign query observations.'); return; }
-  const queries = list(copy(value));
-  if (queries.length !== required.length) fail('exact selected query associations required, including empty domains.');
-  const savedIds: string[] = [];
+  const limits=aggregateReceiptLimits(plan);
+  const queries = list(copy(value,limits?.maxNodes),limits?.maxQueries);
+  const selections=savedAggregateSelections(plan,roots);
+  const count=required.reduce((total,id)=>{const query=plan.queries?.find(query=>query.id===id);if(query?.iteration===undefined)return total+1;const selected=selections.get(query.iteration)??fail('repeated query lacks its actual complete item selection.');return total+selected.length;},0);
+  if (queries.length !== count) fail('exact selected query associations required, including empty domains.');
+  const savedIds: string[] = [],next=new Map<string,number>();
   for (const saved of queries) {
     const observed = object(saved, ['queryId', 'revision', 'candidates', 'selectedIndices',
-      ...(typeof saved === 'object' && saved !== null && Object.hasOwn(saved, 'parent') ? ['parent'] : [])]);
+      ...(typeof saved === 'object' && saved !== null && Object.hasOwn(saved, 'parent') ? ['parent'] : []),
+      ...(typeof saved === 'object' && saved !== null && Object.hasOwn(saved,'occurrence')?['occurrence']:[])]);
     const query = plan.queries?.find(query => query.id === observed.queryId && required.includes(query.id)) ?? fail('saved query identity differs.');
-    savedIds.push(query.id);
+    if(query.iteration===undefined){if(Object.hasOwn(observed,'occurrence'))fail('ordinary query has a foreign repeated occurrence.');savedIds.push(query.id);}
+    else{
+      const occurrence=checkQueryOccurrence(observed.occurrence),selection=selections.get(query.iteration);
+      if(occurrence.loop!==query.iteration||selection?.[occurrence.ordinal]===undefined||occurrence.ordinal!==(next.get(query.id)??0))fail('saved query occurrence differs from its actual selected item.');
+      next.set(query.id,occurrence.ordinal+1);savedIds.push(`${query.id}:${occurrence.ordinal}`);
+    }
     if (observed.queryId !== query.id || !Number.isSafeInteger(observed.revision) || (observed.revision as number) < 0) fail('saved query identity/revision differs.');
     let parentRow: StoredRow | undefined;
     if (query.parent !== undefined) {
@@ -486,7 +603,8 @@ export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
       if (parentRow.archivedAt !== null) fail('saved scoped parent is archived.');
       unique(list(parent.secretFields).map(text));
     } else if (Object.hasOwn(observed, 'parent')) fail('unscoped query has a foreign parent witness.');
-    const candidates = list(observed.candidates); const identities: string[] = [];
+    const rowMaximum=query.iteration===undefined?MAX:limits!.maxRows;
+    const candidates = list(observed.candidates,rowMaximum); const identities: string[] = [];
     const linkedDependencies = queryLinkedReturnDependencies(returned, query);
     for (const value of candidates) {
       const candidate = object(value, ['row', 'record', 'secretFields', 'matched', 'dependencies']);
@@ -512,7 +630,7 @@ export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
       }
     }
     unique(identities);
-    const selected = list(observed.selectedIndices);
+    const selected = list(observed.selectedIndices,rowMaximum);
     if (selected.some(index => !Number.isSafeInteger(index) || (index as number) < 0 || (index as number) >= candidates.length) ||
         new Set(selected).size !== selected.length) fail('unique selected candidate indices required.');
     const typed = candidates as unknown as ScenarioReceiptQueryObservation['candidates'];
@@ -524,12 +642,19 @@ export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
     if (returned.projection !== undefined && !same(copy(result), queryProjectionWire(returned.projection, query, typed, selected as number[]))) fail('saved result differs from actual selected projection.');
   }
   unique(savedIds);
+  if(limits!==undefined){
+    const expected=required.flatMap(id=>{
+      const query=plan.queries!.find(query=>query.id===id)!;
+      return query.iteration===undefined?[id]:(selections.get(query.iteration)??fail('missing original aggregate item selection.')).map((_,ordinal)=>`${id}:${ordinal}`);
+    });
+    if(!same(savedIds,expected))fail('saved aggregate query groups changed their original execution order.');
+  }
 }
 
 export async function savedQueriesReadable(bound: {
   readonly plan: ScenarioResultDisclosurePlan; readonly type: CanTypeId; readonly valueSchema?: NormalizedSchema | undefined;
   readonly artifactModels: ReadonlyMap<ModelName, ArtifactModel>;
-}, association: { readonly plan: ScenarioResultDisclosurePlan; readonly returnId: string; readonly queries?: readonly ScenarioReceiptQueryObservation[] },
+}, association: { readonly plan: ScenarioResultDisclosurePlan; readonly returnId: string; readonly queries?: readonly ScenarioReceiptQueryObservation[];readonly sourceLoopRoots?:ScenarioReceiptAssociation['sourceLoopRoots'] },
 result: unknown, savedProjection: (model: ModelName, row: StoredRow, secrets: readonly string[], blocked: readonly string[]) => Promise<ProjectedRecord | null>): Promise<boolean> {
   const returned = association.plan.returns.find(returned => returned.id === association.returnId);
   if (returned === undefined) return false;
@@ -537,7 +662,7 @@ result: unknown, savedProjection: (model: ModelName, row: StoredRow, secrets: re
   try {
     if (!same(bound.plan, association.plan)) return false;
     checkQueryInventory(bound.plan, bound.type, [...bound.artifactModels.values()], bound.valueSchema);
-    checkSavedQueries(association.plan, returned, association.queries, result, bound.valueSchema);
+    checkSavedQueries(association.plan, returned, association.queries, result, bound.valueSchema,association.sourceLoopRoots);
     if (returned.projection !== undefined) canonicalWire(bound.type, result, bound.valueSchema);
     for (const observed of association.queries!) {
       const query = bound.plan.queries!.find(query => query.id === observed.queryId)!;

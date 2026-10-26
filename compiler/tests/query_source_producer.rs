@@ -1736,6 +1736,12 @@ When
    for entry in root.Item as row where row.state==ready limit=100
     set entry {state=cancelling}
    create Ticket {parent=root,note="parent-leaf",observed=item.parent.enabled} as leaf
+ scenario read_holder(root:Root,item:Item) by=members
+  require root.enabled
+  require item.parent.enabled
+  do
+   set item {flag=true}
+   create Ticket {parent=root,note="holder",observed=item.parent.enabled} as receipt
  scenario cancel_items(root:Root) by=members
   require root.enabled
   do
@@ -1859,7 +1865,7 @@ async function invoke(artifact,workDir,mode,operation='StageValues.conclude',ext
  const member=await seedMember(memberships,{isOwner:false}),identity=makeIdentity({membership:member.membership,email:member.user.email});
  const root={...makeRow({id:asId('root'),data:{enabled:true,status:'open'}}),parent:null};
  await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:asModel('StageValues.Root'),row:root}]}));
- const itemCount=mode==='skipped_items'?1:mode==='bounded_items'||mode==='hidden_field_items'?100:mode==='work_items'||mode==='nonmember'&&operation==='StageValues.cancel_items'?201:mode==='race'&&operation==='StageValues.cancel_items'?1:0;
+ const itemCount=mode==='skipped_items'?1:mode==='bounded_items'||mode==='hidden_field_items'||mode==='nonmember'&&operation==='StageValues.read_holder'?100:mode==='work_items'||mode==='nonmember'&&operation==='StageValues.cancel_items'?201:mode==='race'&&operation==='StageValues.cancel_items'?1:0;
  const items=Array.from({length:itemCount},(_,index)=>({...makeRow({id:asId('item-'+index),data:{state:'ready',flag:false}}),parent:{model:asModel('StageValues.Root'),id:root.id}}));
  const item=items[0];
  if(items.length>0)await store.commit(makeBatch(await store.readRevision(),{writes:items.map(row=>({kind:'insert',model:asModel('StageValues.Item'),row}))}));
@@ -1973,6 +1979,45 @@ for(const mode of ['bounded_items']){
  assert.equal(replay.error.message,result.error.message);
  assert.equal(await store.readRevision(),before+1,'deterministic rejection replay stages no further revision');
  assert.deepEqual(await store.outboxPending(),[],'rejection replay stages no outbox effects');
+}
+{
+ const readInputs={item:{id:asId('item-0'),version:'1'}};
+ const {result,store,root,items,before,invoker,identity,request}=await invoke(base,process.argv[5]+'-read-holder','bounded_items','StageValues.read_holder',readInputs);
+ assert.ok('result'in result,'ordinary stored reference read must admit: '+JSON.stringify(result));
+ assert.equal(result.result.status,'committed');
+ assert.equal(await store.readRevision(),before+1,'ordinary reference read commits exactly one revision');
+ assert.equal((await store.load(asModel('StageValues.Item'),asId('item-0'))).data.flag,true,'ordinary reference read stages its exact write');
+ const tickets=await store.query({model:asModel('StageValues.Ticket'),parent:{model:asModel('StageValues.Root'),id:root.id},authority:'owner'});
+ assert.equal(tickets.length,1);assert.equal(tickets[0].data.note,'holder');assert.equal(tickets[0].data.observed,true,'ordinary reference read discloses its exact observed leaf');
+ const replay=await invoker.invokeMutation(request,identity);
+ assert.ok('result'in replay&&replay.result.status==='replayed','ordinary read replay must succeed deterministically: '+JSON.stringify(replay));
+ assert.equal(await store.readRevision(),before+1,'successful ordinary replay stages no further revision');
+ assert.deepEqual(await store.outboxPending(),[],'ordinary read stages no outbox effects');
+}
+{
+ const readInputs={item:{id:asId('item-0'),version:'1'}};
+ const {result,store,before}=await invoke(base,process.argv[5]+'-read-holder-nonmember','nonmember','StageValues.read_holder',readInputs);
+ assert.ok(!('result'in result),'nonmember must refuse the read grant: '+JSON.stringify(result));
+ assert.equal(result.error.code,'forbidden');
+ assert.equal(await store.readRevision(),before,'read-grant refusal stages no revision');
+ assert.deepEqual(await store.outboxPending(),[],'read-grant refusal stages no outbox effects');
+}
+{
+ const readInputs={item:{id:asId('item-0'),version:'1'}};
+ const {result,store,root,items,before,invoker,identity,request,beforeRootHistory,beforeItemHistories}=await invoke(hidden,process.argv[5]+'-read-holder-hidden','bounded_items','StageValues.read_holder',readInputs);
+ assert.ok(!('result'in result),'withheld reference field must refuse: '+JSON.stringify(result));
+ assert.equal(result.error.code,'forbidden');
+ assert.match(result.error.message,/Original model query source fields are unavailable/,'withheld read refuses the actual withheld DATA field');
+ assert.equal(result.receipt,'rejected','withheld read commits its exact rejected receipt');
+ assert.equal(await store.readRevision(),before+1,'withheld business rejection advances exactly one revision with empty domain effects');
+ assert.equal((await store.load(asModel('StageValues.Item'),asId('item-0'))).data.flag,false,'withheld rollback retains the original flag');
+ assert.deepEqual(await store.query({model:asModel('StageValues.Ticket'),authority:'owner'}),[],'withheld rejection creates no Ticket rows');
+ assert.deepEqual(await store.historyFor(asModel('StageValues.Root'),root.id),beforeRootHistory,'withheld rejection stages no domain history');
+ assert.deepEqual(await Promise.all(items.map(row=>store.historyFor(asModel('StageValues.Item'),row.id))),beforeItemHistories,'withheld rejection stages no item history');
+ const replay=await invoker.invokeMutation(request,identity);
+ assert.ok(!('result'in replay),'withheld replay must refuse deterministically: '+JSON.stringify(replay));
+ assert.equal(await store.readRevision(),before+1,'deterministic withheld replay stages no further revision');
+ assert.deepEqual(await store.outboxPending(),[],'withheld replay stages no outbox effects');
 }
 function corruptLet(mut){const artifact=JSON.parse(JSON.stringify(base)),found=sourcesOf(artifact,'canScenarioLetDataSources');mut(found.payload);const inner=JSON.stringify(found.payload).replace(/\\/g,'\\\\').replace(/"/g,'\\"');artifact.modules[0].js=found.js.slice(0,found.start)+inner+found.js.slice(found.end);return artifact;}
 const letNegatives={

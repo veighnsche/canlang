@@ -311,6 +311,17 @@ export interface InvokeMutationInput {
   kind?: AdmissionKind;
   trustedSource?: string;
   execute: ExecuteHandler;
+  /**
+   * R10 host-only pre-commit preparation. The State mechanism runs this
+   * after the executor returns and BEFORE the final fence revalidation
+   * (revision, live by/Identity, guards), so asynchronous host verification
+   * cannot open an authority window after the last authority check. A
+   * throw voids the commit with nothing stored, exactly like a flipped
+   * guard. Must be side-effect-free with respect to domain state; the
+   * mechanism owns all authority checks and still runs them in full after
+   * this preparation completes. Absent reads as none (existing behavior).
+   */
+  prepareForCommit?: () => Promise<void>;
   /** Host-only admission selection; omitted keeps ordinary mutation admission. */
   admissionMode?: MutationAdmissionMode;
   /** Synchronous observation after durability; failures never retry execution. */
@@ -450,6 +461,18 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
       // rejection deterministically. Guards are unknowable on this path
       // (the executor threw before returning any), so only the checkpoint
       // revision plus live `by`/revocation revalidate.
+      //
+      // R10: the same host preparation as the success fence runs before the
+      // rejection's final revision/by/Identity sequence, so an executor that
+      // hit staged-file/closure drift cannot persist its rejection under a
+      // no-longer-current installed closure. This runs even for calls
+      // admitted without a checkpoint (which skip authority revalidation
+      // below): preparation is source verification, not authority
+      // revalidation, and the commit's expectedRevision fence still applies.
+      // A preparation throw escapes with nothing stored — no rejected receipt
+      // — exactly like the success path, and never enters the forbidden catch
+      // below (only a genuine revalidation `forbidden` records).
+      if (input.prepareForCommit !== undefined) await input.prepareForCommit();
       if (call.checkpoint !== undefined) {
         try {
           await revalidateCommitForFence({
@@ -522,6 +545,10 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
     // fence still applies unconditionally.
     if (call.checkpoint !== undefined) {
       try {
+        // R10: host preparation (e.g. asynchronous source verification)
+        // completes BEFORE the final authority sequence, so no host await
+        // can land between the last membership/by check and the commit.
+        if (input.prepareForCommit !== undefined) await input.prepareForCommit();
         await revalidateCommitForFence({
           checkpoint: call.checkpoint,
           by: call.def.by,

@@ -1125,28 +1125,23 @@ fn collect_from_source(
         source,
         &mut loops,
     )?;
-    let work = loops
-        .iter()
-        .map(|loop_| {
-            Some(
-                loop_["maximum"].as_u64()?
-                    * (loop_["sends"].as_u64()?
-                        + loop_
-                            .get("work")
-                            .and_then(|work| work.as_array())
-                            .map_or(0, |work| work.len()) as u64),
-            )
-        })
-        .collect::<Option<Vec<_>>>()?
-        .into_iter()
-        .sum::<u64>();
+    // SENDs are external deliveries that cannot be rolled back with the owner
+    // commit, so their worst-case count stays within the 200-site declaration
+    // census. Pure state Work (set/create/cancel/schedule) executes inside
+    // the atomic commit under these exact authored loop bounds and State's
+    // own execution budgets; counting it here would reject finite
+    // multi-command loops before any actual command executes.
     if loops.is_empty()
         || loops
             .iter()
             .filter_map(|loop_| loop_["maximum"].as_u64())
             .sum::<u64>()
             > 1000
-        || work > 200
+        || loops
+            .iter()
+            .filter_map(|loop_| Some(loop_["maximum"].as_u64()? * loop_["sends"].as_u64()?))
+            .sum::<u64>()
+            > 200
     {
         return None;
     }

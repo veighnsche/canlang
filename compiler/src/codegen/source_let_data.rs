@@ -13,6 +13,7 @@ pub(super) fn native_owns_data(
     loan: &serde_json::Value,
 ) -> bool {
     if loan.get("loop").is_some()
+        || loan.get("stages").is_some()
         || loan["owner"] != owner.canonical
         || loan["source"] != serde_json::to_value(&native.plan.source).unwrap_or_default()
         || loan["node"]["start"] != span.start
@@ -140,6 +141,52 @@ pub(super) fn native_guard_capture(
         })
 }
 
+/// Exact native dependency IDs read at one original scalar site, joined by
+/// the checked expression occurrence rather than a model/field scan. Only
+/// reads the disclosure analysis paired with a declared DATA return keep.
+fn site_dependency_ids(
+    native: Option<&super::scenario_receipts::NativeScenarioReceipt>,
+    span: Span,
+    model: &str,
+    field: &str,
+    field_type: &str,
+    source: &serde_json::Value,
+) -> Vec<String> {
+    let Some(native) = native else {
+        return Vec::new();
+    };
+    let site = super::scenario_receipts::NativeSite {
+        calls: Vec::new(),
+        span,
+        default_selection: false,
+    };
+    let Some(reads) = native.dependencies.get(&site) else {
+        return Vec::new();
+    };
+    reads
+        .iter()
+        .filter(|read| {
+            read.model == model
+                && read.field == field
+                && native
+                    .plan
+                    .returns
+                    .iter()
+                    .flat_map(|returned| &returned.dependencies)
+                    .any(|dependency| {
+                        dependency.id == read.id
+                            && dependency.model == read.model
+                            && dependency.field == read.field
+                            && dependency.type_id == field_type
+                            && serde_json::to_value(&dependency.source).unwrap_or_default()
+                                == *source
+                            && dependency.role == super::scenario_receipts::ReceiptRole::Data
+                    })
+        })
+        .map(|read| read.id.clone())
+        .collect()
+}
+
 pub(super) fn collect(
     ir: &IrProgram,
     owner: &IrItem,
@@ -148,6 +195,7 @@ pub(super) fn collect(
     module: &str,
     loops: Option<&serde_json::Value>,
     native_source: Option<&serde_json::Value>,
+    native: Option<&super::scenario_receipts::NativeScenarioReceipt>,
 ) -> Option<HashMap<Span, serde_json::Value>> {
     let IrItemKind::Scenario {
         params,
@@ -185,6 +233,23 @@ pub(super) fn collect(
         return Some(HashMap::new());
     }
     context.same_scenario(ir, owner)?;
+    // The number of alternatives stays within the wire census. A numeric
+    // checkpoint may be larger after an independently sealed finite loop,
+    // using the same write allowance as State's sourceBodyLoopLimits.
+    let stage_limit = match loops {
+        Some(plan) => plan["loops"]
+            .as_array()?
+            .iter()
+            .try_fold(200usize, |total, entry| {
+                let maximum = usize::try_from(entry["maximum"].as_u64()?).ok()?;
+                let writes = usize::try_from(entry["writes"].as_u64()?).ok()?;
+                if !(1..=1000).contains(&maximum) || writes > 4 {
+                    return None;
+                }
+                total.checked_add(maximum.checked_mul(writes)?)
+            })?,
+        None => 200,
+    };
     let mut roots: BTreeMap<String, SymbolId> = params
         .iter()
         .filter_map(|id| {
@@ -277,6 +342,7 @@ pub(super) fn collect(
         span: Span,
         stage: usize,
         name: &str,
+        native: Option<&super::scenario_receipts::NativeScenarioReceipt>,
     ) -> Option<serde_json::Value> {
         fn receiver(
             ir: &IrProgram,
@@ -421,6 +487,54 @@ pub(super) fn collect(
                 }).collect::<Vec<_>>());
                 }
             }
+            // Attach the exact native dependency IDs read at this original
+            // expression. State redeems only these IDs against the declared
+            // DATA returns; a model/field scan would confuse same-field
+            // reads at other roots, stages, or consumers.
+            // dependency.model is the terminal field-owning model (field_owner
+            // == model above), not the loan root: a loan through parent or
+            // reference paths must join its exact return DATA dependency.
+            let dependency_ids = site_dependency_ids(
+                native,
+                value.span,
+                &ir.items[model.0 as usize].canonical,
+                field,
+                &field_type,
+                &site["source"],
+            );
+            if !dependency_ids.is_empty() {
+                site["dependencyIds"] = serde_json::json!(dependency_ids);
+            }
+            // A parent traversal reads its intermediate owner row through the
+            // exact reference DATA dependency the disclosure pairs with this
+            // leaf read (source_dependency_id). Carry those paired IDs so
+            // State records the edge through the canonical reference
+            // observer; dropping them fails completeness, and the leaf join
+            // above cannot see them. Unpaired traversals keep no edge IDs
+            // and stay fail-closed.
+            let mut parent_dependency_ids = Vec::new();
+            if site.get("parents").is_some()
+                && let Some(native_ref) = native
+                && let Some(reads) =
+                    native_ref
+                        .dependencies
+                        .get(&super::scenario_receipts::NativeSite {
+                            calls: Vec::new(),
+                            span: value.span,
+                            default_selection: false,
+                        })
+            {
+                for read in reads {
+                    if let Some(edge) = &read.source_dependency_id
+                        && !parent_dependency_ids.contains(edge)
+                    {
+                        parent_dependency_ids.push(edge.clone());
+                    }
+                }
+            }
+            if !parent_dependency_ids.is_empty() {
+                site["parentDependencyIds"] = serde_json::json!(parent_dependency_ids);
+            }
             return Some(site);
         }
         None
@@ -443,6 +557,7 @@ pub(super) fn collect(
                 if (guard_capture || used_by_send(&effects[index + 1..], name))
                     && let Some(loan) = scalar_loan(
                         ir, owner, context, &roots, &source, module, value, *span, stage, name,
+                        native,
                     )
                 {
                     loans.insert(*span, loan);
@@ -534,22 +649,25 @@ pub(super) fn collect(
             let mut combined = BTreeSet::new();
             for have in &total {
                 for add in &step {
-                    combined.insert(have.checked_add(*add).filter(|sum| *sum < 200)?);
+                    combined.insert(have.checked_add(*add)?);
                 }
+            }
+            if combined.len() > 200 {
+                return None;
             }
             total = combined;
         }
         Some(total)
     }
-    // Exact reachable totals over zero to `maximum` iterations. Any count
-    // reaching the census budget refuses instead of truncating silently.
+    // Exact reachable totals over zero to `maximum` iterations. The census
+    // bounds alternative counts, not the numeric value of a write checkpoint.
     fn loop_write_totals(per_iteration: &BTreeSet<usize>, maximum: u64) -> Option<BTreeSet<usize>> {
         let mut totals = BTreeSet::<usize>::from([0]);
         for _ in 0..maximum {
             let mut grown = BTreeSet::new();
             for have in &totals {
                 for add in per_iteration {
-                    grown.insert(have.checked_add(*add).filter(|sum| *sum < 200)?);
+                    grown.insert(have.checked_add(*add)?);
                 }
             }
             totals = totals.union(&grown).copied().collect();
@@ -563,6 +681,7 @@ pub(super) fn collect(
         stages: &BTreeSet<usize>,
         body: &[IrStmt],
         entry: &serde_json::Value,
+        stage_limit: usize,
     ) -> Option<BTreeSet<usize>> {
         let maximum = entry["maximum"].as_u64()?;
         let writes = usize::try_from(entry["writes"].as_u64()?).ok()?;
@@ -571,13 +690,22 @@ pub(super) fn collect(
             return None;
         }
         let totals = loop_write_totals(&per_iteration, maximum)?;
-        stages
+        let joined: BTreeSet<_> = stages
             .iter()
             .flat_map(|stage| {
-                totals
-                    .iter()
-                    .map(move |extra| stage.checked_add(*extra).filter(|stage| *stage < 200))
+                totals.iter().map(move |extra| {
+                    stage
+                        .checked_add(*extra)
+                        .filter(|stage| *stage < stage_limit)
+                })
             })
+            .collect::<Option<_>>()?;
+        (joined.len() <= 200).then_some(joined)
+    }
+    fn advance_stages(stages: &BTreeSet<usize>, stage_limit: usize) -> Option<BTreeSet<usize>> {
+        stages
+            .iter()
+            .map(|stage| stage.checked_add(1).filter(|stage| *stage < stage_limit))
             .collect()
     }
     fn constructors(
@@ -588,20 +716,12 @@ pub(super) fn collect(
         roots: &mut BTreeMap<String, SymbolId>,
         source: &serde_json::Value,
         module: &str,
+        stage_limit: usize,
         mut stages: BTreeSet<usize>,
         loans: &mut HashMap<Span, serde_json::Value>,
         loops: Option<&serde_json::Value>,
+        native: Option<&super::scenario_receipts::NativeScenarioReceipt>,
     ) -> Option<BTreeSet<usize>> {
-        fn advance(stages: &BTreeSet<usize>) -> Option<BTreeSet<usize>> {
-            stages
-                .iter()
-                .map(|stage| {
-                    stage
-                        .checked_add(1)
-                        .and_then(|stage| (stage < 200).then_some(stage))
-                })
-                .collect()
-        }
         for statement in body {
             match statement {
                 IrStmt::Create { input, binding, .. } => {
@@ -623,6 +743,7 @@ pub(super) fn collect(
                                 value.span,
                                 *stages.first()?,
                                 name,
+                                native,
                             ) {
                                 if stages.len() > 1 {
                                     let fields = loan.as_object_mut()?;
@@ -636,7 +757,7 @@ pub(super) fn collect(
                     if let Some(name) = binding {
                         roots.remove(name);
                     }
-                    stages = advance(&stages)?;
+                    stages = advance_stages(&stages, stage_limit)?;
                 }
                 IrStmt::If {
                     then_branch,
@@ -651,9 +772,11 @@ pub(super) fn collect(
                         &mut roots.clone(),
                         source,
                         module,
+                        stage_limit,
                         stages.clone(),
                         loans,
                         loops,
+                        native,
                     );
                     let right = constructors(
                         ir,
@@ -663,9 +786,11 @@ pub(super) fn collect(
                         &mut roots.clone(),
                         source,
                         module,
+                        stage_limit,
                         stages.clone(),
                         loans,
                         loops,
+                        native,
                     );
                     // Agreeing exact stages keep the single census. Once a
                     // bounded loop join admitted several reachable counts,
@@ -675,7 +800,9 @@ pub(super) fn collect(
                         (Some(left), Some(right)) if left == right => stages = left,
                         (Some(left), Some(right)) if left.len() > 1 || right.len() > 1 => {
                             stages = left.union(&right).copied().collect();
-                            if stages.len() > 200 || stages.last().copied().unwrap_or(200) >= 200 {
+                            if stages.len() > 200
+                                || stages.last().copied().unwrap_or(stage_limit) >= stage_limit
+                            {
                                 return None;
                             }
                         }
@@ -722,18 +849,18 @@ pub(super) fn collect(
                     for name in loop_shadowed_names(body, 0)? {
                         roots.remove(&name);
                     }
-                    stages = after_loop_stages(&stages, body, entry)?;
+                    stages = after_loop_stages(&stages, body, entry, stage_limit)?;
                 }
                 IrStmt::Let { name, .. } => {
                     roots.remove(name);
                 }
                 IrStmt::Set { .. } | IrStmt::Transition { .. } | IrStmt::Delete { .. } => {
-                    stages = advance(&stages)?
+                    stages = advance_stages(&stages, stage_limit)?
                 }
                 IrStmt::Require { .. } | IrStmt::Send { .. } => {}
                 _ => return None,
             }
-            if stages.len() > 200 || stages.last().copied().unwrap_or(200) >= 200 {
+            if stages.len() > 200 || stages.last().copied().unwrap_or(stage_limit) >= stage_limit {
                 return None;
             }
         }
@@ -769,9 +896,11 @@ pub(super) fn collect(
         &mut constructor_roots,
         &source,
         module,
+        stage_limit,
         BTreeSet::from([0]),
         &mut loans,
         loops,
+        native,
     );
     // Each scalar field is observed where its original getter executes.
     // Native JavaScript retains lazy operands and earlier Values failures.
@@ -802,6 +931,7 @@ pub(super) fn collect(
         name: &str,
         loans: &mut HashMap<Span, serde_json::Value>,
         depth: usize,
+        native: Option<&super::scenario_receipts::NativeScenarioReceipt>,
     ) -> Option<()> {
         if depth > 32 {
             return None;
@@ -819,6 +949,7 @@ pub(super) fn collect(
                 value.span,
                 *stages.first()?,
                 name,
+                native,
             )
         {
             if stages.len() > 1 {
@@ -842,6 +973,7 @@ pub(super) fn collect(
                 name,
                 loans,
                 depth + 1,
+                native,
             )
         };
         match &value.expr {
@@ -902,6 +1034,7 @@ pub(super) fn collect(
                         name,
                         loans,
                         depth + 1,
+                        native,
                     )?;
                 }
                 let mut scoped = roots.clone();
@@ -928,6 +1061,7 @@ pub(super) fn collect(
                         name,
                         loans,
                         depth + 1,
+                        native,
                     )?;
                 }
                 for value in query.limit.iter().chain(query.archived.iter()) {
@@ -943,6 +1077,7 @@ pub(super) fn collect(
                         name,
                         loans,
                         depth + 1,
+                        native,
                     )?;
                 }
                 Some(())
@@ -969,17 +1104,13 @@ pub(super) fn collect(
         values: &mut BTreeSet<String>,
         source: &serde_json::Value,
         module: &str,
+        stage_limit: usize,
         mut stages: BTreeSet<usize>,
         loans: &mut HashMap<Span, serde_json::Value>,
         loops: Option<&serde_json::Value>,
+        native: Option<&super::scenario_receipts::NativeScenarioReceipt>,
     ) -> Option<BTreeSet<usize>> {
-        fn advance(stages: &BTreeSet<usize>) -> Option<BTreeSet<usize>> {
-            stages
-                .iter()
-                .map(|stage| stage.checked_add(1).filter(|stage| *stage < 200))
-                .collect()
-        }
-        if stages.is_empty() || stages.len() > 200 || stages.last().copied()? >= 200 {
+        if stages.is_empty() || stages.len() > 200 || stages.last().copied()? >= stage_limit {
             return None;
         }
         for statement in body {
@@ -1001,6 +1132,7 @@ pub(super) fn collect(
                             name,
                             &mut nested,
                             0,
+                            native,
                         )
                         .is_some()
                         {
@@ -1030,9 +1162,11 @@ pub(super) fn collect(
                         &mut values.clone(),
                         source,
                         module,
+                        stage_limit,
                         stages.clone(),
                         loans,
                         loops,
+                        native,
                     );
                     let right = expressions(
                         ir,
@@ -1043,9 +1177,11 @@ pub(super) fn collect(
                         &mut values.clone(),
                         source,
                         module,
+                        stage_limit,
                         stages.clone(),
                         loans,
                         loops,
+                        native,
                     );
                     // Both authored branches contribute their exact reachable write counts.
                     // Preserve lazy execution; this is a finite admission set, not a range.
@@ -1067,6 +1203,7 @@ pub(super) fn collect(
                         "at",
                         &mut nested,
                         0,
+                        native,
                     )
                     .is_some()
                         && leaves(
@@ -1081,6 +1218,7 @@ pub(super) fn collect(
                             "payload",
                             &mut nested,
                             0,
+                            native,
                         )
                         .is_some()
                     {
@@ -1130,9 +1268,11 @@ pub(super) fn collect(
                         &mut nested_values,
                         source,
                         module,
+                        stage_limit,
                         BTreeSet::from([0]),
                         &mut nested,
                         loops,
+                        native,
                     )?;
                     if nested.values().any(|loan| loan.get("stages").is_some()) {
                         return None;
@@ -1144,7 +1284,7 @@ pub(super) fn collect(
                     // Constructor and expression observations share the same
                     // exact finite stage join after an authenticated loop.
                     // Item-local loans remain relative to their private lease.
-                    stages = after_loop_stages(&stages, body, entry)?;
+                    stages = after_loop_stages(&stages, body, entry, stage_limit)?;
                     for name in loop_shadowed_names(body, 0)? {
                         roots.remove(&name);
                         values.remove(&name);
@@ -1164,6 +1304,7 @@ pub(super) fn collect(
                         "create",
                         &mut nested,
                         0,
+                        native,
                     )
                     .is_some()
                     {
@@ -1173,7 +1314,7 @@ pub(super) fn collect(
                         roots.remove(name);
                         values.remove(name);
                     }
-                    stages = advance(&stages)?;
+                    stages = advance_stages(&stages, stage_limit)?;
                 }
                 IrStmt::Set { changes, .. } => {
                     // Nested Object leaves use the same pure expression walker as LET.
@@ -1191,14 +1332,17 @@ pub(super) fn collect(
                         "set",
                         &mut nested,
                         0,
+                        native,
                     )
                     .is_some()
                     {
                         loans.extend(nested);
                     }
-                    stages = advance(&stages)?;
+                    stages = advance_stages(&stages, stage_limit)?;
                 }
-                IrStmt::Transition { .. } | IrStmt::Delete { .. } => stages = advance(&stages)?,
+                IrStmt::Transition { .. } | IrStmt::Delete { .. } => {
+                    stages = advance_stages(&stages, stage_limit)?
+                }
                 IrStmt::Require { .. } | IrStmt::Send { .. } | IrStmt::Cancel { .. } => {}
                 _ => return None,
             }
@@ -1253,9 +1397,11 @@ pub(super) fn collect(
         &mut values,
         &source,
         module,
+        stage_limit,
         BTreeSet::from([0]),
         &mut loans,
         loops,
+        native,
     );
     Some(loans)
 }
@@ -1703,8 +1849,9 @@ pub(super) fn same_query_capture_type(
         && ordinary.type_id == declaration.canonical
 }
 
-/// Full native receipts retain their query slots. This inventory completes only
-/// the original initial LET, then deterministic Values-only lexical successors.
+/// Full native receipts retain their query slots. Initial captures and exact
+/// aggregate-item captures share one descriptor and DATA-pairing mechanism;
+/// an iteration always needs its private native item lease at execution.
 pub(super) fn collect_native_query_values(
     context: &super::source_context::FreshSourceContext<'_>,
     owner: &IrItem,
@@ -1751,7 +1898,9 @@ pub(super) fn collect_native_query_values(
         .scenario_disclosures()
         .get(&owner.id)?
         .source_facts()?;
-    if facts.query_values != originals.query_values {
+    if facts.query_values != originals.query_values
+        || facts.aggregate_loops != originals.aggregate_loops
+    {
         return None;
     }
 
@@ -1781,105 +1930,175 @@ pub(super) fn collect_native_query_values(
         module,
     )?)
     .ok()?;
-    let mut values=params.iter().filter_map(|id|ir.items.get(id.0 as usize))
+    let mut outer_values=params.iter().filter_map(|id|ir.items.get(id.0 as usize))
         .filter(|item|matches!(&item.kind,IrItemKind::Param{ty:IrType::Known(ty),..}if capture_plain_value(ir,ty,0)))
         .map(|item|item.name.clone()).collect::<BTreeSet<_>>();
-    let mut prior = std::collections::BTreeMap::<String, serde_json::Value>::new();
+    let mut outer_prior = std::collections::BTreeMap::<String, serde_json::Value>::new();
+
+    let leading = effects
+        .iter()
+        .take_while(|statement| matches!(statement, IrStmt::Require { .. } | IrStmt::Let { .. }))
+        .collect::<Vec<_>>();
+    let mut scopes = vec![(None, leading, None)];
+    for aggregate in facts.aggregate_loops.as_deref().unwrap_or_default() {
+        let span = Span {
+            file: aggregate.node.file,
+            start: aggregate.node.start,
+            end: aggregate.node.end,
+        };
+        let body = effects.iter().find_map(|statement| match statement {
+            IrStmt::For {
+                body, span: actual, ..
+            } if *actual == span => Some(body),
+            _ => None,
+        })?;
+        let prefix = super::scenario_decisions::serialize_loop_mutation_prefix(
+            context, owner, span, &source,
+        )?;
+        let [created] = prefix.as_array()?.as_slice() else {
+            return None;
+        };
+        if created["kind"] != "create"
+            || created["created"]["node"]["start"] != aggregate.created.start
+            || created["created"]["node"]["end"] != aggregate.created.end
+        {
+            return None;
+        }
+        let declarations = body
+            .iter()
+            .take_while(|statement| matches!(statement, IrStmt::Let { .. }))
+            .collect::<Vec<_>>();
+        if declarations.len() != aggregate.values.len()
+            || declarations
+                .iter()
+                .zip(&aggregate.values)
+                .any(|(statement, node)| {
+                    !matches!(statement, IrStmt::Let { span, .. }
+                    if span.file == node.file && span.start == node.start && span.end == node.end)
+                })
+        {
+            return None;
+        }
+        scopes.push((Some(aggregate), declarations, Some(prefix)));
+    }
 
     let mut output = HashMap::new();
-    for statement in effects {
-        if matches!(statement, IrStmt::Require { .. }) {
-            continue;
-        }
-        let IrStmt::Let { name, value, span } = statement else {
-            break;
-        };
-        if !capture_plain_value(ir, &value.ty, 0) {
-            continue;
-        }
-        let type_id = super::scenario_decisions::serial_type(&value.ty, context.original(), ir, 0)?;
-        let mut descriptor = serde_json::json!({"source":source,"owner":owner.canonical,"node":{"start":span.start,"end":span.end},
+    for (aggregate, statements, prefix) in scopes {
+        let mut values = outer_values.clone();
+        let mut prior = outer_prior.clone();
+        for statement in statements {
+            if matches!(statement, IrStmt::Require { .. }) {
+                continue;
+            }
+            let IrStmt::Let { name, value, span } = statement else {
+                break;
+            };
+            if !capture_plain_value(ir, &value.ty, 0) {
+                continue;
+            }
+            let type_id =
+                super::scenario_decisions::serial_type(&value.ty, context.original(), ir, 0)?;
+            let mut descriptor = serde_json::json!({"source":source,"owner":owner.canonical,"node":{"start":span.start,"end":span.end},
             "value":{"start":value.span.start,"end":value.span.end},"binding":name,"typeId":type_id,"stage":0,"queries":[]});
-        if let Some(query) = query_values.iter().find(|query| {
-            query.statement.file == span.file
-                && query.statement.start == span.start
-                && query.statement.end == span.end
-        }) {
-            descriptor["receiptQueryId"] = serde_json::json!(query.query.id);
-            let crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(checked) =
-                ir.scenario_disclosures.get(&owner.id)?
-            else {
-                return None;
-            };
-            let mut pairs = Vec::new();
-            let mut ordinary_ids = BTreeSet::new();
-            for dependency in query.query.dependencies.iter().filter(|dependency| {
-                dependency.role == crate::analysis::scenario_disclosure::DependencyRole::Data
+            if let Some(aggregate) = aggregate {
+                descriptor["iteration"] = serde_json::json!(aggregate.id);
+                descriptor["stage"] = serde_json::json!(prefix.as_ref()?.as_array()?.len());
+                descriptor["mutationPrefix"] = prefix.as_ref()?.clone();
+            }
+            if let Some(query) = query_values.iter().find(|query| {
+                query.statement.file == span.file
+                    && query.statement.start == span.start
+                    && query.statement.end == span.end
+                    && query.iteration == aggregate.map(|aggregate| aggregate.node)
             }) {
-                let mut matches = checked
-                    .returns
-                    .iter()
-                    .filter(|returned| returned.source_values.contains(&query.statement))
-                    .flat_map(|returned| &returned.dependencies)
-                    .filter(|ordinary| {
-                        ordinary.query_id.as_deref() == Some(query.query.id.as_str())
-                            && ordinary.node == dependency.node
-                            && ordinary.calls == dependency.calls
-                            && ordinary.source == dependency.source
-                            && ordinary.model == dependency.model
-                            && ordinary.field == dependency.field
-                            && ordinary.ty == dependency.ty
-                            && same_query_capture_type(context, ordinary, dependency)
-                            && ordinary.role == dependency.role
-                    })
-                    .map(|ordinary| ordinary.id.clone())
-                    .collect::<BTreeSet<_>>();
-                if matches.len() != 1 {
+                descriptor["receiptQueryId"] = serde_json::json!(query.query.id);
+                let crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(checked) =
+                    ir.scenario_disclosures.get(&owner.id)?
+                else {
                     return None;
-                }
-                let ordinary = matches.pop_first()?;
-                if ordinary == dependency.id || !ordinary_ids.insert(ordinary.clone()) {
-                    return None;
-                }
-                pairs.push(serde_json::json!({"ordinaryDependencyId":ordinary,"queryDependencyId":dependency.id}));
-            }
-            descriptor["receiptDependencies"] = serde_json::json!(pairs);
-            let cases = |choice| {
-                checked
-                    .returns
-                    .iter()
-                    .filter(|returned| {
-                        returned.decisions.iter().any(|decision| {
-                            decision.node == query.value
-                                && decision.calls.is_empty()
-                                && decision.choice == choice
+                };
+                let mut pairs = Vec::new();
+                let mut ordinary_ids = BTreeSet::new();
+                for dependency in query.query.dependencies.iter().filter(|dependency| {
+                    dependency.role == crate::analysis::scenario_disclosure::DependencyRole::Data
+                }) {
+                    let mut matches = checked
+                        .returns
+                        .iter()
+                        .filter(|returned| returned.source_values.contains(&query.statement))
+                        .flat_map(|returned| &returned.dependencies)
+                        .filter(|ordinary| {
+                            ordinary.query_id.as_deref() == Some(query.query.id.as_str())
+                                && ordinary.node == dependency.node
+                                && ordinary.calls == dependency.calls
+                                && ordinary.source == dependency.source
+                                && ordinary.model == dependency.model
+                                && ordinary.field == dependency.field
+                                && ordinary.ty == dependency.ty
+                                && same_query_capture_type(context, ordinary, dependency)
+                                && ordinary.role == dependency.role
                         })
-                    })
-                    .map(|returned| returned.id.clone())
-                    .collect::<Vec<_>>()
-            };
-            descriptor["receiptCases"] = serde_json::json!({"empty":cases(crate::analysis::scenario_disclosure::DisclosureChoice::Else),"nonempty":cases(crate::analysis::scenario_disclosure::DisclosureChoice::Then)});
-            descriptor["queries"] = serde_json::json!([{"node":{"start":query.value.start,"end":query.value.end},"model":query.query.model_name}]);
-        } else {
-            if !super::source_send_data::send_value(ir, value, &values, 0) {
-                continue;
+                        .map(|ordinary| ordinary.id.clone())
+                        .collect::<BTreeSet<_>>();
+                    if matches.len() != 1 {
+                        return None;
+                    }
+                    let ordinary = matches.pop_first()?;
+                    if ordinary == dependency.id || !ordinary_ids.insert(ordinary.clone()) {
+                        return None;
+                    }
+                    pairs.push(serde_json::json!({"ordinaryDependencyId":ordinary,"queryDependencyId":dependency.id}));
+                }
+                descriptor["receiptDependencies"] = serde_json::json!(pairs);
+                let cases = |choice| {
+                    checked
+                        .returns
+                        .iter()
+                        .filter(|returned| {
+                            if aggregate.is_some() {
+                                // Each actual repeated SUM may be empty or
+                                // nonempty without choosing a different owner
+                                // return. Its genuine item lease distinguishes
+                                // occurrences; retain the original return census.
+                                returned.source_values.contains(&query.statement)
+                            } else {
+                                returned.decisions.iter().any(|decision| {
+                                    decision.node == query.value
+                                        && decision.calls.is_empty()
+                                        && decision.choice == choice
+                                })
+                            }
+                        })
+                        .map(|returned| returned.id.clone())
+                        .collect::<Vec<_>>()
+                };
+                descriptor["receiptCases"] = serde_json::json!({"empty":cases(crate::analysis::scenario_disclosure::DisclosureChoice::Else),"nonempty":cases(crate::analysis::scenario_disclosure::DisclosureChoice::Then)});
+                descriptor["queries"] = serde_json::json!([{"node":{"start":query.value.start,"end":query.value.end},"model":query.query.model_name}]);
+            } else {
+                if !super::source_send_data::send_value(ir, value, &values, 0) {
+                    continue;
+                }
+                let mut used = BTreeSet::new();
+                names(value, &mut used, 0)?;
+                let captures = used
+                    .iter()
+                    .filter_map(|name| prior.get(name).cloned())
+                    .collect::<Vec<_>>();
+                if captures.is_empty() {
+                    continue;
+                }
+                descriptor["captures"] = serde_json::json!(captures);
             }
-            let mut used = BTreeSet::new();
-            names(value, &mut used, 0)?;
-            let captures = used
-                .iter()
-                .filter_map(|name| prior.get(name).cloned())
-                .collect::<Vec<_>>();
-            if captures.is_empty() {
-                continue;
+            values.insert(name.clone());
+            prior.insert(name.clone(),serde_json::json!({"node":{"start":span.start,"end":span.end},"binding":name,"typeId":type_id}));
+            output.insert(*span, descriptor);
+            if output.len() > 200 {
+                return None;
             }
-            descriptor["captures"] = serde_json::json!(captures);
         }
-        values.insert(name.clone());
-        prior.insert(name.clone(),serde_json::json!({"node":{"start":span.start,"end":span.end},"binding":name,"typeId":type_id}));
-        output.insert(*span, descriptor);
-        if output.len() > 200 {
-            return None;
+        if aggregate.is_none() {
+            outer_values = values;
+            outer_prior = prior;
         }
     }
 

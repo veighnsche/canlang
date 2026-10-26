@@ -4883,7 +4883,10 @@ fn d03_undescribed_inputs_omit_member() {
     assert!(diags.is_empty(), "clean lowering: {diags:?}");
     let contract_src = "app Shop\nGiven\n Gadget {title:text}\n policy Gadget read=members\n contract Batch { title:text, go:action(pick) }\nWhen\n scenario pick(gadget:Gadget) by=members\n  do let x = 1\n export scenario get(batch:Batch) read=true by=members -> Batch\n  do return batch\nThen\n";
     let (_contract_program, contract_artifact, contract_diags) = d03_emit(contract_src);
-    assert!(contract_diags.is_empty(), "clean lowering: {contract_diags:?}");
+    assert!(
+        contract_diags.is_empty(),
+        "clean lowering: {contract_diags:?}"
+    );
     let contract_op = d03_operation(&contract_artifact, "Shop.get");
     assert_eq!(contract_op.result.as_deref(), Some("Shop.Batch"));
     let op = d03_operation(&artifact, "Shop.Gadget.create");

@@ -8957,50 +8957,66 @@ export function bindScenarioSourceLetDataProducer(def:GeneratedOperationDef,prod
   if(sites.length>MAX_ITEMS||new Set(sites.map(site=>`${site.node.start}:${site.node.end}`)).size!==sites.length)return invalid('Scalar LET DATA has an invalid original occurrence census.');
   sourceLetDataProducers.set(def,Object.freeze({source:bound.plan.source,app:producer.app,policy,readPolicies,sites:Object.freeze(sites)}));
 }
-/** Exact traversed-parent DATA recording for source LET loans. The leaf manual
- * append covers direct primitives only; each parent hop is a genuine reference
- * DATA dependency the compiler pairs per consumer (parentDependencyIds). This
- * shares the canonical reference authority, revision discipline, census
- * counts, narrowed marking and parent bookkeeping with the ordinary observer;
- * the busy public wrapper cannot run inside the LET owner operation, so the
- * shared canonical edge below is used for the traversal instead. */
-async function recordCanonicalParentReferenceEdge(call:AdmittedCall,store:StoragePort,owner:ReceiptOwnerSession,state:Capture,
-  dependencyId:string,model:ModelName,row:StoredRow,occurrence:{readonly loop:string;readonly ordinal:number}|undefined):Promise<void>{
-  const declared=state.bound.plan.returns.flatMap(returned=>returned.dependencies).find(dependency=>dependency.id===dependencyId);
-  const reference=declared===undefined?undefined:state.bound.referenceDependencies.get(dependencyId);
-  if(declared===undefined||declared.role!=='data'||declared.queryId!==undefined||reference===undefined
-    ||declared.model!==model||declared.field!=='parent')return invalid('Scalar LET DATA parent traversal claims an undeclared reference dependency.');
-  const narrowed=state.bound.narrowedDependencies.get(dependencyId);
-  if(narrowed!==undefined)capturedNarrowedControl(call,owner,state,narrowed,row);
-  storedReferenceWire(reference.profile,row);
+/** Shared canonical reference validation/recording used by BOTH the ordinary
+ * observer and the LET parent traversal. The caller holds the pending slot
+ * and the busy owner (the public wrapper acquires them itself; the traversal
+ * wrapper holds pending inside the LET ownerOperation). Covers narrowed
+ * CONTROL, stored wire, exact census, reference authority, row lifetime,
+ * revision fences, ordinal occurrence and parent bookkeeping. Intentional
+ * differences stay at the thin callers: query-linked authority, admission
+ * machinery and exotic (file/id/execution/query) combinations keep the
+ * ordinary inline path. */
+async function recordSharedReferenceObservation(call:AdmittedCall,store:StoragePort,owner:ReceiptOwnerSession,state:Capture,
+  input:{readonly dependencyId:string;readonly model:ModelName;readonly row:StoredRow;readonly inputRow:StoredRow;
+    readonly occurrence:{readonly loop:string;readonly ordinal:number}|undefined;readonly requireDurableRow:boolean}):Promise<DependencyObservation>{
+  const declared=state.bound.plan.returns.flatMap(returned=>returned.dependencies).find(dependency=>dependency.id===input.dependencyId);
+  const reference=declared===undefined?undefined:state.bound.referenceDependencies.get(input.dependencyId);
+  if(declared===undefined||declared.queryId!==undefined||reference===undefined
+    ||declared.model!==input.model)return invalid('Shared reference observation claims an undeclared reference dependency.');
+  const narrowed=state.bound.narrowedDependencies.get(input.dependencyId);
+  if(narrowed!==undefined)capturedNarrowedControl(call,owner,state,narrowed,input.inputRow);
+  storedReferenceWire(reference.profile,input.row);
+  const occurrence=input.occurrence;
   const counts=sourceObservationCounts.get(state)??{ordinary:0,repeated:0};
   const observationLoop=occurrence===undefined?undefined:state.bound.plan.sourceLoops?.loops.find(loop=>loop.id===occurrence.loop&&loop.aggregate!==undefined);
   if(occurrence===undefined?counts.ordinary+state.intrinsics.length+(executedDependencies.get(state)?.size??0)>=MAX_ITEMS:
-    observationLoop===undefined||sourceBodyLoopProducers.get(call.def as GeneratedOperationDef)?.loops.some(loop=>loop.id===observationLoop.id)!==true||counts.repeated>=(aggregateReceiptLimits(state.bound.plan)?.maxObservations??MAX_ITEMS)-MAX_ITEMS)return invalid('Scalar LET DATA parent traversal exceeds its original ordinary or aggregate source census.');
-  const revalidate=await observeReferenceAuthority(call,store,owner,state,declared.id,row,reference.profile,model);
-  const current=await store.load(model,row.id);capture(call,store);
-  if(current===null||row.archivedAt!==null)return invalid('Scalar LET DATA parent traversal lost its current source row.');
+    observationLoop===undefined||sourceBodyLoopProducers.get(call.def as GeneratedOperationDef)?.loops.some(loop=>loop.id===observationLoop.id)!==true||counts.repeated>=(aggregateReceiptLimits(state.bound.plan)?.maxObservations??MAX_ITEMS)-MAX_ITEMS)return invalid('Shared reference observation exceeds its original ordinary or aggregate source census.');
+  const revalidate=await observeReferenceAuthority(call,store,owner,state,declared.id,input.row,reference.profile,input.model);
+  const current=await store.load(input.model,input.row.id);capture(call,store);
+  if(input.requireDurableRow&&current===null)return invalid('Shared reference observation lost its current source row.');
+  if(input.row.archivedAt!==null)return invalid('Shared reference observation lost its current source row.');
   const revision=await store.readRevision();capture(call,store);
   if(state.returnId!==null)return invalid('observation must complete before return selection.');
-  if(revision!==call.revision)throw new StateError('conflict','Scalar LET DATA parent traversal moved beyond its admitted revision.');
+  if(revision!==call.revision)throw new StateError('conflict','Shared reference observation moved beyond its admitted revision.');
   await revalidate();capture(call,store);ownerHealthy(owner);
-  if(await store.readRevision()!==call.revision)throw new StateError('conflict','Source reference parent observation moved beyond its admitted revision.');
+  if(await store.readRevision()!==call.revision)throw new StateError('conflict','Shared reference observation moved beyond its admitted revision.');
   capture(call,store);ownerHealthy(owner);
-  const secrets=state.bound.models.get(model)!.secrets;
+  const secrets=state.bound.models.get(input.model)!.secrets;
   if(secrets.length>MAX_ITEMS)return invalid('original secrecy inventory exceeds its finite budget.');
-  const observation={dependencyId:declared.id,model,row,...(occurrence===undefined?{}:{occurrence}),
-    secretFields:[...secrets],stored:current!==null&&stableStringify(current)===stableStringify(row),ownerSession:true};
+  const observation={dependencyId:declared.id,model:input.model,row:input.row,...(occurrence===undefined?{}:{occurrence}),
+    secretFields:[...secrets],stored:current!==null&&stableStringify(current)===stableStringify(input.row),ownerSession:true};
   state.observations.push(observation);
   if(occurrence===undefined)counts.ordinary++;else counts.repeated++;
   sourceObservationCounts.set(state,counts);
-  if([...state.bound.narrowedDependencies.values()].some(binding=>scenarioNarrowedFieldControls(binding).some(control=>control.id===declared.id)))narrowedControlInputs.set(observation,{call,owner,stage:owner.stage,row});
-  storedParentInputs.set(observation,{call,owner,stage:owner.stage,row,revalidate});
+  if([...state.bound.narrowedDependencies.values()].some(binding=>scenarioNarrowedFieldControls(binding).some(control=>control.id===declared.id)))narrowedControlInputs.set(observation,{call,owner,stage:owner.stage,row:input.inputRow});
+  const queryParent=queryParentRows.get(input.inputRow);
+  if(queryParent!==undefined)queryParent.observed=true;
+  storedParentInputs.set(observation,{call,owner,stage:owner.stage,row:input.inputRow,revalidate});
+  return observation;
 }
+/** Exact traversed-parent DATA recording for source LET loans. The leaf manual
+ * append covers direct primitives only; each parent hop is a genuine reference
+ * DATA dependency the compiler pairs per consumer (parentDependencyIds). This
+ * records through the shared canonical reference path above; the busy public
+ * wrapper cannot run inside the LET ownerOperation, so this thin wrapper holds
+ * the pending slot for the traversal instead. */
 async function recordSourceLetParentDependency(call:AdmittedCall,store:StoragePort,owner:ReceiptOwnerSession,state:Capture,
   dependencyId:string,model:ModelName,row:StoredRow,occurrence:{readonly loop:string;readonly ordinal:number}|undefined):Promise<void>{
   state.pending+=1;
   try{
-    await recordCanonicalParentReferenceEdge(call,store,owner,state,dependencyId,model,row,occurrence);
+    const declared=state.bound.plan.returns.flatMap(returned=>returned.dependencies).find(dependency=>dependency.id===dependencyId);
+    if(declared===undefined||declared.role!=='data'||declared.field!=='parent')return invalid('Scalar LET DATA parent traversal claims an undeclared reference dependency.');
+    await recordSharedReferenceObservation(call,store,owner,state,{dependencyId,model,row,inputRow:row,occurrence,requireDurableRow:true});
   }finally{state.pending-=1;}
 }
 export async function executeScenarioSourceLetData(call:AdmittedCall,store:StoragePort,input:{readonly source:ScenarioSourceLetDataSource}):Promise<ProjectedRecord>{
@@ -11400,6 +11416,15 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
         const authority = await observeModelQuerySourceAuthority(call, store, owner, state, observed.model, current,
           [dependency.field], 1,undefined,undefined,undefined,undefined,undefined,observationLoop);
         referenceRevalidate = () => authority.requireFields([dependency.field]);
+      } else if (id === undefined && file === undefined && execution === undefined && nominal === undefined &&
+          constructor === undefined && recipient?.leafId !== dependency.id && !rowId) {
+        // Plain canonical reference reads record through the shared path both
+        // consumers use. Query-linked authority and the exotic combinations
+        // above keep the explicit inline tail; admission and occurrence above
+        // are unchanged.
+        await recordSharedReferenceObservation(call, store, owner, state,
+          { dependencyId: dependency.id, model: observed.model, row, inputRow: input.row, occurrence, requireDurableRow: false });
+        return undefined;
       } else referenceRevalidate = await observeReferenceAuthority(call, store, owner, state, dependency.id, row, reference.profile, observed.model);
     }
     const bodyData=(call.def as GeneratedOperationDef).kind==='scenario'&&dependency.role==='data'&&dependency.queryId===undefined&&

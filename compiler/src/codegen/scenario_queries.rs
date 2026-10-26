@@ -1483,7 +1483,8 @@ fn match_complete_returned(
             )
         });
     let constructor_return =
-        super::scenario_receipts::constructor_count_queries(original.source_facts()?).is_some();
+        super::scenario_receipts::constructor_count_queries(owner, original.source_facts()?)
+            .is_some();
     if constructor_return
         && (returned
             .influences
@@ -1606,7 +1607,7 @@ fn complete_helper_receipt(
     standalone_first: bool,
 ) -> Option<NativeScenarioReceipt> {
     let (expected_influences, mixed) = if let Some(counts) =
-        super::scenario_receipts::constructor_count_queries(original.source_facts()?)
+        super::scenario_receipts::constructor_count_queries(owner, original.source_facts()?)
     {
         (
             counts
@@ -1897,12 +1898,12 @@ fn combine_query_plans(
 ) -> Option<ReceiptDisclosurePlan> {
     if super::scenario_receipts::checked_native_query_influences(queries).is_none() {
         let facts = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
-        let counts = super::scenario_receipts::constructor_count_queries(facts)?;
+        let counts = super::scenario_receipts::constructor_count_queries(owner, facts)?;
         if !counts.iter().copied().eq(queries.iter()) {
             return None;
         }
         source_context?.same_scenario(ir, owner)?;
-        super::scenario_receipts::constructor_count_influences(facts)?;
+        super::scenario_receipts::constructor_count_influences(owner, facts)?;
     }
     let mut plans = queries.iter().map(|query| {
         plan_single_query(program, ir, owner, query, db, entry_module, source_context)
@@ -2263,6 +2264,7 @@ fn plan_direct_query(
             source: origin(&q.source, entry_module),
             model: model.canonical.clone(),
             parent: None,
+            iteration: None,
             order: Vec::new(),
             limit: None,
             archived: "exclude".into(),
@@ -2420,7 +2422,7 @@ fn checked_query_plan_full(
             return Some(plan);
         }
     }
-    if let Some(counts) = super::scenario_receipts::constructor_count_queries(source) {
+    if let Some(counts) = super::scenario_receipts::constructor_count_queries(owner, source) {
         prepared.decisions(owner)?;
         if let [count] = counts.as_slice() {
             return checked_count_query_plan(
@@ -2560,10 +2562,11 @@ fn assemble_inline_query(
         parent: Some(ReceiptQueryParent {
             source: source_origin.clone(),
             model: parent.canonical.clone(),
-            origin: ReceiptQueryParentOrigin::StoredReference {
+            origin: ReceiptQueryParentOrigin::Stored {
                 dependency_id: fact.parent_dependency.id.clone(),
             },
         }),
+        iteration: None,
         order: query
             .order
             .iter()
@@ -3062,10 +3065,11 @@ fn assemble_transcript_query(
         parent: Some(ReceiptQueryParent {
             source: origin(&fact.source, entry),
             model: branch.canonical.clone(),
-            origin: ReceiptQueryParentOrigin::AdmittedReference {
+            origin: ReceiptQueryParentOrigin::Admitted {
                 parameter: parameter.name.clone(),
             },
         }),
+        iteration: None,
         order: vec![ReceiptQueryOrder {
             field: order.field_name.clone(),
             direction: "asc".into(),
@@ -3843,7 +3847,7 @@ fn first_query_parent(
             Some(Some(ReceiptQueryParent {
                 source: origin(&q.source, entry),
                 model: ir.items.get(parent_id.0 as usize)?.canonical.clone(),
-                origin: ReceiptQueryParentOrigin::AdmittedReference {
+                origin: ReceiptQueryParentOrigin::Admitted {
                     parameter: parameter.name.clone(),
                 },
             }))
@@ -3944,6 +3948,7 @@ fn checked_first_query_plan(
             source: origin(&q.source, entry),
             model: model.canonical.clone(),
             parent,
+            iteration: None,
             order: q
                 .order
                 .iter()

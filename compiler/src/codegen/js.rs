@@ -2973,7 +2973,7 @@ fn emit_program_with_sources(
                 .filter(|queries| {
                     queries.len() <= 3
                         || (queries.len() <= 200
-                            && super::scenario_receipts::constructor_count_queries(source)
+                            && super::scenario_receipts::constructor_count_queries(item, source)
                                 .is_some())
                         || super::scenario_receipts::checked_scenario_query_influences(source)
                             .is_some_and(|influences| influences.len() == 24)
@@ -3461,6 +3461,7 @@ fn emit_program_with_sources(
                             &module_path(&entry_name),
                             Some(&loops),
                             Some(&source),
+                            emitter.native_receipts.get(&owner.id),
                         ) {
                             loans.retain(|span, loan| {
                                 !emitter
@@ -3474,6 +3475,7 @@ fn emit_program_with_sources(
                             });
                             if loans.iter().any(|(span, loan)| {
                                 loan.get("loop").is_none()
+                                    && loan.get("stages").is_none()
                                     && !emitter.native_receipts.get(&owner.id).is_some_and(
                                         |native| {
                                             super::source_let_data::native_guard_capture(
@@ -3567,6 +3569,7 @@ fn emit_program_with_sources(
                 &module_path(&entry_name),
                 emitter.source_body_loops.get(&owner.canonical),
                 None,
+                emitter.native_receipts.get(&owner.id),
             ) {
                 emitter.source_let_data.extend(loans);
             }
@@ -13646,6 +13649,53 @@ impl<'a> Emitter<'a> {
                 })
                 .cloned()
             {
+                // A Global aggregate repetition scans the whole model; the
+                // genuine loop item reaches the predicate through its lexical
+                // scope, never through a transported parent row.
+                if value.iteration.is_some()
+                    && matches!(
+                        value.parent,
+                        crate::analysis::scenario_disclosure::CheckedQueryValueParent::Global
+                    )
+                {
+                    let (Some(selected), Some(parameter)) =
+                        (query.select.as_ref(), query.select_param.as_ref())
+                    else {
+                        self.unsupported(
+                            "native Values query",
+                            "original selected expression is required",
+                            span,
+                        );
+                        return self.throw_expr("missing native Values query source");
+                    };
+                    if query.parent.is_some() {
+                        self.unsupported(
+                            "native Values query",
+                            "global repetition carries no parent transport",
+                            span,
+                        );
+                        return self.throw_expr("missing native Values query source");
+                    }
+                    self.enter_scope();
+                    let predicate_row = self.bind(&query.where_param);
+                    let predicate = query
+                        .where_pred
+                        .as_ref()
+                        .map(|value| self.lower_expr(value))
+                        .unwrap_or_else(|| "true".into());
+                    self.exit_scope();
+                    self.enter_scope();
+                    let row = self.bind(parameter);
+                    let selected = self.lower_expr(selected);
+                    self.exit_scope();
+                    self.stdlib.insert("executeScenarioReceiptQuery".into());
+                    self.stdlib
+                        .insert("executeScenarioReceiptQueryValueRow".into());
+                    return format!(
+                        "(await (async()=>{{const $selected=await executeScenarioReceiptQuery(c,{},async({predicate_row})=>({predicate}));const $values=[];for(const {row} of $selected){{$values.push(await executeScenarioReceiptQueryValueRow(c,{row},async()=>({selected})));}}return $values;}})())",
+                        js_string(&value.query.id)
+                    );
+                }
                 let (Some(parent), Some(selected), Some(parameter)) = (
                     query.parent.as_ref(),
                     query.select.as_ref(),
@@ -14445,7 +14495,9 @@ impl<'a> Emitter<'a> {
                         })
                         .unwrap_or_default();
                     let binding = self.bind(name);
-                    let choice = if source.get("receiptQueryId").is_some() {
+                    let choice = if source.get("receiptQueryId").is_some()
+                        && source.get("iteration").is_none()
+                    {
                         format!(
                             "if({binding}.length===0){{{}}}else{{{}}}",
                             self.receipt_choice(value.span, "else"),

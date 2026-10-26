@@ -2527,24 +2527,34 @@ fn join_require_statements<'o>(
                 return None;
             }
             if *child != 0 || a.len() != 1 || b.len() != 1 {
-                let work = semantic
+                let facts = semantic
                     .program
                     .scenario_disclosures()
                     .get(&owner.id)?
-                    .source_facts()?
+                    .source_facts()?;
+                let work = facts
                     .member_work_loops
-                    .as_deref()?;
-                if !work.iter().any(|plan| {
-                    plan.node.file == at.file
-                        && plan.node.start == at.start
-                        && plan.node.end == at.end
+                    .as_deref()
+                    .unwrap_or_default()
+                    .iter()
+                    .any(|plan| {
+                        plan.node.file == at.file
+                            && plan.node.start == at.start
+                            && plan.node.end == at.end
+                            && plan.condition == site.node
+                            && plan.condition_statement == site.statement
+                    });
+                let aggregate = facts.aggregate_loops.as_deref().unwrap_or_default().iter().any(|plan| {
+                    plan.node.file == at.file && plan.node.start == at.start && plan.node.end == at.end
                         && plan.condition == site.node
-                        && plan.condition_statement == site.statement
-                }) {
+                        && matches!(a.get(*child), Some(IrStmt::If { span, .. }) if span.file == site.statement.file
+                            && span.start == site.statement.start && span.end == site.statement.end)
+                });
+                if !work && !aggregate {
                     return None;
                 }
-                // The independently checked Work shape retains its entire
-                // selection and prefix, including optional SET and CANCEL.
+                // The independently checked loop shape retains its entire
+                // selection and ordered body, including every earlier LET.
                 semantic.statements(
                     std::slice::from_ref(effects.get(*index)?),
                     std::slice::from_ref(expected_effects.get(*index)?),
@@ -2898,6 +2908,14 @@ fn serialize_mutation_prefix(
     }
     let ir = sources.ir();
     let loops = super::source_loops::collect_phase_prefix(ir, owner, sources, source, "");
+    let aggregate_loops = sources
+        .original()
+        .scenario_disclosures()
+        .get(&owner.id)?
+        .source_facts()?
+        .aggregate_loops
+        .as_deref()
+        .unwrap_or_default();
     let mut prefix = Vec::new();
     let mut append = |body: &[IrStmt]| -> Option<()> {
         for statement in body {
@@ -2937,7 +2955,21 @@ fn serialize_mutation_prefix(
                     span,
                     when: None,
                     ..
-                } if matches!(&owner.kind, IrItemKind::Scenario { result: None, .. }) => {
+                } if matches!(&owner.kind, IrItemKind::Scenario { result: None, .. })
+                    || sources
+                        .original()
+                        .scenario_disclosures()
+                        .get(&owner.id)
+                        .and_then(|disclosure| disclosure.source_facts())
+                        .and_then(|facts| facts.aggregate_loops.as_deref())
+                        .is_some_and(|loops| {
+                            loops.iter().any(|aggregate| {
+                                aggregate.created.file == span.file
+                                    && aggregate.created.start == span.start
+                                    && aggregate.created.end == span.end
+                            })
+                        }) =>
+                {
                     let creates = super::source_created_rows::collect(ir, owner, sources, source)?;
                     let created = creates.iter().find(|created| {
                         created["node"]["start"] == span.start && created["node"]["end"] == span.end
@@ -2960,6 +2992,20 @@ fn serialize_mutation_prefix(
                     prefix.push(
                         serde_json::json!({"kind":"create","created":created,"fields":fields}),
                     );
+                }
+                IrStmt::For { span, .. }
+                    if aggregate_loops.iter().any(|plan| {
+                        plan.node.file == span.file
+                            && plan.node.start == span.start
+                            && plan.node.end == span.end
+                    }) =>
+                {
+                    let plan = aggregate_loops.iter().find(|plan| {
+                        plan.node.file == span.file
+                            && plan.node.start == span.start
+                            && plan.node.end == span.end
+                    })?;
+                    prefix.push(serde_json::json!({"kind":"aggregate","id":plan.id}));
                 }
                 IrStmt::For { span, body, .. }
                     if body
@@ -3032,6 +3078,59 @@ fn serialize_mutation_prefix(
     (!prefix.is_empty()).then(|| serde_json::json!(prefix))
 }
 
+/// Only the original aggregate's conditional write may consume its earlier
+/// item-local Values. The whole fresh owner and both statement spans agree.
+fn aggregate_condition_plan<'a>(
+    sources: &'a FreshSourceContext<'_>,
+    owner: &IrItem,
+    site: &CheckedDecisionSite,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedAggregateLoop> {
+    if site.stage != Stage::BodyCondition {
+        return None;
+    }
+    let [Position::Body(index), Position::Loop(child)] = site.position.as_slice() else {
+        return None;
+    };
+    sources.same_scenario(sources.ir(), owner)?;
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return None;
+    };
+    let IrStmt::For { body, span, .. } = effects.get(*index)? else {
+        return None;
+    };
+    let IrStmt::If {
+        cond,
+        span: statement,
+        ..
+    } = body.get(*child)?
+    else {
+        return None;
+    };
+    if cond.span.file != site.node.file
+        || cond.span.start != site.node.start
+        || cond.span.end != site.node.end
+        || statement.file != site.statement.file
+        || statement.start != site.statement.start
+        || statement.end != site.statement.end
+    {
+        return None;
+    }
+    sources
+        .original()
+        .scenario_disclosures()
+        .get(&owner.id)?
+        .source_facts()?
+        .aggregate_loops
+        .as_deref()?
+        .iter()
+        .find(|plan| {
+            plan.node.file == span.file
+                && plan.node.start == span.start
+                && plan.node.end == span.end
+                && plan.condition == site.node
+        })
+}
+
 /// Exact original lexical declarations consumed by this staged guard. The
 /// scalar field reader independently binds and records the actual DATA read.
 fn serialize_require_value_captures(
@@ -3047,6 +3146,7 @@ fn serialize_require_value_captures(
     else {
         return None;
     };
+    let aggregate = aggregate_condition_plan(sources, owner, site);
     let mut captures = std::collections::BTreeMap::new();
     for (key, binding) in &sources.resolved().node_binding {
         if key.file != site.node.file || key.start < site.node.start || key.end > site.node.end {
@@ -3058,7 +3158,20 @@ fn serialize_require_value_captures(
         let declaration = scenario
             .effects
             .iter()
-            .find(|effect| effect.node == *node)?;
+            .find(|effect| effect.node == *node)
+            .or_else(|| {
+                let plan = aggregate?;
+                if !plan.values.contains(node) {
+                    return None;
+                }
+                scenario
+                    .effects
+                    .iter()
+                    .find(|effect| effect.node == plan.node)?
+                    .then_effects
+                    .iter()
+                    .find(|effect| effect.node == *node)
+            })?;
         let name = declaration.binding.as_ref()?;
         let value = declaration.value?;
         let ty = original.types.node_types.get(&value)?;
@@ -3070,8 +3183,21 @@ fn serialize_require_value_captures(
         {
             return None;
         }
-        let IrStmt::Let { name: actual, value: actual_value, span } = effects.iter().find(|effect|
-            matches!(effect, IrStmt::Let { span, .. } if span.file == node.file && span.start == node.start && span.end == node.end))? else { return None; };
+        let nested = aggregate.and_then(|plan| {
+            effects.iter().find_map(|effect| match effect {
+                IrStmt::For { body, span, .. }
+                    if span.file == plan.node.file
+                        && span.start == plan.node.start
+                        && span.end == plan.node.end =>
+                {
+                    Some(body.as_slice())
+                }
+                _ => None,
+            })
+        });
+        let IrStmt::Let { name: actual, value: actual_value, span } = effects.iter()
+            .chain(nested.unwrap_or_default()).find(|effect|
+                matches!(effect, IrStmt::Let { span, .. } if span.file == node.file && span.start == node.start && span.end == node.end))? else { return None; };
         if actual != name || &actual_value.ty != ty {
             return None;
         }
@@ -3082,7 +3208,7 @@ fn serialize_require_value_captures(
     }
     let captures = captures.into_values().collect::<Vec<_>>();
     if !captures.is_empty() {
-        if site.stage != Stage::BodyRequire {
+        if site.stage != Stage::BodyRequire && aggregate.is_none() {
             return None;
         }
         sources.same_scenario(sources.ir(), owner)?;
@@ -3136,13 +3262,16 @@ fn serialize_require_observer(
         }
     }
 
-    let captures = if site.stage == Stage::BodyRequire {
+    let aggregate = aggregate_condition_plan(sources, owner, site);
+    let captures = if site.stage == Stage::BodyRequire || aggregate.is_some() {
         serialize_require_value_captures(sources, owner, site)?
     } else {
         Vec::new()
     };
     if !captures.is_empty() {
-        identity["decision"] = serde_json::json!("require");
+        if site.stage == Stage::BodyRequire {
+            identity["decision"] = serde_json::json!("require");
+        }
         identity["captures"] = serde_json::json!(captures);
     }
 
@@ -3170,14 +3299,16 @@ fn serialize_require_observer(
                 .get(&owner.id)?
                 .source_facts()?
                 .member_work_loops
-                .as_deref()?;
+                .as_deref()
+                .unwrap_or_default();
             if !plans.iter().any(|plan| {
                 plan.node.file == span.file
                     && plan.node.start == span.start
                     && plan.node.end == span.end
                     && plan.condition == site.node
                     && plan.condition_statement == site.statement
-            }) {
+            }) && aggregate.is_none()
+            {
                 return None;
             }
         }

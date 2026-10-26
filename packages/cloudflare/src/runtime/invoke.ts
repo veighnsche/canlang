@@ -184,7 +184,7 @@ import type {
 } from "./context.js";
 import { createContext } from "./context.js";
 import type { AssembledModules } from "./modules.js";
-import { AssemblyCorrespondenceError, hasAssemblerModuleCapability, importVerifiedAssemblyModule, verifyAssemblerModuleCapability } from './assembly-verification.js';
+import { AssemblyCorrespondenceError, assertCallerArtifactForFence, captureVerifiedCaller, hasAssemblerModuleCapability, importVerifiedAssemblyModule, verifyAssemblerModuleCapability, verifyCallerArtifactForFence } from './assembly-verification.js';
 import { stageAuthoredDelivery } from "./receipt-staging.js";
 import { joinGivenUniqueKeys, joinGivenFieldValidations } from "./given-unique-keys.js";
 import { freezeBoundJudgmentRequest } from './bound-judgment.js';
@@ -1280,6 +1280,13 @@ interface StateInvokeProducer {
      * metadata-only currents.
      */
     readonly conflictServerOnly?: ReadonlyMap<string, ReadonlySet<string>>;
+    /**
+     * R10 trusted preparation seam (mirror of State `InvokeMutationInput`
+     * `prepareForCommit`): State runs this after execution and BEFORE its
+     * final fence revalidation, so the async caller/closure fence completes
+     * before the final revision/by/Identity sequence.
+     */
+    readonly prepareForCommit?: () => Promise<void>;
   }): Promise<MutationResult>;
   readonly readScenarioReceiptAssociation?: typeof import('@canlang/state/invocation').readScenarioReceiptAssociation;
   readonly projectScenarioReceipt?: typeof import('@canlang/state/invocation').projectScenarioReceipt;
@@ -2548,7 +2555,10 @@ async function verifyScenarioAssembly(asm: AssembledModules, artifact: CompileAr
   await verifyAssemblerModuleCapability(asm, artifact);
 }
 
-async function verifyCheckedAssembly(asm: AssembledModules, artifact: CompileArtifact): Promise<void> {
+/** Original-assembly custody for checked sources (synchronous map reads; no
+ * await, so no caller-mutation window). Shared by the loader fence and the
+ * R09a caller drift fences. */
+function assertCheckedAssemblyOriginal(asm: AssembledModules, artifact: CompileArtifact): void {
   const crudAssembly = nativeCrudCandidateAssemblies.get(artifact);
   if (crudAssembly !== undefined) {
     if (crudAssembly !== asm) throw new AssemblyCorrespondenceError('CRUD candidate admission changed its original assembly.');
@@ -2556,7 +2566,30 @@ async function verifyCheckedAssembly(asm: AssembledModules, artifact: CompileArt
   const cached = canonicalCache.get(artifact);
   const original = rowPolicyAssemblies.get(artifact) ?? cached?.rowPolicyAssembly ?? cached?.scenarioAssembly ?? cached?.callbackAssembly;
   if (original !== undefined && asm !== original) throw new AssemblyCorrespondenceError('Checked source requires its original verified assembly.');
+}
+
+async function verifyCheckedAssembly(asm: AssembledModules, artifact: CompileArtifact): Promise<void> {
+  assertCheckedAssemblyOriginal(asm, artifact);
   await verifyAssemblerModuleCapability(asm, artifact);
+}
+
+/** R10 caller drift fence: original-assembly custody plus safe caller
+ * own-data + content before and after the live closure. Replaces the bare
+ * JSON.stringify fence at the canonical setup/pre-disclosure/pre-commit
+ * points so a late getter cannot execute and late symbol, non-enumerable,
+ * or optional-undefined data cannot evade content equality. The baseline is
+ * the issuing capture's entry observation, held per invocation. */
+async function verifyCallerDriftFence(asm: AssembledModules, callerArtifact: CompileArtifact, eligibleAtEntry: boolean): Promise<void> {
+  assertCheckedAssemblyOriginal(asm, callerArtifact);
+  await verifyCallerArtifactForFence(asm, callerArtifact, eligibleAtEntry);
+}
+
+/** R10 synchronous caller assertion for the physical commit boundary and
+ * the actual disclosure returns: custody plus issuer-bytes content with no
+ * accessor/toJSON invocation and no authority-staling await. */
+function assertCallerDriftFence(asm: AssembledModules, callerArtifact: CompileArtifact, eligibleAtEntry: boolean): void {
+  assertCheckedAssemblyOriginal(asm, callerArtifact);
+  assertCallerArtifactForFence(asm, callerArtifact, eligibleAtEntry);
 }
 
 /** Presence only, never an authority parser: malformed object carriers also require verification. */
@@ -5822,19 +5855,32 @@ async function bindNativeSourceWork(asm:AssembledModules,artifact:CompileArtifac
   }
 }
 
-async function bindNativeSourceBodyLoops(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors,bindState:boolean):Promise<void>{
+async function bindNativeSourceBodyLoops(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors):Promise<void>{
   for(const value of loaded.registry.values()){
     const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def)??def.descriptor.result?.disclosure?.source;
     if(def===undefined||source===undefined)continue;
+    const receiptLoops=def.descriptor.result?.disclosure?.sourceLoops;
+    const aggregate=receiptLoops?.loops.some(loop=>loop.aggregate!==undefined)===true;
+    if(aggregate&&(receiptLoops!.owner!==def.name||stableStringify(receiptLoops!.source)!==stableStringify(source)||
+        !artifact.sources.some(original=>original.path===source.path&&original.sha256===source.sha256)||
+        receiptLoops!.loops.some(loop=>loop.aggregate===undefined))){
+      throw new AssemblyCorrespondenceError('Native aggregate loops lack their complete exact owning source descriptor.');
+    }
     const callable=artifact.callables.find(callable=>callable.id===def.name&&callable.kind==='operation'&&callable.module===source.module);
     if(callable?.inputStyle!=='parameters')throw new AssemblyCorrespondenceError('Source loop lacks its original parameter-style operation.');
     const module=await importVerifiedAssemblyModule(asm,callable.module,artifact),getter=privateSourceMember(module,'canScenarioBodyLoopSources');
-    if(typeof getter!=='function')continue;
-    const census=localPolicyObject(getter()),raw=Object.getOwnPropertyDescriptor(census,def.name);if(raw===undefined)continue;
-    const plan=captureDispatchPreclaimData(raw.value) as unknown as SourceBodyLoopPlan;
+    const raw=typeof getter==='function'?Object.getOwnPropertyDescriptor(localPolicyObject(getter()),def.name):undefined;
+    if(raw===undefined&&!aggregate)continue;
+    const declared=raw===undefined?undefined:captureDispatchPreclaimData(raw.value);
+    // Native aggregates publish the entire loop in their independently checked
+    // receipt. A second private census cannot substitute a different body.
+    if(aggregate&&declared!==undefined&&stableStringify(declared)!==stableStringify(receiptLoops)){
+      throw new AssemblyCorrespondenceError('Native aggregate source loop differs from its private body census.');
+    }
+    const plan=captureDispatchPreclaimData(aggregate?receiptLoops:declared) as unknown as SourceBodyLoopPlan;
     const original=privateSourceMember(module,'canScenarioSourceLoopSource'),bind=loaded.producers.invoke.bindScenarioSourceLoopProducer;
     if(plan.owner!==def.name||stableStringify(plan.source)!==stableStringify(source)||typeof original!=='function'||bind===undefined)throw new AssemblyCorrespondenceError('Source loop differs from its actual original owner/census.');
-    if(bindState)bind(def,plan);nativeSourceBodyLoops.set(def,{plan,original:original as (body:Function)=>unknown});
+    bind(def,plan);nativeSourceBodyLoops.set(def,{plan,original:original as (body:Function)=>unknown});
   }
 }
 
@@ -5936,7 +5982,7 @@ async function bindNativeSourceData(asm:AssembledModules,artifact:CompileArtifac
       const original=privateSourceMember(module,'canScenarioQueryValueSource'),bind=loaded.producers.invoke.bindScenarioSourceQueryValueProducer;
       if(typeof original!=='function'||bind===undefined)throw new AssemblyCorrespondenceError('LET Values query lacks its original callback issuer and State producer.');
       nativeSourceQueryValues.set(def,{sources:queryValues,original:original as (body:Function)=>unknown});
-      if(context!==undefined)bind(def,{source,owner:def.name,sites:queryValues,original:original as (body:Function)=>unknown});
+      bind(def,{source,owner:def.name,sites:queryValues,original:original as (body:Function)=>unknown});
     }
     const queryRows=frameSource===undefined?undefined:sourceDataCensus<SourceQueryRowsSite>(module,def,source,'canScenarioQueryRowsSources','LET State query rows');
     if(queryRows!==undefined){
@@ -6969,7 +7015,7 @@ async function loadCanonicalDescriptorsInternal(
   }
   // Selected-row execution dependencies bind against the checked first-query mark.
   await bindNativeSourceWork(asm,artifact,canonical);
-  await bindNativeSourceBodyLoops(asm,artifact,canonical,invocationSourceReads!==undefined);
+  await bindNativeSourceBodyLoops(asm,artifact,canonical);
   if(invocationSourceReads!==undefined)for(const [owner,sites] of canonical.requireSources){
     const phases=sites.flatMap(site=>site.mutationPrefix===undefined?[]:[{node:site.node,statement:site.statement,prefix:site.mutationPrefix,...(site.captures===undefined?{}:{captures:site.captures})}]);
     if(phases.length===0)continue;
@@ -13029,7 +13075,7 @@ async function runScenarioExecution(
     return active.row;
   };
   if(privateSourceBodyLoop!==undefined){
-    if(!hasExecutionFrame||receiptStore===undefined||ownerSession===undefined||scenarioDef===undefined||callable?.inputStyle!=='parameters'||due!==undefined||cohort!==undefined)return refuseRecordBinding('Source loop lacks its actual installed source-only owner frame.');
+    if(!hasExecutionFrame||receiptStore===undefined||ownerSession===undefined||scenarioDef===undefined||callable?.inputStyle!=='parameters'||due!==undefined||cohort!==undefined)return refuseRecordBinding('Source loop lacks its actual installed owner frame.');
     const actual=call as AdmittedCall,parameters=localPolicyObject(argument),selected=new Map<unknown,{readonly id:string;readonly row:StoredRow}>();
     const original=(body:Function,loop:SourceBodyLoopPlan['loops'][number],item:boolean)=>{
       const issued=localPolicyObject(privateSourceBodyLoop.original(body),['source','context']);
@@ -13138,7 +13184,9 @@ async function runScenarioExecution(
     });
   }
   const sourceLoopPlan = scenarioDef?.descriptor.result?.disclosure?.sourceLoops;
-  if (sourceLoopPlan !== undefined) {
+  // Aggregate loops already use the private State selection/item bridge above.
+  // Rebinding here would replace its authored order and genuine item lease.
+  if (sourceLoopPlan !== undefined && !sourceLoopPlan.loops.some(loop=>loop.aggregate!==undefined)) {
     if (!receiptAware || receiptStore === undefined || ownerSession === undefined || scenarioDef === undefined ||
         callable?.inputStyle !== 'parameters' || due !== undefined || cohort !== undefined || sourceLoopPlan.owner !== scenarioDef.name ||
         sourceLoopPlan.source.module !== callable.module || !opts.artifact.sources.some(source =>
@@ -15495,11 +15543,34 @@ async function invokeCanonicalMutation(
 ): Promise<MutationResult> {
   assertCanonicalStore(opts.store, opts.operation);
   assertCanonicalMemberships(opts.memberships, opts.operation);
-  const cached = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
+  // R08 caller-side admission: the existing loader preserves the caller
+  // artifact's original-assembly association (a copied or swapped assembly
+  // refuses here with zero effects) and warms the caller-keyed caches that
+  // later same-caller calls still consult.
+  await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
+  // R08 owned snapshot: execute only the issuer-owned deeply frozen
+  // artifact. Its private identity short-circuits whole-artifact
+  // serialization while the file closure still runs before and after every
+  // capture. The same issued snapshot threads through every consumer below;
+  // the mutable caller object is never consumed again except by the
+  // drift fences.
+  const callerArtifact = opts.artifact;
+  const callerCapture = await captureVerifiedCaller(opts.asm, callerArtifact);
+  const ownedArtifact = callerCapture.artifact;
+  const callerBaseline = callerCapture.eligibleAtEntry;
+  opts = Object.freeze({ ...opts, artifact: ownedArtifact });
+  const cached = await loadCanonicalDescriptors(opts.asm, ownedArtifact, opts.store);
   // This literal port is shared by producer observations, State admission,
   // nested owner calls and current receipt disclosure.
   const receiptStore = withDispatchJoinPort(opts.store, { commitJoin: batch => {
     assertReceiptJoin(batch);
+    // R10 pre-commit assertion: synchronous custody plus issuer-bytes
+    // caller content with no await, so no new live Identity/grant window
+    // opens between State's final authority checks and the fenced store
+    // commit. The full async caller/closure verification runs through the
+    // trusted State preparation seam before State's final authority
+    // sequence; the commit-time guards below stay synchronous.
+    assertCallerDriftFence(opts.asm, callerArtifact, callerBaseline);
     return opts.store.commit(batch);
   } });
   const invocationLocal = needsInvocationSourceReads(cached, opts.operation);
@@ -15613,6 +15684,16 @@ async function invokeCanonicalMutation(
   const occurrenceIds: string[] = [];
   let attachments: FileAttachment[] = [];
   let committedReceipt: Receipt | undefined;
+  // R10 commit guard: synchronous caller assertion only. The asynchronous
+  // caller/closure verification runs through the trusted State preparation
+  // seam before State's revision/by/Identity sequence, so no async host
+  // work can land between the last authority check and the commit. Drift
+  // voids the commit with nothing stored.
+  const callerFenceGuard: CanonicalGuardRevalidation = { name: 'caller-assembly-fence',
+    evaluate: () => { assertCallerDriftFence(opts.asm, callerArtifact, callerBaseline); return true; } };
+  // R10 setup fence: refuse safe caller own-data + content drift across the
+  // staging awaits before State admits and fenced-commits this invocation.
+  await verifyCallerDriftFence(opts.asm, callerArtifact, callerBaseline);
   const result = await invoke({
     registry: loaded.registry,
     observeCommittedReceipt: receipt => { committedReceipt = receipt; },
@@ -15631,6 +15712,9 @@ async function invokeCanonicalMutation(
     // C2/B2 (Q3): holder-built exclusions — stale-ref denials carry
     // full currents (minus serverOnly) instead of metadata-only.
     conflictServerOnly: loaded.conflictServerOnly,
+    // R10 trusted preparation seam: the async caller/closure fence completes
+    // before State's final revision/by/Identity sequence runs.
+    prepareForCommit: () => verifyCallerDriftFence(opts.asm, callerArtifact, callerBaseline),
     execute: async (call: CanonicalSeamCall): Promise<CanonicalExecutionEffects> => {
       if (receiptOnly) throw new Error('Retained-receipt-only State admission reached execution.');
       // T32b: BOTH paths inherit both-site commit revalidation through
@@ -15688,9 +15772,13 @@ async function invokeCanonicalMutation(
         refuse: text => { throw new StateError('validation', text); },
       });
       attachments = stagedFiles.attachments;
-      return { ...effects, guards: [...effects.guards ?? [], ...stagedFiles.guards] };
+      return { ...effects, guards: [...effects.guards ?? [], ...stagedFiles.guards, callerFenceGuard] };
     },
   });
+  // R10 pre-disclosure fence: safe caller own-data + content before
+  // projecting or returning any saved outcome. Replay discloses without
+  // committing, so the commit join above never fires on that path.
+  await verifyCallerDriftFence(opts.asm, callerArtifact, callerBaseline);
   const kind = seamDefKind(loaded.registry.get(opts.operation), opts.operation);
   const claimsScenario = committedReceipt !== undefined && Object.hasOwn(committedReceipt.outcome, 'scenario');
   let scenarioProjection: { readonly result: unknown; readonly records: readonly ProjectedRecord[] } | undefined;
@@ -15788,7 +15876,13 @@ async function invokeCanonicalMutation(
       },
     });
   }
-  if (scenarioProjection !== undefined) return { ...result, ...scenarioProjection };
+  // R10 disclosure boundary: synchronous caller assertion immediately before
+  // the actual return, covering caller mutation during the projection and
+  // File retention awaits above with no authority-staling await.
+  if (scenarioProjection !== undefined) {
+    assertCallerDriftFence(opts.asm, callerArtifact, callerBaseline);
+    return { ...result, ...scenarioProjection };
+  }
   // Generated CRUD keeps its defining saved-outcome projection.
   if (kind === 'create' || kind === 'update' || kind === 'delete' ||
       (committedReceipt !== undefined && Object.hasOwn(committedReceipt.outcome, 'generatedCrud'))) {
@@ -15830,8 +15924,10 @@ async function invokeCanonicalMutation(
       store: sourceReadPolicies === undefined ? invocationLocal ? receiptStore : opts.store : receiptStore,
       memberships: opts.memberships,
     });
+    assertCallerDriftFence(opts.asm, callerArtifact, callerBaseline);
     return { ...result, ...projected };
   }
+  assertCallerDriftFence(opts.asm, callerArtifact, callerBaseline);
   return result;
 }
 

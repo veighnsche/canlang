@@ -17,7 +17,7 @@ import { distribution } from '@canlang/values/distribution';
 import { STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work/kernel/file-reference-inventory';
 import { installNativeFileInventory } from './file-inventory.js';
-import { captureVerifiedAssemblerArtifact, verifyAssemblerModuleCapability } from './assembly-verification.js';
+import { captureVerifiedAssemblerArtifact, captureVerifiedCaller, verifyAssemblerModuleCapability, verifyCallerArtifactForFence } from './assembly-verification.js';
 import { prepareLocalPreviewCapture } from './native-dev.test-support.js';
 import { captureIsCurrent, captureSingleFileSource } from './native-dev.test-support.js';
 import { compileCapturedSingleFile } from './native-dev.test-support.js';
@@ -335,7 +335,10 @@ it('enforces entry locks while allowing unrelated and same-value writes, then un
 
 it('refuses loss of the dedicated installed owner-session producer without legacy execution or receipt writes', async () => {
   const f = await fixture();
-  const loaded = await loadCanonicalDescriptors(asm, artifact, f.store);
+    // The invoke path preloads the caller but executes the issuer-owned snapshot;
+    // the loss must target the selected registry (issued snapshot + same store).
+    const owned = await captureVerifiedAssemblerArtifact(asm, artifact);
+    const loaded = await loadCanonicalDescriptors(asm, owned, f.store);
   const original = loaded.producers.crud.generatedCrudExecuteOwnerSession;
   assert.equal(typeof original, 'function', 'actual positive installed producer');
   const producer = loaded.producers.crud as { generatedCrudExecuteOwnerSession?: typeof original };
@@ -448,6 +451,225 @@ it('refuses copied and swapped assemblies after native policy descriptors are ca
     assert.deepEqual(await f.store.query({ model, authority: 'owner', archived: 'include' }), [], label);
     assert.deepEqual(f.probe.outboxAll(), [], label);
   }
+  // R09a: a warmed genuine invocation still refuses a changed caller, and late
+  // caller own-data drift across the invoke awaits refuses before commit with
+  // zero writes and before disclosure with zero disclosure. Getters never
+  // execute. The optional-undefined entry path above is preserved.
+  const r09aNow = Date.now(), r09aClock = createFrozenClock(r09aNow);
+  const r09aIdentities = createMemoryIdentityStore({ clock: r09aClock });
+  const r09aTeam = await r09aIdentities.createTeam({});
+  const r09aUser = await r09aIdentities.createUser({ email: 'r09a@native-local-rules.test', password_hash: 'unused', email_verified: true });
+  const r09aMembership = await r09aIdentities.createMembership({ team_id: r09aTeam.team_id, user_id: r09aUser.user_id, is_owner: false, roles: [] });
+  const r09aToken = randomBytes(32).toString('hex');
+  await r09aIdentities.createSession({ user_id: r09aUser.user_id, token_sha256: await sha256HexText(r09aToken),
+    expires_at: new Date(r09aNow + 3600000).toISOString(), last_team_id: r09aTeam.team_id });
+  const r09aIdentity = await resolveIdentity(r09aIdentities, { session_token: r09aToken }, { clock: r09aClock });
+  const r09aBacking = createTestMemoryStorage();
+  const r09aBatches: CommitBatch[] = [];
+  const r09aStore: StoragePort = { ...r09aBacking.store,
+    commit: async batch => { r09aBatches.push(batch); return r09aBacking.store.commit(batch); } };
+  const r09aInvoker = buildInvoker(artifact, asm, r09aStore, { memberships: r09aIdentities, now: () => r09aNow });
+  const r09aInvoke = (kind: string, inputs: Record<string, unknown>, id = operationId(r09aNow)) =>
+    r09aInvoker.invokeMutation({ operation: `${model}.${kind}`, operation_id: id, inputs }, r09aIdentity);
+  const warmId = operationId(r09aNow), warmInputs = { quantity: '1', label: 'warm genuine' };
+  const warmCommitted = await r09aInvoke('create', warmInputs, warmId);
+  assert.ok('result' in warmCommitted && warmCommitted.result.status === 'committed', 'warmed genuine commits');
+  const warmRevision = await r09aStore.readRevision(), warmBatches = r09aBatches.length;
+  const warmRows = await r09aStore.query({ model, authority: 'owner', archived: 'include' });
+  assert.equal(warmRows.length, 1);
+  const warmReplay = await r09aInvoke('create', warmInputs, warmId);
+  assert.ok('result' in warmReplay && warmReplay.result.status === 'replayed', 'genuine current membership still replays');
+  assert.equal(r09aBatches.length, warmBatches, 'warm replay writes nothing');
+  const r09aCallerSha = artifact.sources[0]!.sha256;
+  try {
+    artifact.sources[0]!.sha256 = 'changed-after-warmup';
+    const refused = await r09aInvoke('create', { quantity: '2', label: 'changed caller' });
+    assert.ok('error' in refused, 'changed caller cannot reuse the warmed snapshot');
+    assert.equal(refused.error.code, 'validation');
+    assert.equal(r09aBatches.length, warmBatches, 'warmed drift stages no batch');
+    assert.equal(await r09aStore.readRevision(), warmRevision, 'warmed drift commits nothing');
+    assert.deepEqual(await r09aStore.query({ model, authority: 'owner', archived: 'include' }), warmRows);
+  } finally { artifact.sources[0]!.sha256 = r09aCallerSha; }
+  const ownKeysBefore = Reflect.ownKeys(artifact);
+  for (const kind of ['getter', 'symbol', 'hidden', 'function', 'undefined'] as const) {
+    let getterCalls = 0, lateSymbol: symbol | undefined;
+    const innerFind = r09aIdentities.findMembership.bind(r09aIdentities);
+    let calls = 0;
+    r09aIdentities.findMembership = (async (...args: Parameters<typeof innerFind>) => {
+      if (++calls === 1) {
+        if (kind === 'getter') Object.defineProperty(artifact, 'lateDrift', { configurable: true, enumerable: true, get() { getterCalls++; return null; } });
+        else if (kind === 'symbol') { lateSymbol = Symbol('lateDrift'); Object.defineProperty(artifact, lateSymbol, { configurable: true, enumerable: true, value: null }); }
+        else if (kind === 'hidden') Object.defineProperty(artifact, 'lateDrift', { configurable: true, enumerable: false, value: null });
+        else if (kind === 'function') Object.defineProperty(artifact, 'lateDrift', { configurable: true, enumerable: true, value: () => null });
+        else Object.defineProperty(artifact, 'lateDrift', { configurable: true, enumerable: true, value: undefined });
+      }
+      return innerFind(...args);
+    }) as typeof r09aIdentities.findMembership;
+    try {
+      const refused = await r09aInvoke('create', { quantity: '3', label: `late ${kind}` });
+      assert.ok('error' in refused, `late ${kind} drift refuses before commit`);
+      assert.equal(refused.error.code, 'validation', `late ${kind} drift`);
+      assert.equal(getterCalls, 0, 'a late accessor cannot execute during fencing');
+      assert.equal(r09aBatches.length, warmBatches, `late ${kind} drift stages no batch`);
+      assert.equal(await r09aStore.readRevision(), warmRevision, `late ${kind} drift commits nothing`);
+      assert.deepEqual(await r09aStore.query({ model, authority: 'owner', archived: 'include' }), warmRows);
+    } finally {
+      r09aIdentities.findMembership = innerFind;
+      Reflect.deleteProperty(artifact, 'lateDrift');
+      if (lateSymbol !== undefined) Reflect.deleteProperty(artifact, lateSymbol);
+    }
+    assert.deepEqual(Reflect.ownKeys(artifact), ownKeysBefore, `late ${kind} drift leaves no residue`);
+  }
+  let projArmed = false, projFired = false;
+  const innerReadRevision = r09aStore.readRevision.bind(r09aStore);
+  r09aStore.readRevision = async () => {
+    if (projArmed && !projFired) {
+      projFired = true;
+      Object.defineProperty(artifact, 'lateProjection', { configurable: true, enumerable: true, value: 'drifted-during-projection' });
+    }
+    return innerReadRevision();
+  };
+  const innerCommit = r09aStore.commit.bind(r09aStore);
+  r09aStore.commit = async batch => { const out = await innerCommit(batch); projArmed = true; return out; };
+  const projId = operationId(r09aNow), projInputs = { quantity: '4', label: 'projection drift' };
+  try {
+    const batchesBefore = r09aBatches.length, revisionBefore = await r09aStore.readRevision();
+    const disclosed = await r09aInvoke('create', projInputs, projId);
+    assert.ok(projFired, 'drift installed during a post-commit disclosure await');
+    assert.ok('error' in disclosed, 'post-commit caller drift discloses nothing');
+    assert.equal(disclosed.error.code, 'validation');
+    assert.equal(r09aBatches.length, batchesBefore + 1, 'the fenced commit landed exactly once');
+    assert.equal(await r09aStore.readRevision(), revisionBefore + 1);
+  } finally {
+    r09aStore.readRevision = innerReadRevision;
+    r09aStore.commit = innerCommit;
+    Reflect.deleteProperty(artifact, 'lateProjection');
+  }
+  assert.deepEqual(Reflect.ownKeys(artifact), ownKeysBefore, 'projection drift leaves no residue');
+  const projReplay = await r09aInvoke('create', projInputs, projId);
+  assert.ok('result' in projReplay && projReplay.result.status === 'replayed',
+    'the fenced write survives while disclosure was withheld from the drifted caller');
+  assert.equal(r09aBatches.length, warmBatches + 1, 'restored replay writes nothing');
+  await r09aIdentities.removeMembership(r09aMembership.membership_id);
+  const revokedRevision = await r09aStore.readRevision(), revokedBatches = r09aBatches.length;
+  const revokedRows = await r09aStore.query({ model, authority: 'owner', archived: 'include' });
+  const revoked = await r09aInvoke('create', { quantity: '5', label: 'revoked attempt' });
+  assert.ok('error' in revoked, 'live revocation denies with unchanged State revision');
+  assert.equal(revoked.error.code, 'forbidden');
+  assert.equal(r09aBatches.length, revokedBatches, 'revocation stages no batch');
+  assert.equal(await r09aStore.readRevision(), revokedRevision, 'revocation commits nothing');
+  assert.deepEqual(await r09aStore.query({ model, authority: 'owner', archived: 'include' }), revokedRows);
+  // R10: capture's own asynchronous closure uses the same safe
+  // descriptor-before-serialization comparison: a getter or inherited
+  // toJSON installed while the closure awaits refuses before any
+  // serialization can execute it.
+  for (const kind of ['getter', 'toJSON'] as const) {
+    const victim = structuredClone(artifact);
+    let accessorCalls = 0;
+    const pending = captureVerifiedCaller(asm, victim);
+    queueMicrotask(() => {
+      if (kind === 'getter') {
+        Object.defineProperty(victim, 'lateCapture', { configurable: true, enumerable: true, get() { accessorCalls++; return null; } });
+      } else {
+        Object.defineProperty(Object.prototype, 'toJSON', { configurable: true, value: function (this: unknown) { accessorCalls++; return {}; } });
+      }
+    });
+    try {
+      await assert.rejects(pending, kind === 'getter' ? /own JSON data/ : /shared JSON prototypes/);
+      assert.equal(accessorCalls, 0, `capture-await ${kind} never executes`);
+    } finally {
+      if (kind === 'getter') Reflect.deleteProperty(victim, 'lateCapture');
+      else delete (Object.prototype as { toJSON?: unknown }).toJSON;
+    }
+  }
+  // R10: the second capture await runs the same safe fence. Drift armed
+  // after the post-first-await content check (the second victim
+  // serialization) lands inside the second closure await via microtask,
+  // since the file checks never serialize the caller. Both the own-undefined
+  // and inherited-toJSON cases refuse with zero accessor execution, zero
+  // persisted effects, and no residue.
+  for (const kind of ['undefined', 'toJSON'] as const) {
+    const victim = structuredClone(artifact);
+    const victimKeys = Reflect.ownKeys(victim);
+    let accessorCalls = 0, victimSerializations = 0, driftInstalled = false;
+    const innerStringify = JSON.stringify;
+    const countingStringify = (...args: Parameters<typeof JSON.stringify>): string | undefined => {
+      if (args[0] === victim && ++victimSerializations === 2) {
+        queueMicrotask(() => {
+          driftInstalled = true;
+          if (kind === 'undefined') {
+            Object.defineProperty(victim, 'lateSecondAwait', { configurable: true, enumerable: true, value: undefined });
+          } else {
+            Object.defineProperty(Object.prototype, 'toJSON', { configurable: true, value: function (this: unknown) { accessorCalls++; return {}; } });
+          }
+        });
+      }
+      return (innerStringify as (...call: unknown[]) => string | undefined)(...args);
+    };
+    const priorSecondToJSON = Object.getOwnPropertyDescriptor(Object.prototype, 'toJSON');
+    (JSON as { stringify: typeof JSON.stringify }).stringify = countingStringify as typeof JSON.stringify;
+    try {
+      await assert.rejects(captureVerifiedCaller(asm, victim), kind === 'undefined' ? /own-data eligibility/ : /shared JSON prototypes/);
+      assert.equal(driftInstalled, true, `second-await ${kind} drift landed past the first-await fence`);
+      assert.equal(victimSerializations, 2, `second-await ${kind} refused before a third serialization`);
+      assert.equal(accessorCalls, 0, `second-await ${kind} never executes`);
+    } finally {
+      (JSON as { stringify: typeof JSON.stringify }).stringify = innerStringify;
+      Reflect.deleteProperty(victim, 'lateSecondAwait');
+      if (priorSecondToJSON === undefined) delete (Object.prototype as { toJSON?: unknown }).toJSON;
+      else Object.defineProperty(Object.prototype, 'toJSON', priorSecondToJSON);
+    }
+    assert.deepEqual(Reflect.ownKeys(victim), victimKeys, `second-await ${kind} leaves no residue`);
+  }
+  // R10: invocation-scoped issuer custody. A second capture of the same
+  // caller object cannot downgrade the first invocation's baseline, while a
+  // caller that entered with legitimate own undefined keeps the ordinary path.
+  const shared = structuredClone(artifact);
+  const firstCapture = await captureVerifiedCaller(asm, shared);
+  assert.equal(firstCapture.eligibleAtEntry, true);
+  assert.notStrictEqual(firstCapture.artifact, shared);
+  Object.defineProperty(shared, 'lateUndefined', { value: undefined, enumerable: true, configurable: true });
+  const secondCapture = await captureVerifiedCaller(asm, shared);
+  assert.equal(secondCapture.eligibleAtEntry, false);
+  assert.strictEqual(secondCapture.artifact, shared, 'entry-undefined keeps the original descriptor path');
+  await assert.rejects(verifyCallerArtifactForFence(asm, shared, firstCapture.eligibleAtEntry), /own-data eligibility/,
+    'the first invocation still refuses drift after a second capture');
+  await verifyCallerArtifactForFence(asm, shared, secondCapture.eligibleAtEntry);
+  // R10: the async caller/closure preparation completes before State's
+  // final revision/by/Identity sequence. A membership revoked inside that
+  // final sequence denies before any write with the State revision fixed.
+    // Reactivate the original member: findMembership returns the FIRST match, so a
+    // duplicate leaves the removed original first and denies at entry (D1 also
+    // constrains team/user uniqueness). Same attributes as creation at line ~459.
+    await r09aIdentities.reactivateMembership(r09aMembership.membership_id, { is_owner: false, roles: [] });
+    const r10Membership = r09aMembership;
+  let r10Revoked = false;
+  const r10InnerFind = r09aIdentities.findMembership.bind(r09aIdentities);
+  r09aIdentities.findMembership = (async (...args: Parameters<typeof r10InnerFind>) => {
+    if (!r10Revoked && new Error().stack?.includes('revalidateCommitForFence')) {
+      r10Revoked = true;
+      await r09aIdentities.removeMembership(r10Membership.membership_id);
+    }
+    return r10InnerFind(...args);
+  }) as typeof r09aIdentities.findMembership;
+  try {
+    const r10Batches = r09aBatches.length, r10Revision = await r09aStore.readRevision();
+    const r10Rows = await r09aStore.query({ model, authority: 'owner', archived: 'include' });
+    const raced = await r09aInvoke('create', { quantity: '6', label: 'raced revocation' });
+    assert.ok('error' in raced, 'revocation during the final fence denies');
+    assert.equal(raced.error.code, 'forbidden');
+    assert.equal(r10Revoked, true, 'revocation landed inside the final authority sequence');
+    assert.equal(r09aBatches.length, r10Batches, 'raced revocation stages no batch');
+    assert.equal(await r09aStore.readRevision(), r10Revision, 'raced revocation commits nothing');
+    assert.deepEqual(await r09aStore.query({ model, authority: 'owner', archived: 'include' }), r10Rows);
+  } finally {
+    r09aIdentities.findMembership = r10InnerFind;
+  }
+  const healthy = await fixture();
+  const healthyId = operationId(healthy.now);
+  await healthy.commit('create', { quantity: '9', label: 'healthy after R09a' }, healthyId);
+  const healthyReplay = await healthy.invoke('create', { quantity: '9', label: 'healthy after R09a' }, healthyId);
+  assert.ok('result' in healthyReplay && healthyReplay.result.status === 'replayed', 'genuine current membership still commits and replays');
   assert.strictEqual(await loadCanonicalDescriptors(asm, artifact), loaded, 'current original assembly still reuses descriptors');
 });
 

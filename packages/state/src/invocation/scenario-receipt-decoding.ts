@@ -5,7 +5,7 @@ import { decodeValue, encodeValue, parseTypeId, printTypeId } from '@canlang/val
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
 import { stableStringify } from './replay.js';
 import { MAX_ITEMS, invalid, dataCopy, object, text, list, scalarType, checkScenarioResultDisclosurePlan } from './scenario-plan.js';
-import { disclosureType, checkSavedQueries, returnQueryIds } from './scenario-query-plan.js';
+import { disclosureType, checkSavedQueries, returnQueryIds, checkQueryOccurrence, savedAggregateSelections, aggregateReceiptLimits, type AggregateReceiptLimits } from './scenario-query-plan.js';
 import { checkRetainedScenarioFile } from './scenario-file-assignment.js';
 import { storedNominalType, savedNominalWire } from './scenario-stored-value.js';
 
@@ -17,6 +17,12 @@ type DependencyObservation = ScenarioReceiptAssociation['observations'][number];
 interface SavedScenarioReceiptBudgets {
   readonly dataBudget: (receipt: Receipt) => number;
   readonly changedMaximum: (receipt: Receipt) => number | undefined;
+  readonly aggregateLimits?: (receipt: Receipt) => AggregateReceiptLimits | undefined;
+}
+
+function receiptList(value: unknown, maximum: number): unknown[] {
+  if (!Array.isArray(value) || value.length > maximum) return invalid('saved receipt exceeds its installed source census.');
+  return value;
 }
 
 export function decodeScenarioReceiptAssociation(receipt: Receipt,
@@ -96,22 +102,39 @@ export function sourceCopyLimits(plan:ScenarioResultDisclosurePlan,children:read
   return Object.freeze({maxRows:MAX_ITEMS+repeated,maxWork:(MAX_ITEMS+repeated)*MAX_ITEMS*2,maxWrites:repeated+2});
 }
 
-function checkSavedLinkedDependencies(returned: ScenarioResultDisclosurePlan['returns'][number],
-  observations: readonly DependencyObservation[], queries: readonly ScenarioReceiptQueryObservation[]): void {
+function checkSavedLinkedDependencies(plan:ScenarioResultDisclosurePlan,returned: ScenarioResultDisclosurePlan['returns'][number],
+  observations: readonly DependencyObservation[], queries: readonly ScenarioReceiptQueryObservation[],roots:ScenarioReceiptAssociation['sourceLoopRoots']): void {
+  const selections=savedAggregateSelections(plan,roots);
+  const occurrenceKey=(value:DependencyObservation['occurrence'])=>value===undefined?'ordinary':`${value.loop}:${value.ordinal}`;
   for (const dependency of returned.dependencies) {
     const actual = observations.filter(observation => observation.dependencyId === dependency.id);
     if (dependency.queryId === undefined) {
-      if (actual.length === 0) return invalid('missing saved dependency.');
+      const loop=plan.sourceLoops?.loops.find(loop=>loop.aggregate?.dependencies.includes(dependency.id));
+      if(loop===undefined){if(actual.length===0||actual.some(value=>value.occurrence!==undefined))return invalid('missing or foreign saved dependency.');}
+      else{
+        const selected=selections.get(loop.id);if(selected===undefined||actual.length!==selected.length)return invalid('saved item DATA omitted its complete original selection.');
+        for(const [ordinal,row]of selected.entries())if(actual.filter(value=>value.occurrence?.loop===loop.id&&value.occurrence.ordinal===ordinal&&value.model===loop.model&&value.row.id===row.id&&value.row.created===row.created&&value.row.createdBy===row.createdBy&&stableStringify(value.row.parent)===stableStringify(row.parent)).length!==1)return invalid('saved item DATA differs from its genuine original occurrence.');
+      }
       continue;
     }
-    const query = queries.find(query => query.queryId === dependency.queryId);
-    if (query === undefined || !returnQueryIds(returned).includes(query.queryId)) return invalid('missing saved candidate-only query.');
-    if (dependency.role === 'data' && query.candidates.some(candidate =>
-        candidate.dependencies.includes(dependency.id) !== candidate.matched)) return invalid('saved selected DATA must match every and only selected candidate.');
-    const slots = query.candidates.filter(candidate => candidate.dependencies.includes(dependency.id)).length;
-    if (actual.length !== slots) {
-      return invalid('saved query candidates differ from their retained ordinary observations.');
+    const executed=queries.filter(query=>query.queryId===dependency.queryId),queryPlan=plan.queries?.find(query=>query.id===dependency.queryId);
+    if(queryPlan===undefined||!returnQueryIds(returned).includes(queryPlan.id))return invalid('missing saved candidate-only query.');
+    if(queryPlan.iteration===undefined&&executed.length!==1)return invalid('one actual saved ordinary query required.');
+    const occurrences=new Map<string,DependencyObservation[]>();
+    for(const observed of actual){const key=occurrenceKey(observed.occurrence),group=occurrences.get(key);if(group===undefined)occurrences.set(key,[observed]);else group.push(observed);}
+    let total=0;
+    for(const query of executed){
+      if(dependency.role==='data'&&query.candidates.some(candidate=>candidate.dependencies.includes(dependency.id)!==candidate.matched))return invalid('saved selected DATA must match every and only selected candidate.');
+      const candidates=query.candidates.filter(candidate=>candidate.dependencies.includes(dependency.id)),matching=occurrences.get(occurrenceKey(query.occurrence))??[];
+      if(matching.length!==candidates.length)return invalid('saved query candidates differ from their retained ordinary observations.');
+      if(queryPlan.iteration!==undefined){
+        const rows=new Map<string,number>();
+        for(const observed of matching){const key=`${observed.model}:${stableStringify(observed.row)}`;rows.set(key,(rows.get(key)??0)+1);}
+        if(candidates.some(candidate=>rows.get(`${queryPlan.model}:${stableStringify(candidate.row)}`)!==1))return invalid('saved query DATA borrowed another item occurrence.');
+      }
+      total+=matching.length;
     }
+    if(total!==actual.length)return invalid('saved query DATA has a foreign item occurrence.');
   }
 }
 
@@ -191,13 +214,17 @@ function readSavedScenarioAssociation(receipt: Receipt,
     ...(typeof scenario === 'object' && scenario !== null && Object.hasOwn(scenario, 'sourceLoopRoots') ? ['sourceLoopRoots'] : [])]);
   if (value['kind'] !== 'scenario-result/v1') return invalid('unknown association version.');
   const plan = checkScenarioResultDisclosurePlan(value['plan']), resultModel = modelResultType(value['resultType']);
+  const installedLimits=budgets?.aggregateLimits?.(receipt), planLimits=aggregateReceiptLimits(plan);
+  if(planLimits===undefined?installedLimits!==undefined:(installedLimits===undefined||stableStringify(installedLimits)!==stableStringify(planLimits)||dataBudget<planLimits.maxNodes)){
+    return invalid('Aggregate receipt budgets require their current independently bound original producer.');
+  }
   const resultType = resultModel === undefined ? disclosureType(value['resultType'], plan) : resultModel as CanTypeId;
   const returned = plan.returns.find(entry => entry.id === value['returnId']);
   if (returned === undefined) return invalid('unknown selected return path.');
   if (resultModel !== undefined) {
     if (plan.returns.some(returned => returned.projection !== undefined)) return invalid('saved model result requires its singular source profile.');
     modelResultWire(receipt.outcome.result);
-    checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result);
+    checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result,undefined,value['sourceLoopRoots']as ScenarioReceiptAssociation['sourceLoopRoots']);
   } else if (returned.projection === undefined) {
     // Same pure-control profile as registration: no stored reads, or only
     // stored CONTROL-role decision reads, means the influences are execution
@@ -207,14 +234,15 @@ function readSavedScenarioAssociation(receipt: Receipt,
     // demand applies only to value-bearing returns, mirroring registration.
     if (resultType !== 'void' && returned.influences.length !== 0 && !returned.dependencies.every(dependency => dependency.role === 'control'))
       return invalid('saved scalar query influences require their defining profile.');
-    scalarWire(resultType, receipt.outcome.result); checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result); }
-  else checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result);
-  const observations = list(value['observations']);
+    scalarWire(resultType, receipt.outcome.result); checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result,undefined,value['sourceLoopRoots']as ScenarioReceiptAssociation['sourceLoopRoots']); }
+  else checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result,undefined,value['sourceLoopRoots']as ScenarioReceiptAssociation['sourceLoopRoots']);
+  const observations = receiptList(value['observations'],installedLimits?.maxObservations??MAX_ITEMS);
   for (const entry of observations) {
     const observation = object(entry, ['dependencyId', 'model', 'row', 'secretFields',
-      ...(typeof entry === 'object' && entry !== null && Object.hasOwn(entry, 'files') ? ['files'] : [])]);
+      ...(typeof entry === 'object' && entry !== null && Object.hasOwn(entry, 'files') ? ['files'] : []),...(typeof entry==='object'&&entry!==null&&Object.hasOwn(entry,'occurrence')?['occurrence']:[])]);
     const dependency = returned.dependencies.find(dep => dep.id === observation['dependencyId']);
     if (dependency === undefined || dependency.model !== observation['model']) return invalid('foreign saved dependency.');
+    if(Object.hasOwn(observation,'occurrence'))checkQueryOccurrence(observation['occurrence']);
     const row = checkedRow(observation['row']), wire = dependencyObservedWire(dependency, row);
     const query = dependency.queryId === undefined ? undefined : plan.queries?.find(query => query.id === dependency.queryId);
     const messageRole = dependency.role === 'data' && dependency.field === 'role' &&
@@ -241,8 +269,8 @@ function readSavedScenarioAssociation(receipt: Receipt,
       }
     }
   }
-  checkSavedLinkedDependencies(returned, observations as DependencyObservation[],
-    (value['queries'] ?? []) as ScenarioReceiptQueryObservation[]);
+  checkSavedLinkedDependencies(plan,returned, observations as DependencyObservation[],
+    (value['queries'] ?? []) as ScenarioReceiptQueryObservation[],value['sourceLoopRoots']as ScenarioReceiptAssociation['sourceLoopRoots']);
   for (const saved of (value['queries'] ?? []) as readonly ScenarioReceiptQueryObservation[]) {
     const query = plan.queries!.find(query => query.id === saved.queryId)!;
     if (query.parent?.origin.kind !== 'stored-reference') continue;
@@ -255,7 +283,8 @@ function readSavedScenarioAssociation(receipt: Receipt,
     }
   }
   const intrinsics = list(Object.hasOwn(value, 'intrinsics') ? value['intrinsics'] : []);
-  if (observations.length + intrinsics.length > MAX_ITEMS) return invalid('observation budget exceeded.');
+  if (observations.length + intrinsics.length > (installedLimits?.maxObservations??MAX_ITEMS) ||
+      observations.filter(entry=>!Object.hasOwn(entry as object,'occurrence')).length+intrinsics.length>MAX_ITEMS) return invalid('observation budget exceeded.');
   for (const entry of intrinsics) {
     const kind = (entry as Record<string, unknown>)?.['kind'];
     const observation = object(entry, ['dependencyId', 'kind', 'wire',
@@ -296,14 +325,15 @@ function readSavedScenarioAssociation(receipt: Receipt,
   }
   if(!Array.isArray(value['changed'])||value['changed'].length>changedMaximum)return invalid('changed snapshot exceeds its original source budget.');
   const roots=list(value['sourceLoopRoots']??[]).map(raw=>{
-    const root=object(raw,['loop','parameter','model','row']),loop=plan.sourceLoops?.loops.find(loop=>loop.id===root['loop']);
+    const root=object(raw,['loop','parameter','model','row',...(typeof raw==='object'&&raw!==null&&Object.hasOwn(raw,'selection')?['selection']:[])]),loop=plan.sourceLoops?.loops.find(loop=>loop.id===root['loop']);
     const row=checkedRow(root['row']);
-    if(loop?.copy===undefined||root['parameter']!==loop.parameter||root['model']!==loop.parentModel||row.archivedAt!==null){
-      return invalid('Saved copy root differs from its original admitted parameter census.');
+    if((loop?.copy===undefined&&loop?.aggregate===undefined)||loop===undefined||root['parameter']!==loop.parameter||root['model']!==loop.parentModel||row.archivedAt!==null){
+      return invalid('Saved source loop root differs from its original admitted parameter census.');
     }
     return {loop:loop.id,model:loop.parentModel,row};
   });
   if(new Set(roots.map(root=>root.loop)).size!==roots.length)return invalid('Duplicate original source loop root.');
+  savedAggregateSelections(plan,value['sourceLoopRoots']);
   const changed = value['changed'] as unknown[]; const identities = new Set<string>(),copySources=new Set<string>(); let fileFieldCount = 0;
   for (const entry of changed) {
     const change = object(entry, ['model', 'row', 'secretFields', 'withheldFields', 'fieldTypes',
@@ -385,10 +415,11 @@ function readSavedScenarioAssociation(receipt: Receipt,
     if (saved['scenario'] !== undefined) {
       const child = object(saved['scenario'], ['kind', 'plan', 'resultType', 'returnId', 'observations',
         ...(Object.hasOwn(saved['scenario'] as object, 'intrinsics') ? ['intrinsics'] : []),
-        ...(Object.hasOwn(saved['scenario'] as object, 'queries') ? ['queries'] : [])]);
+        ...(Object.hasOwn(saved['scenario'] as object, 'queries') ? ['queries'] : []),
+        ...(Object.hasOwn(saved['scenario'] as object, 'sourceLoopRoots') ? ['sourceLoopRoots'] : [])]);
       readSavedScenarioAssociation({ ...receipt, identity: { ...receipt.identity, operation: saved['target'] as Receipt['identity']['operation'] },
         outcome: { status: 'committed', result: saved['result'], recordVersions: [],
-          scenario: { ...child, changed: [] } as unknown as ScenarioReceiptAssociation } }, witnesses);
+          scenario: { ...child, changed: [] } as unknown as ScenarioReceiptAssociation } }, witnesses,budgets);
     }
   }
   return deepFreeze(value as unknown as ScenarioReceiptAssociation);
