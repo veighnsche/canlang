@@ -949,6 +949,8 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
             cx.loop_node = None;
             cx.effect_visits = 0;
             cx.result_model = None;
+            cx.statement_expressions.clear();
+            cx.expression_statement = None;
             let result = (|| {
                 // C23 hook slice: a handler with an admitted first-query fact
                 // may prove its closure below; every other trusted shape
@@ -1973,9 +1975,11 @@ impl Flow {
 /// Reuse completed compiler analysis, never an evaluated application value.
 /// Every lexical value and its ordered provenance participate in equality.
 struct CompletedStatementExpression {
+    statement: NodeKey,
     node: NodeKey,
     module: ModuleId,
     calls: Vec<NodeKey>,
+    statement_depth: usize,
     authorization: bool,
     result_model: Option<SymbolId>,
     env: Env,
@@ -2027,7 +2031,8 @@ struct Closure<'a> {
     require_consumptions: Vec<CheckedRequireConsumption>,
     effect_visits: usize,
     loop_node: Option<NodeKey>,
-    statement_expressions: Option<Vec<CompletedStatementExpression>>,
+    expression_statement: Option<NodeKey>,
+    statement_expressions: Vec<CompletedStatementExpression>,
     source_facts: RefCell<ImmutableSourceFacts>,
 }
 
@@ -2075,7 +2080,8 @@ impl<'a> Closure<'a> {
             complete_children: HashSet::new(),
             complete_model_children: HashMap::new(),
             result_model: None,
-            statement_expressions: None,
+            expression_statement: None,
+            statement_expressions: Vec::new(),
             source_facts: RefCell::new(ImmutableSourceFacts::default()),
         }
     }
@@ -20544,30 +20550,36 @@ impl<'a> Closure<'a> {
         if self.depth >= 64 {
             return Err(self.fail(key, "expression closure depth bound"));
         }
-        // Only top-level straight-line expression analyses share a statement.
-        // Nested statements, derive frames and input-loop scopes stay separate.
+        // An original nested statement may be visited for many control paths.
+        // Reuse only its completed proof under the exact lexical context;
+        // every flow/effect walk still runs. Derive and loop scopes remain
+        // excluded, and no runtime value or effect ordinal is cached.
         let reuse = self.depth == 0
-            && self.statement_depth == 1
+            && self.statement_depth > 0
+            && self.expression_statement.is_some()
             && self.loop_node.is_none()
             && self.stack.is_empty()
             && calls.is_empty();
         if reuse
-            && let Some(completed) = self.statement_expressions.as_ref().and_then(|entries| {
-                entries.iter().find(|entry| {
-                    entry.node == key
-                        && entry.module == module
-                        && entry.calls == calls
-                        && entry.authorization == self.authorization
-                        && entry.result_model == self.result_model
-                        && entry.env == *env
-                })
+            && let Some(completed) = self.statement_expressions.iter().find(|entry| {
+                Some(entry.statement) == self.expression_statement
+                    && entry.node == key
+                    && entry.module == module
+                    && entry.calls == calls
+                    && entry.statement_depth == self.statement_depth
+                    && entry.authorization == self.authorization
+                    && entry.result_model == self.result_model
+                    && entry.env == *env
             })
         {
             return Ok(completed.values.clone());
         }
         let bookkeeping = (
+            self.expression_statement,
+            self.statement_depth,
             self.effect_proofs.len(),
             self.effect_visits,
+            self.require_consumptions.len(),
             self.loop_node,
             self.result_model,
             self.authorization,
@@ -20580,26 +20592,32 @@ impl<'a> Closure<'a> {
         if reuse
             && bookkeeping
                 == (
+                    self.expression_statement,
+                    self.statement_depth,
                     self.effect_proofs.len(),
                     self.effect_visits,
+                    self.require_consumptions.len(),
                     self.loop_node,
                     self.result_model,
                     self.authorization,
                 )
             && self.stack.is_empty()
             && let Ok(values) = &result
-            && let Some(entries) = self.statement_expressions.as_mut()
-            && entries.len() < 1024
+            && let Some(statement) = self.expression_statement
+            && self.statement_expressions.len() < 1024
         {
-            entries.push(CompletedStatementExpression {
-                node: key,
-                module,
-                calls: calls.to_vec(),
-                authorization: self.authorization,
-                result_model: self.result_model,
-                env: env.clone(),
-                values: values.clone(),
-            });
+            self.statement_expressions
+                .push(CompletedStatementExpression {
+                    statement,
+                    node: key,
+                    module,
+                    calls: calls.to_vec(),
+                    statement_depth: self.statement_depth,
+                    authorization: self.authorization,
+                    result_model: self.result_model,
+                    env: env.clone(),
+                    values: values.clone(),
+                });
         }
         result
     }
@@ -35516,9 +35534,9 @@ impl<'a> Closure<'a> {
             return Err(self.fail(anchor, "statement closure depth bound"));
         }
         self.statement_depth += 1;
-        let previous_expressions = self.statement_expressions.replace(Vec::new());
+        let previous_statement = self.expression_statement;
         let result = self.statements_inner(effects, module, flows, calls);
-        self.statement_expressions = previous_expressions;
+        self.expression_statement = previous_statement;
         self.statement_depth -= 1;
         result
     }
@@ -35692,9 +35710,7 @@ impl<'a> Closure<'a> {
         self.check_result_created_return(effects, module)?;
         let mut returns = Vec::new();
         for effect in effects {
-            if let Some(entries) = &mut self.statement_expressions {
-                entries.clear();
-            }
+            self.expression_statement = Some(effect.node);
             self.steps += 1;
             if self.steps > 16384 {
                 return Err(self.fail(effect.node, "statement closure item bound"));
