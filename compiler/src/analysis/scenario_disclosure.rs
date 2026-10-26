@@ -8211,10 +8211,16 @@ impl<'a> Closure<'a> {
                 expressions.push(self.effects.derives.get(&id)?.expr?);
             }
         }
-        let mut visited = 0usize;
+        // This is a declaration set, not an execution or occurrence census.
+        // A source node has one resolved field/type regardless of how many
+        // checked helper paths include it. Bound the distinct source graph;
+        // every actual query, observation and effect keeps its own accounting.
+        let mut visited = HashSet::new();
         while let Some(key) = expressions.pop() {
-            visited += 1;
-            if visited > 16384 {
+            if !visited.insert(key) {
+                continue;
+            }
+            if visited.len() > 16384 {
                 return None;
             }
             let node = self.nodes.get(&key)?;
