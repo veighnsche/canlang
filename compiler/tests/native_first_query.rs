@@ -7204,6 +7204,108 @@ fn original_shift_descendant_control_keeps_its_exact_selected_loop_and_public_ro
             "{mode}"
         );
     }
+    // The same finite descendant producer carries conditional SEND + SET,
+    // while the whole stored standard value keeps its independent DATA proof.
+    let chat = include_str!("fixtures/original-a850/CanChat.can");
+    let (db, program, ir, catalog) = fixture_source("original-chat-conditional.can", chat);
+    let owner = item(&ir, "chat.revoke");
+    let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert!(serialize_decision_sources(&program, &ir, owner, &db, Some(&catalog)).is_some());
+    for mode in ["selector-receiver", "selector-member", "delivery-operation"] {
+        let mut changed = ir.clone();
+        let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.id.0 as usize].kind
+        else {
+            panic!("owner")
+        };
+        let IrStmt::For { body, .. } = effects.last_mut().unwrap() else {
+            panic!("loop")
+        };
+        let IrStmt::If { then_branch, .. } = &mut body[0] else {
+            panic!("condition")
+        };
+        let IrStmt::Send {
+            operation, args, ..
+        } = &mut then_branch[0]
+        else {
+            panic!("SEND")
+        };
+        if mode == "delivery-operation" {
+            *operation = "std.TextGenerationV1.reconcile".into();
+        } else {
+            let IrExpr::Object(fields) = &mut args.expr else {
+                panic!("SEND arguments")
+            };
+            let value = &mut fields
+                .iter_mut()
+                .find(|(name, _)| name == "source")
+                .unwrap()
+                .1;
+            let IrExpr::Member { base, field } = &mut value.expr else {
+                panic!("primitive selector")
+            };
+            if mode == "selector-member" {
+                *field = "policy_revision".into();
+            } else {
+                let IrExpr::Member { base, .. } = &mut base.expr else {
+                    panic!("whole stored field")
+                };
+                base.expr = IrExpr::Name("foreign".into());
+            }
+        }
+        assert!(
+            serialize_decision_sources(
+                &program,
+                &changed,
+                &changed.items[owner.id.0 as usize],
+                &db,
+                Some(&catalog)
+            )
+            .is_none(),
+            "{mode}"
+        );
+    }
+    for mode in ["nominal-schema-order", "nominal-nested-schema"] {
+        let (db, mut changed, _, catalog) =
+            fixture_source("original-chat-schema-counterfeit.can", chat);
+        let field = changed
+            .symbols
+            .iter()
+            .find(|item| item.canonical == "chat.Run.request_value")
+            .unwrap()
+            .id;
+        let ResolvedType::StdNominal { fields, .. } =
+            changed.types.symbol_types.get_mut(&field).unwrap()
+        else {
+            panic!("TextRequest")
+        };
+        if mode == "nominal-schema-order" {
+            fields.swap(0, 1);
+        } else {
+            let (_, messages) = fields
+                .iter_mut()
+                .find(|(name, _)| name == "messages")
+                .unwrap();
+            let ResolvedType::Array { element, .. } = messages else {
+                panic!("message array")
+            };
+            let ResolvedType::StdNominal { fields, .. } = element.as_mut() else {
+                panic!("TextMessage")
+            };
+            fields
+                .iter_mut()
+                .find(|(name, _)| name == "attachments")
+                .unwrap()
+                .1 = ResolvedType::Scalar(Scalar::Text);
+        }
+        let (_, diagnostics) = prepared_artifact(&changed, &db, &catalog);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"),
+            "{mode}: {diagnostics:?}"
+        );
+    }
 }
 
 #[test]

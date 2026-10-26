@@ -5877,6 +5877,25 @@ async function bindNativeSourceData(asm:AssembledModules,artifact:CompileArtifac
       const original=privateSourceMember(module,'canScenarioSendDataSource'),bind=loaded.producers.invoke.bindScenarioSourceSendDataProducer;
       if(typeof original!=='function'||bind===undefined)throw new AssemblyCorrespondenceError('SEND DATA lacks its installed source issuer and State producer.');
       nativeSourceSendData.set(def,{sources:sites,original:original as (body:Function)=>unknown});
+      // A scalar projection retains the ordinary whole-field protected File
+      // census. This installs codecs only; actual receiving authority is live.
+      const valueFields=sites.flatMap(site=>site.parameters.flatMap(parameter=>(parameter.valueFields??[]).map(field=>({parameter,field}))));
+      if(valueFields.length!==0){
+        const state=await loadProducerModule('@canlang/state','source SEND stored Values census');
+        const bindProfile=requireProducerFn(state,'bindFileReferenceProfile','source SEND stored Values census') as typeof import('@canlang/state').bindFileReferenceProfile;
+        const profiles=new Map(nativeScenarioStoredFileProfiles.get(def));
+        for(const {parameter,field}of valueFields){
+          const profile=bindProfile({canonicalModels:loaded.models,artifactModels:new Map((artifact.models??[]).map(model=>[model.name as ModelName,model])),
+            ...(loaded.valueTypes===undefined?{}:{valueTypes:loaded.valueTypes}),...(loaded.valueSchema===undefined?{}:{valueSchema:loaded.valueSchema})},parameter.model,field.name);
+          if(profile.type!==field.type)throw new AssemblyCorrespondenceError('Stored Values source projection differs from its original owning type.');
+          if(profile.fileBearing){
+            if(profiles.has(field.id))throw new AssemblyCorrespondenceError('Stored Values source projection repeats a protected dependency identity.');
+            profiles.set(field.id,Object.freeze({model:parameter.model,field:field.name,profile}));
+          }
+        }
+        if(profiles.size!==0)nativeScenarioStoredFileProfiles.set(def,profiles);
+      }
+
       if(context!==undefined){
         const readPolicies=sourceDataReadPolicies(sourceReads!,sites.flatMap(site=>[
           ...site.parameters.map(parameter=>parameter.model),
@@ -13253,6 +13272,19 @@ async function runScenarioExecution(
         if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding(`${label} lacks its actually granted source field.`);
         fields[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);
       }
+      for(const field of parameter.valueFields??[]){
+        const value=Object.getOwnPropertyDescriptor(record.data,field.name);
+        if(value===undefined||!('value'in value)||!value.enumerable)return refuseRecordBinding('Stored Values projection lacks its authorized whole field.');
+        const wire=localPolicyObject(value.value),members:Record<string,unknown>=Object.create(null);
+        const names=new Set(field.members.map(member=>member.name));
+        if(Object.keys(wire).length!==names.size||Object.keys(wire).some(name=>!names.has(name)))return refuseRecordBinding('Stored Values projection exposed an unselected member.');
+        for(const member of field.members){
+          const leaf=Object.getOwnPropertyDescriptor(wire,member.name);
+          if(leaf===undefined||!('value'in leaf)||!leaf.enumerable)return refuseRecordBinding('Stored Values projection omitted its original scalar member.');
+          members[member.name]=decodeCanonicalValue(loaded.valueSchema,member.type,leaf.value);
+        }
+        fields[field.name]=Object.freeze(members);
+      }
       if(parameter.parent!==undefined){
         const parent=rows[`${parameter.name}.parent`];if(parent===undefined)return refuseRecordBinding('Effect parent DATA lacks its actual independently granted row.');
         const data:Record<string,unknown>=Object.create(null);
@@ -13503,7 +13535,18 @@ async function runScenarioExecution(
               if(binding?.model!==parameter.model||binding.id!==row.id||binding.version>row.version||binding.version<1)return refuseRecordBinding('SEND DATA created root differs from its exact actual CREATE row.');
             }else if(parameter.loop===undefined?roots[parameter.name]!==parameters[parameter.name]:activeSourceLoopItem?.id!==parameter.loop||roots[parameter.name]!==activeSourceLoopItem.item)return refuseRecordBinding('SEND DATA changed its genuine original parameter graph.');
           }
-          return await execute(actual,receiptStore,{source,execute:async rows=>{
+          return await execute(actual,receiptStore,{source,observeFiles:async input=>{
+            const parameter=source.parameters.find(parameter=>parameter.name===input.parameter);
+            const field=parameter?.valueFields?.find(field=>field.id===input.dependencyId&&field.name===input.field);
+            const files=nativeScenarioFiles.get(scenarioDef);
+            const healthy=()=>{assertExecution(actual,receiptStore);if(nativeScenarioExecutions.get(actual)?.session!==ownerSession)return refuseRecordBinding('Stored Values File observation lost its actual source owner.');};
+            healthy();
+            if(field===undefined||parameter?.model!==input.model||files===undefined)return refuseRecordBinding('Stored Values projection lacks its actual receiving File source.');
+            files.prepareObservation();
+            const observations=await files.observeWire(input,opts.identity,healthy);healthy();
+            if(observations===undefined)return refuseRecordBinding('Stored Values projection lost its whole owning File census.');
+            return observations;
+          },execute:async rows=>{
             const projected=projectSourceData(source.parameters,rows,actual,'SEND DATA');
             if(queryExecution!==null)return refuseRecordBinding('SEND DATA query frame cannot nest.');
             const active={source,roots:Object.freeze(projected)};queryExecution=active;

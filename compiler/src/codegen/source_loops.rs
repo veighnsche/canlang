@@ -501,6 +501,13 @@ fn loop_write_value(
     }
     match &value.expr {
         IrExpr::Name(name)
+            if deliveries
+                .get(name)
+                .is_some_and(|actual| delivery_operation_matches(ir, &value.ty, actual)) =>
+        {
+            true
+        }
+        IrExpr::Name(name)
             if name == item
                 && value.ty
                     == (ResolvedType::Record {
@@ -540,6 +547,20 @@ fn loop_write_value(
         }
         _ => false,
     }
+}
+
+fn conditional_send_set(body: &[IrStmt]) -> bool {
+    matches!(
+        body,
+        [
+            IrStmt::Send {
+                binding: Some(_),
+                when: None,
+                ..
+            },
+            IrStmt::Set { when: None, .. }
+        ]
+    )
 }
 
 fn body_counts(
@@ -582,7 +603,9 @@ fn body_counts(
                     site.node.file==cond.span.file&&site.node.start==cond.span.start&&site.node.end==cond.span.end
                     &&matches!(site.position.as_slice(),[crate::analysis::scenario_disclosure::CheckedDecisionPosition::Body(_),crate::analysis::scenario_disclosure::CheckedDecisionPosition::Loop(_)])))=>{
             let (child_writes,child_sends,child_work)=body_counts(ir,context,then_branch,item,model,parameter,parent_model,root_model,&values)?;
-            if child_sends!=0||!child_work.is_empty()&&(child_writes!=0||child_work.len()!=1||child_work[0]["kind"]!="schedule"){return None;}
+            if child_sends!=0 && (body.len()!=1 || !conditional_send_set(then_branch) || child_sends!=1 || child_writes!=1 || !child_work.is_empty())
+                || !child_work.is_empty()&&(child_writes!=0||child_work.len()!=1||child_work[0]["kind"]!="schedule"){return None;}
+            sends+=child_sends;
             for mut site in child_work{site["stage"]=serde_json::json!(writes+site["stage"].as_u64()? as usize);site["conditional"]=serde_json::json!(true);work.push(site);}writes+=child_writes;
         },
         IrStmt::Set{record,changes,when:None,..}if (matches!(&record.expr,IrExpr::Name(name)if name==item)
@@ -672,7 +695,9 @@ pub(super) fn collect_native(
                 if else_branch.is_empty() && matches!(then_branch.as_slice(), [IrStmt::Create { .. }]));
         let commands = !body.is_empty()
             && body.iter().all(|statement| matches!(statement,
-                IrStmt::Set { when: None, .. } | IrStmt::Send { when: None, .. } | IrStmt::Cancel { .. }));
+                IrStmt::Set { when: None, .. } | IrStmt::Send { when: None, .. } | IrStmt::Cancel { .. }))
+            || matches!(body.as_slice(),[IrStmt::If{then_branch,else_branch,..}]
+                if else_branch.is_empty() && conditional_send_set(then_branch));
         ((constructor && effects.last().is_some_and(|last| std::ptr::eq(last, statement))) || commands)
             .then_some((*span, commands))
     });
@@ -1031,12 +1056,12 @@ fn collect_from_source(
                         ] = body.as_slice()
                     {
                         if !else_branch.is_empty()
-                            || !matches!(
+                            || !(matches!(
                                 then_branch.as_slice(),
                                 [IrStmt::Set { .. } | IrStmt::Create { .. }]
-                            )
+                            ) && sends == 0
+                                || conditional_send_set(then_branch) && sends == 1)
                             || writes != 1
-                            || sends != 0
                         {
                             return None;
                         }
