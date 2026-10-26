@@ -4871,12 +4871,21 @@ fn d03_attached_and_legacy_feed_same_slot() {
 }
 
 /// (D03) Undescribed inputs omit the member (byte-compatible shape):
-/// no `description` key is rendered for absent slots.
+/// no `description` key is rendered for absent slots. Conversely a read
+/// scenario returning a contract keeps its declared result member even when
+/// the contract stays outside the bounded value inventory (an action leaf
+/// has no section-13 type id, so the contract never joins it):
+/// install-time declaration/descriptor correspondence requires the name.
 #[test]
 fn d03_undescribed_inputs_omit_member() {
     let src = "app Shop\nGiven\n Gadget { title:text }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title\nThen\n";
     let (_program, artifact, diags) = d03_emit(src);
     assert!(diags.is_empty(), "clean lowering: {diags:?}");
+    let contract_src = "app Shop\nGiven\n Gadget {title:text}\n policy Gadget read=members\n contract Batch { title:text, go:action(pick) }\nWhen\n scenario pick(gadget:Gadget) by=members\n  do let x = 1\n export scenario get(batch:Batch) read=true by=members -> Batch\n  do return batch\nThen\n";
+    let (_contract_program, contract_artifact, contract_diags) = d03_emit(contract_src);
+    assert!(contract_diags.is_empty(), "clean lowering: {contract_diags:?}");
+    let contract_op = d03_operation(&contract_artifact, "Shop.get");
+    assert_eq!(contract_op.result.as_deref(), Some("Shop.Batch"));
     let op = d03_operation(&artifact, "Shop.Gadget.create");
     let title = d03_input(op, "title");
     assert!(title.description.is_none());
@@ -4902,20 +4911,6 @@ fn d03_empty_desc_stays_present() {
         "present empty: {}",
         nick.to_json()
     );
-}
-
-/// A read scenario returning a contract keeps its declared result in the
-/// operation descriptor even when the contract stays outside the bounded
-/// value inventory (an action leaf has no section-13 type id, so the
-/// contract never joins it). Install-time declaration/descriptor
-/// correspondence requires the name; absence refuses the whole install.
-#[test]
-fn read_contract_result_with_action_leaf_keeps_descriptor_result() {
-    let src = "app Shop\nGiven\n Gadget {title:text}\n policy Gadget read=members\n contract Batch { title:text, go:action(pick) }\nWhen\n scenario pick(gadget:Gadget) by=members\n  do let x = 1\n export scenario get(batch:Batch) read=true by=members -> Batch\n  do return batch\nThen\n";
-    let (_program, artifact, diags) = d03_emit(src);
-    assert!(diags.is_empty(), "clean lowering: {diags:?}");
-    let op = d03_operation(&artifact, "Shop.get");
-    assert_eq!(op.result.as_deref(), Some("Shop.Batch"));
 }
 
 /// C01 witnesses have fixed decoded strings and JS literals, independent
