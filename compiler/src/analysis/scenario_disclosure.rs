@@ -19452,17 +19452,28 @@ impl<'a> Closure<'a> {
             wrote: &mut bool,
             allowed_create: &impl Fn(&Effect) -> bool,
             allowed_loop: &impl Fn(&Effect) -> bool,
+            admit_early_exit: &impl Fn(&Effect) -> bool,
         ) -> Option<()> {
             for effect in effects {
-                if effect.verb != EffectVerb::Require && effect.cond.is_some()
-                    || effect.when.is_some()
+                if effect.when.is_some()
                     || !effect.else_effects.is_empty()
                     || !effect.match_arms.is_empty()
                 {
                     return None;
                 }
+                // A conditional early exit proves no writes itself: only a
+                // direct-created-return-shaped branch (branch-free
+                // requirement/return nests) may guard the staged prefix.
+                // Arbitrary conditional writes keep their refusal below.
+                if effect.cond.is_some()
+                    && effect.verb != EffectVerb::Require
+                    && !matches!(effect.verb, EffectVerb::If if admit_early_exit(effect))
+                {
+                    return None;
+                }
                 match effect.verb {
                     EffectVerb::Let | EffectVerb::Require if effect.then_effects.is_empty() => {}
+                    EffectVerb::If if admit_early_exit(effect) => {}
                     EffectVerb::Set if effect.then_effects.is_empty() => *wrote = true,
                     EffectVerb::Create
                         if allowed_create(effect) && effect.then_effects.is_empty() =>
@@ -19541,6 +19552,7 @@ impl<'a> Closure<'a> {
             &mut wrote,
             &allowed_create,
             &allowed_loop,
+            &Self::before_direct_create,
         )?;
         let mut effect = scenario.effects.get(*index)?;
         for position in nested {
@@ -19557,6 +19569,7 @@ impl<'a> Closure<'a> {
                 &mut wrote,
                 &allowed_create,
                 &allowed_loop,
+                &Self::before_direct_create,
             )?;
             effect = branch.get(index)?;
         }
@@ -27342,14 +27355,70 @@ impl<'a> Closure<'a> {
         {
             let mut values = self.expr(argument, module, env, calls)?;
             for value in &mut values {
-                if !matches!(value.contract_value, Some(ContractValue::Array(_)))
-                    || !value.reads.iter().any(|read| {
-                        read.node == self.query_group(argument).unwrap_or(argument)
-                            && read.calls == calls
-                            && read.query_id.is_none()
-                            && self.types.node_types.get(&argument) == Some(&read.ty)
+                if !matches!(value.contract_value, Some(ContractValue::Array(_))) {
+                    return Err(self.fail(key, "count needs its whole stored Contract origin"));
+                }
+                // Direct stored array keeps its whole origin read at the argument.
+                let direct = value.reads.iter().any(|read| {
+                    read.node == self.query_group(argument).unwrap_or(argument)
+                        && read.calls == calls
+                        && read.query_id.is_none()
+                        && self.types.node_types.get(&argument) == Some(&read.ty)
+                });
+                if direct {
+                    value.contract_value = None;
+                    continue;
+                }
+                // Nested canonical member array (for example `step.input.facts`)
+                // keeps its already-validated whole owning-field provenance at
+                // the base (`step.input` with type `Input`). No dotted stored
+                // read is synthesized; align with the ANY/ALL domain ownership.
+                let nested = self
+                    .count_member(argument)
+                    .and_then(|(base, field)| {
+                        let base_group = self.query_group(base).unwrap_or(base);
+                        let base_ty = self.types.node_types.get(&base)?;
+                        let arg_ty = self.types.node_types.get(&argument)?;
+                        let ResolvedType::Record {
+                            symbol: base_contract,
+                            ..
+                        } = base_ty
+                        else {
+                            return None;
+                        };
+                        if !self.is_contract_symbol(*base_contract) {
+                            return None;
+                        }
+                        self.contract_member(*base_contract, field, arg_ty)?;
+                        let ResolvedType::Array {
+                            element,
+                            ordered: true,
+                            nonempty: false,
+                        } = arg_ty
+                        else {
+                            return None;
+                        };
+                        let ResolvedType::Record { symbol: elem, .. } = element.as_ref()
+                        else {
+                            return None;
+                        };
+                        if !matches!(value.contract_value, Some(ContractValue::Array(marker)) if marker == *elem)
+                        {
+                            return None;
+                        }
+                        value
+                            .reads
+                            .iter()
+                            .any(|read| {
+                                read.node == base_group
+                                    && read.calls == calls
+                                    && read.query_id.is_none()
+                                    && Some(&read.ty) == self.types.node_types.get(&base)
+                            })
+                            .then_some(())
                     })
-                {
+                    .is_some();
+                if !nested {
                     return Err(self.fail(key, "count needs its whole stored Contract origin"));
                 }
                 value.contract_value = None;

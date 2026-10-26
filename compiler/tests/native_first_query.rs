@@ -4540,6 +4540,204 @@ package allocation
         );
     }
 
+    // Genuine FIRST existing-result plus new created return composition.
+    // Qualified through the production emit vehicle; the single-query
+    // serialize helper stays gated for multi-value aggregates.
+    {
+        let source = r#"app ReferAllocation uses=[allocation]
+package allocation
+ Given
+  Root {active:bool=true}
+  Credit in Root {amount:money}
+  Settlement in Root {amount:money,reference:text}
+  Allocation in Settlement {credit:Credit,amount:money}
+  policy Root read=members
+  policy Credit read=members
+  policy Settlement read=members
+  policy Allocation read=members
+ When
+  scenario settle(root:Root,amount:money,reference:text) by=members -> Settlement
+   require root.active and amount.minor>0
+   do
+    let existing=first(Settlement as settlement where settlement.reference==reference order=settlement.id)
+    if existing!=null
+     return existing
+    create Settlement {parent=root,amount,reference} as settlement
+    for credit in root.Credit as item where item.amount.minor>0 order=item.created limit=500
+     let remaining=amount-sum(settlement.Allocation as allocation select allocation.amount,amount.currency)
+     let unpaid=credit.amount-sum(Allocation as allocation where allocation.credit==credit select allocation.amount,amount.currency)
+     let part=min([remaining,unpaid])
+     if part.minor>0
+      create Allocation {parent=settlement,credit,amount=part} as allocation
+    require sum(settlement.Allocation as allocation select allocation.amount,amount.currency)==amount
+    return settlement
+ Then
+"#;
+        let (mix_db, mix_program, mix_ir, mix_catalog) =
+            fixture_source("mixed-first-values.can", source);
+        let mix_owner = item(&mix_ir, "allocation.settle");
+        assert!(
+            matches!(
+                &mix_ir.scenario_disclosures[&mix_owner.id],
+                ScenarioDisclosure::Complete(_)
+            ),
+            "{:?}",
+            mix_ir.scenario_disclosures[&mix_owner.id]
+        );
+        let (mix_artifact, mix_diagnostics) =
+            prepared_artifact(&mix_program, &mix_db, &mix_catalog);
+        assert!(mix_diagnostics.is_empty(), "{mix_diagnostics:?}");
+        let mix_operation = mix_artifact["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|operation| operation["name"] == "allocation.settle")
+            .unwrap();
+        let plan = &mix_operation["result"]["disclosure"];
+        assert_eq!(plan["version"], 1);
+        assert_eq!(plan["source"]["path"], "mixed-first-values.can");
+        assert_eq!(plan["source"]["sha256"], sha256_hex(source.as_bytes()));
+        let queries = plan["queries"].as_array().unwrap();
+        assert_eq!(queries.len(), 3);
+        assert_eq!(queries[0]["model"], "allocation.Settlement");
+        assert_eq!(
+            queries[0]["order"],
+            serde_json::json!([{"field": "id", "direction": "asc"}])
+        );
+        let mut models = queries
+            .iter()
+            .map(|query| query["model"].as_str().unwrap())
+            .collect::<Vec<_>>();
+        models.sort_unstable();
+        assert_eq!(
+            models,
+            [
+                "allocation.Allocation",
+                "allocation.Allocation",
+                "allocation.Settlement"
+            ]
+        );
+        let returns = plan["returns"].as_array().unwrap();
+        assert_eq!(returns.len(), 3);
+        // IR-level seal: dropped, wrong, or partial FIRST groups must refuse
+        // through the production emit, not the single-query helper.
+        for mode in ["drop-first-group", "wrong-return-group", "partial-group"] {
+            let mut changed = mix_ir.clone();
+            let (sum_influences, first_group, full_idx) = {
+                let checked = match changed.scenario_disclosures.get(&mix_owner.id).unwrap() {
+                    ScenarioDisclosure::Complete(value) => value,
+                    ScenarioDisclosure::Declined(_) => {
+                        panic!("{mode}: mixed scenario must stay Complete")
+                    }
+                };
+                let facts = checked.source_facts.as_ref().unwrap();
+                let queries = facts.queries.as_ref().unwrap();
+                let sum_influences = queries
+                    .iter()
+                    .find(|query| query.first.is_none())
+                    .unwrap()
+                    .influences
+                    .clone();
+                let first_group = queries
+                    .iter()
+                    .find(|query| query.first.is_some())
+                    .unwrap()
+                    .influences
+                    .clone();
+                let full_idx = checked
+                    .returns
+                    .iter()
+                    .position(|returned| returned.influences.len() == 12)
+                    .unwrap();
+                (sum_influences, first_group, full_idx)
+            };
+            let checked = match changed.scenario_disclosures.get_mut(&mix_owner.id).unwrap() {
+                ScenarioDisclosure::Complete(value) => value,
+                ScenarioDisclosure::Declined(_) => {
+                    panic!("{mode}: mixed scenario must stay Complete")
+                }
+            };
+            let first_paths: Vec<usize> = checked
+                .returns
+                .iter()
+                .enumerate()
+                .filter(|(_, returned)| returned.influences == first_group)
+                .map(|(index, _)| index)
+                .collect();
+            assert!(!first_paths.is_empty(), "{mode}: no FIRST-group return");
+            match mode {
+                "drop-first-group" => {
+                    for index in first_paths {
+                        checked.returns[index].influences.clear();
+                    }
+                }
+                "wrong-return-group" => {
+                    for index in first_paths {
+                        checked.returns[index]
+                            .influences
+                            .clone_from(&sum_influences);
+                    }
+                }
+                "partial-group" => {
+                    checked.returns[full_idx].influences.pop().unwrap();
+                }
+                _ => panic!("mode {mode}"),
+            }
+            let raw = js::emit_program_with_native_source_receipts(&changed, true, &mix_db);
+            let disclosure = raw
+                .operations
+                .iter()
+                .find(|operation| operation.name == "allocation.settle")
+                .and_then(|operation| operation.disclosure.as_ref());
+            assert!(
+                disclosure.is_none()
+                    || raw
+                        .diagnostics
+                        .iter()
+                        .any(|diagnostic| diagnostic.code == "E6008"),
+                "{mode}: mutated mixed return still composes"
+            );
+        }
+        // Source-level variants: altered aggregate parent or item filter
+        // cannot produce a recipe.
+        for (mode, mutant) in [
+            (
+                "created-parent",
+                source.replacen(
+                    "sum(settlement.Allocation as allocation",
+                    "sum(Allocation as allocation",
+                    1,
+                ),
+            ),
+            (
+                "item-filter",
+                source.replace(
+                    "where allocation.credit==credit",
+                    "where allocation.credit!=credit",
+                ),
+            ),
+        ] {
+            let (mutant_db, mutant_program, _, mutant_catalog) =
+                fixture_source("mixed-first-values-mutant.can", &mutant);
+            let (mutant_artifact, mutant_diagnostics) =
+                prepared_artifact(&mutant_program, &mutant_db, &mutant_catalog);
+            let disclosure = mutant_artifact["operations"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|operation| operation["name"] == "allocation.settle")
+                .map(|operation| &operation["result"]["disclosure"])
+                .filter(|disclosure| !disclosure.is_null());
+            assert!(
+                disclosure.is_none()
+                    || mutant_diagnostics
+                        .iter()
+                        .any(|diagnostic| diagnostic.code == "E6008"),
+                "{mode}: altered mixed source still composes"
+            );
+        }
+    }
+
     for mode in ["return-binding", "return-type", "count-offset"] {
         let mut changed = returned_ir.clone();
         let IrItemKind::Scenario {

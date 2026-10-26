@@ -982,8 +982,18 @@ pub(super) fn checked_created_model_result(
                 let query = if queries.len() == 1 {
                     &queries[0]
                 } else {
-                    checked_purchase_helper_query_influences(facts)?;
-                    queries.iter().find(|query| query.first.is_some())?
+                    // The replay result association below (same model,
+                    // text-keyed replay, exact let-name return,
+                    // order/predicate reproof, contained parent, exact FIRST
+                    // influence group) carries the admission; no app-specific
+                    // helper family is required. The separate whole-owner
+                    // source/return composition seal still governs capture.
+                    let mut firsts = queries.iter().filter(|query| query.first.is_some());
+                    let query = firsts.next()?;
+                    if firsts.next().is_some() {
+                        return None;
+                    }
+                    query
                 };
                 let first = query.first.as_ref()?;
                 if query.model != *model
@@ -1100,6 +1110,7 @@ pub(super) fn checked_created_model_result(
                 if first.binding.file != returned.node.file
                     || first.binding.end > returned.node.start
                     || returned.influences.len() != 4
+                    || returned.influences != query.influences
                 {
                     return None;
                 }
@@ -6378,12 +6389,13 @@ pub(super) fn checked_native_mixed_helper_query_plan(
     {
         return None;
     }
-    let mut plan = checked_native_first_query_source_plan(ir, owner, checked, first, entry, db)?;
+    let mut plan =
+        checked_native_first_query_source_plan(ir, owner, checked, first, entry, db, None)?;
     plan.queries.clear();
     for query in queries {
         if query.first.is_some() {
             plan.queries.extend(
-                checked_native_first_query_source_plan(ir, owner, checked, query, entry, db)?
+                checked_native_first_query_source_plan(ir, owner, checked, query, entry, db, None)?
                     .queries,
             );
             continue;
@@ -7374,6 +7386,7 @@ pub(super) fn checked_scenario_query_influences(
                 query.count.is_none()
                     && !values.iter().any(|value| &value.query == query)
                     && !values_any_source(facts, query)
+                    && !(query.first.is_some() && checked_query_influence_census(query).is_some())
             })
         {
             return None;
@@ -7612,13 +7625,26 @@ fn first_query_expected_plan(
         [query] if query.count.is_some() => {
             checked_native_count_query_plan(ir, owner, query, db, entry_module, source_context)
         }
-        [query] => {
-            checked_native_first_query_source_plan(ir, owner, checked, query, entry_module, db)
-        }
+        [query] => checked_native_first_query_source_plan(
+            ir,
+            owner,
+            checked,
+            query,
+            entry_module,
+            db,
+            None,
+        ),
         [any, first] if any.first.is_none() && any.count.is_none() => {
             let any_plan = checked_native_any_direct_query_plan(ir, owner, any, db, entry_module);
-            let first_plan =
-                checked_native_first_query_source_plan(ir, owner, checked, first, entry_module, db);
+            let first_plan = checked_native_first_query_source_plan(
+                ir,
+                owner,
+                checked,
+                first,
+                entry_module,
+                db,
+                None,
+            );
             merge_native_query_plans(any_plan?, first_plan?)
         }
         [count, first] if count.count.is_some() && first.first.is_some() => {
@@ -7638,11 +7664,20 @@ fn first_query_expected_plan(
                     first,
                     entry_module,
                     db,
+                    None,
                 )?,
             )
         }
         [first, count] => merge_native_query_plans(
-            checked_native_first_query_source_plan(ir, owner, checked, first, entry_module, db)?,
+            checked_native_first_query_source_plan(
+                ir,
+                owner,
+                checked,
+                first,
+                entry_module,
+                db,
+                None,
+            )?,
             checked_native_count_query_plan(ir, owner, count, db, entry_module, source_context)?,
         ),
         [ancestor, first, count] => merge_native_query_plans(
@@ -7662,6 +7697,7 @@ fn first_query_expected_plan(
                     first,
                     entry_module,
                     db,
+                    None,
                 )?,
             )?,
             checked_native_count_query_plan(ir, owner, count, db, entry_module, source_context)?,
@@ -8247,9 +8283,47 @@ fn checked_native_value_query_plan(
         return None;
     }
 
+    // Independently recomputed fresh Complete disclosure for the mixed
+    // FIRST/Values seal below. The whole original/fresh join -- disclosure
+    // equality plus every zipped return's source_values, in order -- is
+    // validated once here. FIRST-in-Values compositions require the seal;
+    // absence refuses before dispatch, preserving exact-equality behavior
+    // for other families.
+    let fresh_sealed: Option<&crate::analysis::scenario_disclosure::CheckedScenarioDisclosure> =
+        match context.fresh().scenario_disclosures.get(&owner.id) {
+            Some(crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(fresh))
+                if super::scenario_feasibility::same_disclosure(checked, fresh)
+                    && checked.returns.len() == fresh.returns.len()
+                    && checked.returns.iter().zip(&fresh.returns).all(
+                        |(original, recomputed)| original.source_values == recomputed.source_values,
+                    ) =>
+            {
+                Some(fresh)
+            }
+            _ => None,
+        };
+    if fresh_sealed.is_none() && queries.iter().any(|query| query.first.is_some()) {
+        return None;
+    }
+
     let mut emitted = Vec::new();
     for query in queries {
         let Some(value) = values.iter().find(|value| &value.query == query) else {
+            if query.first.is_some() && query.count.is_none() {
+                emitted.extend(
+                    checked_native_first_query_source_plan(
+                        ir,
+                        owner,
+                        checked,
+                        query,
+                        entry,
+                        context.db(),
+                        fresh_sealed,
+                    )?
+                    .queries,
+                );
+                continue;
+            }
             if query.count.is_none() {
                 emitted.push(checked_native_any_query_plan(
                     ir,
@@ -9025,7 +9099,7 @@ fn checked_native_transcript_plan<'a>(
         let expected_ancestor =
             checked_native_count_query_plan(ir, owner, ancestor, db, entry, source_context)?;
         let expected_first =
-            checked_native_first_query_source_plan(ir, owner, checked, first, entry, db)?;
+            checked_native_first_query_source_plan(ir, owner, checked, first, entry, db, None)?;
         let expected_count =
             checked_native_count_query_plan(ir, owner, count, db, entry, source_context)?;
         for (actual, expected) in [
@@ -9206,6 +9280,38 @@ fn first_query_receipt_parent(
     }))
 }
 
+/// Mixed FIRST/Values split return admitted only under the value planner's
+/// once-per-composition fresh seal: whole-disclosure equality plus every
+/// zipped return's source_values, in order. This binds the tested return to
+/// its sealed identity; the join itself pins every genuine split path, so
+/// mutated, partial or foreign influence sets disagree with the fresh
+/// recomputation and refuse. Subset or census-wide comparisons are not used
+/// here.
+fn sealed_mixed_return(
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    sealed: Option<&crate::analysis::scenario_disclosure::CheckedScenarioDisclosure>,
+    returned: &crate::analysis::scenario_disclosure::DisclosureReturn,
+) -> bool {
+    let Some(sealed) = sealed else {
+        return false;
+    };
+    if !super::scenario_feasibility::same_disclosure(checked, sealed) {
+        return false;
+    }
+    // same_disclosure omits source_values; join them explicitly per return.
+    let Some(index) = checked
+        .returns
+        .iter()
+        .position(|candidate| candidate.node == returned.node && candidate.id == returned.id)
+    else {
+        return false;
+    };
+    sealed
+        .returns
+        .get(index)
+        .is_some_and(|fresh| returned.source_values == fresh.source_values)
+}
+
 fn first_query_returns_valid(
     query: &crate::analysis::scenario_disclosure::DisclosureQuery,
     checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
@@ -9214,6 +9320,7 @@ fn first_query_returns_valid(
     expected_influences: &[crate::analysis::scenario_disclosure::DisclosureInfluence],
     mixed: &Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>>,
     effects: &[IrStmt],
+    sealed: Option<&crate::analysis::scenario_disclosure::CheckedScenarioDisclosure>,
 ) -> bool {
     let target_pair = !standalone_first && checked.source_facts.as_deref()
         .and_then(|facts| facts.queries.as_deref())
@@ -9227,7 +9334,10 @@ fn first_query_returns_valid(
                 && (standalone_first
                     || void_tail
                     || result_statement_at(effects, node_span(returned.node)).is_some())
-                && (standalone_first || void_tail || returned.model_result.is_some())
+                && (standalone_first
+                    || void_tail
+                    || returned.model_result.is_some()
+                    || sealed_mixed_return(checked, sealed, returned))
                 && if let Some(census) = mixed {
                     returned
                         .influences
@@ -9248,7 +9358,12 @@ fn first_query_returns_valid(
                         .iter()
                         .all(|value| expected_influences.contains(value))
                 } else {
+                    // Mixed FIRST/Values split paths cannot all carry the
+                    // whole census. They compose only under the value
+                    // planner's fresh seal below; other families keep exact
+                    // census equality.
                     returned.influences == expected_influences
+                        || sealed_mixed_return(checked, sealed, returned)
                 }
         })
 }
@@ -9260,6 +9375,7 @@ fn checked_native_first_query_source_plan(
     query: &crate::analysis::scenario_disclosure::DisclosureQuery,
     entry_module: &str,
     db: &SourceDb,
+    sealed: Option<&crate::analysis::scenario_disclosure::CheckedScenarioDisclosure>,
 ) -> Option<ReceiptDisclosurePlan> {
     let facts = checked.source_facts.as_deref()?;
     let expected_influences = checked_scenario_query_influences(facts)?;
@@ -9306,6 +9422,7 @@ fn checked_native_first_query_source_plan(
         &expected_influences,
         &mixed,
         effects,
+        sealed,
     ) || !first_query_shape_valid(query, first, scan)
     {
         return None;
@@ -20532,6 +20649,7 @@ fn created_return_branches_shape(
         checked: &CheckedScenarioDisclosure,
         creates: &[crate::analysis::scenario_disclosure::CheckedScenarioCreate],
         result_model: crate::analysis::SymbolId,
+        replay: Option<Span>,
         depth: usize,
         steps: &mut usize,
     ) -> Option<Vec<Option<crate::analysis::NodeKey>>> {
@@ -20567,9 +20685,25 @@ fn created_return_branches_shape(
                     span,
                 } => {
                     for state in &states {
-                        let selected = (*state)?;
-                        if !checked.returns.iter().any(|returned|node_span(returned.node)==*span
-                            && matches!(returned.model_result,Some(DisclosureModelResult::Create {node,..}) if node==selected)) {return None;}
+                        match state {
+                            Some(selected) => {
+                                if !checked.returns.iter().any(|returned|node_span(returned.node)==*span
+                                    && matches!(returned.model_result,Some(DisclosureModelResult::Create {node,..}) if node==*selected)) {return None;}
+                            }
+                            None => {
+                                // No created row is pending on this path: only
+                                // the proven FIRST existing-result return may
+                                // terminate it early. checked_created_model_result
+                                // admits exactly one model_result-free return
+                                // for the same model; bind this path to it.
+                                if Some(*span) != replay
+                                    || !checked.returns.iter().any(|returned| node_span(returned.node)==*span
+                                        && returned.model_result.is_none())
+                                {
+                                    return None;
+                                }
+                            }
+                        }
                     }
                     states.clear();
                 }
@@ -20584,6 +20718,7 @@ fn created_return_branches_shape(
                         checked,
                         creates,
                         result_model,
+                        replay,
                         depth + 1,
                         steps,
                     )?;
@@ -20593,6 +20728,7 @@ fn created_return_branches_shape(
                         checked,
                         creates,
                         result_model,
+                        replay,
                         depth + 1,
                         steps,
                     )? {
@@ -20619,6 +20755,7 @@ fn created_return_branches_shape(
                         checked,
                         creates,
                         result_model,
+                        replay,
                         depth + 1,
                         steps,
                     )?;
@@ -20634,12 +20771,27 @@ fn created_return_branches_shape(
     let IrItemKind::Scenario { effects, .. } = &owner.kind else {
         return None;
     };
+    // The proven FIRST existing-result return may terminate a path with no
+    // created row pending. The replay slice admits exactly one
+    // model_result-free return for the same model; bind the walk to it.
+    let replay = checked_created_model_result(ir, owner)
+        .filter(|model| *model == result_model)
+        .and_then(|_| {
+            let mut replay = checked
+                .returns
+                .iter()
+                .filter(|returned| returned.model_result.is_none())
+                .map(|returned| node_span(returned.node));
+            let span = replay.next()?;
+            replay.next().is_none().then_some(span)
+        });
     walk(
         effects,
         vec![None],
         checked,
         creates,
         result_model,
+        replay,
         0,
         &mut 0,
     )?

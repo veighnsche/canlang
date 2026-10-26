@@ -1434,7 +1434,7 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
         const site=sites.find(site=>site.receiptQueryId!==undefined)!;
         assert.ok(site?.receiptCases);assert.ok(site.receiptCases.empty.length>0);assert.ok(site.receiptCases.nonempty.length>0);
         assert.deepEqual(sites.find(site=>site.binding==='first_value')?.captures?.map(capture=>capture.binding),['values'],'pure native LET keeps its actual prior canonical Values capture');
-        state.bindScenarioSourceQueryValueProducer(def,{source:def.descriptor.result!.disclosure!.source,owner:def.name,sites,original:module.canScenarioQueryValueSource});
+        assert.throws(()=>state.bindScenarioSourceQueryValueProducer(def,{source:def.descriptor.result!.disclosure!.source,owner:def.name,sites,original:module.canScenarioQueryValueSource}),/original uninvoked bound owner/,'canonical loader already owns the Values producer');
         let ran=false,entered=false;
         await assert.rejects(()=>state.invoke({registry:loaded.registry as Parameters<typeof state.invoke>[0]['registry'],
           envelope:{operation:def.name,operation_id:operationId(now),inputs:{root:{id:'root',version:'1'}}},identity,app:'GuardOwnerFrame',source:'integration',store,memberships:identities,clock:{nowMs:()=>now},execute:async call=>{
@@ -1461,11 +1461,10 @@ it('runs source-only guard frames with sealed zero-DATA result receipts',
         const callable=artifact.callables.find(callable=>callable.id===def.name);assert.ok(callable);
         const module=await import(asm.moduleUrls[callable.module]!);
         const loopPlan=(module.canScenarioBodyLoopSources() as Record<string,Parameters<typeof state.bindScenarioSourceLoopProducer>[1]>)[def.name]!;
-        assert.equal(loopPlan.loops.length,1);assert.equal(loopPlan.loops[0]!.id,loopStep.id);state.bindScenarioSourceLoopProducer(def,loopPlan);
+        assert.equal(loopPlan.loops.length,1);assert.equal(loopPlan.loops[0]!.id,loopStep.id);
         const queryValues=(module.canScenarioQueryValueSources() as Record<string,Parameters<typeof state.bindScenarioSourceQueryValueProducer>[1]['sites']>)[def.name]!;
         assert.ok(queryValues.some(site=>site.binding==='probe_values'),'fresh module binds original plain Values LET');
-        state.bindScenarioSourceQueryValueProducer(def,{source:{...site.source,module:callable.module},owner:def.name,sites:queryValues,original:module.canScenarioQueryValueSource});
-        state.bindScenarioSourceRequirePhases(def,{source:def.descriptor.result?.disclosure?.source??{...site.source,module:callable.module},owner:def.name,phases:loaded.requireSources.get(def.name)!.filter(site=>site.mutationPrefix!==undefined).map(site=>({node:site.node,statement:site.statement,prefix:site.mutationPrefix!}))});
+        state.bindScenarioSourceRequirePhases(def,{source:def.descriptor.result?.disclosure?.source??{...site.source,module:callable.module},owner:def.name,phases:loaded.requireSources.get(def.name)!.filter(site=>site.mutationPrefix!==undefined).map(site=>({node:site.node,statement:site.statement,prefix:site.mutationPrefix!,...(site.captures===undefined?{}:{captures:site.captures})}))});
 
         let entered=false,proven=false,phaseRaced=false;
         await assert.rejects(()=>state.invoke({registry:loaded.registry as Parameters<typeof state.invoke>[0]['registry'],
