@@ -8,12 +8,12 @@ This is the executable task list for the [complete work inventory](WORK-INVENTOR
 
 ## Current baseline — 26 October 2026
 
-Implementation baseline: main `333f4fbe`. Its complete original native capture
-has **14 E6008 diagnostics**, zero analysis errors, all 26 unchanged source records
-from the 24 original operands plus saved contributions, zero omissions and exit 10
-in 421.30 seconds. Original fulfill_free now lowers; every other diagnostic is
-identical to the preceding 15-diagnostic capture. The draft submodule is initialized
-at `5749c75b`.
+Implementation baseline: main `44eb8ce8`. Its latest complete original native
+capture has **14 E6008 diagnostics**, zero analysis errors, all 26 unchanged source
+records from the 24 original operands plus saved contributions, zero omissions and
+exit 10 in 341.79 seconds. Source records and diagnostic arrays are identical to
+the preceding `333f4fbe` capture. The draft submodule is initialized at `5749c75b`.
+Prototype results do not change this measured count until integrated and captured.
 
 The build repair, nullable receipt migration, WHERE/SELECT scopes, shared
 constructor COUNT/returned-Model/Values joins, checked Model cohorts, selected
@@ -25,11 +25,12 @@ complete original runtime qualification remains required where still open.
 The latest fully inspected CI run (`d0248133`) passed browser/security and failed
 compiler/editor and workspace/installed artifacts. Its Invoice created-root failures
 and obsolete event-SEND expectation have since been repaired and exercised locally.
-The original Chat closures and Event, booking/rescheduling and Mail runtime timeouts
-remain open until qualified on current source. No all-green final CI is claimed.
+The original Chat compiler closures are repaired and locally qualified on
+`44eb8ce8`; Event, booking/rescheduling and Mail runtime timeouts remain open
+until qualified on current source. No all-green final CI is claimed.
 
 Seven code files in the normal checkout contain unfinished Refer work. Preserve
-that work and use coherent isolated candidates. Account proof reuse is committed. The shared Chat constructor/nominal projection/conditional-loop mechanism is qualified at the compiler and selected protected SEND runtime boundary; it does not grant withheld fields or qualify every original Chat workflow. Shift staged capture work remains a prototype. These changes do not alter the measured original24 count without a complete capture.
+that work and use coherent isolated candidates. Account proof reuse is committed. The shared Chat constructor/nominal projection/conditional-loop mechanism is qualified at the compiler and selected protected SEND runtime boundary; it does not grant withheld fields or qualify every original Chat workflow. Shift staged capture work remains an isolated candidate awaiting complete original runtime qualification and integration. These changes do not alter the measured original24 count without a complete capture.
 
 ## Next implementation queue
 
@@ -51,6 +52,15 @@ applies to its required output, not to every activity in the preceding row.
 | 9. **Z18b — Resolve the three real CI timeouts** | Reproduce Event change/routing, original booking/rescheduling and original Mail triage separately against coherent production outputs. Attribute time to compile, module binding, database, work or runtime before changing that owner. Runtime/CI writer. | Complete original recipients pass with their denial, race, rollback and replay cases. Remove repeated work or fix termination where demonstrated; no blind timeout increases, hidden skips or reduced cases. Reuse existing qualified Invoice and nullable SEND results. |
 | 10. **Z17 — Complete integrated original24 capture** | Coordinator builds the integrated committed candidate with the owning native Cloudflare catalog and runs the durable unchanged command to completion. | Exit 0, zero diagnostics, zero omissions, unchanged complete source membership and a usable full artifact. Attribute newly exposed failures and route them back to the appropriate owner. Do not run another full capture merely while an identical live one is pending. |
 | 11. **Z18 — Final native/runtime/CI closure** | Coordinator reviews exact committed source, source/permission/order/atomicity joins and temporary instrumentation removal. Run warranted original runtime and installed checks, then all three normal CI jobs on final main. | Every completion criterion below passes on the same source. Commit/push qualified fixes early throughout; final green status closes the zero-diagnostic goal. A new release is a separately requested action. |
+
+### Immediate runtime dependencies of Z05 / Z18b
+
+These are demonstrated blockers in the actual original composition. They belong
+to the existing runtime tasks, rather than a separate optimization project:
+
+- [ ] **Z05b — Reuse an assembler-owned immutable artifact.** Review and integrate the isolated `assembly-verification.ts` / `file-inventory.ts` candidate. Reuse verification only for the exact private issued snapshot; caller-owned or non-JSON input retains full checks. Preserve live file/module/URL closure checks and checks around every external await. Existing eight mutation integrations and two Notice/File integrations pass in isolation. The measured verification step improves from about 3 seconds to 53 milliseconds on the same 516 MB artifact; complete original workflow runtime is still required before claiming an end-to-end improvement.
+- [ ] **Z05c — Scope committed-source metadata to its actual source handlers.** Replace the aggregate snapshot of every unrelated private invocation with each checked source's complete handler group, retaining every private event/name header for omitted-handler detection. Keep the existing 20,000-node bound, exact source/handler correspondence and mutation checks. The actual original composition currently fails at 20,372 aggregate nodes. Qualify genuine large-composition loading, missing/changed handlers and existing completion routes before integration.
+- [ ] **Z05d — Run the unchanged original hold/day workflows.** After Z05b/Z05c, use the genuine complete prepared modules, current coherent runtime outputs and real authority. Exercise CREATE/SET/event/schedule ordering, rollback and replay. The earlier run failed during installation before invoking hold; it is not a business-workflow pass. Then qualify fulfill_free and move_days at their actual runtime boundary under Z04/Z05.
 
 ### Measured diagnostic ownership
 
@@ -186,6 +196,12 @@ cargo test --locked --release --manifest-path compiler/Cargo.toml \
 The complete original native compile uses the [durable 24-operand command](REMAINING-WORK.md#next-original24-composition-capture--outcome14--t41), a current optimized compiler and `packages/cloudflare/dist/native-catalog.json`. The normal complete compiler/dev-server, runtime, browser, installed-package and minimum-Node checks remain the commands in the three CI jobs; focused tests do not replace their final result. After an incorrect selective commit, validating a clean checkout of the actual proposed commit is essential even when the dirty working tree already passed.
 
 ## How to resume
+
+The execution loop is: select a ready task → trace the exact failing owner →
+implement the smallest shared correction → review permissions and failure behavior
+→ run affected existing integration checks → commit and push → select the next
+ready task. Refresh the complete diagnostic count after a qualified compiler
+change that can alter it; runtime-only progress does not change that count.
 
 Read the current baseline and next implementation queue above. Select the first
 ready incomplete output; do not restart completed baseline repairs or treat older
