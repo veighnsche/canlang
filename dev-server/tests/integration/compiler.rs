@@ -62,10 +62,11 @@ fn accepts_only_source_bound_artifact_and_exit_ten_diagnostics() {
     ));
     compiler_output(root.path(), &artifact("wrong"), 0);
     let captured = capture::capture(&request, &empty_inventory, &cancel).unwrap();
-    assert!(matches!(
-        compile(&captured, &empty_inventory, &cancel, &|_| {}),
-        CompileResult::CaptureIncomplete { .. }
-    ));
+    let result = compile(&captured, &empty_inventory, &cancel, &|_| {});
+    assert!(
+        matches!(result, CompileResult::CaptureIncomplete { ref reason } if reason.contains("source_hash_mismatch")),
+        "{result:?}"
+    );
 }
 
 #[test]
