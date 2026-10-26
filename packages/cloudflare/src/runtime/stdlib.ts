@@ -74,8 +74,8 @@ export { observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, read
 
 // Generated pure helpers retain their Values producer identity.
 export {
-  ValueError, int64, datetime, compareInstant, addDuration, subtractDuration, overlaps, abs, all, any, at, sum, min, max, join, trim, starts_with, compareScalar, choose, concat, flatten, group, format,
-  parseDecimal, addDecimal, compareDecimal, multiplyDecimal, money, addMoney, subtractMoney, negateMoney, multiplyMoney, compareMoney, equalMoney,
+  ValueError, action, int64, datetime, compareInstant, addDuration, subtractDuration, overlaps, abs, all, any, at, sum, min, max, join, trim, starts_with, compareScalar, choose, concat, flatten, group, format, lower, round,
+  parseDecimal, addDecimal, subtractDecimal, compareDecimal, multiplyDecimal, divideDecimal, money, addMoney, subtractMoney, negateMoney, multiplyMoney, compareMoney, equalMoney,
   divideDurationMs, remainderDuration, multiplyDuration, durationBetween, first,
   date, add_days, add_months, date_year, local_date, local_instant, compareDate, dates, weekday, decodeValue, encodeValue, normalizeSchema, makeMessageDescriptor,
 } from '@canlang/values';
