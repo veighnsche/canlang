@@ -1392,11 +1392,85 @@ fn source_require_only_body_supported(
             _ => false,
         }
     }
-    fn expression(ir: &IrProgram, value: &TypedExpr, depth: usize, staged: &HashSet<Span>) -> bool {
+    /// Admit exactly the bare-collection argument of an independently
+    /// disclosed contained COUNT by invoking the existing checked proof
+    /// (`scenario_receipts::checked_count_query_ir`) on the actual
+    /// enclosing original CREATEs. The proof owns every source/IR
+    /// identity: exact outer call, inner domain, model, slots, statement
+    /// CREATE, target, overload/lineage/source, census, authored member,
+    /// parent and schema. Exactly one original may prove a call; zero or
+    /// several refuse. All other bare navigations stay refused.
+    fn admitted_bare_count_call(
+        ir: &IrProgram,
+        owner: &IrItem,
+        db: Option<&crate::source::SourceDb>,
+        value: &TypedExpr,
+    ) -> bool {
+        let target = match &value.expr {
+            IrExpr::Call { target, args } => {
+                if args.len() != 1 {
+                    return false;
+                }
+                target
+            }
+            IrExpr::BoundCall { target, args, .. } => {
+                if args.len() != 1 {
+                    return false;
+                }
+                target
+            }
+            _ => return false,
+        };
+        if !matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "count") {
+            return false;
+        }
+        if value.ty != ResolvedType::Scalar(Scalar::Int) {
+            return false;
+        }
+        let Some(db) = db else {
+            return false;
+        };
+        let node = crate::analysis::NodeKey {
+            file: value.span.file,
+            start: value.span.start,
+            end: value.span.end,
+            kind: crate::syntax::SyntaxKind::Call as u8,
+        };
+        let Some(facts) = ir
+            .scenario_disclosures
+            .get(&owner.id)
+            .and_then(|proof| proof.source_facts())
+        else {
+            return false;
+        };
+        let Some(creates) = facts.creates.as_deref() else {
+            return false;
+        };
+        let mut hits = 0;
+        for original in creates {
+            if super::scenario_receipts::checked_count_query_ir(ir, original, value, node, db)
+                .is_some()
+            {
+                hits += 1;
+                if hits > 1 {
+                    return false;
+                }
+            }
+        }
+        hits == 1
+    }
+    fn expression(
+        ir: &IrProgram,
+        owner: &IrItem,
+        db: Option<&crate::source::SourceDb>,
+        value: &TypedExpr,
+        depth: usize,
+        staged: &HashSet<Span>,
+    ) -> bool {
         if depth > 64 {
             return false;
         }
-        let child = |value: &TypedExpr| expression(ir, value, depth + 1, staged);
+        let child = |value: &TypedExpr| expression(ir, owner, db, value, depth + 1, staged);
         match &value.expr {
             IrExpr::Int(_)
             | IrExpr::Decimal(_)
@@ -1507,7 +1581,12 @@ fn source_require_only_body_supported(
                 target: IrCallTarget::Builtin { awaited: false, .. },
                 args,
                 ..
-            } => args.iter().all(child),
+            } => {
+                if admitted_bare_count_call(ir, owner, db, value) {
+                    return true;
+                }
+                args.iter().all(child)
+            }
             IrExpr::Binary { left, right, .. } => child(left) && child(right),
             IrExpr::Unary { operand, .. } => child(operand),
             IrExpr::Array(values) => values.iter().all(child),
@@ -1678,6 +1757,16 @@ fn source_require_only_body_supported(
                             } else {
                                 Scalar::Int
                             })
+                    // An exact param-rooted containment-parent chain reads an
+                    // immutable admitted-snapshot pointer, the same trust
+                    // class as id/version. The full value (not just the base)
+                    // is proved so the target type and every declared
+                    // containment edge stay validated. Staged CREATE parents
+                    // are still re-verified at runtime against the admitted
+                    // query parent (constructor COUNT) or created-root
+                    // capture.
+                    || field == "parent"
+                        && constructor_reference(ir, value, records, 0)
             }
             IrExpr::Member { base, .. } => child(base),
             IrExpr::Object(fields) => fields.iter().all(|(_, value)| child(value)),
@@ -1709,6 +1798,7 @@ fn source_require_only_body_supported(
         if depth > 64 {
             return false;
         }
+        let db = context.map(|context| context.db());
         body.iter().all(|statement| match statement {
             IrStmt::For{span,body,..}=>loops.get(&owner.canonical).and_then(|source|source["loops"].as_array()).is_some_and(|entries|
                 entries.iter().any(|entry|entry["node"]["start"]==span.start&&entry["node"]["end"]==span.end))
@@ -1718,24 +1808,24 @@ fn source_require_only_body_supported(
                     if !matches!(scalar,Scalar::File|Scalar::Secret|Scalar::Member|Scalar::Json|Scalar::Bytes))
                     ||matches!(value.ty.nullable_inner().unwrap_or(&value.ty),ResolvedType::Enum{..});
                 let pure=send_value(ir,value,values,0)||let_data.contains_key(span)
-                    ||scalar&&expression(ir,value,0,staged)&&constructor_data(ir,value,let_data,values,records,0);
+                    ||scalar&&expression(ir,owner,db,value,0,staged)&&constructor_data(ir,value,let_data,values,records,0);
                 values.remove(name);
                 records.remove(name);
                 if pure{values.insert(name.clone());}
-                expression(ir,value,0,staged)
+                expression(ir,owner,db,value,0,staged)
             },
-            IrStmt::Return { value, .. } => value.as_ref().is_none_or(|value| expression(ir, value, 0, staged)),
-            IrStmt::Create { input, when: None, .. } => expression(ir, input, 0, staged)&&constructor_data(ir,input,let_data,values,records,0),
+            IrStmt::Return { value, .. } => value.as_ref().is_none_or(|value| expression(ir, owner, db, value, 0, staged)),
+            IrStmt::Create { input, when: None, .. } => expression(ir, owner, db, input, 0, staged)&&constructor_data(ir,input,let_data,values,records,0),
             IrStmt::Send { args, when: None, span,.. } => send_value(ir,args,values,0)||data_sends.contains_key(span),
             IrStmt::Emit { event,payload,span } => data_emits.contains_key(span)||source_event_payload(ir,owner,event,payload,values,records,context),
             IrStmt::Cancel {span,..}=>cancels.contains_key(span),
             IrStmt::Schedule{span,..}=>schedules.contains_key(span),
-            IrStmt::Set { record, changes, when: None, .. } => expression(ir, record, 0, staged) && expression(ir, changes, 0, staged),
-            IrStmt::Delete { record, .. } | IrStmt::Transition { record, .. } => expression(ir, record, 0, staged),
-            IrStmt::Require { cond, .. } => consumed.contains(&cond.span) || expression(ir, cond, 0, staged),
-            IrStmt::If { cond, then_branch, else_branch, .. } => (consumed.contains(&cond.span)||expression(ir, cond, 0, staged))
+            IrStmt::Set { record, changes, when: None, .. } => expression(ir, owner, db, record, 0, staged) && expression(ir, owner, db, changes, 0, staged),
+            IrStmt::Delete { record, .. } | IrStmt::Transition { record, .. } => expression(ir, owner, db, record, 0, staged),
+            IrStmt::Require { cond, .. } => consumed.contains(&cond.span) || expression(ir, owner, db, cond, 0, staged),
+            IrStmt::If { cond, then_branch, else_branch, .. } => (consumed.contains(&cond.span)||expression(ir, owner, db, cond, 0, staged))
                 && statements(ir,owner, then_branch, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context,staged) && statements(ir,owner, else_branch, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context,staged),
-            IrStmt::Match { subject, arms, .. } => expression(ir, subject, 0, staged)
+            IrStmt::Match { subject, arms, .. } => expression(ir, owner, db, subject, 0, staged)
                 && arms.iter().all(|arm| statements(ir,owner, &arm.body, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,let_data,cancels,schedules,data_emits,loops,context,staged)),
             _ => false,
         })
