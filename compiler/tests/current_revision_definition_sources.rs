@@ -6,6 +6,7 @@ use canlang_compiler::analysis::{CheckedProgram, NodeKey, ResolvedType, check_pr
 use canlang_compiler::codegen::{ir, js};
 use canlang_compiler::source::{SourceDb, Span};
 use canlang_compiler::syntax::SyntaxKind;
+use sha2::Digest;
 
 fn source() -> String {
     // Preserve the original Template/Revision declaration, rules, locks and
@@ -16,6 +17,20 @@ fn source() -> String {
             "Run {revision:Revision,digest:text,outputs:int,duration:duration,workflow:WorkflowDefinition}")
         .replace("   create Run {revision,digest=validation,outputs=revision.outputs,duration=revision.duration} as run",
             "   let workflow=revision.definition\n   create Run {revision,digest=validation,outputs=revision.outputs,duration=revision.duration,workflow} as run")
+}
+
+fn contract_field_pairs(contract: &serde_json::Value) -> Vec<(&str, &str)> {
+    contract["fields"]
+        .as_array()
+        .expect("contract fields")
+        .iter()
+        .map(|field| {
+            (
+                field["name"].as_str().expect("field name"),
+                field["type"].as_str().expect("field type"),
+            )
+        })
+        .collect()
 }
 
 fn checked(source: &str) -> (SourceDb, CheckedProgram, ir::IrProgram, Catalog) {
@@ -104,12 +119,15 @@ fn original_definition_read_retains_canonical_type_field_and_captured_lineage() 
                 .any(|read| read.field_name == "current" && read.role == DependencyRole::Data)
         );
     }
+    // The raw helper lacks prepared source/decision/feasibility context, so
+    // it cannot compose the prepared nominal receipt below; its refusal is
+    // harness behavior, not the production pipeline verdict.
     assert!(
         js::emit_program_with_native_source_receipts(&ir, true, &db)
             .diagnostics
             .iter()
             .any(|diagnostic| diagnostic.code == "E6008"),
-        "source schema does not provide native nominal receiving"
+        "raw unprepared emission still refuses native nominal receiving"
     );
     let scratch = tempfile::tempdir().unwrap();
     let input = scratch.path().join("current-definition.can");
@@ -129,17 +147,144 @@ fn original_definition_read_retains_canonical_type_field_and_captured_lineage() 
         .env_remove("CAN_CATALOG")
         .output()
         .unwrap();
-    assert_eq!(output.status.code(), Some(10));
+    // The prepared production pipeline receives the current-revision nominal
+    // with its complete dependency lineage. Assert the structured artifact:
+    // usable modules, exact source record, canonical nominal closure, model
+    // receiving declarations and the sourced DATA stamps.
+    assert_eq!(output.status.code(), Some(0));
     let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(report["complete"], true);
-    assert!(report.get("modules").is_none());
-    assert!(
-        report["diagnostics"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|diagnostic| diagnostic["code"] == "E6008")
+    assert!(report.get("diagnostics").is_none(), "no error diagnostics");
+    let expected_sha = format!("{:x}", sha2::Sha256::digest(source.as_bytes()));
+    let sources = report["sources"].as_array().expect("source record");
+    assert_eq!(sources.len(), 1);
+    assert_eq!(
+        sources[0]["path"].as_str().expect("source path"),
+        input.to_str().expect("input path")
     );
+    assert_eq!(
+        sources[0]["sha256"].as_str().expect("source sha"),
+        expected_sha
+    );
+    let modules = report["modules"].as_array().expect("emitted modules");
+    assert_eq!(modules.len(), 1);
+    let js = modules[0]["js"].as_str().expect("emitted js");
+    for marker in [
+        "bindScenarioReceiptModelResult",
+        "selectScenarioReceiptReturn",
+        "readScenarioReceiptNullableStoredReference",
+    ] {
+        assert!(js.contains(marker), "missing receipt marker {marker}");
+    }
+    let contracts = report["valueTypes"]["contracts"]
+        .as_array()
+        .expect("nominal closure");
+    let contract = |name: &str| {
+        contracts
+            .iter()
+            .find(|contract| contract["name"] == name)
+            .unwrap_or_else(|| panic!("missing contract {name}"))
+            .clone()
+    };
+    assert_eq!(
+        contract_field_pairs(&contract("WorkflowDefinition")),
+        [
+            ("graph", "file"),
+            ("prompt", "WorkflowInput"),
+            ("negative", "WorkflowInput"),
+            ("width", "WorkflowInput"),
+            ("height", "WorkflowInput"),
+        ]
+    );
+    assert_eq!(
+        contract_field_pairs(&contract("WorkflowInput")),
+        [("node", "text"), ("key", "text")]
+    );
+    let models = report["models"].as_array().expect("model declarations");
+    let model = |name: &str| {
+        models
+            .iter()
+            .find(|model| model["name"] == name)
+            .unwrap_or_else(|| panic!("missing model {name}"))
+            .clone()
+    };
+    let declared = |model: &serde_json::Value, field: &str| {
+        model["fields"]
+            .as_array()
+            .expect("model fields")
+            .iter()
+            .find(|entry| entry["name"] == field)
+            .unwrap_or_else(|| panic!("missing field {field}"))
+            .clone()
+    };
+    for (model_name, field_name) in [
+        ("SourceCurrentRevision.Revision", "definition"),
+        ("SourceCurrentRevision.Run", "workflow"),
+    ] {
+        let entry = declared(&model(model_name), field_name);
+        assert_eq!(entry["field"]["kind"], "nominal", "{field_name} kind");
+        assert_eq!(
+            entry["field"]["name"], "WorkflowDefinition",
+            "{field_name} nominal"
+        );
+        assert_eq!(
+            entry["valueType"], "WorkflowDefinition",
+            "{field_name} type"
+        );
+        assert_eq!(entry["required"], true, "{field_name} required");
+    }
+    let generate = report["operations"]
+        .as_array()
+        .expect("operations")
+        .iter()
+        .find(|operation| operation["name"] == "SourceCurrentRevision.generate")
+        .expect("generate operation")
+        .clone();
+    let returns = generate["result"]["disclosure"]["returns"]
+        .as_array()
+        .expect("result returns");
+    assert_eq!(returns.len(), 1);
+    let dependencies = returns[0]["dependencies"]
+        .as_array()
+        .expect("return dependencies");
+    let stamped = |model: &str, field: &str, role: &str, ty: &str| {
+        dependencies
+            .iter()
+            .find(|dependency| {
+                dependency["model"] == model
+                    && dependency["field"] == field
+                    && dependency["role"] == role
+                    && dependency["type"] == ty
+            })
+            .unwrap_or_else(|| panic!("missing dependency {model}.{field} {role} {ty}"))
+            .clone()
+    };
+    for dependency in [
+        stamped(
+            "SourceCurrentRevision.Revision",
+            "definition",
+            "data",
+            "WorkflowDefinition",
+        ),
+        stamped(
+            "SourceCurrentRevision.Template",
+            "current",
+            "data",
+            "SourceCurrentRevision.Revision",
+        ),
+    ] {
+        assert_eq!(
+            dependency["source"]["path"]
+                .as_str()
+                .expect("dependency path"),
+            input.to_str().expect("input path")
+        );
+        assert_eq!(
+            dependency["source"]["sha256"]
+                .as_str()
+                .expect("dependency sha"),
+            expected_sha
+        );
+    }
     let _catalog = catalog;
 }
 
