@@ -1,6 +1,6 @@
 //! Original required stored-reference scalar source closure. No native Profile view is fabricated.
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
-use canlang_compiler::analysis::effects::{EffectTables, check_effects};
+use canlang_compiler::analysis::effects::{EffectTables, EffectVerb, check_effects};
 use canlang_compiler::analysis::resolve::{self, Binding, SymbolKind};
 use canlang_compiler::analysis::scenario_disclosure::{
     CheckedScenarioDisclosure, DependencyRole, ScenarioDisclosure, analyze_scenario_disclosure,
@@ -555,6 +555,54 @@ fn original_required_profile_source_binding_types_schema_and_defaults_cannot_be_
                     "copied alias keeps its original required reference and field dependency"
                 }
             );
+            if case == 0 {
+                let profile = resolve.by_canonical["SourceProfileScalars.Profile"];
+                let system_prompt =
+                    resolve.by_canonical["SourceProfileScalars.Profile.system_prompt"];
+                // Exact alias identity: one top-level `let copied=branch.profile`
+                // whose value is the original required stored reference.
+                let copied = effects
+                    .scenarios
+                    .get(&owner)
+                    .expect("scenario")
+                    .effects
+                    .iter()
+                    .find(|effect| {
+                        effect.verb == EffectVerb::Let
+                            && effect.binding.as_deref() == Some("copied")
+                    })
+                    .expect("copied alias LET");
+                let value = copied.value.expect("copied alias value");
+                assert_eq!(text(&db, value), "branch.profile");
+                assert_eq!(
+                    types.node_types.get(&value),
+                    Some(&ResolvedType::Record {
+                        symbol: profile,
+                        stored: true
+                    }),
+                    "copied alias keeps the original required stored reference"
+                );
+                // Exact field lineage: `copied.system_prompt` keeps the original
+                // Profile field, model and scalar type.
+                let leaf = *types
+                    .node_types
+                    .keys()
+                    .find(|node| {
+                        node.kind == SyntaxKind::Member as u8
+                            && text(&db, **node) == "copied.system_prompt"
+                    })
+                    .expect("copied leaf");
+                assert_eq!(
+                    types.node_types.get(&leaf),
+                    Some(&ResolvedType::Scalar(Scalar::Text)),
+                    "copied leaf keeps the original scalar type"
+                );
+                assert_eq!(
+                    types.node_types.get(&leaf),
+                    types.symbol_types.get(&system_prompt),
+                    "copied leaf keeps the original field type"
+                );
+            }
         }
     }
 }

@@ -7493,6 +7493,27 @@ fn original_prepare_branch_counts_keep_independent_current_domains() {
         operation["result"]["disclosure"].is_object(),
         "loop-first owner keeps its real native receipt at the advanced stage"
     );
+    // A COUNT in a later sequential conditional stays reachable past a
+    // preceding conditional that does not contain it: the walk keeps the
+    // original effect order instead of stopping at the first if.
+    let sequential = looped.replacen("    else\n", "    if booking.allowance==reserved\n", 1);
+    let (db, program, ir, catalog) = fixture_source(
+        "rent-prepare-branch-count-sequential.can",
+        sequential.as_str(),
+    );
+    let _owner = item(&ir, "rent_reservations.prepare");
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let operation = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|value| value["name"] == "rent_reservations.prepare")
+        .unwrap();
+    assert!(
+        operation["result"]["disclosure"].is_object(),
+        "sequential-if owner keeps its real native receipt at the advanced stage"
+    );
 }
 
 #[test]

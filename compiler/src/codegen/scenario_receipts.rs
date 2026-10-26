@@ -11281,7 +11281,12 @@ fn constructor_count_source(
                     if native_count_create_input(else_branch, target).is_some() {
                         return at_stage(else_branch, target, stage, depth + 1, disclosed);
                     }
-                    return None;
+                    // A preceding conditional that does not contain the COUNT
+                    // create contributes no stage of its own: the walk keeps
+                    // the original effect order and later siblings stay
+                    // reachable. Executions that reach the target through a
+                    // taken arm of this conditional fail closed at the
+                    // runtime stage check instead of commuting effects.
                 }
                 IrStmt::For { body, span, .. } => {
                     // A preceding selected-profile/command loop advances the
