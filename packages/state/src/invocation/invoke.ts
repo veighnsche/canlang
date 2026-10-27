@@ -29,6 +29,7 @@ import { captureSourceReadPolicies, type ViewerSourceReadPolicy } from '../query
 import type { InstalledSourceQueryPredicate } from '../receipt/read-policy-membership.js';
 import { buildContext, type ClockPort } from './context.js';
 import { StateError, storageToStateError } from '../errors.js';
+import { deepFreeze } from '../internal/own-data.js';
 import { stageEffectsStaging } from '../effects/staging.js';
 import { checkFanoutChildId } from '../fanout/cohort.js';
 import { FenceConflictError, StorageConstraintError } from '../storage/port.js';
@@ -90,7 +91,28 @@ const scenarioExecutions = new WeakMap<AdmittedCall, {
   readonly inputs: AdmittedCall['inputs']; readonly inputsSnapshot: AdmittedCall['inputs'];
   readonly recordRefs: AdmittedCall['recordRefs']; readonly recordRefsSnapshot: AdmittedCall['recordRefs'];
   readonly inputHash: string;
+  verified: { readonly context: unknown; readonly checkpoint: unknown; readonly inputs: unknown; readonly recordRefs: unknown } | null;
 }>();
+
+/** Stabilizes one admitted execution scope for the assertion witness below.
+ * The deep admission compares stay meaningful only while the live scope
+ * cannot change under them: accessors, cycles-through-getters or exotic
+ * states refuse loudly here, and everything else freezes, so a later
+ * same-reference observation is provably identical to its passing check.
+ * Functions are compared by identity and need no traversal. */
+function freezeExecutionScope(value: unknown, seen: Set<object> = new Set()): void {
+  if (value === null || typeof value !== 'object') return;
+  if (seen.has(value)) return;
+  seen.add(value);
+  for (const key of Reflect.ownKeys(value)) {
+    const member = Object.getOwnPropertyDescriptor(value, key);
+    if (member === undefined || !('value' in member)) {
+      throw new StateError('validation', 'Scenario admission requires immutable own-data execution scope.');
+    }
+    freezeExecutionScope(member.value, seen);
+  }
+  deepFreeze(value);
+}
 
 /** Keep the accepted plain/null own-data prototypes. structuredClone erases
  * null prototypes, which would make an unchanged admitted value look stale.
@@ -139,15 +161,24 @@ export function assertScenarioReceiptExecution(call: AdmittedCall, store: Storag
     const descriptor = Object.getOwnPropertyDescriptor(call, key);
     return descriptor !== undefined && 'value' in descriptor ? descriptor.value : undefined;
   };
+  const live = { context: member('context'), checkpoint: member('checkpoint'), inputs: member('inputs'), recordRefs: member('recordRefs') };
   if (!activeAdmittedExecutions.has(call) || active === undefined || active.store !== store ||
-      active.def !== member('def') || active.context !== member('context') || active.revision !== member('revision') || member('replay') !== null) {
+      active.def !== member('def') || active.context !== live.context || active.revision !== member('revision') || member('replay') !== null) {
     throw new StateError('forbidden', 'Scenario observation requires its active admitted invocation and owning store.');
   }
-  if (!sameExecutionData(member('context'), active.contextSnapshot) || !sameExecutionData(member('checkpoint'), active.checkpointSnapshot) ||
-      active.inputs !== member('inputs') || active.recordRefs !== member('recordRefs') || active.inputHash !== member('inputHash') ||
-      !sameExecutionData(member('inputs'), active.inputsSnapshot) || !sameExecutionData(member('recordRefs'), active.recordRefsSnapshot)) {
+  // Same-reference observations repeat an already-passing deep check: the
+  // registration freeze below makes live scope contents unchangeable, so only
+  // a changed reference can change the verdict, and changed references take
+  // the full check. The cheap identity pins above keep their exact errors.
+  const proven = active.verified;
+  if (proven !== null && proven.context === live.context && proven.checkpoint === live.checkpoint &&
+      proven.inputs === live.inputs && proven.recordRefs === live.recordRefs) return;
+  if (!sameExecutionData(live.context, active.contextSnapshot) || !sameExecutionData(live.checkpoint, active.checkpointSnapshot) ||
+      active.inputs !== live.inputs || active.recordRefs !== live.recordRefs || active.inputHash !== member('inputHash') ||
+      !sameExecutionData(live.inputs, active.inputsSnapshot) || !sameExecutionData(live.recordRefs, active.recordRefsSnapshot)) {
     throw new StateError('forbidden', 'Scenario observation requires unchanged admitted scope, checkpoint, inputs, references and raw hash.');
   }
+  active.verified = live;
 }
 
 /** Internal call admission uses Invoke's real Identity reader, never a host
@@ -414,11 +445,19 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
       scenarioExecutionMemberships.set(call, input.memberships);
       try {
         const claimed = isGeneratedOperationDef(def) && (def.descriptor.result?.disclosure !== undefined || hasScenarioExecutionPlan(def));
+        // Stabilize the live scope once: later same-reference assertions then
+        // repeat a passing check without re-walking it. Any later scope
+        // mutation throws here instead of passing silently; changed references
+        // always take the full check in the assertion above.
+        freezeExecutionScope(call.context);
+        freezeExecutionScope(call.checkpoint);
+        freezeExecutionScope(call.inputs);
+        freezeExecutionScope(call.recordRefs);
         scenarioExecutions.set(call, { store: input.store, def: call.def, context: call.context, revision: call.revision,
           contextSnapshot: structuredClone(call.context), checkpointSnapshot: structuredClone(call.checkpoint),
           inputs: call.inputs, inputsSnapshot: claimed ? snapshotExecutionInputs(call.inputs) : structuredClone(call.inputs),
           recordRefs: call.recordRefs, recordRefsSnapshot: claimed ? snapshotExecutionInputs(call.recordRefs) : structuredClone(call.recordRefs),
-          inputHash: call.inputHash });
+          inputHash: call.inputHash, verified: null });
         beginScenarioReceiptExecution(call, input.store);
         raw = await input.execute(call);
         if (ownerMembershipLedgers.has(call)) assertScenarioReceiptExecution(call, input.store);
