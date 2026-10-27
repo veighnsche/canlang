@@ -13,6 +13,13 @@ export interface SodaSetupReceipt {
   storageFingerprint:string;ownerTeam:string;completedAt:number;
 }
 export interface SodaSetupOptions {dataDir:string;tokenFile:string;receiptFile:string;host:string;port:number}
+/** Private refusals; carry no token, credential, or context detail. Conflict
+ * covers a foreign, incomplete, or otherwise mismatched claim; unclaimed
+ * covers a store with no committed claim and no conflicting identity. */
+export const SODA_SETUP_RECONCILE_REFUSAL='Setup reconciliation refused.';
+export const SODA_SETUP_RECONCILE_UNCLAIMED='Setup reconciliation found no committed claim.';
+function refuse():never{throw new Error(SODA_SETUP_RECONCILE_REFUSAL);}
+function refuseUnclaimed():never{throw new Error(SODA_SETUP_RECONCILE_UNCLAIMED);}
 
 async function privateJSON(path:string):Promise<unknown>{
   if(!isAbsolute(path))throw new Error('Setup file must have an absolute path');
@@ -112,4 +119,51 @@ export async function startSodaSetup(input:SodaBundle,options:SodaSetupOptions):
   catch(error){await dispose();throw error;}
   void provision.failed.then(async()=>{process.exitCode=1;await dispose();});
   return {origin,dispose};
+}
+
+/** Private receipt-only reconstruction of a setup interrupted after its
+ * owner claim committed. Holds the real writer lock across the whole
+ * check→reconstruct→save so a retained receipt can neither be observed
+ * half-written nor replaced under a concurrent claim. Claim-read-first
+ * through a separate private inspection route that reaches no
+ * owner-creation and no claim-rewrite primitive: an expired admission WITH
+ * a matching durable claim reconstructs its receipt from that record (no
+ * re-admission, no new owner, no expiry extension, no credentials — the
+ * host retains only password hashes, so none are invented); an expired
+ * admission WITHOUT a claim refuses as unclaimed. A foreign token,
+ * operation, or application, an incomplete or orphaned claim, or a
+ * populated store without a matching claim refuses as conflict. Empty
+ * storage refuses as unclaimed and creates nothing — rotation stays with
+ * an explicit setup. The returned completion is validated positive and
+ * within the retained expiry before anything is written. Writes only the
+ * receipt file; the token file is read, never replaced. */
+export async function reconcileSodaSetupReceipt(input:SodaBundle,options:SodaSetupOptions):Promise<SodaSetupReceipt>{
+  try{
+    const token=await privateJSON(options.tokenFile) as SetupToken;
+    if(typeof token!=='object'||token===null||Object.keys(token).sort().join(',')!=='expires_at,operation,token'||
+      typeof token.operation!=='string'||!/^[A-Za-z0-9._:-]{1,160}$/.test(token.operation)||
+      typeof token.token!=='string'||token.token.length<32||token.token.length>512||
+      !Number.isSafeInteger(token.expires_at))
+      refuse();
+    await receiptDirectory(options.receiptFile);
+    const tokenBytes=Buffer.from(token.token);
+    const context={app:input.descriptor.identity.appName,artifactDigest:input.descriptor.identity.artifactDigest,
+      bundleDigest:input.bundle.mixedSha256,storageFingerprint:input.storageFingerprint};
+    const contextJSON=JSON.stringify(context);
+    const provision=await provisionSodaStorage(input,options.dataDir);
+    try{
+      const result=await provision.dispatchUrl('https://private.invalid/setup/receipt',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({receipt:{operation:token.operation,tokenHash:createHash('sha256').update(tokenBytes).digest('hex'),context:contextJSON}})});
+      if(result.status===404)refuseUnclaimed();
+      if(!result.ok)refuse();
+      const claim=await result.json() as {teamId:string;completedAt:number};
+      if(!/^[a-f0-9-]{36}$/i.test(claim.teamId)||!Number.isSafeInteger(claim.completedAt)||claim.completedAt<=0||claim.completedAt>token.expires_at)refuse();
+      const receipt:SodaSetupReceipt={schema:'canlang.soda.setup.v1',operation:token.operation,...context,ownerTeam:claim.teamId,completedAt:claim.completedAt};
+      await saveReceipt(options.receiptFile,receipt);
+      return receipt;
+    }finally{await provision.dispose();}
+  }catch(error){
+    if(error instanceof Error&&(error.message===SODA_SETUP_RECONCILE_REFUSAL||error.message===SODA_SETUP_RECONCILE_UNCLAIMED))throw error;
+    refuse();
+  }
 }

@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Miniflare } from 'miniflare';
 import { it } from 'vitest';
-import { bootstrapD1Owner, bootstrapD1SetupOwner, addD1TeamMember } from '@canlang/identity';
+import { bootstrapD1Owner, bootstrapD1SetupOwner, addD1TeamMember, readD1SetupReceipt, IdentityError } from '@canlang/identity';
 import { ensureIdentitySchema, type IdentityD1Database, type IdentityD1BoundStatement } from '@canlang/identity';
 
 import { createD1IdentityStore, createOpaqueToken, deriveCsrfToken, hashPassword, inviteMember, inviteMemberWithReceipt, acceptInvitation, setMemberRole } from '@canlang/identity';
@@ -122,6 +122,108 @@ it('rolls back the consumed setup claim with all owner facts and refuses expired
     for (const rows of Object.values(saved)) assert.equal((rows as unknown[]).length, 1);
     assert.deepEqual(await bootstrapD1SetupOwner(db, credentials, setup), retried);
     assert.deepEqual(await setupSnapshot(db), saved);
+    // An orphaned setup claim (no owner behind it) refuses without creating or adopting.
+    await db.prepare('DELETE FROM identity_users').bind().run();
+    assert.equal((await db.prepare('SELECT * FROM identity_users').bind().all()).results.length, 0);
+    const orphaned = await setupSnapshot(db);
+    await assert.rejects(bootstrapD1SetupOwner(db, credentials, setup), /populated|incomplete/);
+    assert.deepEqual(await setupSnapshot(db), orphaned, 'an incomplete claim is refused without adopting or resetting it');
+  } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
+}, 30_000);
+
+it('refuses a setup claim orphaned from any owner without creating or adopting it', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-owner-setup-orphan-'));
+  const runtime = new Miniflare(options(directory));
+  try {
+    const db = await runtime.getD1Database('IDENTITY');
+    await ensureIdentitySchema(db);
+    const orphan = { operation: randomUUID(), tokenHash: 'd'.repeat(64),
+      context: JSON.stringify({ app: 'OrphanedSetup', origin: 'https://setup.example.invalid' }),
+      expiresAt: Math.floor(Date.now() / 1000) + 300 };
+    await db.prepare('INSERT INTO identity_setup_claim (slot, operation, token_hash, context, completed_at) VALUES (1, ?, ?, ?, ?)')
+      .bind(orphan.operation, orphan.tokenHash, orphan.context, Math.floor(Date.now() / 1000)).run();
+    assert.equal((await db.prepare('SELECT * FROM identity_bootstrap_claim').bind().all()).results.length, 0);
+    const before = await setupSnapshot(db);
+    await assert.rejects(bootstrapD1SetupOwner(db, credentials, orphan), /populated|incomplete/);
+    assert.deepEqual(await setupSnapshot(db), before, 'an orphaned claim is refused without adopting or resetting it');
+    await assert.rejects(bootstrapD1SetupOwner(db, credentials, { ...orphan, operation: randomUUID() }), /populated|incomplete|different/);
+    assert.deepEqual(await setupSnapshot(db), before, 'a different admission cannot adopt the orphan either');
+  } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
+}, 30_000);
+
+it('inspects a committed setup claim read-only, distinguishing unclaimed from conflicting stores', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-setup-receipt-inspect-'));
+  const runtime = new Miniflare(options(directory));
+  try {
+    const db = await runtime.getD1Database('IDENTITY');
+    const setup = { operation: randomUUID(), tokenHash: 'e'.repeat(64),
+      context: JSON.stringify({ app: 'ReceiptInspection', origin: 'https://receipt.example.invalid' }),
+      expiresAt: Math.floor(Date.now() / 1000) + 300 };
+    const tables = async () =>
+      (await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'identity_%'").all()).results;
+    // No schema at all: proven unclaimed — and the read creates no tables.
+    await assert.rejects(readD1SetupReceipt(db, setup),
+      error => error instanceof IdentityError && error.code === 'not_found');
+    assert.deepEqual(await tables(), []);
+    // Schema but empty: still proven unclaimed.
+    await ensureIdentitySchema(db);
+    await assert.rejects(readD1SetupReceipt(db, setup),
+      error => error instanceof IdentityError && error.code === 'not_found');
+    const owner = await bootstrapD1SetupOwner(db, credentials, setup);
+    assert.ok(owner.completedAt > 0);
+    const saved = await setupSnapshot(db);
+    // A committed claim reads back without credentials and without expiry input.
+    assert.deepEqual(await readD1SetupReceipt(db, setup), { teamId: owner.teamId, completedAt: owner.completedAt });
+    assert.deepEqual(await setupSnapshot(db), saved, 'inspection performs no writes');
+    // Foreign admission key parts conflict without changing the durable claim.
+    for (const foreign of [{ ...setup, operation: randomUUID() }, { ...setup, tokenHash: 'f'.repeat(64) },
+      { ...setup, context: JSON.stringify({ app: 'OtherApplication', origin: 'https://receipt.example.invalid' }) }]) {
+      await assert.rejects(readD1SetupReceipt(db, foreign),
+        error => error instanceof IdentityError && error.code === 'conflict');
+    }
+    await assert.rejects(readD1SetupReceipt(db, { ...setup, tokenHash: 'short' }),
+      error => error instanceof IdentityError && error.code === 'validation');
+    assert.deepEqual(await setupSnapshot(db), saved);
+    // A zeroed completion conflicts rather than reconstructing a bad receipt.
+    await db.prepare('UPDATE identity_setup_claim SET completed_at = 0').bind().run();
+    await assert.rejects(readD1SetupReceipt(db, setup),
+      error => error instanceof IdentityError && error.code === 'conflict');
+    await db.prepare('UPDATE identity_setup_claim SET completed_at = ?').bind(owner.completedAt).run();
+    assert.deepEqual(await readD1SetupReceipt(db, setup), { teamId: owner.teamId, completedAt: owner.completedAt });
+    // An orphaned claim (no owner behind it) conflicts without adopting or resetting.
+    const orphaned = await setupSnapshot(db);
+    await db.prepare('DELETE FROM identity_users').bind().run();
+    await assert.rejects(readD1SetupReceipt(db, setup),
+      error => error instanceof IdentityError && error.code === 'conflict');
+    assert.deepEqual((await db.prepare('SELECT * FROM identity_setup_claim').bind().all()).results,
+      orphaned.identity_setup_claim, 'an orphaned claim is refused without resetting it');
+  } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
+}, 30_000);
+
+it('refuses inspection on populated identity data without a matching setup claim', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-setup-receipt-populated-'));
+  const runtime = new Miniflare(options(directory));
+  try {
+    const db = await runtime.getD1Database('IDENTITY');
+    await bootstrapD1Owner(db, credentials);
+    const before = await setupSnapshot(db);
+    const setup = { operation: randomUUID(), tokenHash: 'e'.repeat(64),
+      context: JSON.stringify({ app: 'ReceiptInspection', origin: 'https://receipt.example.invalid' }),
+      expiresAt: Math.floor(Date.now() / 1000) + 300 };
+    // Owner rows exist but no setup claim: populated, never proven unclaimed.
+    await assert.rejects(readD1SetupReceipt(db, setup),
+      error => error instanceof IdentityError && error.code === 'conflict');
+    assert.deepEqual(await setupSnapshot(db), before);
+    // A legacy, populated, or damaged store without the claim table at all
+    // must still conflict: a missing claim table alone never certifies
+    // unclaimed. Only a verified-empty store may report not_found.
+    await db.exec('DROP TABLE identity_setup_claim');
+    await assert.rejects(readD1SetupReceipt(db, setup),
+      error => error instanceof IdentityError && error.code === 'conflict');
+    const afterDrop = await snapshot(db);
+    for (const table of ['identity_bootstrap_claim', 'identity_users', 'identity_teams', 'identity_memberships'])
+      assert.deepEqual(afterDrop[table], (before as Record<string, unknown>)[table],
+        'dropping the claim table changes no other identity row');
   } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
 }, 30_000);
 

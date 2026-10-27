@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { createServer } from 'node:net';
 import { createRequire } from 'node:module';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { chmod, lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
@@ -119,6 +119,265 @@ it('recovers the original native setup after initial receipt publication fails a
     assert.deepEqual(await bootstrapOwner(admin, credentials), { userId: original.userId, teamId: original.teamId });
   } finally { await setup?.dispose(); await admin?.dispose(); await rm(directory, { recursive: true, force: true }); }
 }, 60_000);
+
+it('reconstructs a missing receipt from the durable claim without credentials and refuses foreign, cross-app and conflicting replays', async () => {
+  const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
+  const { reconcileSodaSetupReceipt, SODA_SETUP_RECONCILE_REFUSAL, SODA_SETUP_RECONCILE_UNCLAIMED } = createRequire(import.meta.url)(
+    join(root, 'packages/cloudflare/dist/deploy/soda-setup.js')) as typeof import('../src/deploy/soda-setup.js');
+  const directory = await mkdtemp(join(root, '.can-soda-reconcile-'));
+  const input = compiledInput();
+  const token = { operation: randomUUID(), token: randomUUID() + randomUUID(), expires_at: Math.floor(Date.now() / 1000) + 300 };
+  const originalExpiry = token.expires_at;
+  // Admission-only material for the explicit commit below; reconcile itself
+  // takes no credentials — the host retains only hashes, so none are invented.
+  const credentials = { email: 'reconcile-owner@example.invalid', password: 'Synthetic reconcile recovery password', timezone: 'UTC' };
+  const dataDir = join(directory, 'data'), receiptFile = join(directory, 'receipt.json'), tokenFile = join(directory, 'token.json');
+  await mkdir(dataDir, { mode: 0o700 });
+  await writeFile(tokenFile, JSON.stringify(token), { mode: 0o600 });
+  const options = { dataDir, receiptFile, tokenFile, host: '127.0.0.1', port: 0 };
+  const context = JSON.stringify({ app: input.descriptor.identity.appName, artifactDigest: input.descriptor.identity.artifactDigest,
+    bundleDigest: input.bundle.mixedSha256, storageFingerprint: input.storageFingerprint });
+  const admission = { operation: token.operation, tokenHash: createHash('sha256').update(token.token).digest('hex'), context, expiresAt: token.expires_at };
+  let admin: Awaited<ReturnType<typeof provisionSodaStorage>> | undefined;
+  try {
+    // Empty storage refuses as unclaimed even with a valid admission — and creates nothing.
+    await assert.rejects(reconcileSodaSetupReceipt(input, options),
+      error => error instanceof Error && error.message === SODA_SETUP_RECONCILE_UNCLAIMED);
+    await assert.rejects(readFile(receiptFile, 'utf8'), /ENOENT/);
+    // Commit through the real private admission (the path explicit setup drives).
+    admin = await provisionSodaStorage(input, dataDir);
+    const committedResponse = await admin.dispatchUrl('https://private.invalid/setup', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...credentials, setup: admission }),
+    });
+    assert.equal(committedResponse.status, 200);
+    const original = await committedResponse.json() as { userId: string; teamId: string; completedAt: number };
+    await admin.dispose(); admin = undefined;
+    const committed = await reconcileSodaSetupReceipt(input, options);
+    assert.equal(committed.schema, 'canlang.soda.setup.v1');
+    assert.equal(committed.operation, token.operation);
+    assert.equal(committed.app, input.descriptor.identity.appName);
+    assert.equal(committed.ownerTeam, original.teamId);
+    assert.equal(committed.completedAt, original.completedAt);
+    assert.ok(committed.completedAt > 0 && committed.completedAt <= originalExpiry,
+      'the reconstructed completion is positive and within the retained expiry');
+    const bytes = await readFile(receiptFile, 'utf8');
+    assert.deepEqual(JSON.parse(bytes), committed);
+    assert.equal((await lstat(receiptFile)).mode & 0o7777, 0o600);
+    assert.ok(!bytes.includes(token.token) && !bytes.includes(credentials.password) && !bytes.includes(credentials.email));
+    // A crash loses the receipt file: the durable claim reconstructs it byte-identically.
+    await rm(receiptFile);
+    assert.deepEqual(await reconcileSodaSetupReceipt(input, options), committed);
+    assert.equal(await readFile(receiptFile, 'utf8'), bytes, 'missing-receipt recovery reconstructs the original bytes');
+    // Replay idempotency: never re-issued, never extended.
+    assert.deepEqual(await reconcileSodaSetupReceipt(input, options), committed);
+    assert.equal(await readFile(receiptFile, 'utf8'), bytes);
+    const refuses = async (run: () => Promise<unknown>) => {
+      await assert.rejects(run, error => error instanceof Error && error.message === SODA_SETUP_RECONCILE_REFUSAL);
+      assert.equal(await readFile(receiptFile, 'utf8'), bytes, 'a refused replay must not touch the retained receipt');
+    };
+    // A foreign token under the same operation cannot mint over the committed claim.
+    const foreignTokenFile = join(directory, 'foreign-token.json');
+    await writeFile(foreignTokenFile, JSON.stringify({ ...token, token: randomUUID() + randomUUID() }), { mode: 0o600 });
+    await refuses(() => reconcileSodaSetupReceipt(input, { ...options, tokenFile: foreignTokenFile }));
+    // A different operation with the same token bytes cannot adopt the claim either.
+    const adoptedTokenFile = join(directory, 'adopted-token.json');
+    await writeFile(adoptedTokenFile, JSON.stringify({ ...token, operation: randomUUID() }), { mode: 0o600 });
+    await refuses(() => reconcileSodaSetupReceipt(input, { ...options, tokenFile: adoptedTokenFile }));
+    // The same token against a different artifact cannot cross the exact app-context key.
+    const foreignSource = readFileSync(join(root, 'scripts/fixtures/soda-runtime.can'), 'utf8')
+      .replace('title="Soda runtime integration"', 'title="Foreign context title"');
+    const foreignApp = compiledInput(directory, foreignSource);
+    assert.notEqual(foreignApp.descriptor.identity.artifactDigest, input.descriptor.identity.artifactDigest);
+    assert.equal(foreignApp.storageFingerprint, input.storageFingerprint);
+    await refuses(() => reconcileSodaSetupReceipt(foreignApp, options));
+    // Refusals changed nothing durable: the retained admission still replays identically.
+    assert.deepEqual(await reconcileSodaSetupReceipt(input, options), committed);
+    assert.equal(await readFile(receiptFile, 'utf8'), bytes);
+    // Post-expiry reconstruction of this same claim is covered by the
+    // committed-then-expired test with genuine time-passing expiry.
+  } finally { await admin?.dispose(); await rm(directory, { recursive: true, force: true }); }
+}, 180_000);
+
+it('refuses an unclaimed store without creating an owner, leaving rotation to an explicit setup', async () => {
+  const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
+  const { reconcileSodaSetupReceipt, SODA_SETUP_RECONCILE_REFUSAL, SODA_SETUP_RECONCILE_UNCLAIMED } = createRequire(import.meta.url)(
+    join(root, 'packages/cloudflare/dist/deploy/soda-setup.js')) as typeof import('../src/deploy/soda-setup.js');
+  const { startSodaSetup } = createRequire(import.meta.url)(join(root, 'packages/cloudflare/dist/deploy/soda-setup.js')) as
+    typeof import('../src/deploy/soda-setup.js');
+  const directory = await mkdtemp(join(root, '.can-soda-reconcile-expired-'));
+  const input = compiledInput();
+  const dataDir = join(directory, 'data'), receiptFile = join(directory, 'receipt.json'), tokenFile = join(directory, 'token.json');
+  await mkdir(dataDir, { mode: 0o700 });
+  await writeFile(tokenFile, JSON.stringify({ operation: randomUUID(), token: randomUUID() + randomUUID(),
+    expires_at: Math.floor(Date.now() / 1000) - 30 }), { mode: 0o600 });
+  const options = { dataDir, receiptFile, tokenFile, host: '127.0.0.1', port: 0 };
+  // Proven-unclaimed and conflict are explicit distinct outcomes, not one refusal.
+  assert.notEqual(SODA_SETUP_RECONCILE_UNCLAIMED, SODA_SETUP_RECONCILE_REFUSAL);
+  const unclaimed = async () => {
+    await assert.rejects(reconcileSodaSetupReceipt(input, options),
+      error => error instanceof Error && error.message === SODA_SETUP_RECONCILE_UNCLAIMED);
+    await assert.rejects(readFile(receiptFile, 'utf8'), /ENOENT/, 'an unclaimed refusal writes no receipt');
+  };
+  let setup: Awaited<ReturnType<typeof startSodaSetup>> | undefined;
+  try {
+    // Expired without a claim: unclaimed, not conflict.
+    await unclaimed();
+    // Valid without a claim: still unclaimed — reconcile never commits an owner.
+    await writeFile(tokenFile, JSON.stringify({ operation: randomUUID(), token: randomUUID() + randomUUID(),
+      expires_at: Math.floor(Date.now() / 1000) + 300 }), { mode: 0o600 });
+    await unclaimed();
+    // The refused attempts created nothing: an explicit setup completes the same storage.
+    const reservation = createServer();
+    await new Promise<void>(resolve => reservation.listen(0, '127.0.0.1', resolve));
+    const address = reservation.address();
+    assert.ok(address && typeof address === 'object');
+    const port = address.port;
+    await new Promise<void>((resolve, reject) => reservation.close(error => error ? reject(error) : resolve()));
+    const fresh = { operation: randomUUID(), token: randomUUID() + randomUUID(), expires_at: Math.floor(Date.now() / 1000) + 300 };
+    await writeFile(tokenFile, JSON.stringify(fresh), { mode: 0o600 });
+    const freshCredentials = { email: 'rotation-owner@example.invalid', password: 'Synthetic rotation setup password', timezone: 'UTC' };
+    setup = await startSodaSetup(input, { ...options, port });
+    const claim = await fetch(`http://127.0.0.1:${port}/setup/claim`, { method: 'POST',
+      headers: { origin: input.environment.vars.CAN_AUTH_ORIGIN!, 'content-type': 'application/json' },
+      body: JSON.stringify({ operation: fresh.operation, token: fresh.token, ...freshCredentials }) });
+    assert.equal(claim.status, 200, 'rotation stays with an explicit setup after unclaimed refusals');
+    const receipt = await claim.json() as import('../src/deploy/soda-setup.js').SodaSetupReceipt;
+    assert.equal(receipt.operation, fresh.operation);
+    assert.deepEqual(JSON.parse(await readFile(receiptFile, 'utf8')), receipt);
+    await setup.dispose(); setup = undefined;
+  } finally { await setup?.dispose(); await rm(directory, { recursive: true, force: true }); }
+}, 120_000);
+
+it('reconstructs a committed receipt after token expiry without re-admission or a new owner', async () => {
+  const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
+  const { reconcileSodaSetupReceipt, SODA_SETUP_RECONCILE_REFUSAL } = createRequire(import.meta.url)(
+    join(root, 'packages/cloudflare/dist/deploy/soda-setup.js')) as typeof import('../src/deploy/soda-setup.js');
+  const directory = await mkdtemp(join(root, '.can-soda-reconcile-committed-expired-'));
+  const input = compiledInput();
+  const token = { operation: randomUUID(), token: randomUUID() + randomUUID(), expires_at: Math.floor(Date.now() / 1000) + 20 };
+  const originalExpiry = token.expires_at;
+  const credentials = { email: 'committed-expired@example.invalid', password: 'Synthetic committed expiry password', timezone: 'UTC' };
+  const dataDir = join(directory, 'data'), receiptFile = join(directory, 'receipt.json'), tokenFile = join(directory, 'token.json');
+  await mkdir(dataDir, { mode: 0o700 });
+  await writeFile(tokenFile, JSON.stringify(token), { mode: 0o600 });
+  const options = { dataDir, receiptFile, tokenFile, host: '127.0.0.1', port: 0 };
+  const context = JSON.stringify({ app: input.descriptor.identity.appName, artifactDigest: input.descriptor.identity.artifactDigest,
+    bundleDigest: input.bundle.mixedSha256, storageFingerprint: input.storageFingerprint });
+  const admission = { operation: token.operation, tokenHash: createHash('sha256').update(token.token).digest('hex'), context, expiresAt: token.expires_at };
+  let admin: Awaited<ReturnType<typeof provisionSodaStorage>> | undefined;
+  try {
+    admin = await provisionSodaStorage(input, dataDir);
+    const committedResponse = await admin.dispatchUrl('https://private.invalid/setup', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...credentials, setup: admission }),
+    });
+    assert.equal(committedResponse.status, 200);
+    const original = await committedResponse.json() as { userId: string; teamId: string; completedAt: number };
+    await admin.dispose(); admin = undefined;
+    const committed = await reconcileSodaSetupReceipt(input, options);
+    const bytes = await readFile(receiptFile, 'utf8');
+    // Genuine time-passing expiry: the retained file is untouched, only the
+    // clock moves past it — rewriting expires_at would falsify the artifact.
+    await new Promise(resolve => setTimeout(resolve, Math.max(0, (originalExpiry + 1) * 1000 - Date.now())));
+    assert.ok(Math.floor(Date.now() / 1000) > originalExpiry, 'the retained admission is genuinely expired');
+    // The token expires with the receipt still missing: reconstruction needs
+    // no re-admission and no credentials — only the durable record.
+    await rm(receiptFile);
+    assert.deepEqual(await reconcileSodaSetupReceipt(input, options), committed);
+    assert.equal(await readFile(receiptFile, 'utf8'), bytes, 'post-expiry reconstruction restores the original bytes');
+    assert.ok(committed.completedAt > 0 && committed.completedAt <= originalExpiry,
+      'completion stays positive and within the original expiry after expiry');
+    // The claim is still guarded: a foreign token refuses as conflict, and the
+    // retained admission still replays identically afterwards.
+    const foreignTokenFile = join(directory, 'foreign-token.json');
+    await writeFile(foreignTokenFile, JSON.stringify({ ...token, token: randomUUID() + randomUUID() }), { mode: 0o600 });
+    await assert.rejects(reconcileSodaSetupReceipt(input, { ...options, tokenFile: foreignTokenFile }),
+      error => error instanceof Error && error.message === SODA_SETUP_RECONCILE_REFUSAL);
+    assert.deepEqual(await reconcileSodaSetupReceipt(input, options), committed);
+    assert.equal(await readFile(receiptFile, 'utf8'), bytes);
+    // The durable owner is intact: no new owner was minted, nothing was rebound.
+    admin = await provisionSodaStorage(input, dataDir);
+    assert.deepEqual(await bootstrapOwner(admin, credentials), { userId: original.userId, teamId: original.teamId });
+  } finally { await admin?.dispose(); await rm(directory, { recursive: true, force: true }); }
+}, 180_000);
+
+it('reconciles through the packaged can-soda CLI entrypoint instead of a deep import', async () => {
+  const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
+  const directory = await mkdtemp(join(root, '.can-soda-cli-reconcile-'));
+  const input = compiledInput();
+  const bundleFile = join(directory, 'bundle.json');
+  await writeFile(bundleFile, JSON.stringify({ ...input, bundle: { ...input.bundle,
+    binaries: Object.fromEntries(Object.entries(input.bundle.binaries).map(([name, bytes]) => [name, Buffer.from(bytes).toString('base64')])) } }));
+  const token = { operation: randomUUID(), token: randomUUID() + randomUUID(), expires_at: Math.floor(Date.now() / 1000) + 300 };
+  const credentials = { email: 'cli-reconcile@example.invalid', password: 'Synthetic CLI reconcile password', timezone: 'UTC' };
+  const dataDir = join(directory, 'data'), receiptFile = join(directory, 'receipt.json'), tokenFile = join(directory, 'token.json');
+  await mkdir(dataDir, { mode: 0o700 });
+  await writeFile(tokenFile, JSON.stringify(token), { mode: 0o600 });
+  const context = JSON.stringify({ app: input.descriptor.identity.appName, artifactDigest: input.descriptor.identity.artifactDigest,
+    bundleDigest: input.bundle.mixedSha256, storageFingerprint: input.storageFingerprint });
+  const admission = { operation: token.operation, tokenHash: createHash('sha256').update(token.token).digest('hex'), context, expiresAt: token.expires_at };
+  const cli = join(root, 'packages/cloudflare/dist/cli/soda.js');
+  const run = (data: string) => spawnSync(process.execPath, [cli, 'reconcile', '--bundle', bundleFile,
+    '--data', data, '--setup-token-file', tokenFile, '--setup-receipt-file', receiptFile],
+  { encoding: 'utf8', timeout: 120_000 });
+  let admin: Awaited<ReturnType<typeof provisionSodaStorage>> | undefined;
+  try {
+    admin = await provisionSodaStorage(input, dataDir);
+    const committedResponse = await admin.dispatchUrl('https://private.invalid/setup', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...credentials, setup: admission }),
+    });
+    assert.equal(committedResponse.status, 200);
+    await admin.dispose(); admin = undefined;
+    const lastLine = (output: string) => JSON.parse(output.trim().split('\n').at(-1)!) as
+      { ok: boolean; command: string } & import('../src/deploy/soda-setup.js').SodaSetupReceipt;
+    const first = run(dataDir);
+    assert.equal(first.status, 0, first.stderr);
+    const { ok, command, ...receipt } = lastLine(first.stdout);
+    assert.equal(ok, true);
+    assert.equal(command, 'reconcile');
+    assert.equal(receipt.operation, token.operation);
+    assert.match(receipt.ownerTeam, /^[0-9a-f-]{36}$/i);
+    assert.ok(receipt.completedAt > 0 && receipt.completedAt <= token.expires_at);
+    const bytes = await readFile(receiptFile, 'utf8');
+    assert.deepEqual(JSON.parse(bytes), receipt);
+    assert.ok(!bytes.includes(token.token));
+    await rm(receiptFile);
+    const second = run(dataDir);
+    assert.equal(second.status, 0, second.stderr);
+    assert.deepEqual(lastLine(second.stdout), { ok: true, command: 'reconcile', ...receipt });
+    assert.equal(await readFile(receiptFile, 'utf8'), bytes, 'the packaged entrypoint replays byte-identically');
+    // An unclaimed store refuses through the same packaged entrypoint with the
+    // explicit unclaimed outcome — and writes no receipt.
+    const emptyDir = join(directory, 'empty-data');
+    await mkdir(emptyDir, { mode: 0o700 });
+    const emptyReceipt = join(directory, 'empty-receipt.json');
+    const refused = spawnSync(process.execPath, [cli, 'reconcile', '--bundle', bundleFile,
+      '--data', emptyDir, '--setup-token-file', tokenFile, '--setup-receipt-file', emptyReceipt],
+    { encoding: 'utf8', timeout: 120_000 });
+    assert.notEqual(refused.status, 0);
+    assert.match(refused.stderr, /no committed claim/);
+    await assert.rejects(readFile(emptyReceipt, 'utf8'), /ENOENT/);
+    // A malformed bundle refuses through the same packaged entrypoint with
+    // the redacted refusal outcome only: the raw preflight error names the
+    // offending marker capability, and none of it may reach stderr.
+    const marker = `redaction-marker-${randomUUID()}`;
+    const malformedBundle = { ...JSON.parse(await readFile(bundleFile, 'utf8')) } as Record<string, unknown>;
+    malformedBundle.artifact = { ...(malformedBundle.artifact as Record<string, unknown>),
+      requires: [...((malformedBundle.artifact as Record<string, unknown>).requires as unknown[]),
+        { capability: marker, min_version: 1 }] };
+    const malformedFile = join(directory, 'malformed-bundle.json');
+    await writeFile(malformedFile, JSON.stringify({ ...malformedBundle, bundle: { ...(malformedBundle.bundle as Record<string, unknown>),
+      binaries: Object.fromEntries(Object.entries((malformedBundle.bundle as Record<string, unknown>).binaries as Record<string, string>)
+        .map(([name, bytes]) => [name, Buffer.from(bytes, 'base64').toString('base64')])) } }));
+    const malformedReceipt = join(directory, 'malformed-receipt.json');
+    const malformed = spawnSync(process.execPath, [cli, 'reconcile', '--bundle', malformedFile,
+      '--data', dataDir, '--setup-token-file', tokenFile, '--setup-receipt-file', malformedReceipt],
+    { encoding: 'utf8', timeout: 120_000 });
+    assert.notEqual(malformed.status, 0);
+    assert.match(malformed.stderr, /can-soda: Setup reconciliation refused\./);
+    assert.ok(!malformed.stderr.includes(marker), 'bundle detail must not leak to stderr');
+    await assert.rejects(readFile(malformedReceipt, 'utf8'), /ENOENT/);
+  } finally { await admin?.dispose(); await rm(directory, { recursive: true, force: true }); }
+}, 240_000);
 
 it('creates mode 0600 under umask 022, excludes writers, and recovers genuine D1 bootstrap after release', async () => {
   const directory = await mkdtemp(join(fileURLToPath(new URL('../../../', import.meta.url)), '.can-soda-writer-'));
