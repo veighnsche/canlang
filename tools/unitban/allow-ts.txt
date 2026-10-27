@@ -39,6 +39,7 @@ packages/cloudflare/test/identity-bootstrap.integration.test.ts
 packages/cloudflare/test/model-free-preview.integration.test.ts
 packages/cloudflare/test/soda-writer.integration.test.ts
 packages/cloudflare/test/upgrade-coordinator.integration.test.ts
+packages/cloudflare/test/upgrade-inventory.integration.test.ts
 packages/interfaces/test/integration-lifecycle.test.ts
 packages/interfaces/test/integration-parity.test.ts
 packages/state/test/receipt/lease-snapshot.test.ts
