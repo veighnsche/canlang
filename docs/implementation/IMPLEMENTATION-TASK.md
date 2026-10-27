@@ -79,6 +79,17 @@ today); (2) dispatch-layer in-flight/uncertain supplier join for drain
 gate-4 wiring (needs 1: no transition source in the bundle yet); (4) `deploy
 --yes` CLI wiring through the preparation host (needs 1+3).
 
+B27 dev-preview blockers (original-app journeys on installed bits), 28 October
+2026: `can dev` preview fails for CanTable with IDENTITY_UNAVAILABLE (login
+descriptor route failed) on both installed and checkout toolchains, with and
+without `--preview-roles '{"Ava":["host"]}'`; the documented role-based
+VerifiedTasks preview works on the same installed bits, so the failure is
+CanTable-specific (host-role-only auth surface suspected, unproven). CanReport
+preview stops earlier: `use report {ReportsV1 as Reports}
+from=deployment.reports` is "outside the captured closure" — dev sessions do
+not capture deployment-sourced imports. Both need dev-server lane fixes before
+original-app preview journeys can qualify B27.
+
 ## Next implementation queue
 
 Use the order below to select work. These are subdivisions of Z00–Z18, not extra
