@@ -75,19 +75,30 @@ export interface AggregateReceiptLimits {
  * authorize a larger decoding budget. Every payload retains the existing
  * own-data allowance inside the source's finite execution census. */
 const aggregateReceiptLimitCache = new WeakMap<ScenarioResultDisclosurePlan, AggregateReceiptLimits | undefined>();
-/** Plans proven deeply immutable by the derivation below. The cache trusts
- * only this private witness: the first lookup for an object deep-freezes it
- * (tamper-evident henceforth) and records it, so a same-reference mutation
- * afterwards throws instead of reusing stale budgets. Anything not in this
- * set recomputes fully, so replay's fresh-per-call decoded plans and any
- * untrusted object always revalidate; failures are never recorded. */
+/** Plans proven deeply immutable. The cache trusts only this private
+ * witness: a shallow `Object.isFrozen` check cannot prove the nested
+ * sourceLoops/queries/returns are frozen, so anything not in this set is
+ * proven by a full recursive walk once per object and otherwise recomputes
+ * fully on every call. A same-reference mutation therefore can never reuse
+ * stale budgets: mutable and shallow-frozen plans always recompute, replay's
+ * fresh-per-call decoded plans always recompute, and failures are never
+ * recorded. */
 const aggregateReceiptLimitWitness = new WeakSet<object>();
+function isDeeplyFrozen(value: unknown, seen: Set<unknown> = new Set()): boolean {
+  if (value === null || (typeof value !== "object" && typeof value !== "function")) return true;
+  if (seen.has(value)) return true;
+  seen.add(value);
+  if (!Object.isFrozen(value)) return false;
+  return Object.values(value).every(item => isDeeplyFrozen(item, seen));
+}
 export function aggregateReceiptLimits(plan: ScenarioResultDisclosurePlan): AggregateReceiptLimits | undefined {
-  if (aggregateReceiptLimitWitness.has(plan)) return aggregateReceiptLimitCache.get(plan);
-  deepFreeze(plan);
+  if (!aggregateReceiptLimitWitness.has(plan)) {
+    if (!Object.isFrozen(plan) || !isDeeplyFrozen(plan)) return computeAggregateReceiptLimits(plan);
+    aggregateReceiptLimitWitness.add(plan);
+  }
+  if (aggregateReceiptLimitCache.has(plan)) return aggregateReceiptLimitCache.get(plan);
   const limits = computeAggregateReceiptLimits(plan);
   aggregateReceiptLimitCache.set(plan, limits);
-  aggregateReceiptLimitWitness.add(plan);
   return limits;
 }
 
