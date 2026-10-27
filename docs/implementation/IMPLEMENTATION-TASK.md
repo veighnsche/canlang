@@ -50,6 +50,18 @@ pass: `bun run build` 26/26, `bun run typecheck` 40/40, `check:unitban`,
 was added. The zero-diagnostic objective is closed on this source; the B01–B27
 broader-product queue remains.
 
+B24 closure (installed Linux release), 27 October 2026, on
+`goal/production-ready`: refreshed the dev-server notice manifest for the
+profile-only Cargo.toml change (lock byte-identical, dependency closure
+unchanged); packed `can-0.1.2-linux-x64.tar.gz` (113MB) from branch-built
+release `can`/`can-dev`; `verify-install` 23/23 green; cold install into a
+scratch HOME green (`can 0.1.2`, commit `e5af510f`); tutorial Tasks journey
+(check/compile/dev/check/serving preview/auth/create/list) green on installed
+bits only; `verify-installed-types` (193 exports, 13 packages) and
+`verify-installed-worker` (315 modules, Wasm, production execution) green.
+Minimum-Node22 variants not runnable locally (need exactly Node 22.0.0; base
+CI covered them). Publication remains a separately requested action.
+
 ## Next implementation queue
 
 Use the order below to select work. These are subdivisions of Z00–Z18, not extra
