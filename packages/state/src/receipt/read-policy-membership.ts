@@ -91,6 +91,32 @@ const handles = new WeakMap<ReadPolicyMembershipHandle, {
 }>();
 const lifetimes = new WeakMap<object, ReadLifetime>();
 const contexts = new WeakMap<object, ReadLifetime>();
+/** Revision-pinned committed snapshots. cohortLoad enforces its expected
+ * revision before and after every read, and the committed store is immutable
+ * at a fixed revision, so a snapshot is a pure function of
+ * (store, revision, model, id): a hit serves the identical row (or null) a
+ * fresh load would return. Every cached entry passed cohortLoad's own
+ * revision-shape enforcement when it was filled, so hits skip nothing that
+ * validation would catch. Hits skip the load-framing store checkpoints; the
+ * in-memory health checks, the lease-exit checkpoint, and the
+ * observation-level and commit-time fences all still run before any result
+ * escapes, and failures are never cached. FIFO-bounded; eviction only costs
+ * a recompute. Loaded rows are never mutated anywhere in the reader. */
+const cohortSnapshotCache = new WeakMap<object, Map<string, StoredRow | null>>();
+const COHORT_SNAPSHOT_CAP = 5000;
+async function pinnedCohortLoad(store: StoragePort,
+  revision: Readonly<ViewerGenerationCallbackReadObservation>['revision'],
+  model: ModelName, id: RecordId): Promise<StoredRow | null> {
+  let scoped = cohortSnapshotCache.get(store);
+  if (scoped === undefined) { scoped = new Map(); cohortSnapshotCache.set(store, scoped); }
+  const key = `${String(revision)}\0${model}\0${id}`;
+  const hit = scoped.get(key);
+  if (hit !== undefined) return hit;
+  const row = await store.cohortLoad({ model, id, expectedRevision: revision });
+  if (scoped.size >= COHORT_SNAPSHOT_CAP) scoped.delete(scoped.keys().next().value!);
+  scoped.set(key, row);
+  return row;
+}
 const fail = (message: string): never => { throw new StateError('validation', `Read-policy membership: ${message}`); };
 function object(value: unknown, keys: readonly string[]): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value) ||
@@ -231,10 +257,13 @@ async function withinInstalledSourceReadLease<Result>(observation: Readonly<View
         healthy();
         if (loading) return fail('concurrent navigation row load refused.');
         loading = true; acquired = true;
+        if (lifetime.ownerRows === undefined) {
+          const row = await pinnedCohortLoad(lifetime.store, observation.revision, model, id);
+          healthy();
+          return row;
+        }
         await checkpoint();
-        const row = lifetime.ownerRows === undefined
-          ? await lifetime.store.cohortLoad({ model, id, expectedRevision: observation.revision })
-          : await lifetime.ownerRows.read(model, id);
+        const row = await lifetime.ownerRows.read(model, id);
         healthy(); await checkpoint();
         return row;
       } catch (error) { poison(lifetime); throw error; }
