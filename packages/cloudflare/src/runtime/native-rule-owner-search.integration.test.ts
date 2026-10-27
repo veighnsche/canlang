@@ -3975,7 +3975,7 @@ it('executes the original contained Invoice cancellation loop through authentic 
       const credit=original.slice(original.indexOf('  scenario credit('));
       const begin=credit.indexOf('    for attempt in invoice.Attempt');
       assert.ok(text.includes(credit.slice(begin,credit.indexOf('\n    if ',begin))),'the exact original per-child SET, SEND and typed CREATE are retained');
-      for(const mode of ['allowed','empty','hidden','withheld-reference','inactive','stale','overflow','maximum','physical-cap','role-during-send','insert-at-commit','full-credit-positive','full-credit-false']){
+      for(const mode of ['allowed','empty','hidden','withheld-reference','inactive','stale','overflow','maximum','physical-cap','role-during-send','insert-at-commit','full-credit-positive','full-credit-false','census-201-all','census-250-filtered','census-150-selected','census-200-edge']){
         if(process.env['CAN_INVOICE_LOOP_CASE']&&process.env['CAN_INVOICE_LOOP_CASE']!==mode)continue;
         if(process.env['CAN_INVOICE_LOOP_SKIP_MAXIMUM']==='1'&&mode==='maximum')continue;
         const {now,identities,identity,team,user}=await member(`invoice-loop-${mode}`,['invoice.finance']);
@@ -3989,13 +3989,13 @@ it('executes the original contained Invoice cancellation loop through authentic 
         const invoice=row('invoice',{location:{id:location.id},source:'original-invoice',currency:'EUR',state:'issued',total:{minor:'1000',currency:'EUR'},next_collection:null,ledger_revision:'0',first_paid_at:null,hidden:false,needs_review:false},{model:model('customer','Customer'),id:customer.id});
         const child={model:model('invoice','Invoice'),id:invoice.id};
         const attempt=(id:string,status='pending',kind='collection',parent=child)=>row(id,{reference:id,amount:{minor:'100',currency:'EUR'},kind,status,failure:null,disabled:false,delivery:null,checkout:'https://checkout.test/'+id,outcome_at:null,received:null,reference_readable:mode!=='withheld-reference',hidden:mode==='hidden'},parent);
-        const count=mode==='empty'?0:mode==='maximum'?100:mode==='overflow'?101:2;
+        const count=mode==='empty'?0:mode==='maximum'?100:mode==='overflow'?101:mode==='census-201-all'?201:mode==='census-150-selected'?150:mode==='census-200-edge'?198:2;
         await store.commit(makeBatch(await store.readRevision(),{writes:[
           {kind:'insert',model:model('rent_catalog','Location'),row:location},{kind:'insert',model:model('customer','Customer'),row:customer},
           {kind:'insert',model:model('employee','Employee'),row:row('worker',{user:{id:user.user_id},home:{id:location.id},locations:[],operator_wide:false,active:mode!=='inactive',hidden:true})},
           {kind:'insert',model:model('invoice','Invoice'),row:invoice},{kind:'insert',model:model('invoice','Invoice'),row:{...invoice,id:asId('foreign')}},
           ...Array.from({length:count},(_,index)=>({kind:'insert' as const,model:model('invoice','Attempt'),row:attempt(`attempt-${String(index).padStart(3,'0')}`,index===1?'unknown':'pending')})),
-          ...Array.from({length:mode==='physical-cap'?199:1},(_,index)=>({kind:'insert' as const,model:model('invoice','Attempt'),row:attempt(`succeeded-${index}`,'succeeded')})),
+          ...Array.from({length:mode==='physical-cap'?199:mode==='census-250-filtered'?250:1},(_,index)=>({kind:'insert' as const,model:model('invoice','Attempt'),row:attempt(`succeeded-${index}`,'succeeded')})),
           {kind:'insert',model:model('invoice','Attempt'),row:attempt('refund','pending','refund')},
           {kind:'insert',model:model('invoice','Attempt'),row:attempt('foreign-attempt','pending','collection',{model:child.model,id:asId('foreign')})}
         ]}));
@@ -4010,6 +4010,17 @@ it('executes the original contained Invoice cancellation loop through authentic 
         const request={operation:mode.startsWith('full-credit')?'invoice.credit':'invoice.cancel_pending',operation_id:operationId(now),inputs:{invoice:{id:invoice.id,version:mode==='stale'?'0':String(invoice.version)},...(mode.startsWith('full-credit')?{amount:{minor:mode==='full-credit-positive'?'950':'100',currency:'EUR'},reason:'Reviewed original credit'}:{})}};
         const outcome=await invoker.invokeMutation(request,identity),success=['allowed','empty','maximum','insert-at-commit','full-credit-positive','full-credit-false'].includes(mode);
         assert.equal('result'in outcome&&outcome.result.status==='committed',success,`${mode}: ${JSON.stringify(outcome)}`);
+        // The 201+ census boundaries refuse at their exact layer with no partial commit:
+        // parent domains above the physical fetch cap fail the engine limit, while
+        // complete fetches with over-maximum filtered selections fail the authored bound.
+        // Either refusal persists only its rejected audit receipt.
+        if(mode==='census-201-all'||mode==='census-250-filtered')assert.ok(!('result'in outcome)&&outcome.error.message.includes('over the limit of 200'),`${mode}: ${JSON.stringify(outcome)}`);
+        if(mode==='census-150-selected'||mode==='census-200-edge')assert.ok(!('result'in outcome)&&outcome.error.message.includes('exceeds its original authored bound'),`${mode}: ${JSON.stringify(outcome)}`);
+        if(mode.startsWith('census-')){
+          const rejected=await store.readReceipt({app:'CanInvoice',owner:team.team_id,principal:user.user_id,
+            operation:request.operation,operationId:request.operation_id} as Parameters<typeof store.readReceipt>[0]);
+          assert.ok(rejected,`${mode}: refusal persists its rejected audit receipt`);
+        }
         const pending=await store.outboxPending(),requests=await store.query({model:model('invoice','PaymentRequest'),authority:'owner'});
         const expected=success?count+(mode==='insert-at-commit'?1:0):0;
         assert.equal(pending.length,expected,mode);assert.equal(requests.length,expected,mode);
@@ -4036,6 +4047,180 @@ it('executes the original contained Invoice cancellation loop through authentic 
         if(mode==='role-during-send'||mode==='insert-at-commit')assert.equal(raced,true);
         if(success){const replay=await invoker.invokeMutation(request,identity);if('error'in replay)assert.equal(replay.error.code,'validation',JSON.stringify(replay));else{assert.equal(replay.result.status,'replayed');assert.equal(replay.result.result,null);}assert.deepEqual(await store.outboxPending(),pending);assert.deepEqual(await store.query({model:model('invoice','PaymentRequest'),authority:'owner'}),requests);}
       }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });
+
+it('refuses stripped and forged loop SEND DATA producers atomically with no partial effects',
+  {timeout:240000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-send-producer-tamper-'));
+    try{
+      const source=fixture('invoice-credit-loop-source.can');
+      const text=await readFile(source,'utf8');
+      // Independent source proof: the cancellation SEND projects loop-item DATA,
+      // so its installed producer is required (contrast the literal-only loop SEND below).
+      assert.ok(text.includes('send Payments.cancel {reference=attempt.reference}'),'item-DATA SEND requires its installed producer');
+      const compiled=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,encoding:'utf8'});
+      assert.equal(compiled.status,0,compiled.stdout+compiled.stderr);
+      const base=JSON.parse(compiled.stdout) as CompileArtifact;
+      const marker='canScenarioSendDataSources(){return JSON.parse("';
+      assert.ok(base.modules.some(mod=>mod.js.includes(marker)),'base artifact carries a SEND DATA census');
+      type CensusSite={source:{sha256:string};node:{start:number;end:number};parameters:{loop?:string}[]};
+      const mutateCensus=(artifact:CompileArtifact,mutate:(census:Record<string,CensusSite[]>)=>void):CompileArtifact=>{
+        const modules=artifact.modules.map(mod=>{
+          const at=mod.js.indexOf(marker);if(at===-1)return mod;
+          const start=at+marker.length;let j=start,raw='',closed=false;
+          while(j<mod.js.length){const c=mod.js[j]!;if(c==='\\'){raw+=c+mod.js[j+1]!;j+=2;continue;}if(c==='"'){closed=true;break;}raw+=c;j+=1;}
+          assert.ok(closed,'census payload terminates');
+          const census=JSON.parse(JSON.parse('"'+raw+'"')) as Record<string,CensusSite[]>;
+          mutate(census);
+          const embedded=JSON.stringify(JSON.stringify(census)).slice(1,-1);
+          return {...mod,js:mod.js.slice(0,start)+embedded+mod.js.slice(j)};
+        });
+        return {...artifact,modules};
+      };
+      const setup=async(artifact:CompileArtifact,tag:string)=>{
+        const asm=await assembleModules({artifact,sourcePath:source},{workDir:join(directory,tag),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+        const {now,identities,identity,team,user}=await member(`send-tamper-${tag}`,['invoice.finance']);
+        const scope={app:'CanInvoice',owner:team.team_id,ownerPackage:'invoice'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'tamper-state',fileStoreId:'tamper-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+        const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent});
+        const location=row('location',{active:true}),customer=row('customer',{kind:'company',hidden:false});
+        const invoice=row('invoice',{location:{id:location.id},source:'original-invoice',currency:'EUR',state:'issued',total:{minor:'1000',currency:'EUR'},next_collection:null,ledger_revision:'0',first_paid_at:null,hidden:false,needs_review:false},{model:model('customer','Customer'),id:customer.id});
+        const child={model:model('invoice','Invoice'),id:invoice.id};
+        const attempt=(id:string,status='pending',kind='collection',parent=child)=>row(id,{reference:id,amount:{minor:'100',currency:'EUR'},kind,status,failure:null,disabled:false,delivery:null,checkout:'https://checkout.test/'+id,outcome_at:null,received:null,reference_readable:true,hidden:false},parent);
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          {kind:'insert',model:model('rent_catalog','Location'),row:location},{kind:'insert',model:model('customer','Customer'),row:customer},
+          {kind:'insert',model:model('employee','Employee'),row:row('worker',{user:{id:user.user_id},home:{id:location.id},locations:[],operator_wide:false,active:true,hidden:true})},
+          {kind:'insert',model:model('invoice','Invoice'),row:invoice},{kind:'insert',model:model('invoice','Invoice'),row:{...invoice,id:asId('foreign')}},
+          {kind:'insert',model:model('invoice','Attempt'),row:attempt('attempt-000')},{kind:'insert',model:model('invoice','Attempt'),row:attempt('attempt-001','unknown')},
+          {kind:'insert',model:model('invoice','Attempt'),row:attempt('succeeded-0','succeeded')},
+          {kind:'insert',model:model('invoice','Attempt'),row:attempt('refund','pending','refund')},
+          {kind:'insert',model:model('invoice','Attempt'),row:attempt('foreign-attempt','pending','collection',{model:child.model,id:asId('foreign')})}
+        ]}));
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        return {store,invoker,invoice,now,identity,team,user};
+      };
+      const invokeCancel=async(setupResult:Awaited<ReturnType<typeof setup>>)=>{
+        const {store,invoker,invoice,now,identity,team,user}=setupResult;
+        const operationIdValue=operationId(now);
+        const historyBefore=await store.historyFor(model('invoice','Attempt'),asId('attempt-000'));
+        let text:string;
+        try{
+          const outcome=await invoker.invokeMutation({operation:'invoice.cancel_pending',operation_id:operationIdValue,inputs:{invoice:{id:invoice.id,version:String(invoice.version)}}},identity);
+          text=JSON.stringify(outcome);
+        }catch(error){text=error instanceof Error?`${error.name}: ${error.message}`:String(error);}
+        // A refused invoke persists only its rejected audit receipt: every business
+        // row, outbox entry and history below must be untouched.
+        const rejected=await store.readReceipt({app:'CanInvoice',owner:team.team_id,principal:user.user_id,
+          operation:'invoice.cancel_pending',operationId:operationIdValue} as Parameters<typeof store.readReceipt>[0]);
+        return {store,text,historyBefore,rejected};
+      };
+      const assertPristine=async(setupResult:{store:Awaited<ReturnType<typeof setup>>['store'];text:string;historyBefore:unknown;rejected:unknown},tag:string,message:string,expectReceipt=true)=>{
+        const {store,text,historyBefore,rejected}=setupResult;
+        assert.ok(text.includes(message),`${tag}: ${text}`);
+        // Execution-time refusals persist a rejected audit receipt; a load-time bind
+        // refusal happens before any execution, so no receipt exists.
+        assert.equal(rejected!==null&&rejected!==undefined,expectReceipt,`${tag}: rejected audit receipt presence`);
+        assert.deepEqual(await store.outboxPending(),[],`${tag}: no staged dispatch escapes`);
+        assert.deepEqual(await store.query({model:model('invoice','PaymentRequest'),authority:'owner'}),[],`${tag}: no staged request escapes`);
+        const first=await store.load(model('invoice','Attempt'),asId('attempt-000'));assert.ok(first);
+        assert.equal(first.data.disabled,false,`${tag}: staged set rolls back`);
+        assert.equal(first.data.checkout,'https://checkout.test/attempt-000',`${tag}: staged set rolls back`);
+        assert.deepEqual(await store.historyFor(model('invoice','Attempt'),asId('attempt-000')),historyBefore,`${tag}: no business history`);
+      };
+      // Stripped: no producer installed for the DATA loop. Enumeration proceeds
+      // (no DATA receipt can be demanded), then the per-item SEND finds no
+      // installed native SEND DATA reader — the reader is bound only for
+      // operations with installed SEND DATA sources — and refuses before State
+      // evaluation; staged sets roll back atomically.
+      await assertPristine(await invokeCancel(await setup(mutateCensus(base,census=>{delete census['invoice.cancel_pending'];}),'stripped')),
+        'stripped','Source SEND DATA needs its actual installed owner execution');
+      // Forged source: the install census itself refuses the mismatched owner/source.
+      {
+        const artifact=mutateCensus(base,census=>{census['invoice.cancel_pending']![0]!.source.sha256='0'.repeat(64);});
+        const asm=await assembleModules({artifact,sourcePath:source},{workDir:join(directory,'forged-source'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+        const {now,identities,team}=await member('send-tamper-source',['invoice.finance']);
+        const scope={app:'CanInvoice',owner:team.team_id,ownerPackage:'invoice'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'tamper-state',fileStoreId:'tamper-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        await assert.rejects(installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}}),/lacks its exact original owner\/source census/);
+      }
+      // Forged span: owner/source still match, so install succeeds; at SEND time the
+      // tampered static census no longer matches the body-issued site claim, so the
+      // native closure refuses before State evaluation and staged effects roll back.
+      // Forged loop: the State bind runs at invoke load and refuses the bogus loop
+      // correspondence before any execution, so no audit receipt exists.
+      for(const [tag,mutate,message,expectReceipt] of [
+        ['forged-span',(census:Record<string,CensusSite[]>)=>{census['invoice.cancel_pending']![0]!.node={start:0,end:1};},'SEND DATA closure differs from its original source/context',true],
+        ['forged-loop',(census:Record<string,CensusSite[]>)=>{census['invoice.cancel_pending']![0]!.parameters[0]!.loop='0'.repeat(64);},'SEND DATA needs an exact required singular original model parameter',false],
+      ] as const){
+        await assertPristine(await invokeCancel(await setup(mutateCensus(base,mutate),tag)),tag,message,expectReceipt);
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });
+
+it('refuses descriptor-less multi-loop bodies fail-closed with no partial effects',
+  {timeout:240000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-multi-loop-'));
+    try{
+      const source=fixture('native-source-send-data.can');
+      const text=await readFile(source,'utf8');
+      // Independent source proof: the second loop SEND is literal-only (no row DATA
+      // projected), while the prepended first loop projects Root DATA.
+      assert.ok(text.includes('send Mail.send {to,subject="Linked children",body="Original link"}'),'second loop SEND is data-free');
+      // The prepended DATA loop uses the proven direct-containment shape (a root:Root
+      // input with a root.source SEND, as in notify_children).
+      const variant=text
+        .replace('scenario notify_link_children(link:Link,to:email) by=members',
+          'scenario notify_link_children(link:Link,to:email,root:Root) by=members')
+        .replace(
+          '   for child in link.root.Child as child where child.active limit=10\n    set child {active=false}\n    send Mail.send {to,subject="Linked children",body="Original link"} as delivery',
+          '   for other in root.Child as other where other.active limit=10\n    set other {active=false}\n    send Mail.send {to,subject=root.source,body="Second loop"} as staged_delivery\n   for child in link.root.Child as child where child.active limit=10\n    set child {active=false}\n    send Mail.send {to,subject="Linked children",body="Original link"} as delivery');
+      assert.ok(variant!==text,'variant prepends a DATA loop');
+      const refused=fixture('.native-multi-loop.can');
+      try{
+        await writeFile(refused,variant);
+        const result=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,refused],{cwd:root,encoding:'utf8'});
+        assert.equal(result.status,0,result.stdout+result.stderr);
+        const artifact=JSON.parse(result.stdout) as CompileArtifact;
+        // Codegen installs source-loop machinery only for single-loop scenarios; the
+        // two-loop op carries no loop or SEND DATA descriptors, so prove that first:
+        // without installed descriptors the body must not execute unreceipted sets/SENDs.
+        const marker='canScenarioBodyLoopSources(){return JSON.parse("';
+        const loopModule=artifact.modules.find(mod=>mod.js.includes(marker));assert.ok(loopModule);
+        const start=loopModule.js.indexOf(marker)+marker.length;let j=start,raw='',closed=false;
+        while(j<loopModule.js.length){const c=loopModule.js[j]!;if(c==='\\'){raw+=c+loopModule.js[j+1]!;j+=2;continue;}if(c==='"'){closed=true;break;}raw+=c;j+=1;}
+        assert.ok(closed);
+        const loopCensus=JSON.parse(JSON.parse('"'+raw+'"')) as Record<string,unknown>;
+        assert.ok(!Object.hasOwn(loopCensus,'SourceSendData.notify_link_children'),'two-loop op installs no loop descriptors');
+        const asm=await assembleModules({artifact,sourcePath:refused},{workDir:join(directory,'multi-loop'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+        const {now,identities,identity,membership}=await member('multi-loop');
+        const scope={app:'SourceSendData',owner:membership.team_id,ownerPackage:'SourceSendData'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'loop-reference-state',fileStoreId:'loop-reference-files',receiver:{app:scope.app,owner:scope.owner,team:scope.owner}};
+        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(scope.owner));}});
+        const rootModel=model('SourceSendData','Root'),locationModel=model('SourceSendData','Location'),childModel=model('SourceSendData','Child');
+        const location={...makeRow({id:asId('location'),data:{enabled:true,visible:true}}),parent:null};
+        const row={...makeRow({id:asId('root'),data:{location:{id:location.id},capacity:'2',checked:false,last:null,source:'Original source',reason:null,secret:'Secret',visible:true}}),parent:null};
+        const children=['first','second'].map(id=>({...makeRow({id:asId(id),data:{active:true}}),parent:{model:rootModel,id:row.id}}));
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:locationModel,row:location},{kind:'insert',model:rootModel,row},...children.map(row=>({kind:'insert' as const,model:childModel,row}))]}));
+        const linkModel=model('SourceSendData','Link'),link={...makeRow({id:asId('link'),data:{root:{id:row.id},visible:true,readable:true}}),parent:null};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:linkModel,row:link}]}));
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const operationIdValue=operationId(now);
+        const outcome=await invoker.invokeMutation({operation:'SourceSendData.notify_link_children',operation_id:operationIdValue,inputs:{link:{id:link.id,version:String(link.version)},root:{id:row.id,version:String(row.version)},to:'recipient@example.test'}},identity);
+        // The descriptor-less body is refused fail-closed instead of executing
+        // unreceipted sets/SENDs; only the rejected audit receipt persists.
+        assert.ok(!('result'in outcome)&&outcome.error.message.includes('defining provenance and disclosure join'),`multi-loop: ${JSON.stringify(outcome)}`);
+        const rejected=await store.readReceipt({app:'SourceSendData',owner:membership.team_id,principal:membership.user_id,
+          operation:'SourceSendData.notify_link_children',operationId:operationIdValue} as Parameters<typeof store.readReceipt>[0]);
+        assert.ok(rejected,'multi-loop: refusal persists its rejected audit receipt');
+        assert.deepEqual(await store.outboxPending(),[],'multi-loop: no SEND escapes');
+        assert.deepEqual(await store.query({model:asModel('work.dispatch'),authority:'owner'}),[],'multi-loop: no dispatch escapes');
+        for(const child of children)assert.equal((await store.load(childModel,child.id))!.data.active,true,'multi-loop: no set escapes');
+      }finally{await rm(refused,{force:true});}
     }finally{await rm(directory,{recursive:true,force:true});}
   });
 

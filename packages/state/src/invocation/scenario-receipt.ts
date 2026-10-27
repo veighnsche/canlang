@@ -596,8 +596,21 @@ export async function executeScenarioSourceLoop(call:AdmittedCall,store:StorageP
     // checks.
     if (loop.sends > 0) {
       const producer = sourceSendDataProducers.get(call.def as GeneratedOperationDef);
-      const covered = producer?.sites.some(site =>
-        site.parameters.some(parameter => parameter.loop === loop.id && parameter.model === loop.model),
+      // Item-DATA parameters carry the exact loop identity and model. SENDs
+      // inside the loop that project outer (non-item) DATA have no item
+      // parameter to mark; their loop-domain association is the checked site
+      // node containment the SEND DATA bind already validated (a site node
+      // must lie within exactly one installed loop). Loops whose SENDs
+      // project no row DATA at all (literal/inputs-only arguments through the
+      // raw SEND path with per-field observations and guards) install no SEND
+      // DATA site; there is no DATA receipt to demand for them. A DATA SEND
+      // without its installed site stays refused at SEND time, so allowing
+      // siteless enumeration loses nothing. Only the half-bound shape — DATA
+      // sites installed for the operation but none associated with this
+      // loop — stays refused instead of enumerating.
+      const covered = producer === undefined || producer.sites.length === 0 || producer.sites.some(site =>
+        site.parameters.some(parameter => parameter.loop === loop.id && parameter.model === loop.model) ||
+        (site.node.start >= loop.node.start && site.node.end <= loop.node.end),
       ) === true;
       if (!covered) return invalid('Source SEND loop lacks its checked loop-domain SEND receipt.');
     }
@@ -624,13 +637,15 @@ export async function executeScenarioSourceLoop(call:AdmittedCall,store:StorageP
       if(parentModel!==loop.parentModel||(loop.parentDepth!==undefined||loop.parentPath!==undefined)&&(input.parent?.model!==parentModel||input.parent.id!==parent.id)
           ||loop.parentDepth===undefined&&loop.parentPath===undefined&&input.parent!==undefined)return invalid('Source loop differs from its evaluated original parent.');
       const parentId=parent.id;
-      // SEND loops fetch one row past their authored maximum so the selection
-      // census below stays complete: a capped MAX_ITEMS fetch could truncate a
-      // domain above 200 rows and the authored-bound refusal would never fire,
-      // committing a silent partial selection. Fetching maximum+1 proves the
-      // domain fits (selection refuses past maximum) or is complete.
+      // SEND loops fetch under the physical MAX_ITEMS census cap: the fetch
+      // covers the parent-scoped domain, the loop predicate then selects the
+      // filtered rows below, and the authored-bound refusal fires when the
+      // filtered selection exceeds the authored maximum. Capping the fetch at
+      // maximum+1 instead would refuse legitimate filtered loops whose
+      // parent-scoped domain holds non-matching rows (history/succeeded kinds
+      // the predicate excludes) above the authored maximum.
       const rows=await owner.session!.views.final.query({model:loop.model,...(loop.ancestors===undefined?{parent:{model:parentModel,id:parentId}}:{}),authority:'owner',archived:'exclude',
-        order:loop.aggregate?.order??[{field:'id',direction:'asc'}],limit:loop.sends>0?loop.maximum+1:owner.maxRows});ownerHealthy(owner);
+        order:loop.aggregate?.order??[{field:'id',direction:'asc'}],limit:loop.sends>0?MAX_ITEMS:owner.maxRows});ownerHealthy(owner);
       const selected=new Map<RecordId,SourceBodyLoopSelection>();
       for(const row of rows){
         const ancestors:StoredRow[]=[];
