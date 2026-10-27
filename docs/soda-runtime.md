@@ -218,8 +218,19 @@ with the exact application `Origin` and JSON
 The first user, owner team, membership and consumed setup operation/token digest
 commit in one Identity D1 batch. Matching credentials and the same admission
 return the original completion; conflicting credentials, another admission and
-expired tokens refuse. A lost receipt can be regenerated from that durable
-claim by retrying before token expiry. The atomically written mode-`0600`
+expired tokens refuse. A lost receipt is reconstructed from that durable
+claim without credentials — before or after token expiry — through a
+read-only inspection that cannot create an owner:
+
+```sh
+can-soda reconcile --bundle /opt/application/bundle.json --data /home/app-state \
+  --setup-token-file /home/app-setup/token.json \
+  --setup-receipt-file /home/app-state/setup-receipt.json
+```
+
+Reconstruction needs only the retained token file and the committed claim;
+an unclaimed store refuses without creating anything, and rotation stays
+with an explicit setup. The atomically written mode-`0600`
 receipt contains only `schema: "canlang.soda.setup.v1"`, `operation`, `app`,
 `artifactDigest`, `bundleDigest`, `storageFingerprint`, `ownerTeam` and
 `completedAt` (Unix seconds). Passwords and raw tokens are excluded.

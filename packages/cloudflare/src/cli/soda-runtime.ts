@@ -8,7 +8,16 @@ import { getSodaStorageFingerprint, preflightSodaDeployment, SODA_PROVIDER_INVEN
 import type { SodaBundle } from '../deploy/soda-contract.js';
 import { bundleMixedSha256, inventorizeAssets, assertLinksResolve, assertWorkerdLoadable } from '../deploy/bundle-validation.js';
 import { provisionSodaStorage, startSodaRuntime } from '../deploy/soda-run.js';
-import {startSodaSetup} from '../deploy/soda-setup.js';
+import {startSodaSetup, reconcileSodaSetupReceipt, SODA_SETUP_RECONCILE_REFUSAL, SODA_SETUP_RECONCILE_UNCLAIMED} from '../deploy/soda-setup.js';
+
+/** The only reconcile outcomes that may reach stderr: proven-unclaimed vs
+ * refusal, both metadata-only. Anything else — bundle bytes, file paths, SQL
+ * or storage detail from bundle loading or the op — is redacted to refusal. */
+function publicReconcileError(error: unknown): Error {
+  if (error instanceof Error && (error.message === SODA_SETUP_RECONCILE_REFUSAL ||
+    error.message === SODA_SETUP_RECONCILE_UNCLAIMED)) return error;
+  return new Error(SODA_SETUP_RECONCILE_REFUSAL);
+}
 import { installWorkerdShutdown, superviseWorkerd } from '../deploy/soda-lifetime.js';
 
 type Options = Map<string, string>;
@@ -48,6 +57,7 @@ async function run(argv: string[]): Promise<number> {
       bootstrap: '--bundle FILE --data EXISTING_DIRECTORY --credentials PRIVATE_JSON_FILE',
       member: '--bundle FILE --data EXISTING_DIRECTORY --owner TEAM_ID --credentials PRIVATE_JSON_FILE',
       setup: '--bundle FILE --data EXISTING_DIRECTORY --setup-token-file PRIVATE_JSON_FILE --setup-receipt-file FILE [--host ADDRESS] [--port NUMBER]',
+      reconcile: '--bundle FILE --data EXISTING_DIRECTORY --setup-token-file PRIVATE_JSON_FILE --setup-receipt-file FILE',
       serve: '--bundle FILE --data EXISTING_DIRECTORY --owner TEAM_ID [--host ADDRESS] [--port NUMBER]',
       inventory: 'reports supported providers and explicit rejections',
     } })); return 0;
@@ -61,6 +71,23 @@ async function run(argv: string[]): Promise<number> {
   if (command === 'bootstrap' || command === 'member') {
     await runSodaMembership(command, options);
     return 0;
+  }
+  // One-shot private receipt reconstruction from retained artifacts. No
+  // credentials are accepted or invented: proof re-derives from the retained
+  // token file plus the durable claim, and absence refuses.
+  if (command === 'reconcile') {
+    // Bundle loading sits inside the sanitized wrapper: nothing it throws
+    // may leave this path unredacted.
+    try {
+      const input = await loadBundle(required(options, '--bundle'));
+      const receipt = await reconcileSodaSetupReceipt(input, { dataDir: required(options, '--data'),
+        tokenFile: required(options, '--setup-token-file'), receiptFile: required(options, '--setup-receipt-file'),
+        host: '127.0.0.1', port: 0 });
+      console.log(JSON.stringify({ ok: true, command, ...receipt }));
+      return 0;
+    } catch (error) {
+      throw publicReconcileError(error);
+    }
   }
   started = (async () => {
     const input = await loadBundle(required(options, '--bundle'));
@@ -82,7 +109,8 @@ function parseSodaOptions(command: string, argv: string[]): { options: Options; 
   const allowed = command === 'bootstrap' ? ['--bundle', '--data', '--credentials']
       : command === 'member' ? ['--bundle', '--data', '--owner', '--credentials']
       : command === 'serve' ? ['--bundle', '--data', '--owner', '--host', '--port']
-        : command === 'setup' ? ['--bundle','--data','--host','--port','--setup-token-file','--setup-receipt-file'] : [];
+        : command === 'setup' ? ['--bundle','--data','--host','--port','--setup-token-file','--setup-receipt-file']
+        : command === 'reconcile' ? ['--bundle','--data','--setup-token-file','--setup-receipt-file'] : [];
   if (allowed.length === 0) throw new Error('Unknown can-soda command');
   for (let i = 1; i < argv.length; i += 2) {
     const flag = argv[i]!;
@@ -109,7 +137,11 @@ async function runSodaMembership(command: string, options: Options): Promise<voi
 
 void run(process.argv.slice(2)).then(code => { process.exitCode = code; }).catch(error => {
   // Credential and provider errors must not echo secret file contents or SQL binds.
-  const detail = ['bootstrap', 'member','setup'].includes(process.argv[2] ?? '') ? 'identity administration failed; check private credentials and Identity storage'
+  // Reconcile never prints arbitrary errors: only its two metadata-only
+  // outcomes surface, everything else is redacted to refusal.
+  const failedCommand = process.argv[2] ?? '';
+  const detail = ['bootstrap', 'member','setup'].includes(failedCommand) ? 'identity administration failed; check private credentials and Identity storage'
+    : failedCommand === 'reconcile' ? publicReconcileError(error).message
     : error instanceof Error ? error.message.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 1000) : 'runtime operation failed';
   console.error(`can-soda: ${detail}`);
   process.exitCode = 1;

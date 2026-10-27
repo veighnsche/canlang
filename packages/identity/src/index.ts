@@ -23,3 +23,4 @@ export * from './authentication/grants.js';
 export * from './authentication/oauth.js';
 export * from './storage/d1.js';
 export * from './storage/bootstrap.js';
+export * from './storage/setup-receipt.js';
