@@ -119,6 +119,52 @@ show no implementation. Smallest units in order: (1) intake contract
 suite for the existing Errors boundary; (2) deployment provider binding
 design (cross-lane); (3) bounded Ping ingress for CanCheck PingV1.
 
+B14 triage (mailbox/payments/connectors), 28 October 2026: language
+correspondence is done everywhere (`*_source_producer` suites green but
+self-report unqualified ingress/File authority); the residual in all five
+sub-areas is receiving/adapter/provenance work. Mailbox: send-only
+transport exists; missing owning MailboxV1 catalog/coordinator +
+authenticated MIME receiving producer (M). Payments: collect/refund owner
+decisions + terminal receipt paths exist; missing verified-event →
+original-attempt mapping joined to durable dispatch (M). Namespaces:
+inbound-only `mapVerifiedIngress` exists; missing one configured versioned
+binding + committed-outcome correlation (S-M, smallest first). Outward
+adapters (Discover/Enrich/Sync/WorkSources/Device): declarations only;
+start with Discover `page` end-to-end (M). HR handoff: declarations +
+examples only; needs authenticated-cause join + once-only handoff path
+(S-M, takes the namespace cause first).
+
+B09 triage (files/resource lifetime), 28 October 2026: completion bar is
+satisfiable per-consumer; none of five areas fully closed. (1)
+Separate-store publication: single-store atomicity + serial paths exist;
+smallest unit is one same-intent serialization primitive + two-owner
+interruption/reopen witness (M). (2) Receiving joins: identity +
+verified-ingress paths exist; needs one FP.SOURCE-MAPPINGS binding
+connected to one receiving occurrence (M-L). (3) Quota/override: no
+producer exists at all (static declarations only); needs a profile
+decision (per-app FilePolicy vs deployment ProviderLimits) before one
+admission-point enforcement + test (S once decided). (4) Provenance: base
+exists, business-field authority unfinished; one protected-field file join
+(M). (5) Expiry/disposal: Files GC + State retirement guard exist;
+owner-level disposal missing; start with one authored expiry consumer
+(M). TECH-F01/F02/FP.LIFETIME rows already point at the same units.
+
+B08 triage (durable Work/progress), 28 October 2026: (1) Bundled
+receipt observer: serving seam + staging shipped, but B-half
+`packages/state/src/receipt/observer.ts` does not exist (loader target
+absent; production resolves via injection or work-loader leg), and the
+D3B contract's relative specifier drifted from the shipped
+package-specifier seam. Smallest unit (S): author observer.ts +
+reconcile drift one way + no-injection bundled test with invocation
+marker and refusal cases. (2) Relation/progress: pure kernel covers all
+17 targets; durable consumers exist only for Email/Judgment/workflow-review
++ TextGeneration; Payments/Images/Mailbox/Errors need one `stage*` join
+each. (3) Availability: kernel + runtime mapping exist; injection into
+`DriveDispatchFenceInput` missing (stated inline as follow-up). (4)
+Fanout matrix: T34 + D1 cohort proofs accepted on synthetic fixtures;
+missing cell is the original CanVolunteer `Opportunity.updated` source
+route + `every(...)` durable path.
+
 ## Next implementation queue
 
 Use the order below to select work. These are subdivisions of Z00–Z18, not extra
