@@ -75,6 +75,16 @@ export interface CoordinateUpgradeInput {
   readonly owners: ReadonlyMap<string, OwnerUpgradeInput>;
   readonly chunkSize: number;
   readonly clock: CoordinatorClock;
+  /**
+   * Stop after every owner reaches `staged` (returning stage `staged`)
+   * instead of activating. The worker deploy fits between this stop and
+   * the resuming run, so the slow fallible deploy never sits inside the
+   * flip: deploy failure leaves old-code/old-data fully consistent with
+   * staged rows resumable, and the deploy-then-flip order keeps the skew
+   * window to the coordinator-controlled seconds between deploy finish
+   * and flip start.
+   */
+  readonly stopBeforeActivate?: boolean;
 }
 
 function progressState(
@@ -109,9 +119,11 @@ function cursorKey(progress: MigrationProgress): string {
 }
 
 /**
- * Drive one owner's engine migration to `active`. Returns the terminal
- * progress, or an L7 failure state when the engine refuses/fails.
- * Throws only on caller errors (unknown owner, unreadable inputs).
+ * Drive one owner's engine migration to `staged` (stop mode) or `active`.
+ * Returns the terminal progress, or an L7 failure state when the engine
+ * refuses/fails. An already-started activation always resumes to
+ * completion (leaving a half-publish stranded is worse than finishing
+ * it). Throws only on caller errors (unknown owner, unreadable inputs).
  */
 async function driveOwner(
   store: StoragePort,
@@ -121,6 +133,7 @@ async function driveOwner(
   chunkSize: number,
   clock: CoordinatorClock,
   stagedOwners: number,
+  stopBeforeActivate: boolean,
 ): Promise<{ progress: MigrationProgress } | { failure: UpgradeState }> {
   const { transition } = input;
   if (transition.owner !== ref.owner || transition.fromSnapshotId !== ref.snapshotId) {
@@ -237,6 +250,7 @@ async function driveOwner(
       if (progress.phase === 'active') break;
       if (progress.phase === 'staging' || progress.phase === 'staged') {
         if (progress.phase === 'staged') {
+          if (stopBeforeActivate) return { progress };
           leg = 'activation';
           await activate({
             store,
@@ -325,20 +339,26 @@ async function driveOwner(
  * stay serialized by the deployer.
  */
 export async function coordinateUpgrade(input: CoordinateUpgradeInput): Promise<UpgradeState> {
-  const { store, plan, owners, chunkSize, clock } = input;
+  const { store, plan, owners, chunkSize, clock, stopBeforeActivate = false } = input;
   if (!Number.isInteger(chunkSize) || chunkSize < 1) {
     throw new Error(`upgrade coordinator: invalid chunk size ${JSON.stringify(chunkSize)}.`);
   }
   let stagedOwners = 0;
+  let activatedOwners = 0;
   for (const ref of plan.from) {
     const owner = owners.get(ref.owner);
     if (owner === undefined) {
       throw new Error(`upgrade coordinator: no compiled transition for owner ${JSON.stringify(ref.owner)}.`);
     }
-    const outcome = await driveOwner(store, plan, ref, owner, chunkSize, clock, stagedOwners);
+    const outcome = await driveOwner(store, plan, ref, owner, chunkSize, clock, stagedOwners, stopBeforeActivate);
     if ('failure' in outcome) return outcome.failure;
-    // driveOwner returns progress only at `active` (or an idempotent skip).
+    // Success lands at `staged` (stop mode) or `active` (full mode,
+    // idempotent skip, or resumed already-started activation).
     stagedOwners += 1;
+    if (outcome.progress.phase === 'active') activatedOwners += 1;
   }
-  return progressState(plan, 'active', stagedOwners);
+  if (activatedOwners === plan.from.length) {
+    return progressState(plan, 'active', stagedOwners);
+  }
+  return progressState(plan, 'staged', stagedOwners);
 }

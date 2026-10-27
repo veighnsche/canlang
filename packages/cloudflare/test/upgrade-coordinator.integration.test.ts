@@ -21,6 +21,7 @@ import {
   todoTables,
 } from '@canlang/state/testing/migration/fixtures';
 import { coordinateUpgrade, type OwnerUpgradeInput } from '../src/upgrade/coordinate.js';
+import { liveApplyUpgrade, type WranglerSpawner } from '../src/upgrade/apply.js';
 
 const PLAN: UpgradePlan = {
   from: [{ owner: 'acme', snapshotId: 'snap-1' }],
@@ -270,4 +271,131 @@ it('serializes two owners in plan order', async () => {
   assert.deepEqual(state.progress, { stagedOwners: 2, totalOwners: 2 });
   assert.equal((await store.readInstalledSnapshot('acme'))?.snapshotId, 'snap-2');
   assert.equal((await store.readInstalledSnapshot('globex'))?.snapshotId, 'snap-2');
+});
+
+it('stops before activation on request and resumes to active', async () => {
+  const { store } = await seedTodoWorld(2);
+  const owners = new Map([['acme', ownerInput()]]);
+  const stopped = await coordinateUpgrade({
+    store,
+    plan: PLAN,
+    owners,
+    chunkSize: 10,
+    clock: fixedClock(),
+    stopBeforeActivate: true,
+  });
+  assert.equal(stopped.stage, 'staged');
+  assert.deepEqual(stopped.progress, { stagedOwners: 1, totalOwners: 1 });
+  assert.equal((await store.readInstalledSnapshot('acme'))?.snapshotId, 'snap-1');
+  assert.equal((await store.readMigrationProgress('mig-1'))?.phase, 'staged');
+  const resumed = await coordinateUpgrade({ store, plan: PLAN, owners, chunkSize: 10, clock: fixedClock() });
+  assert.equal(resumed.stage, 'active');
+  assert.equal((await store.readInstalledSnapshot('acme'))?.snapshotId, 'snap-2');
+});
+
+it('live apply stages, deploys, then flips with the worker leg between', async () => {
+  const { store } = await seedTodoWorld(2);
+  const spawns: Array<{ command: string; args: readonly string[] }> = [];
+  const spawn: WranglerSpawner = (command, args) => {
+    spawns.push({ command, args: [...args] });
+    return { status: 0, stdout: 'deployed', stderr: '' };
+  };
+  const result = await liveApplyUpgrade({
+    plan: PLAN,
+    owners: new Map([['acme', ownerInput()]]),
+    store,
+    chunkSize: 10,
+    clock: fixedClock(),
+    yes: true,
+    configPath: '/tmp/can-test/wrangler.toml',
+    spawn,
+  });
+  assert.equal(result.state.stage, 'active');
+  assert.equal(result.wrangler?.applied, true);
+  assert.deepEqual(result.wrangler?.command, ['wrangler', 'deploy', '--config', '/tmp/can-test/wrangler.toml']);
+  assert.equal(spawns.length, 1);
+  assert.equal((await store.readInstalledSnapshot('acme'))?.snapshotId, 'snap-2');
+});
+
+it('live apply spawns nothing when staging fails', async () => {
+  const { store } = await seedTodoWorld(1);
+  await installSnapshot(store, makeInstalled({ digest: 'digest-9' }));
+  let spawns = 0;
+  const spawn: WranglerSpawner = () => {
+    spawns += 1;
+    return { status: 0, stdout: '', stderr: '' };
+  };
+  const result = await liveApplyUpgrade({
+    plan: PLAN,
+    owners: new Map([['acme', ownerInput()]]),
+    store,
+    chunkSize: 10,
+    clock: fixedClock(),
+    yes: true,
+    configPath: '/tmp/can-test/wrangler.toml',
+    spawn,
+  });
+  assert.equal(result.state.stage, 'staging-failed');
+  assert.equal(result.wrangler, undefined);
+  assert.equal(spawns, 0);
+});
+
+it('live apply reports a failed deploy as retryable and resumes clean', async () => {
+  const { store } = await seedTodoWorld(1);
+  const owners = new Map([['acme', ownerInput()]]);
+  const failing: WranglerSpawner = () => ({ status: 1, stdout: '', stderr: 'boom' });
+  const failed = await liveApplyUpgrade({
+    plan: PLAN,
+    owners,
+    store,
+    chunkSize: 10,
+    clock: fixedClock(),
+    yes: true,
+    configPath: '/tmp/can-test/wrangler.toml',
+    spawn: failing,
+  });
+  assert.equal(failed.state.stage, 'activation-failed');
+  assert.equal(failed.state.failure?.recoverable, true);
+  assert.equal(failed.wrangler?.applied, false);
+  // Data stayed staged; old code still serves old data.
+  assert.equal((await store.readInstalledSnapshot('acme'))?.snapshotId, 'snap-1');
+  assert.equal((await store.readMigrationProgress('mig-1'))?.phase, 'staged');
+  const passing: WranglerSpawner = () => ({ status: 0, stdout: 'deployed', stderr: '' });
+  const retried = await liveApplyUpgrade({
+    plan: PLAN,
+    owners,
+    store,
+    chunkSize: 10,
+    clock: fixedClock(),
+    yes: true,
+    configPath: '/tmp/can-test/wrangler.toml',
+    spawn: passing,
+  });
+  assert.equal(retried.state.stage, 'active');
+  assert.equal((await store.readInstalledSnapshot('acme'))?.snapshotId, 'snap-2');
+});
+
+it('live apply without yes stages and spawns nothing', async () => {
+  const { store } = await seedTodoWorld(1);
+  let spawns = 0;
+  const spawn: WranglerSpawner = () => {
+    spawns += 1;
+    return { status: 0, stdout: '', stderr: '' };
+  };
+  await assert.rejects(
+    () =>
+      liveApplyUpgrade({
+        plan: PLAN,
+        owners: new Map([['acme', ownerInput()]]),
+        store,
+        chunkSize: 10,
+        clock: fixedClock(),
+        yes: false,
+        configPath: '/tmp/can-test/wrangler.toml',
+        spawn,
+      }),
+    /without explicit --yes/,
+  );
+  assert.equal(spawns, 0);
+  assert.equal(await store.readMigrationProgress('mig-1'), null);
 });
