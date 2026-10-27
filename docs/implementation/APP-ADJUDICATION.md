@@ -20,9 +20,9 @@ BGI = generation lane; OWNER = business-policy owner decision required.
 | App | Own-file result | Verdict | Route |
 | --- | --- | --- | --- |
 | CanTable | clean, 33 ops | SUPPORTED | — |
-| CanDo | own clean; dep closure inconclusive | PENDING composition test | running original24+app |
-| CanLoyalty | own clean; dep closure inconclusive | PENDING composition test | running original24+app |
-| CanVolunteer | own clean; dep closure inconclusive | PENDING composition test | running original24+app |
+| CanDo | original24+app: 2 E6008 source-requirement (sibling-constructor loop, query closure) | DEFECT compiler gaps | B-LANE |
+| CanLoyalty | original24+app: 3 E6008 (first-query correspondence ×2, source-requirement) | DEFECT compiler gaps | B-LANE |
+| CanVolunteer | original24+app: 12 E6008 (hook derive, source-requirements, send guard) | DEFECT compiler gaps | B-LANE |
 | CanChat | 1 E6008 saved-styles scope check | INTENDED (generation styles) + BGI/compiler joint | BGI |
 | CanWorkbench | 1 E6008 unbound inline style unit | INTENDED (needs generation binding) | BGI |
 | CanOnboard | 1 E6008 source-requirement receipt (progress-decimal fixed) | DEFECT compiler gap | B-LANE |
