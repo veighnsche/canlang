@@ -106,6 +106,19 @@ the positive ANY dual through the runtime; (2) outcome12 candidate-context
 membership framing proof for the `maintain.Asset.update` can_work-guarded
 CRUD at runtime.
 
+B15 triage (operational services), 28 October 2026: Errors intake
+(FP.INSTRUMENTATION, `interfaces/src/instrumentation/intake.ts`) is
+substantially implemented (versioned admission, key/throttle/bounds/sink)
+but has ~1 test mention in the interfaces suites — needs its intake
+contract suite. Ping/Alerts/Reports (FP.PING/FP.REPORTS, CanCheck/CanReport
+consumers) are blocked on deployment provider bindings
+(`deployment.pings/alerts/reports` manifests have no package
+implementation) plus bounded ingress; CanCheck scenarios reference them
+but no ingress exists. Consent/session tracking and maintenance admission
+show no implementation. Smallest units in order: (1) intake contract
+suite for the existing Errors boundary; (2) deployment provider binding
+design (cross-lane); (3) bounded Ping ingress for CanCheck PingV1.
+
 ## Next implementation queue
 
 Use the order below to select work. These are subdivisions of Z00–Z18, not extra
