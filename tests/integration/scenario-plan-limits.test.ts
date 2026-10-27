@@ -23,8 +23,7 @@
  * `checkScenarioResultDisclosurePlan` validator.
  */
 import { describe, expect, it } from "vitest";
-import { aggregateReceiptLimits } from "../../packages/state/dist/src/invocation/scenario-query-plan.js";
-import { checkScenarioResultDisclosurePlan } from "../../packages/state/dist/src/invocation/scenario-plan.js";
+import { aggregateReceiptLimits, checkScenarioResultDisclosurePlan } from "@canlang/state/invocation";
 
 type Plan = Parameters<typeof aggregateReceiptLimits>[0];
 

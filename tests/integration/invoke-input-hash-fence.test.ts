@@ -78,6 +78,24 @@ describe("executor input-hash fence", () => {
     expect(await store.readRevision()).toBe(revision);
   });
 
+  it("leaves caller-owned nested inputs writable after an interim invoke", async () => {
+    const { base, store } = await setup();
+    const callerInputs: Record<string, unknown> = {};
+    const operationId = uuidv7(FIXED_NOW, 3);
+    const clean = await invoke({
+      ...base,
+      envelope: { operation: "test.tamper", operation_id: operationId, inputs: callerInputs },
+      execute: async () => emptyEffects(),
+    });
+    expect(clean.status).toBe("committed");
+    // The engine observes privately owned immutable admission data: the
+    // caller's own object must accept later nested writes without throwing.
+    callerInputs.note = { text: "x" };
+    (callerInputs.note as { text: string }).text = "y";
+    expect(callerInputs).toMatchObject({ note: { text: "y" } });
+    expect(await store.readRevision()).toBeGreaterThan(0);
+  });
+
   it("forbids a post-witness inputHash change with atomic rollback and deterministic replay", async () => {
     const { base, store } = await setup();
     const revisionBefore = await store.readRevision();

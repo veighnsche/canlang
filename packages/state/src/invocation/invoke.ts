@@ -450,12 +450,17 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
       try {
         const claimed = isGeneratedOperationDef(def) && (def.descriptor.result?.disclosure !== undefined || hasScenarioExecutionPlan(def));
         // Stabilize the live scope once: later same-reference assertions then
-        // repeat a passing check without re-walking it. Any later scope
-        // mutation throws here instead of passing silently; changed references
-        // always take the full check in the assertion above.
+        // repeat a passing check without re-walking it. Context, checkpoint
+        // and record references are engine-built, so they freeze in place.
+        // Admitted inputs may alias caller memory (interim operations keep
+        // the caller's inputs object), so inputs move to a privately owned
+        // frozen copy: the caller keeps full write access to their object
+        // while the engine observes only immutable admission data. Changed
+        // live references always take the full check in the assertion above.
+        // Any engine-side scope mutation throws here instead of passing silently.
+        call.inputs = deepFreeze(snapshotExecutionInputs(call.inputs));
         freezeExecutionScope(call.context);
         freezeExecutionScope(call.checkpoint);
-        freezeExecutionScope(call.inputs);
         freezeExecutionScope(call.recordRefs);
         scenarioExecutions.set(call, { store: input.store, def: call.def, context: call.context, revision: call.revision,
           contextSnapshot: structuredClone(call.context), checkpointSnapshot: structuredClone(call.checkpoint),
