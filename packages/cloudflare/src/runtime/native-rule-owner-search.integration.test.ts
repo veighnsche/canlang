@@ -4161,17 +4161,77 @@ it('refuses stripped and forged loop SEND DATA producers atomically with no part
     }finally{await rm(directory,{recursive:true,force:true});}
   });
 
-it('refuses descriptor-less multi-loop bodies fail-closed with no partial effects',
+it('executes two DATA loops with exact per-loop SEND receipts',
   {timeout:240000},async()=>{
-    const directory=await mkdtemp(join(tmpdir(),'can-multi-loop-'));
+    const directory=await mkdtemp(join(tmpdir(),'can-two-data-loops-'));
+    try{
+      const source=fixture('native-source-send-data.can');
+      const text=await readFile(source,'utf8');
+      // Both loops project Root DATA (direct containment, as in notify_children);
+      // they iterate disjoint rows via the root input and the link root.
+      const variant=text
+        .replace('scenario notify_link_children(link:Link,to:email) by=members',
+          'scenario notify_link_children(link:Link,to:email,root:Root) by=members')
+        .replace(
+          '   for child in link.root.Child as child where child.active limit=10\n    set child {active=false}\n    send Mail.send {to,subject="Linked children",body="Original link"} as delivery',
+          '   for other in root.Child as other where other.active limit=10\n    set other {active=false}\n    send Mail.send {to,subject=root.source,body="First loop"} as staged_delivery\n   for child in link.root.Child as child where child.active limit=10\n    set child {active=false}\n    send Mail.send {to,subject=root.source,body="Second loop"} as delivery');
+      assert.ok(variant!==text,'variant carries two DATA loops');
+      const attempt=fixture('.native-two-data-loops.can');
+      try{
+        await writeFile(attempt,variant);
+        const result=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,attempt],{cwd:root,encoding:'utf8'});
+        assert.equal(result.status,0,result.stdout+result.stderr);
+        const artifact=JSON.parse(result.stdout) as CompileArtifact;
+        // Both loops install checked descriptors plus the DATA loop sites.
+        const marker='canScenarioBodyLoopSources(){return JSON.parse("';
+        const loopModule=artifact.modules.find(mod=>mod.js.includes(marker));assert.ok(loopModule);
+        const start=loopModule.js.indexOf(marker)+marker.length;let j=start,raw='',closed=false;
+        while(j<loopModule.js.length){const c=loopModule.js[j]!;if(c==='\\'){raw+=c+loopModule.js[j+1]!;j+=2;continue;}if(c==='"'){closed=true;break;}raw+=c;j+=1;}
+        assert.ok(closed);
+        const loopCensus=JSON.parse(JSON.parse('"'+raw+'"')) as Record<string,{loops:unknown[]}>;
+        assert.equal(loopCensus['SourceSendData.notify_link_children']!.loops.length,2,'both loops install descriptors');
+        const asm=await assembleModules({artifact,sourcePath:attempt},{workDir:join(directory,'two-data-loops'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+        const {now,identities,identity,membership}=await member('two-data-loops');
+        const scope={app:'SourceSendData',owner:membership.team_id,ownerPackage:'SourceSendData'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'loop-reference-state',fileStoreId:'loop-reference-files',receiver:{app:scope.app,owner:scope.owner,team:scope.owner}};
+        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(scope.owner));}});
+        const rootModel=model('SourceSendData','Root'),locationModel=model('SourceSendData','Location'),childModel=model('SourceSendData','Child');
+        const location={...makeRow({id:asId('location'),data:{enabled:true,visible:true}}),parent:null};
+        const row={...makeRow({id:asId('root'),data:{location:{id:location.id},capacity:'2',checked:false,last:null,source:'Original source',reason:null,secret:'Secret',visible:true}}),parent:null};
+        const other={...makeRow({id:asId('other'),data:{location:{id:location.id},capacity:'2',checked:false,last:null,source:'Other source',reason:null,secret:'Secret',visible:true}}),parent:null};
+        const children=['first','second'].map(id=>({...makeRow({id:asId(id),data:{active:true}}),parent:{model:rootModel,id:row.id}}));
+        const more=['third','fourth'].map(id=>({...makeRow({id:asId(id),data:{active:true}}),parent:{model:rootModel,id:other.id}}));
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:locationModel,row:location},
+          {kind:'insert',model:rootModel,row},{kind:'insert',model:rootModel,row:other},
+          ...children.map(row=>({kind:'insert' as const,model:childModel,row})),...more.map(row=>({kind:'insert' as const,model:childModel,row}))]}));
+        const linkModel=model('SourceSendData','Link'),link={...makeRow({id:asId('link'),data:{root:{id:other.id},visible:true,readable:true}}),parent:null};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:linkModel,row:link}]}));
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const request={operation:'SourceSendData.notify_link_children',operation_id:operationId(now),inputs:{link:{id:link.id,version:String(link.version)},root:{id:row.id,version:String(row.version)},to:'recipient@example.test'}};
+        const outcome=await invoker.invokeMutation(request,identity);
+        assert.ok('result'in outcome&&outcome.result.status==='committed',`two-data-loops: ${JSON.stringify(outcome)}`);
+        const pending=await store.outboxPending();assert.equal(pending.length,4,'two-data-loops: both loops dispatch');
+        assert.deepEqual(pending.map(entry=>(entry.arguments as {arguments:{body:string}}).arguments.body).sort(),['First loop','First loop','Second loop','Second loop']);
+        assert.deepEqual(pending.map(entry=>(entry.arguments as {arguments:{subject:string}}).arguments.subject),['Original source','Original source','Original source','Original source']);
+        for(const child of [...children,...more])assert.equal((await store.load(childModel,child.id))!.data.active,false,'two-data-loops: both loops write');
+        const replay=await invoker.invokeMutation(request,identity);
+        if('error'in replay)assert.equal(replay.error.code,'validation',JSON.stringify(replay));
+        else{assert.equal(replay.result.status,'replayed');assert.equal(replay.result.result,null);}
+        assert.deepEqual(await store.outboxPending(),pending);
+      }finally{await rm(attempt,{force:true});}
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });
+
+it('refuses a half-bound second loop while rolling back the first loop staged effects',
+  {timeout:240000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-half-bound-loop-'));
     try{
       const source=fixture('native-source-send-data.can');
       const text=await readFile(source,'utf8');
       // Independent source proof: the second loop SEND is literal-only (no row DATA
       // projected), while the prepended first loop projects Root DATA.
       assert.ok(text.includes('send Mail.send {to,subject="Linked children",body="Original link"}'),'second loop SEND is data-free');
-      // The prepended DATA loop uses the proven direct-containment shape (a root:Root
-      // input with a root.source SEND, as in notify_children).
       const variant=text
         .replace('scenario notify_link_children(link:Link,to:email) by=members',
           'scenario notify_link_children(link:Link,to:email,root:Root) by=members')
@@ -4179,24 +4239,23 @@ it('refuses descriptor-less multi-loop bodies fail-closed with no partial effect
           '   for child in link.root.Child as child where child.active limit=10\n    set child {active=false}\n    send Mail.send {to,subject="Linked children",body="Original link"} as delivery',
           '   for other in root.Child as other where other.active limit=10\n    set other {active=false}\n    send Mail.send {to,subject=root.source,body="Second loop"} as staged_delivery\n   for child in link.root.Child as child where child.active limit=10\n    set child {active=false}\n    send Mail.send {to,subject="Linked children",body="Original link"} as delivery');
       assert.ok(variant!==text,'variant prepends a DATA loop');
-      const refused=fixture('.native-multi-loop.can');
+      const refused=fixture('.native-half-bound-loop.can');
       try{
         await writeFile(refused,variant);
         const result=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,refused],{cwd:root,encoding:'utf8'});
         assert.equal(result.status,0,result.stdout+result.stderr);
         const artifact=JSON.parse(result.stdout) as CompileArtifact;
-        // Codegen installs source-loop machinery only for single-loop scenarios; the
-        // two-loop op carries no loop or SEND DATA descriptors, so prove that first:
-        // without installed descriptors the body must not execute unreceipted sets/SENDs.
+        // Both loops install descriptors plus the first loop DATA site; the
+        // data-free second loop has no associated site while DATA sites exist.
         const marker='canScenarioBodyLoopSources(){return JSON.parse("';
         const loopModule=artifact.modules.find(mod=>mod.js.includes(marker));assert.ok(loopModule);
         const start=loopModule.js.indexOf(marker)+marker.length;let j=start,raw='',closed=false;
         while(j<loopModule.js.length){const c=loopModule.js[j]!;if(c==='\\'){raw+=c+loopModule.js[j+1]!;j+=2;continue;}if(c==='"'){closed=true;break;}raw+=c;j+=1;}
         assert.ok(closed);
-        const loopCensus=JSON.parse(JSON.parse('"'+raw+'"')) as Record<string,unknown>;
-        assert.ok(!Object.hasOwn(loopCensus,'SourceSendData.notify_link_children'),'two-loop op installs no loop descriptors');
-        const asm=await assembleModules({artifact,sourcePath:refused},{workDir:join(directory,'multi-loop'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
-        const {now,identities,identity,membership}=await member('multi-loop');
+        const loopCensus=JSON.parse(JSON.parse('"'+raw+'"')) as Record<string,{loops:unknown[]}>;
+        assert.equal(loopCensus['SourceSendData.notify_link_children']!.loops.length,2,'both loops install descriptors');
+        const asm=await assembleModules({artifact,sourcePath:refused},{workDir:join(directory,'half-bound'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+        const {now,identities,identity,membership}=await member('half-bound-loop');
         const scope={app:'SourceSendData',owner:membership.team_id,ownerPackage:'SourceSendData'};
         const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'loop-reference-state',fileStoreId:'loop-reference-files',receiver:{app:scope.app,owner:scope.owner,team:scope.owner}};
         const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
@@ -4211,15 +4270,16 @@ it('refuses descriptor-less multi-loop bodies fail-closed with no partial effect
         const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
         const operationIdValue=operationId(now);
         const outcome=await invoker.invokeMutation({operation:'SourceSendData.notify_link_children',operation_id:operationIdValue,inputs:{link:{id:link.id,version:String(link.version)},root:{id:row.id,version:String(row.version)},to:'recipient@example.test'}},identity);
-        // The descriptor-less body is refused fail-closed instead of executing
-        // unreceipted sets/SENDs; only the rejected audit receipt persists.
-        assert.ok(!('result'in outcome)&&outcome.error.message.includes('defining provenance and disclosure join'),`multi-loop: ${JSON.stringify(outcome)}`);
+        // The DATA loop stages first; the data-free second loop has no associated
+        // site while DATA sites exist, so enumeration stays fail-closed and the
+        // staged sets/SENDs roll back atomically, leaving only the rejected audit receipt.
+        assert.ok(!('result'in outcome)&&outcome.error.message.includes('lacks its checked loop-domain SEND receipt'),`half-bound: ${JSON.stringify(outcome)}`);
         const rejected=await store.readReceipt({app:'SourceSendData',owner:membership.team_id,principal:membership.user_id,
           operation:'SourceSendData.notify_link_children',operationId:operationIdValue} as Parameters<typeof store.readReceipt>[0]);
-        assert.ok(rejected,'multi-loop: refusal persists its rejected audit receipt');
-        assert.deepEqual(await store.outboxPending(),[],'multi-loop: no SEND escapes');
-        assert.deepEqual(await store.query({model:asModel('work.dispatch'),authority:'owner'}),[],'multi-loop: no dispatch escapes');
-        for(const child of children)assert.equal((await store.load(childModel,child.id))!.data.active,true,'multi-loop: no set escapes');
+        assert.ok(rejected,'half-bound: refusal persists its rejected audit receipt');
+        assert.deepEqual(await store.outboxPending(),[],'half-bound: staged SENDs roll back');
+        assert.deepEqual(await store.query({model:asModel('work.dispatch'),authority:'owner'}),[],'half-bound: staged dispatches roll back');
+        for(const child of children)assert.equal((await store.load(childModel,child.id))!.data.active,true,'half-bound: staged sets roll back');
       }finally{await rm(refused,{force:true});}
     }finally{await rm(directory,{recursive:true,force:true});}
   });
