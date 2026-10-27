@@ -3382,8 +3382,21 @@ function selectedIndexSet(execution: QueryExecution): ReadonlySet<number> {
   return set;
 }
 function activeOriginalQuery(state:Capture,id:string,owner:ReceiptOwnerSession|undefined):QueryExecution|undefined{
+ const list=queryExecutionsByPlan(state,id);
+ if(list.length===0)return undefined;
+ // Ordinary plans keep their single execution; repeated plans append one
+ // execution per item ordinal in order, so the current item resolves by
+ // direct ordinal access instead of a linear scan per observation. The
+ // direct hit is re-verified with the exact same loop/ordinal identity the
+ // scan required; any divergence falls through to the authoritative scan.
+ const first=list[0]!;
+ if(first.plan.iteration===undefined)return list.find(query=>query.plan.iteration===undefined);
  const item=owner===undefined?undefined:sourceBodyLoopItems.get(owner);
- return queryExecutionsByPlan(state,id).find(query=>query.plan.iteration===undefined||(item!==undefined&&query.occurrence?.loop===item.execution.loop.id&&query.occurrence.ordinal===item.ordinal));
+ if(item!==undefined){
+  const direct=list[item.ordinal];
+  if(direct!==undefined&&direct.occurrence?.loop===item.execution.loop.id&&direct.occurrence.ordinal===item.ordinal)return direct;
+ }
+ return list.find(query=>query.plan.iteration===undefined||(item!==undefined&&query.occurrence?.loop===item.execution.loop.id&&query.occurrence.ordinal===item.ordinal));
 }
 const sourceObservationCounts=new WeakMap<Capture,{ordinary:number;repeated:number}>();
 const queryHandles = new WeakMap<ScenarioReceiptQueryHandle, QueryExecution>();
