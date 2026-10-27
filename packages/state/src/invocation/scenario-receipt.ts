@@ -35,7 +35,7 @@ import { stageAuthoredDelivery, type AuthoredSkippedDelivery } from '../receipt/
 import { RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL, readReceiptRow } from '../receipt/tables.js';
 import { stageGeneratedCrudOwnerCall } from '../mutation/crud.js';
 import { generatedCallInputDeclarations, isGeneratedOperationDef } from './registry.js';
-import { disclosureType, checkQueryInventory, projectReadQueryProjectionWire, queryProjectionWire, checkSavedQueries, savedQueriesReadable, returnQueryIds,aggregateReceiptLimits } from './scenario-query-plan.js';
+import { disclosureType, checkQueryInventory, projectReadQueryProjectionWire, queryProjectionWire, checkSavedQueries, savedQueriesReadable, returnQueryIds,aggregateReceiptLimits,markValidatedDisclosurePlan } from './scenario-query-plan.js';
 import { checkScenarioReceiptMembershipSites, type ScenarioReceiptMembershipSite } from './scenario-membership-plan.js';
 import { MAX_ITEMS, invalid, dataCopy, object, text, list, scalarType, origin, type EventDecisionSite, type EventDecisionPlan, type ObserveVenueDecisionPlan, type SuccessRenewalDecisionPlan, checkObserveVenueDecisionPlan, checkSuccessRenewalDecisionPlan, checkEventDecisionPlan, type TermDecisionSite, type TermDecisionPlan, checkTermDecisionPlan, type LeaveRequestDecisionPlan, checkLeaveRequestDecisionPlan, type LeaveDecideDecisionPlan, checkLeaveDecideDecisionPlan, type ReferRejectDecisionPlan, type MemberRetryDecisionPlan, checkMemberRetryDecisionPlan, checkReferRejectDecisionPlan, type RentMovementRefundDecisionPlan, checkRentMovementRefundDecisionPlan, type InvoiceCollectDecisionPlan, type InvoiceIssueDecisionPlan, checkInvoiceIssueDecisionPlan, checkInvoiceCollectDecisionPlan, type RentNoticeDecisionPlan, checkRentNoticeDecisionPlan, checkSourceEmissions, checkScenarioResultDisclosurePlan, checkScenarioResultDisclosurePlanSet, primitiveInputType, checkPurchaseAllPlan, type EventNoticeAuditPlan, checkEventNoticeAuditPlan } from "./scenario-plan.js";
 export { type EventDecisionSite, type EventDecisionQuerySite, type EventDecisionPlan, type ObserveVenueQuerySite, type ObserveVenueDecisionPlan, type SuccessRenewalDecisionPlan, type TermDecisionSite, type TermDecisionPlan, type LeaveRequestDecisionPlan, type LeaveDecideDecisionPlan, type ReferRejectDecisionPlan, type MemberRetryDecisionPlan, type RentMovementRefundDecisionPlan, type InvoiceCollectDecisionPlan, type InvoiceIssueDecisionPlan, type RentNoticeDecisionPlan, checkScenarioResultDisclosurePlan, checkScenarioResultDisclosurePlanSet, type EventNoticeAuditPlan } from "./scenario-plan.js";
@@ -1408,9 +1408,14 @@ function bindScenarioPlan(def: GeneratedOperationDef, models: readonly ArtifactM
   // install through the set validator, which proves per-copy validity, the
   // shared shell, global return-id uniqueness and canonical chunk order.
   // The private whole-owner aggregate is never transported and never binds.
-  const plans: readonly ScenarioResultDisclosurePlan[] = sourceRequire === undefined
-    ? checkScenarioResultDisclosurePlanSet(claim)
-    : deepFreeze([{ version: 1, source: sourceRequire, returns: [], queries: [] } as ScenarioResultDisclosurePlan]);
+  let plans: readonly ScenarioResultDisclosurePlan[];
+  if (sourceRequire === undefined) {
+    plans = checkScenarioResultDisclosurePlanSet(claim);
+  } else {
+    const literal = deepFreeze({ version: 1, source: sourceRequire, returns: [], queries: [] } as ScenarioResultDisclosurePlan);
+    markValidatedDisclosurePlan(literal);
+    plans = deepFreeze([literal]);
+  }
   const plan: ScenarioResultDisclosurePlan = plans[0]!;
   // Transport pinning: reinstalling the same owner must present byte-identical
   // transport (single plan or ordered copy array). Mutations, reorderings,

@@ -75,27 +75,23 @@ export interface AggregateReceiptLimits {
  * authorize a larger decoding budget. Every payload retains the existing
  * own-data allowance inside the source's finite execution census. */
 const aggregateReceiptLimitCache = new WeakMap<ScenarioResultDisclosurePlan, AggregateReceiptLimits | undefined>();
-/** Plans proven deeply immutable. The cache trusts only this private
- * witness: a shallow `Object.isFrozen` check cannot prove the nested
- * sourceLoops/queries/returns are frozen, so anything not in this set is
- * proven by a full recursive walk once per object and otherwise recomputes
- * fully on every call. A same-reference mutation therefore can never reuse
- * stale budgets: mutable and shallow-frozen plans always recompute, replay's
- * fresh-per-call decoded plans always recompute, and failures are never
- * recorded. */
+/** Plans proven deeply immutable by their validated construction. The cache
+ * trusts only this private witness set: the validation layer registers each
+ * plan it deep-freezes (accessors, cycles, sparse arrays and exotic objects
+ * are refused before inspection, so registered plans hold only immutable own
+ * data). Anything not registered — mutable, shallow-frozen, getter-backed,
+ * proxy or otherwise unproven objects, and replay's fresh-per-call decoded
+ * plans — recomputes fully on every call and can never reuse stale budgets.
+ * Failures are never recorded. */
 const aggregateReceiptLimitWitness = new WeakSet<object>();
-function isDeeplyFrozen(value: unknown, seen: Set<unknown> = new Set()): boolean {
-  if (value === null || (typeof value !== "object" && typeof value !== "function")) return true;
-  if (seen.has(value)) return true;
-  seen.add(value);
-  if (!Object.isFrozen(value)) return false;
-  return Object.values(value).every(item => isDeeplyFrozen(item, seen));
+/** Registers a validated deeply frozen plan as cache-eligible. Called only
+ * by the plan validation and install paths for plans whose own data they
+ * deep-freeze; no external caller or generic freeze check can register. */
+export function markValidatedDisclosurePlan(plan: ScenarioResultDisclosurePlan): void {
+  aggregateReceiptLimitWitness.add(plan);
 }
 export function aggregateReceiptLimits(plan: ScenarioResultDisclosurePlan): AggregateReceiptLimits | undefined {
-  if (!aggregateReceiptLimitWitness.has(plan)) {
-    if (!Object.isFrozen(plan) || !isDeeplyFrozen(plan)) return computeAggregateReceiptLimits(plan);
-    aggregateReceiptLimitWitness.add(plan);
-  }
+  if (!aggregateReceiptLimitWitness.has(plan)) return computeAggregateReceiptLimits(plan);
   if (aggregateReceiptLimitCache.has(plan)) return aggregateReceiptLimitCache.get(plan);
   const limits = computeAggregateReceiptLimits(plan);
   aggregateReceiptLimitCache.set(plan, limits);

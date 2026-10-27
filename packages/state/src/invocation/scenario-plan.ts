@@ -4,7 +4,7 @@ import { canonicalLocale, parseTypeId, printTypeId } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { deepFreeze } from '../internal/own-data.js';
 import { stableStringify } from './replay.js';
-import { checkQueries, checkQueryProjection } from './scenario-query-plan.js';
+import { checkQueries, checkQueryProjection, markValidatedDisclosurePlan } from './scenario-query-plan.js';
 import { storedNominalType } from './scenario-stored-value.js';
 export const MAX_ITEMS = 200;
 export const invalid = (message: string): never => { throw new StateError('validation', `Saved scenario: ${message}`); };
@@ -1548,7 +1548,9 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
     }
   }
   if (dependencies.size > MAX_ITEMS) return invalid('dependency closure exceeds its finite budget.');
-  return deepFreeze(plan as unknown as ScenarioResultDisclosurePlan);
+  const frozen = deepFreeze(plan as unknown as ScenarioResultDisclosurePlan);
+  markValidatedDisclosurePlan(frozen);
+  return frozen;
 }
 
 const PRIMITIVE_INPUT_KINDS: Readonly<Record<string, string>> = Object.freeze({
