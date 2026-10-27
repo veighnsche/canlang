@@ -47,6 +47,7 @@ tests/integration/b2-revocation.test.ts
 tests/integration/can-dev-server/row-subject-consumer.test.ts
 tests/integration/files-safety.test.ts
 tests/integration/identity-auth.test.ts
+tests/integration/invoke-input-hash-fence.test.ts
 tests/integration/lane02-values.test.ts
 tests/integration/readiness.test.ts
 tests/integration/scenario-plan-limits.test.ts

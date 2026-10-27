@@ -169,10 +169,14 @@ export function assertScenarioReceiptExecution(call: AdmittedCall, store: Storag
   // Same-reference observations repeat an already-passing deep check: the
   // registration freeze below makes live scope contents unchangeable, so only
   // a changed reference can change the verdict, and changed references take
-  // the full check. The cheap identity pins above keep their exact errors.
+  // the full check. The raw input hash is a mutable string property outside
+  // the frozen scope, so it is identity-checked on every fast path too; any
+  // mismatch falls through to the full check and its exact forbidden error.
+  // The cheap identity pins above keep their exact errors.
   const proven = active.verified;
   if (proven !== null && proven.context === live.context && proven.checkpoint === live.checkpoint &&
-      proven.inputs === live.inputs && proven.recordRefs === live.recordRefs) return;
+      proven.inputs === live.inputs && proven.recordRefs === live.recordRefs &&
+      active.inputHash === member('inputHash')) return;
   if (!sameExecutionData(live.context, active.contextSnapshot) || !sameExecutionData(live.checkpoint, active.checkpointSnapshot) ||
       active.inputs !== live.inputs || active.recordRefs !== live.recordRefs || active.inputHash !== member('inputHash') ||
       !sameExecutionData(live.inputs, active.inputsSnapshot) || !sameExecutionData(live.recordRefs, active.recordRefsSnapshot)) {
