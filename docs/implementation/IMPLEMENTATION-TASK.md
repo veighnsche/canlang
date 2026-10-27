@@ -33,6 +33,14 @@ until qualified on current source. No all-green final CI is claimed.
 Seven code files in the normal checkout contain unfinished Refer work. Preserve
 that work and use coherent isolated candidates. Account proof reuse is committed. The shared Chat constructor/nominal projection/conditional-loop mechanism is qualified at the compiler and selected protected SEND runtime boundary; it does not grant withheld fields or qualify every original Chat workflow. Shift staged capture work remains an isolated candidate awaiting complete original runtime qualification and integration. These changes do not alter the measured original24 count without a complete capture.
 
+On 27 October 2026 the unchanged original24 command was run from branch
+`goal/production-ready` (= `origin/main` `e5af510f`) with a release compiler built
+from that source and the native catalog rebuilt from that source (`ca50fdca…`,
+byte-identical before and after the rebuild): complete artifact, 26/26 sources,
+60 modules, 482 operations, zero diagnostics, empty stderr. The 13-diagnostic
+count above was measured on feature-branch source and is superseded for main.
+Runtime qualification and CI closure on this source remain open (Z18).
+
 ## Next implementation queue
 
 Use the order below to select work. These are subdivisions of Z00–Z18, not extra
