@@ -1270,6 +1270,10 @@ function mapVendorCoreImport(spec: string, moduleKey: string): string | null {
 }
 
 function mapVendorExtendedImport(spec: string, moduleKey: string): string | null {
+  // D3b Q2 observer seam: vendor-walked modules (the state receipt
+  // observer's dynamic leg) resolve the owning work receipt producer
+  // through the staged vendor copy, mirroring the runtime map.
+  if (spec === WORK_RECEIPT_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_RECEIPT_VENDOR_ENTRY);
   if (spec.startsWith("@canlang/files/")) return relativeSpecifier(moduleKey, `vendor/files/${spec.slice("@canlang/files/".length)}.js`);
   if (spec === FILES_PORTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_PORTS_VENDOR_ENTRY);
   if (spec === FILES_BRIDGE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_BRIDGE_VENDOR_ENTRY);

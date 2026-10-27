@@ -22,11 +22,15 @@ const BUILTINS = new Set(builtinModules.map(name => name.replace(/^node:/, '')))
 const SOURCE = /\.(?:[cm]?tsx?|[cm]?jsx?)$/;
 const ROOT_AREAS = ['tests', 'tools', 'scripts', '.github'];
 
-// These exact resolver calls discover caller-provided/optional producers. They
-// are not static imports and must retain their existing unavailable/error path.
+// These exact resolver/dynamic-import calls discover caller-provided/optional
+// producers. They are not static imports and must retain their existing
+// unavailable/error path. Entries match `locator` calls by default; `kinds`
+// extends the match to other call kinds (e.g. `import`) for the seam the
+// reason names.
 // Browser tools are separately provisioned development tools, never an implicit
 // requirement of the production installation.
 export const contextualModuleLocators = [
+  { consumer: 'packages/state/src/receipt/observer.ts', specifier: '@canlang/work/receipt', kinds: ['import'], reason: 'D3b Q2 observer seam: dynamic leg to the owning receipt producer; a static edge would cycle (@canlang/work depends on @canlang/state). The deploy vendor map rewrites the literal.' },
   { consumer: 'packages/cloudflare/src/runtime/example-bindings.ts', specifier: '@canlang/testkit', reason: 'Optional caller/host inline-example semantic producer; a direct dependency would cycle.' },
   { consumer: 'packages/cloudflare/src/generation/acceptance.ts', specifier: '@playwright/test/cli', reason: 'Mandatory browser acceptance requires explicit development-tool setup and fails when absent.' },
   { consumer: 'packages/testkit/src/browser/chromium.ts', specifier: '@playwright/test', reason: 'Optional browser producer reports unavailable when the development driver is absent.' },
@@ -310,9 +314,10 @@ export function checkPackageBoundaries(rootDirectory, { dependenciesOnly = false
           (ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'resolve' && requireExpression(node.expression.expression))) return 'locator';
       return undefined;
     }
-    function checkSpecifier(specifier, node, { typeOnly = false, locator = false } = {}) {
+    function checkSpecifier(specifier, node, { typeOnly = false, locator = false, kind = undefined } = {}) {
       typeOnly ||= source.isDeclarationFile;
-      const contextual = locator && contextualModuleLocators.some(entry => entry.consumer === path.relative(root, file).split(path.sep).join('/') && entry.specifier === specifier);
+      const callKind = kind ?? (locator ? 'locator' : undefined);
+      const contextual = callKind !== undefined && contextualModuleLocators.some(entry => entry.consumer === path.relative(root, file).split(path.sep).join('/') && entry.specifier === specifier && (entry.kinds ?? ['locator']).includes(callKind));
       const name = localSpecifier(specifier);
       const bare = !specifier.startsWith('.') && !specifier.startsWith('/') && !specifier.startsWith('#') && !specifier.includes(':');
       const packageName = name ?? (bare ? specifier.startsWith('@') ? specifier.split('/').slice(0, 2).join('/') : specifier.split('/')[0] : undefined);
@@ -437,7 +442,7 @@ export function checkPackageBoundaries(rootDirectory, { dependenciesOnly = false
         const kind = moduleCall(node);
         if (kind) {
           const value = evaluate(node.arguments[0]);
-          if (plain(value) !== undefined) checkSpecifier(plain(value), node.arguments[0], { locator: kind === 'locator' });
+          if (plain(value) !== undefined) checkSpecifier(plain(value), node.arguments[0], { locator: kind === 'locator', kind });
           else audit('module', node);
         }
         // A local loader may take a specifier parameter to preserve lazy
@@ -452,7 +457,7 @@ export function checkPackageBoundaries(rootDirectory, { dependenciesOnly = false
               const childKind = moduleCall(child);
               if (childKind) {
                 const specifier = plain(evaluate(child.arguments[0], bindings));
-                if (specifier !== undefined) checkSpecifier(specifier, node, { locator: childKind === 'locator' });
+                if (specifier !== undefined) checkSpecifier(specifier, node, { locator: childKind === 'locator', kind: childKind });
               }
               ts.forEachChild(child, inspect);
             };
