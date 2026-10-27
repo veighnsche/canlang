@@ -41,6 +41,15 @@ byte-identical before and after the rebuild): complete artifact, 26/26 sources,
 count above was measured on feature-branch source and is superseded for main.
 Runtime qualification and CI closure on this source remain open (Z18).
 
+Z18 closure, 27 October 2026: all three CI jobs are green on `e5af510f`
+(Workspace and installed artifacts, Browser and security journeys, Compiler and
+editor: completed/success), covering the full runtime corpus on a clean
+checkout. Local gates on `goal/production-ready` (`e5af510f` + docs only) also
+pass: `bun run build` 26/26, `bun run typecheck` 40/40, `check:unitban`,
+`lint:compiler`, `check:boundaries` (0 violations). No temporary instrumentation
+was added. The zero-diagnostic objective is closed on this source; the B01–B27
+broader-product queue remains.
+
 ## Next implementation queue
 
 Use the order below to select work. These are subdivisions of Z00–Z18, not extra
