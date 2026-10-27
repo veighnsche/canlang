@@ -16639,7 +16639,14 @@ impl<'a> Cx<'a> {
         };
         let value = self.decode_expr(scope, header);
         let maximum = self.decode_expr(scope, maximum);
-        if value.ty.nullable_inner().unwrap_or(&value.ty) != &ResolvedType::Scalar(Scalar::Int)
+        // Progress renders a number: an int, or a decimal fraction such as
+        // the recorded completion percentage. The explicit max stays an
+        // int; other types keep the refusal below.
+        let numeric = matches!(
+            value.ty.nullable_inner().unwrap_or(&value.ty),
+            ResolvedType::Scalar(Scalar::Int | Scalar::Decimal)
+        );
+        if !numeric
             || maximum.ty != ResolvedType::Scalar(Scalar::Int)
             || !self.decode_ui_children(scope, node, row_ctx).is_empty()
         {

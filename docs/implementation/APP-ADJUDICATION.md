@@ -25,7 +25,7 @@ BGI = generation lane; OWNER = business-policy owner decision required.
 | CanVolunteer | own clean; dep closure inconclusive | PENDING composition test | running original24+app |
 | CanChat | 1 E6008 saved-styles scope check | INTENDED (generation styles) + BGI/compiler joint | BGI |
 | CanWorkbench | 1 E6008 unbound inline style unit | INTENDED (needs generation binding) | BGI |
-| CanOnboard | 2 E6008 source-requirement receipt, progress integers | DEFECT compiler gap | B-LANE |
+| CanOnboard | 1 E6008 source-requirement receipt (progress-decimal fixed) | DEFECT compiler gap | B-LANE |
 | CanCreative | 4 E6008 dispatch correspondence, creative.generate call | DEFECT compiler/AI gap | B-LANE |
 | CanPromptLab | own clean; 16 E6008 hook-query in Locations.can | DEFECT compositional lowering gap | B-LANE |
 | CanApprove | 3 E6008 unbound style units + 2 E2013 member | INTENDED (generation) + DEFECT draft | BGI + DRAFT |
@@ -68,5 +68,10 @@ Notes:
   Event/Stock countercases, Volunteer historical-vs-current recipients +
   stale-consent invalidation, Partner authorized lock edit. No new business
   policy is chosen here.
-- No draft file was corrected for this record; no compiler behavior was
-  changed. Corrections belong to the routed owners.
+- No draft file was corrected for this record. One compiler gap found by
+  triage is fixed on this branch: linear `progress` accepts decimal values
+  like `radial_progress` (CanOnboard's percentage bar; 4 factory tests).
+  CanOnboard's remaining diagnostic is a real unimplemented lowering
+  (bounded copy-create loop with computed fields across parents in
+  `bounded_sibling_create_loop`): B-LANE design, not a small fix. Other
+  corrections belong to the routed owners.

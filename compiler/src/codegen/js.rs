@@ -17184,8 +17184,10 @@ impl<'a> Emitter<'a> {
             }
             let typed = match key.as_str() {
                 "value" if node.factory == "progress" => {
-                    value.ty.nullable_inner().unwrap_or(&value.ty)
-                        == &ResolvedType::Scalar(Scalar::Int)
+                    matches!(
+                        value.ty.nullable_inner().unwrap_or(&value.ty),
+                        ResolvedType::Scalar(Scalar::Int | Scalar::Decimal)
+                    )
                 }
                 "max" if node.factory == "progress" => {
                     value.ty == ResolvedType::Scalar(Scalar::Int)
@@ -17547,7 +17549,8 @@ impl<'a> Emitter<'a> {
                     predicate
                 }
             } else if node.factory == "progress" || node.factory == "radialProgress" {
-                let decimal_value = node.factory == "radialProgress"
+                let decimal_value = (node.factory == "progress"
+                    || node.factory == "radialProgress")
                     && key == "value"
                     && matches!(
                         value.ty.nullable_inner().unwrap_or(&value.ty),
@@ -17562,7 +17565,7 @@ impl<'a> Emitter<'a> {
                     // presentation-invalid (NaN -> role=alert); the int max
                     // throw below still wins over a bad value.
                     self.stdlib.insert("encodeValue".to_string());
-                    let expression = self.lower_business_expr(value, "decimal radial progress");
+                    let expression = self.lower_business_expr(value, "decimal progress value");
                     format!(
                         "(value=>{{if(value==null)return null;let text;if(typeof value===\"bigint\"){{text=value.toString(10);}}else if(typeof value===\"number\"){{if(!Number.isFinite(value))return NaN;return value;}}else{{try{{text=encodeValue(\"decimal\",value);}}catch(e){{return NaN;}}}}const number=Number(text);if(!Number.isFinite(number))return NaN;return number;}})({expression})"
                     )
