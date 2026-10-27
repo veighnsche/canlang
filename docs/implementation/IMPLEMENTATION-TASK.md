@@ -62,6 +62,23 @@ bits only; `verify-installed-types` (193 exports, 13 packages) and
 Minimum-Node22 variants not runnable locally (need exactly Node 22.0.0; base
 CI covered them). Publication remains a separately requested action.
 
+B25 mechanism (installed migration/upgrade recovery), 27–28 October 2026, on
+`goal/production-ready`: delivered and committed the upgrade mechanism core
+over the State migration engine — persisted owner/predecessor/desired
+coordinator (`coordinateUpgrade`, binding re-verified every run, engine
+progress rows as the durable record), pending-work inventory producer from
+the live State outbox (`buildUpgradeInventory` + operation-path
+handler-contract mapping, fail-closed), live apply backend
+(`liveApplyUpgrade`, stop-before-activate deploy-then-flip, `--yes` gate,
+wrangler-leg join), all proven by 20 integration tests over memory and real
+D1 (miniflare) adapter stores. Remaining B25 units, each needing cross-lane
+design: (1) plan compilation — schema-diff old→desired directives plus
+snapshot minting from artifacts (L1 intake; transitions are caller-compiled
+today); (2) dispatch-layer in-flight/uncertain supplier join for drain
+(State-outbox inventory covers undispatched work exactly); (3) activate
+gate-4 wiring (needs 1: no transition source in the bundle yet); (4) `deploy
+--yes` CLI wiring through the preparation host (needs 1+3).
+
 ## Next implementation queue
 
 Use the order below to select work. These are subdivisions of Z00–Z18, not extra
