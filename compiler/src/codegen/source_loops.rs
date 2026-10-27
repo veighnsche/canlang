@@ -688,7 +688,7 @@ pub(super) fn collect_native(
     else {
         return None;
     };
-    let mut candidates = effects.iter().filter_map(|statement| {
+    let candidates: Vec<(Span, bool)> = effects.iter().filter_map(|statement| {
         let IrStmt::For { body, span, .. } = statement else { return None; };
         let constructor = matches!(body.as_slice(), [IrStmt::Create { .. }])
             || matches!(body.as_slice(), [IrStmt::If { then_branch, else_branch, .. }]
@@ -700,18 +700,40 @@ pub(super) fn collect_native(
                 if else_branch.is_empty() && conditional_send_set(then_branch));
         ((constructor && effects.last().is_some_and(|last| std::ptr::eq(last, statement))) || commands)
             .then_some((*span, commands))
-    });
-    let (span, commands) = candidates.next()?;
-    if candidates.next().is_some() {
+    }).collect();
+    if candidates.is_empty() {
         return None;
     }
     let plan = collect_from_source(ir, owner, context, source, module)?;
     let loops = plan["loops"].as_array()?;
-    (loops.len() == 1
-        && loops[0]["node"]["start"] == span.start
-        && loops[0]["node"]["end"] == span.end
-        && (commands || loops[0]["sends"] == 0))
-        .then_some(plan)
+    // Every candidate body needs its exact plan entry and vice versa: each
+    // top-level `for` with a provable body shape matches exactly one collected
+    // loop by node span, and no two candidates share one. Single-loop owners
+    // keep today's exact behavior; multi-loop owners install one checked loop
+    // identity per body instead of falling back to undescribed plain queries.
+    // Collection skips `for` bodies, so nested shapes fail the count and keep
+    // the fallback.
+    if loops.len() != candidates.len() {
+        return None;
+    }
+    let mut matched = vec![false; loops.len()];
+    for (span, commands) in &candidates {
+        let mut hit = None;
+        for (index, entry) in loops.iter().enumerate() {
+            if entry["node"]["start"] == span.start && entry["node"]["end"] == span.end {
+                if hit.is_some() || matched[index] {
+                    return None;
+                }
+                hit = Some(index);
+            }
+        }
+        let index = hit?;
+        if !(*commands || loops[index]["sends"] == 0) {
+            return None;
+        }
+        matched[index] = true;
+    }
+    Some(plan)
 }
 
 /// Reuse the exact source loop census for a nongrant phase prefix proof.
