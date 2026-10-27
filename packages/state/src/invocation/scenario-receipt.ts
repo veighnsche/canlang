@@ -1410,7 +1410,7 @@ function bindScenarioPlan(def: GeneratedOperationDef, models: readonly ArtifactM
   // The private whole-owner aggregate is never transported and never binds.
   const plans: readonly ScenarioResultDisclosurePlan[] = sourceRequire === undefined
     ? checkScenarioResultDisclosurePlanSet(claim)
-    : Object.freeze([{ version: 1, source: sourceRequire, returns: [], queries: [] } as ScenarioResultDisclosurePlan]);
+    : deepFreeze([{ version: 1, source: sourceRequire, returns: [], queries: [] } as ScenarioResultDisclosurePlan]);
   const plan: ScenarioResultDisclosurePlan = plans[0]!;
   // Transport pinning: reinstalling the same owner must present byte-identical
   // transport (single plan or ordered copy array). Mutations, reorderings,

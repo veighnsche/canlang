@@ -49,6 +49,7 @@ tests/integration/files-safety.test.ts
 tests/integration/identity-auth.test.ts
 tests/integration/lane02-values.test.ts
 tests/integration/readiness.test.ts
+tests/integration/scenario-plan-limits.test.ts
 tests/integration/stdlib-builtins.test.ts
 tests/integration/work-idempotency.test.ts
 tests/integration/work-kernel-decisions.test.ts

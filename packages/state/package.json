@@ -103,6 +103,10 @@
       "types": "./dist/src/invocation/registry.d.ts",
       "default": "./dist/src/invocation/registry.js"
     },
+    "./invocation/scenario-query-plan": {
+      "types": "./dist/src/invocation/scenario-query-plan.d.ts",
+      "default": "./dist/src/invocation/scenario-query-plan.js"
+    },
     "./invocation/replay": {
       "types": "./dist/src/invocation/replay.d.ts",
       "default": "./dist/src/invocation/replay.js"

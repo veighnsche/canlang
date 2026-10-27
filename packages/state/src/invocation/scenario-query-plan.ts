@@ -76,16 +76,22 @@ export interface AggregateReceiptLimits {
  * own-data allowance inside the source's finite execution census. */
 const aggregateReceiptLimitCache = new WeakMap<ScenarioResultDisclosurePlan, AggregateReceiptLimits | undefined>();
 export function aggregateReceiptLimits(plan: ScenarioResultDisclosurePlan): AggregateReceiptLimits | undefined {
+  // Budgets are cached only for deeply frozen installed plans. A mutable
+  // plan object may change after the first lookup and must never reuse
+  // prior budgets, so unfrozen inputs bypass the cache and revalidate
+  // fully on every call. Replay decodes a fresh plan object per call and
+  // always recomputes; failures are never cached.
+  if (!Object.isFrozen(plan)) return computeAggregateReceiptLimits(plan);
   if (aggregateReceiptLimitCache.has(plan)) return aggregateReceiptLimitCache.get(plan);
   const limits = computeAggregateReceiptLimits(plan);
   aggregateReceiptLimitCache.set(plan, limits);
   return limits;
 }
 
-/** Pure budget derivation over one immutable plan; the memoized wrapper above
- * shares this single computation per installed plan object. A different or
- * tampered plan is a different object and revalidates fully; failures are
- * never cached so fail-closed paths refuse identically every time. */
+/** Pure budget derivation over one plan snapshot; the memoized wrapper above
+ * shares this single computation per deeply frozen installed plan object.
+ * Failures are never cached so fail-closed paths refuse identically every
+ * time. */
 function computeAggregateReceiptLimits(plan: ScenarioResultDisclosurePlan): AggregateReceiptLimits | undefined {
   const loops = plan.sourceLoops?.loops.filter(loop => loop.aggregate !== undefined) ?? [];
   if (loops.length === 0) return undefined;
