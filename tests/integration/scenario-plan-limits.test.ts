@@ -159,7 +159,7 @@ describe("aggregateReceiptLimits provenance-witness cache", () => {
         loops: [{ id: LOOP_ID, maximum, writes: 1, sends: 0, aggregate: { queries: ["q1"], dependencies: [] } }],
       });
     let current = frozenLoops(10);
-    const plan = makePlan(10) as Record<string, unknown>;
+    const plan: Record<string, unknown> = { ...makePlan(10) };
     Object.defineProperty(plan, "sourceLoops", { enumerable: true, configurable: true, get: () => current });
     // Deep-freeze every reachable data graph (including the getter's current
     // result) exactly as the review's repro does: the outer plan is fully

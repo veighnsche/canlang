@@ -16,7 +16,9 @@
  * and real replay. No mocks, no new API.
  */
 import { describe, expect, it } from "vitest";
+import type { OperationId, OperationName } from "@canlang/contracts";
 import { invoke, assertScenarioReceiptExecution } from "@canlang/state/invocation/invoke";
+import type { InterimOperationDef } from "@canlang/state/invocation/registry";
 import { createTestMemoryStorage } from "@canlang/state/storage/memory";
 import {
   createMemoryIdentityStore,
@@ -26,7 +28,8 @@ import {
   FIXED_NOW,
 } from "@canlang/state/testing/invocation/fixtures";
 
-const def = { name: "test.tamper", kind: "scenario", by: "public", inputs: {} } as const;
+const def: InterimOperationDef = { name: "test.tamper" as OperationName, kind: "scenario", by: "public", inputs: {} };
+const operationId = (sequence: number): OperationId => uuidv7(FIXED_NOW, sequence) as OperationId;
 const registry = new Map([["test.tamper", def]]);
 const memberships = createMemoryIdentityStore();
 const emptyEffects = () => ({
@@ -61,17 +64,17 @@ async function setup() {
 describe("executor input-hash fence", () => {
   it("commits and replays an honest executor (control)", async () => {
     const { base, store } = await setup();
-    const operationId = uuidv7(FIXED_NOW, 1);
+    const cleanId = operationId(1);
     const clean = await invoke({
       ...base,
-      envelope: { operation: "test.tamper", operation_id: operationId, inputs: {} },
+      envelope: { operation: "test.tamper", operation_id: cleanId, inputs: {} },
       execute: async () => emptyEffects(),
     });
     expect(clean.status).toBe("committed");
     const revision = await store.readRevision();
     const replayed = await invoke({
       ...base,
-      envelope: { operation: "test.tamper", operation_id: operationId, inputs: {} },
+      envelope: { operation: "test.tamper", operation_id: cleanId, inputs: {} },
       execute: async () => emptyEffects(),
     });
     expect(replayed.status).toBe("replayed");
@@ -81,10 +84,10 @@ describe("executor input-hash fence", () => {
   it("leaves caller-owned nested inputs writable after an interim invoke", async () => {
     const { base, store } = await setup();
     const callerInputs: Record<string, unknown> = {};
-    const operationId = uuidv7(FIXED_NOW, 3);
+    const callerId = operationId(3);
     const clean = await invoke({
       ...base,
-      envelope: { operation: "test.tamper", operation_id: operationId, inputs: callerInputs },
+      envelope: { operation: "test.tamper", operation_id: callerId, inputs: callerInputs },
       execute: async () => emptyEffects(),
     });
     expect(clean.status).toBe("committed");
@@ -99,11 +102,11 @@ describe("executor input-hash fence", () => {
   it("forbids a post-witness inputHash change with atomic rollback and deterministic replay", async () => {
     const { base, store } = await setup();
     const revisionBefore = await store.readRevision();
-    const operationId = uuidv7(FIXED_NOW, 2);
+    const tamperId = operationId(2);
     let tamperRan = false;
     const tampered = await invoke({
       ...base,
-      envelope: { operation: "test.tamper", operation_id: operationId, inputs: {} },
+      envelope: { operation: "test.tamper", operation_id: tamperId, inputs: {} },
       execute: async (call) => {
         assertScenarioReceiptExecution(call, store);
         (call as { inputHash: string }).inputHash = "tampered-hash";
@@ -129,7 +132,7 @@ describe("executor input-hash fence", () => {
     // Deterministic replay: the same refusal, no new commit, stable revision.
     const replayed = await invoke({
       ...base,
-      envelope: { operation: "test.tamper", operation_id: operationId, inputs: {} },
+      envelope: { operation: "test.tamper", operation_id: tamperId, inputs: {} },
       execute: async () => emptyEffects(),
     }).then(
       (result) => ({ result }),
