@@ -28,8 +28,9 @@ jobs:
     name: Workspace and installed artifacts
     runs-on: ubuntu-24.04
     # The complete native runtime corpus includes long multi-mode owner and
-    # rollback journeys, followed by isolated installed-package checks.
-    timeout-minutes: 90
+    # rollback journeys, followed by isolated installed-package checks. The
+    # runtime corpus alone has taken 77 minutes on the hosted runner.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
         with:
@@ -84,7 +85,7 @@ jobs:
       - name: Test all package and integration suites
         env:
           CAN_PREPARATION_BIN: ${{ runner.temp }}/can-integration-preparation/debug/can-preparation
-        run: bun run test:all
+        run: bun run test:all --log-order=stream
       - name: Verify installed package declarations
         run: bun run verify:installed-types --skip-build
       - name: Verify installed Worker and assets
