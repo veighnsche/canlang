@@ -75,16 +75,19 @@ export interface AggregateReceiptLimits {
  * authorize a larger decoding budget. Every payload retains the existing
  * own-data allowance inside the source's finite execution census. */
 const aggregateReceiptLimitCache = new WeakMap<ScenarioResultDisclosurePlan, AggregateReceiptLimits | undefined>();
+/** Plans proven deeply immutable by the derivation below. The cache trusts
+ * only this private witness: the first lookup for an object deep-freezes it
+ * (tamper-evident henceforth) and records it, so a same-reference mutation
+ * afterwards throws instead of reusing stale budgets. Anything not in this
+ * set recomputes fully, so replay's fresh-per-call decoded plans and any
+ * untrusted object always revalidate; failures are never recorded. */
+const aggregateReceiptLimitWitness = new WeakSet<object>();
 export function aggregateReceiptLimits(plan: ScenarioResultDisclosurePlan): AggregateReceiptLimits | undefined {
-  // Budgets are cached only for deeply frozen installed plans. A mutable
-  // plan object may change after the first lookup and must never reuse
-  // prior budgets, so unfrozen inputs bypass the cache and revalidate
-  // fully on every call. Replay decodes a fresh plan object per call and
-  // always recomputes; failures are never cached.
-  if (!Object.isFrozen(plan)) return computeAggregateReceiptLimits(plan);
-  if (aggregateReceiptLimitCache.has(plan)) return aggregateReceiptLimitCache.get(plan);
+  if (aggregateReceiptLimitWitness.has(plan)) return aggregateReceiptLimitCache.get(plan);
+  deepFreeze(plan);
   const limits = computeAggregateReceiptLimits(plan);
   aggregateReceiptLimitCache.set(plan, limits);
+  aggregateReceiptLimitWitness.add(plan);
   return limits;
 }
 
