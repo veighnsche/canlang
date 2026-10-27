@@ -23,7 +23,7 @@ import type {
 } from "./wire.js";
 import type { DeliveryStatus } from "./services.js";
 import type { HistoryEntry, Revision } from "./state.js";
-import type { DatetimeValue, FileValue, UserRef } from "./values.js";
+import type { DatetimeValue, FileValue, MoneyValue, UserRef } from "./values.js";
 import type { GenerationCallbackDiagnosticResult, GenerationCallbackFailure, ReceiptProperty } from "./work.js";
 
 /** Reused producer types, re-exported so lane-05 members import one contract file. */
@@ -648,8 +648,8 @@ export interface PageReadScope {
 /**
  * One `text` value. Raw strings are verbatim text; raw numbers must be safe
  * integers (non-integers throw: decimals need {type,value}); bigint/bool are
- * exact; native user references display their stable ID and native datetimes
- * use the existing typed scalar formatter; descriptors render with bound params;
+ * exact; native user references display their stable ID, and native datetimes
+ * and money use the existing typed scalar formatter; descriptors render with bound params;
  * {type,value} pairs carry numerics/temporals with explicit types; null and
  * undefined render as empty.
  */
@@ -660,6 +660,7 @@ export type TextValue =
   | boolean
   | UserRef
   | DatetimeValue
+  | MoneyValue
   | MessageDescriptor
   | ResolvedMessage
   | MessageParamValue

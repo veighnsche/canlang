@@ -20,7 +20,7 @@ import {
   GENERATED_FORM_TYPE_FOR_KIND,
   GENERATED_REF_VERSION_SUFFIX,
 } from "@canlang/contracts";
-import { decodeValue, encodeValue, isFileValue, SchemaError } from "@canlang/values";
+import { CURRENCY_MINOR_UNITS, decodeValue, encodeValue, isFileValue, SchemaError } from "@canlang/values";
 import {
   isValidDate,
   stringFieldValue,
@@ -1366,7 +1366,7 @@ function checkedDeliveryBinding(
  * options from the
  * derived values verbatim, literal defaults prefilled verbatim, a
  * `__version` text companion after each versioned non-record ref, a
- * `__currency` text companion after each money input, a `__fold` select
+ * `__currency` currency selector after each money input, a `__fold` select
  * after each datetime input, and a `__null` checkbox after each nullable
  * non-delivery input. Unknown kinds, ref inputs without a boolean
  * versioned flag, enums without values, delivery inputs without their
@@ -1426,9 +1426,10 @@ function generatedCompanionFields(
     const prefill = currencyPrefill(input);
     companions.push({
       path: companion,
-      label: generatedLabel(companion, overrides.labels),
-      type: "text",
+      label: overrides.labels?.[companion] ?? message("Currency", {nl: "Valuta"}),
+      type: "enum",
       required: false,
+      options: [{value: "", label: message("Choose currency", {nl: "Kies valuta"})}, ...Object.keys(CURRENCY_MINOR_UNITS).map(currency => ({value: currency, label: currency}))],
       ...(prefill === undefined ? {} : { value: prefill }),
     });
   }

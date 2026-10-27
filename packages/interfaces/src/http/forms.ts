@@ -189,20 +189,15 @@ function placeOperationAuthored<Field extends { readonly path: string }>(
   if (authored !== undefined && (new Set(authored).size !== authored.length || authored.some(name => !selectedNames.has(name)))) {
     throw new Error('Authored form controls must be unique selected writable inputs.');
   }
-  // An authored scalar may omit its optional explicit-null checkbox.
-  // Other companions must accompany their base. Unplaced generated inputs
-  // retain their complete existing companion set in the automatic remainder.
+  // Positioning a source control does not discard the rest of its wire shape.
+  // Currency, reference-version and datetime-fold companions stay in the
+  // generated remainder. Only an optional explicit-null checkbox may be omitted.
   const authoredNames = new Set(authored);
-  const authoredCompanion = (path: string) => authored?.some(name =>
-    path === `${name}__null` || path === `${name}__version` ||
-    path === `${name}__currency` || path === `${name}__fold`) === true;
-  if (fields.some(field => authoredCompanion(field.path) &&
-      !writable.some(input => input.nullable === true && field.path === `${input.name}__null`))) {
-    return { reason: "This form's field types are not supported yet." };
-  }
+  const omittedNullCompanion = (path: string) => authored?.some(name =>
+    path === `${name}__null` && writable.some(input => input.name === name && input.nullable === true)) === true;
   const renderedFields = authored === undefined ? fields : [
     ...authored.map(name => generated.get(name)!),
-    ...fields.filter(field => !authoredNames.has(field.path) && !authoredCompanion(field.path)),
+    ...fields.filter(field => !authoredNames.has(field.path) && !omittedNullCompanion(field.path)),
   ];
   return { authoredLabels, authoredValidators, labelNames, validatorNames, authored, renderedFields };
 }

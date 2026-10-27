@@ -21498,9 +21498,10 @@ export function createPageReadScopeCanonical(
       ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }) };
     const singular = new Map<string, FileValue>();
     for (const field of Object.keys(wire)) {
-      // System-managed fields (notably the `parent` ancestor link present on
-      // row wire data) never bear stored File slots; the set is owned by State.
-      if (systemManagedFields.has(field)) continue;
+      // Census whole stored fields. Projected dotted leaves (for example
+      // amount.currency) are authorized projections of their owning field,
+      // not additional stored fields accepted by the State profile binder.
+      if (systemManagedFields.has(field) || field.includes('.')) continue;
       const profile = bindProfile(bound, model as ModelName, field);
       if (!profile.fileBearing) continue;
       for (const occurrence of occurrences(profile, wire[field])) {
@@ -21761,8 +21762,9 @@ export function createPageReadScopeCanonical(
       ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
       ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }) };
           for (const field of Object.keys(fields)) {
-            // System-managed fields never bear stored File slots; the set is owned by State.
-            if (systemManagedFields.has(field)) continue;
+            // Dotted projection leaves are traversed through their whole owning
+            // stored field; they are not independent File profile subjects.
+            if (systemManagedFields.has(field) || field.includes('.')) continue;
             if (bindProfile(bound, model as ModelName, field).fileBearing) {
               const value = nativeRecordField(loaded, model, field, fields[field]);
               Object.defineProperty(fields, field, { enumerable: true, configurable: true, writable: true, value });
@@ -21870,7 +21872,7 @@ export function createPageReadScopeCanonical(
         if (field.valueType === undefined) return false;
         const type = parseTypeId(field.valueType);
         return !type.array && (type.base.kind === 'user' ||
-          type.base.kind === 'scalar' && type.base.name === 'datetime');
+          type.base.kind === 'scalar' && (type.base.name === 'datetime' || type.base.name === 'money'));
       }).map(([name]) => name));
       const record = (value: Readonly<Record<string, unknown>> | null) => value === null ? null :
         Object.freeze(Object.fromEntries(Object.entries(value).map(([field, wire]) => [field,

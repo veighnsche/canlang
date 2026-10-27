@@ -73,7 +73,7 @@ function renderResolvedText(value: ResolvedMessage): string {
  * Render one `text` value to escaped, bidi-isolated HTML text. Sync so
  * collections/forms can reuse it inside row loops. Callers must not re-escape
  * the result. Raw numbers are accepted for safe integers only. Native
- * user/datetime values retain their checked representation; other typed
+ * user/datetime/money values retain their checked representation; other typed
  * scalars, including decimals, need an explicit {type, value} pair.
  */
 export function renderTextValue(value: TextValue, context: PresentationContext): string {

@@ -67,6 +67,7 @@ import type { DerivedOperationInputs, DerivedWritableInput, FormMode } from "@ca
 import type { GeneratedViewMount, GeneratedViewPresentation, RowView } from "@canlang/contracts";
 import { CSRF_FIELD, SOURCE_FORM_BINDING_FIELD, GENERATED_REF_VERSION_SUFFIX, GENERATED_VIEW_ATTR } from "@canlang/contracts";
 import { projectGeneratedInputs, GENERATED_NULL_SUFFIX } from "../forms.js";
+import {enhanceMoneyInputs} from './money.js';
 
 /** Minimal structural document (satisfied by DOM Document and fakes). */
 export interface DocumentLike {
@@ -947,6 +948,7 @@ function bindInputChoices(form: ElementLike, internals: ClientInternals, alive: 
 }
 
 function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: ClientInternals): () => void {
+  const moneyInputs = enhanceMoneyInputs(form);
   const context = client.contextKey();
   let stopped = false;
   let pending = false;
@@ -1006,6 +1008,7 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
     for (const [name, value] of new FormData(form, event.submitter)) {
       if (typeof value === 'string') flat[name] = value;
     }
+    moneyInputs.project(flat);
     return flat;
   };
   const applySubmitRetry = (flat: Record<string, string>, retry: { operation_id: string; form_binding?: string }): void => {
@@ -1237,6 +1240,7 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
       () => restoreSubmitter?.(),
       () => request?.abort(),
       stopChoices,
+      () => moneyInputs.stop(),
       () => form.removeEventListener('submit', onSubmit),
       ...(pending ? [releaseBusy, () => form.removeAttribute('data-can-submit-state')] : []),
     ]);
