@@ -1,9 +1,11 @@
-/** B25 upgrade coordinator: real engine runs over an isolated memory store. */
+/** B25 upgrade coordinator: real engine runs over isolated memory and D1 stores. */
 import assert from 'node:assert/strict';
+import { Miniflare } from 'miniflare';
 import { it } from 'vitest';
-import type { ModelName, UpgradePlan } from '@canlang/contracts';
+import type { ModelName, StoragePort, UpgradePlan } from '@canlang/contracts';
 import { buildModelTable, type ModelTable } from '@canlang/state';
 import { stageNextChunk, validateTransition, type MigrationMapper } from '@canlang/state/migration';
+import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { asId, asModel } from '@canlang/state/testing/invocation/fixtures';
 import { field, modelDef } from '@canlang/state/testing/mutation/fixtures';
 import {
@@ -71,8 +73,28 @@ async function seedTodoWorld(rows = 2) {
   return { store, probe };
 }
 
-it('upgrades one owner predecessor to desired with staged data preserved', async () => {
-  const { store } = await seedTodoWorld(3);
+async function seedD1TodoWorld(rows = 2) {
+  const runtime = new Miniflare({
+    modules: true,
+    script: 'export default {fetch(){return new Response("ready")}}',
+    d1Databases: { DB: 'upgrade-coordinator-proof' },
+  });
+  const db = (await runtime.getD1Database('DB')) as unknown as Parameters<typeof createD1Storage>[0];
+  await ensureSchema(db);
+  const store = createD1Storage(db);
+  await installSnapshot(store, makeInstalled());
+  await seedLive(
+    store,
+    TODO_MODEL,
+    Array.from({ length: rows }, (_, index) => ({
+      id: `todo-${index}`,
+      data: { label: `task ${index}`, done: false, legacy: `old-${index}` },
+    })),
+  );
+  return { store, cleanup: () => runtime.dispose() };
+}
+
+async function expectHappyPath(store: StoragePort) {
   const state = await coordinateUpgrade({
     store,
     plan: PLAN,
@@ -87,10 +109,9 @@ it('upgrades one owner predecessor to desired with staged data preserved', async
   assert.equal(installed?.digest, 'digest-2');
   const progress = await store.readMigrationProgress('mig-1');
   assert.equal(progress?.phase, 'active');
-});
+}
 
-it('resumes an interrupted staging run and validates staged rows', async () => {
-  const { store } = await seedTodoWorld(3);
+async function expectInterruptedResume(store: StoragePort) {
   const input = ownerInput();
   const { oldModels, desiredModels } = todoTables();
   // Interrupt after one chunk of three rows (chunkSize 1).
@@ -117,6 +138,34 @@ it('resumes an interrupted staging run and validates staged rows', async () => {
   assert.equal(state.stage, 'active');
   const installed = await store.readInstalledSnapshot('acme');
   assert.equal(installed?.snapshotId, 'snap-2');
+}
+
+it('upgrades one owner predecessor to desired with staged data preserved', async () => {
+  const { store } = await seedTodoWorld(3);
+  await expectHappyPath(store);
+});
+
+it('resumes an interrupted staging run and validates staged rows', async () => {
+  const { store } = await seedTodoWorld(3);
+  await expectInterruptedResume(store);
+});
+
+it('upgrades over a real D1 adapter', async () => {
+  const { store, cleanup } = await seedD1TodoWorld(3);
+  try {
+    await expectHappyPath(store);
+  } finally {
+    await cleanup();
+  }
+});
+
+it('resumes an interrupted staging run over a real D1 adapter', async () => {
+  const { store, cleanup } = await seedD1TodoWorld(3);
+  try {
+    await expectInterruptedResume(store);
+  } finally {
+    await cleanup();
+  }
 });
 
 it('refuses a predecessor mismatch before any write', async () => {
