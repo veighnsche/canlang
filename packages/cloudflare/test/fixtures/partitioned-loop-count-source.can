@@ -1,0 +1,29 @@
+app LoopCount uses=[loop_shapes]
+package loop_shapes
+ Given
+  Root {label:text}
+  Snapshot in Root {sequence:int,hidden:bool=false}
+  policy Root read=members
+  policy Snapshot read=members and not row.hidden
+ When
+  scenario looped(root:Root,flag:bool) by=members
+   require true
+   do
+    for snap in root.Snapshot as snap where snap.hidden==false limit=10
+     set snap {hidden=false}
+    if flag
+     create Snapshot {parent=root,sequence=count(root.Snapshot)+1} as snapshot
+    else
+     create Snapshot {parent=root,sequence=count(root.Snapshot)+1} as snapshot
+  scenario looped_after_arm(root:Root,flag:bool,pre:bool) by=members
+   require true
+   do
+    if pre
+     set root {label="preceding taken arm wrote"}
+    for snap in root.Snapshot as snap where snap.hidden==false limit=10
+     set snap {hidden=false}
+    if flag
+     create Snapshot {parent=root,sequence=count(root.Snapshot)+1} as snapshot
+    else
+     create Snapshot {parent=root,sequence=count(root.Snapshot)+1} as snapshot
+ Then

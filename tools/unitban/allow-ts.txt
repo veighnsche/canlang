@@ -11,8 +11,10 @@ packages/cloudflare/src/runtime/native-leave-decide.integration.test.ts
 packages/cloudflare/src/runtime/native-leave-request.integration.test.ts
 packages/cloudflare/src/runtime/native-local-rules-d1.integration.test.ts
 packages/cloudflare/src/runtime/native-local-rules.integration.test.ts
+packages/cloudflare/src/runtime/native-loop-send.integration.test.ts
 packages/cloudflare/src/runtime/native-member-retry-collection.integration.test.ts
 packages/cloudflare/src/runtime/native-observe-venue.integration.test.ts
+packages/cloudflare/src/runtime/native-partitioned-plan-set.integration.test.ts
 packages/cloudflare/src/runtime/native-read-boolean-graph.integration.test.ts
 packages/cloudflare/src/runtime/native-read-boolean.integration.test.ts
 packages/cloudflare/src/runtime/native-refer-reject-source.integration.test.ts

@@ -1,0 +1,24 @@
+app NativeLoopSend uses=[worker]
+package api
+ Given
+  export capability PingV1 version=1
+   ping(v:int,note:text,ok:bool) -> text
+ When
+ Then
+package worker
+ use api {PingV1 as Ping} from=deployment.ping
+ Given
+  Root {label:text,since:datetime}
+  Snapshot in Root {sequence:int,hidden:bool=false}
+  policy Root read=members
+  policy Snapshot read=members and not row.hidden
+ When
+  scenario looped(root:Root,flag:bool) by=members
+   require trim(root.label)!="" and (flag or not flag)
+   do
+    let probe = root.label in ["x"] or flag or now<root.since
+    set root {label="x"}
+    for snap in root.Snapshot as row where row.hidden==false limit=10
+     set snap {hidden=true}
+     send Ping.ping {v=snap.sequence,note=root.label,ok=probe} as delivery
+ Then
