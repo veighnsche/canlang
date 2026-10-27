@@ -94,6 +94,18 @@ original app does. All three need dev-server lane fixes before original-app
 preview journeys can qualify B22/B27. No model-provider credentials exist in
 this environment, so supported-host generation is also untestable here.
 
+B01/B02 verification (branch source), 28 October 2026: discriminator suites
+green — any_first_composition 7/7, collection_calls 2/2,
+boolean_operation_admission 8/8, decision_source_facts 14/14,
+stored_query_profiles 9/9, model_hook_profile 12/12; the outcome12
+compile-side refusal is closed (CanMaintain `when=can_work(...)` guards
+present in the zero-diagnostic corpus). Open remainders, both runtime-matrix
+test-authoring work for the B-lane: (1) CAN18 outcome5 full guard/body
+execute matrix (absence, mismatch, denial, rollback, replay, recovery) for
+the positive ANY dual through the runtime; (2) outcome12 candidate-context
+membership framing proof for the `maintain.Asset.update` can_work-guarded
+CRUD at runtime.
+
 ## Next implementation queue
 
 Use the order below to select work. These are subdivisions of Z00–Z18, not extra
