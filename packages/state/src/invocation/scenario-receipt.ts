@@ -211,8 +211,25 @@ function boundTransportDisclosure(bound: BoundPlan): unknown {
 /** Installed union of return paths across the ordered copy set. Single-plan
  * owners see today's one copy; partitioned owners see every copy's returns
  * in set order. Universal demands hold per copy through the union. */
+/** Installed bound plans are immutable after binding, so the union inventory
+ * and its flattened dependency list are derived once per bound plan instead
+ * of reallocated on every observation. Callers only ever read the result;
+ * the cached arrays are never mutated. */
+const boundUnionReturnLists = new WeakMap<BoundPlan, readonly ScenarioResultDisclosurePlan['returns'][number][]>();
 function boundUnionReturns(bound: BoundPlan): readonly ScenarioResultDisclosurePlan['returns'][number][] {
-  return bound.plans.flatMap(copy => copy.returns);
+  const cached = boundUnionReturnLists.get(bound);
+  if (cached !== undefined) return cached;
+  const returns = bound.plans.flatMap(copy => copy.returns);
+  boundUnionReturnLists.set(bound, returns);
+  return returns;
+}
+const boundUnionDependencyLists = new WeakMap<BoundPlan, readonly ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number][]>();
+function boundUnionReturnDependencies(bound: BoundPlan): readonly ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number][] {
+  const cached = boundUnionDependencyLists.get(bound);
+  if (cached !== undefined) return cached;
+  const dependencies = boundUnionReturns(bound).flatMap(returned => returned.dependencies);
+  boundUnionDependencyLists.set(bound, dependencies);
+  return dependencies;
 }
 /** Saved/child replay must match the SAME full installed set and the exact
  * installed copy for the recorded returnId: the saved plan is revalidated
@@ -2807,7 +2824,7 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
   if ([...bound.fileDependencies.values()].some(value => {
     const read = readPolicies?.get(value.dependency.model); return read === undefined || !('grants' in read);
   })) return invalid('stored File dependencies require their complete original source field grants.');
-  const bodyData=def.kind==='scenario'?boundUnionReturns(bound).flatMap(returned=>returned.dependencies)
+  const bodyData=def.kind==='scenario'?boundUnionReturnDependencies(bound)
     .filter(dependency=>dependency.role==='data'&&dependency.queryId===undefined):[];
   for(const dependency of bodyData){
     let model:ModelName|undefined=dependency.model;const seen=new Set<ModelName>();
@@ -5239,7 +5256,7 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
   try {
     object(input, ['sourceDependencyId', 'scalarLeafDependencyId', 'sourceRow']);
     const reference = state.bound.referenceDependencies.get(input.sourceDependencyId);
-    const scalar = boundUnionReturns(state.bound).flatMap(returned => returned.dependencies)
+    const scalar = boundUnionReturnDependencies(state.bound)
       .find(dependency => dependency.id === input.scalarLeafDependencyId);
     const leafReference = state.bound.referenceDependencies.get(input.scalarLeafDependencyId);
     const singularReferenceLeaf = scalar !== undefined && leafReference !== undefined &&
@@ -8906,7 +8923,7 @@ export function bindScenarioSourceQueryValueProducer(def:GeneratedOperationDef,v
    if(pairs.length>MAX_ITEMS)return invalid('Query LET Values DATA pairing exceeds its original finite census.');
    for(const value of pairs){
     const pair=object(value,['ordinaryDependencyId','queryDependencyId']),ordinaryId=text(pair['ordinaryDependencyId']),queryId=text(pair['queryDependencyId']);
-    const ordinary=boundUnionReturns(bound).flatMap(returned=>returned.dependencies).find(dependency=>dependency.id===ordinaryId),selected=query.dependencies.find(dependency=>dependency.id===queryId);
+    const ordinary=boundUnionReturnDependencies(bound).find(dependency=>dependency.id===ordinaryId),selected=query.dependencies.find(dependency=>dependency.id===queryId);
     if(ordinary===undefined||selected===undefined||ordinaryIds.has(ordinaryId)||queryIds.has(queryId)||ordinaryId===queryId||
        ordinary.role!=='data'||selected.role!=='data'||ordinary.queryId!==query.id||ordinary.model!==query.model||ordinary.field!==selected.field||ordinary.type!==selected.type||
        stableStringify(ordinary.source)!==stableStringify(query.source)||stableStringify(selected.source)!==stableStringify(query.source))return invalid('Query LET Values require their exact original ordinary and selected DATA pair.');
@@ -9238,7 +9255,7 @@ export function bindScenarioSourceLetDataProducer(def:GeneratedOperationDef,prod
 async function recordSharedReferenceObservation(call:AdmittedCall,store:StoragePort,owner:ReceiptOwnerSession,state:Capture,
   input:{readonly dependencyId:string;readonly model:ModelName;readonly row:StoredRow;readonly inputRow:StoredRow;
     readonly occurrence:{readonly loop:string;readonly ordinal:number}|undefined;readonly requireDurableRow:boolean}):Promise<DependencyObservation>{
-  const declared=boundUnionReturns(state.bound).flatMap(returned=>returned.dependencies).find(dependency=>dependency.id===input.dependencyId);
+  const declared=boundUnionReturnDependencies(state.bound).find(dependency=>dependency.id===input.dependencyId);
   const reference=declared===undefined?undefined:state.bound.referenceDependencies.get(input.dependencyId);
   if(declared===undefined||declared.queryId!==undefined||reference===undefined
     ||declared.model!==input.model)return invalid('Shared reference observation claims an undeclared reference dependency.');
@@ -9283,7 +9300,7 @@ async function recordSourceLetParentDependency(call:AdmittedCall,store:StoragePo
   dependencyId:string,model:ModelName,row:StoredRow,occurrence:{readonly loop:string;readonly ordinal:number}|undefined):Promise<void>{
   state.pending+=1;
   try{
-    const declared=boundUnionReturns(state.bound).flatMap(returned=>returned.dependencies).find(dependency=>dependency.id===dependencyId);
+    const declared=boundUnionReturnDependencies(state.bound).find(dependency=>dependency.id===dependencyId);
     if(declared===undefined||declared.role!=='data'||declared.field!=='parent')return invalid('Scalar LET DATA parent traversal claims an undeclared reference dependency.');
     await recordSharedReferenceObservation(call,store,owner,state,{dependencyId,model,row,inputRow:row,occurrence,requireDurableRow:true});
   }finally{state.pending-=1;}
@@ -9339,7 +9356,7 @@ export async function executeScenarioSourceLetData(call:AdmittedCall,store:Stora
       // parent inputs, and runs no recipient promotion checks, so anything
       // else is refused here instead of flowing through the wrong recorder.
       for(const id of site.dependencyIds??[]){
-        const declared=boundUnionReturns(state.bound).flatMap(returned=>returned.dependencies).find(dependency=>dependency.id===id);
+        const declared=boundUnionReturnDependencies(state.bound).find(dependency=>dependency.id===id);
         if(declared===undefined||declared.role!=='data'||declared.queryId!==undefined)return invalid('Scalar LET DATA claims an undeclared native dependency.');
         if(state.bound.fileDependencies.get(id)!==undefined||state.bound.referenceDependencies.get(id)!==undefined
           ||state.bound.namedEnumDependencies.get(id)!==undefined||state.bound.nominalDependencies.get(id)!==undefined
@@ -11513,8 +11530,8 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
     // dependency records its observation below (return-dep completeness);
     // execution-only reads keep the early return with no observation.
     const executionResultLinked = execution !== undefined &&
-      boundUnionReturns(state.bound).some(returned => returned.dependencies.some(other => other.id === observed.dependencyId));
-    const dependency = execution?.association.dependency ?? boundUnionReturns(state.bound).flatMap(entry => entry.dependencies).find(dep => dep.id === observed.dependencyId);
+      boundUnionReturnDependencies(state.bound).some(other => other.id === observed.dependencyId);
+    const dependency = execution?.association.dependency ?? boundUnionReturnDependencies(state.bound).find(dep => dep.id === observed.dependencyId);
     if (dependency === undefined || dependency.model !== observed.model || dependency.field !== observed.field) return invalid('native observation disagrees with its checked dependency.');
     const issuedConstructor = constructorRows.get(input.row);
     if (issuedConstructor !== undefined && issuedConstructor.profile.leafDependencyId !== dependency.id) {
