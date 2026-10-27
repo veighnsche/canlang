@@ -5,9 +5,9 @@ use std::collections::{HashMap, HashSet};
 use serde::Serialize;
 
 use crate::analysis::scenario_disclosure::{
-    DependencyRole, DisclosureChoice, DisclosureEffect, DisclosureEffectKind,
-    DisclosureIntrinsicKind, DisclosureModelResult, DisclosureSource, InfluenceKind,
-    ScenarioDisclosure,
+    CheckedScenarioDisclosure, DependencyRole, DisclosureChoice, DisclosureEffect,
+    DisclosureEffectKind, DisclosureIntrinsicKind, DisclosureModelResult, DisclosureReturn,
+    DisclosureSource, InfluenceKind, ScenarioDisclosure,
 };
 use crate::analysis::{NodeKey, ResolvedType, Scalar};
 use crate::source::{SourceDb, Span, sha256_hex};
@@ -392,7 +392,10 @@ pub(super) fn project_plan_returns(
     plan: &mut ReceiptDisclosurePlan,
     returned: &[&crate::analysis::scenario_disclosure::DisclosureReturn],
 ) -> Option<()> {
-    if returned.is_empty() || returned.len() > 200 {
+    // Analysis admits up to 1024 return paths per owner ("return path bound");
+    // projection retains exactly the feasible selection. Oversized plans are
+    // still refused below by the 20,000-node traversal budget.
+    if returned.is_empty() || returned.len() > 1024 {
         return None;
     }
     plan.returns
@@ -406,24 +409,74 @@ pub(super) fn project_plan_returns(
     {
         return None;
     }
-    let nodes = query_plan_nodes(
-        plan.queries.len(),
-        plan.returns.iter().map(|row| {
-            (
-                row.influences.len(),
-                row.dependencies.len(),
-                row.dependencies
-                    .iter()
-                    .filter(|read| read.query_id.is_some())
-                    .count(),
-                row.intrinsics.len(),
-            )
-        }),
-    )?;
-    if nodes > 20_000 {
+    // No estimated node budget here: projection proves exact row/order
+    // correspondence, and every transported plan passes the exact serialized
+    // `dataCopy` gates (per-copy running and final proofs). The old
+    // linear estimate both over- and under-counted real serialized rows, so
+    // it could refuse fitting plans and admit oversized ones; the exact
+    // measurement decides now. Private whole-owner aggregates intentionally
+    // exceed transport budgets and are never installed.
+    Some(())
+}
+
+/// Exact installed-plan budget probe for non-builder callers: the fully
+/// serialized plan must fit the runtime `dataCopy` traversal (20,000
+/// nodes, depth 32). Unmeasurable plans (including depth overflow) fail
+/// closed. Transported copies prove this per copy inside the builder; the
+/// prepared-query fast path proves its replacement single here.
+pub(super) fn installed_plan_fits(plan: &ReceiptDisclosurePlan) -> bool {
+    serde_json::to_value(plan)
+        .ok()
+        .is_some_and(|value| plan_value_count(&value, 32).is_some_and(|nodes| nodes <= 20_000))
+}
+
+/// Subset-symmetric plan identity: project a private copy of the supplied
+/// full plan onto the same return subset before comparing with the freshly
+/// derived subset-projected plan. Single builds project onto the whole
+/// selection, so their proof is unchanged; partitioned copies each prove
+/// their explicit subset while the driver proves the union covers the whole
+/// selection with one shared shell.
+fn projected_supplied_plan(
+    supplied: &ReceiptDisclosurePlan,
+    returned: &[&crate::analysis::scenario_disclosure::DisclosureReturn],
+) -> Option<ReceiptDisclosurePlan> {
+    let mut projected = supplied.clone();
+    project_plan_returns(&mut projected, returned)?;
+    Some(projected)
+}
+
+/// Pair each selected path with exactly one supplied plan row by return id,
+/// proving a bijection: no selected path lacks its row and no supplied row
+/// lies outside the selection. Single builds carry the whole selection, so
+/// id pairing agrees with the previous positional pairing whenever it
+/// passed; partitioned copies pair exactly their explicit subset.
+fn paired_plan_rows<'a, 'b>(
+    plan: &'a ReceiptDisclosurePlan,
+    returned_paths: &'b [&'b crate::analysis::scenario_disclosure::DisclosureReturn],
+) -> Option<
+    Vec<(
+        &'b crate::analysis::scenario_disclosure::DisclosureReturn,
+        &'a ReceiptReturn,
+    )>,
+> {
+    if plan.returns.len() != returned_paths.len() {
         return None;
     }
-    Some(())
+    let mut used = HashSet::new();
+    let mut pairs = Vec::with_capacity(returned_paths.len());
+    for returned in returned_paths {
+        let mut found = None;
+        for (index, row) in plan.returns.iter().enumerate() {
+            if row.id == returned.id {
+                if found.is_some() || !used.insert(index) {
+                    return None;
+                }
+                found = Some(row);
+            }
+        }
+        pairs.push((*returned, found?));
+    }
+    Some(pairs)
 }
 
 /// Shared accounting for the existing closed native query-plan transport.
@@ -448,6 +501,8 @@ pub(super) fn query_plan_nodes(
 
 /// Original source and the independently prepared guards/query plan consumed
 /// together by the native receipt matcher. This is private compiler input.
+/// Copy so the partition driver can rebuild each copy from the same sources.
+#[derive(Clone, Copy)]
 pub(super) struct NativeReceiptSources<'a> {
     pub source_context: Option<&'a super::source_context::FreshSourceContext<'a>>,
     pub db: Option<&'a SourceDb>,
@@ -2252,7 +2307,119 @@ fn checked_plain_enum_data_transport(
 /// `models` must be the actual descriptors emitted by the owning emitter.
 /// `entry_module` is the actual artifact callable module, not an inferred
 /// package path: native scenario implementations currently execute in entry.
-pub(super) fn collect_native_scenario_receipt_with_feasibility(
+/// Exact retained JSON value count with the runtime `dataCopy` semantics:
+/// every value counts one; object keys are not values; nesting deeper than
+/// `max_depth` refuses. Checked arithmetic refuses on overflow rather than
+/// wrapping. Only the transported plan is charged, including every repeated
+/// per-row dependency/intrinsic body in the fully populated rows: the plan
+/// shell plus the completed rows sum exactly to the emitted copy.
+fn plan_value_count(value: &serde_json::Value, max_depth: usize) -> Option<usize> {
+    fn count(value: &serde_json::Value, depth: usize, max_depth: usize) -> Option<usize> {
+        if depth > max_depth {
+            return None;
+        }
+        match value {
+            serde_json::Value::Null
+            | serde_json::Value::Bool(_)
+            | serde_json::Value::Number(_)
+            | serde_json::Value::String(_) => Some(1),
+            serde_json::Value::Array(items) => items.iter().try_fold(1usize, |nodes, item| {
+                nodes.checked_add(count(item, depth + 1, max_depth)?)
+            }),
+            serde_json::Value::Object(entries) => {
+                entries.values().try_fold(1usize, |nodes, member| {
+                    nodes.checked_add(count(member, depth + 1, max_depth)?)
+                })
+            }
+        }
+    }
+    count(value, 0, max_depth)
+}
+
+type CopyDependencyIdentities = HashMap<String, (NativeSite, String, String, String, ReceiptRole)>;
+type CopyIntrinsicIdentities =
+    HashMap<String, (NativeSite, NativeIntrinsicKind, String, ReceiptRole)>;
+
+/// Cross-copy identity census for one owner's partitioned receipt builds.
+/// The runtime enforces per-plan drift rejection but cannot see across plans,
+/// so the compiler proves global coherence here: the same maps span every
+/// copy, keeping today's 200-distinct bound exactly. Per-copy data budgets
+/// stay independent because each copy is its own transported plan.
+#[derive(Default)]
+struct SharedCopyCensus {
+    dependency_ids: CopyDependencyIdentities,
+    intrinsic_ids: CopyIntrinsicIdentities,
+    return_ids: HashSet<String>,
+}
+
+/// The feasible return selection, shared by the partition driver and the
+/// per-copy build. No length checks here; the driver enforces the global
+/// return-path bound and each copy enforces its own budgets.
+fn selected_return_paths<'a>(
+    ir: &'a IrProgram,
+    item: &IrItem,
+    checked: &'a CheckedScenarioDisclosure,
+    feasibility: Option<&'a super::scenario_feasibility::PreparedRequireReturns<'_>>,
+) -> Option<Vec<&'a DisclosureReturn>> {
+    match feasibility.filter(|_| super::scenario_feasibility::requires_projection(checked, ir)) {
+        Some(prepared) => prepared.returns(ir, item.id),
+        None => Some(checked.returns.iter().collect()),
+    }
+}
+
+/// Explicitly bounded plan copies: at most 200 returns per copy, preserving
+/// authored order. 200 is the runtime installed-plan `list()` bound, so every
+/// copy installs as-is; the driver proves the union covers the whole feasible
+/// selection with coherent cross-copy identities.
+const RECEIPT_COPY_LIMIT: usize = 200;
+
+/// A partitioned owner's transport set plus its private whole-owner capture.
+/// `copies` are the transported installable plans (one element for today's
+/// single-copy owners). `aggregate` exists only for partitioned owners: the
+/// same whole-selection build with transport caps lifted, proving every
+/// private execution/decision observation lowering needs while the copies
+/// stay transport-only. It is never emitted.
+pub(super) struct NativeReceiptSet {
+    pub copies: Vec<NativeScenarioReceipt>,
+    pub aggregate: Option<NativeScenarioReceipt>,
+}
+
+impl NativeReceiptSet {
+    fn single(recipe: NativeScenarioReceipt) -> Self {
+        NativeReceiptSet {
+            copies: vec![recipe],
+            aggregate: None,
+        }
+    }
+}
+
+/// Owner-specific fast paths bypass the partitioned generic build with a
+/// single bespoke receipt. The single-copy driver path ignores the empty
+/// coverage sets; partitioned calls never reach these small owners, and the
+/// per-copy coverage check would honestly refuse if they did.
+/// The published disclosure value for an owner's receipt copies: today's
+/// exact single plan for in-bounds owners, the ordered copy-plan array for
+/// partitioned selections. Single-copy owners keep the identical wire value;
+/// partitioned owners publish every copy's independently checked plan. The
+/// runtime installs each copy against the same install bounds and matches
+/// return ids globally across the set; the driver proves union coverage.
+pub(super) fn receipt_set_disclosure_value(
+    copies: &[NativeScenarioReceipt],
+) -> Option<serde_json::Value> {
+    if copies.is_empty() {
+        return None;
+    }
+    if copies.len() == 1 {
+        return serde_json::to_value(&copies[0].plan).ok();
+    }
+    let plans: Vec<serde_json::Value> = copies
+        .iter()
+        .map(|copy| serde_json::to_value(&copy.plan).ok())
+        .collect::<Option<_>>()?;
+    serde_json::to_value(&plans).ok()
+}
+
+pub(super) fn collect_native_scenario_receipt_copies(
     ir: &IrProgram,
     item: &IrItem,
     models: &[JsModel],
@@ -2260,7 +2427,325 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     value_types: Option<&JsValueTypes>,
     sources: NativeReceiptSources<'_>,
     feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
-) -> Option<NativeScenarioReceipt> {
+) -> Option<NativeReceiptSet> {
+    // Bespoke singleton collectors run before the generic Complete gate,
+    // exactly as before: they serve specific owners regardless of disclosure
+    // state. Partitioned generic builds never reach them.
+    if !matches!(
+        &item.kind,
+        IrItemKind::Scenario {
+            read: false,
+            expose_excluded: false,
+            ..
+        }
+    ) {
+        return None;
+    }
+    let NativeReceiptSources {
+        source_context,
+        send_guards,
+        ..
+    } = sources;
+    if item.canonical == "maintain.remind" {
+        return super::event_decisions::collect_maintain_receipt(
+            source_context?,
+            item,
+            entry_module,
+            send_guards?,
+        )
+        .map(NativeReceiptSet::single);
+    }
+    if item.canonical == "member_terms.term" {
+        return super::term_decisions::collect_term_receipt(source_context?, item, entry_module)
+            .map(NativeReceiptSet::single);
+    }
+    if item.canonical == "leave.request" {
+        return super::leave_decisions::collect_leave_receipt(source_context?, item, entry_module)
+            .map(NativeReceiptSet::single);
+    }
+    if item.canonical == "leave.decide" {
+        return super::leave_decisions::collect_leave_decide_receipt(
+            source_context?,
+            item,
+            entry_module,
+            send_guards?,
+        )
+        .map(NativeReceiptSet::single);
+    }
+    if item.canonical == "refer.reject_source" {
+        return super::refer_decisions::collect_reject_receipt(source_context?, item, entry_module)
+            .map(NativeReceiptSet::single);
+    }
+    if item.canonical == "member_terms.retry_collection" {
+        return super::member_retry_decisions::collect_retry_receipt(
+            source_context?,
+            item,
+            entry_module,
+            send_guards?,
+        )
+        .map(NativeReceiptSet::single);
+    }
+    if item.canonical == "invoice.collect" {
+        return super::invoice_collect_decisions::collect_collect_receipt(
+            source_context?,
+            item,
+            entry_module,
+            send_guards?,
+        )
+        .map(NativeReceiptSet::single);
+    }
+    if item.canonical == "rent_reservations.correspondence"
+        || item.canonical == "rent_reservations.remind"
+    {
+        return super::rent_notice_decisions::collect_notice_receipt(
+            source_context?,
+            item,
+            entry_module,
+            send_guards?,
+        )
+        .map(NativeReceiptSet::single);
+    }
+    if item.canonical == "invoice.issue" {
+        return super::invoice_issue_decisions::collect_issue_receipt(
+            source_context?,
+            item,
+            entry_module,
+            send_guards?,
+        )
+        .map(NativeReceiptSet::single);
+    }
+    if item.canonical == "events.observe_venue" {
+        return super::event_send_decisions::collect_observe_receipt(
+            source_context?,
+            item,
+            entry_module,
+            send_guards?,
+        )
+        .map(NativeReceiptSet::single);
+    }
+    if matches!(
+        item.canonical.as_str(),
+        "success.renewal_due" | "success.remind"
+    ) {
+        return super::success_send_decisions::collect_success_notice_receipt(
+            source_context?,
+            item,
+            entry_module,
+            send_guards?,
+        )
+        .map(NativeReceiptSet::single);
+    }
+    if item.canonical == "rent_reservations.refund_movement_credit" {
+        return super::rent_movement_refund_decisions::collect_refund_receipt(
+            source_context?,
+            item,
+            entry_module,
+        )
+        .map(NativeReceiptSet::single);
+    }
+    let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&item.id)? else {
+        return None;
+    };
+    let full = selected_return_paths(ir, item, checked, feasibility)?;
+    // Analysis admits up to 1024 return paths per owner ("return path bound");
+    // the copies cover exactly the feasible selection, nothing merged.
+    if checked.scenario != item.id || full.is_empty() || full.len() > 1024 {
+        return None;
+    }
+    // Authenticate the complete supplied ordered feasible row census once,
+    // before any subset projection: the supplied plan must carry exactly
+    // the feasible selection's return ids in order. Projection below
+    // silently drops foreign rows, so without this census an extra or
+    // duplicate row outside the selection (including singleton paths)
+    // would pass the subset proofs. Row bodies are authenticated per copy
+    // against the freshly derived plan; singleton whole-value equality is
+    // preserved (projection onto the whole selection is the identity).
+    if let Some(supplied) = sources.query_plan {
+        let census: Vec<&str> = supplied.returns.iter().map(|row| row.id.as_str()).collect();
+        let feasible: Vec<&str> = full.iter().map(|returned| returned.id.as_str()).collect();
+        if census != feasible {
+            return None;
+        }
+    }
+    // Selections are partitioned by MEASURED fit, not by assumed row size:
+    // the per-copy exact serialized gate proves every emitted copy, so the
+    // driver retries smaller chunks until a size passes. The largest passing
+    // size wins (fewest copies). Fresh census per attempt. Every attempt
+    // rebuilds deterministically; proof refusals reproduce at every size and
+    // stay honest refusals. A refused single copy falls through to the
+    // ladder: fat rows can overflow the budget long before the 200-row
+    // installed-plan bound, and only the measured gate can tell.
+    let mut chunk_size = RECEIPT_COPY_LIMIT;
+    if full.len() <= RECEIPT_COPY_LIMIT {
+        if let Some((recipe, _, _)) = collect_receipt_copy(
+            ir,
+            item,
+            models,
+            entry_module,
+            value_types,
+            sources,
+            feasibility,
+            None,
+            &mut SharedCopyCensus::default(),
+            false,
+        ) {
+            return Some(NativeReceiptSet::single(recipe));
+        }
+        if full.len() <= 1 {
+            return None;
+        }
+        chunk_size = (full.len() / 2).max(1);
+    }
+    loop {
+        if let Some(copies) = try_partition(
+            ir,
+            item,
+            models,
+            entry_module,
+            value_types,
+            sources,
+            feasibility,
+            &full,
+            chunk_size,
+        ) {
+            // A lone copy is the whole selection: today's single capture
+            // with no private aggregate. Partitioned owners additionally
+            // prove one private whole-owner aggregate (transport caps
+            // lifted, all other proofs intact) for lowering; the copies
+            // stay transport-only. The shipped id sequence must equal the
+            // aggregate's whole selection in order, proving the transport
+            // set carries exactly the globally unique original-path
+            // selection, nothing omitted or duplicated.
+            if copies.len() <= 1 {
+                let mut copies = copies;
+                if let Some(recipe) = copies.pop() {
+                    return Some(NativeReceiptSet::single(recipe));
+                }
+                return None;
+            }
+            let (aggregate, _, _) = collect_receipt_copy(
+                ir,
+                item,
+                models,
+                entry_module,
+                value_types,
+                sources,
+                feasibility,
+                None,
+                &mut SharedCopyCensus::default(),
+                true,
+            )?;
+            let shipped: Vec<&str> = copies
+                .iter()
+                .flat_map(|copy| copy.plan.returns.iter().map(|row| row.id.as_str()))
+                .collect();
+            let whole: Vec<&str> = aggregate
+                .plan
+                .returns
+                .iter()
+                .map(|row| row.id.as_str())
+                .collect();
+            if shipped != whole {
+                return None;
+            }
+            return Some(NativeReceiptSet {
+                copies,
+                aggregate: Some(aggregate),
+            });
+        }
+        if chunk_size <= 1 {
+            // Even a lone row exceeds its proven budget, or a proof fails
+            // independently of partitioning. Honest refusal, no silent drop.
+            return None;
+        }
+        chunk_size = (chunk_size / 2).max(1);
+    }
+}
+
+/// One partition attempt at a fixed chunk size. Every emitted copy passed
+/// its exact serialized budget gate; the union proof covers the whole
+/// feasible selection with coherent cross-copy identities.
+#[allow(clippy::too_many_arguments)]
+fn try_partition(
+    ir: &IrProgram,
+    item: &IrItem,
+    models: &[JsModel],
+    entry_module: &str,
+    value_types: Option<&JsValueTypes>,
+    sources: NativeReceiptSources<'_>,
+    feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
+    full: &[&DisclosureReturn],
+    chunk_size: usize,
+) -> Option<Vec<NativeScenarioReceipt>> {
+    let mut census = SharedCopyCensus::default();
+    let mut copies = Vec::new();
+    let mut covered = HashSet::new();
+    let mut reference_spans: Option<HashSet<Span>> = None;
+    let mut reference_source: Option<serde_json::Value> = None;
+    let mut reference_queries: Option<serde_json::Value> = None;
+    for chunk in full.chunks(chunk_size.max(1)) {
+        let filter: HashSet<String> = chunk.iter().map(|returned| returned.id.clone()).collect();
+        let (recipe, matched, spans) = collect_receipt_copy(
+            ir,
+            item,
+            models,
+            entry_module,
+            value_types,
+            sources,
+            feasibility,
+            Some(&filter),
+            &mut census,
+            false,
+        )?;
+        // Every copy rebuilds the same owner-level Sites walk; divergence
+        // would invalidate union coverage, so refuse rather than guess.
+        match &reference_spans {
+            None => reference_spans = Some(spans),
+            Some(reference) if *reference == spans => {}
+            _ => return None,
+        }
+        // The shared shell (source, queries) must be copy-independent; each
+        // copy carries its own return subset and nothing else may vary.
+        let source_json = serde_json::to_value(&recipe.plan.source).ok()?;
+        let queries_json = serde_json::to_value(&recipe.plan.queries).ok()?;
+        match (&reference_source, &reference_queries) {
+            (None, None) => {
+                reference_source = Some(source_json);
+                reference_queries = Some(queries_json);
+            }
+            (Some(source), Some(queries)) if *source == source_json && *queries == queries_json => {
+            }
+            _ => return None,
+        }
+        covered.extend(matched);
+        copies.push(recipe);
+    }
+    // Union coverage: every visited Return statement is receipted by exactly
+    // the copy holding its feasible paths. No unreceipted arm may hide
+    // between copies. Global id uniqueness holds by construction (disjoint
+    // chunk id sets) and is enforced by the shared return-id census: any
+    // duplicate across copies refuses inside the per-copy build.
+    if covered != reference_spans? {
+        return None;
+    }
+    Some(copies)
+}
+
+fn collect_receipt_copy(
+    ir: &IrProgram,
+    item: &IrItem,
+    models: &[JsModel],
+    entry_module: &str,
+    value_types: Option<&JsValueTypes>,
+    sources: NativeReceiptSources<'_>,
+    feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
+    return_filter: Option<&HashSet<String>>,
+    census: &mut SharedCopyCensus,
+    // Private whole-owner aggregates prove the identical whole selection
+    // with every proof intact but the transported-plan node caps lifted:
+    // the aggregate is lowering input only, never an installed plan.
+    private_aggregate: bool,
+) -> Option<(NativeScenarioReceipt, HashSet<Span>, HashSet<Span>)> {
     let transcript = has_original_transcript_source(ir, item.id);
     let NativeReceiptSources {
         source_context,
@@ -2283,91 +2768,6 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     else {
         return None;
     };
-    if item.canonical == "maintain.remind" {
-        return super::event_decisions::collect_maintain_receipt(
-            source_context?,
-            item,
-            entry_module,
-            send_guards?,
-        );
-    }
-    if item.canonical == "member_terms.term" {
-        return super::term_decisions::collect_term_receipt(source_context?, item, entry_module);
-    }
-    if item.canonical == "leave.request" {
-        return super::leave_decisions::collect_leave_receipt(source_context?, item, entry_module);
-    }
-    if item.canonical == "leave.decide" {
-        return super::leave_decisions::collect_leave_decide_receipt(
-            source_context?,
-            item,
-            entry_module,
-            send_guards?,
-        );
-    }
-    if item.canonical == "refer.reject_source" {
-        return super::refer_decisions::collect_reject_receipt(source_context?, item, entry_module);
-    }
-    if item.canonical == "member_terms.retry_collection" {
-        return super::member_retry_decisions::collect_retry_receipt(
-            source_context?,
-            item,
-            entry_module,
-            send_guards?,
-        );
-    }
-    if item.canonical == "invoice.collect" {
-        return super::invoice_collect_decisions::collect_collect_receipt(
-            source_context?,
-            item,
-            entry_module,
-            send_guards?,
-        );
-    }
-    if item.canonical == "rent_reservations.correspondence"
-        || item.canonical == "rent_reservations.remind"
-    {
-        return super::rent_notice_decisions::collect_notice_receipt(
-            source_context?,
-            item,
-            entry_module,
-            send_guards?,
-        );
-    }
-    if item.canonical == "invoice.issue" {
-        return super::invoice_issue_decisions::collect_issue_receipt(
-            source_context?,
-            item,
-            entry_module,
-            send_guards?,
-        );
-    }
-    if item.canonical == "events.observe_venue" {
-        return super::event_send_decisions::collect_observe_receipt(
-            source_context?,
-            item,
-            entry_module,
-            send_guards?,
-        );
-    }
-    if matches!(
-        item.canonical.as_str(),
-        "success.renewal_due" | "success.remind"
-    ) {
-        return super::success_send_decisions::collect_success_notice_receipt(
-            source_context?,
-            item,
-            entry_module,
-            send_guards?,
-        );
-    }
-    if item.canonical == "rent_reservations.refund_movement_credit" {
-        return super::rent_movement_refund_decisions::collect_refund_receipt(
-            source_context?,
-            item,
-            entry_module,
-        );
-    }
     // C23 hook slice: a declared-event handler may carry a native receipt
     // for its exact single-first query plan. The plan join below re-proves
     // the query, so every other trusted shape keeps the refusal; only the
@@ -2408,13 +2808,26 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     } else {
         None
     };
-    let returned_paths: Vec<_> = match feasibility
-        .filter(|_| super::scenario_feasibility::requires_projection(checked, ir))
-    {
-        Some(prepared) => prepared.returns(ir, item.id)?,
-        None => checked.returns.iter().collect(),
-    };
-    if checked.scenario != item.id || returned_paths.is_empty() || returned_paths.len() > 200 {
+    let mut returned_paths = selected_return_paths(ir, item, checked, feasibility)?;
+    // Partitioned copies each cover an explicit id subset in authored order;
+    // None covers the whole feasible selection (at most 200 rows, enforced
+    // by the driver and by the honesty guard below).
+    if let Some(filter) = return_filter {
+        returned_paths.retain(|returned| filter.contains(&returned.id));
+    } else if !private_aggregate && returned_paths.len() > RECEIPT_COPY_LIMIT {
+        // The runtime installs at most 200 returns per plan; the compiler
+        // must never emit a single plan it cannot install. Private
+        // whole-owner aggregates are lowering input only, never installed,
+        // so they prove the identical whole selection past this cap; the
+        // global 1024-path bound and every identity/source/permission gate
+        // below still apply to them unchanged.
+        return None;
+    }
+    // Analysis admits up to 1024 return paths per owner ("return path bound");
+    // the receipt covers exactly the feasible selection. Oversized plans are
+    // still refused below by the 20,000-node traversal budget and the
+    // per-row dependency/decision proof gates.
+    if checked.scenario != item.id || returned_paths.is_empty() || returned_paths.len() > 1024 {
         return None;
     }
     let module = ir.modules.get(item.module.0 as usize)?;
@@ -2839,16 +3252,30 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         (checked.node.file, checked.source.module.clone()),
         checked.source.clone(),
     );
-    let mut return_ids = HashSet::new();
+    // Cross-copy census: the same identity maps span every copy of one owner,
+    // so the runtime-blind cross-copy drift check and today's 200-distinct
+    // bound hold globally. The data budget stays per copy below.
+    let SharedCopyCensus {
+        dependency_ids,
+        intrinsic_ids,
+        return_ids,
+    } = &mut *census;
     let mut matched_returns = HashSet::new();
-    let mut dependency_ids =
-        HashMap::<String, (NativeSite, String, String, String, ReceiptRole)>::new();
-    let mut intrinsic_ids =
-        HashMap::<String, (NativeSite, NativeIntrinsicKind, String, ReceiptRole)>::new();
-    // State's v1 own-data parser bounds each array/global dependency inventory
-    // at 200 and the closed plan traversal at 20,000 JSON nodes.
-    let mut data_nodes: usize = effective_plan.map_or(7, |plan| 7 + 40 * plan.queries.len());
-
+    // Partitioned copies each prove their explicit id subset; the driver
+    // proves the union covers every visited Return span. The subset's
+    // non-implicit return spans are the copy's whole coverage obligation.
+    let mut expected_spans = HashSet::new();
+    for returned in returned_paths.iter() {
+        if returned.node != checked.node {
+            expected_spans.insert(node_span(returned.node));
+        }
+    }
+    // The transported plan is the only JSON the 20,000-node budget guards.
+    // Charge the exact retained shell once (root-relative depth 32, exactly
+    // as the runtime traverses it), then each completed plan row as built.
+    // Rows embed two levels deeper (plan/returns/row), so they are allowed
+    // depth 30; the final whole-plan check below proves the emitted bytes.
+    let mut data_nodes: usize = plan_value_count(&serde_json::to_value(&recipe.plan).ok()?, 32)?;
     for returned in returned_paths {
         if (effective_plan.is_none() && !returned.influences.is_empty())
             || returned.node.file != checked.node.file
@@ -2863,19 +3290,6 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             .checked_add(returned.intrinsics.len())?
             > 200
         {
-            return None;
-        }
-        data_nodes = data_nodes.checked_add(
-            9 + 5 * returned.influences.len()
-                + 10 * returned.dependencies.len()
-                + returned
-                    .dependencies
-                    .iter()
-                    .filter(|read| read.query_id.is_some())
-                    .count()
-                + 16 * returned.intrinsics.len(),
-        )?;
-        if data_nodes > 20_000 {
             return None;
         }
         let return_span = node_span(returned.node);
@@ -4384,19 +4798,61 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             });
         }
 
+        // Charge the completed plan row exactly, including every repeated
+        // per-row dependency/intrinsic body the final serialized plan
+        // carries. The running sum plus the shell is exactly the emitted
+        // copy's value count; copies stay within the runtime's
+        // installed-plan budget individually.
+        data_nodes = data_nodes.checked_add(plan_value_count(
+            &serde_json::to_value(&plan_return).ok()?,
+            30,
+        )?)?;
+        if data_nodes > 20_000 && !private_aggregate {
+            return None;
+        }
         recipe.returns.push(native_return);
         recipe.plan.returns.push(plan_return);
     }
-    if matched_returns != sites.returns {
-        return None;
-    }
-    if transcript
-        && serde_json::to_value(&recipe.plan).ok()? != serde_json::to_value(query_plan?).ok()?
+    // Prove the emitted copy fits before emitting: exact root-relative
+    // traversal of the fully populated serialized plan, same rules as the
+    // runtime's own-data copy (20,000 nodes, depth 32).
+    if plan_value_count(&serde_json::to_value(&recipe.plan).ok()?, 32)? > 20_000
+        && !private_aggregate
     {
         return None;
     }
+    // Single builds keep today's whole-owner coverage check bit-for-bit.
+    // Partitioned copies each prove their explicit id subset here; the
+    // driver proves the union covers every visited Return span.
+    if return_filter.is_none() {
+        if matched_returns != sites.returns {
+            return None;
+        }
+    } else if matched_returns != expected_spans {
+        return None;
+    }
+    if transcript {
+        let query_plan = query_plan?;
+        let expected_json = if let Some(filter) = return_filter {
+            let mut expected_json = serde_json::to_value(query_plan).ok()?;
+            let rows = expected_json
+                .get_mut("returns")
+                .and_then(|returns| returns.as_array_mut())?;
+            rows.retain(|row| {
+                row.get("id")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|id| filter.contains(id))
+            });
+            expected_json
+        } else {
+            serde_json::to_value(query_plan).ok()?
+        };
+        if serde_json::to_value(&recipe.plan).ok()? != expected_json {
+            return None;
+        }
+    }
 
-    Some(recipe)
+    Some((recipe, matched_returns, sites.returns.clone()))
 }
 
 /// A prepared first-query plan contributes only its original source domain
@@ -7520,7 +7976,9 @@ fn mixed_helper_expected_plan<'a>(
     let plan = supplied?;
     let mut expected = checked_native_mixed_helper_query_plan(ir, owner, db?, entry_module)?;
     project_plan_returns(&mut expected, returned_paths)?;
-    (serde_json::to_value(plan).ok()? == serde_json::to_value(expected).ok()?).then_some(Some(plan))
+    let projected = projected_supplied_plan(plan, returned_paths)?;
+    (serde_json::to_value(projected).ok()? == serde_json::to_value(expected).ok()?)
+        .then_some(Some(plan))
 }
 
 fn helper_any_expected_plan<'a>(
@@ -7534,7 +7992,9 @@ fn helper_any_expected_plan<'a>(
     let plan = supplied?;
     let mut expected = checked_native_helper_any_query_plan(ir, owner, db?, entry_module)?;
     project_plan_returns(&mut expected, returned_paths)?;
-    (serde_json::to_value(plan).ok()? == serde_json::to_value(expected).ok()?).then_some(Some(plan))
+    let projected = projected_supplied_plan(plan, returned_paths)?;
+    (serde_json::to_value(projected).ok()? == serde_json::to_value(expected).ok()?)
+        .then_some(Some(plan))
 }
 
 enum PlainQueryOutcome<'a> {
@@ -8629,7 +9089,9 @@ fn checked_native_first_query_plan<'a>(
         source_context,
     )?;
     project_plan_returns(&mut expected, returned_paths)?;
-    (serde_json::to_value(plan).ok()? == serde_json::to_value(expected).ok()?).then_some(Some(plan))
+    let projected = projected_supplied_plan(plan, returned_paths)?;
+    (serde_json::to_value(projected).ok()? == serde_json::to_value(expected).ok()?)
+        .then_some(Some(plan))
 }
 
 /// The private source selection is authenticated against its actual complete
@@ -8807,9 +9269,13 @@ fn checked_native_inline_selection_plan<'a>(
             .as_bytes(),
         )
     };
+    // Project the supplied full plan onto the selected subset, then pair by
+    // return id; single builds project onto the whole selection, so this
+    // agrees with the previous positional pairing whenever it passed.
+    let subset_plan = projected_supplied_plan(plan, returned_paths)?;
+    let paired = paired_plan_rows(&subset_plan, returned_paths)?;
     if query.id != identity("inline-selection-query", query.node, "")
         || plan.version != 1
-        || plan.returns.len() != returned_paths.len()
         || returned_paths.is_empty()
         || !matches!(model.kind,IrItemKind::Model {owner:IrOwner::ChildOf(id),..} if id==parent.id)
         || query.dependencies.len() != 5
@@ -8876,7 +9342,7 @@ fn checked_native_inline_selection_plan<'a>(
             return None;
         }
     }
-    for (returned, emitted) in returned_paths.iter().zip(&plan.returns) {
+    for (returned, emitted) in paired {
         if returned.source!=checked.source || returned.influences!=expected_influences
             || emitted.id!=returned.id || emitted.projection.is_some()
             || emitted.dependencies.len()!=returned.dependencies.len()
@@ -9085,12 +9551,16 @@ fn checked_native_transcript_plan<'a>(
         || later.source != checked.source
         || plan.version != 1
         || plan.queries.len() != if mixed { 6 } else { 2 }
-        || plan.returns.len() != returned_paths.len()
         || serde_json::to_value(&plan.source).ok()?
             != serde_json::to_value(transport_source(&checked.source, entry)?).ok()?
     {
         return None;
     }
+    // Project the supplied full plan onto the selected subset, then pair by
+    // return id; single builds project onto the whole selection, so this
+    // agrees with the previous positional pairing whenever it passed.
+    let subset_plan = projected_supplied_plan(plan, returned_paths)?;
+    let paired = paired_plan_rows(&subset_plan, returned_paths)?;
     if mixed {
         let [any, ancestor, first, count] = facts.queries.as_deref()? else {
             return None;
@@ -9173,7 +9643,7 @@ fn checked_native_transcript_plan<'a>(
     if mixed {
         influences = expected_influences;
     }
-    for (returned, actual) in returned_paths.iter().zip(&plan.returns) {
+    for (returned, actual) in paired {
         if returned.influences != influences
             || actual.id != returned.id
             || actual.dependencies.len() != returned.dependencies.len()
@@ -11243,12 +11713,34 @@ fn constructor_count_source(
         }
         Some(stage)
     }
+    /// Exact per-arm write census of one conditional body: SET/CREATE writes
+    /// only (lets, requires, cancels and unguarded sends write nothing).
+    /// Anything else (nested conditionals, loops, guarded effects) yields
+    /// the complex marker instead of a count; the bound stays finite.
+    fn arm_write_census(body: &[IrStmt]) -> Option<usize> {
+        let mut writes = 0;
+        for statement in body {
+            match statement {
+                IrStmt::Let { .. }
+                | IrStmt::Require { .. }
+                | IrStmt::Cancel { .. }
+                | IrStmt::Send { when: None, .. } => {}
+                IrStmt::Set { when: None, .. } | IrStmt::Create { when: None, .. } => writes += 1,
+                _ => return None,
+            }
+            if writes >= 200 {
+                return None;
+            }
+        }
+        Some(writes)
+    }
     fn at_stage<'a>(
         body: &'a [IrStmt],
         target: crate::analysis::NodeKey,
         mut stage: usize,
         depth: usize,
         disclosed: &'a [DisclosureEffect],
+        arms: &mut Vec<serde_json::Value>,
     ) -> Option<(&'a TypedExpr, Span, usize)> {
         if depth >= 64 {
             return None;
@@ -11276,17 +11768,25 @@ fn constructor_count_source(
                     ..
                 } => {
                     if native_count_create_input(then_branch, target).is_some() {
-                        return at_stage(then_branch, target, stage, depth + 1, disclosed);
+                        return at_stage(then_branch, target, stage, depth + 1, disclosed, arms);
                     }
                     if native_count_create_input(else_branch, target).is_some() {
-                        return at_stage(else_branch, target, stage, depth + 1, disclosed);
+                        return at_stage(else_branch, target, stage, depth + 1, disclosed, arms);
                     }
                     // A preceding conditional that does not contain the COUNT
                     // create contributes no stage of its own: the walk keeps
                     // the original effect order and later siblings stay
-                    // reachable. Executions that reach the target through a
-                    // taken arm of this conditional fail closed at the
-                    // runtime stage check instead of commuting effects.
+                    // reachable. Its exact per-arm write census is published
+                    // so the runtime can reconcile executions that reach the
+                    // target through a taken arm instead of failing closed.
+                    arms.push(
+                        match (arm_write_census(then_branch), arm_write_census(else_branch)) {
+                            (Some(then_writes), Some(else_writes)) => {
+                                serde_json::json!({"then": then_writes, "else": else_writes})
+                            }
+                            _ => serde_json::json!({"complex": true}),
+                        },
+                    );
                 }
                 IrStmt::For { body, span, .. } => {
                     // A preceding selected-profile/command loop advances the
@@ -11312,7 +11812,15 @@ fn constructor_count_source(
         }
         None
     }
-    let (input, span, stage) = at_stage(effects, count.statement, 0, 0, &actual.effects)?;
+    let mut arm_census = Vec::new();
+    let (input, span, stage) = at_stage(
+        effects,
+        count.statement,
+        0,
+        0,
+        &actual.effects,
+        &mut arm_census,
+    )?;
     let IrExpr::Object(entries) = &input.expr else {
         return None;
     };
@@ -11359,6 +11867,7 @@ fn constructor_count_source(
         metadata["createdParent"] = serde_json::json!({"stage":created_stage,"model":created.definition.canonical,
             "create":{"start":created.node.start,"end":created.node.end},"parameter":parameter.name});
     }
+    metadata["precedingArmWrites"] = serde_json::Value::Array(arm_census);
     Some(metadata)
 }
 
@@ -24907,7 +25416,33 @@ impl<'a> Sites<'a> {
                         {
                             return None;
                         }
-                        push!(Visit::Expression(cond));
+                        // Mirror the Require ownership behavior for the exact
+                        // source-owned body condition: analysis admits this If
+                        // without evaluating its condition expression (both
+                        // branch paths and decisions are preserved; the
+                        // observation confers no DATA authority). The emitted
+                        // source observer independently seals this whole
+                        // condition and owns repeated lazy query/read
+                        // lifetimes, so it must not become once-per-parent
+                        // static receipt observations. Unlike Require, the If
+                        // decision site and both branches are always retained.
+                        let source_owned = context.calls.is_empty()
+                            && ir
+                                .scenario_disclosures
+                                .get(&owner.id)
+                                .and_then(|value| value.source_facts())
+                                .and_then(|facts| facts.source_requires.as_deref())
+                                .is_some_and(|sites| {
+                                    sites.iter().any(|site| {
+                                        site.stage
+                                            == crate::analysis::scenario_disclosure::CheckedDecisionStage::BodyCondition
+                                            && node_span(site.statement) == *span
+                                            && node_span(site.node) == cond.span
+                                    })
+                                });
+                        if !source_owned {
+                            push!(Visit::Expression(cond));
+                        }
                         extend!(then_branch.iter().chain(else_branch).map(Visit::Statement));
                     }
                     IrStmt::Match {

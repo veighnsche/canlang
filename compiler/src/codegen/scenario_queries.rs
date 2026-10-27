@@ -1579,7 +1579,7 @@ fn verify_complete_disclosure(
         && !mixed
         && super::scenario_receipts::checked_void_effect_tail(owner, original_checked);
     for (returned, emitted) in selected_returns.iter().zip(&plan.returns) {
-        match_complete_returned(
+        let matched = match_complete_returned(
             ir,
             owner,
             original,
@@ -1589,7 +1589,8 @@ fn verify_complete_disclosure(
             expected_influences,
             returned,
             emitted,
-        )?;
+        );
+        matched?;
     }
     Some(build_native_returns(selected_returns))
 }

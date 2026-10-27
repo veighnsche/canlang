@@ -139,6 +139,12 @@ struct Environment {
     values: BTreeSet<String>,
     roots: BTreeMap<String, Root>,
     arrays: BTreeMap<String, SymbolId>,
+    /// Lexically visible let values for loop-invariance chasing: a bare
+    /// alias used in a SEND resolves through this map to its defining
+    /// expression plus LET-time roots. Only aliases whose value never
+    /// mentions their own name are recorded, so self-shadowing degrades to
+    /// the outer binding; rebinding a captured root drops dependents.
+    aliases: HashMap<String, LetAlias>,
 }
 impl Environment {
     fn admitted(ir: &IrProgram, params: &[SymbolId]) -> Option<(Self, BTreeMap<String, SymbolId>)> {
@@ -371,6 +377,7 @@ pub(super) fn scalar_field_receiver(
     let env = Environment {
         values: BTreeSet::new(),
         arrays: BTreeMap::new(),
+        aliases: HashMap::new(),
         roots: roots
             .iter()
             .map(|(name, model)| {
@@ -499,6 +506,52 @@ impl Reads {
                     self.read(ir, context, value, env, depth + 1)?;
                 }
                 Some(())
+            }
+            IrExpr::Name(name) if !env.values.contains(name) => {
+                // A lexically visible let alias resolves to its defining
+                // expression: the alias itself carries no stored read, and
+                // pure values need no frame entry. The alias survived every
+                // rebinding of its LET-time roots (rebinding drops
+                // dependents), so the current bindings still mean what they
+                // meant. Chasing terminates via the depth guard (fail-closed)
+                // because only non-self-referential aliases are recorded.
+                // Intervening SETs do not invalidate the chase: this frame
+                // is a field-provenance census (paths, models, types), never
+                // evaluated values, and field identities are unaffected by
+                // row mutation — the same flow-insensitive trust singles
+                // extend to every read. A rebinding, which would change
+                // meaning, always fails closed above.
+                let aliased = env.aliases.get(name)?.value.clone();
+                self.read(ir, context, &aliased, env, depth + 1)
+            }
+            IrExpr::Member { .. } if is_operation_clock(value) => {
+                // Operation-clock reads carry no stored row; they mirror the
+                // scalar-observation walk exactly and contribute no frame
+                // entry of their own.
+                Some(())
+            }
+            IrExpr::Binary { left, right, .. }
+                if matches!(
+                    value.ty,
+                    ResolvedType::Scalar(_) | ResolvedType::Enum { .. }
+                ) =>
+            {
+                // Boolean (and scalar) combinations over genuine reads
+                // observe their operands: both sides must resolve exactly as
+                // a top-level read would. Anything else stays refused.
+                self.read(ir, context, left, env, depth + 1)?;
+                self.read(ir, context, right, env, depth + 1)
+            }
+            IrExpr::Unary { operand, .. }
+                if matches!(
+                    value.ty,
+                    ResolvedType::Scalar(_) | ResolvedType::Enum { .. }
+                ) =>
+            {
+                // A unary combination over a genuine read observes its
+                // operand, exactly like the binary combinations above: `not`
+                // and `-` preserve the read set they negate.
+                self.read(ir, context, operand, env, depth + 1)
             }
             IrExpr::Array(entries) if entries.len() <= 200 => {
                 for value in entries {
@@ -1217,6 +1270,462 @@ impl Reads {
     }
 }
 
+/// How a not-env-pure SEND arg leaf is proven for a partitioned native-loop
+/// owner. Loop-variant leaves (loop items, lets derived from them) need the
+/// aggregate proof below; loop-invariant leaves (admitted params, lets of
+/// invariant expressions) are already proven by the successful `Reads`
+/// analysis exactly as in single owners, whose emission consumes them
+/// unchanged. Created-root and complex leaves fail the proof, matching
+/// today's refusal; they never silently pass.
+///
+/// A lexically visible let binding captured for loop-invariance chasing:
+/// the defining expression plus the root identities it resolved against at
+/// LET time. Any rebinding of a captured root drops the alias (transitively
+/// to a fixpoint), so a later use can never re-resolve through a stale
+/// binding; the chase then fails closed instead of authorizing against
+/// newly rebound state.
+#[derive(Clone, Debug)]
+struct LetAlias {
+    value: TypedExpr,
+    roots: Vec<(String, SymbolId)>,
+}
+
+/// Collect the root identities an alias value depends on, transitively
+/// through same-scope aliases. Pure values contribute nothing; anything
+/// unresolvable fails the recording so the alias never exists for chasing.
+fn alias_roots(
+    value: &TypedExpr,
+    env: &Environment,
+    models: &BTreeMap<String, SymbolId>,
+    seen: &mut Vec<String>,
+    out: &mut Vec<(String, SymbolId)>,
+    depth: usize,
+) -> bool {
+    if depth > 32 {
+        return false;
+    }
+    match &value.expr {
+        IrExpr::Int(_)
+        | IrExpr::Decimal(_)
+        | IrExpr::Text(_)
+        | IrExpr::Bool(_)
+        | IrExpr::Null
+        | IrExpr::Money { .. }
+        | IrExpr::DurationMs(_)
+        | IrExpr::Date(_)
+        | IrExpr::Datetime(_) => true,
+        IrExpr::Name(name) if env.values.contains(name) => true,
+        IrExpr::Name(name) if seen.iter().any(|seen| seen == name) => false,
+        IrExpr::Name(name) => match env.aliases.get(name) {
+            Some(aliased) => {
+                seen.push(name.clone());
+                let ok = alias_roots(&aliased.value, env, models, seen, out, depth + 1);
+                seen.pop();
+                ok
+            }
+            None => match models.get(name) {
+                Some(model) => {
+                    if !out.iter().any(|(known, _)| known == name) {
+                        out.push((name.clone(), *model));
+                    }
+                    true
+                }
+                None => false,
+            },
+        },
+        IrExpr::Member { base, .. } | IrExpr::DeliveryRead { record: base, .. } => {
+            if is_operation_clock(value) {
+                return true;
+            }
+            alias_roots(base, env, models, seen, out, depth + 1)
+        }
+        IrExpr::Object(fields) => fields
+            .iter()
+            .all(|(_, field)| alias_roots(field, env, models, seen, out, depth + 1)),
+        IrExpr::Message(message) => message
+            .params
+            .iter()
+            .all(|param| alias_roots(&param.value, env, models, seen, out, depth + 1)),
+        IrExpr::MessageCall { args, params, .. } => {
+            args.iter()
+                .all(|arg| alias_roots(arg, env, models, seen, out, depth + 1))
+                && params
+                    .iter()
+                    .filter_map(|param| param.default.as_ref())
+                    .all(|default| alias_roots(default, env, models, seen, out, depth + 1))
+        }
+        IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } | IrExpr::Array(args) => args
+            .iter()
+            .all(|arg| alias_roots(arg, env, models, seen, out, depth + 1)),
+        IrExpr::Binary { left, right, .. } => {
+            alias_roots(left, env, models, seen, out, depth + 1)
+                && alias_roots(right, env, models, seen, out, depth + 1)
+        }
+        IrExpr::Unary { operand, .. } => alias_roots(operand, env, models, seen, out, depth + 1),
+        IrExpr::Format { args, .. } => args
+            .iter()
+            .all(|arg| alias_roots(arg, env, models, seen, out, depth + 1)),
+        _ => false,
+    }
+}
+
+/// The operation clock `c.now`: carries no stored row, so it contributes no
+/// root identity and needs no frame entry. Mirrors the scalar-observation
+/// walk and the `Reads` arm exactly.
+fn is_operation_clock(value: &TypedExpr) -> bool {
+    matches!(&value.expr, IrExpr::Member { base, field }
+        if field == "now"
+            && value.ty == ResolvedType::Scalar(Scalar::Datetime)
+            && base.ty == ResolvedType::Unknown
+            && matches!(&base.expr, IrExpr::Name(name) if name == "c"))
+}
+
+/// Drop `name` and every alias whose LET-time roots mention a dropped name,
+/// to a fixpoint. Called at every rebinding site (let, loop item, create)
+/// so stale captures can never be chased after their roots change meaning.
+fn drop_dependent_aliases(env: &mut Environment, name: &str) {
+    let mut dropped = vec![name.to_string()];
+    env.aliases.remove(name);
+    loop {
+        let mut more = Vec::new();
+        for (alias, captured) in &env.aliases {
+            if captured
+                .roots
+                .iter()
+                .any(|(root, _)| dropped.contains(root))
+            {
+                more.push(alias.clone());
+            }
+        }
+        if more.is_empty() {
+            break;
+        }
+        for alias in &more {
+            env.aliases.remove(alias);
+        }
+        dropped.extend(more);
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum LeafProof {
+    Pure,
+    Invariant,
+    Variant,
+    Created,
+    Complex,
+}
+
+impl LeafProof {
+    fn combine(self, other: LeafProof) -> LeafProof {
+        use LeafProof::*;
+        match (self, other) {
+            (Complex, _) | (_, Complex) => Complex,
+            (Created, _) | (_, Created) => Created,
+            (Variant, _) | (_, Variant) => Variant,
+            (Invariant, _) | (_, Invariant) => Invariant,
+            (Pure, Pure) => Pure,
+        }
+    }
+}
+
+/// True when the expression mentions the name anywhere (cycle/shadow guard
+/// for let-alias chasing; fail-safe: an alias whose value mentions its own
+/// name is not recorded, so classification degrades to the outer binding).
+fn expr_mentions_name(value: &TypedExpr, name: &str, depth: usize) -> bool {
+    if depth >= 32 {
+        return true;
+    }
+    let child = |value: &TypedExpr| expr_mentions_name(value, name, depth + 1);
+    match &value.expr {
+        IrExpr::Name(candidate) => candidate == name,
+        IrExpr::Member { base, .. } => child(base),
+        IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } | IrExpr::Array(args) => {
+            args.iter().any(child)
+        }
+        IrExpr::Message(message) => message.params.iter().any(|param| child(&param.value)),
+        IrExpr::MessageCall {
+            descriptor,
+            args,
+            params,
+        } => {
+            args.iter().any(child)
+                || params.iter().any(|param| {
+                    param.default.as_ref().is_some_and(child)
+                        || descriptor.params.iter().any(|_| false)
+                })
+        }
+        IrExpr::Object(fields) => fields.iter().any(|(_, value)| child(value)),
+        IrExpr::Binary { left, right, .. } => child(left) || child(right),
+        IrExpr::Unary { operand, .. } => child(operand),
+        IrExpr::Format { args, .. } => args.iter().any(child),
+        IrExpr::DeliveryRead { record, .. } => child(record),
+        _ => false,
+    }
+}
+
+/// Outermost not-env-pure data leaves per arg field: the analysis records the
+/// whole traversal at its outer span, so prefixes are not required separately
+/// (a bare root Name alone is never an observed read). Anything beyond plain
+/// data composition (non-builtin calls, queries, closures) fails closed
+/// exactly as today: only previously-refused SENDs reach this proof.
+fn unproven_leaves<'e>(
+    value: &'e TypedExpr,
+    values: &BTreeSet<String>,
+    out: &mut Vec<&'e TypedExpr>,
+) -> bool {
+    match &value.expr {
+        IrExpr::Object(fields) => {
+            let mut ok = true;
+            for (_, field) in fields {
+                ok = unproven_leaves(field, values, out) && ok;
+            }
+            ok
+        }
+        IrExpr::Message(message) => {
+            let mut ok = true;
+            for param in &message.params {
+                ok = unproven_leaves(&param.value, values, out) && ok;
+            }
+            ok
+        }
+        IrExpr::MessageCall {
+            descriptor,
+            args,
+            params,
+        } => {
+            if !descriptor.params.is_empty() {
+                return false;
+            }
+            let mut ok = true;
+            for arg in args {
+                ok = unproven_leaves(arg, values, out) && ok;
+            }
+            let empty = BTreeSet::new();
+            for param in params {
+                if let Some(default) = param.default.as_ref() {
+                    ok = unproven_leaves(default, &empty, out) && ok;
+                }
+            }
+            ok
+        }
+        IrExpr::Call {
+            target: IrCallTarget::Builtin { awaited: false, .. },
+            args,
+        }
+        | IrExpr::BoundCall {
+            target: IrCallTarget::Builtin { awaited: false, .. },
+            args,
+            ..
+        } => {
+            let mut ok = true;
+            for arg in args {
+                ok = unproven_leaves(arg, values, out) && ok;
+            }
+            ok
+        }
+        IrExpr::Binary { left, right, .. } => {
+            unproven_leaves(left, values, out) & unproven_leaves(right, values, out)
+        }
+        IrExpr::Unary { operand, .. } => unproven_leaves(operand, values, out),
+        IrExpr::Array(entries) => {
+            let mut ok = true;
+            for entry in entries {
+                ok = unproven_leaves(entry, values, out) && ok;
+            }
+            ok
+        }
+        IrExpr::Format { args, .. } => {
+            let mut ok = true;
+            for arg in args {
+                ok = unproven_leaves(arg, values, out) && ok;
+            }
+            ok
+        }
+        IrExpr::Name(name) if values.contains(name) => true,
+        IrExpr::Name(_) | IrExpr::Member { .. } | IrExpr::DeliveryRead { .. } => {
+            out.push(value);
+            true
+        }
+        IrExpr::Int(_)
+        | IrExpr::Decimal(_)
+        | IrExpr::Text(_)
+        | IrExpr::Bool(_)
+        | IrExpr::Null
+        | IrExpr::Money { .. }
+        | IrExpr::DurationMs(_)
+        | IrExpr::Date(_)
+        | IrExpr::Datetime(_) => true,
+        _ => false,
+    }
+}
+
+/// Classify one unproven leaf: chase let aliases (cycle-guarded) to their
+/// values and member chains to their root. Pure and invariant leaves need no
+/// aggregate proof; variant (loop-rooted) leaves do; created and complex
+/// leaves fail. A composite value is invariant only when every leaf is pure
+/// or invariant; any variant/complex/created leaf dominates.
+fn leaf_class(
+    value: &TypedExpr,
+    env: &Environment,
+    loop_roots: &BTreeMap<String, String>,
+    created_roots: &BTreeMap<String, serde_json::Value>,
+    models: &BTreeMap<String, SymbolId>,
+    seen: &mut Vec<String>,
+    depth: usize,
+) -> LeafProof {
+    use LeafProof::*;
+    if depth >= 32 {
+        return Complex;
+    }
+    let child = |value: &TypedExpr, seen: &mut Vec<String>| {
+        leaf_class(
+            value,
+            env,
+            loop_roots,
+            created_roots,
+            models,
+            seen,
+            depth + 1,
+        )
+    };
+    match &value.expr {
+        IrExpr::Name(name) if env.values.contains(name) => Pure,
+        IrExpr::Name(name) if seen.iter().any(|seen| seen == name) => Complex,
+        IrExpr::Name(name) => match env.aliases.get(name) {
+            // The alias survived every rebinding of its LET-time roots
+            // (rebinding drops dependents), so chasing re-resolves through
+            // the current bindings, which still mean what they meant.
+            Some(aliased) => {
+                seen.push(name.clone());
+                let class = child(&aliased.value, seen);
+                seen.pop();
+                class
+            }
+            None => {
+                if loop_roots.contains_key(name) {
+                    Variant
+                } else if created_roots.contains_key(name) {
+                    Created
+                } else if models.contains_key(name) || env.roots.contains_key(name) {
+                    Invariant
+                } else {
+                    Complex
+                }
+            }
+        },
+        IrExpr::Member { base, .. } if is_operation_clock(value) => Pure,
+        IrExpr::Member { base, .. } => child(base, seen),
+        IrExpr::DeliveryRead { record, .. } => child(record, seen),
+        IrExpr::Object(fields) => fields
+            .iter()
+            .map(|(_, field)| child(field, seen))
+            .fold(Pure, LeafProof::combine),
+        IrExpr::Message(message) => message
+            .params
+            .iter()
+            .map(|param| child(&param.value, seen))
+            .fold(Pure, LeafProof::combine),
+        IrExpr::MessageCall { args, params, .. } => {
+            let mut class = Pure;
+            for arg in args {
+                class = class.combine(child(arg, seen));
+                if class == Complex {
+                    break;
+                }
+            }
+            for param in params {
+                if let Some(default) = param.default.as_ref() {
+                    class = class.combine(child(default, seen));
+                    if class == Complex {
+                        break;
+                    }
+                }
+            }
+            class
+        }
+        IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } | IrExpr::Array(args) => args
+            .iter()
+            .map(|arg| child(arg, seen))
+            .fold(Pure, LeafProof::combine),
+        IrExpr::Binary { left, right, .. } => child(left, seen).combine(child(right, seen)),
+        IrExpr::Unary { operand, .. } => child(operand, seen),
+        IrExpr::Format { args, .. } => args
+            .iter()
+            .map(|arg| child(arg, seen))
+            .fold(Pure, LeafProof::combine),
+        IrExpr::Int(_)
+        | IrExpr::Decimal(_)
+        | IrExpr::Text(_)
+        | IrExpr::Bool(_)
+        | IrExpr::Null
+        | IrExpr::Money { .. }
+        | IrExpr::DurationMs(_)
+        | IrExpr::Date(_)
+        | IrExpr::Datetime(_) => Pure,
+        _ => Complex,
+    }
+}
+
+/// Exact original SEND observer for partitioned native-loop owners: every
+/// loop-variant SEND arg read must be receipt-observed with a Data role at
+/// its exact source span. Singles keep today's env-purity gate untouched, so
+/// existing negative loop-root tests are preserved; a merely existing
+/// aggregate never suffices without per-arg proof. Loop-item and
+/// pre-mutation LET reads are covered exactly where the aggregate observes
+/// the identical whole selection they execute on.
+///
+/// All variant reads must resolve to ONE original return: each read matches
+/// its own exact (id, model, field) row with a DATA role inside that same
+/// return. Per-read triple-plus-role in a single return (never a union
+/// across unrelated returns) proves the SEND consumed exactly the observed
+/// original data; a CONTROL-only read therefore cannot ride on another
+/// read's DATA row. The covering return's full source (path, sha256,
+/// module) plus exact file-bound span equality proves source ownership (the
+/// SEND statement sits textually inside the loop it executes in), and only
+/// capture-stage aggregate observations are consulted, never transported
+/// copies. Loop-invariant leaves (admitted params, invariant lets) are
+/// proven by the already successful `Reads` analysis and need no aggregate
+/// row.
+fn aggregate_observed_send_args(
+    aggregate: &super::scenario_receipts::NativeScenarioReceipt,
+    proof_spans: &[Span],
+    module: &str,
+    source: &serde_json::Value,
+) -> bool {
+    use super::scenario_receipts::{NativeDependency, ReceiptRole};
+    let mut reads: Vec<&NativeDependency> = Vec::new();
+    for span in proof_spans {
+        let mut found = false;
+        for (site, site_reads) in aggregate.dependencies.iter() {
+            if site.span == *span && site.calls.is_empty() && !site.default_selection {
+                reads.extend(site_reads.iter());
+                found = true;
+            }
+        }
+        if !found {
+            return false;
+        }
+    }
+    if reads.is_empty() {
+        return false;
+    }
+    let source_path = source.get("path").and_then(serde_json::Value::as_str);
+    let source_sha = source.get("sha256").and_then(serde_json::Value::as_str);
+    aggregate.plan.returns.iter().any(|returned| {
+        returned.source.module == module
+            && source_path.is_some_and(|path| path == returned.source.path)
+            && source_sha.is_some_and(|sha| sha == returned.source.sha256)
+            && reads.iter().all(|read| {
+                returned.dependencies.iter().any(|row| {
+                    row.id == read.id
+                        && row.model == read.model
+                        && row.field == read.field
+                        && row.role == ReceiptRole::Data
+                })
+            })
+    })
+}
+
 pub(super) fn source_only_data_sends(
     ir: &IrProgram,
     owner: &IrItem,
@@ -1226,6 +1735,7 @@ pub(super) fn source_only_data_sends(
     module: &str,
     loops: Option<&serde_json::Value>,
     native_source: Option<&serde_json::Value>,
+    aggregate: Option<&super::scenario_receipts::NativeScenarioReceipt>,
 ) -> Option<HashMap<Span, serde_json::Value>> {
     let IrItemKind::Scenario {
         params,
@@ -1264,6 +1774,7 @@ pub(super) fn source_only_data_sends(
         module: &str,
         output: &mut HashMap<Span, serde_json::Value>,
         native_loops: bool,
+        aggregate: Option<&super::scenario_receipts::NativeScenarioReceipt>,
         missing: &mut bool,
     ) {
         for statement in body {
@@ -1275,10 +1786,24 @@ pub(super) fn source_only_data_sends(
                     env.values.remove(name);
                     env.roots.remove(name);
                     env.arrays.remove(name);
+                    drop_dependent_aliases(env, name);
                     models.remove(name);
                     created_roots.remove(name);
                     if pure {
                         env.values.insert(name.clone());
+                    }
+                    if !expr_mentions_name(value, name, 0) {
+                        let mut roots = Vec::new();
+                        let mut seen = Vec::new();
+                        if alias_roots(value, env, models, &mut seen, &mut roots, 0) {
+                            env.aliases.insert(
+                                name.clone(),
+                                LetAlias {
+                                    value: value.clone(),
+                                    roots,
+                                },
+                            );
+                        }
                     }
                 }
                 IrStmt::Create {
@@ -1290,6 +1815,11 @@ pub(super) fn source_only_data_sends(
                     env.values.remove(name);
                     env.roots.remove(name);
                     env.arrays.remove(name);
+                    // A created row shadows every outer binding, exactly
+                    // like a loop item: drop any stale outer let alias so
+                    // the created binding wins classification. Dependents of
+                    // the shadowed name drop too.
+                    drop_dependent_aliases(env, name);
                     models.remove(name);
                     created_roots.remove(name);
                     if let Some(profile) = creates.iter().find(|profile| {
@@ -1324,27 +1854,101 @@ pub(super) fn source_only_data_sends(
                         contract_derives: true,
                         ..Reads::default()
                     };
-                    if reads.read(ir, context, args, env, 0).is_none()
-                        || reads.fields.len() > 200
-                        || reads.data_paths.keys().any(|name| {
-                            loop_roots.contains_key(name) || created_roots.contains_key(name)
-                        })
-                        || reads.identity_paths.keys().any(|name| {
-                            loop_roots.contains_key(name) || created_roots.contains_key(name)
-                        })
-                        || reads.identities.keys().any(|name| {
-                            loop_roots.contains_key(name) || created_roots.contains_key(name)
-                        })
-                        || reads.queries.values().any(|query| {
-                            query["parameter"].as_str().is_some_and(|name| {
-                                loop_roots.contains_key(name) || created_roots.contains_key(name)
-                            })
-                        })
-                    {
-                        if native_loops && !send_value(ir, args, &env.values, 0) {
+                    // Hard analysis/budget failures refuse before any receipt
+                    // fallback and never emit partial output: an unreadable
+                    // SEND or an over-bound read set cannot be rescued by the
+                    // aggregate. Singles keep today's silent skip; native
+                    // loop owners refuse exactly as an unproved SEND would.
+                    let read_ok = reads.read(ir, context, args, env, 0).is_some();
+                    if !read_ok || reads.fields.len() > 200 {
+                        if native_loops {
                             *missing = true;
                         }
                         continue;
+                    }
+                    if reads.data_paths.keys().any(|name| {
+                        loop_roots.contains_key(name) || created_roots.contains_key(name)
+                    }) || reads.identity_paths.keys().any(|name| {
+                        loop_roots.contains_key(name) || created_roots.contains_key(name)
+                    }) || reads.identities.keys().any(|name| {
+                        loop_roots.contains_key(name) || created_roots.contains_key(name)
+                    }) || reads.queries.values().any(|query| {
+                        query["parameter"].as_str().is_some_and(|name| {
+                            loop_roots.contains_key(name) || created_roots.contains_key(name)
+                        })
+                    }) {
+                        // Partitioned native-loop owners prove loop-variant arg
+                        // leaves through their private whole-owner aggregate
+                        // instead of env purity; loop-invariant leaves
+                        // (admitted params, invariant lets) are already proven
+                        // by the successful Reads analysis above, exactly as
+                        // consumed by single-owner emission. Created and
+                        // complex leaves fail the proof, matching today's
+                        // refusal. Singles keep today's gate, so existing
+                        // negative loop-root tests are preserved.
+                        if native_loops && !send_value(ir, args, &env.values, 0) {
+                            let mut leaves = Vec::new();
+                            let mut proof_spans = Vec::new();
+                            let mut proven = unproven_leaves(args, &env.values, &mut leaves);
+                            if proven {
+                                let mut seen = Vec::new();
+                                for leaf in &leaves {
+                                    let class = leaf_class(
+                                        leaf,
+                                        env,
+                                        loop_roots,
+                                        created_roots,
+                                        models,
+                                        &mut seen,
+                                        0,
+                                    );
+                                    match class {
+                                        LeafProof::Pure | LeafProof::Invariant => {}
+                                        LeafProof::Variant => proof_spans.push(leaf.span),
+                                        LeafProof::Created | LeafProof::Complex => {
+                                            proven = false;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            // A loop-parameterized query with no variant arg
+                            // leaf to prove fails exactly as today (the arg
+                            // proof previously covered those spans and found
+                            // no aggregate row).
+                            if proven
+                                && proof_spans.is_empty()
+                                && reads.queries.values().any(|query| {
+                                    query["parameter"].as_str().is_some_and(|name| {
+                                        loop_roots.contains_key(name)
+                                            || created_roots.contains_key(name)
+                                    })
+                                })
+                            {
+                                proven = false;
+                            }
+                            // No variant leaf means nothing per-row to prove:
+                            // the Reads analysis already covers every leaf.
+                            let receipt_observed = proven
+                                && (proof_spans.is_empty()
+                                    || match aggregate {
+                                        Some(native) => aggregate_observed_send_args(
+                                            native,
+                                            &proof_spans,
+                                            module,
+                                            source,
+                                        ),
+                                        None => false,
+                                    });
+                            if !receipt_observed {
+                                *missing = true;
+                                continue;
+                            }
+                            // Receipt-observed: emit the exact descriptor
+                            // below (loop markers intact) instead of skipping.
+                        } else {
+                            continue;
+                        }
                     }
                     if reads.fields.is_empty() {
                         continue;
@@ -1422,6 +2026,12 @@ pub(super) fn source_only_data_sends(
                     let mut nested = env.clone();
                     nested.values.remove(item);
                     nested.arrays.remove(item);
+                    // The loop item shadows every outer binding: a stale
+                    // outer let alias with the same name must not classify
+                    // per-iteration reads as invariant (aliases are consulted
+                    // before loop roots, so only the current lexical binding
+                    // may win). Dependents of the shadowed name drop too.
+                    drop_dependent_aliases(&mut nested, item);
                     nested.roots.insert(
                         item.clone(),
                         Root {
@@ -1452,6 +2062,7 @@ pub(super) fn source_only_data_sends(
                         module,
                         output,
                         native_loops,
+                        aggregate,
                         missing,
                     );
                 }
@@ -1476,6 +2087,7 @@ pub(super) fn source_only_data_sends(
                         module,
                         output,
                         native_loops,
+                        aggregate,
                         missing,
                     );
                     walk(
@@ -1494,6 +2106,7 @@ pub(super) fn source_only_data_sends(
                         module,
                         output,
                         native_loops,
+                        aggregate,
                         missing,
                     );
                 }
@@ -1515,6 +2128,7 @@ pub(super) fn source_only_data_sends(
                             module,
                             output,
                             native_loops,
+                            aggregate,
                             missing,
                         );
                     }
@@ -1541,6 +2155,7 @@ pub(super) fn source_only_data_sends(
         module,
         &mut output,
         native_loops,
+        aggregate,
         &mut missing,
     );
     (!missing).then_some(output)

@@ -11,6 +11,7 @@ import { copyScenarioFileData, scenarioFileField, scenarioFileWireRefs,
 
 type Bound = {
   readonly plan: ScenarioResultDisclosurePlan;
+  readonly plans: readonly ScenarioResultDisclosurePlan[];
   readonly artifactModels: ReadonlyMap<ModelName, ArtifactModel>;
   readonly canonicalModels: readonly CanonicalModelDescriptor[];
   readonly valueSchema?: NormalizedSchema | undefined;
@@ -93,7 +94,7 @@ function checkSelectionHead(
   const contract = checkSelectionContract(schema, name);
   const names = ['role', 'content', 'attachments'];
   if (!Array.isArray(value.fields) || value.fields.length !== names.length) return fail('complete three-field mapping required.');
-  const consumers = bound.plan.returns.filter(returned => returned.influences.some(influence => influence.queryId === query.id));
+  const consumers = bound.plans.flatMap(copy => copy.returns).filter(returned => returned.influences.some(influence => influence.queryId === query.id));
   const artifact = bound.artifactModels.get(query.model);
   const models = bound.canonicalModels.filter(model => model.name === query.model);
   if (consumers.length === 0 || artifact === undefined || models.length !== 1) return fail('owning query model and return consumers required.');

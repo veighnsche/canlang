@@ -74,7 +74,19 @@ export interface AggregateReceiptLimits {
  * their independently checked original owner plan; persisted headers cannot
  * authorize a larger decoding budget. Every payload retains the existing
  * own-data allowance inside the source's finite execution census. */
+const aggregateReceiptLimitCache = new WeakMap<ScenarioResultDisclosurePlan, AggregateReceiptLimits | undefined>();
 export function aggregateReceiptLimits(plan: ScenarioResultDisclosurePlan): AggregateReceiptLimits | undefined {
+  if (aggregateReceiptLimitCache.has(plan)) return aggregateReceiptLimitCache.get(plan);
+  const limits = computeAggregateReceiptLimits(plan);
+  aggregateReceiptLimitCache.set(plan, limits);
+  return limits;
+}
+
+/** Pure budget derivation over one immutable plan; the memoized wrapper above
+ * shares this single computation per installed plan object. A different or
+ * tampered plan is a different object and revalidates fully; failures are
+ * never cached so fail-closed paths refuse identically every time. */
+function computeAggregateReceiptLimits(plan: ScenarioResultDisclosurePlan): AggregateReceiptLimits | undefined {
   const loops = plan.sourceLoops?.loops.filter(loop => loop.aggregate !== undefined) ?? [];
   if (loops.length === 0) return undefined;
   const queries = checkQueries(plan.queries ?? []);
@@ -633,8 +645,9 @@ export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
     const selected = list(observed.selectedIndices,rowMaximum);
     if (selected.some(index => !Number.isSafeInteger(index) || (index as number) < 0 || (index as number) >= candidates.length) ||
         new Set(selected).size !== selected.length) fail('unique selected candidate indices required.');
+    const selectedSet = new Set(selected as number[]);
     const typed = candidates as unknown as ScenarioReceiptQueryObservation['candidates'];
-    if (typed.some((candidate, index) => candidate.matched !== selected.includes(index))) fail('selected indices must contain every and only matched candidate.');
+    if (typed.some((candidate, index) => candidate.matched !== selectedSet.has(index))) fail('selected indices must contain every and only matched candidate.');
     if (query.limit !== null && selected.length > query.limit) fail('saved query overflow.');
     for (let index = 1; index < selected.length; index++) {
       if (compare(typed[selected[index - 1] as number]!, typed[selected[index] as number]!, query) > 0) fail('saved selected order differs from checked query.');

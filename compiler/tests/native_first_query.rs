@@ -8780,3 +8780,429 @@ fn retained_staged_mail_keeps_original_mode_domains_and_schema() {
         );
     }
 }
+
+const COUNT_SOURCE: &str = include_str!("fixtures/rent-restore-count-source.can");
+const COUNT_MODULE: &str = "$can$m$436f6e7374727563746f72436f756e74.mjs";
+
+/// Every constructor COUNT profile published in the emitted scenario modules,
+/// in emission order. The profiles are genuine compact JSON
+/// (`descriptor_json`), so each `constructorCounts:[...]` array parses
+/// directly; the surrounding app descriptor is raw JS and is only scanned
+/// for member boundaries.
+fn count_profiles(artifact: &serde_json::Value) -> Vec<serde_json::Value> {
+    let mut profiles = Vec::new();
+    for module in artifact["modules"].as_array().unwrap() {
+        let code = module["js"].as_str().unwrap();
+        let mut rest = code;
+        while let Some(index) = rest.find("constructorCounts:") {
+            let after = &rest[index + "constructorCounts:".len()..];
+            if let Some(array) = balanced_array(after)
+                && let Ok(serde_json::Value::Array(items)) =
+                    serde_json::from_str::<serde_json::Value>(array)
+            {
+                profiles.extend(items);
+            }
+            rest = &rest[index + 1..];
+        }
+    }
+    profiles
+}
+
+/// Longest balanced `[...]` prefix of `text`, respecting JSON string
+/// escapes. Returns `None` when the brackets never balance.
+fn balanced_array(text: &str) -> Option<&str> {
+    let mut depth = 0usize;
+    let mut in_str = false;
+    let mut escape = false;
+    for (i, ch) in text.char_indices() {
+        if in_str {
+            if escape {
+                escape = false;
+            } else if ch == '\\' {
+                escape = true;
+            } else if ch == '"' {
+                in_str = false;
+            }
+        } else if ch == '"' {
+            in_str = true;
+        } else if ch == '[' {
+            depth += 1;
+        } else if ch == ']' {
+            depth -= 1;
+            if depth == 0 {
+                return Some(&text[..i + 1]);
+            }
+        }
+    }
+    None
+}
+
+fn created_parent_count_profile(profiles: &[serde_json::Value]) -> serde_json::Value {
+    profiles
+        .iter()
+        .find(|profile| profile["owner"] == "count_visibility.created_parent")
+        .cloned()
+        .expect("created_parent constructor COUNT profile")
+}
+
+#[test]
+fn constructor_count_gate_admits_genuine_created_parent_count() {
+    let (db, program, ir, catalog) = fixture_source("rent-restore-count-source.can", COUNT_SOURCE);
+    let owner = item(&ir, "count_visibility.created_parent");
+    assert!(
+        matches!(
+            &ir.scenario_disclosures[&owner.id],
+            ScenarioDisclosure::Complete(_)
+        ),
+        "{:?}",
+        ir.scenario_disclosures[&owner.id]
+    );
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let operation = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "count_visibility.created_parent")
+        .expect("created_parent operation");
+    assert!(
+        operation["result"]["disclosure"].is_object(),
+        "genuine CREATE+COUNT publishes its native receipt"
+    );
+    assert!(
+        serialize_complete_query_receipt(&program, &ir, owner, &db, Some(&catalog), COUNT_MODULE)
+            .is_some(),
+        "genuine constructor COUNT keeps its complete query receipt"
+    );
+    let profiles = count_profiles(&artifact);
+    let profile = created_parent_count_profile(&profiles);
+    assert_eq!(profile["owner"], "count_visibility.created_parent");
+    assert_eq!(profile["model"], "count_visibility.Snapshot");
+    assert_eq!(profile["field"], "sequence");
+    assert_eq!(profile["stage"], 1);
+    assert_eq!(profile["createdParent"]["model"], "count_visibility.Child");
+    assert_eq!(profile["createdParent"]["parameter"], "root");
+    assert_eq!(profile["createdParent"]["stage"], 0);
+    let create = &profile["create"];
+    let statement =
+        "create Snapshot {parent=child.parent,sequence=count(child.parent.Snapshot)+1} as snapshot";
+    let slice = COUNT_SOURCE
+        .get(create["start"].as_u64().unwrap() as usize..create["end"].as_u64().unwrap() as usize)
+        .expect("COUNT CREATE span");
+    assert_eq!(
+        slice.trim(),
+        statement,
+        "COUNT profile pins its exact authored CREATE span"
+    );
+    let source = &profile["source"];
+    assert_eq!(source["path"], "rent-restore-count-source.can");
+    let sha = source["sha256"].as_str().unwrap();
+    assert_eq!(sha.len(), 64, "COUNT profile binds its exact source hash");
+    assert_eq!(
+        sha,
+        operation["result"]["disclosure"]["source"]["sha256"]
+            .as_str()
+            .unwrap(),
+        "emitted COUNT metadata and transported receipt bind the same source"
+    );
+}
+
+#[test]
+fn constructor_count_proof_refuses_stale_source() {
+    let (db, program, ir, catalog) = fixture_source("rent-restore-count-source.can", COUNT_SOURCE);
+    let owner = item(&ir, "count_visibility.created_parent");
+    let entry = COUNT_MODULE;
+    assert!(
+        serialize_complete_query_receipt(&program, &ir, owner, &db, Some(&catalog), entry)
+            .is_some()
+    );
+    // Same spans, different bytes: the proof binds the exact source hash.
+    let mut stale = SourceDb::new();
+    stale.add(
+        "rent-restore-count-source.can".into(),
+        COUNT_SOURCE.replace("sequence", "order_by"),
+    );
+    assert!(
+        serialize_complete_query_receipt(&program, &ir, owner, &stale, Some(&catalog), entry)
+            .is_none(),
+        "wrong source hash refuses the constructor COUNT proof"
+    );
+}
+
+#[test]
+fn constructor_count_proof_refuses_foreign_owner() {
+    let (db, program, _ir, catalog) = fixture_source("rent-restore-count-source.can", COUNT_SOURCE);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    // The plain sibling publishes a receipt without any COUNT query.
+    let operation = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "count_visibility.plain_parent")
+        .expect("plain_parent operation");
+    assert!(operation["result"]["disclosure"].is_object());
+    assert!(
+        operation["result"]["disclosure"]["queries"]
+            .as_array()
+            .is_none_or(|queries| queries.is_empty()),
+        "foreign owner carries no COUNT query"
+    );
+    let profiles = count_profiles(&artifact);
+    let owners: Vec<&str> = profiles
+        .iter()
+        .filter_map(|profile| profile["owner"].as_str())
+        .collect();
+    assert!(
+        owners.contains(&"count_visibility.created_parent"),
+        "genuine owner keeps its COUNT profile: {owners:?}"
+    );
+    assert!(
+        !owners.contains(&"count_visibility.plain_parent"),
+        "foreign owner cannot borrow the COUNT proof: {owners:?}"
+    );
+}
+
+#[test]
+fn constructor_count_proof_refuses_unadmitted_parent() {
+    let source = COUNT_SOURCE
+        .replace(
+            "  Snapshot in Root {sequence:int,hidden:bool=false}",
+            "  Snapshot in Root {sequence:int,hidden:bool=false}\n  Ghost in Root {x:int}",
+        )
+        .replacen(
+            "create Snapshot {parent=child.parent,sequence=count(child.parent.Snapshot)+1} as snapshot",
+            "create Snapshot {parent=child.parent,sequence=count(child.parent.Ghost)+1} as snapshot",
+            1,
+        );
+    let (db, program, ir, catalog) = fixture_source("rent-restore-count-ghost.can", &source);
+    let _owner = item(&ir, "count_visibility.created_parent");
+    let (artifact, _) = prepared_artifact(&program, &db, &catalog);
+    let operation = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "count_visibility.created_parent")
+        .expect("created_parent operation");
+    assert!(
+        operation["result"]["disclosure"].is_null(),
+        "COUNT over an unadmitted parent publishes no receipt"
+    );
+    let profiles = count_profiles(&artifact);
+    assert!(
+        !profiles
+            .iter()
+            .any(|profile| profile["owner"] == "count_visibility.created_parent"),
+        "wrong parent refuses the constructor COUNT profile"
+    );
+}
+
+#[test]
+fn constructor_count_create_span_tracks_its_authored_statement() {
+    let shifted = COUNT_SOURCE.replacen(
+        "  scenario created_parent(root:Root,allowed:bool) by=members\n   require true\n   do\n    create Child {parent=root,allowed} as child",
+        "  scenario created_parent(root:Root,allowed:bool) by=members\n   require true\n   do\n    set root {label=\"moved\"}\n    create Child {parent=root,allowed} as child",
+        1,
+    );
+    let (db, program, ir, catalog) = fixture_source("rent-restore-count-shifted.can", &shifted);
+    let owner = item(&ir, "count_visibility.created_parent");
+    assert!(matches!(
+        &ir.scenario_disclosures[&owner.id],
+        ScenarioDisclosure::Complete(_)
+    ));
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let profiles = count_profiles(&artifact);
+    let profile = created_parent_count_profile(&profiles);
+    let statement =
+        "create Snapshot {parent=child.parent,sequence=count(child.parent.Snapshot)+1} as snapshot";
+    let slice = shifted
+        .get(
+            profile["create"]["start"].as_u64().unwrap() as usize
+                ..profile["create"]["end"].as_u64().unwrap() as usize,
+        )
+        .expect("shifted COUNT CREATE span");
+    assert_eq!(slice.trim(), statement);
+    let (genuine_db, genuine_program, _, genuine_catalog) =
+        fixture_source("rent-restore-count-source.can", COUNT_SOURCE);
+    let genuine_profiles =
+        count_profiles(&prepared_artifact(&genuine_program, &genuine_db, &genuine_catalog).0);
+    let genuine_start = created_parent_count_profile(&genuine_profiles)["create"]["start"]
+        .as_u64()
+        .unwrap();
+    assert_ne!(
+        profile["create"]["start"].as_u64().unwrap(),
+        genuine_start,
+        "a stale statement span can never match the shifted CREATE"
+    );
+    assert_eq!(
+        profile["stage"], 2,
+        "preceding write advances the COUNT stage past its authored position"
+    );
+}
+
+#[test]
+fn constructor_count_proof_missing_without_provable_call() {
+    let source = COUNT_SOURCE.replacen(
+        "  scenario created_parent(root:Root,allowed:bool) by=members\n   require true\n   do\n    create Child {parent=root,allowed} as child",
+        "  scenario created_parent(root:Root,allowed:bool) by=members\n   require true\n   do\n    for snap in root.Snapshot as snap where snap.hidden==false limit=10\n     if snap.sequence==1\n      set snap {hidden=false}\n    create Child {parent=root,allowed} as child",
+        1,
+    );
+    let (db, program, _ir, catalog) = fixture_source("rent-restore-count-unprovable.can", &source);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008"),
+        "unprovable COUNT refuses lowering: {diagnostics:?}"
+    );
+    let _ = artifact;
+}
+
+const LOOP_SEND_SOURCE: &str = include_str!("fixtures/native-loop-send-restore.can");
+
+/// Genuine loop SEND mixing a loop-item read, an admitted param read and a
+/// bool let over stored reads plus the operation clock: the let alias
+/// resolves through its LET-time roots, so all three args lower to source
+/// DATA with no diagnostics. The `in [...]` LET reads (Root label/since)
+/// ride the same SEND DATA grants (Root label/since at both stages,
+/// readable by members), so LET-time authorization does not rely on treating
+/// the dropped `in [...]` loan absence as proof: the SEND DATA site proves
+/// the exact source/field/row identity for those reads, and the runtime
+/// commit leg proves the pre-SET value (`ok=false`) versus post-SET
+/// (`note="x"`) with row identity and fences.
+#[test]
+fn loop_send_with_let_bool_and_now_reads_emits_source_data() {
+    use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+    let (db, program, ir, catalog) =
+        fixture_source("native-loop-send-restore.can", LOOP_SEND_SOURCE);
+    let owner = item(&ir, "worker.looped");
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert!(serialize_decision_sources(&program, &ir, owner, &db, Some(&catalog)).is_some());
+    let code = artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|module| module["js"].as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(code.contains("nativeScenarioSourceSendData"));
+    assert!(
+        code.contains("\\\"owner\\\":\\\"worker.looped\\\""),
+        "the looped SEND carries its own source descriptor"
+    );
+    assert!(
+        code.contains("\\\"loop\\\":"),
+        "the loop-item root stays loop-bound in the descriptor"
+    );
+    assert!(
+        code.contains("\\\"model\\\":\\\"worker.Root\\\"")
+            && code.contains("\\\"name\\\":\\\"label\\\""),
+        "SEND DATA covers the LET-time Root label read"
+    );
+    assert!(
+        code.contains("\\\"name\\\":\\\"since\\\""),
+        "SEND DATA covers the LET-time Root since read"
+    );
+    assert!(
+        code.contains("\\\"model\\\":\\\"worker.Snapshot\\\"")
+            && code.contains("\\\"name\\\":\\\"sequence\\\""),
+        "SEND DATA covers the loop-item sequence read with row identity"
+    );
+}
+
+/// A loop item shadowing an outer invariant alias keeps the current lexical
+/// binding: the send args over the shadowing item resolve to the stored
+/// loop rows, so source DATA still emits. Without loop-entry alias removal
+/// the stale outer alias would win and the DATA proof would fail closed.
+#[test]
+fn loop_send_shadowed_item_keeps_item_binding() {
+    use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+    let source = LOOP_SEND_SOURCE
+        .replacen(
+            "    let probe = root.label in [\"x\"] or flag or now<root.since",
+            "    let ok2 = flag",
+            1,
+        )
+        .replacen(
+            "    for snap in root.Snapshot as row where row.hidden==false limit=10",
+            "    for ok2 in root.Snapshot as row where row.hidden==false limit=10",
+            1,
+        )
+        .replacen(
+            "     set snap {hidden=true}",
+            "     set ok2 {hidden=true}",
+            1,
+        )
+        .replacen(
+            "send Ping.ping {v=snap.sequence,note=root.label,ok=probe} as delivery",
+            "send Ping.ping {v=ok2.sequence,note=root.label,ok=not ok2.hidden} as delivery",
+            1,
+        );
+    let (db, program, ir, catalog) = fixture_source("native-loop-send-shadow.can", &source);
+    let owner = item(&ir, "worker.looped");
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert!(serialize_decision_sources(&program, &ir, owner, &db, Some(&catalog)).is_some());
+    let code = artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|module| module["js"].as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        code.contains("nativeScenarioSourceSendData"),
+        "shadowing item must keep its source DATA proof"
+    );
+}
+
+/// An outer invariant alias shadowed by a loop item over an unadmitted
+/// model stays fail-closed: the loop has no source receipt, so lowering
+/// refuses with E6008 and no source DATA wrapper emits. The stale outer
+/// alias can never launder the denied read.
+#[test]
+fn loop_send_shadowed_item_unadmitted_model_refuses() {
+    let source = LOOP_SEND_SOURCE
+        .replacen(
+            "  Snapshot in Root {sequence:int,hidden:bool=false}",
+            "  Snapshot in Root {sequence:int,hidden:bool=false}\n  Ghost in Root {x:int}",
+            1,
+        )
+        .replacen(
+            "    let probe = root.label in [\"x\"] or flag or now<root.since",
+            "    let snap = 0",
+            1,
+        )
+        .replacen(
+            "    for snap in root.Snapshot as row where row.hidden==false limit=10",
+            "    for snap in root.Ghost as row limit=10",
+            1,
+        )
+        .replacen("     set snap {hidden=true}\n", "", 1)
+        .replacen(
+            "send Ping.ping {v=snap.sequence,note=root.label,ok=probe} as delivery",
+            "send Ping.ping {v=snap.x,note=root.label,ok=flag} as delivery",
+            1,
+        );
+    let (db, program, _ir, catalog) = fixture_source("native-loop-send-ghost.can", &source);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008"),
+        "shadowed unadmitted read refuses lowering: {diagnostics:?}"
+    );
+    let code = artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|module| module["js"].as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        !code.contains("nativeScenarioSourceSendData"),
+        "denied shadowed read must not emit source DATA"
+    );
+}
