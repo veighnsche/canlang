@@ -87,8 +87,12 @@ VerifiedTasks preview works on the same installed bits, so the failure is
 CanTable-specific (host-role-only auth surface suspected, unproven). CanReport
 preview stops earlier: `use report {ReportsV1 as Reports}
 from=deployment.reports` is "outside the captured closure" — dev sessions do
-not capture deployment-sourced imports. Both need dev-server lane fixes before
-original-app preview journeys can qualify B27.
+not capture deployment-sourced imports. CanExpense (no deployment imports,
+finance role seeded) fails later with SDK_OPERATION_FAILED on testkit.stage.
+Pattern: toy apps (Tasks, VerifiedTasks) preview on installed bits; no tried
+original app does. All three need dev-server lane fixes before original-app
+preview journeys can qualify B22/B27. No model-provider credentials exist in
+this environment, so supported-host generation is also untestable here.
 
 ## Next implementation queue
 
