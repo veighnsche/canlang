@@ -205,7 +205,13 @@ function readSavedScenarioAssociation(receipt: Receipt,
   receipt = dataCopy(receipt,false,dataBudget);
   if (!Object.hasOwn(receipt.outcome, 'scenario')) return null;
   if (receipt.outcome.status !== 'committed') return invalid('association requires a committed outcome.');
-  const scenario = dataCopy(receipt.outcome.scenario,false,dataBudget);
+  // The receipt above is already a privately owned validated copy: its scenario
+  // subtree was validated with identical parameters (same function, budget and
+  // flags), so a second copy would re-validate nodes whose failure is now
+  // unreachable and return identical content. Reuse the owned subtree; every
+  // shape check below still runs, error precedence is unchanged (the first
+  // copy throws first), and nothing below mutates this tree.
+  const scenario = receipt.outcome.scenario;
   const value = object(scenario, ['kind', 'plan', 'resultType', 'returnId', 'observations', 'changed',
     ...(typeof scenario === 'object' && scenario !== null && Object.hasOwn(scenario, 'fileAssignments') ? ['fileAssignments'] : []),
     ...(typeof scenario === 'object' && scenario !== null && Object.hasOwn(scenario, 'calls') ? ['calls'] : []),
