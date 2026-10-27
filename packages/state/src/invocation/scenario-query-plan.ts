@@ -86,7 +86,9 @@ const aggregateReceiptLimitCache = new WeakMap<ScenarioResultDisclosurePlan, Agg
 const aggregateReceiptLimitWitness = new WeakSet<object>();
 /** Registers a validated deeply frozen plan as cache-eligible. Called only
  * by the plan validation and install paths for plans whose own data they
- * deep-freeze; no external caller or generic freeze check can register. */
+ * deep-freeze. The registrar is not re-exported through the package entry
+ * or the exported invocation surface, so in-repo trust flows only from the
+ * two construction sites; anything else recomputes. */
 export function markValidatedDisclosurePlan(plan: ScenarioResultDisclosurePlan): void {
   aggregateReceiptLimitWitness.add(plan);
 }
