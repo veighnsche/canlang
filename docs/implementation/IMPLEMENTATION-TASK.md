@@ -94,6 +94,20 @@ original app does. All three need dev-server lane fixes before original-app
 preview journeys can qualify B22/B27. No model-provider credentials exist in
 this environment, so supported-host generation is also untestable here.
 
+B27 CanTable preview closed, 28 October 2026: root cause was not auth —
+`installNativeFileInventory` installed per-package inventories that each
+census all live rows against coverage merged so far, so fixture rows staged
+before worker boot refused no matter the install order (zero-model
+app-named scope installed first with framework-only coverage). Fix:
+zero-model scope owners install one app-wide inventory covering every
+model (matches the documented app-scoped design; JEV 3/3 over reorder,
+staging-first, and multi-install API). Retained preview manifest bumped
+v1→v2 with an explicit-reset message for pre-change states. Regression
+test pins fresh-install-with-rows + app-wide shape + reopen. Live proof:
+`can-dev check` → preview ready, `preview.open` ok with
+`--preview-roles '{"Ava":["host"]}'` (403 without roles is correct
+enforcement). CanReport/CanExpense remain.
+
 B01/B02 verification (branch source), 28 October 2026: discriminator suites
 green — any_first_composition 7/7, collection_calls 2/2,
 boolean_operation_admission 8/8, decision_source_facts 14/14,
