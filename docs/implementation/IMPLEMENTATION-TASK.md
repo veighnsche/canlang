@@ -206,6 +206,21 @@ and preview suites re-greened after catalog re-emit (build-order
 artifact, hashes stable). Durable outcome-store backend + second
 binding (SalesIngress) remain.
 
+B09 TECH-F02 closed (receiving join), 28 October 2026:
+`ingestVerifiedEventFile` finalizes one verified event occurrence
+field exactly once per receiver, preserving `event` provenance
+(`request` kind stays dispatch-pinned). Replay/conflict ride a
+dedicated claim keyed by event 5-tuple + full receiver tuple, with
+the claim PK as the cross-caller anchor (R2 conditional batch,
+SQLite transaction; concurrent duplicates converge on the winner).
+`event` kind preserved deliberately: bound-dispatch/images pin
+`kind:'request'`, so collapsing would weaken a load-bearing gate.
+Journey: real signed billing webhook verifies, fixture PDF ingests,
+replay repeats, divergent bytes conflict, foreign receiver isolates,
+retired bytes conflict, R2 reopen repeats, split-brain reopen
+refuses loudly, SQLite close/reopen repeats with bytes (3/3). Also
+exports the billing ingress binding from `@canlang/interfaces`.
+
 B09 TECH-F01 closed (primitive + witness), 28 October 2026: the
 R2 run()/commitPublished CAS-journal protocol is defined as the
 same-intent serialization primitive. Two contention holes fixed:

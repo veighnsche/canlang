@@ -171,6 +171,27 @@ export interface FinalizedStorePort {
 }
 
 /**
+ * TECH-F02 event-ingest claim: one verified event occurrence field
+ * received once per receiver. The identity is the canonical JSON of
+ * the event 5-tuple plus the full receiving tuple; the hash keys the
+ * row and is the cross-caller uniqueness anchor (concurrent duplicate
+ * ingests collide here and converge on the winner's file).
+ */
+export interface EventIngestClaimRecord {
+  readonly identityHash: string;
+  readonly identity: string;
+  readonly fileRef: FinalizedFileRef;
+  readonly bytesDigest: string;
+  readonly ingestedAtMs: number;
+}
+
+/** Verified-event ingest claim storage, keyed by identity hash. */
+export interface EventIngestClaimStorePort {
+  get(identityHash: string): EventIngestClaimRecord | null;
+  put(record: EventIngestClaimRecord): void;
+}
+
+/**
  * Bounded storage traversal for retention. Each call reads at most `limit`
  * records, ordered by immutable id and strictly after the supplied key.
  * A short page ends this collection at that observation; later sweeps

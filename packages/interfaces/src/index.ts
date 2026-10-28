@@ -31,6 +31,7 @@ export * from './uploads/routes.js';
 export * from './ingress/mapping.js';
 export * from './ingress/routes.js';
 export * from './ingress/identity-removal.js';
+export * from './ingress/billing.js';
 export * from './oauth/metadata.js';
 export * from './oauth/routes.js';
 export * from './docs/reference.js';

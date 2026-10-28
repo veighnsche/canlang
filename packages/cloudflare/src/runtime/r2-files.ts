@@ -7,8 +7,9 @@ import { assertSafeBlobKey } from '@canlang/files/ports';
 import { freezeFinalized } from '@canlang/files/provenance';
 import { DEFAULT_FILE_POLICY, appendUploadContentAtOffset, completeUploadContent, createUploadIntent, sha256Hex, stagingKeyForIntent } from '@canlang/files/upload';
 import type { CreateIntentInput, UploadDeps } from '@canlang/files/upload';
-import { authorizeAttach, blobKeyForFile, finalizeUpload, observeFinalizedFile, readCurrentFinalizedSnapshot, readFinalizedBytes, readFinalizedFile, recordAttachment, revalidateRetainedFinalizedFile } from '@canlang/files/finalize';
-import type { FinalizeDeps, FinalizeInput } from '@canlang/files/finalize';
+import { authorizeAttach, blobKeyForFile, decodeEventIngestClaim, eventIngestClaimHash, eventIngestClaimParts, finalizeUpload, ingestVerifiedEventFile, observeFinalizedFile, readCurrentFinalizedSnapshot, readFinalizedBytes, readFinalizedFile, recordAttachment, revalidateRetainedFinalizedFile } from '@canlang/files/finalize';
+import type { EventIngestDeps, EventIngestInput, FinalizeDeps, FinalizeInput } from '@canlang/files/finalize';
+import type { EventIngestClaimRecord, EventIngestClaimStorePort } from '@canlang/files/ports';
 import type { ReceivingContext } from '@canlang/files/provenance';
 
 export interface R2FileOptions {
@@ -52,6 +53,7 @@ export async function resolveR2FileStoreIdentity({ db, bucket, namespace }: Pick
     db.prepare('CREATE TABLE IF NOT EXISTS can_files_roots (ns TEXT PRIMARY KEY, revision INTEGER NOT NULL, token TEXT, cleanup_cursor TEXT, file_store_id TEXT NOT NULL)'),
     db.prepare('CREATE TABLE IF NOT EXISTS can_files_intents (ns TEXT NOT NULL, id TEXT NOT NULL, retry_id TEXT NOT NULL, json TEXT NOT NULL, PRIMARY KEY(ns,id), UNIQUE(ns,retry_id))'),
     db.prepare('CREATE TABLE IF NOT EXISTS can_files_finalized (ns TEXT NOT NULL, id TEXT NOT NULL, json TEXT NOT NULL, PRIMARY KEY(ns,id))'),
+    db.prepare('CREATE TABLE IF NOT EXISTS can_files_event_claims (ns TEXT NOT NULL, id TEXT NOT NULL, json TEXT NOT NULL, PRIMARY KEY(ns,id))'),
     db.prepare('CREATE TABLE IF NOT EXISTS can_files_blobs (ns TEXT NOT NULL, id TEXT NOT NULL, json TEXT NOT NULL, PRIMARY KEY(ns,id))'),
     db.prepare("CREATE INDEX IF NOT EXISTS can_files_object_keys ON can_files_blobs(ns,json_extract(json,'$.objectKey'))"),
     db.prepare("CREATE TABLE IF NOT EXISTS can_files_publications (ns TEXT NOT NULL, id TEXT NOT NULL, created INTEGER NOT NULL, state TEXT NOT NULL, objects TEXT NOT NULL, retired TEXT NOT NULL, PRIMARY KEY(ns,id))"),
@@ -123,11 +125,16 @@ export async function createR2FileBindings(input: R2FileOptions) {
   };
   const commitPublished = async (revision: number, token: string,
     intentWrite: UploadIntentRecord | undefined, fileWrite: StoredFileRecord | undefined,
+    claimWrite: EventIngestClaimRecord | undefined,
     published: Map<string, Pointer | null>): Promise<boolean> => {
     const condition = 'EXISTS(SELECT 1 FROM can_files_roots WHERE ns=? AND token=?)';
     const batch = [db.prepare("UPDATE can_files_roots SET revision=revision+1,token=? WHERE ns=? AND revision=? AND EXISTS(SELECT 1 FROM can_files_publications WHERE ns=? AND id=? AND state='prepared')").bind(token, namespace, revision, namespace, token)];
     if (intentWrite !== undefined) batch.push(db.prepare(`INSERT INTO can_files_intents(ns,id,retry_id,json) SELECT ?,?,?,? WHERE ${condition} ON CONFLICT(ns,id) DO UPDATE SET retry_id=excluded.retry_id,json=excluded.json`).bind(namespace, intentWrite.intentId, intentWrite.retryId, JSON.stringify(intentWrite), namespace, token));
     if (fileWrite !== undefined) batch.push(db.prepare(`INSERT INTO can_files_finalized(ns,id,json) SELECT ?,?,? WHERE ${condition} ON CONFLICT(ns,id) DO UPDATE SET json=excluded.json`).bind(namespace, fileWrite.file.id, encodeFile(fileWrite), namespace, token));
+    // Plain insert, deliberately no upsert: the claim key is the
+    // cross-caller uniqueness anchor, so a concurrent duplicate's
+    // batch violates the primary key and retries onto the winner.
+    if (claimWrite !== undefined) batch.push(db.prepare(`INSERT INTO can_files_event_claims(ns,id,json) SELECT ?,?,? WHERE ${condition}`).bind(namespace, claimWrite.identityHash, JSON.stringify(claimWrite), namespace, token));
     for (const [key, pointer] of published) batch.push(pointer === null
       ? db.prepare(`DELETE FROM can_files_blobs WHERE ns=? AND id=? AND ${condition}`).bind(namespace, key, namespace, token)
       : db.prepare(`INSERT INTO can_files_blobs(ns,id,json) SELECT ?,?,? WHERE ${condition} ON CONFLICT(ns,id) DO UPDATE SET json=excluded.json`).bind(namespace, key, JSON.stringify(pointer), namespace, token));
@@ -168,32 +175,38 @@ export async function createR2FileBindings(input: R2FileOptions) {
     intent: UploadIntentRecord | null;
     ref: string | undefined;
     stored: StoredFileRecord | null;
+    claim: EventIngestClaimRecord | null;
     intentKeys: Set<string>;
     fileKeys: Set<string>;
     blobKeys: Set<string>;
+    claimKeys: Set<string>;
   }
-  const loadAttemptState = async (select: { intentId?: string; retryId?: string; ref?: string },
+  const loadAttemptState = async (select: { intentId?: string; retryId?: string; ref?: string; claimHash?: string },
     mintedIntent: string, mintedFile: string): Promise<AttemptState> => {
     const revision = await root();
     const intentJson = select.intentId !== undefined ? await row('can_files_intents', select.intentId)
       : select.retryId === undefined ? null : (await db.prepare('SELECT json FROM can_files_intents WHERE ns=? AND retry_id=?').bind(namespace, select.retryId).first<{ json: string }>())?.json ?? null;
     const intent = intentJson === null ? null : JSON.parse(intentJson) as UploadIntentRecord;
-    const ref = select.ref ?? intent?.finalizedRef ?? intent?.pendingFinalization?.ref;
+    const claimJson = select.claimHash === undefined ? null : await row('can_files_event_claims', select.claimHash);
+    const claim = claimJson === null ? null : decodeEventIngestClaim(claimJson);
+    const ref = select.ref ?? intent?.finalizedRef ?? intent?.pendingFinalization?.ref ?? claim?.fileRef;
     const storedJson = ref == null ? null : await row('can_files_finalized', ref);
     const stored = storedJson === null ? null : decodeFile(storedJson);
     const intentKeys = new Set([mintedIntent, ...(select.intentId === undefined ? [] : [select.intentId]), ...(intent === null ? [] : [intent.intentId])]);
     const fileKeys = new Set([mintedFile, ...(ref == null ? [] : [ref])]);
     const blobKeys = new Set([blobKeyForFile(mintedFile), ...(ref == null ? [] : [blobKeyForFile(ref)]), ...(intent === null ? [] : [stagingKeyForIntent(intent.intentId)])]);
-    return { revision, intent, ref, stored, intentKeys, fileKeys, blobKeys };
+    const claimKeys = new Set(select.claimHash === undefined ? [] : [select.claimHash]);
+    return { revision, intent, ref, stored, claim, intentKeys, fileKeys, blobKeys, claimKeys };
   };
   interface AttemptWrites {
     intentWrite: UploadIntentRecord | undefined;
     fileWrite: StoredFileRecord | undefined;
+    claimWrite: EventIngestClaimRecord | undefined;
     blobWrites: Map<string, Uint8Array | null>;
   }
-  const makeAttemptStores = (select: { intentId?: string; retryId?: string; ref?: string }, loaded: AttemptState,
-    bytes: Map<string, Uint8Array | null>, writes: AttemptWrites): { intents: IntentStorePort; files: FinalizedStorePort; blobs: BlobStorePort } => {
-    const { intent, stored, intentKeys, fileKeys, blobKeys } = loaded;
+  const makeAttemptStores = (select: { intentId?: string; retryId?: string; ref?: string; claimHash?: string }, loaded: AttemptState,
+    bytes: Map<string, Uint8Array | null>, writes: AttemptWrites): { intents: IntentStorePort; files: FinalizedStorePort; blobs: BlobStorePort; claims: EventIngestClaimStorePort } => {
+    const { intent, stored, claim, intentKeys, fileKeys, blobKeys, claimKeys } = loaded;
     const check = (keys: Set<string>, key: string) => { assertSafeBlobKey(key); if (!keys.has(key)) throw new Error('Files kernel exceeded its selected bounded working set.'); };
     const intents: IntentStorePort = {
       get(id) { check(intentKeys, id); return intent !== null && intent.intentId === id ? copy(intent) : null; },
@@ -205,6 +218,10 @@ export async function createR2FileBindings(input: R2FileOptions) {
       get(id) { check(fileKeys, id); return writes.fileWrite?.file.id === id ? copy(writes.fileWrite) : stored?.file.id === id ? copy(stored) : null; },
       put(record) { check(fileKeys, record.file.id); writes.fileWrite = copy(record); },
       listAll() { throw new Error('Files host requires explicitly bounded traversal.'); },
+    };
+    const claims: EventIngestClaimStorePort = {
+      get(id) { check(claimKeys, id); return writes.claimWrite?.identityHash === id ? copy(writes.claimWrite) : claim?.identityHash === id ? copy(claim) : null; },
+      put(record) { check(claimKeys, record.identityHash); writes.claimWrite = copy(record); },
     };
     const blobs: BlobStorePort = {
       read(key) { check(blobKeys, key); const current = writes.blobWrites.has(key) ? writes.blobWrites.get(key) : bytes.get(key); return current == null ? null : new Uint8Array(current); },
@@ -224,22 +241,23 @@ export async function createR2FileBindings(input: R2FileOptions) {
       },
       sizeOf(key) { return blobs.read(key)?.length ?? null; },
     };
-    return { intents, files, blobs };
+    return { intents, files, blobs, claims };
   };
   /**
    * TECH-F01 same-intent serialization primitive: every journey call
    * loads its bounded working set, runs the pure kernel, stages R2
    * bytes behind a prepared journal row, and commits one conditional
    * D1 batch (roots-revision CAS plus journal gate). Concurrent calls
-   * for one intent/publication converge: losers retry on the winner's
-   * committed state (duplicate/conflict/repeat paths) instead of
-   * publishing twice. Interruption between R2 staging and D1 commit
+   * for one intent/publication/event-claim converge: losers retry on
+   * the winner's committed state (duplicate/conflict/repeat paths)
+   * instead of publishing twice. Interruption between R2 staging and
+   * D1 commit
    * leaves a prepared journal row whose orphaned objects the sweeper
    * reclaims; interruption before staging leaves nothing. Retries
    * reuse this call's minted identities; bounded attempts keep a hot
    * loop loud.
    */
-  async function run<T>(select: { intentId?: string; retryId?: string; ref?: string }, body: (upload: UploadDeps, final: FinalizeDeps) => T,
+  async function run<T>(select: { intentId?: string; retryId?: string; ref?: string; claimHash?: string }, body: (upload: UploadDeps, final: FinalizeDeps, event: EventIngestDeps) => T,
     revalidate?: () => Promise<void>): Promise<T> {
     // These minted identities belong to this actual call and survive its CAS retries.
     const mintedIntent = crypto.randomUUID(), mintedFile = crypto.randomUUID();
@@ -251,15 +269,16 @@ export async function createR2FileBindings(input: R2FileOptions) {
         await loadBlobContent(key, pointers, bytes);
       }
       if (await root() !== loaded.revision) continue;
-      const writes: AttemptWrites = { intentWrite: undefined, fileWrite: undefined, blobWrites: new Map<string, Uint8Array | null>() };
-      const { intents, files, blobs } = makeAttemptStores(select, loaded, bytes, writes);
+      const writes: AttemptWrites = { intentWrite: undefined, fileWrite: undefined, claimWrite: undefined, blobWrites: new Map<string, Uint8Array | null>() };
+      const { intents, files, blobs, claims } = makeAttemptStores(select, loaded, bytes, writes);
       const callClock = { nowMs: () => now };
       const upload: UploadDeps = { clock: callClock, policy, intentTtlMs: options.intentTtlMs, urlBase: options.urlBase,
         intentIds: { nextIntentId: () => mintedIntent }, intents, blobs,
         ...(options.allowInsecureLoopback === true ? { allowInsecureLoopback: true as const } : {}) };
       const final: FinalizeDeps = { clock: callClock, fileIds: { nextFileId: () => mintedFile }, intents, files, blobs };
-      const result = body(upload, final);
-      if (writes.intentWrite === undefined && writes.fileWrite === undefined && writes.blobWrites.size === 0) {
+      const event: EventIngestDeps = { clock: callClock, fileIds: { nextFileId: () => mintedFile }, files, blobs, claims };
+      const result = body(upload, final, event);
+      if (writes.intentWrite === undefined && writes.fileWrite === undefined && writes.claimWrite === undefined && writes.blobWrites.size === 0) {
         await revalidate?.();
         if (await root() === loaded.revision) return result;
         continue;
@@ -267,7 +286,7 @@ export async function createR2FileBindings(input: R2FileOptions) {
       const token = crypto.randomUUID();
       const published = await publishBlobWrites(writes.blobWrites, pointers, token, now);
       await revalidate?.();
-      if (await commitPublished(loaded.revision, token, writes.intentWrite, writes.fileWrite, published)) return result;
+      if (await commitPublished(loaded.revision, token, writes.intentWrite, writes.fileWrite, writes.claimWrite, published)) return result;
     }
     throw new Error('Concurrent Files changes require retry.');
   }
@@ -280,6 +299,13 @@ export async function createR2FileBindings(input: R2FileOptions) {
     append: (intentId: string, caller: ReceivingContext, chunk: Uint8Array, expectedOffset: number) => run({ intentId }, upload => appendUploadContentAtOffset(upload, intentId, caller, chunk, expectedOffset)),
     complete: (intentId: string, caller: ReceivingContext) => run({ intentId }, upload => completeUploadContent(upload, intentId, caller)),
     finalize: (input: FinalizeInput) => run({ intentId: input.intentId }, (_, final) => finalizeUpload(final, input)),
+    ingestEventFile: (input: EventIngestInput) => {
+      const parts = eventIngestClaimParts(input.provenance, input.receiver);
+      // Invalid input still opens a working set (it can only read an
+      // absent claim); the join itself rejects it without writing.
+      const claimHash = parts === null ? crypto.randomUUID() : eventIngestClaimHash(parts.identity);
+      return run({ claimHash }, (_, __, event) => ingestVerifiedEventFile(event, input));
+    },
     readProvenance: (ref: string, caller: ReceivingContext) => run({ ref }, (_, final) => readFinalizedFile(final, ref, caller)),
     authorizeAttach: (ref: string, caller: ReceivingContext) => run({ ref }, (_, final) => authorizeAttach(final, ref, caller)),
     recordAttachment: (ref: string, recordRef: string, caller: ReceivingContext) => run({ ref }, (_, final) => recordAttachment(final, ref, recordRef, caller)),
