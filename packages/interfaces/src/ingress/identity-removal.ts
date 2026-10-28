@@ -168,6 +168,71 @@ export async function verifyIngressSignatures(
   return acceptedKeys;
 }
 
+/**
+ * Parse only a closed flat object grammar with string leaves plus a
+ * numeric `version`: duplicate members (including escaped aliases)
+ * reject before `JSON.parse` can discard them, and the member set
+ * must equal `fields` exactly. Shared by the versioned webhook
+ * profiles; each profile pins its own field list and checks the
+ * parsed values.
+ */
+export function parseClosedIngressBody(bytes: Uint8Array, fields: readonly string[]): Record<string, unknown> | null {
+  try {
+    const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+    let at = 0;
+    const space = (): void => {
+      while (/[\x20\t\r\n]/.test(text[at] ?? '') && at < text.length) at++;
+    };
+    const expect = (token: string): void => {
+      space();
+      if (!text.startsWith(token, at)) throw new SyntaxError('Invalid ingress JSON.');
+      at += token.length;
+    };
+    const string = (): string => {
+      space();
+      const start = at;
+      if (text[at++] !== '"') throw new SyntaxError('Invalid ingress JSON.');
+      while (at < text.length) {
+        const character = text[at++];
+        if (character === '\\') at++;
+        else if (character === '"') return JSON.parse(text.slice(start, at)) as string;
+      }
+      throw new SyntaxError('Invalid ingress JSON.');
+    };
+    const number = (): number => {
+      space();
+      const match = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/.exec(text.slice(at));
+      if (match === null) throw new SyntaxError('Invalid ingress JSON.');
+      at += match[0].length;
+      return Number(match[0]);
+    };
+    expect('{');
+    const result: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
+    space();
+    if (text[at] === '}') return null;
+    for (;;) {
+      const name = string();
+      if (Object.hasOwn(result, name)) throw new SyntaxError('Duplicate ingress JSON member.');
+      expect(':');
+      space();
+      result[name] = text[at] === '"' ? string() : number();
+      space();
+      if (text[at] === '}') {
+        at++;
+        break;
+      }
+      expect(',');
+    }
+    space();
+    if (at !== text.length) return null;
+    if (Reflect.ownKeys(result).length !== fields.length) return null;
+    if (!fields.every(name => ownValue(result, name) !== undefined)) return null;
+    return result;
+  } catch {
+    return null;
+  }
+}
+
 function sameOriginal(body: VerifiedTeamsMemberRemovedEnvelope, original: VerifiedTeamsMemberRemovedEnvelope): boolean {
   return ENVELOPE_FIELDS.filter(name => name !== 'membershipRemoval' && name !== 'removedBy')
     .every(name => body[name] === original[name]) &&

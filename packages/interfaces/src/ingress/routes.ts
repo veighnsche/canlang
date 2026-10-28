@@ -54,7 +54,7 @@
  */
 import type { BusinessError, VerifiedIngressEnvelope } from '@canlang/contracts';
 import { IdentityError } from '@canlang/identity';
-import type { IngressDeps } from '../ports.js';
+import type { IngressBinding, IngressDeps, IngressVerifier } from '../ports.js';
 import {
   buildBusinessError,
   fromUnknown,
@@ -126,6 +126,26 @@ function jsonOk(value: unknown): Response {
     status: 200,
     headers: { 'content-type': 'application/json; charset=utf-8' },
   });
+}
+
+/**
+ * Serve several configured bindings through one dispatch: each
+ * sub-verifier answers only its own binding (returning null for
+ * foreign bindings), so the first acceptance wins and disagreements
+ * fail closed. The dispatch still checks the envelope namespace
+ * against the routed binding afterwards.
+ */
+export function createCompositeIngressVerifier(verifiers: readonly IngressVerifier[]): IngressVerifier {
+  const members = [...verifiers];
+  return {
+    async verify(binding: IngressBinding, input: { headers: Record<string, string>; body: Uint8Array }) {
+      for (const verifier of members) {
+        const envelope = await verifier.verify(binding, input);
+        if (envelope !== null) return envelope;
+      }
+      return null;
+    },
+  };
 }
 
 /**

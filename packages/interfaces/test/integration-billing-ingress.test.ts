@@ -17,12 +17,14 @@ import { createHmac, randomBytes } from 'node:crypto';
 import { createHttpHandler } from '../src/http/routes.js';
 import { handleIngressRequest } from '../src/ingress/routes.js';
 import {
-  createBillingIngressSink,
   createBillingIngressVerifier,
-  createMemoryBillingOutcomeStore,
   loadBillingIngressBinding,
 } from '../src/ingress/billing.js';
-import type { BillingOutcomeStore } from '../src/ingress/billing.js';
+import {
+  createIngressOutcomeSink,
+  createMemoryIngressOutcomeStore,
+} from '../src/ingress/outcomes.js';
+import type { IngressOutcomeStore } from '../src/ingress/outcomes.js';
 import {
   createFakeCatalog,
   createFakeFileUseInfo,
@@ -52,7 +54,7 @@ function whsec(): { encoded: string; raw: Buffer } {
 
 interface BillingWorld {
   readonly handle: (request: Request) => Promise<Response>;
-  readonly store: BillingOutcomeStore;
+  readonly store: IngressOutcomeStore;
   readonly keys: { current: { encoded: string; raw: Buffer }; previous?: { encoded: string; raw: Buffer } };
 }
 
@@ -70,14 +72,14 @@ async function setup(withPrevious: boolean): Promise<BillingWorld> {
   });
   const clock = { nowMs: () => NOW_MS };
   const logger = createRecordingLogger();
-  const store = createMemoryBillingOutcomeStore();
+  const store = createMemoryIngressOutcomeStore();
   const verifier = createBillingIngressVerifier({
     binding: configured.binding,
     clock,
     keys: configured.keys,
     isCurrent: () => true,
   });
-  const sink = createBillingIngressSink({ store, clock });
+  const sink = createIngressOutcomeSink({ store, clock });
   const bindings = {
     bindingFor: (namespace: string) => (namespace === NAMESPACE ? configured.binding : null),
   };

@@ -33,7 +33,6 @@ packages/cloudflare/src/runtime/promptlab-activation-collision.integration.test.
 packages/cloudflare/src/runtime/promptlab-native-acceptance.integration.test.ts
 packages/cloudflare/src/runtime/t34c-work-installed.integration.test.ts
 packages/cloudflare/test/app-owned-preview.integration.test.ts
-packages/cloudflare/test/billing-outcomes-durable.integration.test.ts
 packages/cloudflare/test/compiler-check.integration.test.ts
 packages/cloudflare/test/durable-files-sqlite.integration.test.ts
 packages/cloudflare/test/files-event-ingest.integration.test.ts
@@ -43,6 +42,7 @@ packages/cloudflare/test/files-serialize-reopen.integration.test.ts
 packages/cloudflare/test/first-profile-browser.integration.test.ts
 packages/cloudflare/test/identity-bootstrap.integration.test.ts
 packages/cloudflare/test/images-submit-progress.integration.test.ts
+packages/cloudflare/test/ingress-outcomes-durable.integration.test.ts
 packages/cloudflare/test/mail-unavailable-terminal.integration.test.ts
 packages/cloudflare/test/model-free-preview.integration.test.ts
 packages/cloudflare/test/soda-writer.integration.test.ts
@@ -52,6 +52,7 @@ packages/interfaces/test/integration-billing-ingress.test.ts
 packages/interfaces/test/integration-errors-intake.test.ts
 packages/interfaces/test/integration-lifecycle.test.ts
 packages/interfaces/test/integration-parity.test.ts
+packages/interfaces/test/integration-sales-ingress.test.ts
 packages/state/test/receipt/lease-snapshot.test.ts
 tests/integration/b2-d1-fence.test.ts
 tests/integration/b2-delivery.test.ts

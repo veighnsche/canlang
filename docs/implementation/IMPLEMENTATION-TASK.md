@@ -206,6 +206,17 @@ and preview suites re-greened after catalog re-emit (build-order
 artifact, hashes stable). Durable outcome-store backend + second
 binding (SalesIngress) remain.
 
+B14 SalesIngress closed (second binding), 28 October 2026:
+`standard-webhooks-v1-sales` mirrors billing (pinned adapter,
+`lead.created` grammar, `CAN_INGRESS_SALES_*` loader) over the
+shared closed-body parser and the shared outcome sink. Outcome
+port generalized ingress-wide (`outcomes.ts`, `can_ingress_outcomes`
+rows keyed by namespace); dispatch gains
+`createCompositeIngressVerifier` for multi-binding serving.
+Suites: sales 9/9 incl. billing+sales coexistence with isolated
+outcomes and cross-post 401s; interfaces 54/54; durable
+reopen journey extended with namespace-partition proof.
+
 B14 durable outcome-store closed, 28 October 2026:
 `createD1BillingOutcomeStore` implements `BillingOutcomeStore`
 over D1 — one committed row per (namespace, producer_event_id),
