@@ -679,10 +679,19 @@ fn lower_table(emitter: &mut Emitter<'_>, table: &IrTable) -> String {
         })
         .collect::<Vec<_>>()
         .join(",");
+    // The load-time caller probe evaluates only the `as` cell, so rows
+    // carry a dedicated caller closure and never evaluate sibling cells
+    // (which may reference unprovisioned business fixtures or validating
+    // calls) just to select the caller.
+    let caller_index = table.selector_channels.as_ref().and_then(|channels| {
+        channels
+            .iter()
+            .position(|channel| channel.as_str() == "caller")
+    });
     let rows = table
         .rows
         .iter()
-        .map(|row| lower_row(emitter, row))
+        .map(|row| lower_row(emitter, row, caller_index))
         .collect::<Vec<_>>()
         .join(",");
     format!(
@@ -692,13 +701,19 @@ fn lower_table(emitter: &mut Emitter<'_>, table: &IrTable) -> String {
 }
 
 /// Lower one table row.
-fn lower_row(emitter: &mut Emitter<'_>, row: &IrTableRow) -> String {
+fn lower_row(emitter: &mut Emitter<'_>, row: &IrTableRow, caller_index: Option<usize>) -> String {
     let deps = names_list(&row.dependencies);
     let values = emitter.lower_expr(&row.values);
     let mut parts = vec![
         format!("dependencies:[{deps}]"),
         format!("values:async(c,s)=>({values})"),
     ];
+    if let (Some(index), IrExpr::Array(cells)) = (caller_index, &row.values.expr)
+        && let Some(cell) = cells.get(index)
+    {
+        let caller = emitter.lower_expr(cell);
+        parts.push(format!("caller:async(c,s)=>({caller})"));
+    }
     match (&row.expected, &row.error) {
         (Some(expected), None) => {
             parts.push(format!(

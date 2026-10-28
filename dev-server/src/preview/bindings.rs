@@ -157,6 +157,12 @@ pub fn plan(artifact: &Value, ast: Option<&Value>) -> Result<Plan> {
         &exports,
         &definition,
     )?);
+    admitted_handlers.extend(checked_delivery_completion_handlers(
+        artifact,
+        &bindings,
+        &exports,
+        &definition,
+    )?);
     let no_model_storage_mode = model_free_storage_mode(artifact, &bindings, &owners, &definition)?;
     Ok(Plan {
         app: Some(app),
@@ -372,6 +378,144 @@ fn checked_identity_removal_handlers(
             != json!({"team_id":{"type":"text"},"membership_id":{"type":"text"},"user":{"type":"user"}})
         {
             return invalid("removal event differs from the fixed Identity payload");
+        }
+        handlers.push(id);
+    }
+    Ok(handlers)
+}
+
+/// Admit delivery-completion handlers for sends through plan-selected service
+/// bindings. The event must carry the emitter-pinned four-field completion
+/// envelope keyed under the binding's capability, and the handler invocation
+/// must agree with the event inputs field for field. A capability without a
+/// preview provider never completes, so its handler stays inert while sends
+/// fail loud at invoke; runtime routing keys on the exact event name, so a
+/// mismatched operation suffix can only stay silent, never misfire.
+fn checked_delivery_completion_handlers(
+    artifact: &Value,
+    bindings: &[Value],
+    exports: &BTreeMap<String, Value>,
+    definition: &BTreeMap<String, Value>,
+) -> Result<Vec<String>> {
+    let operations = properties(
+        definition
+            .get("operations")
+            .ok_or("operation metadata missing")?,
+    )?;
+    let events = definition
+        .get("events")
+        .map(properties)
+        .transpose()?
+        .unwrap_or_default();
+    let capabilities: BTreeSet<&str> = bindings
+        .iter()
+        .filter(|b| b["kind"] == "service")
+        .filter_map(|b| b["capability"].as_str())
+        .collect();
+    let mut handlers = vec![];
+    for (id, declaration) in operations {
+        let metadata = properties(&declaration)?;
+        let event = metadata.get("event").map(literal).transpose()?;
+        let Some(event) = event.as_ref().and_then(|e| e.as_str()) else {
+            continue;
+        };
+        if event == "teams.member_removed"
+            || bindings
+                .iter()
+                .any(|b| b["kind"] == "queue" && b["binding"] == event)
+        {
+            continue;
+        }
+        let Some((capability, operation)) = event.rsplit_once('.') else {
+            continue;
+        };
+        if !capabilities.contains(capability)
+            || operation.is_empty()
+            || !operation
+                .bytes()
+                .all(|c| c.is_ascii_alphanumeric() || c == b'_')
+            || !operation
+                .bytes()
+                .next()
+                .is_some_and(|c| c.is_ascii_alphabetic() || c == b'_')
+        {
+            continue;
+        }
+        let handler = json!(id);
+        validate_handler_callable(artifact, &handler, exports)?;
+        let invocation = literal(
+            metadata
+                .get("invocation")
+                .ok_or("completion invocation missing")?,
+        )?;
+        if metadata.get("handler").map(literal).transpose()?.as_ref() != Some(&handler)
+            || metadata.get("read").map(literal).transpose()? != Some(json!(false))
+            || invocation["name"] != handler
+            || invocation["kind"] != "scenario"
+            || artifact["operations"].as_array().is_some_and(|operations| {
+                operations
+                    .iter()
+                    .any(|operation| operation["name"] == handler)
+            })
+        {
+            return invalid("completion handler differs from its compiled source");
+        }
+        let inputs = properties(
+            properties(events.get(event).ok_or("completion event missing")?)?
+                .get("inputs")
+                .ok_or("completion event inputs missing")?,
+        )?;
+        let mut names: Vec<&str> = inputs.keys().map(String::as_str).collect();
+        names.sort_unstable();
+        if names != ["delivery_id", "error", "result", "status"] {
+            return invalid("completion event differs from the fixed delivery envelope");
+        }
+        let event_type = |name: &str| {
+            properties(inputs.get(name).ok_or("completion event inputs missing")?)?
+                .get("type")
+                .map(literal)
+                .transpose()
+        };
+        if event_type("delivery_id")? != Some(json!("text"))
+            || event_type("status")? != Some(json!("enum(succeeded,failed,unknown,skipped)"))
+            || event_type("error")? != Some(json!("DeliveryError?"))
+        {
+            return invalid("completion event differs from the fixed delivery envelope");
+        }
+        let result_type = event_type("result")?.and_then(|t| t.as_str().map(str::to_string));
+        let Some(result_type) = result_type else {
+            return invalid("completion event differs from the fixed delivery envelope");
+        };
+        if !result_type.ends_with('?') || result_type.len() < 2 {
+            return invalid("completion event differs from the fixed delivery envelope");
+        }
+        let fields = invocation["inputs"]["fields"]
+            .as_array()
+            .ok_or("completion inputs missing")?;
+        if fields.len() != 4 {
+            return invalid("completion handler inputs differ from the event envelope");
+        }
+        for field in fields {
+            let Some(name) = field["name"].as_str() else {
+                return invalid("completion handler inputs differ from the event envelope");
+            };
+            let expected = match name {
+                "delivery_id" => "text",
+                "status" => "enum(succeeded,failed,unknown,skipped)",
+                "result" => result_type.as_str(),
+                "error" => "DeliveryError?",
+                _ => return invalid("completion handler inputs differ from the event envelope"),
+            };
+            if field["valueType"] != expected
+                || field["required"] != true
+                || field["nullable"] == true && !expected.ends_with('?')
+                || field["nullable"] != true && expected.ends_with('?')
+                || field.get("array").is_some()
+                || field.get("default").is_some()
+                || field["computedDefault"] == true
+            {
+                return invalid("completion handler inputs differ from the event envelope");
+            }
         }
         handlers.push(id);
     }

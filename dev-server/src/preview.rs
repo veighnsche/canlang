@@ -194,7 +194,7 @@ fn validate_selected_callables(artifact: &Value, plan: &bindings::Plan) -> Resul
                 && !callable["id"].as_str().is_some_and(|id| hooks.contains(id))
         {
             return Err(
-                "PROFILE_UNSUPPORTED: only checked selected queue and Identity removal handlers are admitted".into(),
+                "PROFILE_UNSUPPORTED: only checked selected queue, Identity removal, and delivery-completion handlers are admitted".into(),
             );
         }
     }

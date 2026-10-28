@@ -159,12 +159,16 @@ pub fn call(
     } else {
         payload
     };
+    // Staging materializes the whole preview dataset in one retained
+    // operation; large apps exceed the interactive deadline, so staging
+    // alone gets a longer join. Every other command keeps 60s.
+    let deadline_secs = if command == "testkit.stage" { 600 } else { 60 };
     let response = match bridge.request(
         command,
         &operation,
         parent,
         payload,
-        Instant::now() + Duration::from_secs(60),
+        Instant::now() + Duration::from_secs(deadline_secs),
         cancel,
     ) {
         Ok(response) => response,

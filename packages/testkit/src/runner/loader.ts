@@ -243,6 +243,7 @@ function setupError(fixture: string | null, reason: string, options?: { cause?: 
 interface EmittedRow {
   readonly seeds: string[];
   readonly valuesFn: (...args: readonly unknown[]) => unknown;
+  readonly callerFn: ((...args: readonly unknown[]) => unknown) | null;
   readonly expectedFn: ((...args: readonly unknown[]) => unknown) | null;
   readonly error: string | null;
 }
@@ -253,7 +254,7 @@ function readEmittedRow(
   rowPosition: number,
   exampleDeps: readonly unknown[],
   suite: Parameters<typeof normalizeDependencies>[1],
-): { seeds: string[]; valuesFn: (...args: readonly unknown[]) => unknown; expectedFn: ((...args: readonly unknown[]) => unknown) | null; error: string | null } {
+): { seeds: string[]; valuesFn: (...args: readonly unknown[]) => unknown; callerFn: ((...args: readonly unknown[]) => unknown) | null; expectedFn: ((...args: readonly unknown[]) => unknown) | null; error: string | null } {
   const where = `example at index ${exampleIndex} row ${rowPosition}`;
   if (!isRecord(row)) {
     throw setupError(null, `${where} is not an object`);
@@ -265,6 +266,10 @@ function readEmittedRow(
   const valuesFn: unknown = row["values"];
   if (typeof valuesFn !== "function") {
     throw setupError(null, `${where} has values that are not a function`);
+  }
+  const callerFn: unknown = row["caller"];
+  if (callerFn !== undefined && typeof callerFn !== "function") {
+    throw setupError(null, `${where} has caller that is not a function`);
   }
   const expectedFn: unknown = row["expected"];
   const error: unknown = row["error"];
@@ -291,6 +296,7 @@ function readEmittedRow(
   return {
     seeds,
     valuesFn: valuesFn as (...args: readonly unknown[]) => unknown,
+    callerFn: (callerFn ?? null) as ((...args: readonly unknown[]) => unknown) | null,
     expectedFn: (expectedFn ?? null) as ((...args: readonly unknown[]) => unknown) | null,
     error: (error ?? null) as string | null,
   };
@@ -551,23 +557,35 @@ async function mapTableRow(
 ): Promise<TableRowSpec<RowScope>> {
   const where = `example at index ${exampleIndex} row ${position}`;
   const order = resolveFixtureOrder(mapped.seeds, adjacency);
-  // Caller probe at load: `as`-cells lower to literals/identifiers, always
-  // load-evaluable; probe failure fails the load loud (never a defaulted
-  // caller that could false-pass).
+  // Caller probe at load: evaluate only the `as` cell, never sibling
+  // cells (they may reference unprovisioned business fixtures or
+  // validating calls). Rows without a caller closure fall back to the
+  // whole-values probe. Probe failure fails the load loud (never a
+  // defaulted caller that could false-pass).
   let caller: CallerSelection = { kind: "self" };
   const asIndex = selectors.indexOf("as");
   if (asIndex >= 0) {
-    let probe: unknown;
-    try {
-      probe = await mapped.valuesFn(bindings, scopeFacade(callerRecipes));
-    } catch (thrown) {
-      throw setupError(null, `${where}: caller probe failed: ${detailOf(thrown)}`, { cause: thrown });
+    let cell: unknown;
+    if (mapped.callerFn !== null) {
+      try {
+        cell = await mapped.callerFn(bindings, scopeFacade(callerRecipes));
+      } catch (thrown) {
+        throw setupError(null, `${where}: caller probe failed: ${detailOf(thrown)}`, { cause: thrown });
+      }
+    } else {
+      let probe: unknown;
+      try {
+        probe = await mapped.valuesFn(bindings, scopeFacade(callerRecipes));
+      } catch (thrown) {
+        throw setupError(null, `${where}: caller probe failed: ${detailOf(thrown)}`, { cause: thrown });
+      }
+      if (!Array.isArray(probe)) {
+        throw setupError(null, `${where}: values must evaluate to an array`);
+      }
+      cell = probe[asIndex] as unknown;
     }
-    if (!Array.isArray(probe)) {
-      throw setupError(null, `${where}: values must evaluate to an array`);
-    }
     try {
-      caller = callerFromCell(probe[asIndex] as unknown, bindings, suite);
+      caller = callerFromCell(cell, bindings, suite);
     } catch (thrown) {
       if (thrown instanceof FixtureSetupError) {
         throw setupError(thrown.fixture, `${where}: ${thrown.reason}`, { cause: thrown });
