@@ -127,7 +127,7 @@ import type {
 import { DELIVERY_RESULT_LEAVES, SYSTEM_TEAM_TOOL_NAMES } from "@canlang/contracts";
 import { parse as parseJavaScript } from 'acorn';
 import { receiverFromIdentity } from '@canlang/interfaces';
-import type { AsyncGuardEvaluator, attemptDispatchAsync } from "@canlang/work/dispatch";
+import type { AsyncGuardEvaluator, TargetAvailabilityPort, attemptDispatchAsync } from "@canlang/work/dispatch";
 import { decodeValue, encodeValue, isRecordRef, makeDatetime, makeRecordRef, normalizeSchema, parseTypeId, printTypeId, validateOperationInput, validateValue } from "@canlang/values";
 import { isResourceSendTarget, resolveResourceSend, resourceSendOwner } from './resource-dispatch.js';
 import { mailHumanText } from './bound-mail.js';
@@ -22337,6 +22337,15 @@ interface DriveDispatchFenceBase {
   readonly owner: string;
   readonly triggerRevision?: { readonly revision: number };
   readonly revalidateAuthority: () => boolean | Promise<boolean>;
+  /**
+   * D3 deployment-known send-target availability. Present means
+   * enforced: the fence kernel refuses unavailable targets after
+   * the structural claim win but before guard evaluation, and the
+   * bound drive terminalizes the verdict under the held claim.
+   * Absent means unknown (no short-circuit). The deployment
+   * answers from its bindings; the kernel only matches.
+   */
+  readonly availability?: TargetAvailabilityPort;
 }
 
 /** Explicit host ports for an awaited guard; provider payload is not lexical capture. */
@@ -22697,12 +22706,12 @@ function checkClaimResult(value: unknown): DispatchClaimCheck {
   return { claimed: true, reason: null, claimId };
 }
 
-interface DispatchRecordCheck {
+export interface DispatchRecordCheck {
   readonly state: string;
   readonly attempts: number;
 }
 
-function checkRecordResult(value: unknown): DispatchRecordCheck {
+export function checkRecordResult(value: unknown): DispatchRecordCheck {
   if (!isUnknownRecord(value)) {
     throw new Error("t24b: record result must be an object (command/dist skew?).");
   }
@@ -22996,8 +23005,10 @@ export type DriveDispatchOutcome =
    * retried — repeating the identical send fails identically until
    * the deployment changes); downstream transport owns the terminal
    * surfacing (D proposes `rule_failed` naming the target,
-   * `retryable: false`). Same no-call/no-record posture as the
-   * refused members; the echo carries the checkpoint fenced under.
+   * `retryable: false`). No provider call at the invoke level; the
+   * bound drive terminalizes under the held claim (failed/terminal
+   * receipt + record + ack). The echo carries the checkpoint fenced
+   * under.
    */
   | {
       readonly status: "unavailable";
@@ -23027,10 +23038,15 @@ export type DriveDispatchOutcome =
  * synchronous kernel, so throwing fence ports preempt an unavailable
  * verdict there (pinned, not silently short-circuited). Async guards
  * instead retain Work's awaited evidence/authority ordering.
- * True short-circuit arrives only with ACTUAL availability
- * injection (the fence input carries no availability port yet —
- * follow-up). Inherited/superseded/settled precedence stays
- * kernel-side, untouched by this mapping.
+ * True short-circuit arrives through the fence input's
+ * `availability` port: present means the kernel refuses unavailable
+ * targets after the structural claim win but before guard
+ * evaluation. The verdict returns unrecorded with the held claim;
+ * the bound drive terminalizes it (failed/terminal receipt +
+ * record + ack, never re-driven). Absent means unknown
+ * (no short-circuit).
+ * Inherited/superseded/settled precedence stays kernel-side,
+ * untouched by this mapping.
  */
 async function runFenceGate(input: {
   readonly opts: DriveDispatchIntentOpts;
@@ -23062,6 +23078,15 @@ async function runFenceGate(input: {
     if (typeof rev !== "number" || !Number.isInteger(rev) || rev < 0) {
       throw new Error("t32b: fenced drive triggerRevision must be an integer revision >= 0.");
     }
+  }
+  const availability = fence.availability;
+  if (
+    availability !== undefined &&
+    (typeof availability !== "object" ||
+      availability === null ||
+      typeof availability.isTargetAvailable !== "function")
+  ) {
+    throw new Error("t32b: fenced drive availability must answer isTargetAvailable.");
   }
   const admission = await loadFenceAdmissionProducer();
   const checkpoint = (await admission.openTransitiveScope(opts.store, fence.owner)).snapshot();
@@ -23116,6 +23141,10 @@ async function runFenceGate(input: {
     supersessions: { isSuperseded: () => false, markSuperseded: () => {
       throw new Error("t32b: a held dispatch guard cannot stage supersession.");
     } },
+    // D3: deployment-known availability, when injected. Absent means
+    // unknown: the kernel skips the short-circuit. Both kernels read
+    // it through the shared preflight.
+    ...(availability === undefined ? {} : { availability }),
   };
   let verdict: FenceAttemptVerdict;
   if (asyncGuard !== undefined) {
@@ -23168,6 +23197,10 @@ async function runFenceGate(input: {
     if (verdict.outboxId !== intentId) {
       throw new Error(`t32b: fence kernel unavailable verdict names another intent (producer skew?)`);
     }
+    // Unrecorded: the bound layer terminalizes (failed/terminal receipt
+    // + record + ack) under the held claim, since it owns the result
+    // context. Raw driveDispatchIntent callers must record the held
+    // claim themselves; the claim stays held for normal recovery.
     return { status: verdict.status, intentId, claimId: heldClaimId, target: verdict.target, fence: echo };
   }
   return { status: verdict.status, intentId, claimId: heldClaimId, fence: echo };

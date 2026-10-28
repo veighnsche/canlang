@@ -68,7 +68,7 @@ export interface BoundMailAdapterOptions {
 }
 
 export interface BoundMailAdapter {
-  /** The driver must check this before evaluating a guard or winning a claim. */
+  /** The fence kernel preflights this after the structural claim win but before guard evaluation; a false refusal terminalizes under the held claim. */
   available(intent: OutboxIntent): boolean;
   userRecipient(intent: OutboxIntent): { readonly user: string; readonly team: string } | null;
   recipientActive(intent: OutboxIntent): Promise<boolean>;
