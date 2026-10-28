@@ -1,10 +1,10 @@
 /** B25 inventory producer: real outbox rows become activation inventory. */
 import assert from 'node:assert/strict';
 import { it } from 'vitest';
-import type { ModelName, UpgradePlan } from '@canlang/contracts';
-import { buildWorkInventory } from '@canlang/work';
+import type { ModelName, StoragePort, UpgradePlan } from '@canlang/contracts';
+import { WORK_DISPATCH_MODEL, buildWorkInventory, newDispatchRow } from '@canlang/work';
 import type { MigrationMapper } from '@canlang/state/migration';
-import { asModel } from '@canlang/state/testing/invocation/fixtures';
+import { asModel, makeBatch } from '@canlang/state/testing/invocation/fixtures';
 import {
   TODO_MODEL,
   fixedClock,
@@ -119,6 +119,105 @@ it('pinned invalidate plus produced inventory activates with recorded outcomes',
   assert.equal(outcomes.length, 1);
   assert.equal(outcomes[0]?.intentId, 'intent-1');
   assert.equal(outcomes[0]?.kind, 'invalidated');
+});
+
+async function seedDispatch(
+  store: StoragePort,
+  rows: ReadonlyArray<{ intentId: string; operation: string; state: 'claimed' | 'uncertain' | 'delivered' }>,
+): Promise<void> {
+  const now = fixedClock().nowMs();
+  const revision = await store.readRevision();
+  await store.commit(makeBatch(revision as number, {
+    writes: rows.map(entry => {
+      const row = newDispatchRow({
+        intentId: entry.intentId,
+        operationId: `op-${entry.intentId}`,
+        source: entry.operation,
+        occurrenceIndex: 0,
+        originOccurrence: null,
+      }, { nowMs: now, actor: 'test' });
+      return {
+        kind: 'insert' as const,
+        model: WORK_DISPATCH_MODEL,
+        row: { ...row, data: { ...row.data, state: entry.state, claimId: 'claim-1', claimedAtMs: now } },
+      };
+    }),
+  }));
+}
+
+it('overlays dispatch lifecycle: claimed/uncertain win, settled omits', async () => {
+  const { store } = setupMigrationWorld();
+  await seedOutbox(store, [
+    { intentId: 'intent-1', operation: 'acme.worker' },
+    { intentId: 'intent-2', operation: 'acme.cleanup' },
+    { intentId: 'intent-3', operation: 'acme.worker' },
+    { intentId: 'intent-4', operation: 'acme.worker' },
+  ]);
+  await seedDispatch(store, [
+    { intentId: 'intent-1', operation: 'acme.worker', state: 'claimed' },
+    { intentId: 'intent-2', operation: 'acme.cleanup', state: 'uncertain' },
+    { intentId: 'intent-3', operation: 'acme.worker', state: 'delivered' },
+  ]);
+  const items = await buildUpgradeInventory(store);
+  assert.deepEqual(items, [
+    { intentId: 'intent-1', handlerContract: 'acme.worker', state: 'inflight' },
+    { intentId: 'intent-2', handlerContract: 'acme.cleanup', state: 'uncertain' },
+    { intentId: 'intent-4', handlerContract: 'acme.worker', state: 'undispatched' },
+  ]);
+});
+
+it('pages the recovery window to exhaustion', async () => {
+  const { store } = setupMigrationWorld();
+  await seedOutbox(store, [
+    { intentId: 'intent-1', operation: 'acme.worker' },
+    { intentId: 'intent-2', operation: 'acme.worker' },
+    { intentId: 'intent-3', operation: 'acme.worker' },
+  ]);
+  await seedDispatch(store, [
+    { intentId: 'intent-1', operation: 'acme.worker', state: 'claimed' },
+    { intentId: 'intent-2', operation: 'acme.worker', state: 'claimed' },
+    { intentId: 'intent-3', operation: 'acme.worker', state: 'claimed' },
+  ]);
+  const items = await buildUpgradeInventory(store, undefined, { dispatchPageLimit: 1 });
+  assert.deepEqual(items, [
+    { intentId: 'intent-1', handlerContract: 'acme.worker', state: 'inflight' },
+    { intentId: 'intent-2', handlerContract: 'acme.worker', state: 'inflight' },
+    { intentId: 'intent-3', handlerContract: 'acme.worker', state: 'inflight' },
+  ]);
+});
+
+it('produced inflight inventory blocks activation even when pinned', async () => {
+  const { store } = setupMigrationWorld();
+  await installSnapshot(store, makeInstalled());
+  await seedLive(store, TODO_MODEL, [{ id: 'todo-0', data: { label: 't', done: false, legacy: 'x' } }]);
+  await seedOutbox(store, [{ intentId: 'intent-1', operation: 'acme.worker' }]);
+  await seedDispatch(store, [{ intentId: 'intent-1', operation: 'acme.worker', state: 'claimed' }]);
+  const { oldModels, desiredModels } = todoTables();
+  const input: OwnerUpgradeInput = {
+    transition: makeTransition({
+      directives: [...todoDirectives(), { kind: 'invalidate', handlerContract: 'acme.worker' }],
+    }),
+    mappers: new Map<ModelName, MigrationMapper>([[asModel(TODO_MODEL), todoMapper()]]),
+    oldModels,
+    desiredModels,
+    oldLocks: oldLocks([]),
+    inventory: await buildUpgradeInventory(store),
+  };
+  // Invalidate disposes undispatched work only: the claimed row blocks
+  // until dispatch drains/reconciles it out of band.
+  assert.deepEqual(input.inventory, [
+    { intentId: 'intent-1', handlerContract: 'acme.worker', state: 'inflight' },
+  ]);
+  const state = await coordinateUpgrade({
+    store,
+    plan: PLAN,
+    owners: new Map([['acme', input]]),
+    chunkSize: 10,
+    clock: fixedClock(),
+  });
+  assert.equal(state.stage, 'activation-failed');
+  assert.match(state.failure?.reason ?? '', /drain\/reconcile first/);
+  assert.equal((await store.readInstalledSnapshot('acme'))?.snapshotId, 'snap-1');
 });
 
 it('skips settled outbox items without a mapping callback', async () => {

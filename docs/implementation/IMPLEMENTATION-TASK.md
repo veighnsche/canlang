@@ -206,6 +206,18 @@ and preview suites re-greened after catalog re-emit (build-order
 artifact, hashes stable). Durable outcome-store backend + second
 binding (SalesIngress) remain.
 
+B25 drain join closed, 28 October 2026: `buildUpgradeInventory`
+joins the dispatch lifecycle over outbox pending — claimed/uncertain
+`work.dispatch` rows (recovery-window pages to exhaustion) overlay by
+intent id so in-flight work inventories as inflight/uncertain and
+blocks activation until drained, and a settled census
+(delivered/failed/dead) omits completed-but-unacked work that would
+otherwise block upgrades forever or record false invalidate outcomes.
+Dispatch-pending mirrors stay unread (migration-skipped rows keep
+stale pending mirrors). Suite extended 8/8: overlay/omit, page-1
+exhaustion, pinned-invalidate-still-blocks. Remaining B25: gate-4,
+`deploy --yes` CLI.
+
 B25 plan compilation closed, 28 October 2026:
 `compileMigrationTransition` + `mintModelSnapshot` in
 `@canlang/state/migration` compile one owner's transition from
