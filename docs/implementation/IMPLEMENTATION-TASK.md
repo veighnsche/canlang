@@ -221,16 +221,20 @@ exhaustion, pinned-invalidate-still-blocks. Remaining B25: gate-4,
 B25 plan compilation closed, 28 October 2026:
 `compileMigrationTransition` + `mintModelSnapshot` in
 `@canlang/state/migration` compile one owner's transition from
-old/desired model tables — content-derived `snap-v1` snapshots
-(install/upgrade mint identically, predecessor match detects
-drift), refuse-ambiguous diff (renames/drops declared, unmatched
-listed), deterministic bytes incl. default migration id and
-`body-v1` content address (JEV 3/3 on both questions; format in
-DECISIONS.md). Journey `upgrade-plan-compile` 4/4: compiled Todo
-directives match the hand illustration and drive to active with
-migrated live rows, refusal cases, tampered-digest staging-failed
-with pointer untouched, owner-removal compilation. Remaining B25:
-drain join, gate-4, `deploy --yes` CLI.
+old/desired releases (model tables + artifact digests) — split
+binding: content-derived `snap-v1` snapshot ids (install/upgrade
+mint identically, predecessor match detects drift) with artifact
+digests as the code half (serve gate 3's pinned comparison
+preserved; a first unified-mint cut was revised after gate-3
+evidence, JEV 3/3 on the corrected question; format in
+DECISIONS.md). Refuse-ambiguous diff (renames/drops declared,
+unmatched listed), deterministic bytes incl. default migration id
+and `body-v1` content address. Journey `upgrade-plan-compile` 4/4:
+compiled Todo directives match the hand illustration and drive to
+active with migrated live rows, refusal + code-only cases,
+tampered-digest staging-failed with pointer untouched,
+owner-removal compilation. Remaining B25: gate-4, `deploy --yes`
+CLI (drain join closed separately above).
 
 B14 SalesIngress closed (second binding), 28 October 2026:
 `standard-webhooks-v1-sales` mirrors billing (pinned adapter,

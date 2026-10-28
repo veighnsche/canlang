@@ -2,23 +2,34 @@
  * Lane 03 S7: migration plan compilation (INTERIM intake until L1 lands).
  *
  * Compiles one owner's `MigrationTransition` from an old and a desired
- * `ModelTable`: schema-diff to structural directives plus deterministic
- * snapshot minting. The engine keeps treating ids and digests as opaque
- * strings; this module defines their interim meaning:
+ * release (model tables plus artifact digests): schema-diff to structural
+ * directives plus deterministic snapshot-id minting. The engine keeps
+ * treating ids and digests as opaque strings; this module defines their
+ * interim meaning as a split binding (JEV 3/3; see DECISIONS.md):
  *
- * - Snapshots are content-derived: `mintModelSnapshot` projects each
+ * - snapshotId is content-derived: `mintModelSnapshot` projects the
  *   table to a versioned canonical encoding of its stored shape and
- *   hashes it (`snap-v1:<sha256hex>`, used for both id and digest).
- *   Install and upgrade mint identically, so predecessor matching
- *   doubles as drift detection — a tampered store cannot match a plan
- *   compiled against different definitions — and no id registry exists.
+ *   hashes it (`snap-v1:<sha256hex>`). Install and upgrade mint
+ *   identically, so predecessor matching detects schema drift — a
+ *   tampered store cannot match a plan compiled against different
+ *   definitions — and no id registry exists.
+ * - digest is the installing artifact's digest (caller-supplied code
+ *   binding), preserving the serve gate's pinned `artifactDigest`
+ *   comparison: joint predecessor matching then verifies exact schema
+ *   AND exact code together, and code-only releases flow as
+ *   digest-pointer moves with empty directives.
  * - The projection binds the stored row shape plus storage-level
  *   constraints (field essence, refs, unique keys/groups, delete mode).
  *   Pipeline behavior (hooks, invariants, locks, server inits,
  *   containment, computed validations) rides with code identity via the
- *   plan's artifact identity, not the snapshot. Non-serializable
- *   members fail minting loud through `stableStringify` instead of
- *   hashing silently-dropped content.
+ *   plan's artifact identity, not the snapshot. DESIGN §11.1 additionally
+ *   names locks/lifetimes, effective language version, resolved physical
+ *   bindings/routing and persisted declaration contracts in the snapshot;
+ *   the interim projection covers the stored-shape subset (locks also
+ *   arrive as a separate validated engine input), versioned so the
+ *   canonical L1 format can extend it. Non-serializable members fail
+ *   minting loud through `stableStringify` instead of hashing
+ *   silently-dropped content.
  * - The diff refuses ambiguity (JEV 3/3): only provable dispositions
  *   compile (implicit retains, backfill for added stored fields);
  *   renames and drops are operator declarations, and anything unmatched
@@ -113,11 +124,12 @@ function projectTable(models: StateModelTable): ReadonlyArray<ProjectedModel> {
 }
 
 /**
- * Mint the interim content-derived snapshot for one owner's model table.
- * Same table always mints the same pair; any stored-shape difference
- * mints a different pair.
+ * Mint the interim content-derived snapshot id for one owner's model
+ * table. Same table always mints the same id; any stored-shape
+ * difference mints a different id. The digest half of the binding is the
+ * installing artifact's digest (caller-supplied, never minted here).
  */
-export async function mintModelSnapshot(models: StateModelTable): Promise<{ readonly snapshotId: string; readonly digest: string }> {
+export async function mintModelSnapshot(models: StateModelTable): Promise<{ readonly snapshotId: string }> {
   if (!(models instanceof Map)) throw new StateError('validation', 'Migration snapshot mints from a model table.');
   let encoded: string;
   try {
@@ -126,7 +138,7 @@ export async function mintModelSnapshot(models: StateModelTable): Promise<{ read
     throw new StateError('validation', 'Migration snapshot projection holds non-serializable schema content.');
   }
   const hex = await sha256Hex(encoded);
-  return { snapshotId: `${COMPILED_SNAPSHOT_VERSION}:${hex}`, digest: `${COMPILED_SNAPSHOT_VERSION}:${hex}` };
+  return { snapshotId: `${COMPILED_SNAPSHOT_VERSION}:${hex}` };
 }
 
 export interface CompiledRename {
@@ -147,6 +159,10 @@ export interface CompileMigrationTransitionInput {
   readonly owner: string;
   readonly oldModels: StateModelTable;
   readonly desiredModels: StateModelTable;
+  /** Installing artifact digest of the old release (code half of `from`). */
+  readonly fromArtifactDigest: string;
+  /** Installing artifact digest of the desired release (code half of `to`). */
+  readonly toArtifactDigest: string;
   /** Old model name -> desired model name (no chains: `to` must not be an old name). */
   readonly modelRenames?: ReadonlyArray<CompiledRename>;
   /** Field renames; `model` names the OLD model (pre-model-rename, per the engine). */
@@ -201,9 +217,11 @@ export async function compileMigrationTransition(input: CompileMigrationTransiti
     throw new StateError('validation', 'Migration compilation renames an owner only from a different installed owner.');
   }
 
-  const from = await mintModelSnapshot(oldModels);
-  const to = await mintModelSnapshot(desiredModels);
-  if (from.snapshotId === to.snapshotId) {
+  const fromId = await mintModelSnapshot(oldModels);
+  const toId = await mintModelSnapshot(desiredModels);
+  const from = { snapshotId: fromId.snapshotId, digest: nonemptyText(input.fromArtifactDigest, 'a nonempty from artifact digest.') };
+  const to = { snapshotId: toId.snapshotId, digest: nonemptyText(input.toArtifactDigest, 'a nonempty to artifact digest.') };
+  if (from.snapshotId === to.snapshotId && from.digest === to.digest) {
     throw new StateError('validation', `Migration compilation from ${JSON.stringify(from.snapshotId)} to itself changes nothing.`);
   }
 
