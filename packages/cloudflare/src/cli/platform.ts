@@ -29,18 +29,22 @@
  *   `<stem>.target.json` — InstalledRuntime declaration incl. contractsVersion (required)
  *   `<stem>.store.json` — { installedSnapshot, outbox } (optional; absent
  *     means the digest gate reports `activation-incomplete`)
+ *   `<stem>.transition.json` — compiled MigrationTransition (optional;
+ *     absent means gate 4 reports `activation-incomplete`)
  * Success envelope: `{ ok: true, command: "activate", active, reasons? }`,
  * exit 0 WHETHER OR NOT the verdict is active — a negative verdict is a
  * successful check with a fail-closed outcome, and callers (`can
  * activate`) map `active: false` to their own nonzero exit.
  *
  * Honest scope: the CLI runs gates 1-3 (compat, requires bridge,
- * installed digest) from bundle data. Gate 4 (outstanding-work
- * inventory) needs the `@canlang/state` + `@canlang/work` producer
- * runtimes, which are not importable from the plain-node dist CLI — so
- * the CLI passes no inventory/gates and the verdict carries
- * `activation-incomplete` for gate 4. The full four-gate pass (real
- * producer functions) is proven in `test/activate.test.ts`.
+ * installed digest) from bundle data, plus gate 4 (outstanding-work
+ * inventory) when the bundle carries both store outbox evidence and the
+ * compiled transition: bundle outbox rows inventory through the real
+ * `@canlang/work` builder and the transition's invalidate contracts pin
+ * disposal through the real `@canlang/state` checker. Bundle evidence
+ * covers undispatched outbox rows only (dispatch claimed/uncertain/
+ * settled lifecycle rides the live upgrade path, not the bundle).
+ * Proven in `test/activate-gate4.integration.test.ts` over the real CLI.
  *
  * B5-J3: `--artifact` is optional everywhere — absent means zero-config
  * discovery (`./dist/*.artifact.json`, exactly one or loud). `test`
@@ -79,8 +83,12 @@ import type {
 } from "@canlang/contracts";
 import { loadArtifactFile, type LoadedArtifact } from "../runtime/artifact.js";
 import { assembleModules } from "../runtime/modules.js";
-import { activate } from "../deploy/activate.js";
+import { activate, type ActivationGates, type WorkInventorySource } from "../deploy/activate.js";
 import { probeInstalledRuntime } from "../deploy/installed.js";
+import type { MigrationTransition } from "@canlang/contracts";
+import { buildWorkInventory } from "@canlang/work";
+import { checkActivationInventory, type ValidatedMigrationPlan } from "@canlang/state/migration";
+import { handlerContractForOutboxItem, outboxItemsFromPending } from "../upgrade/inventory.js";
 import { runDocs } from "./docs.js";
 import { runGen } from "./gen.js";
 import { runSourceWorkflow } from "./source-workflow.js";
@@ -383,8 +391,79 @@ async function loadStore(path: string): Promise<BundleStore | null> {
   for (const [index, intent] of (root["outbox"] as unknown[]).entries()) {
     const entry = needRecord(intent, `store.outbox[${index}]`);
     needString(entry["intentId"], `store.outbox[${index}].intentId`);
+    needString(entry["operation"], `store.outbox[${index}].operation`);
+    needString(entry["operationId"], `store.outbox[${index}].operationId`);
+    if (typeof entry["occurrenceIndex"] !== "number" || !Number.isInteger(entry["occurrenceIndex"])) {
+      throw new Error(`store.outbox[${index}].occurrenceIndex must be an integer`);
+    }
+    needRecord(entry["arguments"], `store.outbox[${index}].arguments`);
   }
   return root as unknown as BundleStore;
+}
+
+/**
+ * Gate-4 transition source: the bundle's compiled `MigrationTransition`
+ * (`<stem>.transition.json`). Absent file -> null (gate 4 reports
+ * `activation-incomplete`, as before); invalid file -> loud failure.
+ * Closed-shape validation only — the engine revalidates semantics.
+ */
+async function loadTransition(path: string): Promise<MigrationTransition | null> {
+  if (!(await artifactExists(path))) return null;
+  const root = needRecord(loadBundleJson(path, "transition"), "transition");
+  for (const name of ["migrationId", "owner", "fromSnapshotId", "fromDigest", "toSnapshotId", "toDigest", "bodyDigest"]) {
+    needString(root[name], `transition.${name}`);
+  }
+  if (!Array.isArray(root["directives"])) throw new Error("transition.directives must be an array");
+  const SHAPES: Readonly<Record<string, ReadonlyArray<string>>> = {
+    renameOwner: ["from"],
+    dropOwner: [],
+    renameModel: ["from", "to"],
+    renameField: ["model", "from", "to"],
+    dropModel: ["model"],
+    dropField: ["model", "field"],
+    backfill: ["model"],
+    invalidate: ["handlerContract"],
+  };
+  for (const [index, directive] of (root["directives"] as unknown[]).entries()) {
+    const entry = needRecord(directive, `transition.directives[${index}]`);
+    const kind = entry["kind"];
+    if (typeof kind !== "string" || !(kind in SHAPES)) {
+      throw new Error(`transition.directives[${index}].kind names no known directive`);
+    }
+    for (const field of SHAPES[kind]!) needString(entry[field], `transition.directives[${index}].${field}`);
+  }
+  return root as unknown as MigrationTransition;
+}
+
+/**
+ * Gate-4 producer join over bundle evidence: bundle outbox rows become
+ * inventory items through the real builder, and the transition's
+ * invalidate contracts pin disposal through the real checker. The
+ * checker reads ONLY `migrationId` + `invalidates` off the plan
+ * (verified at `packages/state/src/migration/activate.ts`), so the
+ * minimal plan view adapts soundly. Bundle evidence covers undispatched
+ * outbox rows only — dispatch claimed/uncertain/settled lifecycle rides
+ * the live upgrade path (`buildUpgradeInventory`), not the bundle.
+ */
+function bundleInventoryGates(
+  bundleStore: BundleStore,
+  transition: MigrationTransition,
+): { inventory: WorkInventorySource; gates: ActivationGates } {
+  const invalidates = transition.directives
+    .filter((directive) => directive.kind === "invalidate")
+    .map((directive) => (directive as { handlerContract: string }).handlerContract);
+  return {
+    inventory: {
+      outboxItems: outboxItemsFromPending([...bundleStore.outbox]),
+      handlerContractFor: handlerContractForOutboxItem,
+      plan: { migrationId: transition.migrationId, invalidates },
+    },
+    gates: {
+      buildWorkInventory: (input) => buildWorkInventory(input),
+      checkActivationInventory: (store, plan, items) =>
+        checkActivationInventory(store, plan as unknown as ValidatedMigrationPlan, items),
+    },
+  };
 }
 
 async function runActivate(artifactPath: string, env: string | null): Promise<void> {
@@ -402,11 +481,13 @@ async function runActivate(artifactPath: string, env: string | null): Promise<vo
   let environment: EnvironmentSelection;
   let target: ReturnType<typeof loadTarget>;
   let bundleStore: BundleStore | null;
+  let transition: MigrationTransition | null;
   try {
     descriptor = loadDescriptor(join(dir, `${stem}.descriptor.json`));
     environment = loadEnvironment(join(dir, `${stem}.${env}.environment.json`), env);
     target = loadTarget(join(dir, `${stem}.target.json`));
     bundleStore = await loadStore(join(dir, `${stem}.store.json`));
+    transition = await loadTransition(join(dir, `${stem}.transition.json`));
   } catch (error) {
     fail("activate", "invalid-activation-bundle", error instanceof Error ? error.message : String(error));
   }
@@ -425,12 +506,18 @@ async function runActivate(artifactPath: string, env: string | null): Promise<vo
           readInstalledSnapshot: async (owner: string) => (snapshot !== null && snapshot.owner === owner ? snapshot : null),
           outboxPending: async () => [...outbox],
         } as unknown as StoragePort);
+  // Gate 4 runs only with both evidence groups: bundle store (outbox)
+  // plus the compiled transition (invalidate pins). Anything absent
+  // keeps the historical `activation-incomplete` verdict.
+  const gate4 =
+    bundleStore !== null && transition !== null ? bundleInventoryGates(bundleStore, transition) : null;
   const verdict = await activate({
     artifact: loaded.artifact,
     descriptor,
     environment,
     installed,
     ...(store === undefined ? {} : { store }),
+    ...(gate4 === null ? {} : gate4),
   });
   process.stderr.write(
     verdict.active ? "activation: active\n" : `activation: refused (${verdict.reasons.length} reason(s))\n`,

@@ -206,6 +206,19 @@ and preview suites re-greened after catalog re-emit (build-order
 artifact, hashes stable). Durable outcome-store backend + second
 binding (SalesIngress) remain.
 
+B25 gate-4 wiring closed, 28 October 2026: `can-platform activate`
+runs the outstanding-work inventory gate from bundle evidence — a new
+optional `<stem>.transition.json` (closed-shape compiled transition;
+absent preserves `activation-incomplete`) supplies migrationId +
+invalidate pins, bundle outbox rows inventory through the real Work
+builder, disposal pins enforce through the real State checker. Bundle
+evidence covers undispatched outbox only (dispatch lifecycle rides
+the live path); stale "producers not importable" + phantom
+`test/activate.test.ts` comments corrected. Journey
+`activate-gate4` 4/4 over the real CLI: pinned active, unpinned
+blocked-work, absent incomplete, malformed loud. Remaining B25:
+`deploy --yes` CLI.
+
 B25 drain join closed, 28 October 2026: `buildUpgradeInventory`
 joins the dispatch lifecycle over outbox pending — claimed/uncertain
 `work.dispatch` rows (recovery-window pages to exhaustion) overlay by

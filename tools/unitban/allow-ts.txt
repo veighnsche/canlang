@@ -32,6 +32,7 @@ packages/cloudflare/src/runtime/native-viewer-first.integration.test.ts
 packages/cloudflare/src/runtime/promptlab-activation-collision.integration.test.ts
 packages/cloudflare/src/runtime/promptlab-native-acceptance.integration.test.ts
 packages/cloudflare/src/runtime/t34c-work-installed.integration.test.ts
+packages/cloudflare/test/activate-gate4.integration.test.ts
 packages/cloudflare/test/app-owned-preview.integration.test.ts
 packages/cloudflare/test/compiler-check.integration.test.ts
 packages/cloudflare/test/durable-files-sqlite.integration.test.ts
