@@ -206,6 +206,19 @@ and preview suites re-greened after catalog re-emit (build-order
 artifact, hashes stable). Durable outcome-store backend + second
 binding (SalesIngress) remain.
 
+B25 deploy CLI wiring closed (B25 complete), 28 October 2026:
+shared `deploy/bundle-evidence.ts` (bundle store + compiled transition
+loaders, read-only stub, gate-4 producer join) serves both `activate`
+and the deploy-time staged verdict: `deploy --preview`/`--yes` now
+report gates 3-4 from bundle evidence instead of permanent
+`activation-incomplete`, keeping the refusal-worker design on inactive
+verdicts. Journey `deploy-verdict` 3/3 over the real CLI (pinned
+active, unpinned blocked-work, absent incomplete). Along the way fixed
+a real regression: the expiry slice's `@canlang/files/retention`
+import had a vendor rewrite but no staged module, breaking every
+worker deploy bundle — staged in both bundle closures (deploy preview
++ observer proof green).
+
 B25 gate-4 wiring closed, 28 October 2026: `can-platform activate`
 runs the outstanding-work inventory gate from bundle evidence — a new
 optional `<stem>.transition.json` (closed-shape compiled transition;

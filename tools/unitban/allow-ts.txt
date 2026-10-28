@@ -35,6 +35,7 @@ packages/cloudflare/src/runtime/t34c-work-installed.integration.test.ts
 packages/cloudflare/test/activate-gate4.integration.test.ts
 packages/cloudflare/test/app-owned-preview.integration.test.ts
 packages/cloudflare/test/compiler-check.integration.test.ts
+packages/cloudflare/test/deploy-verdict.integration.test.ts
 packages/cloudflare/test/durable-files-sqlite.integration.test.ts
 packages/cloudflare/test/files-event-ingest.integration.test.ts
 packages/cloudflare/test/files-expiry-sweep.integration.test.ts

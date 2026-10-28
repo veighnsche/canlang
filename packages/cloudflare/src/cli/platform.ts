@@ -77,18 +77,20 @@ import { createLocalCommandLifetime, LocalCommandInterrupted, type LocalCommandL
 import type {
   CompatibilityDescriptor,
   EnvironmentSelection,
-  InstalledSnapshot,
-  OutboxIntent,
   StoragePort,
 } from "@canlang/contracts";
 import { loadArtifactFile, type LoadedArtifact } from "../runtime/artifact.js";
 import { assembleModules } from "../runtime/modules.js";
-import { activate, type ActivationGates, type WorkInventorySource } from "../deploy/activate.js";
+import { activate } from "../deploy/activate.js";
+import {
+  bundleInventoryGates,
+  bundleStoreStub,
+  loadBundleStore,
+  loadBundleTransition,
+  type BundleStore,
+} from "../deploy/bundle-evidence.js";
 import { probeInstalledRuntime } from "../deploy/installed.js";
 import type { MigrationTransition } from "@canlang/contracts";
-import { buildWorkInventory } from "@canlang/work";
-import { checkActivationInventory, type ValidatedMigrationPlan } from "@canlang/state/migration";
-import { handlerContractForOutboxItem, outboxItemsFromPending } from "../upgrade/inventory.js";
 import { runDocs } from "./docs.js";
 import { runGen } from "./gen.js";
 import { runSourceWorkflow } from "./source-workflow.js";
@@ -368,104 +370,6 @@ async function runArtifact(path: string, lifetime: LocalCommandLifetime): Promis
 /* activate: bundle loading + validation + serve-gate driver.           */
 /* ------------------------------------------------------------------ */
 
-interface BundleStore {
-  installedSnapshot: InstalledSnapshot | null;
-  outbox: readonly OutboxIntent[];
-}
-
-/** Absent file -> null (the digest gate reports incomplete); invalid file -> loud failure. */
-async function loadStore(path: string): Promise<BundleStore | null> {
-  if (!(await artifactExists(path))) return null;
-  const root = needRecord(loadBundleJson(path, "store"), "store");
-  const snapshot = root["installedSnapshot"];
-  if (snapshot !== null) {
-    const entry = needRecord(snapshot, "store.installedSnapshot");
-    needString(entry["owner"], "store.installedSnapshot.owner");
-    needString(entry["snapshotId"], "store.installedSnapshot.snapshotId");
-    needString(entry["digest"], "store.installedSnapshot.digest");
-    if (typeof entry["installedRevision"] !== "number" || typeof entry["installedAt"] !== "number") {
-      throw new Error("store.installedSnapshot.installedRevision/installedAt must be numbers");
-    }
-  }
-  if (!Array.isArray(root["outbox"])) throw new Error("store.outbox must be an array");
-  for (const [index, intent] of (root["outbox"] as unknown[]).entries()) {
-    const entry = needRecord(intent, `store.outbox[${index}]`);
-    needString(entry["intentId"], `store.outbox[${index}].intentId`);
-    needString(entry["operation"], `store.outbox[${index}].operation`);
-    needString(entry["operationId"], `store.outbox[${index}].operationId`);
-    if (typeof entry["occurrenceIndex"] !== "number" || !Number.isInteger(entry["occurrenceIndex"])) {
-      throw new Error(`store.outbox[${index}].occurrenceIndex must be an integer`);
-    }
-    needRecord(entry["arguments"], `store.outbox[${index}].arguments`);
-  }
-  return root as unknown as BundleStore;
-}
-
-/**
- * Gate-4 transition source: the bundle's compiled `MigrationTransition`
- * (`<stem>.transition.json`). Absent file -> null (gate 4 reports
- * `activation-incomplete`, as before); invalid file -> loud failure.
- * Closed-shape validation only — the engine revalidates semantics.
- */
-async function loadTransition(path: string): Promise<MigrationTransition | null> {
-  if (!(await artifactExists(path))) return null;
-  const root = needRecord(loadBundleJson(path, "transition"), "transition");
-  for (const name of ["migrationId", "owner", "fromSnapshotId", "fromDigest", "toSnapshotId", "toDigest", "bodyDigest"]) {
-    needString(root[name], `transition.${name}`);
-  }
-  if (!Array.isArray(root["directives"])) throw new Error("transition.directives must be an array");
-  const SHAPES: Readonly<Record<string, ReadonlyArray<string>>> = {
-    renameOwner: ["from"],
-    dropOwner: [],
-    renameModel: ["from", "to"],
-    renameField: ["model", "from", "to"],
-    dropModel: ["model"],
-    dropField: ["model", "field"],
-    backfill: ["model"],
-    invalidate: ["handlerContract"],
-  };
-  for (const [index, directive] of (root["directives"] as unknown[]).entries()) {
-    const entry = needRecord(directive, `transition.directives[${index}]`);
-    const kind = entry["kind"];
-    if (typeof kind !== "string" || !(kind in SHAPES)) {
-      throw new Error(`transition.directives[${index}].kind names no known directive`);
-    }
-    for (const field of SHAPES[kind]!) needString(entry[field], `transition.directives[${index}].${field}`);
-  }
-  return root as unknown as MigrationTransition;
-}
-
-/**
- * Gate-4 producer join over bundle evidence: bundle outbox rows become
- * inventory items through the real builder, and the transition's
- * invalidate contracts pin disposal through the real checker. The
- * checker reads ONLY `migrationId` + `invalidates` off the plan
- * (verified at `packages/state/src/migration/activate.ts`), so the
- * minimal plan view adapts soundly. Bundle evidence covers undispatched
- * outbox rows only — dispatch claimed/uncertain/settled lifecycle rides
- * the live upgrade path (`buildUpgradeInventory`), not the bundle.
- */
-function bundleInventoryGates(
-  bundleStore: BundleStore,
-  transition: MigrationTransition,
-): { inventory: WorkInventorySource; gates: ActivationGates } {
-  const invalidates = transition.directives
-    .filter((directive) => directive.kind === "invalidate")
-    .map((directive) => (directive as { handlerContract: string }).handlerContract);
-  return {
-    inventory: {
-      outboxItems: outboxItemsFromPending([...bundleStore.outbox]),
-      handlerContractFor: handlerContractForOutboxItem,
-      plan: { migrationId: transition.migrationId, invalidates },
-    },
-    gates: {
-      buildWorkInventory: (input) => buildWorkInventory(input),
-      checkActivationInventory: (store, plan, items) =>
-        checkActivationInventory(store, plan as unknown as ValidatedMigrationPlan, items),
-    },
-  };
-}
-
 async function runActivate(artifactPath: string, env: string | null): Promise<void> {
   if (env === null) {
     usage("activate requires --env <name>");
@@ -486,8 +390,8 @@ async function runActivate(artifactPath: string, env: string | null): Promise<vo
     descriptor = loadDescriptor(join(dir, `${stem}.descriptor.json`));
     environment = loadEnvironment(join(dir, `${stem}.${env}.environment.json`), env);
     target = loadTarget(join(dir, `${stem}.target.json`));
-    bundleStore = await loadStore(join(dir, `${stem}.store.json`));
-    transition = await loadTransition(join(dir, `${stem}.transition.json`));
+    bundleStore = await loadBundleStore(join(dir, `${stem}.store.json`));
+    transition = await loadBundleTransition(join(dir, `${stem}.transition.json`));
   } catch (error) {
     fail("activate", "invalid-activation-bundle", error instanceof Error ? error.message : String(error));
   }
@@ -497,15 +401,8 @@ async function runActivate(artifactPath: string, env: string | null): Promise<vo
   } catch (error) {
     fail("activate", "invalid-activation-bundle", error instanceof Error ? error.message : String(error));
   }
-  const snapshot = bundleStore?.installedSnapshot ?? null;
-  const outbox = bundleStore?.outbox ?? [];
   const store: StoragePort | undefined =
-    bundleStore === null
-      ? undefined
-      : ({
-          readInstalledSnapshot: async (owner: string) => (snapshot !== null && snapshot.owner === owner ? snapshot : null),
-          outboxPending: async () => [...outbox],
-        } as unknown as StoragePort);
+    bundleStore === null ? undefined : (bundleStoreStub(bundleStore) as unknown as StoragePort);
   // Gate 4 runs only with both evidence groups: bundle store (outbox)
   // plus the compiled transition (invalidate pins). Anything absent
   // keeps the historical `activation-incomplete` verdict.
