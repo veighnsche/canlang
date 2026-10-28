@@ -206,6 +206,19 @@ and preview suites re-greened after catalog re-emit (build-order
 artifact, hashes stable). Durable outcome-store backend + second
 binding (SalesIngress) remain.
 
+B08 original cohort cell scoped (not started), 28 October 2026: only
+CanVolunteer carries the combined `on=X.updated` + `each=` route
+(`refresh_reminders`); CanShift has each shape split across routes.
+Its compile closure cascades to the full corpus (rent_reservations
+via CanRent → customer/invoice/propose/report/...), so a journey
+test needs corpus-artifact infrastructure (precompile + cache with a
+staleness rule), not a per-test compile. The durable path itself is
+mapped: commit auto-stages updated sources via
+`canonicalCommittedSourceStage` + `createCommittedModelSourceStager`,
+ticks drive via `createCanonicalCommittedCohortBody`; test would
+invoke a real Opportunity update, tick to per-signup cancel +
+Reminder schedules, and prove restart exactly-once.
+
 ## Next implementation queue
 
 Use the order below to select work. These are subdivisions of Z00–Z18, not extra
