@@ -23966,6 +23966,29 @@ impl<'a> Closure<'a> {
             value.model_result=None;
             return Ok(());
         }
+        if calls.is_empty()
+            && self.loop_node.is_none()
+            && value.record == Some(model)
+            && !self.model_has_field(model, "version")
+            && matches!(value.reference_origin,
+                Some(ReferenceOrigin::Parent { parameter, model: original, .. })
+                if original == model
+                    && self
+                        .resolve
+                        .symbols
+                        .get(parameter.0 as usize)
+                        .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Param { .. })))
+        {
+            // Parent metadata over an admitted scenario parameter reads
+            // actual version metadata off the recorded parent DATA read,
+            // exactly like loop-item versions. No admitted slot exists
+            // for navigated rows, so no version attestation is minted.
+            value.record = None;
+            value.reference = None;
+            value.reference_origin = None;
+            value.model_result = None;
+            return Ok(());
+        }
         let kind = value.reference.clone().ok_or_else(|| {
             self.fail(
                 key,

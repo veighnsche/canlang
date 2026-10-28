@@ -575,7 +575,8 @@ impl HookProfile<'_> {
                     | Scalar::Duration
                     | Scalar::Bool
                     | Scalar::Text
-                    | Scalar::Email,
+                    | Scalar::Email
+                    | Scalar::User,
                 ),
                 ResolvedType::Scalar(_),
             ) => stripped(left) == stripped(right),

@@ -2075,7 +2075,9 @@ fn scenario_guarded_sends_lower_through_sealed_pipeline() {
         );
     }
     // One sealed Rule per guarded send: scenario loop (for-item plus
-    // let inputs), scenario params, and hook (let plus event inputs).
+    // let inputs), scenario params, hook (let plus event inputs),
+    // nested hook loops (inner plus outer items), and anchored
+    // cohorts (each=event path).
     let rules = artifact["callables"]
         .as_array()
         .unwrap()
@@ -2087,12 +2089,63 @@ fn scenario_guarded_sends_lower_through_sealed_pipeline() {
         "SendGuardProbe.resched_loop.sendWhen.",
         "SendGuardProbe.resched_param.sendWhen.",
         "SendGuardProbe.remind.sendWhen.",
+        "SendGuardProbe.venue_changed.sendWhen.",
+        "SendGuardProbe.cancel_signup.sendWhen.",
     ] {
         assert!(
             rules.iter().any(|rule| rule.starts_with(owner)),
             "missing sealed guard for {owner}: {rules:?}"
         );
     }
+}
+
+#[test]
+fn schedule_parent_version_reads_actual_metadata() {
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+    use canlang_compiler::diagnostic::DiagnosticResult;
+    let mut db = SourceDb::new();
+    let file = db.add(
+        "schedule-parent-version.can".into(),
+        include_str!("fixtures/native-schedule-parent-version.can").into(),
+    );
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) =
+        canlang_compiler::analysis::check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let mut result = DiagnosticResult::new("schedule-parent-version", "1.0", 1);
+    result.add_sources(&db);
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let artifact: serde_json::Value =
+        serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
+    let operations = artifact["operations"].as_array().unwrap();
+    assert!(
+        operations
+            .iter()
+            .any(|operation| operation["name"] == "SchedVerProbe.conf"),
+        "missing operation SchedVerProbe.conf"
+    );
 }
 
 #[test]

@@ -3,8 +3,10 @@ use std {EmailV1 as Mail} from=deployment.mail
 Given
  Venue {name:text}
  Opportunity {title:text="t",open:bool=false,cancelled:bool=false,description:text="d",venue:Venue?}
- Signup in Opportunity {email:email,state:enum(registered,confirmed)=registered,needs_confirmation:bool=false,notification:delivery(Mail.send)?}
+ Signup in Opportunity {email:email,state:enum(registered,confirmed,cancelled)=registered,needs_confirmation:bool=false,notification:delivery(Mail.send)?}
  event Reminder {signup:Signup,revision:int}
+ event Changed {venue:Venue?}
+ event Cancelled {opportunity:Opportunity,reason:text}
  derive Opportunity.venue_confirmed:bool = row.venue!=null
 When
  scenario resched_loop(opportunity:Opportunity,reason:text) by=authenticated
@@ -29,4 +31,20 @@ When
   do
    let who=event.signup.email
    send Mail.send {to=event.signup.email,subject="Reminder",body=event.signup.parent.description} when=event.signup.state==confirmed and event.signup.email==who as notice
+ scenario venue_changed on=Changed
+  do
+   for opportunity in Opportunity as item where item.open and not item.cancelled limit=100
+    for signup in opportunity.Signup as row where row.state==confirmed limit=500
+     let signup_revision=signup.version+1
+     let opportunity_revision=opportunity.version+1
+     send Mail.send {to=signup.email,subject="Changed",body=opportunity.title} when=signup.version==signup_revision and signup.parent.version==opportunity_revision and signup.needs_confirmation as notice
+     set signup {notification=notice}
+ scenario cancel_signup on=Cancelled each=event.opportunity.Signup as signup
+  do
+   if signup.parent.cancelled and signup.state in [registered,confirmed]
+    set signup {state=cancelled}
+    cancel signup.id
+    let signup_revision=signup.version+1
+    send Mail.send {to=signup.email,subject="Cancelled",body=event.reason} when=signup.version==signup_revision and signup.state==cancelled and signup.parent.cancelled as notice
+    set signup {notification=notice}
 Then

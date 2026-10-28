@@ -1,0 +1,13 @@
+app SchedVerProbe
+Given
+ Opportunity {title:text="t",open:bool=false,cancelled:bool=false,from:datetime}
+ Signup in Opportunity {state:enum(registered,confirmed)=registered,needs_confirmation:bool=false}
+ event Reminder {signup:Signup,revision:int,opportunity_revision:int}
+When
+ scenario conf(signup:Signup) by=authenticated
+  require signup.state==registered and signup.parent.open
+  do
+   set signup {state=confirmed}
+   if signup.parent.from>now+1d
+    schedule signup.id at=signup.parent.from-1d event=Reminder {signup,revision=signup.version+1,opportunity_revision=signup.parent.version}
+Then
