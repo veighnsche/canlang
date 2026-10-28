@@ -453,12 +453,30 @@ function declareStandardCompletions(artifact: CompileArtifact, captures: readonl
   }
 }
 
+/** True when the owner key prefixes at least one artifact model. Serving
+ * workers pass the app name as the scope owner, which owns zero models. */
+function ownerPrefixesModels(artifactModels: readonly { readonly name: string }[], ownerPackage: string): boolean {
+  return artifactModels.some(model => model.name.split('.')[0] === ownerPackage);
+}
+
 /** Installs once, or verifies the persisted original closure on reopen. */
 export async function installNativeFileInventory(input: NativeFileInventoryInput) {
   // Capture physical configuration before the first yield; all composed owners
   // retain one original source closure and the same literal storage binding.
   const captured = { ...input, scope: immutable(input.scope), authority: immutable(input.authority) };
   const prepared = await prepareNativeFileInventory(captured);
+  if (!ownerPrefixesModels(prepared.artifact.models ?? [], captured.scope.ownerPackage)) {
+    // App-wide install: the scope key owns zero models (serving workers pass
+    // the app name). One inventory covers every model so a fresh install
+    // censes pre-existing rows against complete coverage. Per-owner
+    // subdivision cannot work here: each install validates all live rows
+    // against coverage merged so far, so multi-package rows refuse no matter
+    // the install order — and keeping per-owner installs alongside the
+    // app-wide coverage would collide on shared model declarations.
+    const installed = await installNativeFileInventoryForOwner(captured, prepared);
+    await installed.verifyCurrent();
+    return installed;
+  }
   const owners = new Set([captured.scope.ownerPackage,
     ...(prepared.artifact.models ?? []).map(model => model.name.split('.')[0]!).filter(Boolean)]);
   let selected: Awaited<ReturnType<typeof installNativeFileInventoryForOwner>> | undefined;
@@ -587,11 +605,16 @@ async function installNativeFileInventoryForOwner(input: NativeFileInventoryInpu
       Object.hasOwn(declaration.profile.canonical, 'disclosure') &&
       Object.hasOwn(declaration.profile.artifact, 'disclosure')).map(declaration => declaration.id)) ?? []);
   const declarations = prepared.declarationsFor(legacyVoidResultIds);
+  // App-wide scope (the key prefixes no model) covers every model in this
+  // one inventory; package scopes keep their owning-package subdivision.
+  const appWide = !ownerPrefixesModels(artifactModels, scope.ownerPackage);
+  const ownedModels = <T extends { readonly name: string }>(models: readonly T[]): readonly T[] =>
+    appWide ? models : models.filter(model => model.name.split('.')[0] === scope.ownerPackage);
   const baseInventory = immutable({ ...inventoryIdentity,
     // Register each domain model under its canonical owning package. The
     // declaration set below retains the complete imported schema closure.
-    canonicalModels: loaded.models.filter(model => model.name.split('.')[0] === scope.ownerPackage),
-    artifactModels: artifactModels.filter(model => model.name.split('.')[0] === scope.ownerPackage), valueTypes,
+    canonicalModels: ownedModels(loaded.models),
+    artifactModels: ownedModels(artifactModels), valueTypes,
     frameworkModels: [...STATE_FILE_REFERENCE_PRODUCER.models, ...WORK_FILE_REFERENCE_PRODUCER.models] });
   const expectedRevision = await store.readRevision();
   await verifyCurrent();

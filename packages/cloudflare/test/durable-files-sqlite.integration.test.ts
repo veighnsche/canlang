@@ -15,7 +15,7 @@ import type { CompileArtifact, StoredRow } from '@canlang/contracts';
 import { deriveCsrfToken, sha256HexText } from '@canlang/identity';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { createMemoryStorage } from '@canlang/state/storage/memory';
-import { asId, asModel, makeBatch, makeRow } from '@canlang/state/testing/invocation/fixtures';
+import { asId, asModel, makeBatch, makeRow, seedRow } from '@canlang/state/testing/invocation/fixtures';
 
 it('admits native Worker upload intents through current canonical context before granting retries', async () => {
   const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -774,3 +774,62 @@ export default {fetch(request,env){return env.FILES.get(env.FILES.idFromName('on
     assert.deepEqual(initial, { ...initial as object, contentType: 'text/plain', bytes: 'durable file bytes', genuine: true, copyRejected: true, foreignRejected: true, retainedRead: true });
   } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
 }, 60000);
+
+it('installs one app-wide inventory when the scope owner prefixes no model', async () => {
+  const root = fileURLToPath(new URL('../../../', import.meta.url));
+  const directory = await mkdtemp(join(tmpdir(), 'can-native-install-order-'));
+  try {
+    // Serving workers pass the APP name as ownerPackage (it owns zero
+    // models); dev preview stages fixture rows before the worker boots.
+    // The app-wide install covers every model in one inventory so the
+    // census sees complete coverage instead of refusing live rows.
+    const requireNative = createRequire(import.meta.url);
+    const { assembleModules } = requireNative(fileURLToPath(new URL('../dist/runtime/modules.js', import.meta.url))) as
+      typeof import('../src/runtime/modules.js');
+    const { installNativeFileInventory } = requireNative(fileURLToPath(new URL('../dist/runtime/file-inventory.js', import.meta.url))) as
+      typeof import('../src/runtime/file-inventory.js');
+    const { createTestMemoryStorage } = requireNative('@canlang/state/storage/memory') as typeof import('@canlang/state/storage/memory');
+    const { STATE_FILE_REFERENCE_PRODUCER } = requireNative('@canlang/state/storage') as typeof import('@canlang/state/storage');
+    const { WORK_FILE_REFERENCE_PRODUCER } = requireNative('@canlang/work/kernel/file-reference-inventory') as
+      typeof import('@canlang/work/kernel/file-reference-inventory');
+    const creative = await readFile(join(root, 'draft/apps/CanCreative/CanCreative.can'), 'utf8');
+    const chat = await readFile(join(root, 'draft/apps/CanChat/CanChat.can'), 'utf8');
+    const transcript = chat.split('\n').filter(line => line.startsWith('  export derive transcript('));
+    assert.equal(transcript.length, 1, 'only the unreferenced transcript helper is excluded');
+    const chatGiven = chat.slice(chat.indexOf('package chat'), chat.indexOf('\n When'))
+      .split('\n').filter(line => line !== transcript[0]).join('\n');
+    const creativeGiven = creative.slice(creative.indexOf('package creative'), creative.indexOf('\n When'));
+    const source = join(directory, 'CanCreative.can');
+    await writeFile(source, creative.slice(0, creative.indexOf('package creative')) +
+      chatGiven + '\n When\n Then\n' + creativeGiven + '\n When\n Then\n');
+    const artifact = JSON.parse(execFileSync(process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can'),
+      ['compile', '--format=json', '--native-scenario-receipts', '--catalog',
+        process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json'), source],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024, encoding: 'utf8' })) as CompileArtifact;
+    const asm = await assembleModules({ artifact, sourcePath: source },
+      { workDir: directory, stdlibUrl: new URL('../dist/runtime/stdlib.js', import.meta.url).href,
+        uiUrl: pathToFileURL(requireNative.resolve('@canlang/ui')).href });
+    const now = Date.now();
+    const scope = { app: 'CanCreative', owner: 'team-install-order', ownerPackage: 'CanCreative' };
+    const authority = { app: scope.app, stateOwner: scope.ownerPackage, stateStoreId: 'install-order-state',
+      fileStoreId: 'install-order-files',
+      receiver: { app: scope.app, team: scope.owner, owner: scope.owner } };
+    const { store, reopen } = createTestMemoryStorage(authority,
+      [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+    await seedRow(store, asModel('chat.Profile'), { data: { name: 'prof', provider_key: 'k',
+      policy_revision: 'r', system_prompt: 's' } });
+    const { inventory } = await installNativeFileInventory({ artifact, asm, store, authority, scope,
+      now: () => now, verifyOwner: async () => {} });
+    assert.equal(inventory.owner, 'CanCreative');
+    const covered = inventory.canonicalModels.map(model => model.name as string);
+    assert.ok(covered.includes('chat.Profile'));
+    assert.ok(covered.includes('creative.Template'));
+    assert.equal(await store.readFileReferenceInventory('creative'), null);
+    assert.equal(await store.readFileReferenceInventory('chat'), null);
+    const reopened = reopen(authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+    const { inventory: again } = await installNativeFileInventory({ artifact, asm, store: reopened,
+      authority, scope, now: () => now, verifyOwner: async () => {} });
+    assert.equal(again.owner, 'CanCreative');
+    assert.deepEqual(again.canonicalModels.map(model => model.name).sort(), [...covered].sort());
+  } finally { await rm(directory, { recursive: true, force: true }); }
+}, 120000);
