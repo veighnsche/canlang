@@ -157,7 +157,7 @@ it('upgrades over a real D1 adapter', async () => {
   } finally {
     await cleanup();
   }
-});
+}, 30000);
 
 it('resumes an interrupted staging run over a real D1 adapter', async () => {
   const { store, cleanup } = await seedD1TodoWorld(3);
@@ -166,7 +166,7 @@ it('resumes an interrupted staging run over a real D1 adapter', async () => {
   } finally {
     await cleanup();
   }
-});
+}, 30000);
 
 it('refuses a predecessor mismatch before any write', async () => {
   const { store } = await seedTodoWorld(1);

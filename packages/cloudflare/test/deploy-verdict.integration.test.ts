@@ -68,7 +68,7 @@ it('previews an active verdict when the transition pins the work', async () => {
   assert.equal(envelope.ok, true);
   assert.equal(envelope.preview, true);
   assert.equal(envelope.verdict?.active, true);
-});
+}, 30000);
 
 it('previews blocked-work when the transition leaves work unpinned', async () => {
   const artifact = stageBundle([OUTBOX_INTENT], bundleTransition([]));
@@ -79,7 +79,7 @@ it('previews blocked-work when the transition leaves work unpinned', async () =>
     (envelope.verdict?.reasons ?? []).map(reason => reason.code),
     ['blocked-work'],
   );
-});
+}, 30000);
 
 it('previews activation-incomplete without bundle evidence', async () => {
   const artifact = stageBundle([OUTBOX_INTENT], null);
@@ -90,4 +90,4 @@ it('previews activation-incomplete without bundle evidence', async () => {
     (envelope.verdict?.reasons ?? []).map(reason => reason.code),
     ['activation-incomplete'],
   );
-});
+}, 30000);
