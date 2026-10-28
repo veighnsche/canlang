@@ -439,3 +439,91 @@ fn unguarded_bound_panels_require_original_checked_header_and_preference_facts()
         assert!(artifact.pages.is_empty());
     }
 }
+
+#[test]
+fn gated_bound_panels_lower_with_gates_and_authored_count() {
+    use canlang_compiler::codegen::ir::{self, IrExpr, IrProgram, IrUi};
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+    use canlang_compiler::diagnostic::DiagnosticResult;
+    use canlang_compiler::{LANGUAGE_VERSION, SCHEMA_VERSION};
+
+    // Full SOURCE keeps `require authenticated` on the assignments panel:
+    // bound tabs with a direct tab gate must lower, not refuse E6008.
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let mut db = SourceDb::new();
+    let file = db.add("bound-panels.can".into(), SOURCE.into());
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let catalog = catalog.unwrap();
+    let (checked, diagnostics) = check_program(&db, &[file], Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+
+    let (valid, diagnostics) = ir::build(&checked, &db, Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    fn tabs(nodes: &[IrUi]) -> Vec<&IrUi> {
+        let mut found = Vec::new();
+        for node in nodes {
+            if node.factory == "tabs" {
+                found.push(node);
+            }
+            found.extend(tabs(&node.children));
+        }
+        found
+    }
+    fn panels_of(ir: &IrProgram) -> Vec<&IrUi> {
+        ir.modules
+            .iter()
+            .flat_map(|module| &module.pages)
+            .flat_map(|page| tabs(&page.render))
+            .collect()
+    }
+    let panels = panels_of(&valid);
+    assert_eq!(panels.len(), 1);
+    assert!(panels[0].props.iter().any(|(name, _)| name == "binding"));
+    assert_eq!(panels[0].children.len(), 2);
+    // The gated panel carries its gate; the open panel carries none.
+    for (panel, expected, gated) in panels[0]
+        .children
+        .iter()
+        .zip(["discovery", "assignments"])
+        .map(|(panel, expected)| (panel, expected, expected == "assignments"))
+    {
+        assert_eq!(panel.factory, "tabItem");
+        assert!(panel.props.iter().any(|(name, value)| {
+            name == "value" && matches!(&value.expr, IrExpr::Text(case) if case == expected)
+        }));
+        assert_eq!(panel.gate.is_some(), gated, "{expected}");
+    }
+
+    // The emitted items still report how many panels were authored so the
+    // factory can tell all-gated from authored-empty at runtime.
+    let mut result = DiagnosticResult::new("bound-panels", LANGUAGE_VERSION, SCHEMA_VERSION);
+    result.add_sources(&db);
+    result.finish();
+    let (artifact, diagnostics) = emit(
+        &checked,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: Some(&catalog),
+            options: EmitOptions::new(),
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let entry = artifact
+        .modules
+        .iter()
+        .map(|module| module.js.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        entry.contains("authoredPanels:2"),
+        "authored panel count reaches the factory"
+    );
+}

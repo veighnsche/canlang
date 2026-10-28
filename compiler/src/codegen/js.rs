@@ -17802,6 +17802,7 @@ impl<'a> Emitter<'a> {
                             .collect::<Vec<_>>()
                             .join(",");
                     props.push(format!("items:[{items}].filter(item=>item!=null)"));
+                    props.push(format!("authoredPanels:{}", node.children.len()));
                 } else if node.factory == "fab" {
                     let mut kids = node.children.iter();
                     if let Some(main) = kids.next() {

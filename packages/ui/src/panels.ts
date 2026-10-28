@@ -141,15 +141,19 @@ function checkedBinding(factory: string, binding: TabsBinding): Set<string> {
  * Radio-driven tabset. Unbound tabsets keep transient CSS-only selection;
  * a bound tabset names its radios after the owned preference and wraps
  * them in a form POSTing to the caller path. Either a nonempty tab-child
- * suite or a selector binding is required; with both, options and items
- * must correspond exactly so every option reveals a panel and vice versa.
+ * suite or a selector binding is required; with both, every rendered
+ * item must be a listed option. An option without a rendered panel is a
+ * gated-out tab (the compiler statically verifies the authored set
+ * corresponds exactly), so the options-to-panels direction only applies
+ * to callers that do not report their authored set.
  */
-function checkTabsCorrespondence(items: readonly TabItem[], options: ReadonlySet<string>): void {
+function checkTabsCorrespondence(items: readonly TabItem[], options: ReadonlySet<string>, authored: boolean): void {
   for (const item of items) {
     if (!options.has(item.value)) {
       throw new Error(`tabs item ${JSON.stringify(item.value)} is not a listed option`);
     }
   }
+  if (authored) return;
   for (const value of options) {
     if (!items.some((item) => item.value === value) && items.length > 0) {
       throw new Error(`tabs option ${JSON.stringify(value)} has no tab panel`);
@@ -242,15 +246,20 @@ function tabsLabel(props: TabsProps): string {
 export async function tabs(props: TabsProps): Promise<string> {
   const modifiers = appearanceClasses("tabs", "tabs", pickAppearance(props));
   const items = props.items ?? [];
+  // Authored panels before gates filter: distinguishes all-gated
+  // (render the empty tabset) from authored-empty (selector form or
+  // authoring error). Absent for legacy/hand-built callers, which
+  // keep the strict historical behavior.
+  const authored = props.authoredPanels ?? 0;
   if (props.id !== undefined) {
     idAttr("tabs", props.id);
   }
-  if (items.length === 0 && props.binding === undefined) {
+  if (items.length === 0 && props.binding === undefined && authored === 0) {
     throw new Error("tabs needs a nonempty tab-child suite or a selector binding");
   }
   const options = props.binding === undefined ? undefined : checkedBinding("tabs", props.binding);
   if (options !== undefined) {
-    checkTabsCorrespondence(items, options);
+    checkTabsCorrespondence(items, options, props.authoredPanels !== undefined);
   }
   if (items.filter((item) => item.open === true).length > 1) {
     throw new Error("tabs admits at most one open item");
@@ -260,7 +269,7 @@ export async function tabs(props: TabsProps): Promise<string> {
 
   const postTo = props.binding === undefined ? undefined : operationPostPath(props.binding.postTo);
 
-  if (items.length === 0 && props.binding !== undefined) {
+  if (items.length === 0 && props.binding !== undefined && authored === 0) {
     return tabsSelectorForm(props, props.binding, postTo!, modifiers);
   }
 

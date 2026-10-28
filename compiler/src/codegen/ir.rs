@@ -15187,22 +15187,11 @@ impl<'a> Cx<'a> {
             ));
             return false;
         }
-        if kids(node)
-            .into_iter()
-            .filter(|child| child.kind == SyntaxKind::Tab)
-            .any(|tab| {
-                kids(tab)
-                    .into_iter()
-                    .any(|child| is_gate_leaf(self.db, child))
-            })
-        {
-            self.diags.push(Diagnostic::error(
-                "E6008",
-                "cannot lower bound tabs with a direct tab gate".to_string(),
-                node.span,
-            ));
-            return false;
-        }
+        // Direct tab gates are welcome on bound panels: each panel
+        // carries its gate (mirroring transient tabs), gated-out panels
+        // filter from the runtime items, the stored value falls back to
+        // the first visible panel, and gated options render no radio so
+        // they can never be persisted.
         true
     }
 
@@ -15286,7 +15275,7 @@ impl<'a> Cx<'a> {
                 ],
                 children: self.decode_ui_children(scope, tab, row_ctx.clone()),
                 row_scope: None,
-                gate: None,
+                gate: self.decode_gate(scope, tab),
                 span: tab.span,
             });
         }
