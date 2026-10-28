@@ -672,6 +672,8 @@ const FILES_PORTS_SOURCE_SPECIFIER = "@canlang/files/ports";
 const FILES_PORTS_VENDOR_ENTRY = "vendor/files/ports.js";
 const FILES_BRIDGE_SOURCE_SPECIFIER = "@canlang/files/bridge";
 const FILES_BRIDGE_VENDOR_ENTRY = "vendor/files/bridge.js";
+const FILES_RETENTION_SOURCE_SPECIFIER = "@canlang/files/retention";
+const FILES_RETENTION_VENDOR_ENTRY = "vendor/files/retention/index.js";
 const ACORN_SOURCE_SPECIFIER = "acorn";
 const ACORN_VENDOR_ENTRY = "vendor/acorn/acorn.js";
 /** The runtime mapper's only external dependency; host import tooling stays out. */
@@ -1072,6 +1074,7 @@ function mapRuntimeExtendedImport(spec: string, moduleKey: string): string | nul
   if (spec === FILES_DURABLE_SQLITE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_DURABLE_SQLITE_VENDOR_ENTRY);
   if (spec === "@canlang/files/upload") return relativeSpecifier(moduleKey, "vendor/files/upload/index.js");
   if (spec === "@canlang/files/provenance") return relativeSpecifier(moduleKey, "vendor/files/provenance/index.js");
+  if (spec === FILES_RETENTION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_RETENTION_VENDOR_ENTRY);
   if (spec.startsWith("@canlang/files/")) return relativeSpecifier(moduleKey, `vendor/files/${spec.slice("@canlang/files/".length)}.js`);
   if (spec === FILES_PORTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_PORTS_VENDOR_ENTRY);
   if (spec === FILES_BRIDGE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_BRIDGE_VENDOR_ENTRY);
@@ -1198,7 +1201,7 @@ export function stageSodaRuntimeModules(existing: Readonly<Record<string, string
     if (existing[key] === undefined) modules[key] = js;
   };
   for (const closure of [stageWorkStagingProducers(),
-    stageFilesFinalizeProducer([FILES_DURABLE_SQLITE_SOURCE_SPECIFIER])]) {
+    stageFilesFinalizeProducer([FILES_DURABLE_SQLITE_SOURCE_SPECIFIER, FILES_RETENTION_SOURCE_SPECIFIER])]) {
     for (const [key, js] of Object.entries(closure)) add(key, js);
   }
   const base = dirname(dirname(resolveProducerFile('@canlang/cloudflare/worker/main', 'bun run --filter @canlang/cloudflare build')));
@@ -1266,6 +1269,7 @@ function mapVendorCoreImport(spec: string, moduleKey: string): string | null {
   if (spec === FILES_DURABLE_SQLITE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_DURABLE_SQLITE_VENDOR_ENTRY);
   if (spec === "@canlang/files/upload") return relativeSpecifier(moduleKey, "vendor/files/upload/index.js");
   if (spec === "@canlang/files/provenance") return relativeSpecifier(moduleKey, "vendor/files/provenance/index.js");
+  if (spec === FILES_RETENTION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_RETENTION_VENDOR_ENTRY);
   return null;
 }
 
@@ -1635,7 +1639,7 @@ export function buildDeployBundle(
     Object.assign(modules, readVendorTree(tree));
   }
   Object.assign(modules, stageWorkStagingProducers());
-  Object.assign(modules, stageFilesFinalizeProducer());
+  Object.assign(modules, stageFilesFinalizeProducer([FILES_RETENTION_SOURCE_SPECIFIER]));
   Object.assign(modules, stageSourceMapCodec());
   Object.assign(modules, stageBrowserDependencies());
   modules[JUDGMENT_SPECIFICATION_VENDOR_ENTRY] = rewriteVendorImports(readFileSync(
