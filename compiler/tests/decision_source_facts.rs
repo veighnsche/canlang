@@ -2201,3 +2201,64 @@ fn hook_linkage_helper_with_roles_and_nested_query() {
         "parent navigation chains reference and parent loads"
     );
 }
+
+#[test]
+fn hook_cross_package_parent_navigation() {
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+    use canlang_compiler::diagnostic::DiagnosticResult;
+    let mut db = SourceDb::new();
+    let file = db.add(
+        "hook-cross-package-parent.can".into(),
+        include_str!("fixtures/native-hook-cross-package-parent.can").into(),
+    );
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) =
+        canlang_compiler::analysis::check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let mut result = DiagnosticResult::new("hook-cross-package-parent", "1.0", 1);
+    result.add_sources(&db);
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let artifact: serde_json::Value =
+        serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
+    // The hook binds natively even though the helper, its models, and the
+    // `.parent` step live in another package: role gate, parent-row
+    // navigation, and nested query all lower through the ambient context.
+    let js = artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|module| module["js"].as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        js.contains("hasRole(c,\"renting.organizer\")")
+            || js.contains("hasRole(c, \"renting.organizer\")"),
+        "cross-package role gate lowers with ambient context"
+    );
+    assert!(
+        js.contains("loadReference") && js.contains("c.transitive.load("),
+        "cross-package parent navigation chains reference and parent loads"
+    );
+}

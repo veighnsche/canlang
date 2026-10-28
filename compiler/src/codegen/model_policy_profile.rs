@@ -366,9 +366,12 @@ impl HookProfile<'_> {
             return None;
         };
         let parent_item = self.program.items.get(parent.0 as usize)?;
-        if parent_item.id != *parent || parent_item.module != self.module {
+        if parent_item.id != *parent {
             return None;
         }
+        // Cross-package parents admit: the `ChildOf` edge is structural,
+        // and the transitive load resolves (model, id) with no module
+        // notion. Downstream reads re-gate on the owning module.
         Some((*parent, EventAlias::ParentIdentity))
     }
     fn event_reference_target(&self, base_model: SymbolId, field: &str) -> Option<SymbolId> {
