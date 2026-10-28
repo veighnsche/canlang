@@ -139,11 +139,16 @@ export async function createWorkerFiles(options: WorkerFilesOptions): Promise<In
     ...(options.ownerStorage === undefined ? {} : { ownerStorage: options.ownerStorage }) });
   // One bounded cleanup page on construction. A restart safely revisits retained journal tombstones.
   await host.cleanup({ beforeMs: Math.max(0, clock.nowMs() - options.intentTtlMs), limit: 100 });
+  // Own composed intent expiry the same way: one bounded sweep page,
+  // idempotent across restarts, so expired intents never linger with
+  // live staging bytes.
+  await host.sweepExpiredIntents({ limit: 100 });
   return Object.freeze({ usesFiles: true, kernel, fileStoreId: host.fileStoreId, intentsUrl: `${options.origin}/files/intents`,
     canonical: createCanonicalFileBinding(kernel, options.retention),
     async fetch(request: Request) {
       const response = await fetch(request);
       await host.cleanup({ beforeMs: Math.max(0, clock.nowMs() - options.intentTtlMs), limit: 25 });
+      await host.sweepExpiredIntents({ limit: 25 });
       return response;
     }, readOptions });
 }

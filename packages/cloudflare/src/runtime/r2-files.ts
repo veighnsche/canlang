@@ -10,6 +10,8 @@ import type { CreateIntentInput, UploadDeps } from '@canlang/files/upload';
 import { authorizeAttach, blobKeyForFile, decodeEventIngestClaim, eventIngestClaimHash, eventIngestClaimParts, finalizeUpload, ingestVerifiedEventFile, observeFinalizedFile, readCurrentFinalizedSnapshot, readFinalizedBytes, readFinalizedFile, recordAttachment, revalidateRetainedFinalizedFile } from '@canlang/files/finalize';
 import type { EventIngestDeps, EventIngestInput, FinalizeDeps, FinalizeInput } from '@canlang/files/finalize';
 import type { EventIngestClaimRecord, EventIngestClaimStorePort } from '@canlang/files/ports';
+import { sweepIntent } from '@canlang/files/retention';
+import type { RetentionDeps, RetentionReport } from '@canlang/files/retention';
 import type { ReceivingContext } from '@canlang/files/provenance';
 
 export interface R2FileOptions {
@@ -330,6 +332,33 @@ export async function createR2FileBindings(input: R2FileOptions) {
       const next = page.results.length === limit ? page.results.at(-1)!.id : null;
       if (cursor === undefined) await db.prepare('UPDATE can_files_roots SET cleanup_cursor=? WHERE ns=?').bind(next, namespace).run();
       return { visited: page.results.length, removed, cursor: next };
+    },
+    /**
+     * Owning consumer for composed intent expiry: one bounded,
+     * resumable page of due intents per call, each expired inside
+     * the same conditional-commit primitive as the journey (mark
+     * expired, drop transfer state, remove staging). Callers walk
+     * `next` until null; re-running is idempotent, so restarts
+     * simply resume the scan. Worker composition runs a page on
+     * construction and after each upload request.
+     */
+    async sweepExpiredIntents({ limit = 100, cursor }: { limit?: number; cursor?: string | null }): Promise<{ swept: string[]; next: string | null }> {
+      if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw new Error('Files intent sweep requires a bounded page.');
+      const now = clock.nowMs();
+      const page = await db.prepare(`SELECT id FROM can_files_intents WHERE ns=? AND id>? AND json_extract(json,'$.state') IN ('open','complete') AND json_extract(json,'$.expiresAtMs')<=? ORDER BY id LIMIT ?`).bind(namespace, cursor ?? '', now, limit).all<{ id: string }>();
+      const swept: string[] = [];
+      for (const { id } of page.results) {
+        await run({ intentId: id }, (_, final) => {
+          const record = final.intents.get(id);
+          if (record === null) return;
+          const before = record.state;
+          const retention: RetentionDeps = { clock: final.clock, blobs: final.blobs, files: final.files, intents: final.intents };
+          const report: RetentionReport = { orphaned: [], expired: [], sweptIntents: [] };
+          sweepIntent(retention, record, now, report);
+          if ((before === 'open' || before === 'complete') && record.state === 'expired') swept.push(id);
+        });
+      }
+      return { swept, next: page.results.length === limit ? page.results.at(-1)!.id : null };
     },
   });
 }

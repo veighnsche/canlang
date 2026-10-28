@@ -36,6 +36,7 @@ packages/cloudflare/test/app-owned-preview.integration.test.ts
 packages/cloudflare/test/compiler-check.integration.test.ts
 packages/cloudflare/test/durable-files-sqlite.integration.test.ts
 packages/cloudflare/test/files-event-ingest.integration.test.ts
+packages/cloudflare/test/files-expiry-sweep.integration.test.ts
 packages/cloudflare/test/files-policy-override.integration.test.ts
 packages/cloudflare/test/files-serialize-reopen.integration.test.ts
 packages/cloudflare/test/first-profile-browser.integration.test.ts

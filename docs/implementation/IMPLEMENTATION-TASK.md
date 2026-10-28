@@ -206,6 +206,30 @@ and preview suites re-greened after catalog re-emit (build-order
 artifact, hashes stable). Durable outcome-store backend + second
 binding (SalesIngress) remain.
 
+B09 expiry closed (owning consumer), 28 October 2026: R2 host
+owns composed intent expiry via `sweepExpiredIntents` — one
+bounded, resumable, idempotent page per call, each intent expired
+inside the same CAS-journal primitive (mark expired, drop transfer
+state, retire staging for cleanup). Worker composition runs a page
+on construction and after each upload request. Journey
+`files-expiry-sweep` 1/1: open+complete intents expire past TTL with
+staging rows dropped and bytes retired then reclaimed, late
+grants 404, resume is a no-op, fresh work journeys clean.
+
+B09 provenance area investigated (no code), 28 October 2026:
+the "one protected-field file join" one-liner does not pin a
+verifiable defect. Adjacent concrete mechanisms all exist and are
+enforced: upload intent admission through the checked schema
+(operation must exist/exposed, field must resolve to a writable
+File input, PRV-UPLOAD-02 closed), business-field staging admits
+only finalized+owned+byte-intact files, file download reads the
+record through State (field policies enforced, unreadable fields
+hidden), and dispatch/images pin `kind:'request'` structurally.
+Per-field provenance-origin rules (which arrival channels a field
+admits) have no declared contract — no language syntax, no census
+profile, no row — so any rule now would be invented. Residual: a
+cross-lane declaration design decision must precede enforcement.
+
 B09 TECH-F02 closed (receiving join), 28 October 2026:
 `ingestVerifiedEventFile` finalizes one verified event occurrence
 field exactly once per receiver, preserving `event` provenance
