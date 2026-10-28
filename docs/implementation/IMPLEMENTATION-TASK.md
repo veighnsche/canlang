@@ -206,6 +206,15 @@ and preview suites re-greened after catalog re-emit (build-order
 artifact, hashes stable). Durable outcome-store backend + second
 binding (SalesIngress) remain.
 
+B14 durable outcome-store closed, 28 October 2026:
+`createD1BillingOutcomeStore` implements `BillingOutcomeStore`
+over D1 — one committed row per (namespace, producer_event_id),
+put-if-absent, closed re-validation on read, degenerate ids match
+memory nulls. Journey `billing-outcomes-durable` 1/1: signed
+delivery commits through the real ingress leg, reopen returns the
+identical record, replay returns original bytes, unknown ids find
+nothing. Second binding (SalesIngress) remains.
+
 B09 expiry closed (owning consumer), 28 October 2026: R2 host
 owns composed intent expiry via `sweepExpiredIntents` — one
 bounded, resumable, idempotent page per call, each intent expired
