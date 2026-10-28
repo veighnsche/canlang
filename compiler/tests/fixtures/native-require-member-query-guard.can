@@ -1,0 +1,24 @@
+app GuardMemberQuery
+Given
+ Location {name:text}
+ contract Interval {from:datetime,until:datetime}
+ Site {name:text,location:Location}
+ Venue in Site {name:text,from:datetime,until:datetime,status:enum(draft,confirmed,occupied)=draft,payment:enum(unpaid,paid,free)=unpaid,allowance:enum(required,not_required,consumed)=required,intervals:Interval[]}
+ Opportunity in Community {venue:Venue?,open:bool=false,cancelled:bool=false,from:datetime,until:datetime,location:Location}
+ Signup in Opportunity {state:enum(registered,confirmed)=registered,account:user}
+ Community {name:text}
+ Employee {user:user,active:bool=false,home:Location}
+ derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and e.home==location)
+ derive covers(venue:Venue,location:Location,from:datetime,until:datetime):bool = venue.status in [confirmed,occupied] and venue.payment in [paid,free] and venue.allowance in [not_required,consumed] and venue.parent.location==location and ((count(venue.intervals)==0 and venue.from<=from and until<=venue.until) or any(venue.intervals as i,i.from<=from and until<=i.until))
+ derive Opportunity.venue_confirmed:bool = row.venue!=null and covers(row.venue,row.location,row.from,row.until)
+When
+ scenario publish_member(opportunity:Opportunity) by=authenticated
+  require can_work(actor,opportunity.location) and not opportunity.cancelled and opportunity.from>now and (opportunity.venue==null or opportunity.venue_confirmed)
+  do set opportunity {open=true}
+ scenario confirm_member(signup:Signup) by=authenticated
+  require can_work(actor,signup.parent.location) and signup.account==actor and signup.state==registered and (signup.parent.venue==null or signup.parent.venue_confirmed)
+  do set signup {state=confirmed}
+ scenario signup_member(opportunity:Opportunity) by=authenticated
+  require not opportunity.cancelled and opportunity.from>now and (opportunity.venue==null or opportunity.venue_confirmed) and not any(Signup as s,s.account==actor and s.state==registered)
+  do set opportunity {open=true}
+Then

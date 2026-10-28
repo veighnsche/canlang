@@ -13,7 +13,7 @@ use super::resolve::{
 };
 use super::types::{
     CheckedQuery, CheckedQueryClauseKind, CheckedQueryProjectionField,
-    CheckedQueryProjectionMapping, SelectedCallTarget, checked_standard_nominal_name,
+    CheckedQueryProjectionMapping, SelectedCall, SelectedCallTarget, checked_standard_nominal_name,
 };
 use super::{ModuleId, NodeKey, ResolvedType, Scalar, SymbolId, TypeTable, kids, name_text};
 use crate::source::{SourceDb, SourceId, sha256_hex};
@@ -3735,6 +3735,63 @@ impl<'a> Closure<'a> {
         }
         let base_key = self.query_group(NodeKey::of(base))?;
         self.call_parent_nameref(base_key, parameter)?;
+        let symbol = match self.types.node_types.get(&key)? {
+            ResolvedType::Record {
+                symbol,
+                stored: true,
+            } => *symbol,
+            ResolvedType::Nullable(inner) => match inner.as_ref() {
+                ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                } => *symbol,
+                _ => return None,
+            },
+            _ => return None,
+        };
+        matches!(
+            self.resolve.symbols.get(symbol.0 as usize)?.kind,
+            SymbolKind::Model { .. }
+        )
+        .then_some(symbol)
+    }
+
+    /// Nullable stored field off a verified `param.parent` hop: the same
+    /// shape as call_parameter_field, but the base is the checked
+    /// containment edge rather than the bare parameter. The hop is
+    /// immutable creation containment, so the absence bit is stable.
+    fn call_parent_parameter_field(
+        &self,
+        key: NodeKey,
+        parameter: SymbolId,
+        statement: NodeKey,
+        module: ModuleId,
+    ) -> Option<SymbolId> {
+        let key = self.query_group(key)?;
+        let node = self.nodes.get(&key)?;
+        if node.kind != SyntaxKind::Member {
+            return None;
+        }
+        let mut operands = node.children.iter().filter(|part| expression(part.kind));
+        let base = operands.next()?;
+        if operands.next().is_some() {
+            return None;
+        }
+        if node
+            .children
+            .iter()
+            .rev()
+            .find(|part| part.kind == SyntaxKind::Name)
+            .and_then(|part| self.word(part))
+            == Some("parent")
+        {
+            return None;
+        }
+        let base_key = self.query_group(NodeKey::of(base))?;
+        let (root, _) = self.original_call_parent_parameter(base_key, statement, module)?;
+        if root != parameter {
+            return None;
+        }
         let symbol = match self.types.node_types.get(&key)? {
             ResolvedType::Record {
                 symbol,
@@ -16908,6 +16965,316 @@ impl<'a> Closure<'a> {
         result
     }
 
+    /// Third derived-member disjunct for observer site formation: the
+    /// body is free of model queries. Every admitted construct already
+    /// executes in the emitted observer: row navigation fetches through
+    /// the grant-enforced request reader (`nativeReadReference`),
+    /// supplied-array aggregates use their compiled forms, pure
+    /// operators and builtins are direct, and nested derive calls prove
+    /// recursively with their arguments sealed in the caller scope.
+    /// Model queries, membership builtins, branches and foreign names
+    /// keep their refusal, so the formed site plans nothing the body
+    /// needs beyond what the observer already runs.
+    fn source_require_derived_navigable(
+        &self,
+        field: SymbolId,
+        model: SymbolId,
+        visited: &mut Vec<(SymbolId, SymbolId)>,
+        budget: &mut usize,
+    ) -> Option<()> {
+        if visited.len() >= 32 || visited.contains(&(field, model)) {
+            return None;
+        }
+        self.derived_member_body(field, model)?;
+        let ty = self.types.symbol_types.get(&field)?;
+        if !(primitive_type(ty)
+            || matches!(ty, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
+        {
+            return None;
+        }
+        visited.push((field, model));
+        let body = self.effects.derives.get(&field)?.expr?;
+        let mut stack = Vec::new();
+        let mut aliases = Vec::new();
+        let result = self.source_require_navigable_value(
+            body,
+            Some(model),
+            &[],
+            &mut stack,
+            &mut aliases,
+            visited,
+            budget,
+            0,
+        );
+        visited.pop();
+        result
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn source_require_navigable_value(
+        &self,
+        key: NodeKey,
+        row: Option<SymbolId>,
+        params: &[SymbolId],
+        stack: &mut Vec<SymbolId>,
+        aliases: &mut Vec<NodeKey>,
+        visited: &mut Vec<(SymbolId, SymbolId)>,
+        budget: &mut usize,
+        depth: usize,
+    ) -> Option<()> {
+        if *budget == 0 || depth > 64 {
+            return None;
+        }
+        *budget -= 1;
+        let key = self.query_group(key)?;
+        let node = self.nodes.get(&key)?;
+        if self.types.resolved_cases.contains(&key) || node.kind == SyntaxKind::Literal {
+            return Some(());
+        }
+        if node.kind == SyntaxKind::NameRef {
+            match self.query_binding(key) {
+                Some(Binding::Context(ContextVar::RowModel(owner))) => {
+                    return (Some(*owner) == row).then_some(());
+                }
+                Some(Binding::Symbol(param)) if params.contains(param) => return Some(()),
+                // An array-iteration alias is bound positionally: its
+                // node must sit inside the iteration being proven. The
+                // walk never descends into model-query predicates, so a
+                // model alias cannot leak in through this arm.
+                Some(Binding::QueryAlias { node: alias }) => {
+                    return aliases
+                        .iter()
+                        .any(|scope| {
+                            scope.file == alias.file
+                                && scope.start <= alias.start
+                                && alias.end <= scope.end
+                        })
+                        .then_some(());
+                }
+                _ => return None,
+            }
+        }
+        if node.kind == SyntaxKind::Member {
+            let (base, name) = self.count_member(key)?;
+            self.source_require_navigable_value(
+                base,
+                row,
+                params,
+                stack,
+                aliases,
+                visited,
+                budget,
+                depth + 1,
+            )?;
+            // A nested derived field proves its own body under its row;
+            // plain navigation fetches through the request reader.
+            if let Some(ResolvedType::Record { symbol: base_model, stored: true }) =
+                self.types.node_types.get(&base)
+                && let Some(field) = self.resolve.symbols.iter().find(|field| {
+                    field.name == name
+                        && matches!(&field.kind, SymbolKind::DeriveField { model: owner, .. } if owner == base_model)
+                })
+            {
+                return self.source_require_derived_navigable(
+                    field.id,
+                    *base_model,
+                    visited,
+                    budget,
+                );
+            }
+            return Some(());
+        }
+        if matches!(
+            node.kind,
+            SyntaxKind::Binary | SyntaxKind::Unary | SyntaxKind::Group | SyntaxKind::Array
+        ) {
+            for child in node.children.iter().filter(|child| expression(child.kind)) {
+                self.source_require_navigable_value(
+                    NodeKey::of(child),
+                    row,
+                    params,
+                    stack,
+                    aliases,
+                    visited,
+                    budget,
+                    depth + 1,
+                )?;
+            }
+            return Some(());
+        }
+        if node.kind != SyntaxKind::Call {
+            return None;
+        }
+        let call = self.types.selected_calls.get(&key)?;
+        match &call.target {
+            SelectedCallTarget::Builtin { id, .. } => self.source_require_navigable_builtin(
+                key, id, call, row, params, stack, aliases, visited, budget, depth,
+            ),
+            SelectedCallTarget::DeriveFn(id) => {
+                if stack.contains(id) {
+                    return None;
+                }
+                let callee = self.effects.derives.get(id)?;
+                if callee.model.is_some() {
+                    return None;
+                }
+                if callee.params.len() != call.slots.len() {
+                    return None;
+                }
+                for (formal, slot) in callee.params.iter().zip(&call.slots) {
+                    match slot {
+                        Some(index) => {
+                            let argument = call.arguments.get(*index)?;
+                            self.source_require_navigable_value(
+                                *argument,
+                                row,
+                                params,
+                                stack,
+                                aliases,
+                                visited,
+                                budget,
+                                depth + 1,
+                            )?;
+                        }
+                        None => {
+                            let default = formal.default?;
+                            self.source_require_navigable_value(
+                                default,
+                                None,
+                                &[],
+                                stack,
+                                aliases,
+                                visited,
+                                budget,
+                                depth + 1,
+                            )?;
+                        }
+                    }
+                }
+                let body = callee.expr?;
+                let callee_params: Vec<SymbolId> =
+                    callee.params.iter().map(|param| param.param).collect();
+                stack.push(*id);
+                let result = self.source_require_navigable_value(
+                    body,
+                    None,
+                    &callee_params,
+                    stack,
+                    aliases,
+                    visited,
+                    budget,
+                    depth + 1,
+                );
+                stack.pop();
+                result
+            }
+            _ => None,
+        }
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn source_require_navigable_builtin(
+        &self,
+        key: NodeKey,
+        id: &str,
+        call: &SelectedCall,
+        row: Option<SymbolId>,
+        params: &[SymbolId],
+        stack: &mut Vec<SymbolId>,
+        aliases: &mut Vec<NodeKey>,
+        visited: &mut Vec<(SymbolId, SymbolId)>,
+        budget: &mut usize,
+        depth: usize,
+    ) -> Option<()> {
+        // A recorded collection call is a model query: it needs its own
+        // receipt plan and never rides a navigable body.
+        if self.types.checked_collection_calls.contains_key(&key) {
+            return None;
+        }
+        if id == "any" || id == "all" {
+            if call.arguments.len() != 2 {
+                return None;
+            }
+            let domain = self.query_group(call.arguments[0])?;
+            let domain_node = self.nodes.get(&domain)?;
+            if domain_node.kind != SyntaxKind::Query {
+                return None;
+            }
+            // Supplied-array iteration only: the domain navigates to a
+            // stored array value. Model and child domains carry the
+            // collection call refused above.
+            let mut current = domain;
+            loop {
+                let at = self.query_group(current)?;
+                let at_node = self.nodes.get(&at)?;
+                if at_node.kind != SyntaxKind::Query {
+                    self.source_require_navigable_value(
+                        at,
+                        row,
+                        params,
+                        stack,
+                        aliases,
+                        visited,
+                        budget,
+                        depth + 1,
+                    )?;
+                    break;
+                }
+                let mut progressed = false;
+                for child in at_node
+                    .children
+                    .iter()
+                    .filter(|child| expression(child.kind))
+                {
+                    let child_key = NodeKey::of(child);
+                    let child_node = self.nodes.get(&child_key)?;
+                    if child_node.kind == SyntaxKind::Member
+                        || child_node.kind == SyntaxKind::NameRef
+                    {
+                        current = child_key;
+                        progressed = true;
+                        break;
+                    }
+                }
+                if !progressed {
+                    return None;
+                }
+            }
+            if !matches!(
+                self.types.node_types.get(&domain),
+                Some(ResolvedType::Array { .. })
+            ) {
+                return None;
+            }
+            aliases.push(key);
+            let result = self.source_require_navigable_value(
+                call.arguments[1],
+                row,
+                params,
+                stack,
+                aliases,
+                visited,
+                budget,
+                depth + 1,
+            );
+            aliases.pop();
+            return result;
+        }
+        if self.catalog?.effects(id) != Some(Effects::Pure) {
+            return None;
+        }
+        for argument in &call.arguments {
+            self.source_require_navigable_value(
+                *argument,
+                row,
+                params,
+                stack,
+                aliases,
+                visited,
+                budget,
+                depth + 1,
+            )?;
+        }
+        Some(())
+    }
     fn source_require_control_value(
         &self,
         key: NodeKey,
@@ -19237,6 +19604,7 @@ impl<'a> Closure<'a> {
         {
             if self.source_require_derived_control(field.id, *model, &mut Vec::new(), &mut 4096).is_none()
                 && self.admitted_derived_read(field.id, *model, &mut Vec::new()).is_none()
+                && self.source_require_derived_navigable(field.id, *model, &mut Vec::new(), &mut 4096).is_none()
             {
                 *supported = false; return Some(false);
             }
@@ -25118,13 +25486,26 @@ impl<'a> Closure<'a> {
                     || matches!(leaf, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
                 || !calls.is_empty()
                 || self.loop_node.is_some()
-                || !matches!(&value.reference_origin, Some(ReferenceOrigin::Parameter(parameter))
-                    if matches!(self.query_binding(base_key), Some(Binding::Symbol(actual)) if actual == parameter))
+                || !self.derived_field_receiver(base_key, value)
             {
                 return Err(self.fail(key, "derived field requires its complete body closure"));
             }
         }
         Ok(())
+    }
+
+    /// A derived field reads off the scenario's required row: the bare
+    /// parameter, or a verified parent hop from it. Parent origins are
+    /// proof-carrying by construction (param-rooted through checked
+    /// ChildOf containment edges), so they need no lexical re-check.
+    fn derived_field_receiver(&self, base_key: NodeKey, value: &ValuePath) -> bool {
+        match &value.reference_origin {
+            Some(ReferenceOrigin::Parameter(parameter)) => {
+                matches!(self.query_binding(base_key), Some(Binding::Symbol(actual)) if actual == parameter)
+            }
+            Some(ReferenceOrigin::Parent { .. }) => value.record.is_some(),
+            _ => false,
+        }
     }
 
     fn expr_member_parent_replay_query(
@@ -25615,7 +25996,11 @@ impl<'a> Closure<'a> {
             ));
         }
         let left = self.expr(NodeKey::of(children[0]), module, env, calls)?;
+        // A proven null check consumes its stored operand into a pure
+        // boolean (lineage is stripped below), so the operand's
+        // Parent/Field origin never flows into scalar position.
         if !current_null_check
+            && !input_null_check
             && !admitted_parent_comparison
             && left.iter().any(|value| {
                 matches!(
@@ -25785,8 +26170,9 @@ impl<'a> Closure<'a> {
                 let Some((receiver, _)) = self.count_member(input) else {
                     return false;
                 };
-                let Some((parameter, _)) =
-                    self.original_call_model_parameter(receiver, key, module)
+                let Some((parameter, _)) = self
+                    .original_call_model_parameter(receiver, key, module)
+                    .or_else(|| self.original_call_parent_parameter(receiver, key, module))
                 else {
                     return false;
                 };
@@ -25817,7 +26203,10 @@ impl<'a> Closure<'a> {
                 matches!(self.types.node_types.get(&input),
                     Some(ResolvedType::Nullable(inner))
                         if matches!(inner.as_ref(), ResolvedType::Record { stored: true, .. }))
-                    && self.call_parameter_field(input, parameter).is_some()
+                    && (self.call_parameter_field(input, parameter).is_some()
+                        || self
+                            .call_parent_parameter_field(input, parameter, key, module)
+                            .is_some())
                     && env.get(&Local::Symbol(parameter)).is_some_and(|value| {
                         value.reference_origin == Some(ReferenceOrigin::Parameter(parameter))
                             && value.record.is_some()
@@ -26009,7 +26398,8 @@ impl<'a> Closure<'a> {
             }
         }
         let right = self.expr(NodeKey::of(children[1]), module, env, calls)?;
-        if !admitted_parent_comparison
+        if !input_null_check
+            && !admitted_parent_comparison
             && right.iter().any(|value| {
                 matches!(
                     value.reference_origin,

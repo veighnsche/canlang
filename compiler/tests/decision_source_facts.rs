@@ -1970,3 +1970,56 @@ fn source_require_keeps_separate_controls_and_minimal_pure_result_receipt() {
         "root.remaining"
     );
 }
+
+#[test]
+fn source_require_forms_site_for_member_plus_query_guard() {
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+    use canlang_compiler::diagnostic::DiagnosticResult;
+    let mut db = SourceDb::new();
+    let file = db.add(
+        "member-query-guard.can".into(),
+        include_str!("fixtures/native-require-member-query-guard.can").into(),
+    );
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) =
+        canlang_compiler::analysis::check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let mut result = DiagnosticResult::new("member-query-guard", "1.0", 1);
+    result.add_sources(&db);
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let artifact: serde_json::Value =
+        serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
+    let operations = artifact["operations"].as_array().unwrap();
+    for name in [
+        "GuardMemberQuery.publish_member",
+        "GuardMemberQuery.confirm_member",
+        "GuardMemberQuery.signup_member",
+    ] {
+        assert!(
+            operations.iter().any(|operation| operation["name"] == name),
+            "missing operation {name}"
+        );
+    }
+}
