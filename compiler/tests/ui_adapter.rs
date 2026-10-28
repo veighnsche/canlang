@@ -230,10 +230,14 @@ console.log('owning Loyalty labels/cases, selection/version/route and row scope 
 }
 
 #[test]
-fn gated_bound_panels_keep_the_specific_unsupported_profile() {
+fn gated_bound_panels_lower_with_hide_and_fallback() {
     use std::{path::Path, process::Command};
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();
+    // Bound panels with direct gates lower (hide_and_fallback): each
+    // panel keeps its gate, gated panels filter from the runtime items,
+    // and the authored count lets the factory tell all-gated from
+    // authored-empty while the stored value falls back to first visible.
     for gate in ["true", "false", "authenticated"] {
         let source = format!(
             "app BoundGate\nGiven\nWhen\nThen\n preferences {{view:enum(rewards,history)=rewards}}\n page / title=\"Page\"\n  tabs preferences.view\n   tab rewards\n    text \"Rewards\"\n   tab history\n    require {gate}\n    text \"History\"\n"
@@ -248,20 +252,23 @@ fn gated_bound_panels_keep_the_specific_unsupported_profile() {
             .output()
             .unwrap();
         let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-        assert_eq!(output.status.code(), Some(10), "{gate}: {artifact}");
+        assert_eq!(output.status.code(), Some(0), "{gate}: {artifact}");
         assert!(
-            artifact["diagnostics"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|diagnostic| diagnostic["code"] == "E6008"
-                    && diagnostic["message"]
-                        .as_str()
-                        .unwrap()
-                        .contains("direct tab gate")),
+            artifact
+                .get("diagnostics")
+                .and_then(|diagnostics| diagnostics.as_array())
+                .is_none_or(|diagnostics| diagnostics.is_empty()),
             "{gate}: {artifact}"
         );
-        assert!(artifact.get("modules").is_none(), "{gate}: {artifact}");
+        let js = artifact["modules"][0]["js"].as_str().unwrap();
+        assert!(
+            js.contains("authoredPanels:2"),
+            "{gate}: authored count reaches the factory"
+        );
+        assert!(
+            js.contains(".filter(item=>item!=null)"),
+            "{gate}: gated panels filter from the runtime items"
+        );
     }
 }
 
