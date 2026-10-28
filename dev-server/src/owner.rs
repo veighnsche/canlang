@@ -58,11 +58,12 @@ impl Owner {
             config.selection.clone(),
             Arc::new(move |command, cancelled| {
                 let (reply, result) = mpsc::channel();
+                let deadline = crate::control::request_deadline(&command.command);
                 requests
                     .send(Event::Request(command, reply, cancelled))
                     .map_err(|_| error("CONTROL_CLOSED", "owner closed"))?;
                 result
-                    .recv_timeout(Duration::from_secs(60))
+                    .recv_timeout(deadline)
                     .map_err(|_| error("CONTROL_TIMEOUT", "owner response timed out"))?
             }),
         )?;
@@ -98,6 +99,7 @@ impl Owner {
 
     pub fn request(&self, command: Command) -> Result<Value> {
         let (tx, rx) = mpsc::channel();
+        let deadline = crate::control::request_deadline(&command.command);
         self.tx
             .send(Event::Request(
                 command,
@@ -105,7 +107,7 @@ impl Owner {
                 Arc::new(AtomicBool::new(false)),
             ))
             .map_err(|_| error("CONTROL_CLOSED", "owner closed"))?;
-        rx.recv_timeout(Duration::from_secs(60))
+        rx.recv_timeout(deadline)
             .map_err(|_| error("CONTROL_TIMEOUT", "owner response timed out"))?
     }
 

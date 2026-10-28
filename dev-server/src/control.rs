@@ -20,7 +20,16 @@ const MAX_REQUEST: usize = 64 * 1024;
 const MAX_RESPONSE: usize = 128 * 1024;
 const HANDSHAKE: Duration = Duration::from_millis(1500);
 const REQUEST: Duration = Duration::from_secs(60);
-const CLIENT_REQUEST: Duration = Duration::from_millis(61_500);
+const REQUEST_LONG: Duration = Duration::from_secs(600);
+/// Commands that stage datasets, execute examples or boot/probe workers
+/// exceed the interactive deadline on real apps; everything else stays
+/// at 60s so a stuck trivial command still fails fast.
+pub fn request_deadline(command: &str) -> Duration {
+    match command {
+        "start" | "check" | "example.run" | "example.rerun" | "preview.open" => REQUEST_LONG,
+        _ => REQUEST,
+    }
+}
 const MAX_CONNECTIONS: usize = 32;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Command {
@@ -310,7 +319,12 @@ impl Client {
             ));
         }
         write_frame(&mut stream, &frame, MAX_REQUEST, cancel)?;
-        let answer = Frames::new().read(&mut stream, MAX_RESPONSE, CLIENT_REQUEST, cancel)?;
+        let answer = Frames::new().read(
+            &mut stream,
+            MAX_RESPONSE,
+            request_deadline(&command.command) + Duration::from_millis(1500),
+            cancel,
+        )?;
         response_value(answer, &id)
     }
 }
@@ -495,12 +509,13 @@ fn serve(
     let (sender, receiver) = mpsc::sync_channel(1);
     let cancelled = Arc::new(AtomicBool::new(false));
     let request_cancel = cancelled.clone();
+    let deadline = request_deadline(&command.command);
     thread::spawn(move || {
         let _permit = permit;
         let result = handler(command, request_cancel);
         let _ = sender.send(result);
     });
-    let result = await_handler(&stream, receiver, &stop);
+    let result = await_handler(&stream, receiver, &stop, deadline);
     cancelled.store(true, Ordering::Release);
     send_result(&mut stream, &id, result, &stop)
 }
@@ -508,8 +523,9 @@ fn await_handler(
     stream: &UnixStream,
     receiver: mpsc::Receiver<Result<Value>>,
     stop: &AtomicBool,
+    budget: Duration,
 ) -> Result<Value> {
-    let deadline = Instant::now() + REQUEST;
+    let deadline = Instant::now() + budget;
     loop {
         match receiver.recv_timeout(Duration::from_millis(20)) {
             Ok(result) => return result,
