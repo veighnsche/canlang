@@ -96,7 +96,12 @@ function base64(value: unknown): Uint8Array | null {
   return Uint8Array.from(binary, character => character.charCodeAt(0));
 }
 
-function configuredKeys(value: unknown): Map<string, Uint8Array> | null {
+/**
+ * Shared standard-webhooks key publication: `{current, previous?}` with
+ * `whsec_` + canonical Base64 32-byte secrets. Also serves the billing
+ * ingress profile; behavior unchanged.
+ */
+export function configuredKeys(value: unknown): Map<string, Uint8Array> | null {
   if (!closed(value, Object.hasOwn(value ?? {}, 'previous') ? ['current', 'previous'] : ['current'])) return null;
   const result = new Map<string, Uint8Array>();
   for (const name of Object.keys(value)) {
@@ -106,6 +111,61 @@ function configuredKeys(value: unknown): Map<string, Uint8Array> | null {
     result.set(key as string, bytes);
   }
   return result;
+}
+
+/**
+ * Shared standard-webhooks header gate. Moved top-level (pure, no
+ * closure) so the billing ingress profile reuses it; behavior
+ * unchanged.
+ */
+export function checkIngressHeaders(input: { headers: unknown }): { id: string; timestamp: string; signature: string } | null {
+  const id = ownValue(input.headers, 'webhook-id');
+  const timestamp = ownValue(input.headers, 'webhook-timestamp');
+  const signature = ownValue(input.headers, 'webhook-signature');
+  if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,200}$/.test(id) ||
+      typeof timestamp !== 'string' || !/^(?:0|[1-9][0-9]{0,15})$/.test(timestamp) ||
+      !Number.isSafeInteger(Number(timestamp)) || typeof signature !== 'string' ||
+      signature.length > 4096) return null;
+  return { id, timestamp, signature };
+}
+
+/**
+ * Shared `v1,` signature-list parser. Moved top-level (pure, no
+ * closure) so the billing ingress profile reuses it; behavior
+ * unchanged.
+ */
+export function parseIngressSignatures(signature: string): Uint8Array[] | null {
+  const entries = signature.split(' ');
+  if (entries.length < 1 || entries.length > 8) return null;
+  const signatures: Uint8Array[] = [];
+  for (const entry of entries) {
+    const bytes = entry.startsWith('v1,') ? base64(entry.slice(3)) : null;
+    if (bytes === null) return null;
+    signatures.push(bytes);
+  }
+  return signatures;
+}
+
+/**
+ * Shared host-HMAC multi-key verification. Moved top-level (pure, no
+ * closure) so the billing ingress profile reuses it; behavior
+ * unchanged.
+ */
+export async function verifyIngressSignatures(
+  initialKeys: Map<string, Uint8Array>,
+  signatures: Uint8Array[],
+  signed: Uint8Array,
+): Promise<Set<string>> {
+  const acceptedKeys = new Set<string>();
+  for (const [encoded, bytes] of initialKeys) {
+    const key = await globalThis.crypto.subtle.importKey('raw', bytes.slice(),
+      { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+    for (const mac of signatures) {
+      // Host HMAC verification owns the timing-safe comparison.
+      if (await globalThis.crypto.subtle.verify('HMAC', key, Uint8Array.from(mac), Uint8Array.from(signed))) acceptedKeys.add(encoded);
+    }
+  }
+  return acceptedKeys;
 }
 
 function sameOriginal(body: VerifiedTeamsMemberRemovedEnvelope, original: VerifiedTeamsMemberRemovedEnvelope): boolean {
@@ -162,46 +222,6 @@ function settleVerifiedCapture(
     return null;
   }
   return admitted() ? original : null;
-}
-
-function checkIngressHeaders(input: { headers: unknown }): { id: string; timestamp: string; signature: string } | null {
-  const id = ownValue(input.headers, 'webhook-id');
-  const timestamp = ownValue(input.headers, 'webhook-timestamp');
-  const signature = ownValue(input.headers, 'webhook-signature');
-  if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,200}$/.test(id) ||
-      typeof timestamp !== 'string' || !/^(?:0|[1-9][0-9]{0,15})$/.test(timestamp) ||
-      !Number.isSafeInteger(Number(timestamp)) || typeof signature !== 'string' ||
-      signature.length > 4096) return null;
-  return { id, timestamp, signature };
-}
-
-function parseIngressSignatures(signature: string): Uint8Array[] | null {
-  const entries = signature.split(' ');
-  if (entries.length < 1 || entries.length > 8) return null;
-  const signatures: Uint8Array[] = [];
-  for (const entry of entries) {
-    const bytes = entry.startsWith('v1,') ? base64(entry.slice(3)) : null;
-    if (bytes === null) return null;
-    signatures.push(bytes);
-  }
-  return signatures;
-}
-
-async function verifyIngressSignatures(
-  initialKeys: Map<string, Uint8Array>,
-  signatures: Uint8Array[],
-  signed: Uint8Array,
-): Promise<Set<string>> {
-  const acceptedKeys = new Set<string>();
-  for (const [encoded, bytes] of initialKeys) {
-    const key = await globalThis.crypto.subtle.importKey('raw', bytes.slice(),
-      { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
-    for (const mac of signatures) {
-      // Host HMAC verification owns the timing-safe comparison.
-      if (await globalThis.crypto.subtle.verify('HMAC', key, Uint8Array.from(mac), Uint8Array.from(signed))) acceptedKeys.add(encoded);
-    }
-  }
-  return acceptedKeys;
 }
 
   return {

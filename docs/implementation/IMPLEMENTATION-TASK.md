@@ -194,6 +194,18 @@ Follow-ups: terminal `ProgressTerminalNotification` has no durable
 consumer for any relation (cross-lane design); file-output submit
 variant still open.
 
+B14 namespaces first binding closed, 28 October 2026: configured
+versioned BillingIngress (`standard-webhooks-v1-billing`) with
+env-loaded binding, HMAC verifier reusing the shared webhooks
+mechanics (pure helpers moved top-level, behavior unchanged), and a
+committing sink with put-if-absent outcome correlation by
+`producer_event_id`. Cross-route suite (8/8): accept + correlate,
+replay identity, non-matching lookup miss, fail-closed tamper/version,
+unknown namespace, key rotation, loader fast-fail. Installed-worker
+and preview suites re-greened after catalog re-emit (build-order
+artifact, hashes stable). Durable outcome-store backend + second
+binding (SalesIngress) remain.
+
 ## Next implementation queue
 
 Use the order below to select work. These are subdivisions of Z00–Z18, not extra
