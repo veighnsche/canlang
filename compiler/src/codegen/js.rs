@@ -18663,6 +18663,31 @@ impl<'a> Emitter<'a> {
             );
             members.push("appDefaultLocale:__canlangAppDefaultLocale".to_string());
         }
+        if let Some(policy) = entry
+            .map(|id| self.ir.module(id))
+            .and_then(|module| module.app_files_policy.clone())
+        {
+            // B09 override producer: the checked `files` declaration,
+            // exactly as declared. Absent keys mean the host baseline;
+            // a present-but-empty `types` admits no content type.
+            let mut parts = Vec::new();
+            if let Some(types) = policy.types {
+                parts.push(format!(
+                    "types:[{}]",
+                    types
+                        .iter()
+                        .map(|t| js_string(t))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                ));
+            }
+            if let Some(max_bytes) = policy.max_bytes {
+                parts.push(format!("maxBytes:{max_bytes}"));
+            }
+            if !parts.is_empty() {
+                members.push(format!("files:{{{}}}", parts.join(",")));
+            }
+        }
         // Alternative authored app assemblies, keyed by declared identity.
         let compositions: Vec<String> = self
             .ir

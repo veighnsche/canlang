@@ -40,7 +40,7 @@
 //! [`ModuleId`] index both tables.
 
 use crate::analysis::catalog::{Availability, Catalog, Effects, SigType, std_capability};
-use crate::analysis::effects::{CapabilityData, EffectVerb, PolicyRule};
+use crate::analysis::effects::{AppFilesPolicy, CapabilityData, EffectVerb, PolicyRule};
 use crate::analysis::kids;
 use crate::analysis::migrate_check::{self, OwnerModelView};
 use crate::analysis::resolve::{
@@ -126,6 +126,9 @@ pub struct IrModule {
     /// Checked app context locale, including the pinned fallback after
     /// composition. Packages have no app default.
     pub app_default_locale: Option<String>,
+    /// Checked `files` context declaration for the B09 host override.
+    /// Packages carry no app policy.
+    pub app_files_policy: Option<AppFilesPolicy>,
     /// Pages in source order (G9; empty when the module has none or its
     /// analysis row is absent).
     pub pages: Vec<IrPage>,
@@ -6372,7 +6375,8 @@ impl<'a> Cx<'a> {
                             .map_or_else(|| format!("module{}", id.0), |target| target.name.clone())
                     })
                     .collect(),
-                app_default_locale: module_data.and_then(|data| data.app_default_locale),
+                app_default_locale: module_data.clone().and_then(|data| data.app_default_locale),
+                app_files_policy: module_data.and_then(|data| data.app_files_policy),
                 pages,
                 description,
             });

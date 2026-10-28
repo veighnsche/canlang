@@ -206,6 +206,16 @@ and preview suites re-greened after catalog re-emit (build-order
 artifact, hashes stable). Durable outcome-store backend + second
 binding (SalesIngress) remain.
 
+B09 quota/override closed (profile + producers), 28 October 2026:
+layered profile (source `files` deviations under deployment caps,
+narrower wins at intent admission; JEV 3/3; DECISIONS.md). Compiler
+publishes the checked declaration on `appDefinition.files`; worker
+composition joins it with deployment `limits` and passes the
+effective policy to R2. Journey test: app 1MiB refuses 2MiB with
+`limit`, deployment 512B refuses 513B, text allowlist rejects PNG
+bytes as `validation`, text control finalizes. Aggregate usage
+quota deferred (no usage producer).
+
 B08 original cohort cell scoped (not started), 28 October 2026: only
 CanVolunteer carries the combined `on=X.updated` + `each=` route
 (`refresh_reminders`); CanShift has each shape split across routes.
