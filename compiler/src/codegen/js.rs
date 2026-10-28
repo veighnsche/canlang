@@ -22286,18 +22286,21 @@ impl<'a> Emitter<'a> {
                     else {
                         return None;
                     };
+                    // Lexical inputs precede event slots in guard input order,
+                    // so the input ordinal is not the declared field index.
+                    // Match this input to its declared field position instead.
+                    let declared = fields.iter().position(|field| field == &symbol)?;
                     let source_field = guard.descriptor["eventSource"]["fields"]
                         .as_array()?
-                        .get(ordinal)?;
+                        .get(declared)?;
                     if guard.descriptor["eventSource"]["version"] != 2
                         || source != &event.canonical
                         || event.module != owner.module
                         || !params.is_empty()
-                        || fields.get(ordinal) != Some(&symbol)
                         || param.id != symbol
                         || param.module != event.module
                         || ty != &input.value.ty
-                        || input.name != format!("eventField{ordinal}")
+                        || input.name != format!("eventField{declared}")
                         || source_field["name"] != param.name
                         || source_field["slot"] != input.name
                         || source_field["type"] != input.type_id
@@ -22411,6 +22414,12 @@ impl<'a> Emitter<'a> {
         let mut canonical = Vec::new();
         let mut artifact = Vec::new();
         for (ordinal, input) in guard.inputs.iter().enumerate() {
+            if std::env::var("CAN_TMP_SEND").is_ok() {
+                eprintln!(
+                    "TMP_SEND_INPUT ordinal={ordinal} name={} type={} symbol={:?} owner={:?}",
+                    input.name, input.type_id, input.symbol, input.owner,
+                );
+            }
             let (field, min, max, nullable, array_required, base) =
                 self.send_input_shape(guard, ordinal, input)?;
             // Frozen captures always have a slot. Nullability and array bounds

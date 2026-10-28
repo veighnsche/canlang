@@ -113,14 +113,35 @@ pub(super) fn retained_handler_receipt(
         NativeScenarioReceipt, ReceiptDisclosurePlan, transport_source,
     };
     let ir = context.ir();
-    super::scenario_decisions::owner_handler_queries(context, owner)?;
-    let IrItemKind::Scenario {
-        event_source: Some(super::ir::IrEventSource::Declared(event)),
-        cohort: None,
-        ..
-    } = &owner.kind
-    else {
-        return None;
+    let event = match &owner.kind {
+        IrItemKind::Scenario {
+            event_source: Some(super::ir::IrEventSource::Declared(event)),
+            cohort: None,
+            ..
+        } => {
+            super::scenario_decisions::owner_handler_queries(context, owner)?;
+            Some(event)
+        }
+        // Synchronous scenarios carry guarded sends without any event.
+        // Their receipt is source-only: no retained handler, no staged
+        // source-evaluation (staged rules need event slots). Params and
+        // caller gates are allowed (the whole-owner re-verification
+        // covers them); results stay out (result correspondence belongs
+        // to the result receipt arm, and only one receipt is emitted).
+        IrItemKind::Scenario {
+            trusted: false,
+            result: None,
+            read: false,
+            expose_excluded: false,
+            event_source: None,
+            hook: None,
+            cohort: None,
+            ..
+        } => {
+            context.same_scenario(context.ir(), owner)?;
+            None
+        }
+        _ => return None,
     };
     let guards = prepared.by_owner(ir)?.get(&owner.canonical)?.as_array()?;
     if guards.is_empty() {
@@ -132,31 +153,43 @@ pub(super) fn retained_handler_receipt(
         .get(&owner.id)?
         .source_facts()?;
     let source = transport_source(&facts.source, entry)?;
-    let marker = serde_json::json!({"source":source,"owner":owner.canonical,"event":event,
-        "node":{"start":facts.node.start,"end":facts.node.end},
-        "rules":guards.iter().map(|guard|guard["rule"].clone()).collect::<Vec<_>>()});
-    let mut marker = marker;
-    let staged=guards.iter().filter(|guard|guard["evaluation"]=="source"
-        &&guard["eventSource"].is_object()
-        &&facts.decision_sites.as_deref().is_some_and(|sites|sites.iter().any(|site|
-            site.stage==CheckedDecisionStage::SendDispatch&&guard["node"]["start"]==site.node.start&&guard["node"]["end"]==site.node.end
-            &&site.calls.iter().all(|call|match &call.target{
-                crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Builtin{id,..}=>context.catalog().and_then(|catalog|catalog.effects(id))==Some(crate::analysis::catalog::Effects::Pure),
-                crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::DeriveFn(_)=>true,
-                crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Role(_)=>false,
-            }))))
-        .map(|guard|guard["rule"].clone()).collect::<Vec<_>>();
-    if !staged.is_empty() {
-        marker["stagedRules"] = serde_json::Value::Array(staged);
-    }
-    if let Some(queries) = super::authority_query_sites::prepare_owner_with_context(context, owner)
-        && !queries.sites.is_empty()
-    {
-        marker["queries"] = queries.plan;
-    }
+    let retained_guarded_handler = match event {
+        Some(event) => {
+            let marker = serde_json::json!({"source":source,"owner":owner.canonical,"event":event,
+                "node":{"start":facts.node.start,"end":facts.node.end},
+                "rules":guards.iter().map(|guard|guard["rule"].clone()).collect::<Vec<_>>()});
+            let mut marker = marker;
+            let staged=guards.iter().filter(|guard|guard["evaluation"]=="source"
+                &&guard["eventSource"].is_object()
+                &&facts.decision_sites.as_deref().is_some_and(|sites|sites.iter().any(|site|
+                    site.stage==CheckedDecisionStage::SendDispatch&&guard["node"]["start"]==site.node.start&&guard["node"]["end"]==site.node.end
+                    &&site.calls.iter().all(|call|match &call.target{
+                        crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Builtin{id,..}=>context.catalog().and_then(|catalog|catalog.effects(id))==Some(crate::analysis::catalog::Effects::Pure),
+                        crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::DeriveFn(_)=>true,
+                        crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Role(_)=>false,
+                    }))))
+                .map(|guard|guard["rule"].clone()).collect::<Vec<_>>();
+            if !staged.is_empty() {
+                marker["stagedRules"] = serde_json::Value::Array(staged);
+            }
+            if let Some(queries) =
+                super::authority_query_sites::prepare_owner_with_context(context, owner)
+                && !queries.sites.is_empty()
+            {
+                marker["queries"] = queries.plan;
+            }
+            Some(marker)
+        }
+        None => {
+            if guards.iter().any(|guard| guard["evaluation"] == "source") {
+                return None;
+            }
+            None
+        }
+    };
     Some(NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
-            retained_guarded_handler: Some(marker),
+            retained_guarded_handler,
             source_loops: None,
             source_emissions: None,
             version: 1,
@@ -2604,37 +2637,63 @@ fn checked_for_item_type(
         })
     }
     let scenario = source.program.effects.scenarios.get(&source.owner)?;
-    let Some(HandlerSource::Event(event)) = scenario.on.as_ref() else {
-        return None;
-    };
-    if scenario.by.is_some()
-        || scenario.read
-        || scenario.result.is_some()
-        || scenario.cohort.is_some()
-        || !matches!(
-            source.resolved.symbols.get(event.0 as usize)?.kind,
-            SymbolKind::Event { .. }
-        )
-        || !contained(scenario.node, loop_node)
-        || !contained(loop_node, predicate)
-        || !contained(predicate, key)
-        || source.nodes.get(&loop_node)?.kind != SyntaxKind::For
-    {
-        return None;
+    // Synchronous scenarios type their loop items exactly like event
+    // hooks; only the owner kind and the admitted domain roots differ
+    // (scenarios additionally loop over member collections).
+    let synchronous = scenario.on.is_none();
+    if synchronous {
+        if scenario.cohort.is_some()
+            || !contained(scenario.node, loop_node)
+            || !contained(loop_node, predicate)
+            || !contained(predicate, key)
+            || source.nodes.get(&loop_node)?.kind != SyntaxKind::For
+        {
+            return None;
+        }
+    } else {
+        let Some(HandlerSource::Event(event)) = scenario.on.as_ref() else {
+            return None;
+        };
+        if scenario.by.is_some()
+            || scenario.read
+            || scenario.result.is_some()
+            || scenario.cohort.is_some()
+            || !matches!(
+                source.resolved.symbols.get(event.0 as usize)?.kind,
+                SymbolKind::Event { .. }
+            )
+            || !contained(scenario.node, loop_node)
+            || !contained(loop_node, predicate)
+            || !contained(predicate, key)
+            || source.nodes.get(&loop_node)?.kind != SyntaxKind::For
+        {
+            return None;
+        }
     }
     let owner = source.ir.items.get(source.owner.0 as usize)?;
-    let IrItemKind::Scenario {
-        trusted: true,
-        event_source: Some(super::ir::IrEventSource::Declared(_)),
-        hook: None,
-        cohort: None,
-        read: false,
-        result: None,
-        effects,
-        ..
-    } = &owner.kind
-    else {
-        return None;
+    let effects = match &owner.kind {
+        IrItemKind::Scenario {
+            trusted: true,
+            event_source: Some(super::ir::IrEventSource::Declared(_)),
+            hook: None,
+            cohort: None,
+            read: false,
+            result: None,
+            effects,
+            ..
+        } if !synchronous => effects,
+        IrItemKind::Scenario {
+            trusted: false,
+            event_source: None,
+            hook: None,
+            cohort: None,
+            read: false,
+            result: None,
+            expose_excluded: false,
+            effects,
+            ..
+        } if synchronous => effects,
+        _ => return None,
     };
     let original = original_loop(&scenario.effects, loop_node, 0)?;
     let query = source
@@ -2658,9 +2717,20 @@ fn checked_for_item_type(
             source.resolved.symbols.get(model.0 as usize)?.kind,
             SymbolKind::Model { .. }
         )
-        || source.nodes.get(&query.domain)?.kind != SyntaxKind::NameRef
-        || !matches!(source.resolved.node_binding.get(&query.domain),Some(Binding::Symbol(actual)) if actual==model)
         || source.program.types.node_types.get(&key) != Some(element.as_ref())
+    {
+        return None;
+    }
+    if synchronous {
+        // Global model roots keep the hook rule; member roots additionally
+        // admit one owning-parameter base whose record parents the model.
+        let global = source.nodes.get(&query.domain)?.kind == SyntaxKind::NameRef
+            && matches!(source.resolved.node_binding.get(&query.domain),Some(Binding::Symbol(actual)) if actual==model);
+        if !global && !synchronous_member_loop_root(source, query.domain, *model) {
+            return None;
+        }
+    } else if source.nodes.get(&query.domain)?.kind != SyntaxKind::NameRef
+        || !matches!(source.resolved.node_binding.get(&query.domain),Some(Binding::Symbol(actual)) if actual==model)
     {
         return None;
     }
@@ -2674,17 +2744,75 @@ fn checked_for_item_type(
     else {
         return None;
     };
+    // Hook censuses materialize rows up front (cap 200); synchronous
+    // loops evaluate each send against its current row, so the guard
+    // inherits the admitted loop bound (cap 1000, the loop rule ceiling).
+    let bound_ok = if synchronous {
+        matches!(bound.expr,IrExpr::Int(value) if (1..=1000).contains(&value))
+    } else {
+        matches!(bound.expr,IrExpr::Int(value) if (1..=200).contains(&value))
+    };
     if Some(item) != original.item.as_ref()
         || domain.span != send_key_span(query.node)
         || domain.ty != query.result
         || bound.span != send_key_span(limit)
         || source.nodes.get(&limit)?.kind != SyntaxKind::Literal
         || source.program.types.node_types.get(&limit) != Some(&ResolvedType::Scalar(Scalar::Int))
-        || !matches!(bound.expr,IrExpr::Int(value) if (1..=200).contains(&value))
+        || !bound_ok
     {
         return None;
     }
     Some(element.as_ref().clone())
+}
+
+/// Member-collection loop roots for synchronous scenario guards: the
+/// domain is one member access over an owning scenario parameter whose
+/// stored record is the looped model's declared parent.
+fn synchronous_member_loop_root(
+    source: FreeInputSource<'_>,
+    domain: NodeKey,
+    model: SymbolId,
+) -> bool {
+    let Some(node) = source.nodes.get(&domain) else {
+        return false;
+    };
+    if node.kind != SyntaxKind::Member {
+        return false;
+    }
+    let mut operands = node
+        .children
+        .iter()
+        .filter(|child| resolve::is_expression(child.kind));
+    let (Some(base), None) = (operands.next(), operands.next()) else {
+        return false;
+    };
+    let base_key = NodeKey::of(base);
+    let Some(Binding::Symbol(param)) = source.resolved.node_binding.get(&base_key) else {
+        return false;
+    };
+    let Some(symbol) = source.resolved.symbols.get(param.0 as usize) else {
+        return false;
+    };
+    let SymbolKind::Param { owner, .. } = &symbol.kind else {
+        return false;
+    };
+    if *owner != source.owner {
+        return false;
+    }
+    let Some(ResolvedType::Record {
+        symbol: root,
+        stored: true,
+    }) = source.program.types.node_types.get(&base_key)
+    else {
+        return false;
+    };
+    let Some(declaration) = source.resolved.symbols.get(model.0 as usize) else {
+        return false;
+    };
+    let SymbolKind::Model { owner: parent, .. } = &declaration.kind else {
+        return false;
+    };
+    matches!(parent, resolve::ModelOwner::ChildOf(actual) if actual == root)
 }
 
 fn declaration_type(

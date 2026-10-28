@@ -478,16 +478,10 @@ Then
         ),
         ("unbounded", source.replace(" limit=1", ""), false),
         ("over-bound", source.replace("limit=1", "limit=201"), false),
-        (
-            "public",
-            source
-                .replace(
-                    "scenario notify on=Notice",
-                    "scenario notify(address:email) by=members",
-                )
-                .replace("event.email", "address"),
-            false,
-        ),
+        // No "public" refusal case: synchronous scenarios with guarded
+        // loop sends lower through the sealed pipeline (source-only
+        // receipts, loop-item transport). That shape is covered
+        // positively by the native-scenario-guarded-send fixture.
     ] {
         std::fs::write(&path, &text).unwrap();
         let output = std::process::Command::new(env!("CARGO_BIN_EXE_can"))
