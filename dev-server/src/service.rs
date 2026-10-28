@@ -86,7 +86,15 @@ fn valid_span(span: &Value, bytes: u64) -> bool {
             .zip(span["end"].as_u64())
             .is_some_and(|(a, b)| a <= b && b <= bytes)
 }
-fn diagnostic(c: &Capture, value: &Value) -> Option<Value> {
+fn source_path(sources: &Value, file: u64) -> Option<&str> {
+    sources
+        .as_array()?
+        .iter()
+        .find(|source| source["id"].as_u64() == Some(file))
+        .and_then(|source| source["path"].as_str())
+}
+
+fn diagnostic(c: &Capture, sources: &Value, value: &Value) -> Option<Value> {
     let code = value["code"].as_str()?;
     let message = value["message"].as_str()?;
     if !matches!(value["severity"].as_str()?, "error" | "warning" | "info")
@@ -96,10 +104,27 @@ fn diagnostic(c: &Capture, value: &Value) -> Option<Value> {
     }
     let mut related = vec![];
     for item in value["related"].as_array()?.iter().take(8) {
-        if !valid_span(item, c.source_bytes) {
-            return None;
+        let file = item["file"].as_u64()?;
+        if file == 0 {
+            if !valid_span(item, c.source_bytes) {
+                return None;
+            }
+            related.push(json!({"file":0,"start":item["start"],"end":item["end"],"message":short(item["message"].as_str()?,600)}));
+        } else {
+            // Related spans may point into staged provider files: keep
+            // the real file index and name the provider in the message
+            // (offsets address that file, never the profiled source).
+            // A primary outside file 0 still fails above: provider-file
+            // diagnostics are out of profile and refuse loud.
+            let path = source_path(sources, file)?;
+            let start = item["start"].as_u64()?;
+            let end = item["end"].as_u64()?;
+            if start > end {
+                return None;
+            }
+            let noted = format!("{} (in {path})", item["message"].as_str()?);
+            related.push(json!({"file":file,"start":start,"end":end,"message":short(&noted,600)}));
         }
-        related.push(json!({"file":0,"start":item["start"],"end":item["end"],"message":short(item["message"].as_str()?,600)}));
     }
     let tags = value["tags"].as_array()?;
     if tags.iter().any(|v| !v.is_string()) {
@@ -125,8 +150,9 @@ pub fn normalize(c: &Capture, result: CompileResult) -> CompileResult {
         .as_array()
         .cloned()
         .unwrap_or_default();
+    let sources = envelope["sources"].clone();
     for (index, value) in raw.iter().take(MAX_DIAGNOSTICS).enumerate() {
-        let Some(d) = diagnostic(c, value) else {
+        let Some(d) = diagnostic(c, &sources, value) else {
             return CompileResult::ToolFailure {
                 reason: "compiler diagnostic envelope has invalid fields".into(),
             };

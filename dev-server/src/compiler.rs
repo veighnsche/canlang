@@ -57,17 +57,12 @@ pub fn admit_single_app_profile(source: &str) -> Result<()> {
 /// membership authority.
 pub fn admit_use_closure(source: &str, providers: &[String]) -> Result<()> {
     let (_, uses) = capture::profile_declarations(source);
-    let lines: Vec<&str> = source.lines().collect();
-    for (line, name) in uses {
+    for (line, name, bound) in uses {
         // Bound imports (`use p {..} from=deployment.NAME`) resolve through
         // the deployment binding, which the compiler verifies itself
         // (malformed bindings are its E-error, not a missing file). Only
         // plain imports need a captured file provider.
-        let code = lines
-            .get(line - 1)
-            .map(|text| text.split('#').next().unwrap_or(""))
-            .unwrap_or("");
-        if has_from_attribute(code) {
+        if bound {
             continue;
         }
         if !providers.iter().any(|package| package == &name) {
@@ -77,35 +72,6 @@ pub fn admit_use_closure(source: &str, providers: &[String]) -> Result<()> {
         }
     }
     Ok(())
-}
-
-/// True when the (comment-stripped) use line carries a `from =` attribute.
-/// The profiler is line-based, matching `profile_declarations`; a bound
-/// import split across lines conservatively keeps its file-provider
-/// requirement and fails closed with the closure error above.
-fn has_from_attribute(code: &str) -> bool {
-    let bytes = code.as_bytes();
-    let mut index = 0;
-    while index + 4 <= bytes.len() {
-        if code[index..].starts_with("from")
-            && (index == 0 || !is_name_char(bytes[index - 1]))
-            && bytes
-                .get(index + 4)
-                .is_some_and(|end| *end != b'_' && !end.is_ascii_alphanumeric())
-        {
-            let mut rest = &code[index + 4..];
-            rest = rest.trim_start_matches(|c: char| c.is_whitespace());
-            if rest.starts_with('=') {
-                return true;
-            }
-        }
-        index += 1;
-    }
-    false
-}
-
-fn is_name_char(byte: u8) -> bool {
-    byte.is_ascii_alphanumeric() || byte == b'_'
 }
 
 pub fn compile(
@@ -181,11 +147,14 @@ fn compile_inner(
         captured.compiler_operand.clone(),
     ];
     if let Some(providers) = &captured.provider_snapshot {
+        // Several packages can share one provider file; the compiler
+        // lists one source per operand, so pass each path once.
         let mut operands: Vec<&str> = providers
             .iter()
             .map(|provider| provider.snapshot.path.as_str())
             .collect();
         operands.sort_unstable();
+        operands.dedup();
         args.extend(operands.into_iter().map(str::to_owned));
     }
     let run = match run_owned(
