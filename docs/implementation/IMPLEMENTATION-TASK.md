@@ -206,6 +206,19 @@ and preview suites re-greened after catalog re-emit (build-order
 artifact, hashes stable). Durable outcome-store backend + second
 binding (SalesIngress) remain.
 
+B09 TECH-F01 closed (primitive + witness), 28 October 2026: the
+R2 run()/commitPublished CAS-journal protocol is defined as the
+same-intent serialization primitive. Two contention holes fixed:
+UNIQUE(retry_id) losers now CAS-retry to duplicate/conflict instead
+of surfacing a raw D1 error, and redundant blob removals record
+nothing so a 10-way finalize wave costs one D1 batch (losers
+converge via repeat without committing; previously half exhausted
+MAX_ATTEMPTS and 422'd). Witness test: concurrent same-retry
+intents converge to one grant, concurrent finalizes to one ref,
+cross-owner finalize 404s, crafted prepared-journal orphan swept
+on reopen, both owners resume with byte-identical reads (3/3
+stable).
+
 B09 quota/override closed (profile + producers), 28 October 2026:
 layered profile (source `files` deviations under deployment caps,
 narrower wins at intent admission; JEV 3/3; DECISIONS.md). Compiler

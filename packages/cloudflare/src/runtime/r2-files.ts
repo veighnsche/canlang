@@ -34,6 +34,11 @@ function decodeFile(json: string): StoredFileRecord {
   return { ...record, file: freezeFinalized({ ...record.file, finalizedAt: decodeValue('datetime', record.file.finalizedAt) as DatetimeValue }) };
 }
 const copy = <T>(value: T): T => structuredClone(value);
+/** SQLite/D1 phrase every uniqueness violation (UNIQUE and PRIMARY KEY) this way; workerd D1 prefixes it. */
+function isUniquenessViolation(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('UNIQUE constraint failed');
+}
 function positive(value: number): number {
   if (!Number.isSafeInteger(value) || value < 1) throw new Error('Files host requires positive finite limits.');
   return value;
@@ -128,9 +133,15 @@ export async function createR2FileBindings(input: R2FileOptions) {
       : db.prepare(`INSERT INTO can_files_blobs(ns,id,json) SELECT ?,?,? WHERE ${condition} ON CONFLICT(ns,id) DO UPDATE SET json=excluded.json`).bind(namespace, key, JSON.stringify(pointer), namespace, token));
     batch.push(db.prepare(`UPDATE can_files_publications SET state='committed' WHERE ns=? AND id=? AND ${condition}`).bind(namespace, token, namespace, token));
     // D1 owns this entire conditional batch. A lost response is resolved through its durable journal.
+    // A uniqueness violation is the same-intent race, not a defect: a
+    // concurrent call committed this retry identity first, so this
+    // attempt retries and converges on the winner's duplicate/conflict
+    // path. The batch is atomic, so our journal row is still prepared
+    // and the sweeper later reclaims our orphaned R2 objects.
     try { await db.batch(batch); } catch (error) {
       const saved = await db.prepare('SELECT state FROM can_files_publications WHERE ns=? AND id=?').bind(namespace, token).first<{ state: string }>();
       if (saved?.state === 'committed') return true;
+      if (isUniquenessViolation(error)) return false;
       throw error;
     }
     const saved = await db.prepare('SELECT state FROM can_files_publications WHERE ns=? AND id=?').bind(namespace, token).first<{ state: string }>();
@@ -199,11 +210,35 @@ export async function createR2FileBindings(input: R2FileOptions) {
       read(key) { check(blobKeys, key); const current = writes.blobWrites.has(key) ? writes.blobWrites.get(key) : bytes.get(key); return current == null ? null : new Uint8Array(current); },
       write(key, value) { check(blobKeys, key); if (value.length > policy.maxBytes) throw new Error('Files byte write exceeds its receiving policy.'); writes.blobWrites.set(key, new Uint8Array(value)); },
       append(key, chunk) { const current = blobs.read(key) ?? new Uint8Array(); const result = new Uint8Array(current.length + chunk.length); result.set(current); result.set(chunk, current.length); blobs.write(key, result); },
-      remove(key) { check(blobKeys, key); writes.blobWrites.set(key, null); },
+      // Removing an already-absent key records nothing: repeat and
+      // loser retries converge without committing, so one finalize
+      // wave costs exactly one D1 batch instead of one per caller.
+      remove(key) {
+        check(blobKeys, key);
+        if (writes.blobWrites.has(key)) {
+          if (bytes.get(key) == null) writes.blobWrites.delete(key);
+          else writes.blobWrites.set(key, null);
+        } else if (bytes.get(key) != null) {
+          writes.blobWrites.set(key, null);
+        }
+      },
       sizeOf(key) { return blobs.read(key)?.length ?? null; },
     };
     return { intents, files, blobs };
   };
+  /**
+   * TECH-F01 same-intent serialization primitive: every journey call
+   * loads its bounded working set, runs the pure kernel, stages R2
+   * bytes behind a prepared journal row, and commits one conditional
+   * D1 batch (roots-revision CAS plus journal gate). Concurrent calls
+   * for one intent/publication converge: losers retry on the winner's
+   * committed state (duplicate/conflict/repeat paths) instead of
+   * publishing twice. Interruption between R2 staging and D1 commit
+   * leaves a prepared journal row whose orphaned objects the sweeper
+   * reclaims; interruption before staging leaves nothing. Retries
+   * reuse this call's minted identities; bounded attempts keep a hot
+   * loop loud.
+   */
   async function run<T>(select: { intentId?: string; retryId?: string; ref?: string }, body: (upload: UploadDeps, final: FinalizeDeps) => T,
     revalidate?: () => Promise<void>): Promise<T> {
     // These minted identities belong to this actual call and survive its CAS retries.
