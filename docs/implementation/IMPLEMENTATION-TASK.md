@@ -206,6 +206,20 @@ and preview suites re-greened after catalog re-emit (build-order
 artifact, hashes stable). Durable outcome-store backend + second
 binding (SalesIngress) remain.
 
+B25 plan compilation closed, 28 October 2026:
+`compileMigrationTransition` + `mintModelSnapshot` in
+`@canlang/state/migration` compile one owner's transition from
+old/desired model tables — content-derived `snap-v1` snapshots
+(install/upgrade mint identically, predecessor match detects
+drift), refuse-ambiguous diff (renames/drops declared, unmatched
+listed), deterministic bytes incl. default migration id and
+`body-v1` content address (JEV 3/3 on both questions; format in
+DECISIONS.md). Journey `upgrade-plan-compile` 4/4: compiled Todo
+directives match the hand illustration and drive to active with
+migrated live rows, refusal cases, tampered-digest staging-failed
+with pointer untouched, owner-removal compilation. Remaining B25:
+drain join, gate-4, `deploy --yes` CLI.
+
 B14 SalesIngress closed (second binding), 28 October 2026:
 `standard-webhooks-v1-sales` mirrors billing (pinned adapter,
 `lead.created` grammar, `CAN_INGRESS_SALES_*` loader) over the
@@ -300,6 +314,15 @@ mapped: commit auto-stages updated sources via
 ticks drive via `createCanonicalCommittedCohortBody`; test would
 invoke a real Opportunity update, tick to per-signup cancel +
 Reminder schedules, and prove restart exactly-once.
+
+B08 cohort cell re-scoped (not started), 28 October 2026:
+CanVolunteer carries 12 own-file E6008s under the closure method
+(APP-ADJUDICATION: DEFECT/B-LANE), and its `rent_catalog` /
+`employee` providers have no draft declaration (fixture stubs
+only) — so no clean genuine artifact exists to journey against.
+Corpus-artifact caching without a compilable consumer would be
+speculative infra; the cell is blocked on the B-lane compiler
+gaps, not on caching. Revisit after the volunteer E6008s close.
 
 ## Next implementation queue
 

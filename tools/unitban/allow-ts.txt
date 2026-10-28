@@ -48,6 +48,7 @@ packages/cloudflare/test/model-free-preview.integration.test.ts
 packages/cloudflare/test/soda-writer.integration.test.ts
 packages/cloudflare/test/upgrade-coordinator.integration.test.ts
 packages/cloudflare/test/upgrade-inventory.integration.test.ts
+packages/cloudflare/test/upgrade-plan-compile.integration.test.ts
 packages/interfaces/test/integration-billing-ingress.test.ts
 packages/interfaces/test/integration-errors-intake.test.ts
 packages/interfaces/test/integration-lifecycle.test.ts
