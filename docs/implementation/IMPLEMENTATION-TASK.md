@@ -165,6 +165,21 @@ Fanout matrix: T34 + D1 cohort proofs accepted on synthetic fixtures;
 missing cell is the original CanVolunteer `Opportunity.updated` source
 route + `every(...)` durable path.
 
+Q4-C closed (B-half + proof), 28 October 2026:
+`packages/state/src/receipt/observer.ts` serves Work's
+`observeSelectedReceipt` through a literal dynamic leg (declared
+boundary exception; ambient shape keeps state buildable without
+work's dist; vendor map rewrites the leg). D3B drift reconciled to
+the shipped package-specifier seam. B-owned proof drives
+`invokeSelectedReceiptRead` with no injection against produced bundle
+bytes: authorized + B-marker, injected equality, denied, hiding,
+null-association, stale-fence, closed-inputs, link failures,
+present-but-broken loudness, fallback control. Installed-worker
+verifier flips absence pins to presence (316 modules). Remaining
+B08 follow-ups: (a) one more durable relation, (b) availability
+injection, (c) original cohort cell; full D-owned `/mcp` journey
+still open per row 231.
+
 ## Next implementation queue
 
 Use the order below to select work. These are subdivisions of Z00–Z18, not extra

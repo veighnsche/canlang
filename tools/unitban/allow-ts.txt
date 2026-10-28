@@ -17,6 +17,7 @@ packages/cloudflare/src/runtime/native-observe-venue.integration.test.ts
 packages/cloudflare/src/runtime/native-partitioned-plan-set.integration.test.ts
 packages/cloudflare/src/runtime/native-read-boolean-graph.integration.test.ts
 packages/cloudflare/src/runtime/native-read-boolean.integration.test.ts
+packages/cloudflare/src/runtime/native-receipt-observer-bundled.integration.test.ts
 packages/cloudflare/src/runtime/native-refer-reject-source.integration.test.ts
 packages/cloudflare/src/runtime/native-reference-arrays-d1.integration.test.ts
 packages/cloudflare/src/runtime/native-rent-notice.integration.test.ts
