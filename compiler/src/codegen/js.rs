@@ -8850,6 +8850,15 @@ impl<'a> Emitter<'a> {
             ));
         }
         let (model, canonical) = entry;
+        // Structural `.parent` navigation on a linkage parameter loads
+        // the declared parent row as a value: the link row first, then
+        // the parent row by the link's parent identity. Outer member
+        // reads compose over the returned row through ordinary
+        // lowering. Deeper grandparent tails stay refused by the
+        // profile (unclassified), so emission never chains further.
+        if field == "parent" {
+            return Some(self.hook_helper_parent_row(base, model, &canonical, span, expr_ty));
+        }
         if !self.hook_parent_field_allowed(model, field, expr_ty) {
             return Some(self.hook_gap(
                 "hook helper linkage",
@@ -8881,6 +8890,90 @@ impl<'a> Emitter<'a> {
             Some(format!("({read} ?? null)"))
         } else {
             Some(read)
+        }
+    }
+
+    /// Structural parent hop for linkage parameters (see
+    /// `hook_helper_member`): loads the link row through the variant's
+    /// own loader, then the declared parent row through the parent
+    /// loader, returning the parent row data as a value. Same scope,
+    /// site, arity and fence discipline as the single-level loads; only
+    /// the exact declared `ChildOf` parent resolves, anything else gaps.
+    fn hook_helper_parent_row(
+        &mut self,
+        base: &TypedExpr,
+        model: SymbolId,
+        canonical: &str,
+        span: Span,
+        expr_ty: &ResolvedType,
+    ) -> String {
+        const TITLE: &str = "hook helper linkage";
+        const MESSAGE: &str =
+            "record helpers navigate only the declared parent through the transitive load";
+        let record = expr_ty.nullable_inner().unwrap_or(expr_ty);
+        let parent_symbol = {
+            let Some(model_item) = self.ir.items.get(model.0 as usize) else {
+                return self.hook_gap(TITLE, MESSAGE, span);
+            };
+            if model_item.id != model {
+                return self.hook_gap(TITLE, MESSAGE, span);
+            }
+            let IrItemKind::Model {
+                owner: IrOwner::ChildOf(parent_symbol),
+                ..
+            } = &model_item.kind
+            else {
+                return self.hook_gap(TITLE, MESSAGE, span);
+            };
+            *parent_symbol
+        };
+        let ResolvedType::Record {
+            symbol,
+            stored: true,
+        } = record
+        else {
+            return self.hook_gap(TITLE, MESSAGE, span);
+        };
+        if symbol != &parent_symbol {
+            return self.hook_gap(TITLE, MESSAGE, span);
+        }
+        let parent_canonical = {
+            let Some(parent_item) = self.ir.items.get(parent_symbol.0 as usize) else {
+                return self.hook_gap(TITLE, MESSAGE, span);
+            };
+            if parent_item.id != parent_symbol {
+                return self.hook_gap(TITLE, MESSAGE, span);
+            }
+            parent_item.canonical.clone()
+        };
+        let IrExpr::Name(name) = &base.expr else {
+            return self.hook_gap(TITLE, MESSAGE, span);
+        };
+        let link = self.reference(name);
+        let missing = if self.hook_helper_reference {
+            "hook reference content missing"
+        } else {
+            "hook parent content missing"
+        };
+        let first = if self.hook_helper_reference {
+            format!(
+                "$hookRow=await c.transitive.loadReference($hookScope,{},$hookLink.id);",
+                js_string(canonical)
+            )
+        } else {
+            format!(
+                "$hookRow=await c.transitive.load($hookScope,{},$hookLink.id);",
+                js_string(canonical)
+            )
+        };
+        let read = format!(
+            "(await (async($hookLink)=>{{if($hookLink==null)throw new Error(\"{missing}\");const $hookScope=await c.transitive.openScope($hookSite);{first}if($hookRow===null)throw new Error(\"{missing}\");const $hookParent=$hookRow.data.parent;if($hookParent==null)throw new Error(\"{missing}\");const $hookParentRow=await c.transitive.load($hookScope,{},$hookParent.id);if($hookParentRow===null)throw new Error(\"{missing}\");return $hookParentRow.data;}})({link}))",
+            js_string(&parent_canonical)
+        );
+        if expr_ty.nullable_inner().is_some() {
+            format!("({read} ?? null)")
+        } else {
+            read
         }
     }
 

@@ -2094,3 +2094,57 @@ fn scenario_guarded_sends_lower_through_sealed_pipeline() {
         );
     }
 }
+
+#[test]
+fn hook_linkage_helper_with_roles_and_nested_query() {
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+    use canlang_compiler::diagnostic::DiagnosticResult;
+    let mut db = SourceDb::new();
+    let file = db.add(
+        "hook-linkage-helper.can".into(),
+        include_str!("fixtures/native-hook-linkage-helper.can").into(),
+    );
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) =
+        canlang_compiler::analysis::check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let mut result = DiagnosticResult::new("hook-linkage-helper", "1.0", 1);
+    result.add_sources(&db);
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let artifact: serde_json::Value =
+        serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
+    // The pre-commit hook binds natively with a hook-variant helper:
+    // role gate, parent-row navigation, and nested query all lower.
+    let js = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(
+        js.contains("hasRole(c,\"HookLinkProbe.organizer\")")
+            || js.contains("hasRole(c, \"HookLinkProbe.organizer\")"),
+        "role gate lowers with ambient context"
+    );
+    assert!(
+        js.contains("loadReference") && js.contains("c.transitive.load("),
+        "parent navigation chains reference and parent loads"
+    );
+}
