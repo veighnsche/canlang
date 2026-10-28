@@ -213,7 +213,7 @@ async function verifyConsumer(checkout) {
     assert.throws(() => api.buildDeployBundle(artifact, { verdict: options.verdict }), /committed-model-source\.js/, 'corrupt genuine stager must fail the existing loadability guard');
   } finally { writeFileSync(committedFile, savedCommitted); }
 
-  const filesClosure = ['vendor/files/bridge.js', 'vendor/files/finalize/index.js', 'vendor/files/upload/index.js', 'vendor/files/provenance/index.js', 'vendor/files/ports.js'];
+  const filesClosure = ['vendor/files/bridge.js', 'vendor/files/finalize/index.js', 'vendor/files/upload/index.js', 'vendor/files/provenance/index.js', 'vendor/files/ports.js', 'vendor/files/retention/index.js'];
   assert.deepEqual(Object.keys(first.modules).filter(key => key.startsWith('vendor/files/')).sort(), [...filesClosure].sort());
   const filesBridgeEntry = ownerModule('@canlang/files/bridge');
   assert.equal(first.modules['vendor/files/bridge.js'], readFileSync(filesBridgeEntry, 'utf8'));
@@ -288,7 +288,7 @@ async function verifyConsumer(checkout) {
 
   // Mutate only isolated producer files, never the checkout's shared outputs.
   const producerFiles = ['@canlang/work/receipt', '@canlang/work/observation/observation', '@canlang/work/observation/association',
-    '@canlang/files/finalize', '@canlang/files/upload', '@canlang/files/provenance', '@canlang/files/ports']
+    '@canlang/files/finalize', '@canlang/files/upload', '@canlang/files/provenance', '@canlang/files/ports', '@canlang/files/retention']
     .map(specifier => [specifier, fileURLToPath(ownerModule(specifier))]);
   producerFiles.push(['acorn ESM', acornFile]);
   producerFiles.push(['Work committed-model source', committedFile]);
