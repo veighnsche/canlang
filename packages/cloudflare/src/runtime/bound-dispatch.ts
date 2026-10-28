@@ -1348,11 +1348,11 @@ async function createInstalledDispatcher(
             if (usesRichProgress(intent) && progressed !== undefined && admitted === undefined) {
               throw new Error('New recovered progress needs the original admitted owner fence before occurrence staging.');
             }
-            if (options.profile === 'images' && imageObservations.has(intentId)) {
-              const admission = input.admission;
-              if (admission === undefined) throw new Error('Images receiving recovery requires its actual current authority fence.');
-              enrollSystemCommandCommitCheck(context, () => admission.fence.revalidateAuthority());
-            }
+            // Images observation recovery revalidates current authority in
+            // `revalidateReconciledReceipt` (via `admitGenerationRecovery`)
+            // immediately before commit. A commit check cannot enroll here:
+            // the reconcile staging context is hand-built, never
+            // registry-issued.
             // Review recovery uses revalidateReconciledReceipt, the owning
             // recovery driver's authority/revision check immediately before commit.
             return (!usesRichProgress(intent)

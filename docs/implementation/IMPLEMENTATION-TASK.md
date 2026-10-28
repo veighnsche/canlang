@@ -180,6 +180,20 @@ B08 follow-ups: (a) one more durable relation, (b) availability
 injection, (c) original cohort cell; full D-owned `/mcp` journey
 still open per row 231.
 
+Images submit relation closed, 28 October 2026: durable journey
+(`images-submit-progress`) drives file-free submit rich progress
+through the real dispatcher over persisted D1 with scripted provider
+transport — progress envelopes, uncertain record, genuine restart,
+recovery reconcile to terminal, replay + post-terminal restart
+immutability. Fixed a real gap the journey exposed: images reconcile
+staging enrolled a commit check on a hand-built (never
+registry-issued) context, so every observed reconcile threw;
+authority revalidation already happens via `admitGenerationRecovery`
+in `revalidateReconciledReceipt`, so the broken enrollment is removed.
+Follow-ups: terminal `ProgressTerminalNotification` has no durable
+consumer for any relation (cross-lane design); file-output submit
+variant still open.
+
 ## Next implementation queue
 
 Use the order below to select work. These are subdivisions of Z00–Z18, not extra
