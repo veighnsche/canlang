@@ -1562,6 +1562,8 @@ pub(super) struct EmitDecisionSources<'a> {
         Option<&'a BTreeMap<String, super::scenario_receipts::ReceiptDisclosurePlan>>,
     pub membership: Option<&'a super::membership::MembershipSources>,
     pub mailbox_events: Option<&'a super::mailbox_events::PreparedMailboxEvents<'a>>,
+    pub payments_changed_events:
+        Option<&'a super::payments_events::PreparedPaymentsChangedEvents<'a>>,
     pub read_predicates: Option<&'a super::read_predicates::PreparedReadPredicates>,
     pub send_guards: Option<&'a super::send_guards::PreparedSendGuards>,
     pub send_guard_gap: Option<&'a super::send_guards::SendGuardGap>,
@@ -2468,6 +2470,34 @@ fn emit_program_with_sources(
         {
             emitter.unsupported(
                 "MailboxV1.received source",
+                "missing original checked source claim",
+                handler.span,
+            );
+        }
+    }
+    for original in ir.committed_sources.payments_changed_event_handlers() {
+        let index = original.id.0 as usize;
+        if ir.items.get(index).is_none_or(|handler| {
+            decisions
+                .payments_changed_events
+                .is_none_or(|prepared| !prepared.matches(ir, index, handler))
+        }) {
+            emitter.unsupported("PaymentsV1.changed source",
+                "original bound trigger, complete payload and fresh private handler correspondence unavailable",original.span);
+        }
+    }
+    for (index, handler) in ir.items.iter().enumerate() {
+        if !ir.committed_sources.requires_payments_changed_event(index)
+            && matches!(
+                &handler.kind,
+                IrItemKind::Scenario {
+                    event_source: Some(IrEventSource::PaymentsChanged { .. }),
+                    ..
+                }
+            )
+        {
+            emitter.unsupported(
+                "PaymentsV1.changed source",
                 "missing original checked source claim",
                 handler.span,
             );
@@ -15831,6 +15861,7 @@ impl<'a> Emitter<'a> {
                 IrEventSource::DeliveryCompleted { source, .. } => (source.as_str(), 4),
                 IrEventSource::InstrumentationError => ("instrumentation.error", 0),
                 IrEventSource::MailboxReceived { source, .. } => (source.as_str(), 1),
+                IrEventSource::PaymentsChanged { source, .. } => (source.as_str(), 1),
                 IrEventSource::TeamsMemberRemoved => ("teams.member_removed", 3),
                 _ => continue,
             };
@@ -16868,7 +16899,8 @@ impl<'a> Emitter<'a> {
             IrEventSource::Queue { source, .. } => Some(source.clone()),
             IrEventSource::StandardCompleted { source, .. }
             | IrEventSource::DeliveryCompleted { source, .. }
-            | IrEventSource::MailboxReceived { source, .. } => Some(source.clone()),
+            | IrEventSource::MailboxReceived { source, .. }
+            | IrEventSource::PaymentsChanged { source, .. } => Some(source.clone()),
             IrEventSource::InstrumentationError => {
                 Some("instrumentation.error".into())
             }
@@ -17982,6 +18014,9 @@ impl<'a> Emitter<'a> {
             IrEventSource::Queue { payload, .. } => vec![self.queue_event_input(payload)?],
             IrEventSource::MailboxReceived { .. } => {
                 vec![self.standard_completion_input("value", "IncomingEmail")?]
+            }
+            IrEventSource::PaymentsChanged { .. } => {
+                vec![self.standard_completion_input("value", "PaymentState")?]
             }
             IrEventSource::StandardCompleted { result_type, .. } => {
                 let result = if result_type.ends_with('?') {
