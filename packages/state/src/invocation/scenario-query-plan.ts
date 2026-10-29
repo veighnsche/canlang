@@ -74,7 +74,37 @@ export interface AggregateReceiptLimits {
  * their independently checked original owner plan; persisted headers cannot
  * authorize a larger decoding budget. Every payload retains the existing
  * own-data allowance inside the source's finite execution census. */
+const aggregateReceiptLimitCache = new WeakMap<ScenarioResultDisclosurePlan, AggregateReceiptLimits | undefined>();
+/** Plans proven deeply immutable by their validated construction. The cache
+ * trusts only this private witness set: the validation layer registers each
+ * plan it deep-freezes (accessors, cycles, sparse arrays and exotic objects
+ * are refused before inspection, so registered plans hold only immutable own
+ * data). Anything not registered — mutable, shallow-frozen, getter-backed,
+ * proxy or otherwise unproven objects, and replay's fresh-per-call decoded
+ * plans — recomputes fully on every call and can never reuse stale budgets.
+ * Failures are never recorded. */
+const aggregateReceiptLimitWitness = new WeakSet<object>();
+/** Registers a validated deeply frozen plan as cache-eligible. Called only
+ * by the plan validation and install paths for plans whose own data they
+ * deep-freeze. The registrar is not re-exported through the package entry
+ * or the exported invocation surface, so in-repo trust flows only from the
+ * two construction sites; anything else recomputes. */
+export function markValidatedDisclosurePlan(plan: ScenarioResultDisclosurePlan): void {
+  aggregateReceiptLimitWitness.add(plan);
+}
 export function aggregateReceiptLimits(plan: ScenarioResultDisclosurePlan): AggregateReceiptLimits | undefined {
+  if (!aggregateReceiptLimitWitness.has(plan)) return computeAggregateReceiptLimits(plan);
+  if (aggregateReceiptLimitCache.has(plan)) return aggregateReceiptLimitCache.get(plan);
+  const limits = computeAggregateReceiptLimits(plan);
+  aggregateReceiptLimitCache.set(plan, limits);
+  return limits;
+}
+
+/** Pure budget derivation over one plan snapshot; the memoized wrapper above
+ * shares this single computation per deeply frozen installed plan object.
+ * Failures are never cached so fail-closed paths refuse identically every
+ * time. */
+function computeAggregateReceiptLimits(plan: ScenarioResultDisclosurePlan): AggregateReceiptLimits | undefined {
   const loops = plan.sourceLoops?.loops.filter(loop => loop.aggregate !== undefined) ?? [];
   if (loops.length === 0) return undefined;
   const queries = checkQueries(plan.queries ?? []);
@@ -633,8 +663,9 @@ export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
     const selected = list(observed.selectedIndices,rowMaximum);
     if (selected.some(index => !Number.isSafeInteger(index) || (index as number) < 0 || (index as number) >= candidates.length) ||
         new Set(selected).size !== selected.length) fail('unique selected candidate indices required.');
+    const selectedSet = new Set(selected as number[]);
     const typed = candidates as unknown as ScenarioReceiptQueryObservation['candidates'];
-    if (typed.some((candidate, index) => candidate.matched !== selected.includes(index))) fail('selected indices must contain every and only matched candidate.');
+    if (typed.some((candidate, index) => candidate.matched !== selectedSet.has(index))) fail('selected indices must contain every and only matched candidate.');
     if (query.limit !== null && selected.length > query.limit) fail('saved query overflow.');
     for (let index = 1; index < selected.length; index++) {
       if (compare(typed[selected[index - 1] as number]!, typed[selected[index] as number]!, query) > 0) fail('saved selected order differs from checked query.');

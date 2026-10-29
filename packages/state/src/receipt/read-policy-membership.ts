@@ -4,10 +4,12 @@
 import type { ModelName, ProjectedRecord, RecordId, ScenarioReceiptSourceOrigin, StoragePort, StoredRow, TeamScope } from '@canlang/contracts';
 import { isUserRef, type UserRef } from '@canlang/values';
 import { StateError } from '../errors.js';
+import { deepFreeze } from '../internal/own-data.js';
 import { checkScenarioReceiptMembershipSites, type ScenarioReceiptMembershipSite } from '../invocation/scenario-membership-plan.js';
 import { stableStringify } from '../invocation/replay.js';
 import { checkedMembershipFact } from '../policy/membership-facts.js';
 import { FenceConflictError } from '../storage/port.js';
+import { captureCohortRow } from '../storage/sqlite-codecs.js';
 import type { ViewerGenerationCallbackReadObservation } from './callback-diagnostics.js';
 
 export type ReadPolicyMembershipHandle = Readonly<object>;
@@ -91,6 +93,45 @@ const handles = new WeakMap<ReadPolicyMembershipHandle, {
 }>();
 const lifetimes = new WeakMap<object, ReadLifetime>();
 const contexts = new WeakMap<object, ReadLifetime>();
+/** Revision-pinned committed snapshots. cohortLoad enforces its expected
+ * revision before and after every read, and the committed store is immutable
+ * at a fixed revision, so a snapshot is a pure function of
+ * (store, revision, model, id): a hit serves the identical row (or null) a
+ * fresh load would return. Every cached entry passed cohortLoad's own
+ * revision-shape enforcement when it was filled, so hits skip nothing that
+ * validation would catch. Hits skip the load-framing store checkpoints; the
+ * in-memory health checks, the lease-exit checkpoint, and the
+ * observation-level and commit-time fences all still run before any result
+ * escapes, and failures are never cached. FIFO-bounded; eviction only costs
+ * a recompute. Snapshots are deep-frozen at fill, so no reader — honest or
+ * malicious — can mutate the shared object; attempts throw fail-closed. */
+const cohortSnapshotCache = new WeakMap<object, Map<string, StoredRow | null>>();
+const COHORT_SNAPSHOT_CAP = 5000;
+async function pinnedCohortLoad(store: StoragePort,
+  revision: Readonly<ViewerGenerationCallbackReadObservation>['revision'],
+  model: ModelName, id: RecordId): Promise<StoredRow | null> {
+  let scoped = cohortSnapshotCache.get(store);
+  if (scoped === undefined) { scoped = new Map(); cohortSnapshotCache.set(store, scoped); }
+  const key = `${String(revision)}\0${model}\0${id}`;
+  const hit = scoped.get(key);
+  if (hit !== undefined) return hit;
+  const row = await store.cohortLoad({ model, id, expectedRevision: revision });
+  // Privately own an immutable snapshot: the cached object is shared across
+  // leases, and observations are only shallow-frozen, so a policy callback
+  // that mutates nested row data would otherwise poison every later
+  // same-store/revision read invisibly to revision fencing. Deep-freezing the
+  // loaded object alone would not own it: a StoragePort may return data
+  // aliased with its internals, so freezing in place could freeze store state
+  // or leave shared nested objects mutable elsewhere. Re-capture through the
+  // bounded cohort codec first — validating shape/budget into a private copy
+  // detached from whatever the backend returned — then deep-freeze that copy.
+  // Any mutation attempt throws (fail-closed via the lease poison path)
+  // instead of corrupting the cache. Honest readers only ever read.
+  const owned = row === null ? null : deepFreeze(captureCohortRow(row));
+  if (scoped.size >= COHORT_SNAPSHOT_CAP) scoped.delete(scoped.keys().next().value!);
+  scoped.set(key, owned);
+  return owned;
+}
 const fail = (message: string): never => { throw new StateError('validation', `Read-policy membership: ${message}`); };
 function object(value: unknown, keys: readonly string[]): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value) ||
@@ -231,10 +272,13 @@ async function withinInstalledSourceReadLease<Result>(observation: Readonly<View
         healthy();
         if (loading) return fail('concurrent navigation row load refused.');
         loading = true; acquired = true;
+        if (lifetime.ownerRows === undefined) {
+          const row = await pinnedCohortLoad(lifetime.store, observation.revision, model, id);
+          healthy();
+          return row;
+        }
         await checkpoint();
-        const row = lifetime.ownerRows === undefined
-          ? await lifetime.store.cohortLoad({ model, id, expectedRevision: observation.revision })
-          : await lifetime.ownerRows.read(model, id);
+        const row = await lifetime.ownerRows.read(model, id);
         healthy(); await checkpoint();
         return row;
       } catch (error) { poison(lifetime); throw error; }

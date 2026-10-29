@@ -4,7 +4,7 @@ import { canonicalLocale, parseTypeId, printTypeId } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { deepFreeze } from '../internal/own-data.js';
 import { stableStringify } from './replay.js';
-import { checkQueries, checkQueryProjection } from './scenario-query-plan.js';
+import { checkQueries, checkQueryProjection, markValidatedDisclosurePlan } from './scenario-query-plan.js';
 import { storedNominalType } from './scenario-stored-value.js';
 export const MAX_ITEMS = 200;
 export const invalid = (message: string): never => { throw new StateError('validation', `Saved scenario: ${message}`); };
@@ -1366,6 +1366,72 @@ function checkRetainedGuardedHandler(value: unknown, source: unknown): void {
   }
 }
 
+/** Ordered installed copy set for one partitioned scenario owner. Accepts
+ * today's single plan unchanged; an array must be the compiler's ordered
+ * copy-plan set. Every copy passes the single-plan validation independently;
+ * all copies share one shell (version/source/queries identical to the first
+ * copy); the union of return ids across copies is duplicate-free in
+ * concatenation order; every copy stays within the installed-plan bounds
+ * (at most MAX_ITEMS returns, enforced per copy by the single validation).
+ * Fail closed on anything else. The private whole-owner aggregate is never
+ * transported and never accepted here. */
+export function checkScenarioResultDisclosurePlanSet(value: unknown): readonly ScenarioResultDisclosurePlan[] {
+  if (!Array.isArray(value)) return Object.freeze([checkScenarioResultDisclosurePlan(value)]);
+  if (value.length === 0) return invalid('scenario plan set requires a nonempty ordered copy census.');
+  const copies = value.map(entry => {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+      return invalid('scenario plan set requires ordered copy plan objects.');
+    }
+    return checkScenarioResultDisclosurePlan(entry);
+  });
+  const [first, ...rest] = copies as [ScenarioResultDisclosurePlan, ...ScenarioResultDisclosurePlan[]];
+  for (const copy of rest) {
+    if (stableStringify(copy.source) !== stableStringify(first.source)) {
+      return invalid('scenario plan set copy header drifts from its first copy source.');
+    }
+    if (stableStringify(copy.queries ?? []) !== stableStringify(first.queries ?? [])) {
+      return invalid('scenario plan set copy queries drift from the first copy shell.');
+    }
+  }
+  // Canonical chunk shape: the partition driver fills every chunk but the
+  // last, so every copy except possibly the last carries exactly the first
+  // copy's return count and the last carries no more. Ragged middles and
+  // short-first orderings are never genuine; reordered sets fail closed.
+  // (Equal-sized full-chunk permutations are semantically inert: execution
+  // resolves every return through the installed index, never by position.)
+  const [head, ...tail] = copies;
+  const width = head!.returns.length;
+  for (const copy of tail.slice(0, -1)) {
+    if (copy.returns.length !== width) return invalid('scenario plan set copy breaks its ordered chunk census.');
+  }
+  const last = tail.length === 0 ? head! : tail[tail.length - 1]!;
+  if (last.returns.length > width) return invalid('scenario plan set copy breaks its ordered chunk census.');
+  const seen = new Set<string>();
+  // Cross-copy identity coherence mirrors the single-plan drift refusal:
+  // the compiler proves globally coherent maps, and the installer refuses
+  // any same-identity disagreement across copies instead of trusting it.
+  const identities = new Map<string, string>();
+  const noteIdentity = (id: unknown, encoded: string): void => {
+    const key = text(id);
+    const previous = identities.get(key);
+    if (previous !== undefined && previous !== encoded) {
+      return invalid('scenario plan set dependency identity drifts across copies.');
+    }
+    identities.set(key, encoded);
+  };
+  for (const copy of copies) {
+    if (copy.returns.length === 0) return invalid('scenario plan set copy carries no return path.');
+    if (copy.returns.length > MAX_ITEMS) return invalid('scenario plan set copy exceeds its installed plan bound.');
+    for (const returned of copy.returns) {
+      if (seen.has(returned.id)) return invalid('scenario plan set return identity is not globally unique.');
+      seen.add(returned.id);
+      for (const dependency of returned.dependencies) noteIdentity(dependency.id, stableStringify(dependency));
+      for (const intrinsic of returned.intrinsics ?? []) noteIdentity(intrinsic.id, stableStringify(intrinsic));
+    }
+  }
+  return deepFreeze(copies);
+}
+
 export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResultDisclosurePlan {
   const plan = object(dataCopy(value), ['version', 'source', 'returns',
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value,'retainedGuardedHandler')?['retainedGuardedHandler']:[]),
@@ -1482,7 +1548,9 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
     }
   }
   if (dependencies.size > MAX_ITEMS) return invalid('dependency closure exceeds its finite budget.');
-  return deepFreeze(plan as unknown as ScenarioResultDisclosurePlan);
+  const frozen = deepFreeze(plan as unknown as ScenarioResultDisclosurePlan);
+  markValidatedDisclosurePlan(frozen);
+  return frozen;
 }
 
 const PRIMITIVE_INPUT_KINDS: Readonly<Record<string, string>> = Object.freeze({

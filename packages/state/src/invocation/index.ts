@@ -109,6 +109,13 @@ export {
   type GeneratedCrudReceiptAssociation, type ProjectGeneratedCrudReceiptInput,
 } from './crud-receipt.js';
 
+/** Budget derivation and plan validation for receipt-boundary consumers.
+ * Both operate on validated plans; the budget cache trusts only the
+ * private validated-construction witness and recomputes for anything else.
+ * The witness registrar itself stays module-private and is not exported. */
+export { aggregateReceiptLimits } from './scenario-query-plan.js';
+export { checkScenarioResultDisclosurePlan } from './scenario-plan.js';
+
 export { bindScenarioSourceRequirePhases, openScenarioSourceRequirePhase, consumeScenarioSourceRequirePhase, type ScenarioSourceRequirePhasePlan, type ScenarioSourceRequirePhase } from "./scenario-receipt.js";
 
 export { bindScenarioSourceQueryValueProducer, executeScenarioSourceQueryValue, type ScenarioSourceQueryValueSource } from "./scenario-receipt.js";

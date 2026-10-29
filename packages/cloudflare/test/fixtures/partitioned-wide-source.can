@@ -1,0 +1,42 @@
+app Partitioned uses=[wide_shapes]
+package wide_shapes
+ Given
+  Root {label:text}
+  policy Root read=members
+ When
+  scenario wide(root:Root,f0:bool,f1:bool,f2:bool,f3:bool,f4:bool,f5:bool,f6:bool,f7:bool) by=members
+   require true
+   do
+    if f0
+     set root {label="y0"}
+    else
+     set root {label="n0"}
+    if f1
+     set root {label="y1"}
+    else
+     set root {label="n1"}
+    if f2
+     set root {label="y2"}
+    else
+     set root {label="n2"}
+    if f3
+     set root {label="y3"}
+    else
+     set root {label="n3"}
+    if f4
+     set root {label="y4"}
+    else
+     set root {label="n4"}
+    if f5
+     set root {label="y5"}
+    else
+     set root {label="n5"}
+    if f6
+     set root {label="y6"}
+    else
+     set root {label="n6"}
+    if f7
+     set root {label="y7"}
+    else
+     set root {label="n7"}
+ Then

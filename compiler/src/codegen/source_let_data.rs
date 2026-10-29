@@ -144,15 +144,18 @@ pub(super) fn native_guard_capture(
 /// Exact native dependency IDs read at one original scalar site, joined by
 /// the checked expression occurrence rather than a model/field scan. Only
 /// reads the disclosure analysis paired with a declared DATA return keep.
+/// Partitioned copies are unioned: a read owned by any copy's receipt is
+/// owned by the owner (omission would fail completeness for paths in the
+/// other copies).
 fn site_dependency_ids(
-    native: Option<&super::scenario_receipts::NativeScenarioReceipt>,
+    native: Option<&[super::scenario_receipts::NativeScenarioReceipt]>,
     span: Span,
     model: &str,
     field: &str,
     field_type: &str,
     source: &serde_json::Value,
 ) -> Vec<String> {
-    let Some(native) = native else {
+    let Some(copies) = native else {
         return Vec::new();
     };
     let site = super::scenario_receipts::NativeSite {
@@ -160,12 +163,12 @@ fn site_dependency_ids(
         span,
         default_selection: false,
     };
-    let Some(reads) = native.dependencies.get(&site) else {
-        return Vec::new();
-    };
-    reads
-        .iter()
-        .filter(|read| {
+    let mut ids = Vec::new();
+    for native in copies {
+        let Some(reads) = native.dependencies.get(&site) else {
+            continue;
+        };
+        for read in reads.iter().filter(|read| {
             read.model == model
                 && read.field == field
                 && native
@@ -182,9 +185,13 @@ fn site_dependency_ids(
                                 == *source
                             && dependency.role == super::scenario_receipts::ReceiptRole::Data
                     })
-        })
-        .map(|read| read.id.clone())
-        .collect()
+        }) {
+            if !ids.contains(&read.id) {
+                ids.push(read.id.clone());
+            }
+        }
+    }
+    ids
 }
 
 pub(super) fn collect(
@@ -195,7 +202,7 @@ pub(super) fn collect(
     module: &str,
     loops: Option<&serde_json::Value>,
     native_source: Option<&serde_json::Value>,
-    native: Option<&super::scenario_receipts::NativeScenarioReceipt>,
+    native: Option<&[super::scenario_receipts::NativeScenarioReceipt]>,
 ) -> Option<HashMap<Span, serde_json::Value>> {
     let IrItemKind::Scenario {
         params,
@@ -342,7 +349,7 @@ pub(super) fn collect(
         span: Span,
         stage: usize,
         name: &str,
-        native: Option<&super::scenario_receipts::NativeScenarioReceipt>,
+        native: Option<&[super::scenario_receipts::NativeScenarioReceipt]>,
     ) -> Option<serde_json::Value> {
         fn receiver(
             ir: &IrProgram,
@@ -513,22 +520,30 @@ pub(super) fn collect(
             // above cannot see them. Unpaired traversals keep no edge IDs
             // and stay fail-closed.
             let mut parent_dependency_ids = Vec::new();
+            // Union across partitioned copies: an edge observed by any copy's
+            // receipt belongs to the owner; omission would fail completeness
+            // for paths in the other copies.
             if site.get("parents").is_some()
-                && let Some(native_ref) = native
-                && let Some(reads) =
-                    native_ref
-                        .dependencies
-                        .get(&super::scenario_receipts::NativeSite {
-                            calls: Vec::new(),
-                            span: value.span,
-                            default_selection: false,
-                        })
+                && let Some(copies) = native
             {
-                for read in reads {
-                    if let Some(edge) = &read.source_dependency_id
-                        && !parent_dependency_ids.contains(edge)
-                    {
-                        parent_dependency_ids.push(edge.clone());
+                for native_ref in copies {
+                    let Some(reads) =
+                        native_ref
+                            .dependencies
+                            .get(&super::scenario_receipts::NativeSite {
+                                calls: Vec::new(),
+                                span: value.span,
+                                default_selection: false,
+                            })
+                    else {
+                        continue;
+                    };
+                    for read in reads {
+                        if let Some(edge) = &read.source_dependency_id
+                            && !parent_dependency_ids.contains(edge)
+                        {
+                            parent_dependency_ids.push(edge.clone());
+                        }
                     }
                 }
             }
@@ -720,7 +735,7 @@ pub(super) fn collect(
         mut stages: BTreeSet<usize>,
         loans: &mut HashMap<Span, serde_json::Value>,
         loops: Option<&serde_json::Value>,
-        native: Option<&super::scenario_receipts::NativeScenarioReceipt>,
+        native: Option<&[super::scenario_receipts::NativeScenarioReceipt]>,
     ) -> Option<BTreeSet<usize>> {
         for statement in body {
             match statement {
@@ -931,7 +946,7 @@ pub(super) fn collect(
         name: &str,
         loans: &mut HashMap<Span, serde_json::Value>,
         depth: usize,
-        native: Option<&super::scenario_receipts::NativeScenarioReceipt>,
+        native: Option<&[super::scenario_receipts::NativeScenarioReceipt]>,
     ) -> Option<()> {
         if depth > 32 {
             return None;
@@ -1108,7 +1123,7 @@ pub(super) fn collect(
         mut stages: BTreeSet<usize>,
         loans: &mut HashMap<Span, serde_json::Value>,
         loops: Option<&serde_json::Value>,
-        native: Option<&super::scenario_receipts::NativeScenarioReceipt>,
+        native: Option<&[super::scenario_receipts::NativeScenarioReceipt]>,
     ) -> Option<BTreeSet<usize>> {
         if stages.is_empty() || stages.len() > 200 || stages.last().copied()? >= stage_limit {
             return None;

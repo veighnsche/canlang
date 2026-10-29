@@ -15,7 +15,7 @@ export interface ScenarioNarrowedFieldBinding {
   readonly kind: 'reference' | 'text';
   readonly target?: ModelName;
 }
-type Bound = { readonly plan: ScenarioResultDisclosurePlan;
+type Bound = { readonly plans: readonly ScenarioResultDisclosurePlan[];
   readonly artifactModels: ReadonlyMap<ModelName, ArtifactModel>;
   readonly canonicalModels: readonly CanonicalModelDescriptor[] };
 const authentic = new WeakSet<ScenarioNarrowedFieldBinding>();
@@ -27,7 +27,7 @@ const same = (a: unknown, b: unknown) => stableStringify(a) === stableStringify(
  * reference CONTROL authenticates its own nullable declaration narrowing. */
 /** Shared per-dependency narrowing scope (one disclosure plan). */
 interface NarrowedBindScope {
-  readonly plan: ScenarioResultDisclosurePlan;
+  readonly plans: readonly ScenarioResultDisclosurePlan[];
   readonly artifacts: ReadonlyMap<ModelName, ArtifactModel>;
   readonly canonical: readonly CanonicalModelDescriptor[];
   readonly result: Map<string, ScenarioNarrowedFieldBinding>;
@@ -134,7 +134,7 @@ function resolveNarrowedControls(
   }
   let controls: Dependency[] = [];
   if (kind === 'reference') {
-    const uses = scope.plan.returns.filter(value => value.dependencies.some(value => value.id === dependency.id));
+    const uses = scope.plans.flatMap(plan => plan.returns.filter(value => value.dependencies.some(value => value.id === dependency.id)));
     for (const use of uses) {
       const occurrences = use.dependencies.filter(value => value.id === dependency.id);
       if (occurrences.length !== 1 || !same(occurrences[0], dependency)) return fail('DATA occurrence has inconsistent return correspondence.');
@@ -173,14 +173,17 @@ function bindOneNarrowedDependency(scope: NarrowedBindScope, returned: NarrowedR
 
 export function bindScenarioNarrowedFields(bound: Bound): ReadonlyMap<string, ScenarioNarrowedFieldBinding> {
   try {
-    const plan = copyScenarioFileData(bound.plan) as ScenarioResultDisclosurePlan;
+    // One scope across the ordered copy set: every copy stays within its own
+    // installed-plan budget, so per-copy detachment never exceeds the finite
+    // copier while cross-copy correspondence still resolves in one census.
+    const plans = bound.plans.map(raw => copyScenarioFileData(raw) as ScenarioResultDisclosurePlan);
     const canonical = copyScenarioFileData(bound.canonicalModels) as readonly CanonicalModelDescriptor[];
     if (!(bound.artifactModels instanceof Map) || Object.getPrototypeOf(bound.artifactModels) !== Map.prototype || Reflect.ownKeys(bound.artifactModels).length !== 0) return fail('own model inventory map required.');
     const artifacts = new Map<ModelName, ArtifactModel>();
     for (const [name, value] of Map.prototype.entries.call(bound.artifactModels) as Iterable<[ModelName, ArtifactModel]>) artifacts.set(name, copyScenarioFileData(value) as ArtifactModel);
     const result = new Map<string, ScenarioNarrowedFieldBinding>();
-    const scope = { plan, artifacts, canonical, result };
-    for (const returned of plan.returns) for (const dependency of returned.dependencies) {
+    const scope = { plans, artifacts, canonical, result };
+    for (const plan of plans) for (const returned of plan.returns) for (const dependency of returned.dependencies) {
       bindOneNarrowedDependency(scope, returned, dependency);
     }
     return result;

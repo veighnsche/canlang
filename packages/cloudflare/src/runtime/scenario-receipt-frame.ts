@@ -120,6 +120,27 @@ const frames = new WeakMap<HandlerContext, Frame>();
 const readFrames = new WeakMap<HandlerContext, PublicReadFrame>();
 const framedCalls = new WeakSet<AdmittedCall>();
 function refuse(text: string): never { throw new StateError('validation', text); }
+/** Partitioned owners transport an ordered copy-plan array; single owners keep
+ * today's plan object. Loader reads below only need the shared shell (source,
+ * queries and decisions are identical on every copy); per-return execution
+ * matching resolves through State's installed return index, never here. */
+export function scenarioDisclosureHead(plan: unknown): ScenarioResultDisclosurePlan | undefined {
+  if (plan === undefined || plan === null) return undefined;
+  if (Array.isArray(plan)) {
+    const head = plan[0] as ScenarioResultDisclosurePlan | undefined;
+    if (head === undefined) throw new StateError('validation', 'Scenario disclosure set requires its ordered copies.');
+    return head;
+  }
+  return plan as ScenarioResultDisclosurePlan;
+}
+/** Installed return union across the ordered copy set: every copy's returns in set order. */
+export function scenarioDisclosureReturns(plan: unknown): readonly ScenarioResultDisclosurePlan['returns'][number][] {
+  if (plan === undefined || plan === null) return [];
+  if (Array.isArray(plan)) {
+    return (plan as readonly ScenarioResultDisclosurePlan[]).flatMap(copy => copy?.returns ?? []);
+  }
+  return (plan as ScenarioResultDisclosurePlan).returns ?? [];
+}
 function fail(frame: QueryFrame, error: unknown): never {
   // Marker failures are terminal for this exact attempt. Attribution alone
   // cannot prevent a handler catching an error and returning success later.
@@ -212,7 +233,7 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
   assertScenarioReceiptCallExecution(call, store);
   if (frames.has(c) || readFrames.has(c) || framedCalls.has(call)) return refuse('Scenario receipt context or admitted attempt cannot be rebound.');
   const intrinsics = new Map(isGeneratedOperationDef(call.def)
-    ? call.def.descriptor.result?.disclosure?.returns.flatMap(entry =>
+    ? scenarioDisclosureReturns(call.def.descriptor.result?.disclosure).flatMap(entry =>
       (entry.intrinsics ?? []).map(dependency => [dependency.id, dependency] as const)) : []);
   const frame: Frame = { kind: 'receipt', call, store, failure, intrinsics, selectionChecks: [], capturedAny: null,
     ...(eventSource === undefined ? {} : { eventSource }),

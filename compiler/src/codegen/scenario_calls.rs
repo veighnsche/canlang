@@ -390,7 +390,10 @@ pub(super) fn collect_static_scenario_calls_with_feasibility(
     prepared: (
         Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
         Option<
-            &std::collections::HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
+            &std::collections::HashMap<
+                SymbolId,
+                Vec<super::scenario_receipts::NativeScenarioReceipt>,
+            >,
         >,
     ),
 ) -> Option<Vec<StaticScenarioCall>> {
@@ -460,12 +463,29 @@ fn checked_child_return_subset(
         Some(prepared) => prepared.returns(ir, child.id)?,
         None => checked.returns.iter().collect(),
     };
-    let actual = disclosure["returns"].as_array()?;
+    // Single plan (today) or ordered copy-plan array (partitioned child).
+    // Every element keeps its independently checked shape; the union must be
+    // exactly the complete ordered feasible set: no omitted or duplicate
+    // child paths. Each element stays within the installed-plan return bound
+    // (mirrored here at the custody boundary, not trusted from the driver).
+    let elements: Vec<&serde_json::Value> = match disclosure {
+        serde_json::Value::Array(items) if !items.is_empty() => items.iter().collect(),
+        serde_json::Value::Object(_) => vec![disclosure],
+        _ => return None,
+    };
+    let mut union: Vec<&serde_json::Value> = Vec::new();
+    for element in elements {
+        let returns = element.get("returns").and_then(|value| value.as_array())?;
+        if returns.is_empty() || returns.len() > 200 {
+            return None;
+        }
+        union.extend(returns.iter());
+    }
     let mut ids = HashSet::new();
     if expected.is_empty()
-        || expected.len() > 200
-        || actual.len() != expected.len()
-        || actual.iter().zip(&expected).any(|(value, returned)| {
+        || expected.len() > 1024
+        || union.len() != expected.len()
+        || union.iter().zip(&expected).any(|(value, returned)| {
             value["id"]
                 .as_str()
                 .is_none_or(|id| !ids.insert(id) || returned.id != id)
@@ -2428,7 +2448,7 @@ fn drive_owner_statement<'e>(
     is_child: bool,
     feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
     native_receipts: Option<
-        &std::collections::HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
+        &std::collections::HashMap<SymbolId, Vec<super::scenario_receipts::NativeScenarioReceipt>>,
     >,
     source_calls: &[ScenarioSourceCall],
     checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
@@ -2483,11 +2503,11 @@ fn drive_owner_statement<'e>(
         IrStmt::Create { span, .. }
             if !is_child
                 && native_receipts.is_some_and(|receipts| {
-                    receipts.get(&owner.id).is_some_and(|receipt| {
+                    receipts.get(&owner.id).is_some_and(|copies| {
+                        let plan = super::scenario_receipts::receipt_set_disclosure_value(copies);
                         operations.iter().any(|operation| {
                             operation.name == owner.canonical
-                                && operation.disclosure.as_ref()
-                                    == serde_json::to_value(&receipt.plan).ok().as_ref()
+                                && operation.disclosure.as_ref() == plan.as_ref()
                         })
                     })
                 })
@@ -2650,12 +2670,23 @@ fn check_call_disclosure(
         return None;
     };
     let disclosure = descriptor.disclosure.as_ref()?;
-    if disclosure["version"] != 1
-        || disclosure["source"]["path"] != child_checked.source.path
-        || disclosure["source"]["sha256"] != child_checked.source.sha256
-        || disclosure["source"]["module"] != entry
-    {
-        return None;
+    // Single plans keep today's object header; partitioned children publish
+    // the ordered copy-plan array. Every element carries its own header and
+    // stays within install bounds; the union check below verifies the exact
+    // complete ordered child return set across copies.
+    let elements: Vec<&serde_json::Value> = match disclosure {
+        serde_json::Value::Array(items) if !items.is_empty() => items.iter().collect(),
+        serde_json::Value::Object(_) => vec![disclosure],
+        _ => return None,
+    };
+    for element in &elements {
+        if element["version"] != 1
+            || element["source"]["path"] != child_checked.source.path
+            || element["source"]["sha256"] != child_checked.source.sha256
+            || element["source"]["module"] != entry
+        {
+            return None;
+        }
     }
     checked_child_return_subset(ir, child, child_checked, disclosure, feasibility)?;
     if let Some(query) = query {
@@ -3093,14 +3124,17 @@ fn admit_child_send(
     operations: &[JsOperation],
     feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
     native_receipts: Option<
-        &std::collections::HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
+        &std::collections::HashMap<SymbolId, Vec<super::scenario_receipts::NativeScenarioReceipt>>,
     >,
 ) -> Option<()> {
     // Only the private emitter's complete native producer can release
     // child SEND. Raw/source-only call collection remains refused.
-    let receipt = native_receipts?.get(&owner.id)?;
+    // Partitioned owners publish the ordered copy-plan array; the subset
+    // check below verifies the union is the exact complete ordered child
+    // return set across all copies.
+    let copies = native_receipts?.get(&owner.id)?;
     let descriptor = operations.iter().find(|op| op.name == owner.canonical)?;
-    let plan = serde_json::to_value(&receipt.plan).ok()?;
+    let plan = super::scenario_receipts::receipt_set_disclosure_value(copies)?;
     if descriptor.disclosure.as_ref()? != &plan {
         return None;
     }
@@ -3178,7 +3212,10 @@ fn collect_owner(
     prepared: (
         Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
         Option<
-            &std::collections::HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
+            &std::collections::HashMap<
+                SymbolId,
+                Vec<super::scenario_receipts::NativeScenarioReceipt>,
+            >,
         >,
     ),
 ) -> Option<Vec<StaticScenarioCall>> {
@@ -3529,12 +3566,54 @@ fn match_query_disclosure(
     }
     // Compare the whole actual published plan, with ordered projection fields,
     // dependencies and influences; an ID-only disclosure cannot satisfy this.
-    let expected = serde_json::json!({"version":1,"source":source,
-        "queries":[{"id":query.id,"source":source,"model":query.model_name,
-            "order":[],"limit":null,"archived":"exclude","dependencies":dependencies}],
-        "returns":[{"id":query.return_id(),"source":source,"influences":influences,
-            "dependencies":[],"projection":{"kind":"query-contract-array","queryId":query.id,"source":source,"fields":fields}}]});
-    (disclosure == &expected).then_some(())
+    // Single plans keep today's whole-value equality. Partitioned children
+    // publish the ordered copy-plan array: exactly one copy must carry the
+    // query-contract row with its query entry, and the complete ordered
+    // return set is verified by the caller across all copies.
+    let expected_query = serde_json::json!({"id":query.id,"source":source,"model":query.model_name,
+        "order":[],"limit":null,"archived":"exclude","dependencies":dependencies});
+    let expected_row = serde_json::json!({"id":query.return_id(),"source":source,"influences":influences,
+        "dependencies":[],"projection":{"kind":"query-contract-array","queryId":query.id,"source":source,"fields":fields}});
+    match disclosure {
+        serde_json::Value::Object(_) => {
+            let expected = serde_json::json!({"version":1,"source":source,
+                "queries":[expected_query],"returns":[expected_row]});
+            (disclosure == &expected).then_some(())
+        }
+        serde_json::Value::Array(items) if !items.is_empty() => {
+            // Fail closed on plan sets: every copy must carry exactly the
+            // single query-contract query (full query census per element),
+            // exactly one copy must carry the query-contract row with its
+            // exact body, headers are validated by the caller and the
+            // complete ordered row set by the union check. A partitioned
+            // child with any other query shape is refused rather than
+            // weakly admitted; source binding is never loosened.
+            let mut hits = 0;
+            for item in items {
+                let queries = item.get("queries").and_then(serde_json::Value::as_array)?;
+                if queries.len() != 1 || queries[0] != expected_query {
+                    return None;
+                }
+                let rows = item.get("returns").and_then(serde_json::Value::as_array)?;
+                let found: Vec<_> = rows
+                    .iter()
+                    .filter(|row| row.get("id") == expected_row.get("id"))
+                    .collect();
+                if found.is_empty() {
+                    continue;
+                }
+                let [row] = found.as_slice() else {
+                    return None;
+                };
+                if *row != &expected_row {
+                    return None;
+                }
+                hits += 1;
+            }
+            (hits == 1).then_some(())
+        }
+        _ => None,
+    }
 }
 
 fn check_record_ref(

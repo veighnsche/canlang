@@ -37,6 +37,7 @@ interface PredicateAnyProfile {
 }
 export type ScenarioQueryAnyProfile = StoredBoolAnyProfile | PredicateAnyProfile;
 type Bound = { readonly valueSchema?: NormalizedSchema | undefined; readonly plan: ScenarioResultDisclosurePlan;
+  readonly plans: readonly ScenarioResultDisclosurePlan[];
   readonly artifactModels: ReadonlyMap<ModelName, ArtifactModel>;
   readonly canonicalModels: readonly CanonicalModelDescriptor[] };
 /** Data-only validation input. Actual query installation obtains these facts
@@ -296,10 +297,10 @@ function bindPredicateAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetada
   for (const dependency of query.dependencies) {
     checkOnePredicateAnyDependency(bound, model, canonical, query, dependency);
   }
-  const consumers = bound.plan.returns.filter(returned => returned.influences.some(influence => influence.queryId === query.id));
+  const consumers = bound.plans.flatMap(copy => copy.returns).filter(returned => returned.influences.some(influence => influence.queryId === query.id));
   // A verified owning Require consumes execution authority independently of
   // result disclosure. Legacy metadata still requires an actual return consumer.
-  if (consumers.length === 0 && !ownerRequire || bound.plan.returns.some(returned => returned.projection?.queryId === query.id) ||
+  if (consumers.length === 0 && !ownerRequire || bound.plans.flatMap(copy => copy.returns).some(returned => returned.projection?.queryId === query.id) ||
       consumers.some(returned => returned.dependencies.some(dependency => dependency.queryId === query.id && dependency.role === 'data'))) return fail('predicate requires actual CONTROL influence without projection.');
   const profile = deepFreeze({ kind: 'predicate' as const, queryId: query.id, dependencyIds: [...metadata.dependencyIds],
     model: query.model, source: query.source, query: copyScenarioFileData(query) as ScenarioReceiptQueryPlan,

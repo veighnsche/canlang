@@ -3096,25 +3096,31 @@ fn emit_program_with_sources(
     if native_receipts {
         let models = emitter.collect_models();
         for (index, item) in ir.items.iter().enumerate() {
-            if let Some(recipe) =
-                super::scenario_receipts::collect_native_scenario_receipt_with_feasibility(
-                    ir,
-                    item,
-                    &models,
-                    &module_path(&entry_name),
-                    emitter.value_types.as_ref(),
-                    super::scenario_receipts::NativeReceiptSources {
-                        source_context: decisions.source_context,
-                        db,
-                        send_guards: emitter.send_guards,
-                        query_plan: query_receipts
-                            .and_then(|recipes| recipes.get(&item.canonical))
-                            .map(|recipe| &recipe.plan)
-                            .or_else(|| decisions.transcript_queries?.get(&item.canonical)),
-                    },
-                    feasibility,
-                )
-            {
+            if let Some(set) = super::scenario_receipts::collect_native_scenario_receipt_copies(
+                ir,
+                item,
+                &models,
+                &module_path(&entry_name),
+                emitter.value_types.as_ref(),
+                super::scenario_receipts::NativeReceiptSources {
+                    source_context: decisions.source_context,
+                    db,
+                    send_guards: emitter.send_guards,
+                    query_plan: query_receipts
+                        .and_then(|recipes| recipes.get(&item.canonical))
+                        .map(|recipe| &recipe.plan)
+                        .or_else(|| decisions.transcript_queries?.get(&item.canonical)),
+                },
+                feasibility,
+            ) {
+                // The representative carries every owner-level structure shared
+                // by the copies (source, queries, calls, decisions shell).
+                // Per-copy content (return subsets, plans) is handled where
+                // the copies can diverge; the driver proves the rest uniform.
+                // The private aggregate (partitioned owners only) is stored
+                // beside the transported copies and never emitted.
+                let super::scenario_receipts::NativeReceiptSet { copies, aggregate } = set;
+                let recipe = &copies[0];
                 if ir
                     .scenario_disclosures
                     .get(&item.id)
@@ -3182,23 +3188,31 @@ fn emit_program_with_sources(
                         .as_deref()
                         .is_some_and(|values| !values.is_empty())
                 {
-                    emitter.native_query_sources.insert(
-                        item.id,
-                        NativeQuerySource {
-                            owner: item.canonical.clone(),
-                            queries: facts.queries.clone().unwrap_or_default(),
-                            transcripts: Vec::new(),
-                            inline_selections: Vec::new(),
-                            return_id: recipe
-                                .plan
-                                .returns
-                                .first()
-                                .expect("native return")
-                                .id
-                                .clone(),
-                            plan: serde_json::to_value(&recipe.plan).expect("native Values plan"),
-                        },
-                    );
+                    // Single-copy owners keep today's exact bridge entry.
+                    // Partitioned owners skip query-source bridging for now
+                    // (safe fallback identical to owners without the entry;
+                    // per-copy bridging is runtime-lane work). The receipt
+                    // path does not depend on this entry.
+                    if copies.len() == 1 {
+                        emitter.native_query_sources.insert(
+                            item.id,
+                            NativeQuerySource {
+                                owner: item.canonical.clone(),
+                                queries: facts.queries.clone().unwrap_or_default(),
+                                transcripts: Vec::new(),
+                                inline_selections: Vec::new(),
+                                return_id: recipe
+                                    .plan
+                                    .returns
+                                    .first()
+                                    .expect("native return")
+                                    .id
+                                    .clone(),
+                                plan: serde_json::to_value(&recipe.plan)
+                                    .expect("native Values plan"),
+                            },
+                        );
+                    }
                     if let Some(values) = decisions.source_context.and_then(|context| {
                         super::source_let_data::collect_native_query_values(
                             context,
@@ -3209,7 +3223,12 @@ fn emit_program_with_sources(
                         emitter.source_query_values.extend(values);
                     }
                 }
-                emitter.native_receipts.insert(item.id, recipe);
+                emitter.native_receipts.insert(item.id, copies);
+                // The private whole-owner aggregate (partitioned owners only)
+                // is stored beside the transported copies and never emitted.
+                if let Some(aggregate) = aggregate {
+                    emitter.native_receipt_aggregates.insert(item.id, aggregate);
+                }
             } else if ir
                 .scenario_disclosures
                 .get(&item.id)
@@ -3261,7 +3280,7 @@ fn emit_program_with_sources(
                     )
                 })
             {
-                emitter.native_receipts.insert(item.id, recipe);
+                emitter.native_receipts.insert(item.id, vec![recipe]);
             } else if super::scenario_receipts::has_original_guarded_send(
                 ir,
                 SymbolId(index as u32),
@@ -3303,7 +3322,14 @@ fn emit_program_with_sources(
                 ) {
                     continue;
                 }
+                // The prepared fast path keeps today's single-plan owners
+                // untouched, but must never install a single plan the runtime
+                // cannot install: beyond 200 returns, or beyond the exact
+                // 20,000-node installed-plan traversal. Unfitting owners keep
+                // their partitioned copies instead of a fake complete plan.
                 if let Some(recipe) = query_receipts.get(&item.canonical)
+                    && recipe.plan.returns.len() <= 200
+                    && super::scenario_receipts::installed_plan_fits(&recipe.plan)
                     && ir
                         .scenario_disclosures
                         .get(&item.id)
@@ -3335,8 +3361,14 @@ fn emit_program_with_sources(
                         }
                         continue;
                     }
-                    emitter.native_receipts.insert(item.id, recipe.clone());
+                    emitter
+                        .native_receipts
+                        .insert(item.id, vec![recipe.clone()]);
                     emitter.prepared_query_receipts.insert(item.id);
+                    // The prepared single supersedes any driver set: its
+                    // aggregate (if the driver partitioned) no longer matches
+                    // the transported copies and must not linger.
+                    emitter.native_receipt_aggregates.remove(&item.id);
                 }
             }
         }
@@ -3356,7 +3388,7 @@ fn emit_program_with_sources(
                 super::scenario_receipts::checked_require_consumptions(ir, item, db, prepared)
             });
             let Some(captures) = captures else {
-                emitter.native_receipts.remove(&item.id);
+                emitter.remove_native_receipt(&item.id);
                 emitter.unsupported(
                     "Require field consumption",
                     "exact original Require, selected field and first-query correspondence is unavailable",
@@ -3364,24 +3396,35 @@ fn emit_program_with_sources(
                 );
                 continue;
             };
-            let recipe = emitter
+            let recipes = emitter
                 .native_receipts
                 .get_mut(&item.id)
                 .expect("owning receipt");
+            let aggregate = emitter.native_receipt_aggregates.get_mut(&item.id);
             let mut associations = Vec::new();
-            for capture in captures {
-                let site_entries = recipe.dependencies.entry(capture.site).or_default();
-                // DESIGN442 (0411): a decision read already observed through
-                // its result dependency must not emit a second identical
-                // observation (State once-only execution would refuse the
-                // duplicate). The execution association below still records
-                // the bound Require consumption for the owner grant.
-                if !site_entries
-                    .iter()
-                    .any(|existing| existing.id == capture.observation.id)
-                {
-                    site_entries.push(capture.observation);
+            // Captures are owner-level facts: every copy stays a complete
+            // receipt, so each copy records them (deduped per copy). The
+            // private whole-owner aggregate records the same facts:
+            // multi-copy body lowering reads the aggregate, so
+            // Require-only observations must not be lost there. Dedup
+            // keeps the merge idempotent with builder-internal reads.
+            for recipe in recipes.iter_mut().chain(aggregate) {
+                for capture in &captures {
+                    let site_entries = recipe.dependencies.entry(capture.site.clone()).or_default();
+                    // DESIGN442 (0411): a decision read already observed through
+                    // its result dependency must not emit a second identical
+                    // observation (State once-only execution would refuse the
+                    // duplicate). The execution association below still records
+                    // the bound Require consumption for the owner grant.
+                    if !site_entries
+                        .iter()
+                        .any(|existing| existing.id == capture.observation.id)
+                    {
+                        site_entries.push(capture.observation.clone());
+                    }
                 }
+            }
+            for capture in captures {
                 associations.push(capture.association);
             }
             if !associations.is_empty() {
@@ -3406,7 +3449,10 @@ fn emit_program_with_sources(
     }
     if let Some(context) = decisions.source_context {
         for owner in &ir.items {
-            if let Some(receipt) = emitter.native_receipts.get(&owner.id) {
+            if let Some(copies) = emitter.native_receipts.get(&owner.id) {
+                // The representative carries the owner-level shell shared by
+                // all copies; per-copy content is handled where it diverges.
+                let receipt = &copies[0];
                 let cancels = source_only_work(
                     ir,
                     owner,
@@ -3441,10 +3487,17 @@ fn emit_program_with_sources(
                     .and_then(|disclosure| disclosure.source_facts())
                     .and_then(|facts| facts.queries.as_ref())
                     .is_some_and(|queries| queries.iter().any(|query| query.archived));
+                // Source work must cover the WHOLE owner to replace receipts:
+                // every copy's DATA must be source-covered (unanimous). A
+                // mixed verdict keeps all receipts (the general path stays
+                // sound; the source-only optimization simply does not apply).
+                let identity_covered = copies
+                    .iter()
+                    .all(|copy| work_identity_receipt_data_only(copy, &cancels, &schedules));
                 let source_work = plain_result
                     && !has_archived_query
                     && (!cancels.is_empty() || !schedules.is_empty())
-                    && work_identity_receipt_data_only(receipt, &cancels, &schedules)
+                    && identity_covered
                     && !source_require_missing_original_guard(
                         ir,
                         owner,
@@ -3464,7 +3517,7 @@ fn emit_program_with_sources(
                         Some(context),
                     );
                 if source_work {
-                    emitter.native_receipts.remove(&owner.id);
+                    emitter.remove_native_receipt(&owner.id);
                     emitter.prepared_query_receipts.remove(&owner.id);
                     emitter.source_cancels.extend(cancels);
                     emitter.source_schedules.extend(schedules);
@@ -3551,32 +3604,62 @@ fn emit_program_with_sources(
                             &module_path(&entry_name),
                             Some(&loops),
                             Some(&source),
-                            emitter.native_receipts.get(&owner.id),
+                            emitter.native_receipts.get(&owner.id).map(Vec::as_slice),
                         ) {
+                            // Ownership is unioned across copies: a loan or
+                            // guard owned by any copy's receipt is owned by
+                            // the owner. Omission would fail completeness for
+                            // paths in the other copies.
                             loans.retain(|span, loan| {
                                 !emitter
                                     .native_receipts
                                     .get(&owner.id)
-                                    .is_some_and(|native| {
-                                        super::source_let_data::native_owns_data(
-                                            owner, native, *span, loan,
-                                        )
+                                    .is_some_and(|copies| {
+                                        copies.iter().any(|native| {
+                                            super::source_let_data::native_owns_data(
+                                                owner, native, *span, loan,
+                                            )
+                                        })
                                     })
                             });
+                            // Negative ownership uses the whole aggregate when
+                            // partitioned: a per-copy `any` would let a copy
+                            // lacking the getter misclassify an independently
+                            // observed getter as guard-only. Singles keep
+                            // today's per-copy check (the only copy is the
+                            // whole owner). Genuine guard checks are unchanged.
+                            let guard_captured = |span: &Span, loan: &serde_json::Value| {
+                                if let Some(aggregate) =
+                                    emitter.native_receipt_aggregates.get(&owner.id)
+                                {
+                                    super::source_let_data::native_guard_capture(
+                                        owner,
+                                        aggregate,
+                                        &emitter.source_requires,
+                                        *span,
+                                        loan,
+                                    )
+                                } else {
+                                    emitter
+                                        .native_receipts
+                                        .get(&owner.id)
+                                        .is_some_and(|copies| {
+                                            copies.iter().any(|native| {
+                                                super::source_let_data::native_guard_capture(
+                                                    owner,
+                                                    native,
+                                                    &emitter.source_requires,
+                                                    *span,
+                                                    loan,
+                                                )
+                                            })
+                                        })
+                                }
+                            };
                             if loans.iter().any(|(span, loan)| {
                                 loan.get("loop").is_none()
                                     && loan.get("stages").is_none()
-                                    && !emitter.native_receipts.get(&owner.id).is_some_and(
-                                        |native| {
-                                            super::source_let_data::native_guard_capture(
-                                                owner,
-                                                native,
-                                                &emitter.source_requires,
-                                                *span,
-                                                loan,
-                                            )
-                                        },
-                                    )
+                                    && !guard_captured(span, loan)
                             }) {
                                 emitter.unsupported("native source DATA phase", "native DATA outside its private loop needs its complete authenticated phase", owner.span);
                             }
@@ -3598,6 +3681,7 @@ fn emit_program_with_sources(
                             &module_path(&entry_name),
                             Some(&loops),
                             Some(&source),
+                            emitter.native_receipt_aggregates.get(&owner.id),
                         ) {
                             emitter.source_data_sends.extend(sends);
                         } else {
@@ -3659,7 +3743,7 @@ fn emit_program_with_sources(
                 &module_path(&entry_name),
                 emitter.source_body_loops.get(&owner.canonical),
                 None,
-                emitter.native_receipts.get(&owner.id),
+                emitter.native_receipts.get(&owner.id).map(Vec::as_slice),
             ) {
                 emitter.source_let_data.extend(loans);
             }
@@ -3702,6 +3786,7 @@ fn emit_program_with_sources(
                 &emitter.source_let_data,
                 &module_path(&entry_name),
                 emitter.source_body_loops.get(&owner.canonical),
+                None,
                 None,
             ) {
                 emitter.source_data_sends.extend(sends);
@@ -3818,10 +3903,11 @@ fn emit_program_with_sources(
     }
     if native_receipts
         && (!emitter.source_body_loops.is_empty()
-            || emitter
-                .native_receipts
-                .values()
-                .any(|receipt| receipt.plan.source_loops.is_some()))
+            || emitter.native_receipts.values().any(|copies| {
+                copies
+                    .iter()
+                    .any(|receipt| receipt.plan.source_loops.is_some())
+            }))
     {
         body.push(entry_span,Some("canScenarioSourceLoopSource".into()),
             "const $can$loop$sources=new WeakMap();function $can$loop$issue(source,context,predicate){$can$loop$sources.set(predicate,{source,context});return predicate;}export function canScenarioSourceLoopSource(predicate){const issued=$can$loop$sources.get(predicate);return issued===undefined?null:{source:JSON.parse(issued.source),context:issued.context};}");
@@ -4088,11 +4174,13 @@ fn emit_program_with_sources(
         );
     }
     let mut source_plans = queries.cloned().unwrap_or_default();
-    for (id, recipe) in &emitter.native_receipts {
+    for (id, copies) in &emitter.native_receipts {
         let item = &ir.items[id.0 as usize];
         // Trusted private mutation handlers also consume original DATA reads
         // without a query. Publish their checked source inventory through the
         // same fresh-copy interface; this does not expose a public operation.
+        // Per-copy content (return rows) is unioned: any copy carrying the
+        // qualifying reads qualifies the owner.
         let private_data_source = emitter.owner_handlers.contains(id)
             && matches!(
                 item.kind,
@@ -4102,28 +4190,44 @@ fn emit_program_with_sources(
                     ..
                 }
             )
-            && recipe
-                .plan
-                .returns
-                .iter()
-                .flat_map(|result| &result.dependencies)
-                .any(|read| {
-                    read.role == super::scenario_receipts::ReceiptRole::Data
-                        && read.query_id.is_none()
-                });
-        if recipe.plan.retained_guarded_handler.is_some()
-            || private_data_source
-            || ir
-                .scenario_disclosures
-                .get(id)
-                .and_then(|value| value.source_facts())
-                .and_then(|facts| facts.query_values.as_deref())
-                .is_some_and(|values| !values.is_empty())
+            && copies.iter().any(|recipe| {
+                recipe
+                    .plan
+                    .returns
+                    .iter()
+                    .flat_map(|result| &result.dependencies)
+                    .any(|read| {
+                        read.role == super::scenario_receipts::ReceiptRole::Data
+                            && read.query_id.is_none()
+                    })
+            });
+        // Partitioned owners always export their exact bounded copy set:
+        // the unpartitioned prepared entry (if any) is never capped to the
+        // installed-plan bounds and must not ship. The frame carries the
+        // transported copies only, never the uncapped private aggregate;
+        // per-copy bounds were proven at build time, and the set-aware
+        // loader must budget each copy individually, never the array whole.
+        if copies.len() > 1
+            || copies.iter().any(|recipe| {
+                recipe.plan.retained_guarded_handler.is_some()
+                    || private_data_source
+                    || ir
+                        .scenario_disclosures
+                        .get(id)
+                        .and_then(|value| value.source_facts())
+                        .and_then(|facts| facts.query_values.as_deref())
+                        .is_some_and(|values| !values.is_empty())
+            })
         {
-            source_plans.insert(
-                item.canonical.clone(),
-                serde_json::to_value(&recipe.plan).expect("private source frame"),
-            );
+            // Single-copy owners keep today's exact plan value; partitioned
+            // owners publish every copy's plan for the set-aware loader.
+            let frame = if copies.len() == 1 {
+                serde_json::to_value(&copies[0].plan).expect("private source frame")
+            } else {
+                serde_json::to_value(copies.iter().map(|recipe| &recipe.plan).collect::<Vec<_>>())
+                    .expect("private source frame set")
+            };
+            source_plans.insert(item.canonical.clone(), frame);
         }
     }
     if !source_plans.is_empty() {
@@ -4161,7 +4265,7 @@ fn emit_program_with_sources(
         if let Some(sites) = sites {
             emitter.native_call_sites.insert(item.id, sites);
         } else {
-            emitter.native_receipts.remove(&item.id);
+            emitter.remove_native_receipt(&item.id);
             if let Some(operation) = operations
                 .iter_mut()
                 .find(|operation| operation.name == item.canonical)
@@ -4226,8 +4330,10 @@ fn emit_program_with_sources(
     // tracked record views using ordinary calls. A handler census alone must
     // not suppress those definitions: unlike retained handlers, this receipt
     // does not select a private helper variant.
-    if emitter.native_receipts.values().any(|receipt| {
-        receipt.plan.event_decision.is_some() || receipt.plan.success_renewal_decision.is_some()
+    if emitter.native_receipts.values().any(|copies| {
+        copies.iter().any(|receipt| {
+            receipt.plan.event_decision.is_some() || receipt.plan.success_renewal_decision.is_some()
+        })
     }) {
         // Standard completion handlers are added to the emitter's dispatch
         // set later; they are outside this original Declared/Every census.
@@ -4237,9 +4343,11 @@ fn emit_program_with_sources(
             .flatten()
             .copied()
             .filter(|id| {
-                emitter.native_receipts.get(id).is_none_or(|receipt| {
-                    receipt.plan.event_decision.is_none()
-                        && receipt.plan.success_renewal_decision.is_none()
+                emitter.native_receipts.get(id).is_none_or(|copies| {
+                    copies.iter().all(|receipt| {
+                        receipt.plan.event_decision.is_none()
+                            && receipt.plan.success_renewal_decision.is_none()
+                    })
                 })
             })
             .collect();
@@ -6044,7 +6152,17 @@ pub struct Emitter<'a> {
     checked_message: bool,
     formatted_bindings: Vec<HashMap<String, bool>>,
     formatted_derives: BTreeSet<String>,
-    native_receipts: HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
+    /// Independently checked plan copies per owner: exactly one for every
+    /// owner within the installed-plan bounds, more only for partitioned
+    /// oversized selections. Every copy is a complete receipt; the driver
+    /// proves the union covers the whole feasible selection.
+    native_receipts: HashMap<SymbolId, Vec<super::scenario_receipts::NativeScenarioReceipt>>,
+    /// Private whole-owner aggregate captures for partitioned owners only.
+    /// Each aggregate proves the identical whole selection with transport
+    /// caps lifted; it feeds lowering (execution/decision observations)
+    /// and is never transported. Single-copy owners keep today's capture
+    /// with no entry here.
+    native_receipt_aggregates: HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
     constructor_inputs: HashMap<SymbolId, serde_json::Value>,
     constructor_counts: HashMap<SymbolId, serde_json::Value>,
     private_term_helper_only: bool,
@@ -6226,6 +6344,13 @@ impl<'a> Emitter<'a> {
         emitter
     }
 
+    /// Withdraw a native receipt and its private aggregate together; a
+    /// stranded aggregate without transported copies must never survive.
+    fn remove_native_receipt(&mut self, id: &SymbolId) {
+        self.native_receipts.remove(id);
+        self.native_receipt_aggregates.remove(id);
+    }
+
     /// Declaring source path for `span`. Present only for multi-source
     /// closures, where the module source map cannot resolve one exact
     /// declaring file; single-source output stays byte-identical.
@@ -6316,6 +6441,7 @@ impl<'a> Emitter<'a> {
             formatted_bindings: vec![HashMap::new()],
             formatted_derives: BTreeSet::new(),
             native_receipts: HashMap::new(),
+            native_receipt_aggregates: HashMap::new(),
             constructor_inputs: HashMap::new(),
             constructor_counts: HashMap::new(),
             private_term_helper_only: false,
@@ -13987,6 +14113,7 @@ impl<'a> Emitter<'a> {
                         self.native_receipts
                             .values()
                             .filter(|_| !self.retained_owner_body && !self.generic_boolean_body)
+                            .flat_map(|copies| copies.iter())
                             .flat_map(|receipt| {
                                 [
                                     receipt.plan.invoice_collect_decision.as_ref(),
@@ -15079,16 +15206,16 @@ impl<'a> Emitter<'a> {
                     .cloned();
                 if *when_at_source
                     && !prepared.as_ref().is_some_and(|guard| {
-                        self.native_receipts.values().any(|receipt| {
-                            receipt
-                                .plan
-                                .retained_guarded_handler
-                                .as_ref()
-                                .is_some_and(|frame| {
-                                    frame["stagedRules"].as_array().is_some_and(|rules| {
-                                        rules.iter().any(|rule| rule == &guard.rule)
-                                    })
-                                })
+                        self.native_receipts.values().any(|copies| {
+                            copies.iter().any(|receipt| {
+                                receipt.plan.retained_guarded_handler.as_ref().is_some_and(
+                                    |frame| {
+                                        frame["stagedRules"].as_array().is_some_and(|rules| {
+                                            rules.iter().any(|rule| rule == &guard.rule)
+                                        })
+                                    },
+                                )
+                            })
                         })
                     })
                 {
@@ -19938,24 +20065,28 @@ impl<'a> Emitter<'a> {
             let mut complete = true;
             for descriptor in descriptors.as_array_mut().into_iter().flatten() {
                 if descriptor["eventSource"]["version"] == 2
-                    && !self.native_receipts.get(&item.id).is_some_and(|receipt| {
-                        receipt
-                            .plan
-                            .retained_guarded_handler
-                            .as_ref()
-                            .is_some_and(|source| {
-                                source["owner"] == item.canonical
-                                    && source["event"] == descriptor["eventSource"]["event"]
-                                    && source["source"] == serde_json::json!(receipt.plan.source)
-                                    && source["source"]["path"] == descriptor["source"]["path"]
-                                    && source["source"]["sha256"] == descriptor["source"]["sha256"]
-                                    && self.ir.modules.get(item.module.0 as usize).is_some_and(
-                                        |module| descriptor["source"]["module"] == module.name,
-                                    )
-                                    && source["rules"]
-                                        .as_array()
-                                        .is_some_and(|rules| rules.contains(&descriptor["rule"]))
-                            })
+                    && !self.native_receipts.get(&item.id).is_some_and(|copies| {
+                        copies.iter().any(|receipt| {
+                            receipt
+                                .plan
+                                .retained_guarded_handler
+                                .as_ref()
+                                .is_some_and(|source| {
+                                    source["owner"] == item.canonical
+                                        && source["event"] == descriptor["eventSource"]["event"]
+                                        && source["source"]
+                                            == serde_json::json!(receipt.plan.source)
+                                        && source["source"]["path"] == descriptor["source"]["path"]
+                                        && source["source"]["sha256"]
+                                            == descriptor["source"]["sha256"]
+                                        && self.ir.modules.get(item.module.0 as usize).is_some_and(
+                                            |module| descriptor["source"]["module"] == module.name,
+                                        )
+                                        && source["rules"].as_array().is_some_and(|rules| {
+                                            rules.contains(&descriptor["rule"])
+                                        })
+                                })
+                        })
                     })
                 {
                     self.unsupported("send dispatch inputs", "typed Event slots require their complete original retained handler source and Rule", item.span);
@@ -21268,10 +21399,13 @@ impl<'a> Emitter<'a> {
         // excludes every trusted handler, so no public exposure follows;
         // the due-session host verifies this plan against the module
         // `canScenarioQuerySources` inventory before internal admission.
+        // C24 scope-1: single-copy owners keep today's exact disclosure;
+        // partitioned owners publish the ordered copy-plan array for the
+        // set-aware installer (each copy independently installable).
         let disclosure = self
             .native_receipts
             .get(&handler.id)
-            .and_then(|recipe| serde_json::to_value(&recipe.plan).ok());
+            .and_then(|copies| super::scenario_receipts::receipt_set_disclosure_value(copies));
         Some(JsOperation {
             name: handler.canonical.clone(),
             kind: JsOperationKind::Scenario,
@@ -21329,7 +21463,7 @@ impl<'a> Emitter<'a> {
         let disclosure = self
             .native_receipts
             .get(&item.id)
-            .and_then(|recipe| serde_json::to_value(&recipe.plan).ok());
+            .and_then(|copies| super::scenario_receipts::receipt_set_disclosure_value(copies));
         Some(JsOperation {
             name: item.canonical.clone(),
             kind: JsOperationKind::Scenario,
@@ -21676,8 +21810,14 @@ impl<'a> Emitter<'a> {
                 .native_query_sources
                 .get(&item.id)
                 .is_some_and(|source| {
-                    self.native_receipts.get(&item.id).is_some_and(|recipe| {
-                        serde_json::to_value(&recipe.plan).ok().as_ref() == Some(&source.plan)
+                    // Single-copy owners keep today's whole-plan equality.
+                    // Partitioned owners never take the prepared-query path:
+                    // their receipts are per-copy subsets verified against
+                    // filtered expectations inside the build.
+                    self.native_receipts.get(&item.id).is_some_and(|copies| {
+                        copies.len() == 1
+                            && serde_json::to_value(&copies[0].plan).ok().as_ref()
+                                == Some(&source.plan)
                     })
                 });
         if prepared_query
@@ -21688,11 +21828,16 @@ impl<'a> Emitter<'a> {
                 type_id == "void" || super::scenario_receipts::supported_type_id(type_id)
             })
         {
-            self.native_receipts.get(&item.id).map(|recipe| {
-                serde_json::to_value(&recipe.plan).expect("native disclosure JSON invariant")
-            })
+            // Single-copy owners keep today's exact plan value; partitioned
+            // owners publish the ordered copy-plan array for the set-aware
+            // installer. Callers needing the complete ordered child return
+            // set verify the union across copies (no omitted/duplicated
+            // paths); each element stays within install bounds.
+            self.native_receipts
+                .get(&item.id)
+                .and_then(|copies| super::scenario_receipts::receipt_set_disclosure_value(copies))
         } else {
-            self.native_receipts.remove(&item.id);
+            self.remove_native_receipt(&item.id);
             None
         }
     }
@@ -21898,11 +22043,11 @@ impl<'a> Emitter<'a> {
                     let Some(inputs) =
                         self.collect_scenario_inputs(item, params, *read, hook.is_none())
                     else {
-                        self.native_receipts.remove(&item.id);
+                        self.remove_native_receipt(&item.id);
                         continue;
                     };
                     if has_duplicate_names(&inputs) {
-                        self.native_receipts.remove(&item.id);
+                        self.remove_native_receipt(&item.id);
                         continue;
                     }
                     let published_result = self.checked_operation_result(result.as_ref(), *read);
@@ -22992,12 +23137,14 @@ impl<'a> Emitter<'a> {
                         }
                     },
                 );
-                let retained = self.native_receipts.values().any(|receipt| {
-                    receipt
-                        .plan
-                        .retained_guarded_handler
-                        .as_ref()
-                        .is_some_and(|frame| frame["owner"] == guard.descriptor["owner"])
+                let retained = self.native_receipts.values().any(|copies| {
+                    copies.iter().any(|receipt| {
+                        receipt
+                            .plan
+                            .retained_guarded_handler
+                            .as_ref()
+                            .is_some_and(|frame| frame["owner"] == guard.descriptor["owner"])
+                    })
                 });
                 let previous_owner = self.owner_handler_body;
                 let previous_retained = self.retained_owner_body;
@@ -24274,9 +24421,20 @@ impl<'a> Emitter<'a> {
                         std::mem::replace(&mut self.authority_body, *scope_authority);
                     self.receipt_calls.clear();
                     self.current_revision_binding = None;
+                    // Single-copy owners keep today's exact capture. Partitioned
+                    // owners lower against the private whole-owner aggregate
+                    // (identical whole selection, transport caps lifted); the
+                    // copies stay transport-only. Partitioned owners skip
+                    // query-capture bridging for now (safe fallback identical
+                    // to unbridged owners; per-copy bridging is runtime-lane
+                    // work). The core receipt path uses the copy sets, not
+                    // this capture.
                     self.receipt_capture = self
                         .native_receipts
                         .get(&item.id)
+                        .filter(|copies| copies.len() == 1)
+                        .and_then(|copies| copies.first())
+                        .or_else(|| self.native_receipt_aggregates.get(&item.id))
                         .filter(|recipe| recipe.plan.retained_guarded_handler.is_none())
                         .cloned();
                     // Source inventories remain useful for declined scenarios,

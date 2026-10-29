@@ -11,8 +11,10 @@ packages/cloudflare/src/runtime/native-leave-decide.integration.test.ts
 packages/cloudflare/src/runtime/native-leave-request.integration.test.ts
 packages/cloudflare/src/runtime/native-local-rules-d1.integration.test.ts
 packages/cloudflare/src/runtime/native-local-rules.integration.test.ts
+packages/cloudflare/src/runtime/native-loop-send.integration.test.ts
 packages/cloudflare/src/runtime/native-member-retry-collection.integration.test.ts
 packages/cloudflare/src/runtime/native-observe-venue.integration.test.ts
+packages/cloudflare/src/runtime/native-partitioned-plan-set.integration.test.ts
 packages/cloudflare/src/runtime/native-read-boolean-graph.integration.test.ts
 packages/cloudflare/src/runtime/native-read-boolean.integration.test.ts
 packages/cloudflare/src/runtime/native-refer-reject-source.integration.test.ts
@@ -38,6 +40,7 @@ packages/cloudflare/test/model-free-preview.integration.test.ts
 packages/cloudflare/test/soda-writer.integration.test.ts
 packages/interfaces/test/integration-lifecycle.test.ts
 packages/interfaces/test/integration-parity.test.ts
+packages/state/test/receipt/lease-snapshot.test.ts
 tests/integration/b2-d1-fence.test.ts
 tests/integration/b2-delivery.test.ts
 tests/integration/b2-do-local.test.ts
@@ -45,8 +48,10 @@ tests/integration/b2-revocation.test.ts
 tests/integration/can-dev-server/row-subject-consumer.test.ts
 tests/integration/files-safety.test.ts
 tests/integration/identity-auth.test.ts
+tests/integration/invoke-input-hash-fence.test.ts
 tests/integration/lane02-values.test.ts
 tests/integration/readiness.test.ts
+tests/integration/scenario-plan-limits.test.ts
 tests/integration/stdlib-builtins.test.ts
 tests/integration/work-idempotency.test.ts
 tests/integration/work-kernel-decisions.test.ts

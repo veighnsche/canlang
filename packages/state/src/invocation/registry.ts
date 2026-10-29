@@ -7,7 +7,17 @@ import {
   type NormalizedSchema,
 } from '@canlang/values';
 import { bindScenarioReceiptPlan } from './scenario-receipt.js';
-import { checkScenarioResultDisclosurePlan } from './scenario-plan.js';
+import { checkScenarioResultDisclosurePlanSet } from './scenario-plan.js';
+import type { ScenarioResultDisclosurePlan } from '@canlang/contracts';
+/** Transport-shaped installed disclosure: today's single plan or the
+ * ordered copy-plan array for partitioned owners. The contracts type still
+ * names the single plan; the runtime carries the transported shape and State
+ * revalidates it at every custody boundary. */
+function installedDisclosureCopies(disclosure: ScenarioResultDisclosurePlan): readonly ScenarioResultDisclosurePlan[] {
+  return Array.isArray(disclosure)
+    ? disclosure as unknown as readonly ScenarioResultDisclosurePlan[]
+    : [disclosure];
+}
 /**
  * Lane 03 T16a: operation registry — INTERIM engine-local defs plus the
  * generated-descriptor join.
@@ -454,7 +464,14 @@ function checkResult(
     if (!('value' in claim) || !['scenario', 'read'].includes(kind) || Object.keys(result).some(key => !['type', 'disclosure'].includes(key))) {
       fail('malformed_descriptor', `Invalid ${what}: scenario disclosure requires closed source data.`);
     }
-    try { return Object.freeze({ type: type as CanTypeId, disclosure: checkScenarioResultDisclosurePlan(claim.value) }); }
+    try {
+      const copies = checkScenarioResultDisclosurePlanSet(claim.value);
+      // Singles keep today's exact plan value; partitioned owners install the
+      // ordered copy-plan array. The cast carries the transported shape past
+      // the single-plan contracts type; every custody boundary revalidates.
+      const disclosure = (copies.length === 1 ? copies[0]! : copies) as unknown as ScenarioResultDisclosurePlan;
+      return Object.freeze({ type: type as CanTypeId, disclosure });
+    }
     catch (error) { fail('malformed_descriptor', error instanceof Error ? error.message : 'Invalid scenario dependency plan.'); }
   }
   return Object.freeze({ type: type as CanTypeId });
@@ -2740,7 +2757,8 @@ export function artifactToDescriptorSet(
     }
     const result = checkResult(operation as unknown as Record<string, unknown>, `operation ${JSON.stringify(operation.name)}`, operation.kind, modelNames, valueSchema);
     if (result?.disclosure !== undefined) {
-      const source = result.disclosure.source;
+      const copies = installedDisclosureCopies(result.disclosure);
+      const source = copies[0]!.source;
       const modulePaths = artifactPolicyModulePaths(artifact as unknown as Record<string, unknown>);
       const callableMember = Object.getOwnPropertyDescriptor(artifact, 'callables');
       if (callableMember === undefined || !('value' in callableMember) || !Array.isArray(callableMember.value)) {
@@ -2762,11 +2780,11 @@ export function artifactToDescriptorSet(
         // never a second public operation.
         if ((callable['kind']!.value === 'operation' || callable['kind']!.value === 'handler') && callable['id']!.value === operation.name && callable['module']!.value === source.module) matches += 1;
       }
-      const origins = [source, ...result.disclosure.returns.flatMap(returned =>
+      const origins = [source, ...copies.flatMap(copy => copy.returns.flatMap(returned =>
         [returned.source, ...returned.dependencies.map(dependency => dependency.source),
           ...(returned.intrinsics ?? []).map(dependency => dependency.source),
-          ...(returned.projection === undefined ? [] : [returned.projection.source])]),
-        ...(result.disclosure.queries ?? []).flatMap(query => [query.source, ...(query.parent === undefined ? [] : [query.parent.source]), ...query.dependencies.map(dependency => dependency.source)])];
+          ...(returned.projection === undefined ? [] : [returned.projection.source])])),
+        ...(copies[0]!.queries ?? []).flatMap(query => [query.source, ...(query.parent === undefined ? [] : [query.parent.source]), ...query.dependencies.map(dependency => dependency.source)])];
       if (origins.some(origin => !sources?.some(entry => entry.path === origin.path && entry.sha256 === origin.sha256) ||
             !modulePaths.includes(origin.module)) || matches !== 1) {
         fail('malformed_descriptor', 'Scenario dependency plan disagrees with its exact artifact source/callable module.');
@@ -2849,7 +2867,7 @@ export function loadArtifactDescriptors(
     try {
       const callable = Array.prototype.find.call(artifact.callables ?? [], (item: ArtifactCallable) =>
         item.kind === 'operation' && item.id === def.name &&
-        item.module === def.descriptor.result!.disclosure!.source.module) as ArtifactCallable | undefined;
+        item.module === installedDisclosureCopies(def.descriptor.result!.disclosure!)[0]!.source.module) as ArtifactCallable | undefined;
       const style = callable === undefined ? undefined : Object.getOwnPropertyDescriptor(callable, 'inputStyle');
       if ((callable !== undefined && 'inputStyle' in callable && style === undefined) ||
           (style !== undefined && (!('value' in style) || !style.enumerable || style.value !== 'parameters'))) {

@@ -15,6 +15,7 @@
     "clean": "rm -rf dist/",
     "build:emit": "tsc -p tsconfig.json && node scripts/build-do-test-worker.mjs",
     "typecheck:check": "tsc -p tsconfig.json --noEmit",
+    "test:integration": "node --test \"dist/test/receipt/lease-snapshot.test.js\"",
     "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
   "devDependencies": {
