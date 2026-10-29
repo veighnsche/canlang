@@ -150,6 +150,7 @@ jobs:
           bun run check:dependencies
           bun run build
           bun run catalog
+          bun run release
           mkdir -p output/install-tools
           cp scripts/distribution/package.json scripts/distribution/bun.lock output/install-tools/
           bun install --production --ignore-scripts --frozen-lockfile --cwd output/install-tools
