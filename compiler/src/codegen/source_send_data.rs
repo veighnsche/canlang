@@ -199,6 +199,7 @@ impl Environment {
 struct Reads {
     arrays: BTreeSet<String>,
     fields: BTreeMap<String, BTreeMap<String, String>>,
+    value_fields: BTreeMap<String, BTreeMap<String, serde_json::Value>>,
     identities: BTreeMap<String, BTreeSet<String>>,
     parents: BTreeMap<String, (SymbolId, BTreeMap<String, String>)>,
     identity_paths: BTreeMap<String, BTreeMap<Vec<(String, u32, bool)>, String>>,
@@ -453,6 +454,9 @@ impl Reads {
     ) -> serde_json::Value {
         let mut value = serde_json::json!({"name":name,"model":ir.items[model.0 as usize].canonical,
             "fields":field_descriptors(fields)});
+        if let Some(fields) = self.value_fields.get(name) {
+            value["valueFields"] = serde_json::json!(fields.values().collect::<Vec<_>>());
+        }
         if let Some(identity) = self.identities.get(name) {
             value["identity"] = serde_json::json!(identity);
         }
@@ -503,6 +507,62 @@ impl Reads {
                 Some(())
             }
             IrExpr::Member { base, field } => {
+                if let Some(nominal) =
+                    crate::analysis::types::checked_standard_nominal_name(&base.ty)
+                    && matches!(
+                        nominal,
+                        "TextRequest"
+                            | "TextMessage"
+                            | "WorkflowInput"
+                            | "WorkflowDefinition"
+                            | "ImageRequest"
+                    )
+                    && let ResolvedType::StdNominal { fields, .. } = &base.ty
+                    && fields
+                        .iter()
+                        .any(|(name, ty)| name == field && ty == &value.ty)
+                    && matches!(
+                        value.ty,
+                        ResolvedType::Scalar(_) | ResolvedType::Enum { .. }
+                    )
+                    && let Some(type_id) = data_type(ir, &value.ty)
+                    && let IrExpr::Member {
+                        base: receiver,
+                        field: owning_field,
+                    } = &base.expr
+                    && let IrExpr::Name(parameter) = &receiver.expr
+                    && let Some(root) = env.roots.get(parameter)
+                    && root.query.is_none()
+                    && receiver.ty
+                        == (ResolvedType::Record {
+                            symbol: root.model,
+                            stored: true,
+                        })
+                    && declared_field(ir, root.model, owning_field)?.1 == &base.ty
+                    && base.span.file == value.span.file
+                {
+                    super::source_loops::model_corresponds(context, root.model)?;
+                    self.fields.entry(root.parameter.clone()).or_default();
+                    let captured = self
+                        .value_fields
+                        .entry(root.parameter.clone())
+                        .or_default()
+                        .entry(owning_field.clone())
+                        .or_insert_with(
+                            || serde_json::json!({"name":owning_field,"type":nominal,"members":[]}),
+                        );
+                    if captured["type"] != nominal {
+                        return None;
+                    }
+                    let members = captured["members"].as_array_mut()?;
+                    let member = serde_json::json!({"name":field,"type":type_id,
+                        "node":{"start":value.span.start,"end":value.span.end},
+                        "receiver":{"start":base.span.start,"end":base.span.end}});
+                    if !members.contains(&member) {
+                        members.push(member);
+                    }
+                    return Some(());
+                }
                 if self.aggregates
                     && field == "now"
                     && base.ty == ResolvedType::Unknown
@@ -1298,6 +1358,26 @@ pub(super) fn source_only_data_sends(
                             continue;
                         };
                         let mut value = reads.parameter(ir, name, *model, fields);
+                        if let Some(fields) = value
+                            .get_mut("valueFields")
+                            .and_then(serde_json::Value::as_array_mut)
+                        {
+                            for field in fields {
+                                field["id"] = serde_json::json!(crate::source::sha256_hex(
+                                    format!(
+                                        "source-data-value/v1:{}:{}:{}:{}:{}:{}:{}",
+                                        source["path"],
+                                        source["sha256"],
+                                        owner.canonical,
+                                        span.start,
+                                        span.end,
+                                        name,
+                                        field["name"]
+                                    )
+                                    .as_bytes()
+                                ));
+                            }
+                        }
                         if let Some(id) = loop_roots.get(name) {
                             value["loop"] = serde_json::json!(id);
                         }

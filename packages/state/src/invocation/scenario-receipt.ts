@@ -475,7 +475,7 @@ export function bindScenarioSourceLoopProducer(def:GeneratedOperationDef,value:S
     if(Object.hasOwn(loop,'condition')){
       const condition=object(loop['condition'],['node','statement']);
       for(const raw of [condition['node'],condition['statement']]){const at=object(raw,['start','end']);if(!Number.isSafeInteger(at['start'])||!Number.isSafeInteger(at['end'])||Number(at['start'])<Number(node['start'])||Number(at['end'])>Number(node['end'])||Number(at['start'])>=Number(at['end']))return invalid('Loop condition lost its exact original statement.');}
-      if(loop['sends']!==0||!Object.hasOwn(loop,'work')&&loop['writes']!==1)return invalid('Conditional source loop needs its original write or Work branch.');
+      if(Object.hasOwn(loop,'work')?loop['sends']!==0:loop['writes']!==1||Number(loop['sends'])>1)return invalid('Conditional source loop needs its original write/SEND or Work branch.');
     }
     ids.add(id);maximum+=Number(loop['maximum']);
   }
@@ -564,11 +564,12 @@ export async function executeScenarioSourceLoopItem(call:AdmittedCall,store:Stor
       for(const site of sourceLetDataProducers.get(call.def as GeneratedOperationDef)?.sites??[]){
         if(site.loop===execution.loop.id&&site.field.metadata===true&&!consumedSourceLetData.get(call)?.has(`${site.node.start}:${site.node.end}:${item.row.id}`))return invalid('Source loop omitted its original selected metadata observation.');
       }
-      const writes=execution.loop.work!==undefined||execution.loop.condition===undefined?execution.loop.writes:item.answer?1:0;
+      const writes=execution.loop.work!==undefined||execution.loop.condition===undefined?execution.loop.writes:item.answer?execution.loop.writes:0;
+      const sends=execution.loop.condition!==undefined&&execution.loop.work===undefined&&item.answer!==true?0:execution.loop.sends;
       const expectedWork=execution.loop.work?.filter(site=>site.conditional!==true||item.answer===true).length??0;
       if(item.work!==expectedWork)return invalid('Source loop item omitted an original Work command.');
       if(owner.busy||state.pending!==0||owner.executingCall!==call||owner.stage!==stage+writes
-          ||(owner.framework?.ordinal??0)!==ordinal+execution.loop.sends)return invalid('Source loop item did not execute its exact original write/Work stages.');
+          ||(owner.framework?.ordinal??0)!==ordinal+sends)return invalid('Source loop item did not execute its exact original write/Work stages.');
       // Completion belongs to this genuine selected entry. Later staged
       // readers can retain the actual branch outcome and exact write objects;
       // a caller-supplied item id or stage counter cannot recreate this history.
@@ -8839,7 +8840,10 @@ export interface ScenarioSourceSendDataSource {
   readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
   readonly node:{readonly start:number;readonly end:number};readonly operation:string;readonly binding:string;
   readonly parameters:readonly {readonly name:string;readonly model:ModelName;readonly array?:true;
-    readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identityPaths?:readonly {readonly path:readonly {readonly field:string;readonly model:ModelName;readonly nullable?:true}[];readonly leaf:'id'}[];readonly dataPaths?:readonly{readonly path:NonNullable<ScenarioSourceSendDataSource['parameters'][number]['identityPaths']>[number]['path'];readonly field:string;readonly type:CanTypeId}[];readonly parent?:{readonly model:ModelName;readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[]};readonly derived?:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identity?:readonly ('id'|'version')[];readonly loop?:string;readonly created?:ScenarioSourceCreatedRoot}[];
+    readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];
+    readonly valueFields?:readonly {readonly id:string;readonly name:string;readonly type:CanTypeId;
+      readonly members:readonly {readonly name:string;readonly type:CanTypeId;readonly node:{readonly start:number;readonly end:number};readonly receiver:{readonly start:number;readonly end:number}}[]}[];
+    readonly identityPaths?:readonly {readonly path:readonly {readonly field:string;readonly model:ModelName;readonly nullable?:true}[];readonly leaf:'id'}[];readonly dataPaths?:readonly{readonly path:NonNullable<ScenarioSourceSendDataSource['parameters'][number]['identityPaths']>[number]['path'];readonly field:string;readonly type:CanTypeId}[];readonly parent?:{readonly model:ModelName;readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[]};readonly derived?:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identity?:readonly ('id'|'version')[];readonly loop?:string;readonly created?:ScenarioSourceCreatedRoot}[];
   readonly queries?:readonly ScenarioSourceSendQuerySource[];
 }
 interface SourceSendDataProducer extends ScenarioReceiptReferenceProducer {readonly sites:readonly ScenarioSourceSendDataSource[];}
@@ -9013,6 +9017,32 @@ function checkSourceEffectPolicies(bound:BoundPlan,readPolicies:ReadonlyMap<Mode
     seen.add(ancestor);ancestor=original.parent as ModelName|undefined;
   }
 }
+function sourceValueFields(bound:BoundPlan,model:ModelName,value:unknown,node?:{readonly start:number;readonly end:number}):readonly NonNullable<ScenarioSourceSendDataSource['parameters'][number]['valueFields']>[number][]{
+  const entries=list(value),ids=new Set<string>(),names=new Set<string>();
+  if(entries.length===0)return invalid('Stored Values projection needs its exact original field census.');
+  for(const raw of entries){
+    const field=object(raw,['id','name','type','members']),id=text(field['id']),name=text(field['name']),type=text(field['type']);
+    if(!/^[a-f0-9]{64}$/.test(id)||ids.has(id)||names.has(name)||!['TextRequest','TextMessage','WorkflowInput','WorkflowDefinition','ImageRequest'].includes(type))return invalid('Stored Values projection differs from its original standard owning field.');
+    const profile=storedNominalField(bound,model,name,type,{protectedFiles:true});
+    if(profile.array||profile.nullable)return invalid('Stored Values projection needs its singular required owning field.');
+    const declared=bound.valueSchema?.contracts[type],members=list(field['members']),sites=new Set<string>();
+    if(declared===undefined||members.length===0)return invalid('Stored Values projection lost its defining schema and members.');
+    for(const raw of members){
+      const member=object(raw,['name','type','node','receiver']),memberName=text(member['name']),memberType=text(member['type']);
+      const at=object(member['node'],['start','end']),receiver=object(member['receiver'],['start','end']);
+      const key=`${at['start']}:${at['end']}`;
+      if(!/^(int|datetime|text|email|timezone|bool|decimal|money|date|duration|currency|user)$/.test(memberType)
+          ||declared.fields[memberName]?.typeId!==memberType||sites.has(key)
+          ||[at['start'],at['end'],receiver['start'],receiver['end']].some(value=>!Number.isSafeInteger(value))
+          ||at['start']!==receiver['start']||Number(receiver['start'])<0||Number(receiver['end'])<=Number(receiver['start'])
+          ||Number(receiver['end'])>=Number(at['end'])||node!==undefined&&(Number(at['start'])<node.start||Number(at['end'])>node.end))return invalid('Stored Values member lost its exact primitive type and original receiver site.');
+      sites.add(key);
+    }
+    ids.add(id);names.add(name);
+  }
+  return entries as unknown as readonly NonNullable<ScenarioSourceSendDataSource['parameters'][number]['valueFields']>[number][];
+}
+
 function checkSourceEffectFields(bound:BoundPlan,model:ModelName,parameter:Record<string,unknown>,hasQueries:boolean,effect:'SEND'|'EMIT'):void{
   const fields=list(parameter['fields']),label=`${effect} DATA`;
   if(Object.hasOwn(parameter,'parent'))checkSourceEffectParent(bound,model,parameter['parent']);
@@ -9023,8 +9053,12 @@ function checkSourceEffectFields(bound:BoundPlan,model:ModelName,parameter:Recor
     if(identity.length===0||identity.length>2||new Set(identity).size!==identity.length||identity.some(value=>value!=='id'&&value!=='version'))return invalid(`${label} has invalid admitted identity leaves.`);
   }
   if(fields.length===0&&!Object.hasOwn(parameter,'dataPaths')&&!Object.hasOwn(parameter,'identityPaths')&&!Object.hasOwn(parameter,'parent')
-      &&!Object.hasOwn(parameter,'identity')&&!(effect==='EMIT'&&Object.hasOwn(parameter,'derived'))&&!hasQueries)return invalid(`${label} needs its exact field census.`);
+      &&!Object.hasOwn(parameter,'identity')&&!(effect==='EMIT'&&Object.hasOwn(parameter,'derived'))&&!Object.hasOwn(parameter,'valueFields')&&!hasQueries)return invalid(`${label} needs its exact field census.`);
   const selected=new Set<string>();
+  if(Object.hasOwn(parameter,'valueFields')){
+    if(effect!=='SEND')return invalid('Stored Values member projection belongs only to its original SEND.');
+    for(const field of sourceValueFields(bound,model,parameter['valueFields']))selected.add(field.name);
+  }
   for(const value of fields){
     const field=object(value,['name','type']),name=text(field['name']),type=text(field['type']);
     if(selected.has(name)||!sourceSendFieldType(bound,model,name,type)||['file','secret','member','json','bytes'].includes(type.replace(/\?$/,'')))
@@ -9098,7 +9132,7 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
     const parameters=list(site['parameters']);if(parameters.length===0)return invalid('SEND DATA needs its actual source root census.');
     const names=new Set<string>();
     for(const value of parameters){
-      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[]),...(Object.hasOwn(value as object,'array')?['array']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[]),...(Object.hasOwn(value as object,'created')?['created']:[]),...(Object.hasOwn(value as object,'derived')?['derived']:[]),...(Object.hasOwn(value as object,'parent')?['parent']:[]),...(Object.hasOwn(value as object,'identityPaths')?['identityPaths']:[]),...(Object.hasOwn(value as object,'dataPaths')?['dataPaths']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
+      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[]),...(Object.hasOwn(value as object,'array')?['array']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[]),...(Object.hasOwn(value as object,'created')?['created']:[]),...(Object.hasOwn(value as object,'derived')?['derived']:[]),...(Object.hasOwn(value as object,'valueFields')?['valueFields']:[]),...(Object.hasOwn(value as object,'parent')?['parent']:[]),...(Object.hasOwn(value as object,'identityPaths')?['identityPaths']:[]),...(Object.hasOwn(value as object,'dataPaths')?['dataPaths']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
       const input=bound.inputs.find(input=>input.name===name),declaration=bound.models.get(model);
       const array=Object.hasOwn(parameter,'array');
       if(array&&(parameter['array']!==true||Object.keys(parameter).length!==5||list(parameter['fields']).length!==0
@@ -9112,6 +9146,7 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
       }
       names.add(name);
       checkSourceEffectFields(bound,model,parameter,Object.hasOwn(site,'queries'),'SEND');
+      if(Object.hasOwn(parameter,'valueFields'))sourceValueFields(bound,model,parameter['valueFields'],{start:Number(node['start']),end:Number(node['end'])});
       checkSourceEffectPolicies(bound,readPolicies,model,'SEND DATA');
     }
     if(Object.hasOwn(site,'queries'))checkSourceEffectQueries(bound,readPolicies,site['queries'],parameters,'SEND');
@@ -9126,28 +9161,52 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
  * one SEND. Its original field grants survive the Work stage and final commit. */
 async function projectSourceEffectParameter(call:AdmittedCall,store:StoragePort,owner:ReceiptOwnerSession,state:Capture,
   parameter:ScenarioSourceEmitDataSource['parameters'][number],row:StoredRow,producer:ScenarioReceiptReferenceProducer,
-  rows:Record<string,ProjectedRecord>,key=parameter.name):Promise<void>{
+  rows:Record<string,ProjectedRecord>,key=parameter.name,
+  observeFiles?:NonNullable<Parameters<typeof executeScenarioSourceSendData>[2]['observeFiles']>):Promise<void>{
   const computed=new Set((parameter.derived??[]).map(field=>field.name));
   const authority=await observeModelQuerySourceAuthority(call,store,owner,state,parameter.model,row,
-    [...parameter.fields.map(field=>field.name),...computed,...(parameter.parent===undefined?[]:['parent'])],0,undefined,undefined,producer,false,computed);
-  rows[key]=authority.record;
+    [...parameter.fields.map(field=>field.name),...(parameter.valueFields??[]).map(field=>field.name),...computed,...(parameter.parent===undefined?[]:['parent'])],0,undefined,undefined,producer,false,computed);
+  const data={...authority.record.data};
+  for(const field of parameter.valueFields??[]){
+    const original=Object.getOwnPropertyDescriptor(authority.record.data,field.name);
+    if(original===undefined||!('value'in original)||!original.enumerable)return invalid('Stored Values projection lacks its actually granted whole field.');
+    const profile=storedNominalField(state.bound,parameter.model,field.name,field.type,{protectedFiles:true});
+    const wire=deepFreeze(dataCopy(original.value));storedNominalWire(profile,wire);
+    if(profile.hasFiles){
+      if(observeFiles===undefined)return invalid('Stored Values projection requires its genuine receiving File observations.');
+      const files=await observeFiles({parameter:parameter.name,dependencyId:field.id,model:parameter.model,field:field.name,wire});
+      ownerHealthy(owner);capture(call,store);
+      await observeStoredFileAuthority(call,store,owner,state,{id:field.id,source:state.bound.plan.source,role:'data',model:parameter.model,field:field.name,type:field.type},row,profile,files,{pending:0,source:producer});
+    }
+    const projected:Record<string,unknown>=Object.create(null);
+    for(const member of field.members){
+      const value=typeof wire==='object'&&wire!==null?Object.getOwnPropertyDescriptor(wire,member.name):undefined;
+      if(value===undefined||!('value'in value)||!value.enumerable)return invalid('Stored Values projection omitted its declared primitive member.');
+      scalarWire(member.type,value.value);projected[member.name]=deepFreeze(dataCopy(value.value));
+    }
+    data[field.name]=Object.freeze(projected);
+  }
+  rows[key]=Object.freeze({...authority.record,data:Object.freeze(data)});
   await observeSourceEffectIdentityPaths(call,store,owner,state,parameter,row,producer,rows);
   if(parameter.parent!==undefined)rows[`${parameter.name}.parent`]=await observeSourceEffectParent(call,store,owner,state,parameter.model,row,parameter.parent,producer);
 }
 export async function executeScenarioSourceSendData(call:AdmittedCall,store:StoragePort,input:{
   readonly source:ScenarioSourceSendDataSource;
   readonly execute:(rows:Readonly<Record<string,ProjectedRecord>>)=>Promise<unknown>;
+  readonly observeFiles?:(input:{readonly parameter:string;readonly dependencyId:string;readonly model:ModelName;readonly field:string;readonly wire:unknown})=>Promise<readonly FinalizedFileObservation[]>;
 }):Promise<unknown>{
   const state=capture(call,store),owner=ownerSessions.get(call);
   try{
-    const supplied=object(input,['source','execute']);
+    const supplied=object(input,['source','execute',...(Object.hasOwn(input,'observeFiles')?['observeFiles']:[])]);
+    if(Object.hasOwn(input,'observeFiles')&&typeof input.observeFiles!=='function')return invalid('Stored Values projection requires its actual receiving File observer.');
     if(typeof supplied['execute']!=='function')return invalid('SEND DATA requires its original executable source callback.');
     const claimed=dataCopy(supplied['source']);
     const producer=sourceSendDataProducers.get(call.def as GeneratedOperationDef);
     const matches=producer?.sites.filter(source=>stableStringify(source)===stableStringify(claimed))??[];
     const loop=matches.length===1?sourceSendBodyLoop(call.def as GeneratedOperationDef,matches[0]!.node):undefined;
     const loopItem=owner===undefined?undefined:sourceBodyLoopItems.get(owner),loopOwner=loop!==undefined&&loopItem?.execution.loop===loop;
-    if(owner===undefined||owner.session===null||owner.framework===null||!state.bound.sourceRequireOnly&&!loopOwner||loop!==undefined&&!loopOwner||matches.length!==1||producer===undefined
+    if(owner===undefined||owner.session===null||owner.framework===null||!state.bound.sourceRequireOnly&&!loopOwner||loop!==undefined&&!loopOwner
+        ||loopOwner&&loop.condition!==undefined&&loopItem.answer!==true||matches.length!==1||producer===undefined
         ||owner.busy||owner.capture.pending!==0||owner.executingCall!==call||sourceSendDataExecutions.has(owner)||sourceEmitDataExecutions.has(owner))return invalid('SEND DATA lacks its actual quiescent source owner.');
     const source=matches[0]!,stage=owner.stage,ordinal=owner.framework.ordinal,key=`${source.node.start}:${source.node.end}:${loopOwner?loopItem!.row.id:source.parameters.some(parameter=>parameter.loop!==undefined)?sourceBodyLoopItems.get(owner)?.row.id??'unissued-loop':''}`;
     const consumed=consumedSourceSendData.get(call)??new Set<string>();consumedSourceSendData.set(call,consumed);
@@ -9180,7 +9239,7 @@ export async function executeScenarioSourceSendData(call:AdmittedCall,store:Stor
         if(original===undefined)return invalid('SEND DATA source root was not issued.');
         const row=await owner.session!.views.final.get(parameter.model,original.id);ownerHealthy(owner);
         if(row===null||!sameModelLifetime(original,row)||owner.stage!==stage)return invalid('SEND DATA source root lifetime changed.');
-        await projectSourceEffectParameter(call,store,owner,state,parameter,row,producer,rows);
+        await projectSourceEffectParameter(call,store,owner,state,parameter,row,producer,rows,parameter.name,input.observeFiles);
       }
     },call);
     const active={call,source,stage,ordinal,sent:false,queries:new Set<string>()};sourceSendDataExecutions.set(owner,active);
@@ -10503,11 +10562,12 @@ async function observeReferenceAuthority(call: AdmittedCall, store: StoragePort,
  * physical Files producer. No wire/reference shape issues an observation. */
 async function observeStoredFileAuthority(call: AdmittedCall, store: StoragePort, owner: ReceiptOwnerSession,
   state: Capture, dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number],
-  row: StoredRow, profile: ScenarioFileFieldProfile | StoredNominalFieldProfile, observations: readonly FinalizedFileObservation[]): Promise<{
+  row: StoredRow, profile: ScenarioFileFieldProfile | StoredNominalFieldProfile, observations: readonly FinalizedFileObservation[],
+  scope?:{readonly pending:0;readonly source:ScenarioReceiptReferenceProducer}): Promise<{
     readonly files: readonly RetainedFinalizedFile[]; readonly revalidate: () => Promise<void>;
   }> {
-  const source = dependency.queryId === undefined ? referenceProducers.get(call.def as GeneratedOperationDef) :
-    querySourceProducer(call.def as GeneratedOperationDef, dependency.model), producer = fileProducers.get(call.def as GeneratedOperationDef);
+  const source = scope?.source ?? (dependency.queryId === undefined ? referenceProducers.get(call.def as GeneratedOperationDef) :
+    querySourceProducer(call.def as GeneratedOperationDef, dependency.model)), producer = fileProducers.get(call.def as GeneratedOperationDef);
   const read = source?.readPolicies?.get(dependency.model);
   if (owner.session === null || source?.app !== call.context.app || source.readPolicies === undefined || read === undefined ||
       !('grants' in read) || producer?.app !== call.context.app || owner.callGuards.length >= MAX_ITEMS ||
@@ -10530,7 +10590,7 @@ async function observeStoredFileAuthority(call: AdmittedCall, store: StoragePort
   const files = Object.freeze(refs.map(ref => facts.get(ref)!)), stage = owner.stage;
   const healthy = () => {
     capture(call, store); ownerHealthy(owner);
-    if (owner.executingCall !== call || owner.stage !== stage || !owner.busy || state.pending !== 1 || state.returnId !== null) {
+    if (owner.executingCall !== call || owner.stage !== stage || !owner.busy || state.pending !== (scope?.pending ?? 1) || state.returnId !== null) {
       return invalid('stored File capture crossed its original parent stage.');
     }
   };

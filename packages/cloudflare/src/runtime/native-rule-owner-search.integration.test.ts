@@ -2427,6 +2427,68 @@ it('authorizes original SEND scalar DATA with independent current field projecti
           assert.deepEqual(await store.outboxPending(),pending);
         }
       }
+      {
+      // Whole stored Values keep their field grant and receiving File authority;
+      // the original conditional loop redeems neither on its unreached branch.
+      const source=join(directory,'ProtectedValues.can');
+      await writeFile(source,'app ProtectedSourceSend\nuse std {TextRequest}\nuse std {EmailV1 as Mail} from=deployment.mail\nGiven\n Root {enabled:bool=true}\n Branch in Root {title:text}\n Run in Branch {eligible:bool=true,visible:bool=true,marked:bool=false,request_value:TextRequest,notice:delivery(Mail.send)?}\n policy Root read=members\n policy Branch read=members\n policy Run read=members fields=eligible,visible,marked,notice.id,notice.status,notice.error\n policy Run read=members where=row.visible fields=request_value\nWhen\n scenario notify(root:Root,to:email) by=members\n  require root.enabled\n  do\n   for run in Run as row where row.parent.parent==root and row.eligible limit=10\n    if run.notice?.status!=pending\n     send Mail.send {to,subject=run.request_value.source,body=run.request_value.source} as notice\n     set run {marked=true,notice}\nThen\n');
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact;
+      const asm=await assembleModules({artifact,sourcePath:source},{workDir:join(directory,'protected-modules'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+for(const mode of ['allowed','attached','field-withheld','missing-port','invalid-file','identity-race','field-race','file-race']){
+ const {now,identities,identity,membership,user}=await member('protected-'+mode);
+ const scope={app:'ProtectedSourceSend',owner:membership.team_id,ownerPackage:'ProtectedSourceSend'};
+ const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'protected-state',fileStoreId:'protected-files',receiver:{app:scope.app,owner:scope.owner,team:scope.owner}};
+ const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+ await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(scope.owner));}});
+ const clock=new TestOnlyManualClock(now),blobs=new TestOnlyMemoryBlobStore(),files=new TestOnlyMemoryFinalizedStore(),intents=new TestOnlyMemoryIntentStore();
+ const physical={clock,blobs,files,upload:{clock,intents,blobs,policy:DEFAULT_FILE_POLICY,intentIds:new TestOnlyCounterIntentIds(),intentTtlMs:3600000,urlBase:'https://protected.test'},finalize:{clock,intents,blobs,files,fileIds:new TestOnlyCounterFileIds()}};
+ const retention={unattachedHorizonMs:3600000,retentionMs:86400000},observation={policy:physical.upload.policy,retention};
+ const kernel=createFileJourneyKernel({maxBytes:physical.upload.policy.maxBytes,createIntent:input=>createUploadIntent(physical.upload,input),append:(id,caller,bytes,offset)=>appendUploadContentAtOffset(physical.upload,id,caller,bytes,offset),complete:(id,caller)=>completeUploadContent(physical.upload,id,caller),finalize:input=>finalizeUpload(physical.finalize,input),authorizeAttach:(ref,caller)=>authorizeAttach(physical.finalize,ref,caller),readProvenance:(ref,caller)=>readFinalizedFile(physical.finalize,ref,caller),recordAttachment:(ref,record,caller)=>recordAttachment(physical.finalize,ref,record,caller),readBytes:(ref,caller)=>readFinalizedBytes(physical.finalize,ref,caller),readCurrentBytes:(ref,caller,policy)=>readCurrentFinalizedBytes(physical.finalize,ref,caller,{...observation,retention:policy}),readCurrentSnapshot:(ref,caller,policy)=>readCurrentFinalizedSnapshot(physical.finalize,ref,caller,{...observation,retention:policy}),observeFile:(ref,caller,policy)=>observeFinalizedFile(physical.finalize,ref,caller,{...observation,retention:policy}),revalidateFile:(saved,caller,policy)=>revalidateRetainedFinalizedFile(physical.finalize,saved,caller,{...observation,retention:policy})} satisfies FileJourneyBindings);
+ let attachments:unknown[]=[];
+ if(mode==='attached'||mode==='file-race'){
+  const receiver={app:scope.app,owner:scope.owner,team:scope.owner,principal:user.user_id},bytes=new TextEncoder().encode('Stored protected request');
+  const intent=createUploadIntent(physical.upload,{receiver,binding:{adapter:'deployment.web',deliveryId:'protected',resultPath:'messages/0/attachments/0'},request:{upload_id:'protected',operation:'ProtectedSourceSend.notify',field:'/request_value',arguments:{},name:'request.txt',type:'text/plain',size:String(bytes.length)}});assert.ok(intent.status==='granted');
+  assert.equal(appendUploadContentAtOffset(physical.upload,intent.intentId,receiver,bytes,0).status,'appended');assert.equal(completeUploadContent(physical.upload,intent.intentId,receiver).status,'completed');
+  const finalized=finalizeUpload(physical.finalize,{intentId:intent.intentId,retryId:'protected',bytesDigest:sha256Hex(bytes),caller:receiver});assert.ok(finalized.status==='finalized');attachments=[{id:finalized.result.file}];
+ }
+ if(mode==='invalid-file')attachments=[{id:'missing-finalized-file'}];
+ const rootModel=asModel('ProtectedSourceSend.Root'),branchModel=asModel('ProtectedSourceSend.Branch'),runModel=asModel('ProtectedSourceSend.Run');
+ const row={...makeRow({id:asId('run'),data:{eligible:true,visible:mode!=='field-withheld',marked:false,notice:null,request_value:{source:'Protected original source',revision:'1',profile:'original',policy_revision:'1',messages:[{role:'user',content:'Private message',attachments}],max_input_tokens:'100',max_output_tokens:'100',max_duration:'1000'}}}),parent:{model:branchModel,id:asId('branch')}};
+ await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:rootModel,row:{...makeRow({id:asId('root'),data:{enabled:true}}),parent:null}},{kind:'insert',model:branchModel,row:{...makeRow({id:asId('branch'),data:{title:'Branch'}}),parent:{model:rootModel,id:asId('root')}}},{kind:'insert',model:runModel,row}]}));
+ let raced=false;
+ if(mode==='identity-race'||mode==='file-race'){
+  const load=store.load.bind(store);store.load=async(model,id)=>{if(!raced&&model==='work.dispatch'){raced=true;if(mode==='identity-race')await identities.removeMembership(membership.membership_id);else blobs.remove(blobKeyForFile((attachments[0] as {id:string}).id));}return load(model,id);};
+ }
+ if(mode==='field-race'){
+  const commit=store.commit.bind(store);store.commit=async batch=>{if(!raced&&batch.writes.some(write=>write.model==='work.dispatch')){raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:runModel,id:row.id,expectedVersion:row.version,row:{...row,version:asVersion(row.version+1),data:{...row.data,visible:false}}}]}));}return commit(batch);};
+ }
+ const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now,...(mode==='missing-port'?{}:{files:createCanonicalFileBinding(kernel,retention)})});
+ const request={operation:'ProtectedSourceSend.notify',operation_id:operationId(now),inputs:{root:{id:'root',version:'1'},to:'recipient@example.test'}};
+ const historyBefore=await store.historyFor(runModel,row.id);
+ const outcome=await invoker.invokeMutation(request,identity);
+ assert.equal(JSON.stringify(outcome).includes('Private message'),false,'protected request content is not a result projection');
+ if('result'in outcome)for(const changed of outcome.result.records??[]){assert.ok(changed!==null&&typeof changed==='object'&&'data'in changed&&changed.data!==null&&typeof changed.data==='object');assert.equal(Object.hasOwn(changed.data,'request_value'),false,'no whole protected value escapes the primitive SEND projection');}
+ const allowed=mode==='allowed'||mode==='attached';assert.equal('result'in outcome&&outcome.result.status==='committed',allowed,mode);
+ if(!allowed){assert.ok('error'in outcome,JSON.stringify(outcome));assert.equal(outcome.error.code,mode==='missing-port'?'validation':'forbidden',mode);assert.deepEqual(await store.historyFor(runModel,row.id),historyBefore,'refusal persists no business history');}
+ assert.equal((await store.outboxPending()).length,allowed?1:0,mode);assert.equal((await store.load(runModel,row.id))?.data.marked,allowed,mode);
+ if(allowed){const pending=await store.outboxPending();assert.equal(((pending[0]!.arguments as {arguments:{subject:string}}).arguments.subject),'Protected original source');const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));assert.deepEqual(await store.outboxPending(),pending);}
+ if(allowed){
+  const current=(await store.load(runModel,row.id))!;
+  const requestValue=row.data.request_value;assert.ok(requestValue!==null&&typeof requestValue==='object');
+  const hidden={...current,version:asVersion(current.version+1),data:{...current.data,visible:false,request_value:{...requestValue,messages:[{role:'user',content:'Private message',attachments:[{id:'unread-missing-file'}]}]}}};
+  await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:runModel,id:row.id,expectedVersion:current.version,row:hidden}]}));
+  const before=await store.outboxPending(),beforeHistory=await store.historyFor(runModel,row.id);
+  const noFiles=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+  const skipped=await noFiles.invokeMutation({...request,operation_id:operationId(now)},identity);
+  assert.ok('result'in skipped,JSON.stringify(skipped));assert.equal(skipped.result.status,'committed');
+  assert.deepEqual(await store.load(runModel,row.id),hidden);assert.deepEqual(await store.historyFor(runModel,row.id),beforeHistory);assert.deepEqual(await store.outboxPending(),before,'false condition performs no SEND/protected-field/File reads');
+ }
+
+ else if(mode==='field-race'){assert.ok(raced);assert.deepEqual(await store.load(runModel,row.id),{...row,version:asVersion(row.version+1),data:{...row.data,visible:false}});}else{if(mode==='identity-race'||mode==='file-race')assert.ok(raced);assert.deepEqual(await store.load(runModel,row.id),row,mode);}
+}
+
+      }
       for(const name of ['select_profile','select_root'])assertSourceOnlyReceipt(artifact,`SourceSendData.${name}`,'void',[[],[]]);
       for(const mode of ['selected','absent','mismatched','hidden','multiple','identity-race','reference-race','profile-race','direct','direct-hidden']){
         const {now,identities,identity,membership}=await member(`selected-profile-${mode}`);

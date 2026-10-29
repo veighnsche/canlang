@@ -3713,6 +3713,19 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                         return None;
                     }
                     "file[]".into()
+                } else if let Some(standard) = stored_standard_inventory_type(
+                    ir,
+                    value_types,
+                    ty,
+                    declared[0],
+                    stored,
+                    checked.source_facts.as_deref(),
+                    db,
+                ) {
+                    if transition.is_some() || standard != dependency.type_id {
+                        return None;
+                    }
+                    standard
                 } else if let Some(contract) = stored_contract_inventory_type(
                     ir,
                     value_types,
@@ -16958,6 +16971,59 @@ fn stored_contract_schema_for<'s, 'v>(
     Some((schema, contract))
 }
 
+/// Standard nominal reads keep the whole owning-field DATA gate. The
+/// independently regenerated inventory includes every nested opaque leaf;
+/// source analysis admits only its original primitive member consumers.
+fn stored_standard_inventory_type(
+    ir: &IrProgram,
+    value_types: Option<&JsValueTypes>,
+    ty: &ResolvedType,
+    field: &JsModelField,
+    stored: &IrItem,
+    source: Option<&crate::analysis::scenario_disclosure::CheckedScenarioSource>,
+    db: Option<&SourceDb>,
+) -> Option<String> {
+    let name = crate::analysis::types::checked_standard_nominal_name(ty)?;
+    if !matches!(
+        name,
+        "TextRequest" | "TextMessage" | "WorkflowInput" | "WorkflowDefinition" | "ImageRequest"
+    ) {
+        return None;
+    }
+    let root = stored_contract_root_schema(ir, source, stored, ty, db)?;
+    let generated = super::js::Emitter::source_models(ir, db?)?;
+    let original = generated
+        .iter()
+        .find(|model| model.name == root.canonical)?
+        .fields
+        .iter()
+        .find(|candidate| candidate.name == stored.name)?;
+    if serde_json::to_value(original).ok()? != serde_json::to_value(field).ok()?
+        || field.value_type.as_deref() != Some(name)
+        || !matches!(&field.field, JsModelFieldType::Nominal {name: actual} if actual == name)
+        || field.nullable
+        || field.array_required.is_some()
+    {
+        return None;
+    }
+    let mut emitter = super::js::Emitter::new(ir);
+    let expected = emitter.collect_standard_value_inventory(db?)?;
+    let supplied = value_types?;
+    for original in &expected.contracts {
+        let mut candidates = supplied
+            .contracts
+            .iter()
+            .filter(|candidate| candidate.name == original.name);
+        let candidate = candidates.next()?;
+        if candidates.next().is_some()
+            || serde_json::to_value(candidate).ok()? != serde_json::to_value(original).ok()?
+        {
+            return None;
+        }
+    }
+    Some(name.to_owned())
+}
+
 fn stored_contract_inventory_type(
     ir: &IrProgram,
     value_types: Option<&JsValueTypes>,
@@ -23386,7 +23452,18 @@ impl<'a> Sites<'a> {
                             return None;
                         }
                         if sibling_loop.is_some_and(|plan|plan["loops"].as_array().is_some_and(|loops|loops.iter().any(|entry|entry["node"]["start"]==span.start&&entry["node"]["end"]==span.end))){
-                            let IrExpr::Query(query)=&domain.expr else{return None;};push!(Visit::Expression(query.parent.as_deref()?));
+                            let IrExpr::Query(query)=&domain.expr else{return None;};
+                            let root=if let Some(parent)=query.parent.as_deref(){parent}else{
+                                let plan=sibling_loop?["loops"].as_array()?.iter().find(|entry|entry["node"]["start"]==span.start&&entry["node"]["end"]==span.end)?;
+                                let mut predicate=query.where_pred.as_deref()?;
+                                while let IrExpr::Binary{op:IrBinOp::And,left,..}=&predicate.expr{predicate=left;}
+                                let IrExpr::Binary{op:IrBinOp::Eq,right,..}=&predicate.expr else{return None;};
+                                let IrExpr::Name(name)=&right.expr else{return None;};
+                                let ResolvedType::Record{symbol,stored:true}=right.ty else{return None;};
+                                if plan["parameter"]!=*name||plan["parentModel"]!=ir.items.get(symbol.0 as usize)?.canonical{return None;}
+                                right.as_ref()
+                            };
+                            push!(Visit::Expression(root));
                             push!(Visit::Expression(limit));
                             let mut original_body:Vec<_>=body.iter().collect();
                             while let Some(statement)=original_body.pop(){
