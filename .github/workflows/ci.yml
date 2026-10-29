@@ -83,10 +83,14 @@ jobs:
         run: cargo build --locked --manifest-path dev-server/Cargo.toml
       - name: Install Chromium and system dependencies for workspace tests
         run: bunx playwright install --with-deps chromium
-      - name: Test all package and integration suites
+      - name: Test root integration suites
         env:
           CAN_PREPARATION_BIN: ${{ runner.temp }}/can-integration-preparation/debug/can-preparation
-        run: bun run test:all --log-order=stream
+        run: bun run test --log-order=stream
+      - name: Test package integration and runtime suites
+        env:
+          CAN_PREPARATION_BIN: ${{ runner.temp }}/can-integration-preparation/debug/can-preparation
+        run: node scripts/run-tasks.mjs test:integration test:runtime --concurrency=1 --log-order=stream
       - name: Verify installed package declarations
         run: bun run verify:installed-types --skip-build
       - name: Verify installed Worker and assets

@@ -84,7 +84,7 @@ describe("captured compiler against the Office Supplies evaluator source", () =>
     }
   }, 30000);
 
-  it("admits one same-file composition while the compiler owns its package references", async () => {
+  it("admits same-file composition and refuses an unresolved member before compilation", async () => {
     const { root, app, request } = await tempWitness();
     const source = 'app OfficeSupplies uses=[Catalog]\n\npackage Catalog\n Given\n  Supply {name:text}\n  policy Supply read=members\n When\n  crud Supply by=members fields=name\n Then\n  page / title="Supplies"\n   list Supply\n    text row.name\n';
     try {
@@ -98,14 +98,9 @@ describe("captured compiler against the Office Supplies evaluator source", () =>
         expect(result.artifact.pages[0]?.owner).toBe("Catalog");
       }
       writeFileSync(app, source.replace("uses=[Catalog]", "uses=[Missing]"));
-      const missing = await compileCapturedSingleFile(await captureSingleFileSource(request));
-      expect(missing.kind).toBe("diagnostics");
-      if (missing.kind === "diagnostics") {
-        expect(missing.envelope.complete).toBe(true);
-        expect(missing.envelope.diagnostics.some(diagnostic =>
-          typeof diagnostic === "object" && diagnostic !== null && "code" in diagnostic && diagnostic.code === "E2005" &&
-          "message" in diagnostic && diagnostic.message === "app 'OfficeSupplies' selects unknown member 'Missing'")).toBe(true);
-      }
+      await expect(captureSingleFileSource(request)).rejects.toThrow(
+        "imported package Missing has no provider source in the checkout",
+      );
     } finally { rmSync(root, { recursive: true, force: true }); }
   }, 30000);
 
