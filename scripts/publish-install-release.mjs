@@ -54,6 +54,16 @@ export function prepareRelease({ checkout, artifacts, event, ref, repo, sha }) {
   }
   assets.push(join(artifacts, platforms[0], 'install.sh'));
   assets.push(...verifyChecksum(join(artifacts, platforms[0]), browserName));
+  const toolsDirectory = join(artifacts, 'tools');
+  const descriptorPath = join(toolsDirectory, 'canlang-release.json');
+  const descriptor = JSON.parse(read(descriptorPath));
+  assert.equal(descriptor.sourceRevision, sha, 'Offline tools must match the tagged source');
+  assert.equal(descriptor.archiveFilename, 'canlang-tools-linux-x86_64.tar.gz');
+  const toolsArchive = join(toolsDirectory, descriptor.archiveFilename);
+  assert.equal(createHash('sha256').update(read(toolsArchive)).digest('hex'), descriptor.sha256,
+    'Offline tools checksum mismatch');
+  assert.ok(descriptor.versions.compiler.startsWith(`can ${version} (`), 'Offline compiler release version differs');
+  assets.push(toolsArchive, descriptorPath);
   return { tag: `v${version}`, version, sha, repo, assets, prerelease: version.split('+')[0].includes('-') };
 }
 
@@ -69,7 +79,7 @@ export function publishRelease(plan, gh = (args, capture = false) => execFileSyn
   assert.equal(String(existing ?? '').trim(), '', `Release ${plan.tag} already exists; preserve it and recover deliberately`);
   gh(['release', 'create', plan.tag, ...common, '--draft', '--verify-tag', '--target', plan.sha,
     '--title', `Can ${plan.version}`, '--notes',
-    'Standalone Can for Linux x64 (glibc). Installer: https://sodaos.dev/CanLang/install.sh . Browser development tools are optional and separate.',
+    `Standalone Can for Linux x64 (glibc). Installer: https://sodaos.dev/CanLang/install.sh . Browser development tools are optional and separate.\n\nOffline SodaOS tools and their source/checksum descriptor are included. CLI container: ghcr.io/veighnsche/canlang:${plan.tag}.`,
     ...(plan.prerelease ? ['--prerelease'] : [])]);
   gh(['release', 'upload', plan.tag, ...plan.assets, ...common]);
   gh(['release', 'edit', plan.tag, ...common, '--draft=false', '--verify-tag']);

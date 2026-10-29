@@ -1,6 +1,6 @@
 {
   "name": "@canlang/cloudflare",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "license": "MIT",
   "description": "CanLang Cloudflare delivery: local dev, deploy plans, compatibility checks, upgrade orchestration (lane 07). Node-side tooling only; Worker entry is a separate export.",
   "type": "module",
@@ -155,7 +155,7 @@
     "magic-string": "^1.4.3",
     "miniflare": "^4.20260730.0",
     "smol-toml": "^1.9.1",
-    "workerd": "1.20260730.1"
+    "workerd": "1.20261029.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261004.1",

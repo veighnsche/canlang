@@ -235,6 +235,12 @@ error, never silent output. The standard standalone installation already supplie
 
 ## Environment
 
+The Linux x86_64 offline tools are also published as
+`ghcr.io/veighnsche/canlang:latest` and a matching release tag. For example,
+`docker run --rm ghcr.io/veighnsche/canlang:v0.1.3 --version` runs the bundled CLI.
+Mount a project at `/workspace` to use compiler commands. The image contains the
+same offline archive and runtime published with the GitHub release.
+
 - `CAN_CATALOG`: producer catalog path for
   `check`/`compile`/`lint`/`policy` (below `--catalog`, above
   `./can-catalog.json`).

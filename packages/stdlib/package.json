@@ -1,6 +1,6 @@
 {
   "name": "@canlang/stdlib",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "license": "MIT",
   "description": "CanLang public standard library fa\u00e7ade: thin export assembly from producer packages (lane 03)",
   "type": "module",

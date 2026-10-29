@@ -112,6 +112,11 @@ pub(super) fn retained_handler_receipt(
     use super::scenario_receipts::{
         NativeScenarioReceipt, ReceiptDisclosurePlan, transport_source,
     };
+    // Collection dispatch requires the complete authority and financial decision.
+    // A source-only SEND frame cannot replace that owner's native receipt.
+    if owner.canonical == "invoice.collect" {
+        return None;
+    }
     let ir = context.ir();
     let event = match &owner.kind {
         IrItemKind::Scenario {

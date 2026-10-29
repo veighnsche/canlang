@@ -1,0 +1,18 @@
+FROM ubuntu:24.04
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ca-certificates libatomic1 libstdc++6 zlib1g \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG VERSION
+ARG REVISION
+LABEL org.opencontainers.image.source="https://github.com/veighnsche/canlang" \
+      org.opencontainers.image.title="Canlang offline tools" \
+      org.opencontainers.image.version="$VERSION" \
+      org.opencontainers.image.revision="$REVISION" \
+      org.opencontainers.image.licenses="MIT"
+
+ADD canlang-tools-linux-x86_64.tar.gz /opt/
+ENV PATH="/opt/canlang/bin:$PATH"
+WORKDIR /workspace
+ENTRYPOINT ["/opt/canlang/bin/can"]

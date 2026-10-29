@@ -96,8 +96,14 @@ try {
     }
     return pkg;
   }
-  discover(join(root, 'packages/cloudflare'));
+  const platformOwner = join(root, 'packages/cloudflare');
+  discover(platformOwner);
   discover(join(root, 'packages/testkit'));
+  // Direct platform dependencies own the default tool versions. A dependency
+  // such as Miniflare can retain its older workerd in its nested closure.
+  for (const name of Object.keys(json(join(platformOwner, 'package.json')).dependencies ?? {})) {
+    defaults.set(name, discover(findPackage(name, platformOwner)));
+  }
   const nodeModules = join(destination, 'lib/node_modules');
   mkdirSync(nodeModules, { recursive: true });
   const installed = new Set();

@@ -2,8 +2,8 @@
   "schema": 1,
   "scope": "Existing compiler binary release targets; retain supplied license alternatives without a new licensing choice or lower-MSRV claim.",
   "inputs": {
-    "compiler/Cargo.toml": "f799daed005fbd976b01cdc037ac66fcb6b4a520ac5371475f3d306bc3dfb8c5",
-    "compiler/Cargo.lock": "a3ec6ef509145871938db187959f943b628806a9fbc7f13dea7ffdef355955f2"
+    "compiler/Cargo.toml": "08fb1713f34ec4f921b6fef6fef84e852163740f73d9ed7089c4797408c96743",
+    "compiler/Cargo.lock": "fc5ce05ca773d41d43c8313f6d8546eca66afb4d3687b55cb6f9f43ef3532d43"
   },
   "targets": {
     "aarch64-apple-darwin": {

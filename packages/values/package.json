@@ -1,6 +1,6 @@
 {
   "name": "@canlang/values",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "license": "MIT",
   "description": "CanLang exact values, schemas, codecs and pure builtins (internal package, lane 02)",
   "type": "module",

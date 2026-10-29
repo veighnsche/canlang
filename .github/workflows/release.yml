@@ -1,7 +1,7 @@
 # Release assembly: one coherent CLI/library/editor bundle.
 # Builds every shippable artifact and uploads them to the workflow run.
 # Tag pushes also publish the qualified standalone installer assets to GitHub
-# Releases. Manual dispatch assembles only; no registry/marketplace publishing.
+# Releases and the same offline tools to GHCR. Manual dispatch assembles only.
 name: release
 
 on:
@@ -76,7 +76,7 @@ jobs:
           node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.4.2"
+          bun-version: "1.4.4"
       - name: Install from lock
         run: bun install --frozen-lockfile
       - name: Build, verify and pack complete workspace artifacts
@@ -97,7 +97,7 @@ jobs:
           node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.4.2"
+          bun-version: "1.4.4"
       - name: Install from lock
         run: bun install --frozen-lockfile
       - name: Compile the editor client
@@ -140,7 +140,7 @@ jobs:
           node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.4.2"
+          bun-version: "1.4.4"
       - name: Build production owners and packaging tools
         run: |
           bun install --frozen-lockfile
@@ -155,6 +155,10 @@ jobs:
           chmod +x output/compiler-release/can output/compiler-release/can-dev
           node scripts/pack-install.mjs --compiler output/compiler-release/can --dev-server output/compiler-release/can-dev
           node scripts/verify-install.mjs
+      - name: Assemble offline SodaOS tools
+        run: node scripts/pack-tools.mjs --compiler output/compiler-release/can --dev-server output/compiler-release/can-dev --bun-license scripts/distribution/bun-LICENSE.md
+      - name: Verify the direct workerd runtime
+        run: node scripts/verify-soda-direct.mjs --state "$RUNNER_TEMP/can-soda-direct"
       - uses: actions/upload-artifact@v7
         with:
           name: can-install-${{ matrix.platform }}
@@ -170,6 +174,13 @@ jobs:
             output/install/install-local.sh
             output/install/install-browser-tools.sh
             output/install/browser-development/*
+      - uses: actions/upload-artifact@v7
+        with:
+          name: can-tools-${{ matrix.platform }}
+          if-no-files-found: error
+          path: |
+            output/tools/canlang-tools-linux-x86_64.tar.gz
+            output/tools/canlang-release.json
 
   publish-install:
     needs: standalone-install
@@ -189,10 +200,65 @@ jobs:
         with:
           name: can-install-linux-x64
           path: output/publish-install/linux-x64
+      - uses: actions/download-artifact@v8
+        with:
+          name: can-tools-linux-x64
+          path: output/publish-install/tools
       - name: Publish qualified standalone release
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/publish-install-release.mjs output/publish-install
+
+  publish-container:
+    needs: standalone-install
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'veighnsche/canlang'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: can-container-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: can-tools-linux-x64
+          path: output/tools
+      - name: Build and check the offline CLI image
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import { createHash } from "node:crypto";
+            import { readFileSync } from "node:fs";
+            const descriptor = JSON.parse(readFileSync("output/tools/canlang-release.json"));
+            assert.equal(descriptor.sourceRevision, process.env.GITHUB_SHA);
+            assert.equal(descriptor.archiveFilename, "canlang-tools-linux-x86_64.tar.gz");
+            assert.equal(createHash("sha256").update(readFileSync("output/tools/" + descriptor.archiveFilename)).digest("hex"), descriptor.sha256);
+          '
+          image=ghcr.io/veighnsche/canlang:$RELEASE_TAG
+          docker build --file scripts/distribution/Dockerfile.tools --build-arg VERSION="$RELEASE_TAG" --build-arg REVISION="$GITHUB_SHA" --tag "$image" output/tools
+          actual=$(docker run --rm "$image" --version)
+          case "$actual" in "can ${RELEASE_TAG#v} ("*) ;; *) echo "Unexpected compiler: $actual" >&2; exit 1 ;; esac
+          docker run --rm "$image" --help
+          docker run --rm --entrypoint /opt/canlang/bin/can-dev "$image" --version
+          docker run --rm --entrypoint /opt/canlang/bin/can-soda "$image" --help
+      - name: Publish GHCR image
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          image=ghcr.io/veighnsche/canlang
+          docker push "$image:$RELEASE_TAG"
+          case "$RELEASE_TAG" in
+            *-*) ;;
+            *) docker tag "$image:$RELEASE_TAG" "$image:latest"; docker push "$image:latest" ;;
+          esac
 
   verify-public-install:
     needs: publish-install
