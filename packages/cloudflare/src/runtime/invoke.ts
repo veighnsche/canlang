@@ -6967,7 +6967,7 @@ async function loadCanonicalDescriptorsInternal(
   await bindNativeSourceWork(asm,artifact,canonical);
   await bindNativeSourceBodyLoops(asm,artifact,canonical,invocationSourceReads!==undefined);
   if(invocationSourceReads!==undefined)for(const [owner,sites] of canonical.requireSources){
-    const phases=sites.flatMap(site=>site.mutationPrefix===undefined?[]:[{node:site.node,statement:site.statement,prefix:site.mutationPrefix}]);
+    const phases=sites.flatMap(site=>site.mutationPrefix===undefined?[]:[{node:site.node,statement:site.statement,prefix:site.mutationPrefix,...(site.captures===undefined?{}:{captures:site.captures})}]);
     if(phases.length===0)continue;
     const def=generatedScenarioDef({def:canonical.registry.get(owner)}),source=def===undefined?undefined:sourceRequireFrames.get(def)??def.descriptor.result?.disclosure?.source;
     const bind=canonical.producers.invoke.bindScenarioSourceRequirePhases;

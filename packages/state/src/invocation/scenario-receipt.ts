@@ -5219,6 +5219,7 @@ function captureRequireSource(value:unknown):ScenarioReceiptRequireSource{
 export interface ScenarioSourceRequirePhasePlan {
  readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
  readonly phases:readonly {readonly node:{readonly start:number;readonly end:number};readonly statement:{readonly start:number;readonly end:number};
+ readonly captures?:readonly {readonly node:{readonly start:number;readonly end:number};readonly binding:string;readonly typeId:CanTypeId}[];
  readonly prefix:readonly ({readonly kind:'set';readonly parameter:string;readonly model:ModelName;readonly parents:readonly ModelName[];readonly fields:readonly string[]}|{readonly kind:'loop';readonly id:string;readonly fields:readonly (readonly string[])[]}|{readonly kind:'create';readonly created:ScenarioSourceCreatedRoot;readonly fields:readonly string[]})[]}[];
 }
 export interface ScenarioSourceRequirePhase {readonly kind:'source-require-phase';}
@@ -5257,9 +5258,19 @@ export function bindScenarioSourceRequirePhases(def:GeneratedOperationDef,value:
  const raw=object(dataCopy(value),['source','owner','phases']);origin(raw['source']);
  if(raw['owner']!==def.name||stableStringify(raw['source'])!==stableStringify(bound.plan.source))return invalid('Source phase differs from its original owner/source.');
  const ids=new Set<string>();for(const value of list(raw['phases'])){
-  const phase=object(value,['node','statement','prefix']);
+  const phase=object(value,['node','statement','prefix',...(Object.hasOwn(value as object,'captures')?['captures']:[])]);
   for(const value of [phase['node'],phase['statement']]){const span=object(value,['start','end']);if(!Number.isSafeInteger(span['start'])||!Number.isSafeInteger(span['end'])||Number(span['start'])<0||Number(span['end'])<=Number(span['start']))return invalid('Source phase lost its original guard interval.');}
   const key=stableStringify(phase['node']);if(ids.has(key))return invalid('Source phase repeats an original guard.');ids.add(key);
+  if(phase['captures']!==undefined){
+   const captures=list(phase['captures']),seen=new Set<string>(),bindings=new Set<string>();
+   if(captures.length>MAX_ITEMS)return invalid('Source phase needs its finite original value capture census.');
+   for(const value of captures){const captured=object(value,['node','binding','typeId']),node=object(captured['node'],['start','end']);
+    const binding=text(captured['binding']),type=text(captured['typeId']),key=stableStringify(node);
+    if(!sourceSendPlainType(bound,type,new Set(),0,false)||!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start'])
+        ||Number(node['end'])>Number((phase['statement'] as {start:number}).start)||bound.inputs.some(input=>input.name===binding)||seen.has(key)||bindings.has(binding))return invalid('Source phase value capture differs from its original declaration.');
+    seen.add(key);bindings.add(binding);
+   }
+  }
   bindSourceMutationPrefix(def,bound,phase['prefix']);
  }
  if(ids.size===0)return invalid('Source phase needs an original checked guard census.');sourceRequirePhaseProducers.set(def,deepFreeze(raw) as unknown as ScenarioSourceRequirePhasePlan);
@@ -5476,8 +5487,8 @@ function sourceStageObservation(call: AdmittedCall, store: StoragePort, state: C
     for (const row of domain) rows.set(rowKey(model, row.id), row);
     return domain;
   };
-  const domains: Array<{ model: ModelName; ids: readonly string[]; id?: RecordId;
-    parent?: Readonly<{ model: ModelName; id: RecordId }>; archived: 'exclude' | 'include' }> = [];
+  const domains = new Map<string, { model: ModelName; ids: readonly string[]; id?: RecordId;
+    parent?: Readonly<{ model: ModelName; id: RecordId }>; archived: 'exclude' | 'include' }>();
   const observe = <T>(action: () => T): T => {
     try { healthy(); return action(); }
     catch (error) { state.poisoned = true; owner.capture.poisoned = true; throw error; }
@@ -5496,13 +5507,20 @@ function sourceStageObservation(call: AdmittedCall, store: StoragePort, state: C
     }),
     query: (model: string, records: readonly ProjectedRecord[], id?: string,
       parent?: Readonly<{ model: string; id: string }>, archived: 'exclude' | 'include' = 'exclude') => observe(() => {
-      if (domains.length >= MAX_ITEMS || !state.bound.artifactModels.has(model as ModelName) ||
+      if (!state.bound.artifactModels.has(model as ModelName) ||
           records.some(record => rows.get(rowKey(model, record.id))?.version !== record.version)) {
         return invalid('source query needs its complete genuine owning domain.');
       }
-      domains.push({ model: model as ModelName, archived, ids: Object.freeze(records.map(record => record.id)),
+      const domain = { model: model as ModelName, archived, ids: Object.freeze(records.map(record => record.id)),
         ...(id === undefined ? {} : { id: id as RecordId }),
-        ...(parent === undefined ? {} : { parent: { model: parent.model as ModelName, id: parent.id as RecordId } }) });
+        ...(parent === undefined ? {} : { parent: { model: parent.model as ModelName, id: parent.id as RecordId } }) };
+      // Each real query still validates its issued rows above. The frozen
+      // source stage needs one final check per exact ordered owner census.
+      const key = stableStringify(domain);
+      if (!domains.has(key)) {
+        if (domains.size >= MAX_ITEMS) return invalid('source query exceeds its distinct original owning domains.');
+        domains.set(key, domain);
+      }
     }),
   });
   const evaluate = (root: StoredRow, predicate: InstalledSourceQueryPredicate, context: ByContext) => {
@@ -5540,7 +5558,7 @@ function sourceStageObservation(call: AdmittedCall, store: StoragePort, state: C
         return rows.get(key)!;
       };
       const current = await observeRowGrantAuthority(context, async _observed => {
-        for (const domain of domains) {
+        for (const domain of domains.values()) {
           const candidates = domain.id === undefined ? await originalDomains(domain.model, domain.parent, domain.archived) :
             [await originalRead(domain.model, domain.id)].filter((row): row is StoredRow => row !== null);
           const ids = candidates.map(row => row.id);
@@ -5574,7 +5592,7 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
     const original=captureRequireSource(input.original);
     if(original.mutationPrefix!==undefined){
       const plan=sourceRequirePhaseProducers.get(call.def as GeneratedOperationDef),phase=plan?.phases.find(phase=>stableStringify(phase.node)===stableStringify(original.node));
-      if(!['if','require'].includes(original.decision??'')||phase===undefined||stableStringify(phase.statement)!==stableStringify(original.statement)||stableStringify(phase.prefix)!==stableStringify(original.mutationPrefix)||input.phase===undefined)return invalid('Staged source decision lacks its independently bound original mutation prefix capability.');
+      if(!['if','require'].includes(original.decision??'')||phase===undefined||stableStringify(phase.statement)!==stableStringify(original.statement)||stableStringify(phase.prefix)!==stableStringify(original.mutationPrefix)||stableStringify(phase.captures??[])!==stableStringify(original.captures??[])||input.phase===undefined)return invalid('Staged source decision lacks its independently bound original mutation prefix capability.');
       await consumeScenarioSourceRequirePhase(call,store,original.node,input.phase);
     }
     const staged=original.decision==='if'||original.decision==='require'&&original.mutationPrefix!==undefined;
@@ -8746,6 +8764,13 @@ export async function executeScenarioSourceQueryRows(call:AdmittedCall,store:Sto
   },call);
  }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
 }
+/** Native outer reads belong only to an independently bound original guard
+ * capture. The ordinary field reader and stage/revision fences still run. */
+function nativeSourceLetCapture(def:GeneratedOperationDef,site:ScenarioSourceLetDataSource):boolean{
+ return site.loop===undefined&&site.stage===0&&site.stages===undefined&&SOURCE_PRIMITIVE_LET_TYPES.has(site.valueType)
+   &&sourceRequirePhaseProducers.get(def)?.phases.some(phase=>phase.captures?.some(capture=>
+     capture.node.start===site.node.start&&capture.node.end===site.node.end&&capture.binding===site.binding&&capture.typeId===site.valueType)===true)===true;
+}
 export function bindScenarioSourceLetDataProducer(def:GeneratedOperationDef,producer:SourceLetDataProducer):void{
   const bound=boundPlans.get(def);
   if(bound===undefined||!bound.sourceRequireOnly&&!sourceBodyLoopProducers.has(def)||invokedPlans.has(def)||sourceLetDataProducers.has(def))return invalid('Scalar LET DATA requires its uninvoked original source owner.');
@@ -8770,7 +8795,7 @@ export function bindScenarioSourceLetDataProducer(def:GeneratedOperationDef,prod
     const input=bound.inputs.find(input=>input.name===parameter),declaration=bound.artifactModels.get(fieldModel)?.fields.find(field=>field.name===name);
     const loop=site['loop']===undefined?undefined:sourceBodyLoopProducers.get(def)?.loops.find(loop=>loop.id===text(site['loop']));
     if(site['loop']!==undefined&&(loop===undefined||parameter===loop.item&&loop.model!==model||parameter!==loop.item&&(input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,parameter))||Number(node['start'])<loop.node.start||Number(node['end'])>loop.node.end||stages.some(stage=>Number(stage)>loop.writes)))return invalid('Loop field DATA lacks its exact original selected item and relative stage.');
-    if(!bound.sourceRequireOnly&&loop===undefined)return invalid('Native scalar DATA requires its exact original private loop.');
+    if(!bound.sourceRequireOnly&&loop===undefined&&!nativeSourceLetCapture(def,site as unknown as ScenarioSourceLetDataSource))return invalid('Native scalar DATA requires its exact original private loop or bound guard capture.');
     const metadata=Object.hasOwn(field,'metadata');
     if(metadata&&(field['metadata']!==true||name!=='version'||type!=='int'||valueType!=='int'||declaration!==undefined
         ||loop===undefined||parameter!==loop.item||model!==loop.model||Object.hasOwn(site,'path')||Object.hasOwn(site,'parents')))return invalid('Source metadata needs its exact genuine selected item and reserved version.');
@@ -8795,7 +8820,7 @@ export async function executeScenarioSourceLetData(call:AdmittedCall,store:Stora
     const item=owner===undefined||site?.loop===undefined?undefined:sourceBodyLoopItems.get(owner);
     const stages=site===undefined?[]:site.stages??[site.stage];
     const stage=owner===undefined?undefined:stages.map(stage=>site?.loop===undefined?stage:item===undefined?undefined:item.stage+stage).find(stage=>stage===owner.stage);
-    if(owner===undefined||owner.session===null||!state.bound.sourceRequireOnly&&(item===undefined||site?.loop!==item.execution.loop.id)||producer===undefined||producer.app!==call.context.app||sites.length!==1||site===undefined
+    if(owner===undefined||owner.session===null||!state.bound.sourceRequireOnly&&!(site!==undefined&&(site.loop===undefined?nativeSourceLetCapture(call.def as GeneratedOperationDef,site):item!==undefined&&site.loop===item.execution.loop.id))||producer===undefined||producer.app!==call.context.app||sites.length!==1||site===undefined
         ||site.loop!==undefined&&(item?.execution.loop.id!==site.loop||site.parameter===item.execution.loop.item&&item.execution.loop.model!==site.model)
         ||owner.executingCall!==call||owner.busy||owner.capture.pending!==0||stage===undefined||owner.stage!==stage)return invalid('Scalar LET DATA lacks its exact current source owner stage.');
     const consumed=consumedSourceLetData.get(call)??new Set<string>(),key=`${site.node.start}:${site.node.end}${item===undefined?'':':'+item.row.id}`;consumedSourceLetData.set(call,consumed);

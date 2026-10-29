@@ -8,7 +8,7 @@ import { stableStringify } from '@canlang/state/invocation';
 import { dispatchGenerationTargetProfile } from '@canlang/work/kernel/tables';
 import { encodeValue } from '@canlang/values';
 import type { AssembledModules } from './modules.js';
-import { importVerifiedAssemblyModule, verifyAssemblerModuleCapability } from './assembly-verification.js';
+import { AssemblyCorrespondenceError, assemblerArtifactDataEligible, captureVerifiedAssemblerArtifact, importVerifiedAssemblyModule, verifyAssemblerModuleCapability } from './assembly-verification.js';
 import { loadCanonicalDescriptors } from './invoke.js';
 import { checkedNativeValueTypes } from './native-value-schema.js';
 
@@ -460,7 +460,7 @@ export async function installNativeFileInventory(input: NativeFileInventoryInput
   const captured = { ...input, scope: immutable(input.scope), authority: immutable(input.authority) };
   const prepared = await prepareNativeFileInventory(captured);
   const owners = new Set([captured.scope.ownerPackage,
-    ...(captured.artifact.models ?? []).map(model => model.name.split('.')[0]!).filter(Boolean)]);
+    ...(prepared.artifact.models ?? []).map(model => model.name.split('.')[0]!).filter(Boolean)]);
   let selected: Awaited<ReturnType<typeof installNativeFileInventoryForOwner>> | undefined;
   for (const ownerPackage of owners) {
     const installed = await installNativeFileInventoryForOwner({ ...captured, scope: { ...captured.scope, ownerPackage } }, prepared);
@@ -474,30 +474,53 @@ export async function installNativeFileInventory(input: NativeFileInventoryInput
 /** Pure source declarations are shared only within this installation call.
  * Storage snapshots, owner admission and revision fences remain per owner. */
 async function prepareNativeFileInventory(input: NativeFileInventoryInput) {
-  const { artifact, asm, store, verifyOwner } = input;
+  const { artifact: callerArtifact, asm, store, verifyOwner } = input;
   const scope = immutable(input.scope), authority = immutable(input.authority);
-  const artifactJson = JSON.stringify(artifact);
+  assemblerArtifactDataEligible(callerArtifact);
+  const artifactJson = JSON.stringify(callerArtifact);
+  const artifact = await captureVerifiedAssemblerArtifact(asm, callerArtifact);
+  const assertCallerData = (): void => {
+    if (!assemblerArtifactDataEligible(callerArtifact) && artifact !== callerArtifact) {
+      throw new AssemblyCorrespondenceError('importVerifiedAssemblyModule: artifact differs from assembled source');
+    }
+  };
+  const assertCallerArtifact = (): void => {
+    assertCallerData();
+    if (JSON.stringify(callerArtifact) !== artifactJson) {
+      throw new AssemblyCorrespondenceError('importVerifiedAssemblyModule: artifact differs from assembled source');
+    }
+  };
+  const importOriginalModule = async (path: string): Promise<unknown> => {
+    assertCallerArtifact();
+    const imported = await importVerifiedAssemblyModule(asm, path, artifact);
+    assertCallerArtifact();
+    return imported;
+  };
   const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(artifactJson));
   const digest = `sha256:${Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, '0')).join('')}`;
   let verifyDeclarations = (): void => {};
   const verifyCurrent = async (): Promise<void> => {
     verifyDeclarations();
+    assertCallerArtifact();
     await verifyAssemblerModuleCapability(asm, artifact);
+    assertCallerArtifact();
     await verifyOwner();
+    assertCallerData();
     verifyDeclarations();
-    if (JSON.stringify(artifact) !== artifactJson || !equal(store.fileRetirementAuthority, authority) ||
+    if (JSON.stringify(callerArtifact) !== artifactJson || !equal(store.fileRetirementAuthority, authority) ||
         authority.app !== scope.app ||
         authority.receiver.app !== scope.app || authority.receiver.owner !== scope.owner || authority.receiver.team !== scope.owner) {
       throw new Error('Original declaration inventory differs from its configured physical owner.');
     }
     await verifyAssemblerModuleCapability(asm, artifact);
+    assertCallerData();
     verifyDeclarations();
-    if (JSON.stringify(artifact) !== artifactJson) throw new Error('Original declaration source changed during installation.');
+    if (JSON.stringify(callerArtifact) !== artifactJson) throw new Error('Original declaration source changed during installation.');
   };
   await verifyCurrent();
   const first = artifact.modules[0];
   if (first === undefined) throw new Error('File retirement requires an original entry module.');
-  const module = await importVerifiedAssemblyModule(asm, first.path, artifact);
+  const module = await importOriginalModule(first.path);
   const definition = data(module, 'appDefinition');
   if (data(definition, 'id') !== scope.app) throw new Error('File retirement declared app differs from the owner.');
   const originalContracts = declarationWire(data(definition, 'contracts')) as Readonly<Record<string, WireValue>>;
@@ -506,7 +529,7 @@ async function prepareNativeFileInventory(input: NativeFileInventoryInput) {
   captureModuleInvocations(artifact, first.path, definition, captures);
   verifyDeclarations = () => verifyCapturedDeclarations(originalContracts, definition, captures);
   for (const emitted of artifact.modules.slice(1)) {
-    const imported = await importVerifiedAssemblyModule(asm, emitted.path, artifact);
+    const imported = await importOriginalModule(emitted.path);
     // Composed apps include verified constant-only package facades. They
     // carry no writer/handler declarations; all actual callables remain in
     // their artifact-selected defining module. Never skip a missing actual
@@ -523,7 +546,9 @@ async function prepareNativeFileInventory(input: NativeFileInventoryInput) {
     await verifyCurrent();
   }
   await verifyCurrent();
+  assertCallerArtifact();
   const loaded = await loadCanonicalDescriptors(asm, artifact);
+  assertCallerArtifact();
   await verifyCurrent();
   const artifactModels = artifact.models;
   if (artifactModels === undefined) throw new Error('File retirement requires complete model declarations.');
@@ -543,14 +568,14 @@ async function prepareNativeFileInventory(input: NativeFileInventoryInput) {
     declarationGroups.set(key, prepared);
     return prepared;
   };
-  return Object.freeze({ digest, definition, originalContracts, valueDefaults, loaded, artifactModels, valueTypes, verifyCurrent, declarationsFor });
+  return Object.freeze({ artifact, digest, definition, originalContracts, valueDefaults, loaded, artifactModels, valueTypes, verifyCurrent, declarationsFor });
 }
 
 async function installNativeFileInventoryForOwner(input: NativeFileInventoryInput,
   prepared: Awaited<ReturnType<typeof prepareNativeFileInventory>>) {
-  const { artifact, store, now } = input;
+  const { store, now } = input;
   const scope = immutable(input.scope), authority = immutable(input.authority);
-  const { digest, definition, originalContracts, valueDefaults, loaded, artifactModels, valueTypes, verifyCurrent } = prepared;
+  const { artifact, digest, definition, originalContracts, valueDefaults, loaded, artifactModels, valueTypes, verifyCurrent } = prepared;
   await verifyCurrent();
   if (data(definition, 'id') !== scope.app) throw new Error('File retirement declared app differs from the owner.');
   data(data(definition, 'packages'), scope.ownerPackage);

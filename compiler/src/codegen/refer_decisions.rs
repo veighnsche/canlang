@@ -660,6 +660,7 @@ pub(super) fn collect_reject_receipt(
             }],
         },
         dependencies: Default::default(),
+        reference_captures: Default::default(),
         intrinsics: Default::default(),
         decisions: Default::default(),
         decision_keys: Default::default(),

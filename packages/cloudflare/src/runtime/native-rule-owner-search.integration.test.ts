@@ -2314,14 +2314,17 @@ it('authorizes original SEND scalar DATA with independent current field projecti
         const uncheckedReference=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,refused],{cwd:root,encoding:'utf8'});
         assert.equal(uncheckedReference.status,10,uncheckedReference.stdout+uncheckedReference.stderr);
         assert.ok((JSON.parse(uncheckedReference.stdout) as {diagnostics:{code:string}[]}).diagnostics.some(item=>item.code==='E6008'),'selected CONTROL reference cannot bypass its genuine same-SET DATA observation');
-        for(const prefix of ['let observed=selection.visible','set selection {visible=selection.visible}']){
-          // Keep the genuine selection loop unchanged: its private item grant
-          // cannot authenticate an unrelated outer DATA phase.
+        for(const [prefix,nativeData] of [['let observed=selection.visible',false],['set selection {visible=selection.visible}',true]] as const){
+          // Keep the genuine selection loop unchanged. Its private item grant
+          // cannot substitute for an original native DATA getter or LET capture.
           await writeFile(refused,original.replace('scenario select_profile(selection:Selection) by=members\n  require selection.visible\n  do\n',
             'scenario select_profile(selection:Selection) by=members\n  require selection.visible\n  do\n   '+prefix+'\n'));
           const mixedPhase=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,refused],{cwd:root,encoding:'utf8'});
-          assert.equal(mixedPhase.status,10,mixedPhase.stdout+mixedPhase.stderr);
-          assert.ok((JSON.parse(mixedPhase.stdout) as {diagnostics:{code:string;message:string}[]}).diagnostics.some(item=>item.code==='E6008'&&item.message.includes('native source DATA phase')),'outer DATA requires its own authenticated original phase');
+          assert.equal(mixedPhase.status,nativeData?0:10,mixedPhase.stdout+mixedPhase.stderr);
+          if(nativeData){
+            const compiled=JSON.parse(mixedPhase.stdout) as CompileArtifact;
+            assert.ok(compiled.operations?.find(operation=>operation.name==='SourceSendData.select_profile')?.result?.disclosure?.returns.some(returned=>returned.dependencies.some(dependency=>dependency.model==='SourceSendData.Selection'&&dependency.field==='visible'&&dependency.type==='bool'&&dependency.role==='data')),'outer SET retains its independent original native DATA dependency');
+          }else assert.ok((JSON.parse(mixedPhase.stdout) as {diagnostics:{code:string;message:string}[]}).diagnostics.some(item=>item.code==='E6008'&&item.message.includes('native source DATA phase')),'unowned outer DATA still requires its authenticated original phase');
         }
       }finally{await rm(refused,{force:true});}
 
@@ -2490,12 +2493,27 @@ for(const mode of ['allowed','attached','field-withheld','missing-port','invalid
 
       }
       for(const name of ['select_profile','select_root'])assertSourceOnlyReceipt(artifact,`SourceSendData.${name}`,'void',[[],[]]);
-      for(const mode of ['selected','absent','mismatched','hidden','multiple','identity-race','reference-race','profile-race','direct','direct-hidden']){
+      const outerDataVariants=new Map<string,{artifact:CompileArtifact;asm:Awaited<ReturnType<typeof assembleModules>>}>();
+      for(const mode of ['outer-granted','outer-withheld']){
+        const source=join(directory,mode+'.can');
+        let text=(await readFile(join(root,'packages/cloudflare/test/fixtures/native-source-send-data.can'),'utf8')).replace('scenario select_profile(selection:Selection) by=members\n  require selection.visible\n  do\n','scenario select_profile(selection:Selection) by=members\n  require selection.visible\n  do\n   set selection {visible=selection.visible}\n');
+        if(mode==='outer-withheld')text=text.replace('policy Selection read=members fields=root,location,visible','policy Selection read=members fields=root,location');
+        await writeFile(source,text);
+        const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,maxBuffer:32*1024*1024});
+        const compiled=JSON.parse(stdout) as CompileArtifact;
+        const plan=compiled.operations?.find(operation=>operation.name==='SourceSendData.select_profile')?.result?.disclosure;assert.ok(plan);
+        assert.ok(plan.returns.every(returned=>returned.dependencies.some(dependency=>dependency.model==='SourceSendData.Selection'&&dependency.field==='visible'&&dependency.type==='bool'&&dependency.role==='data'&&JSON.stringify(dependency.source)===JSON.stringify(plan.source))),'outer SET owns its exact bool DATA source slot');
+        const installed=await assembleModules({artifact:compiled,sourcePath:source},{workDir:join(directory,mode+'-modules'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+        outerDataVariants.set(mode,{artifact:compiled,asm:installed});
+      }
+      for(const mode of ['selected','absent','mismatched','hidden','multiple','identity-race','reference-race','profile-race','direct','direct-hidden','outer-granted','outer-withheld']){
+        const variant=outerDataVariants.get(mode),scenarioArtifact=variant?.artifact??artifact,scenarioAssembly=variant?.asm??asm;
+
         const {now,identities,identity,membership}=await member(`selected-profile-${mode}`);
         const scope={app:'SourceSendData',owner:membership.team_id,ownerPackage:'SourceSendData'};
         const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'selection-state',fileStoreId:'selection-files',receiver:{app:scope.app,owner:scope.owner,team:scope.owner}};
         const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
-        await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(scope.owner));}});
+        await installNativeFileInventory({artifact:scenarioArtifact,asm:scenarioAssembly,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(scope.owner));}});
         const rootModel=model('SourceSendData','Root'),locationModel=model('SourceSendData','Location'),profileModel=model('SourceSendData','Profile'),selectionModel=model('SourceSendData','Selection');
         const location={...makeRow({id:asId('location'),data:{enabled:true,visible:true}}),parent:null};
         const rootRow={...makeRow({id:asId('root'),data:{location:{id:location.id},capacity:'2',checked:false,last:null,approval:null,approval_version:null,source:'Original source',reason:null,secret:'Secret',visible:true}}),parent:null};
@@ -2519,19 +2537,20 @@ for(const mode of ['allowed','attached','field-withheld','missing-port','invalid
           }
           return commit(batch);
         };
-        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const invoker=buildInvoker(scenarioArtifact,scenarioAssembly,store,{memberships:identities,now:()=>now});
         const direct=mode.startsWith('direct');
         const request={operation:direct?'SourceSendData.select_root':'SourceSendData.select_profile',operation_id:operationId(now),inputs:direct?{root:{id:rootRow.id,version:String(rootRow.version)}}:{selection:{id:selection.id,version:String(selection.version)}}};
-        const result=await invoker.invokeMutation(request,identity),succeeds=['selected','absent','mismatched','direct'].includes(mode);
+        const result=await invoker.invokeMutation(request,identity),succeeds=['selected','absent','mismatched','direct','outer-granted'].includes(mode);
         assert.equal('result'in result,succeeds,`${mode}: ${JSON.stringify(result)}`);
         const targetModel=direct?rootModel:selectionModel,targetId=direct?rootRow.id:selection.id;
         const current=await store.load(targetModel,targetId);assert.ok(current);
-        if(mode==='selected'||mode==='direct'){
+        if(mode==='selected'||mode==='direct'||mode==='outer-granted'){
           assert.deepEqual(current.data.approval,{id:profiles[0]!.id});assert.equal(current.data.approval_version,String(profiles[0]!.version));
           const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));assert.deepEqual(await store.load(targetModel,targetId),current,'replay cannot repeat the original SET');
         }else{
           assert.equal(current.data.approval,null,mode);assert.equal(current.data.approval_version,null,mode);
         }
+        if(mode==='outer-withheld'){assert.ok(!('result'in result)&&result.error.code==='forbidden',JSON.stringify(result));assert.deepEqual(current,selection,'withheld native DATA rolls back the outer SET and selected-profile SET');for(const profile of profiles)assert.deepEqual(await store.load(profileModel,profile.id),profile);}
         if(mode.endsWith('-race'))assert.ok(raced,mode);
         assert.equal((await store.outboxPending()).length,0,'selection does not invent SEND effects');
       }
@@ -5010,16 +5029,17 @@ it('emits the complete original Shift decline with native parent identity and gr
  }finally{await rm(directory,{recursive:true,force:true});}
 });
 
-it('cancels the complete original Shift duty with its bounded swaps and optional notice', {timeout:180000},async()=>{
+it('cancels and reconciles the complete original Shift duty with its bounded swaps and optional notice', {timeout:360000},async()=>{
  const directory=await mkdtemp(join(tmpdir(),'can-shift-cancel-'));
  try{
   const source=join(root,'compiler/tests/fixtures/shift-cancel-original.can'),original=await readFile(join(root,'draft/apps/CanShift/CanShift.can'),'utf8'),text=await readFile(source,'utf8');
   const start=original.indexOf('  scenario cancel('),end=original.indexOf('  # Resolve',start);assert.ok(text.includes(original.slice(start,end)));
+  const reconcileStart=original.indexOf('  scenario reconcile('),reconcileEnd=original.indexOf('   examples',reconcileStart);assert.ok(text.includes(original.slice(reconcileStart,reconcileEnd<0?undefined:reconcileEnd).trimEnd()));
   const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
   const artifact=JSON.parse(stdout) as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
-  for(const mode of ['allowed','unpublished','unpublished-denied-user','denied-user','denied-revision','hidden-swap','dependent','limit','stale','insert-race','grant-race','identity-race']){
-   const {now,identities,identity,team,user,membership}=await member('shift-cancel-'+mode,['shift.scheduler']);
-   const recipient=await identities.createUser({email:'cancel-original-'+mode+'@shift.test',password_hash:'unused',email_verified:true});
+  for(const operation of (process.env['CAN_SHIFT_RELEASE_OPERATION']??'cancel,reconcile').split(','))for(const mode of (process.env['CAN_SHIFT_RELEASE_CASE']??['allowed','unpublished','unpublished-denied-user','denied-user','denied-revision','hidden-swap','dependent','limit','stale','insert-race','grant-race','identity-race',...(operation==='reconcile'?['covered-original','uncovered-original','alias-grant-race','alias-target-race','alias-value-race','alias-source-race','alias-identity-race']:[])].join(',')).split(',')){
+   const {now,identities,identity,team,user,membership}=await member('shift-'+operation+'-'+mode,['shift.scheduler']);
+   const recipient=await identities.createUser({email:operation+'-original-'+mode+'@shift.test',password_hash:'unused',email_verified:true});
    const scope={app:'CanShift',owner:team.team_id,ownerPackage:'shift'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'cancel-state',fileStoreId:'cancel-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
    const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
    const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent}),employee={home:{id:'location'},locations:[],operator_wide:false,active:true,skills:['reception'],role:'Reception',visible:true,user_visible:true};
@@ -5031,20 +5051,25 @@ it('cancels the complete original Shift duty with its bounded swaps and optional
     {kind:'insert',model:model('rent_catalog','Location'),row:row('location',{active:true})},
     {kind:'insert',model:model('employee','Employee'),row:row('original',{...employee,user:{id:recipient.user_id},user_visible:!['denied-user','unpublished-denied-user'].includes(mode)})},
     {kind:'insert',model:model('employee','Employee'),row:row('actor',{...employee,user:{id:user.user_id}})},
+    ...(mode==='alias-source-race'?[{kind:'insert' as const,model:model('employee','Employee'),row:row('hidden-target',{...employee,visible:false,user:{id:recipient.user_id}})}]:[]),
     {kind:'insert',model:model('shift','Roster'),row:row('roster',{name:'Original roster'})},
+    {kind:'insert',model:model('shift','Availability'),row:row('availability',{employee:{id:'actor'},from:'2099-01-01T08:00:00.000Z',until:'2099-01-01T20:00:00.000Z',available:true},{model:model('shift','Roster'),id:asId('roster')})},
+    ...(['covered-original','uncovered-original'].includes(mode)?[{kind:'insert' as const,model:model('shift','Coverage'),row:row('coverage',{location:{id:'location'},role:'Reception',from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T10:00:00.000Z',minimum:'1'},{model:model('shift','Roster'),id:asId('roster')})}]:[]),
     {kind:'insert',model:model('shift','Commitment'),row:commitment},{kind:'insert',model:model('shift','Duty'),row:duty},
+    ...(mode==='covered-original'?[{kind:'insert' as const,model:model('shift','Commitment'),row:{...commitment,id:asId('coverage-commitment'),data:{...commitment.data,employee:{id:'actor'},until:'2099-01-01T10:00:00.000Z',source:'coverage-backfill'}}},{kind:'insert' as const,model:model('shift','Duty'),row:{...duty,id:asId('coverage-duty'),parent:{model:model('shift','Commitment'),id:asId('coverage-commitment')}}}]:[]),
     {kind:'insert',model:model('shift','Commitment'),row:{...commitment,id:asId('other-commitment'),data:{...commitment.data,source:'other'}}},{kind:'insert',model:model('shift','Duty'),row:{...duty,id:asId('other-duty'),parent:{model:model('shift','Commitment'),id:asId('other-commitment')}}},
     ...[...swaps,swap('accepted','accepted'),swap('foreign','open',asId('other-duty'))].map(row=>({kind:'insert' as const,model:model('shift','Swap'),row})),
     ...(mode==='dependent'?[{kind:'insert' as const,model:model('shift','Commitment'),row:{...commitment,id:asId('dependent'),data:{...commitment.data,kind:'visit',source:'dependent'}}}]:[])]}));
-   const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   const load=store.load.bind(store),commit=store.commit.bind(store),query=store.query.bind(store);let raced=false;
+   store.query=async spec=>{const rows=await query(spec);if(!raced&&mode.startsWith('alias-')&&spec.model===model('shift','Swap')){raced=true;if(mode==='alias-identity-race')await identities.removeMembership(membership.membership_id);else{const changedModel=mode==='alias-source-race'?model('shift','Commitment'):model('employee','Employee'),changedId=mode==='alias-source-race'?commitment.id:asId('original');const old=await load(changedModel,changedId);assert.ok(old);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:changedModel,id:old.id,expectedVersion:old.version,row:{...old,version:asVersion(old.version+1),data:{...old.data,...(mode==='alias-source-race'?{employee:{id:'hidden-target'}}:mode==='alias-grant-race'?{user_visible:false}:mode==='alias-target-race'?{visible:false}:{user:{id:user.user_id}})}}}]}));}}return rows;};
    store.load=async(name,id)=>{if(!raced&&mode==='identity-race'&&name==='work.occurrence'){raced=true;await identities.removeMembership(membership.membership_id);}return load(name,id);};
    store.commit=async batch=>{if(!raced&&['insert-race','grant-race'].includes(mode)&&batch.writes.some(write=>write.model==='work.occurrence')){raced=true;if(mode==='insert-race')await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('shift','Swap'),row:swap('inserted')}]}));else{const old=await load(model('employee','Employee'),asId('original'));assert.ok(old);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('employee','Employee'),id:old.id,expectedVersion:old.version,row:{...old,version:asVersion(old.version+1),data:{...old.data,user_visible:false}}}]}));}}return commit(batch);};
-   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'shift.cancel',operation_id:operationId(now),inputs:{duty:{id:'duty',version:mode==='stale'?'2':'1'},reason:'Original release reason'}};
-   const result=await invoker.invokeMutation(request,identity),success=['allowed','unpublished','unpublished-denied-user','hidden-swap','insert-race'].includes(mode);assert.equal('result'in result,success,mode+': '+JSON.stringify(result));if(mode.endsWith('-race'))assert.ok(raced,mode);
-   const events=await store.query({model:asModel('work.occurrence'),authority:'owner'}),current=await load(model('shift','Commitment'),commitment.id);assert.equal(events.length,success&&!mode.startsWith('unpublished')?1:0,mode);assert.ok(current);
-   if(success){assert.equal(current.data.active,false);assert.equal(current.data.revision,'8');for(const candidate of [...swaps,...(mode==='insert-race'?[swap('inserted')]:[])])assert.equal((await load(model('shift','Swap'),candidate.id))?.data.state,'obsolete',mode);if(events.length)assert.deepEqual((events[0]!.data.result as {payload:unknown}).payload,{duty:{id:'duty',version:'1'},recipient:{id:recipient.user_id},revision:'8',kind:'cancelled',swap:null});const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay||replay.error.code==='validation');assert.deepEqual(await store.query({model:asModel('work.occurrence'),authority:'owner'}),events);}
-   else{assert.deepEqual(current,commitment,mode+': parent SET rolls back');for(const candidate of swaps)assert.deepEqual(await load(model('shift','Swap'),candidate.id),candidate,mode+': all sibling SETs roll back');}
-   assert.equal((await load(model('shift','Swap'),asId('accepted')))?.data.state,'accepted');assert.equal((await load(model('shift','Swap'),asId('foreign')))?.data.state,'open');assert.deepEqual(await load(model('shift','Duty'),duty.id),duty,'cancel does not rewrite Duty');
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'shift.'+operation,operation_id:operationId(now),inputs:{duty:{id:'duty',version:mode==='stale'?'2':'1'},reason:'Original release reason',...(operation==='reconcile'?{employee:{id:'actor',version:'1'},from:'2099-01-01T10:00:00.000Z',until:'2099-01-01T18:00:00.000Z',before:'0',after:'0'}:{})}};
+   const result=await invoker.invokeMutation(request,identity),success=['allowed','unpublished','unpublished-denied-user','hidden-swap','insert-race','alias-value-race','covered-original'].includes(mode);assert.equal('result'in result,success,operation+'/'+mode+': '+JSON.stringify(result));if(mode.endsWith('-race'))assert.ok(raced,mode);
+   const events=await store.query({model:asModel('work.occurrence'),authority:'owner'}),current=await load(model('shift','Commitment'),commitment.id);assert.equal(events.length,success&&!mode.startsWith('unpublished')?(operation==='reconcile'?2:1):0,operation+'/'+mode);assert.ok(current);
+   if(success){assert.equal(current.data.active,operation==='reconcile');if(operation==='reconcile'){assert.deepEqual(current.data.employee,{id:'actor'});assert.equal(current.data.from,'2099-01-01T10:00:00.000Z');assert.equal(current.data.until,'2099-01-01T18:00:00.000Z');}assert.equal(current.data.revision,'8');for(const candidate of [...swaps,...(mode==='insert-race'?[swap('inserted')]:[])])assert.equal((await load(model('shift','Swap'),candidate.id))?.data.state,'obsolete',mode);if(events.length){const payloads=events.map(event=>(event.data.result as {payload:{duty:{id:string;version:string};recipient:{id:string};revision:string;kind:string;swap:null}}).payload).sort((a,b)=>a.recipient.id.localeCompare(b.recipient.id));const expected=[{duty:{id:'duty',version:operation==='reconcile'?'2':'1'},recipient:{id:mode==='alias-value-race'?user.user_id:recipient.user_id},revision:'8',kind:operation==='reconcile'?'changed':'cancelled',swap:null},...(operation==='reconcile'?[{duty:{id:'duty',version:'2'},recipient:{id:user.user_id},revision:'8',kind:'changed',swap:null}]:[])].sort((a,b)=>a.recipient.id.localeCompare(b.recipient.id));assert.deepEqual(payloads,expected);}const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay||replay.error.code==='validation');assert.deepEqual(await store.query({model:asModel('work.occurrence'),authority:'owner'}),events);}
+   else{assert.deepEqual(current,mode==='alias-source-race'?{...commitment,version:asVersion(commitment.version+1),data:{...commitment.data,employee:{id:'hidden-target'}}}:commitment,mode+': parent SET rolls back');for(const candidate of swaps)assert.deepEqual(await load(model('shift','Swap'),candidate.id),candidate,mode+': all sibling SETs roll back');}
+   assert.equal((await load(model('shift','Swap'),asId('accepted')))?.data.state,'accepted');assert.equal((await load(model('shift','Swap'),asId('foreign')))?.data.state,'open');const currentDuty=await load(model('shift','Duty'),duty.id);if(success&&operation==='reconcile'&&!mode.startsWith('unpublished')){assert.equal(currentDuty?.data.published_revision,'8');assert.equal(currentDuty?.data.override_reason,'Original release reason');}else assert.deepEqual(currentDuty,duty,'unreached Duty SET remains unchanged');
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });

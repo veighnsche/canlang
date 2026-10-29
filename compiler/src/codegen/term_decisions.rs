@@ -883,6 +883,7 @@ pub(super) fn collect_term_receipt(
             returns: vec![returned],
         },
         dependencies: Default::default(),
+        reference_captures: Default::default(),
         intrinsics: Default::default(),
         decisions: Default::default(),
         decision_keys: Default::default(),

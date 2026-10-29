@@ -20477,7 +20477,15 @@ impl<'a> Closure<'a> {
             // Constructing the original selected TextMessage eagerly consumes
             // its DATA fields even when count later uses only cardinality.
             // Query association alone never exempts another ordinary read.
-            if self.transcript_selection_dependency(read) {
+            if self.transcript_selection_dependency(read)
+                // The original immutable LET already consumed readable target
+                // identity. A later control use does not turn that DATA capture
+                // into another read of its mutable source reference field.
+                || read.role == DependencyRole::Data && read.field == read.model
+                    && read.field_name == "id" && read.calls.is_empty()
+                    && read.query_id.is_none() && read.type_id == "text"
+                    && read.id == self.opaque("alias-model-id", read.node, "")?
+            {
                 continue;
             }
             read.role = DependencyRole::Control;
@@ -28816,6 +28824,43 @@ impl<'a> Closure<'a> {
                         })
                 });
             if alias {
+                let Some(DisclosureModelResult::Reference { model, node, .. }) =
+                    evaluated.model_result
+                else {
+                    return Err(self.fail(value, "missing captured reference identity"));
+                };
+                let owner = self
+                    .resolve
+                    .symbols
+                    .get(model.0 as usize)
+                    .ok_or_else(|| self.fail(node, "missing captured reference target"))?;
+                let SymbolKind::Model { fields, .. } = &owner.kind else {
+                    return Err(self.fail(node, "captured reference needs stored Model"));
+                };
+                if fields.iter().any(|field| {
+                    self.resolve
+                        .symbols
+                        .get(field.0 as usize)
+                        .is_none_or(|field| field.name == "id")
+                }) {
+                    return Err(self.fail(node, "captured reference identity is reserved"));
+                }
+                // Capture readable identity here, not a field only consumed by a
+                // future branch. Its ordinary DATA observation remains at use.
+                evaluated.reads.push(DisclosureDependency {
+                    query_id: None,
+                    id: self.opaque("alias-model-id", node, &self.call_stamp(calls)?)?,
+                    source: self.source(module, node)?,
+                    node,
+                    calls: calls.to_vec(),
+                    role: DependencyRole::Data,
+                    model,
+                    field: model,
+                    model_name: owner.canonical.clone(),
+                    field_name: "id".into(),
+                    ty: ResolvedType::Scalar(Scalar::Text),
+                    type_id: "text".into(),
+                });
                 // The row identity was captured by the original getter. Its
                 // required field read remains in the value and every consumer;
                 // it is no longer a live containment navigation after a SET.

@@ -3453,7 +3453,7 @@ fn emit_program_with_sources(
                                 continue;
                             }
                         }
-                        if let Some(loans) = super::source_let_data::collect(
+                        if let Some(mut loans) = super::source_let_data::collect(
                             ir,
                             owner,
                             context,
@@ -3462,7 +3462,30 @@ fn emit_program_with_sources(
                             Some(&loops),
                             Some(&source),
                         ) {
-                            if loans.values().any(|loan| loan.get("loop").is_none()) {
+                            loans.retain(|span, loan| {
+                                !emitter
+                                    .native_receipts
+                                    .get(&owner.id)
+                                    .is_some_and(|native| {
+                                        super::source_let_data::native_owns_data(
+                                            owner, native, *span, loan,
+                                        )
+                                    })
+                            });
+                            if loans.iter().any(|(span, loan)| {
+                                loan.get("loop").is_none()
+                                    && !emitter.native_receipts.get(&owner.id).is_some_and(
+                                        |native| {
+                                            super::source_let_data::native_guard_capture(
+                                                owner,
+                                                native,
+                                                &emitter.source_requires,
+                                                *span,
+                                                loan,
+                                            )
+                                        },
+                                    )
+                            }) {
                                 emitter.unsupported("native source DATA phase", "native DATA outside its private loop needs its complete authenticated phase", owner.span);
                             }
                             emitter.source_let_data.extend(loans);
@@ -14504,20 +14527,25 @@ impl<'a> Emitter<'a> {
                 // The checked immutable alias captures its original target before
                 // any subsequent SET may reassign the owning reference field.
                 let captured = self.receipt_capture.as_ref().and_then(|recipe| {
-                    let sources = recipe.dependencies.get(&self.receipt_site(value.span))?;
-                    recipe.dependencies.values().flatten().find_map(|leaf| {
-                        let source = leaf.source_dependency_id.as_ref()?;
-                        (leaf.captured_reference && sources.iter().any(|read| &read.id == source))
-                            .then(|| (source.clone(), leaf.id.clone()))
-                    })
+                    recipe
+                        .reference_captures
+                        .get(&self.receipt_site(value.span))
+                        .cloned()
                 });
-                if let Some((source, leaf)) = captured {
+                if let Some(capture) = captured {
+                    let source = capture
+                        .source_dependency_id
+                        .expect("checked immutable reference capture source");
                     self.stdlib
                         .insert("readScenarioReceiptStoredReference".into());
+                    self.stdlib
+                        .insert("observeScenarioReceiptDependency".into());
                     value_text = format!(
-                        "(await readScenarioReceiptStoredReference(c,{value_text},{},{}))",
+                        "(await (async()=>{{const $alias=await readScenarioReceiptStoredReference(c,{value_text},{},{});await observeScenarioReceiptDependency(c,{},$alias,\"id\",{});return $alias;}})())",
                         js_string(&source),
-                        js_string(&leaf)
+                        js_string(&capture.id),
+                        js_string(&capture.model),
+                        js_string(&capture.id)
                     );
                 }
                 let emitted = self.bind(name);
