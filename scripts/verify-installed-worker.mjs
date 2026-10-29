@@ -102,7 +102,15 @@ async function verifyConsumer(checkout) {
   const first = api.buildDeployBundleWithAssets(artifact, options);
   const second = api.buildDeployBundleWithAssets(artifact, options);
   assert.deepEqual(first, second, 'installed Worker and asset bytes must be deterministic');
-  assert.equal(first.modules['vendor/state/receipt/observer.js'], undefined);
+  const stagedObserver = first.modules['vendor/state/receipt/observer.js'];
+  assert.ok(stagedObserver, 'installed Worker stages the B receipt observer');
+  assert.ok(stagedObserver.includes('loadSelectedReceiptObserver'), 'staged observer serves the seam loader');
+  assert.ok(
+    stagedObserver.includes('../../work/receipt/index.js'),
+    'staged observer resolves the owning producer through the rewritten vendor leg',
+  );
+  assert.ok(!/import\(['"]@canlang\//.test(stagedObserver), 'staged observer keeps no bare dynamic import');
+  assert.ok(!/\bfrom ['"]@canlang\//.test(stagedObserver), 'staged observer keeps no bare static import');
   assert.ok(!Object.keys(first.modules).some(key => key.endsWith('/work-loader.js')));
   assert.ok(plain.modules && !Object.keys(plain.modules).some(key => key.endsWith('values_semantics.js')), 'values backend remains opt-in');
   for (const marker of api.MCP_BUNDLE_MARKERS) assert.ok(first.modules[api.MCP_HANDLER_MODULE].includes(marker));
@@ -137,8 +145,9 @@ async function verifyConsumer(checkout) {
   assert.equal(wasmBackend(glue).call('add-int', [1n, 2n]), 3n);
   const receiptEntry = ownerModule('@canlang/state/receipt');
   const receipt = await import(receiptEntry);
-  const absentObserver = new URL(receipt.receiptObserverModuleUrl, receiptEntry);
-  await assert.rejects(receipt.loadReceiptObserver(), error => error.code === 'ERR_MODULE_NOT_FOUND' && error.message.includes(fileURLToPath(absentObserver)));
+  const observerMod = await receipt.loadReceiptObserver();
+  assert.equal(typeof observerMod.loadSelectedReceiptObserver, 'function', 'installed observer serves the seam loader');
+  const { observeSelectedReceipt: installedObserve } = await observerMod.loadSelectedReceiptObserver();
 
   // The public Work producer and its real relative cycle must survive packing.
   // Optional State observer absence remains distinct from this present producer.
@@ -148,6 +157,7 @@ async function verifyConsumer(checkout) {
   const workAssociation = await import(ownerModule('@canlang/work/observation/association'));
   const workFns = await workReceipt.loadWorkReceiptFns();
   assert.equal(workFns.observeSelectedReceipt, workObservation.observeSelectedReceipt);
+  assert.equal(installedObserve, workObservation.observeSelectedReceipt, 'installed B observer hands the owning producer function straight through');
   assert.equal(workFns.applyReceiptProgress, workAssociation.applyReceiptProgress);
   assert.equal(workFns.isConsistentCompletion, workReceipt.isConsistentCompletion);
   const workClosure = ['vendor/work/receipt/index.js', 'vendor/work/observation/observation.js', 'vendor/work/observation/association.js'];
@@ -203,7 +213,7 @@ async function verifyConsumer(checkout) {
     assert.throws(() => api.buildDeployBundle(artifact, { verdict: options.verdict }), /committed-model-source\.js/, 'corrupt genuine stager must fail the existing loadability guard');
   } finally { writeFileSync(committedFile, savedCommitted); }
 
-  const filesClosure = ['vendor/files/bridge.js', 'vendor/files/finalize/index.js', 'vendor/files/upload/index.js', 'vendor/files/provenance/index.js', 'vendor/files/ports.js'];
+  const filesClosure = ['vendor/files/bridge.js', 'vendor/files/finalize/index.js', 'vendor/files/upload/index.js', 'vendor/files/provenance/index.js', 'vendor/files/ports.js', 'vendor/files/retention/index.js'];
   assert.deepEqual(Object.keys(first.modules).filter(key => key.startsWith('vendor/files/')).sort(), [...filesClosure].sort());
   const filesBridgeEntry = ownerModule('@canlang/files/bridge');
   assert.equal(first.modules['vendor/files/bridge.js'], readFileSync(filesBridgeEntry, 'utf8'));
@@ -278,7 +288,7 @@ async function verifyConsumer(checkout) {
 
   // Mutate only isolated producer files, never the checkout's shared outputs.
   const producerFiles = ['@canlang/work/receipt', '@canlang/work/observation/observation', '@canlang/work/observation/association',
-    '@canlang/files/finalize', '@canlang/files/upload', '@canlang/files/provenance', '@canlang/files/ports']
+    '@canlang/files/finalize', '@canlang/files/upload', '@canlang/files/provenance', '@canlang/files/ports', '@canlang/files/retention']
     .map(specifier => [specifier, fileURLToPath(ownerModule(specifier))]);
   producerFiles.push(['acorn ESM', acornFile]);
   producerFiles.push(['Work committed-model source', committedFile]);

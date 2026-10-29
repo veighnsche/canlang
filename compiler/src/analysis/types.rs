@@ -22886,7 +22886,7 @@ fn duration_value(node: &SyntaxNode, text: &str) -> Option<i64> {
 
 /// Byte count of a byte-quantity literal, or `None` for anything
 /// else/overflow.
-fn bytes_value(node: &SyntaxNode, text: &str) -> Option<i64> {
+pub(crate) fn bytes_value(node: &SyntaxNode, text: &str) -> Option<i64> {
     if node.kind == SyntaxKind::Bytes {
         let slice = text.get(node.span.start as usize..node.span.end as usize)?;
         return bytes_count(slice);

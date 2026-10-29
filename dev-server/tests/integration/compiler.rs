@@ -228,3 +228,14 @@ fn malformed_exit_contracts_and_excessive_compiler_output_are_bounded() {
         CompileResult::ToolFailure { .. }
     ));
 }
+#[test]
+fn admits_deployment_bound_imports_without_file_providers() {
+    let source = "app R uses=[r]\npackage r\n use report {ReportsV1 as Reports} from=deployment.reports\n use rent {Location}\n Given\n Then\n";
+    assert!(admit_use_closure(source, &[]).is_err());
+    assert!(admit_use_closure(source, &["rent".to_string()]).is_ok());
+    let spaced = "app R uses=[r]\npackage r\n use report {ReportsV1} from =deployment.reports\n Given\n Then\n";
+    assert!(admit_use_closure(spaced, &[]).is_ok());
+    let tricky = "app R uses=[r]\npackage r\n use fromage {X}\n use rent {Location} # from=deployment.reports\n Given\n Then\n";
+    assert!(admit_use_closure(tricky, &["fromage".to_string()]).is_err());
+    assert!(admit_use_closure(tricky, &["fromage".to_string(), "rent".to_string()]).is_ok());
+}

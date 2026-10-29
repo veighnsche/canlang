@@ -110,10 +110,11 @@ async function respond(value){
     if(Buffer.byteLength(JSON.stringify(result))>24*1024)result={output:await outputs.json(result,value.operationId,value.generationId)};
     active?.cancel.signal.throwIfAborted();
     send({...identity,ok:true,allocation:['release','retry'].includes(value.command)?'released':allocation(value.generationId),result});
-  }catch{
+  }catch(err){
     if(active)await outputs.discard(value.operationId,value.generationId);
     const state=allocation(value.generationId);
-    send({...identity,ok:false,allocation:state,error:{code:state==='release_failed'?'CLEANUP_REQUIRED':active?.cancel.signal.aborted?'SDK_OPERATION_CANCELLED':'SDK_OPERATION_FAILED',message:`SDK operation failed: ${value.command}`}});
+    const cause=err instanceof Error?err.message:String(err);
+    send({...identity,ok:false,allocation:state,error:{code:state==='release_failed'?'CLEANUP_REQUIRED':active?.cancel.signal.aborted?'SDK_OPERATION_CANCELLED':'SDK_OPERATION_FAILED',message:`SDK operation failed: ${value.command}: ${cause}`.slice(0,500)}});
   }finally{
     if(active){operations.delete(value.operationId);settle();}
   }

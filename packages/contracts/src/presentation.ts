@@ -2147,6 +2147,14 @@ export interface TabsProps {
   readonly caption?: MessageValue;
   readonly id?: string;
   readonly size?: AppearanceSize;
+  /**
+   * Authored tab panels before per-tab gates filter. The compiler sets
+   * this; `items` carries only the rendered survivors. Lets the factory
+   * tell all-gated (render empty, never the selector form) from
+   * authored-empty, and lets compiler-verified sets skip the
+   * options-to-panels correspondence check (runtime absence is gating).
+   */
+  readonly authoredPanels?: number;
 }
 
 /**

@@ -7,6 +7,34 @@ worker-safe observer module > the work-loader leg (loud t16b at the
 end, never a silent fallback). This document is the contract the
 B-half module and F's Q3 rewrite entry must satisfy.
 
+## Reconciliation (28 October 2026, B-half landing)
+
+The shipped seam differs from the frozen Q2 text in three mechanical
+respects, plus the taken B mechanism choice below; the shipped form
+governs and the Q2 text further down is kept for history:
+
+- **Specifier:** shipped `invoke.ts` resolves B through the package
+  specifier `@canlang/state/receipt` (rewritten to
+  `vendor/state/receipt/index.js`), whose re-exported
+  `loadReceiptObserver` performs the relative `./observer.js` load —
+  not through the frozen relative
+  `../../../state/dist/state/src/receipt/observer.js` literal.
+- **Dist path:** the state build emits
+  `packages/state/dist/src/receipt/observer.js` (not
+  `packages/state/dist/state/src/receipt/observer.js`); the vendor
+  walk stages it as `vendor/state/receipt/observer.js` automatically.
+- **F-half rewrite entry:** the literal relative-specifier entry is
+  superseded — no `bundle.ts` entry is needed for the observer
+  itself. The entry the B-half actually needed is the
+  `@canlang/work/receipt` line in `mapVendorExtendedImport`, which
+  rewrites the observer's dynamic leg to the staged
+  `vendor/work/receipt/index.js` (mirroring the runtime map).
+- **B mechanism (Q1 choice, taken):** the observer resolves the owning
+  Work producer through a literal dynamic `import()` — no static
+  `@canlang/work` edge (it would cycle), no file-URL loading. The
+  package boundary guard carries a declared `contextualModuleLocators`
+  exception for exactly this consumer + specifier.
+
 ## B-half: worker-safe observer module
 
 - **File (B authors):** `packages/state/src/receipt/observer.ts`

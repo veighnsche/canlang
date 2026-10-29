@@ -15,9 +15,18 @@ import type {
   ActivationVerdict,
   CompatibilityDescriptor,
   EnvironmentSelection,
+  MigrationTransition,
+  StoragePort,
 } from "@canlang/contracts";
 import { loadArtifactFile, type LoadedArtifact } from "../runtime/artifact.js";
 import { activate } from "../deploy/activate.js";
+import {
+  bundleInventoryGates,
+  bundleStoreStub,
+  loadBundleStore,
+  loadBundleTransition,
+  type BundleStore,
+} from "../deploy/bundle-evidence.js";
 import {
   checkCompatibility,
   checkCompilerVersionMatch,
@@ -318,7 +327,7 @@ export async function runPreparedBuild(artifactPath: string, lifetime?: LocalCom
  * A compiler/runtime release mismatch refuses `--yes`. No path spawns
  * wrangler without `--yes`.
  */
-function loadDeployInputs(artifactPath: string, env: string | null, lifetime?: LocalCommandLifetime) {
+async function loadDeployInputs(artifactPath: string, env: string | null, lifetime?: LocalCommandLifetime) {
   lifetime?.checkpoint("load artifact");
   let loaded: LoadedArtifact;
   try {
@@ -349,7 +358,19 @@ function loadDeployInputs(artifactPath: string, env: string | null, lifetime?: L
     fail("deploy", "invalid-deploy-bundle", error instanceof Error ? error.message : String(error));
   }
   lifetime?.checkpoint("deploy installed inputs loaded");
-  return { loaded, dir, stem, descriptor, environment, target, installed };
+  // Optional activation evidence: bundle store + compiled transition feed
+  // gates 3-4 of the staged verdict; absent files keep those gates
+  // `activation-incomplete`, malformed files fail the deploy.
+  let bundleStore: BundleStore | null;
+  let transition: MigrationTransition | null;
+  try {
+    bundleStore = await loadBundleStore(join(dir, `${stem}.store.json`));
+    transition = await loadBundleTransition(join(dir, `${stem}.transition.json`));
+  } catch (error) {
+    fail("deploy", "invalid-deploy-bundle", error instanceof Error ? error.message : String(error));
+  }
+  lifetime?.checkpoint("deploy activation evidence loaded");
+  return { loaded, dir, stem, descriptor, environment, target, installed, bundleStore, transition };
 }
 
 function confirmDeployGate(preview: boolean, yes: boolean): void {
@@ -422,7 +443,8 @@ export async function runPreparedDeploy(
   yes: boolean,
   lifetime?: LocalCommandLifetime,
 ): Promise<void> {
-  const { loaded, dir, stem, descriptor, environment, installed } = loadDeployInputs(artifactPath, env, lifetime);
+  const { loaded, dir, stem, descriptor, environment, installed, bundleStore, transition } =
+    await loadDeployInputs(artifactPath, env, lifetime);
   const compat = checkCompatibility(descriptor, environment, installed);
   if (!compat.compatible) {
     fail(
@@ -437,19 +459,25 @@ export async function runPreparedDeploy(
   // P-B bundle: built in memory here (preview validates + reports the real
   // sha without writing; --yes writes below). The staged verdict is the
   // honest `activate()` verdict over deploy-time inputs: gates 1-2 run
-  // for real, gates 3-4 report `activation-incomplete` (no store or
-  // producer gates are importable from the dist CLI — the same honest
-  // scope the `activate` command documents). An inactive verdict deploys
-  // the refusal worker through the same main (by design, never a silent
-  // serve), and preview/--yes report it loudly so the deployer sees it.
+  // for real, and gates 3-4 run from bundle store + transition evidence
+  // when present (absent files keep those gates `activation-incomplete`,
+  // the same honest scope the `activate` command documents). An inactive
+  // verdict deploys the refusal worker through the same main (by design,
+  // never a silent serve), and preview/--yes report it loudly so the
+  // deployer sees it.
   // Until the P-A serving entry is built, fall back to the legacy main
   // with a loud warning.
   lifetime?.checkpoint("deploy activation start");
+  const store = bundleStore === null ? undefined : (bundleStoreStub(bundleStore) as unknown as StoragePort);
+  const gate4 =
+    bundleStore !== null && transition !== null ? bundleInventoryGates(bundleStore, transition) : null;
   const verdict = await activate({
     artifact: loaded.artifact,
     descriptor,
     environment,
     installed,
+    ...(store === undefined ? {} : { store }),
+    ...(gate4 === null ? {} : gate4),
   });
   lifetime?.checkpoint("deploy activation completed");
   const { bundleRef, deployBundle } = buildDeployBundleRef(loaded, verdict, stem, lifetime);

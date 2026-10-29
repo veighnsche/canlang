@@ -120,10 +120,11 @@ pub struct Capture {
 }
 
 /// Owning profile declarations: the `app` count plus each `use` package
-/// import with its source line. Same line discipline as admission: `#`
-/// comment lines skipped, `export` prefixes transparent, keyword
-/// boundaries exact (so `uses=` never reads as `use`).
-pub(crate) fn profile_declarations(source_text: &str) -> (usize, Vec<(usize, String)>) {
+/// import with its source line, plus whether the line carries a `from=`
+/// deployment binding. Same line discipline as admission: `#` comment
+/// lines skipped, `export` prefixes transparent, keyword boundaries
+/// exact (so `uses=` never reads as `use`).
+pub(crate) fn profile_declarations(source_text: &str) -> (usize, Vec<(usize, String, bool)>) {
     let mut apps = 0;
     let mut uses = Vec::new();
     for (index, line) in source_text.lines().enumerate() {
@@ -137,13 +138,20 @@ pub(crate) fn profile_declarations(source_text: &str) -> (usize, Vec<(usize, Str
             .map(str::trim_start)
             .unwrap_or(line);
         if is_keyword(after_export, "use") {
+            // A `from=` binding still stages its provider file when the
+            // checkout has one (concrete member binding with verified
+            // sends); when no file exists the compiler binds the
+            // import opaque-external instead of erroring, so absence
+            // is tolerated. The flag records which regime applies.
+            let code = after_export.split('#').next().unwrap_or("");
+            let bound = has_from_attribute(code);
             let name: String = after_export["use".len()..]
                 .trim_start()
                 .chars()
                 .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
                 .collect();
             if !name.is_empty() {
-                uses.push((index + 1, name));
+                uses.push((index + 1, name, bound));
             }
         }
         if is_keyword(line, "app") {
@@ -159,6 +167,67 @@ fn is_keyword(line: &str, word: &str) -> bool {
             .next()
             .is_none_or(|c| !c.is_ascii_alphanumeric() && c != '_')
     })
+}
+
+/// True when the (comment-stripped) use line carries a `from =` attribute.
+/// A bound import split across lines conservatively keeps its
+/// file-provider requirement and fails closed.
+pub(crate) fn has_from_attribute(code: &str) -> bool {
+    let bytes = code.as_bytes();
+    let mut index = 0;
+    while index + 4 <= bytes.len() {
+        if code[index..].starts_with("from")
+            && (index == 0 || !is_name_char(bytes[index - 1]))
+            && bytes
+                .get(index + 4)
+                .is_some_and(|end| *end != b'_' && !end.is_ascii_alphanumeric())
+        {
+            let mut rest = &code[index + 4..];
+            rest = rest.trim_start_matches(|c: char| c.is_whitespace());
+            if rest.starts_with('=') {
+                return true;
+            }
+        }
+        index += 1;
+    }
+    false
+}
+
+fn is_name_char(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || byte == b'_'
+}
+
+/// `app ... uses=[...]` composition members on one line: package or app
+/// names the closure must also stage, or the compiler reports them as
+/// unknown members. Same line discipline as [`profile_declarations`].
+pub(crate) fn composition_members(source_text: &str) -> Vec<String> {
+    let mut members = Vec::new();
+    for line in source_text.lines() {
+        let line = line.trim_start();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if !is_keyword(line, "app") {
+            continue;
+        }
+        let Some(list) = line.split_once("uses=[") else {
+            continue;
+        };
+        let Some(list) = list.1.split(']').next() else {
+            continue;
+        };
+        for member in list.split(',') {
+            let name: String = member
+                .trim_start()
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect();
+            if !name.is_empty() {
+                members.push(name);
+            }
+        }
+    }
+    members
 }
 
 pub(crate) fn check_cancel(cancel: &AtomicBool) -> Result<()> {
@@ -614,10 +683,13 @@ fn capture_generated(capture: &mut Capture, cancel: &AtomicBool) -> Result<()> {
 /// capture. Exactly one declaring file must exist; zero or several refuse.
 /// A `use` of the app's own package needs no extra operand. Discovery is
 /// bounded and proposes only: the compiler's verdict on the staged closure
-/// (plus `verify_compiler_sources`) is the membership authority.
+/// (plus `verify_compiler_sources`) is the membership authority. Both
+/// `use` package imports and `app ... uses=[...]` composition members
+/// (which may name apps or packages) seed the closure transitively.
 pub(crate) fn capture_provider_closure(captured: &mut Capture, cancel: &AtomicBool) -> Result<()> {
     let (_, uses) = profile_declarations(&captured.source_text);
-    if uses.is_empty() {
+    let composed = composition_members(&captured.source_text);
+    if uses.is_empty() && composed.is_empty() {
         return Ok(());
     }
     let mut own = BTreeSet::new();
@@ -639,7 +711,21 @@ pub(crate) fn capture_provider_closure(captured: &mut Capture, cancel: &AtomicBo
     }
     let mut resolved: Vec<ProviderSource> = Vec::new();
     let mut seen = BTreeSet::new();
-    let mut pending: Vec<String> = uses.into_iter().map(|(_, name)| name).collect();
+    // A name is required when ANY occurrence is a bare `use` or a
+    // composition member; `from=`-only names tolerate absence (the
+    // compiler binds them opaque-external).
+    let mut required = BTreeSet::new();
+    let mut pending: Vec<String> = Vec::new();
+    for (_, name, bound) in uses {
+        if !bound {
+            required.insert(name.clone());
+        }
+        pending.push(name);
+    }
+    for name in composed {
+        required.insert(name.clone());
+        pending.push(name);
+    }
     let mut rounds = 0usize;
     while let Some(package) = pending.pop() {
         if !seen.insert(package.clone()) {
@@ -652,8 +738,18 @@ pub(crate) fn capture_provider_closure(captured: &mut Capture, cancel: &AtomicBo
         if own.contains(&package) {
             continue;
         }
+        // T14b/B1: `std` is a compiler-known provider fed by consumed
+        // schemas, never by a checkout file; the compiler binds its
+        // members as externals itself.
+        if package == "std" {
+            continue;
+        }
         check_cancel(cancel)?;
-        let canonical = locate_package_provider(&captured.root, &package)?;
+        let canonical = match locate_member_source(&captured.root, &package) {
+            Ok(canonical) => canonical,
+            Err(_) if !required.contains(&package) => continue,
+            Err(error) => return Err(error),
+        };
         let read = stable_read(&canonical, true, u32::MAX as u64, cancel)?;
         let relative = operand(&captured.root, &read.path)?;
         if relative == captured.compiler_operand {
@@ -662,7 +758,16 @@ pub(crate) fn capture_provider_closure(captured: &mut Capture, cancel: &AtomicBo
         let provider_text = String::from_utf8(read.bytes.clone())
             .map_err(|_| format!("provider source {relative} is not valid UTF-8"))?;
         let (_, nested) = profile_declarations(&provider_text);
-        pending.extend(nested.into_iter().map(|(_, name)| name));
+        for (_, name, bound) in nested {
+            if !bound {
+                required.insert(name.clone());
+            }
+            pending.push(name);
+        }
+        for name in composition_members(&provider_text) {
+            required.insert(name.clone());
+            pending.push(name);
+        }
         resolved.push(ProviderSource {
             package,
             snapshot: SourceSnapshot {
@@ -734,6 +839,23 @@ fn locate_package_provider(root: &str, package: &str) -> Result<String> {
             "imported package {package} is ambiguous across provider sources"
         )),
     }
+}
+
+/// Composition members may name apps (`draft/apps/<Name>/<Name>.can`)
+/// or packages. Prefer the app file when it exists; otherwise fall
+/// back to the package provider search.
+fn locate_member_source(root: &str, member: &str) -> Result<String> {
+    let app_path = Path::new(root)
+        .join("draft")
+        .join("apps")
+        .join(member)
+        .join(format!("{member}.can"));
+    if app_path.is_file() {
+        return text(canonical(
+            app_path.to_str().ok_or("provider path is not UTF-8")?,
+        )?);
+    }
+    locate_package_provider(root, member)
 }
 
 /// Top-level `.can` files of one source directory, sorted for determinism.

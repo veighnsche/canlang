@@ -477,17 +477,19 @@ Then
             true,
         ),
         ("unbounded", source.replace(" limit=1", ""), false),
-        ("over-bound", source.replace("limit=1", "limit=201"), false),
+        // Immediate guards evaluate per send against live rows, so they
+        // inherit the admitted loop ceiling (1000), not the retained
+        // census bound (200, staged source-evaluation only).
+        ("over-bound", source.replace("limit=1", "limit=201"), true),
         (
-            "public",
-            source
-                .replace(
-                    "scenario notify on=Notice",
-                    "scenario notify(address:email) by=members",
-                )
-                .replace("event.email", "address"),
+            "over-ceiling",
+            source.replace("limit=1", "limit=1001"),
             false,
         ),
+        // No "public" refusal case: synchronous scenarios with guarded
+        // loop sends lower through the sealed pipeline (source-only
+        // receipts, loop-item transport). That shape is covered
+        // positively by the native-scenario-guarded-send fixture.
     ] {
         std::fs::write(&path, &text).unwrap();
         let output = std::process::Command::new(env!("CARGO_BIN_EXE_can"))

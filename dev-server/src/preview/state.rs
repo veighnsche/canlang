@@ -94,7 +94,7 @@ impl Retained {
             Ok(bytes) => checked_manifest(&bytes, &identity, &schema)?,
             Err(error) if !path.try_exists().map_err(|e| e.to_string())? => {
                 let value = Manifest {
-                    version: 1,
+                    version: 2,
                     identity,
                     schema,
                     database_id: format!("can-preview-{}", random_id()?),
@@ -156,8 +156,10 @@ impl Retained {
 fn checked_manifest(bytes: &[u8], identity: &str, schema: &str) -> Result<Manifest> {
     let value: Manifest = serde_json::from_slice(&bytes)
         .map_err(|_| "preview metadata is invalid; retained state was preserved")?;
-    if value.version != 1
-        || value.identity != identity
+    if value.version != 2 {
+        return Err("retained preview state predates the app-wide file inventory; use a separate preview state root or explicitly reset this source's development data".into());
+    }
+    if value.identity != identity
         || !database_id(&value.database_id, "can-preview-")
         || value.owner_database_ids.len() != 2
         || value.owner_database_ids[0] == value.owner_database_ids[1]

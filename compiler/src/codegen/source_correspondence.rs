@@ -25,6 +25,7 @@ fn join_scenario_lists<'x>(
     owner: &'x IrItem,
     original: &'x IrItem,
     private_cohort: bool,
+    anchored_cohort: bool,
 ) -> Option<(
     &'x Vec<crate::analysis::resolve::SymbolId>,
     &'x Vec<IrGuard>,
@@ -83,14 +84,27 @@ fn join_scenario_lists<'x>(
         || match (ac, bc) {
             (None, None) => false,
             (Some(a), Some(b)) if private_cohort => {
-                a.kind != IrCohortKind::Model
-                    || b.kind != IrCohortKind::Model
-                    || a.model != b.model
-                    || a.bind != b.bind
-                    || a.parent.is_some()
-                    || b.parent.is_some()
-                    || a.span != b.span
-                    || a.bind.as_deref().is_none_or(str::is_empty)
+                // Cohort send-guard receipts additionally admit anchored
+                // (`each=event.parent.Child`) cohorts under exact
+                // descriptor correspondence; the private runtime seal
+                // below keeps its bare-model-only gate.
+                if anchored_cohort {
+                    a.kind != b.kind
+                        || a.model != b.model
+                        || a.bind != b.bind
+                        || a.parent != b.parent
+                        || a.span != b.span
+                        || a.bind.as_deref().is_none_or(str::is_empty)
+                } else {
+                    a.kind != IrCohortKind::Model
+                        || b.kind != IrCohortKind::Model
+                        || a.model != b.model
+                        || a.bind != b.bind
+                        || a.parent.is_some()
+                        || b.parent.is_some()
+                        || a.span != b.span
+                        || a.bind.as_deref().is_none_or(str::is_empty)
+                }
             }
             _ => true,
         }
@@ -168,7 +182,62 @@ pub(super) fn same_scenario_semantics(
     expected: &IrProgram,
     owner: &IrItem,
 ) -> Option<()> {
-    join_scenario_semantics(program, actual, expected, owner, false)
+    join_scenario_semantics(program, actual, expected, owner, false, false)
+}
+
+/// Cohort send-guard receipts re-verify the whole owner like scenarios:
+/// the cohort model seal plus the complete params/guard/body join. Unlike
+/// the private runtime-admission seal below, declared params and caller
+/// gates are joined (not gated out), because the receipt covers owners
+/// that declare them.
+pub(super) fn same_cohort_handler_semantics(
+    program: &CheckedProgram,
+    actual: &IrProgram,
+    expected: &IrProgram,
+    owner: &IrItem,
+) -> Option<()> {
+    let IrItemKind::Scenario {
+        trusted: true,
+        result: None,
+        read: false,
+        expose_excluded: false,
+        scope_authority: false,
+        event_source: Some(IrEventSource::Declared(_)),
+        hook: None,
+        cohort: Some(cohort),
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let a = actual.items.get(cohort.model.0 as usize)?;
+    let b = expected.items.get(cohort.model.0 as usize)?;
+    let (
+        IrItemKind::Model {
+            owner: a_owner,
+            fields: a_fields,
+            ..
+        },
+        IrItemKind::Model {
+            owner: b_owner,
+            fields: b_fields,
+            ..
+        },
+    ) = (&a.kind, &b.kind)
+    else {
+        return None;
+    };
+    if a.id != b.id
+        || a.module != b.module
+        || a.canonical != b.canonical
+        || a.name != b.name
+        || a.span != b.span
+        || a_owner != b_owner
+        || a_fields != b_fields
+    {
+        return None;
+    }
+    join_scenario_semantics(program, actual, expected, owner, true, true)
 }
 
 /// Private model-cohort children have their own owning runtime admission.
@@ -226,7 +295,7 @@ pub(super) fn same_private_handler_semantics(
     {
         return None;
     }
-    join_scenario_semantics(program, actual, expected, owner, true)
+    join_scenario_semantics(program, actual, expected, owner, true, false)
 }
 
 fn join_scenario_semantics(
@@ -235,9 +304,11 @@ fn join_scenario_semantics(
     expected: &IrProgram,
     owner: &IrItem,
     private_cohort: bool,
+    anchored_cohort: bool,
 ) -> Option<()> {
     let original = check_owner_identity(expected, owner)?;
-    let (a, ab, ag, ae, _b, bb, bg, be) = join_scenario_lists(owner, original, private_cohort)?;
+    let (a, ab, ag, ae, _b, bb, bg, be) =
+        join_scenario_lists(owner, original, private_cohort, anchored_cohort)?;
     let mut join = SemanticJoin {
         program,
         actual,

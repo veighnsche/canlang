@@ -93,8 +93,13 @@ pub fn request(
         .enable_all()
         .build()
         .map_err(|e| e.to_string())?;
+    // Readiness, not a performance gate: a page GET over miniflare
+    // sqlite-wasm costs tens of seconds on real apps under load
+    // (repeated phase-A/B domain scans plus per-row policy reads);
+    // production D1 has a different profile. Page-read round-trip
+    // count is follow-up work; the probe must not flake meanwhile.
     let result = runtime.block_on(async {
-        timeout(Duration::from_secs(30), async {
+        timeout(Duration::from_secs(90), async {
             let stream = TcpStream::connect((Ipv4Addr::LOCALHOST, target.port().unwrap()))
                 .await
                 .map_err(|e| e.to_string())?;

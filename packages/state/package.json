@@ -272,6 +272,10 @@
       "types": "./dist/test/mutation/fixtures.d.ts",
       "default": "./dist/test/mutation/fixtures.js"
     },
+    "./testing/migration/fixtures": {
+      "types": "./dist/test/migration/fixtures.d.ts",
+      "default": "./dist/test/migration/fixtures.js"
+    },
     "./testing/storage/do-test-worker": "./dist/test/storage/do-test-worker.js",
     "./effects/guards": {
       "types": "./dist/src/effects/guards.d.ts",

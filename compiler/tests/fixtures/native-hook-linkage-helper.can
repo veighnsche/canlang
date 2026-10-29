@@ -1,0 +1,16 @@
+app HookLinkProbe
+Given
+ Location {name:text}
+ Region {location:Location}
+ Venue in Region {name:text,account:user,status:enum(draft,confirmed)=draft}
+ Opportunity in Community {venue:Venue?,open:bool=false,location:Location}
+ Community {name:text}
+ role organizer
+ Employee {user:user,active:bool=false,home:Location}
+ derive helps_at(person:user,loc:Location):bool = any(Employee as e,e.user==person and e.active and e.home==loc)
+ derive is_confirmed(venue:Venue):bool = (organizer and helps_at(actor,venue.parent.location)) or (authenticated and venue.account==actor) or (organizer and helps_at(actor,venue.parent.location))
+ policy Opportunity read=public where=row.open fields=open
+When
+ scenario venue_on_create on=Opportunity.create
+  do require event.after.venue==null or is_confirmed(event.after.venue)
+Then

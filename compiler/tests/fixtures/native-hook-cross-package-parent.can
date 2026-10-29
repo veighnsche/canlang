@@ -1,0 +1,26 @@
+app HookXParent uses=[renting,mainthing]
+package renting
+ Given
+  export Location {name:text}
+  Region {location:Location}
+  export Venue in Region {name:text,account:user,status:enum(draft,confirmed)=draft}
+  export role organizer
+  Employee {user:user,active:bool=false,home:Location}
+  export derive helps_at(person:user,loc:Location):bool = any(Employee as e,e.user==person and e.active and e.home==loc)
+  export derive is_confirmed(venue:Venue):bool = (organizer and helps_at(actor,venue.parent.location)) or (authenticated and venue.account==actor) or (organizer and helps_at(actor,venue.parent.location))
+ When
+ Then
+package mainthing
+ use renting {Location,Venue,organizer,helps_at,is_confirmed}
+ Given
+  Opportunity in Community {venue:Venue?,open:bool=false,location:Location,capacity:int,from:datetime,until:datetime,title:text}
+  Signup in Opportunity {account:user,state:enum(registered,confirmed)=registered}
+  Community {name:text}
+  derive Signup.reserves_place:bool = row.state in [registered,confirmed]
+  policy Opportunity read=public where=row.open fields=open
+  invariant Opportunity: row.from<row.until and count(row.Signup as signup where signup.reserves_place)<=row.capacity
+ When
+  crud Opportunity by=organizer fields=title when=helps_at(actor,row.location) and not row.open delete=none
+  scenario venue_on_create on=Opportunity.create
+   do require event.after.venue==null or is_confirmed(event.after.venue)
+ Then

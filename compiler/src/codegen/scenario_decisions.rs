@@ -697,6 +697,73 @@ impl Consumer<'_> {
         }
         Some(true)
     }
+    /// A member access to a derived field whose body reads no
+    /// collection membership lowers to `Member` (the runtime
+    /// expands the checked body inline), yet analysis records it
+    /// as a `DeriveFn` decision call. Consume that call here so
+    /// the strict census order holds; stored members record no
+    /// call and pass through exactly as before. Anything deeper
+    /// (nested calls inside the field body) keeps failing the
+    /// census count below, as before.
+    fn consume_member_derive_call(
+        &mut self,
+        e: &TypedExpr,
+        base: &TypedExpr,
+        field: &str,
+        chain: &[CheckedDecisionCallFrame],
+        calls: &[crate::analysis::scenario_disclosure::CheckedDecisionCall],
+        matched: &mut HashSet<usize>,
+    ) -> Option<()> {
+        let candidate = calls.iter().any(|p| {
+            self.same(p.node, e.span)
+                && p.chain.len() == chain.len()
+                && p.chain.iter().zip(chain).all(|(a, b)| {
+                    a.node == b.node
+                        && a.derive == b.derive
+                        && a.module == b.module
+                        && a.source.path == b.source.path
+                        && a.source.sha256 == b.source.sha256
+                        && a.source.module == b.source.module
+                })
+        });
+        if !candidate {
+            return Some(());
+        }
+        let index = self.find_consumed_call(e, chain, calls, matched)?;
+        let call = &calls[index];
+        let CheckedDecisionCallTarget::DeriveFn(id) = call.target else {
+            return None;
+        };
+        let mut ty = &base.ty;
+        while let ResolvedType::Nullable(inner) = ty {
+            ty = inner;
+        }
+        let ResolvedType::Record {
+            symbol,
+            stored: true,
+        } = ty
+        else {
+            return None;
+        };
+        let item = self.ir.items.get(id.0 as usize)?;
+        let symbol_decl = self.program.symbols.get(id.0 as usize)?;
+        if !matches!(&item.kind, IrItemKind::DeriveField { model, .. } if model == symbol)
+            || item.name != *field
+            || !matches!(
+                &symbol_decl.kind,
+                crate::analysis::resolve::SymbolKind::DeriveField { model, .. } if model == symbol
+            )
+            || symbol_decl.name != *field
+            || self.program.types.node_types.get(&call.node) != Some(&e.ty)
+        {
+            return None;
+        }
+        self.count.insert((call.module, call.node));
+        if self.count.len() > 200 || !self.origin(&call.source, call.node, call.module) {
+            return None;
+        }
+        Some(())
+    }
     fn join_derive_defaults(
         &mut self,
         params: &[crate::analysis::resolve::SymbolId],
@@ -947,8 +1014,13 @@ impl Consumer<'_> {
                 self.expression(right, chain, stack, calls, matched, depth + 1)?;
                 Some(true)
             }
-            IrExpr::Unary { operand, .. } | IrExpr::Member { base: operand, .. } => {
+            IrExpr::Unary { operand, .. } => {
                 self.expression(operand, chain, stack, calls, matched, depth + 1)?;
+                Some(true)
+            }
+            IrExpr::Member { base, field } => {
+                self.expression(base, chain, stack, calls, matched, depth + 1)?;
+                self.consume_member_derive_call(e, base, field, chain, calls, matched)?;
                 Some(true)
             }
             IrExpr::DeliveryRead {

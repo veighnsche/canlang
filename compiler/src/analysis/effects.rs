@@ -90,7 +90,7 @@ use crate::analysis::resolve::{
     SymbolId, SymbolKind, is_expression, object_entries,
 };
 use crate::analysis::types::{
-    CheckedInputChoice, ResolvedType, Scalar, SelectedCallTarget, TypeTable,
+    CheckedInputChoice, ResolvedType, Scalar, SelectedCallTarget, TypeTable, bytes_value,
 };
 use crate::analysis::{kids, nameref_word, tight_span};
 use crate::diagnostic::{Diagnostic, Related};
@@ -847,6 +847,17 @@ pub struct ParamData {
     pub description: Option<String>,
 }
 
+/// One checked `files` context declaration: per-file content-type
+/// allowlist and/or maximum accepted bytes. Each key is `None` when
+/// the declaration omits it (the host then applies its baseline).
+#[derive(Debug, Clone)]
+pub struct AppFilesPolicy {
+    /// Comma-split, trimmed, nonempty content types from `types=`.
+    pub types: Option<Vec<String>>,
+    /// Positive byte quantity from `max=`.
+    pub max_bytes: Option<i64>,
+}
+
 /// Module data: pages, rule refs, migration refs, descriptions (G9).
 #[derive(Debug, Clone)]
 pub struct ModuleData {
@@ -865,6 +876,13 @@ pub struct ModuleData {
     /// App-only explicit composition fold, followed by the pinned `"en"`
     /// default. Absent for packages or an incompatible composition.
     pub app_default_locale: Option<String>,
+    /// Checked `files` context declaration (B09 override producer).
+    /// `None` when the module declares neither `types=` nor `max=`.
+    /// Value validity is the checker's (`types.rs` E3001 on `max`);
+    /// this publishes the located declaration, mirroring
+    /// `locale_default`. A present-but-empty `types` allowlist means
+    /// no content type is admitted.
+    pub app_files_policy: Option<AppFilesPolicy>,
     /// Pages in source order.
     pub pages: Vec<PageData>,
     /// Policies declared in this module, in source order.
@@ -1310,6 +1328,7 @@ impl<'a> Cx<'a> {
                 locale_default: None,
                 locale_default_span: None,
                 app_default_locale: None,
+                app_files_policy: None,
                 pages: Vec::new(),
                 policies: Vec::new(),
                 invariants: Vec::new(),
@@ -1366,6 +1385,24 @@ impl<'a> Cx<'a> {
                     if let Some(data) = self.out.modules.get_mut(&module) {
                         data.locale_default = Some(tag);
                         data.locale_default_span = Some(decl.span);
+                    }
+                }
+                ["files", ..] => {
+                    let types = attribute_value(decl, "types", text)
+                        .and_then(|v| literal_string(text, v))
+                        .map(|raw| {
+                            raw.split(',')
+                                .map(|part| part.trim().to_string())
+                                .filter(|part| !part.is_empty())
+                                .collect::<Vec<_>>()
+                        });
+                    let max_bytes = attribute_value(decl, "max", text)
+                        .and_then(|v| bytes_value(v, text))
+                        .filter(|n| *n > 0);
+                    if (types.is_some() || max_bytes.is_some())
+                        && let Some(data) = self.out.modules.get_mut(&module)
+                    {
+                        data.app_files_policy = Some(AppFilesPolicy { types, max_bytes });
                     }
                 }
                 _ => {}

@@ -25,6 +25,7 @@ import { readRetainedTextGenerationEvidence, readRetainedTextGenerationReceipt,
   stageTextGenerationProgress, stageImageGenerationProgress } from './text-generation-progress.js';
 import {
   driveDispatchIntent, driveDispatchIntentWithPreclaim, stageCheckedDeliveryProgress,
+  checkRecordResult,
   loadDispatchSystemProducers,
   loadFenceAdmissionProducer,
   readDispatchExecutionRow,
@@ -469,9 +470,16 @@ async function createInstalledDispatcher(
       if (!pending.has(id)) resultContexts.delete(id);
     }
   };
+  // Structural claim gate only: the pending row must match. Deployment
+  // availability (adapter.available) rides the fence port instead —
+  // the kernel preflights it after the claim win but before guard
+  // evaluation, and the held claim lets the drive terminalize the
+  // refusal (failed/terminal receipt + record + ack) instead of
+  // leaving the intent pending forever. Refusing here would make
+  // the terminal path unreachable: no held claim, no record.
   const claim = options.createClaimCommand((id, target) => {
     const intent = pending.get(id);
-    return intent !== undefined && intent.target === target && options.adapter.available(intent) &&
+    return intent !== undefined && intent.target === target &&
       (!isGenerationControl(intent) || controlAdapter !== null);
   });
   if (claim.name !== 'work.dispatch.claim' ||
@@ -919,7 +927,16 @@ async function createInstalledDispatcher(
       const heldKeys: string[] = [];
       const originalContexts: string[] = [];
       try {
+        // The fence kernel preflights deployment availability before
+        // guards/authority/claims. The bound dispatcher owns that
+        // truth (adapter.available); the claim gate enforces the
+        // same predicate, so preflight refuses exactly what
+        // claiming would refuse — before any claim write.
         const driveOptions: Omit<DriveDispatchIntentOpts, 'registry'> = { ...input, store, intent,
+          fence: { ...input.fence,
+            availability: { isTargetAvailable: target =>
+              target === intent.target && available(intent) &&
+              (!isGenerationControl(intent) || controlAdapter !== null) } },
           callProvider: async (selected, held) => {
             const heldKey = `${selected.intentId}\0${held.claimId}`;
             progressOwners.set(heldKey, input.fence.owner);
@@ -1061,7 +1078,7 @@ async function createInstalledDispatcher(
           ? await driveDispatchIntentWithPreclaim(driveOptions, (guard, allocator) => {
             let eligible: DispatchClaimGuardInput | undefined;
             const guardedClaim = createClaimCommand((id, target) => id === intent.intentId &&
-              target === intent.target && available(intent) && (!isGenerationControl(intent) || controlAdapter !== null),
+              target === intent.target && (!isGenerationControl(intent) || controlAdapter !== null),
             async frame => { eligible = frame; return guard(frame); }, allocator);
             if (guardedClaim.name !== claim.name) throw new Error('Preclaim needs the defining Work claim command.');
             const originalStage = (guardedClaim as SystemCommandDef).stage;
@@ -1108,10 +1125,39 @@ async function createInstalledDispatcher(
             return registryForClaim(joinedClaim);
           })
           : await driveDispatchIntent({ ...driveOptions, registry });
+        if (outcome.status === 'unavailable') {
+          // Fenced send refused before guards: the deployment
+          // bindings declared this target unavailable, so no
+          // provider call ran. Seed the completion the record hook
+          // needs and terminalize through the same failed path as
+          // provider failures: failed/terminal receipt + record +
+          // ack under the held claim. Never re-driven.
+          const key = `${intent.intentId}\0${outcome.claimId}`;
+          const message = `Send target ${intent.target} is unavailable in this deployment.`;
+          completions.set(key, { intent,
+            outcome: { kind: 'failed',
+              cause: { kind: 'permanent', code: 'unavailable', message } },
+            owner: input.fence.owner });
+          heldKeys.push(key);
+          const recorded = await registry.run('work.dispatch.record-attempt',
+            { intentId: intent.intentId, claimId: outcome.claimId,
+              outcome: { state: 'failed', retryClass: 'terminal',
+                errorCode: 'unavailable', errorMessage: message },
+              ack: true },
+            { actor: input.actor, now: input.nowMs(), operation: input.operation,
+              operationId: `${outcome.claimId}:unavailable-terminal` }, { store });
+          checkRecordResult(recorded.result);
+        }
         await refreshPending();
-        return outcome.status === 'not-claimed' && outcome.reason === 'unavailable'
-          ? { status: 'unavailable', intentId: intent.intentId, target: intent.target }
-          : outcome;
+        // The fenced unavailable verdict (terminalized above) and
+        // the legacy claim-refused shape converge on the same
+        // bound outcome; the fence port normally preflights before
+        // the claim gate can refuse.
+        return outcome.status === 'unavailable'
+          ? { status: 'unavailable', intentId: intent.intentId, target: outcome.target }
+          : outcome.status === 'not-claimed' && outcome.reason === 'unavailable'
+            ? { status: 'unavailable', intentId: intent.intentId, target: intent.target }
+            : outcome;
       } finally {
         for (const key of heldKeys) { completions.delete(key); progressOwners.delete(key); pinAdmissions.delete(key); reviewAuthorities.delete(key); }
         for (const id of originalContexts) releaseControlContext(id);
@@ -1348,11 +1394,11 @@ async function createInstalledDispatcher(
             if (usesRichProgress(intent) && progressed !== undefined && admitted === undefined) {
               throw new Error('New recovered progress needs the original admitted owner fence before occurrence staging.');
             }
-            if (options.profile === 'images' && imageObservations.has(intentId)) {
-              const admission = input.admission;
-              if (admission === undefined) throw new Error('Images receiving recovery requires its actual current authority fence.');
-              enrollSystemCommandCommitCheck(context, () => admission.fence.revalidateAuthority());
-            }
+            // Images observation recovery revalidates current authority in
+            // `revalidateReconciledReceipt` (via `admitGenerationRecovery`)
+            // immediately before commit. A commit check cannot enroll here:
+            // the reconcile staging context is hand-built, never
+            // registry-issued.
             // Review recovery uses revalidateReconciledReceipt, the owning
             // recovery driver's authority/revision check immediately before commit.
             return (!usesRichProgress(intent)

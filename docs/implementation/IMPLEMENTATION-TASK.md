@@ -33,6 +33,353 @@ until qualified on current source. No all-green final CI is claimed.
 Seven code files in the normal checkout contain unfinished Refer work. Preserve
 that work and use coherent isolated candidates. Account proof reuse is committed. The shared Chat constructor/nominal projection/conditional-loop mechanism is qualified at the compiler and selected protected SEND runtime boundary; it does not grant withheld fields or qualify every original Chat workflow. Shift staged capture work remains an isolated candidate awaiting complete original runtime qualification and integration. These changes do not alter the measured original24 count without a complete capture.
 
+On 27 October 2026 the unchanged original24 command was run from branch
+`goal/production-ready` (= `origin/main` `e5af510f`) with a release compiler built
+from that source and the native catalog rebuilt from that source (`ca50fdca…`,
+byte-identical before and after the rebuild): complete artifact, 26/26 sources,
+60 modules, 482 operations, zero diagnostics, empty stderr. The 13-diagnostic
+count above was measured on feature-branch source and is superseded for main.
+Runtime qualification and CI closure on this source remain open (Z18).
+
+Z18 closure, 27 October 2026: all three CI jobs are green on `e5af510f`
+(Workspace and installed artifacts, Browser and security journeys, Compiler and
+editor: completed/success), covering the full runtime corpus on a clean
+checkout. Local gates on `goal/production-ready` (`e5af510f` + docs only) also
+pass: `bun run build` 26/26, `bun run typecheck` 40/40, `check:unitban`,
+`lint:compiler`, `check:boundaries` (0 violations). No temporary instrumentation
+was added. The zero-diagnostic objective is closed on this source; the B01–B27
+broader-product queue remains.
+
+B24 closure (installed Linux release), 27 October 2026, on
+`goal/production-ready`: refreshed the dev-server notice manifest for the
+profile-only Cargo.toml change (lock byte-identical, dependency closure
+unchanged); packed `can-0.1.2-linux-x64.tar.gz` (113MB) from branch-built
+release `can`/`can-dev`; `verify-install` 23/23 green; cold install into a
+scratch HOME green (`can 0.1.2`, commit `e5af510f`); tutorial Tasks journey
+(check/compile/dev/check/serving preview/auth/create/list) green on installed
+bits only; `verify-installed-types` (193 exports, 13 packages) and
+`verify-installed-worker` (315 modules, Wasm, production execution) green.
+Minimum-Node22 variants not runnable locally (need exactly Node 22.0.0; base
+CI covered them). Publication remains a separately requested action.
+
+B25 mechanism (installed migration/upgrade recovery), 27–28 October 2026, on
+`goal/production-ready`: delivered and committed the upgrade mechanism core
+over the State migration engine — persisted owner/predecessor/desired
+coordinator (`coordinateUpgrade`, binding re-verified every run, engine
+progress rows as the durable record), pending-work inventory producer from
+the live State outbox (`buildUpgradeInventory` + operation-path
+handler-contract mapping, fail-closed), live apply backend
+(`liveApplyUpgrade`, stop-before-activate deploy-then-flip, `--yes` gate,
+wrangler-leg join), all proven by 20 integration tests over memory and real
+D1 (miniflare) adapter stores. Remaining B25 units, each needing cross-lane
+design: (1) plan compilation — schema-diff old→desired directives plus
+snapshot minting from artifacts (L1 intake; transitions are caller-compiled
+today); (2) dispatch-layer in-flight/uncertain supplier join for drain
+(State-outbox inventory covers undispatched work exactly); (3) activate
+gate-4 wiring (needs 1: no transition source in the bundle yet); (4) `deploy
+--yes` CLI wiring through the preparation host (needs 1+3).
+
+B27 dev-preview blockers (original-app journeys on installed bits), 28 October
+2026: `can dev` preview fails for CanTable with IDENTITY_UNAVAILABLE (login
+descriptor route failed) on both installed and checkout toolchains, with and
+without `--preview-roles '{"Ava":["host"]}'`; the documented role-based
+VerifiedTasks preview works on the same installed bits, so the failure is
+CanTable-specific (host-role-only auth surface suspected, unproven). CanReport
+preview stops earlier: `use report {ReportsV1 as Reports}
+from=deployment.reports` is "outside the captured closure" — dev sessions do
+not capture deployment-sourced imports. CanExpense (no deployment imports,
+finance role seeded) fails later with SDK_OPERATION_FAILED on testkit.stage.
+Pattern: toy apps (Tasks, VerifiedTasks) preview on installed bits; no tried
+original app does. All three need dev-server lane fixes before original-app
+preview journeys can qualify B22/B27. No model-provider credentials exist in
+this environment, so supported-host generation is also untestable here.
+
+B27 CanTable preview closed, 28 October 2026: root cause was not auth —
+`installNativeFileInventory` installed per-package inventories that each
+census all live rows against coverage merged so far, so fixture rows staged
+before worker boot refused no matter the install order (zero-model
+app-named scope installed first with framework-only coverage). Fix:
+zero-model scope owners install one app-wide inventory covering every
+model (matches the documented app-scoped design; JEV 3/3 over reorder,
+staging-first, and multi-install API). Retained preview manifest bumped
+v1→v2 with an explicit-reset message for pre-change states. Regression
+test pins fresh-install-with-rows + app-wide shape + reopen. Live proof:
+`can-dev check` → preview ready, `preview.open` ok with
+`--preview-roles '{"Ava":["host"]}'` (403 without roles is correct
+enforcement). CanReport/CanExpense remain.
+
+B01/B02 verification (branch source), 28 October 2026: discriminator suites
+green — any_first_composition 7/7, collection_calls 2/2,
+boolean_operation_admission 8/8, decision_source_facts 14/14,
+stored_query_profiles 9/9, model_hook_profile 12/12; the outcome12
+compile-side refusal is closed (CanMaintain `when=can_work(...)` guards
+present in the zero-diagnostic corpus). Open remainders, both runtime-matrix
+test-authoring work for the B-lane: (1) CAN18 outcome5 full guard/body
+execute matrix (absence, mismatch, denial, rollback, replay, recovery) for
+the positive ANY dual through the runtime; (2) outcome12 candidate-context
+membership framing proof for the `maintain.Asset.update` can_work-guarded
+CRUD at runtime.
+
+B15 triage (operational services), 28 October 2026: Errors intake
+(FP.INSTRUMENTATION, `interfaces/src/instrumentation/intake.ts`) is
+substantially implemented (versioned admission, key/throttle/bounds/sink)
+but has ~1 test mention in the interfaces suites — needs its intake
+contract suite. Ping/Alerts/Reports (FP.PING/FP.REPORTS, CanCheck/CanReport
+consumers) are blocked on deployment provider bindings
+(`deployment.pings/alerts/reports` manifests have no package
+implementation) plus bounded ingress; CanCheck scenarios reference them
+but no ingress exists. Consent/session tracking and maintenance admission
+show no implementation. Smallest units in order: (1) intake contract
+suite for the existing Errors boundary; (2) deployment provider binding
+design (cross-lane); (3) bounded Ping ingress for CanCheck PingV1.
+
+B14 triage (mailbox/payments/connectors), 28 October 2026: language
+correspondence is done everywhere (`*_source_producer` suites green but
+self-report unqualified ingress/File authority); the residual in all five
+sub-areas is receiving/adapter/provenance work. Mailbox: send-only
+transport exists; missing owning MailboxV1 catalog/coordinator +
+authenticated MIME receiving producer (M). Payments: collect/refund owner
+decisions + terminal receipt paths exist; missing verified-event →
+original-attempt mapping joined to durable dispatch (M). Namespaces:
+inbound-only `mapVerifiedIngress` exists; missing one configured versioned
+binding + committed-outcome correlation (S-M, smallest first). Outward
+adapters (Discover/Enrich/Sync/WorkSources/Device): declarations only;
+start with Discover `page` end-to-end (M). HR handoff: declarations +
+examples only; needs authenticated-cause join + once-only handoff path
+(S-M, takes the namespace cause first).
+
+B09 triage (files/resource lifetime), 28 October 2026: completion bar is
+satisfiable per-consumer; none of five areas fully closed. (1)
+Separate-store publication: single-store atomicity + serial paths exist;
+smallest unit is one same-intent serialization primitive + two-owner
+interruption/reopen witness (M). (2) Receiving joins: identity +
+verified-ingress paths exist; needs one FP.SOURCE-MAPPINGS binding
+connected to one receiving occurrence (M-L). (3) Quota/override: no
+producer exists at all (static declarations only); needs a profile
+decision (per-app FilePolicy vs deployment ProviderLimits) before one
+admission-point enforcement + test (S once decided). (4) Provenance: base
+exists, business-field authority unfinished; one protected-field file join
+(M). (5) Expiry/disposal: Files GC + State retirement guard exist;
+owner-level disposal missing; start with one authored expiry consumer
+(M). TECH-F01/F02/FP.LIFETIME rows already point at the same units.
+
+B08 triage (durable Work/progress), 28 October 2026: (1) Bundled
+receipt observer: serving seam + staging shipped, but B-half
+`packages/state/src/receipt/observer.ts` does not exist (loader target
+absent; production resolves via injection or work-loader leg), and the
+D3B contract's relative specifier drifted from the shipped
+package-specifier seam. Smallest unit (S): author observer.ts +
+reconcile drift one way + no-injection bundled test with invocation
+marker and refusal cases. (2) Relation/progress: pure kernel covers all
+17 targets; durable consumers exist only for Email/Judgment/workflow-review
++ TextGeneration; Payments/Images/Mailbox/Errors need one `stage*` join
+each. (3) Availability: kernel + runtime mapping exist; injection into
+`DriveDispatchFenceInput` missing (stated inline as follow-up). (4)
+Fanout matrix: T34 + D1 cohort proofs accepted on synthetic fixtures;
+missing cell is the original CanVolunteer `Opportunity.updated` source
+route + `every(...)` durable path.
+
+Q4-C closed (B-half + proof), 28 October 2026:
+`packages/state/src/receipt/observer.ts` serves Work's
+`observeSelectedReceipt` through a literal dynamic leg (declared
+boundary exception; ambient shape keeps state buildable without
+work's dist; vendor map rewrites the leg). D3B drift reconciled to
+the shipped package-specifier seam. B-owned proof drives
+`invokeSelectedReceiptRead` with no injection against produced bundle
+bytes: authorized + B-marker, injected equality, denied, hiding,
+null-association, stale-fence, closed-inputs, link failures,
+present-but-broken loudness, fallback control. Installed-worker
+verifier flips absence pins to presence (316 modules). Remaining
+B08 follow-ups: (a) one more durable relation, (b) availability
+injection, (c) original cohort cell; full D-owned `/mcp` journey
+still open per row 231.
+
+Images submit relation closed, 28 October 2026: durable journey
+(`images-submit-progress`) drives file-free submit rich progress
+through the real dispatcher over persisted D1 with scripted provider
+transport — progress envelopes, uncertain record, genuine restart,
+recovery reconcile to terminal, replay + post-terminal restart
+immutability. Fixed a real gap the journey exposed: images reconcile
+staging enrolled a commit check on a hand-built (never
+registry-issued) context, so every observed reconcile threw;
+authority revalidation already happens via `admitGenerationRecovery`
+in `revalidateReconciledReceipt`, so the broken enrollment is removed.
+Follow-ups: terminal `ProgressTerminalNotification` has no durable
+consumer for any relation (cross-lane design); file-output submit
+variant still open.
+
+B14 namespaces first binding closed, 28 October 2026: configured
+versioned BillingIngress (`standard-webhooks-v1-billing`) with
+env-loaded binding, HMAC verifier reusing the shared webhooks
+mechanics (pure helpers moved top-level, behavior unchanged), and a
+committing sink with put-if-absent outcome correlation by
+`producer_event_id`. Cross-route suite (8/8): accept + correlate,
+replay identity, non-matching lookup miss, fail-closed tamper/version,
+unknown namespace, key rotation, loader fast-fail. Installed-worker
+and preview suites re-greened after catalog re-emit (build-order
+artifact, hashes stable). Durable outcome-store backend + second
+binding (SalesIngress) remain.
+
+B25 deploy CLI wiring closed (B25 complete), 28 October 2026:
+shared `deploy/bundle-evidence.ts` (bundle store + compiled transition
+loaders, read-only stub, gate-4 producer join) serves both `activate`
+and the deploy-time staged verdict: `deploy --preview`/`--yes` now
+report gates 3-4 from bundle evidence instead of permanent
+`activation-incomplete`, keeping the refusal-worker design on inactive
+verdicts. Journey `deploy-verdict` 3/3 over the real CLI (pinned
+active, unpinned blocked-work, absent incomplete). Along the way fixed
+a real regression: the expiry slice's `@canlang/files/retention`
+import had a vendor rewrite but no staged module, breaking every
+worker deploy bundle — staged in both bundle closures (deploy preview
++ observer proof green).
+
+B25 gate-4 wiring closed, 28 October 2026: `can-platform activate`
+runs the outstanding-work inventory gate from bundle evidence — a new
+optional `<stem>.transition.json` (closed-shape compiled transition;
+absent preserves `activation-incomplete`) supplies migrationId +
+invalidate pins, bundle outbox rows inventory through the real Work
+builder, disposal pins enforce through the real State checker. Bundle
+evidence covers undispatched outbox only (dispatch lifecycle rides
+the live path); stale "producers not importable" + phantom
+`test/activate.test.ts` comments corrected. Journey
+`activate-gate4` 4/4 over the real CLI: pinned active, unpinned
+blocked-work, absent incomplete, malformed loud. Remaining B25:
+`deploy --yes` CLI.
+
+B25 drain join closed, 28 October 2026: `buildUpgradeInventory`
+joins the dispatch lifecycle over outbox pending — claimed/uncertain
+`work.dispatch` rows (recovery-window pages to exhaustion) overlay by
+intent id so in-flight work inventories as inflight/uncertain and
+blocks activation until drained, and a settled census
+(delivered/failed/dead) omits completed-but-unacked work that would
+otherwise block upgrades forever or record false invalidate outcomes.
+Dispatch-pending mirrors stay unread (migration-skipped rows keep
+stale pending mirrors). Suite extended 8/8: overlay/omit, page-1
+exhaustion, pinned-invalidate-still-blocks. Remaining B25: gate-4,
+`deploy --yes` CLI.
+
+B25 plan compilation closed, 28 October 2026:
+`compileMigrationTransition` + `mintModelSnapshot` in
+`@canlang/state/migration` compile one owner's transition from
+old/desired releases (model tables + artifact digests) — split
+binding: content-derived `snap-v1` snapshot ids (install/upgrade
+mint identically, predecessor match detects drift) with artifact
+digests as the code half (serve gate 3's pinned comparison
+preserved; a first unified-mint cut was revised after gate-3
+evidence, JEV 3/3 on the corrected question; format in
+DECISIONS.md). Refuse-ambiguous diff (renames/drops declared,
+unmatched listed), deterministic bytes incl. default migration id
+and `body-v1` content address. Journey `upgrade-plan-compile` 4/4:
+compiled Todo directives match the hand illustration and drive to
+active with migrated live rows, refusal + code-only cases,
+tampered-digest staging-failed with pointer untouched,
+owner-removal compilation. Remaining B25: gate-4, `deploy --yes`
+CLI (drain join closed separately above).
+
+B14 SalesIngress closed (second binding), 28 October 2026:
+`standard-webhooks-v1-sales` mirrors billing (pinned adapter,
+`lead.created` grammar, `CAN_INGRESS_SALES_*` loader) over the
+shared closed-body parser and the shared outcome sink. Outcome
+port generalized ingress-wide (`outcomes.ts`, `can_ingress_outcomes`
+rows keyed by namespace); dispatch gains
+`createCompositeIngressVerifier` for multi-binding serving.
+Suites: sales 9/9 incl. billing+sales coexistence with isolated
+outcomes and cross-post 401s; interfaces 54/54; durable
+reopen journey extended with namespace-partition proof.
+
+B14 durable outcome-store closed, 28 October 2026:
+`createD1BillingOutcomeStore` implements `BillingOutcomeStore`
+over D1 — one committed row per (namespace, producer_event_id),
+put-if-absent, closed re-validation on read, degenerate ids match
+memory nulls. Journey `billing-outcomes-durable` 1/1: signed
+delivery commits through the real ingress leg, reopen returns the
+identical record, replay returns original bytes, unknown ids find
+nothing. Second binding (SalesIngress) remains.
+
+B09 expiry closed (owning consumer), 28 October 2026: R2 host
+owns composed intent expiry via `sweepExpiredIntents` — one
+bounded, resumable, idempotent page per call, each intent expired
+inside the same CAS-journal primitive (mark expired, drop transfer
+state, retire staging for cleanup). Worker composition runs a page
+on construction and after each upload request. Journey
+`files-expiry-sweep` 1/1: open+complete intents expire past TTL with
+staging rows dropped and bytes retired then reclaimed, late
+grants 404, resume is a no-op, fresh work journeys clean.
+
+B09 provenance area investigated (no code), 28 October 2026:
+the "one protected-field file join" one-liner does not pin a
+verifiable defect. Adjacent concrete mechanisms all exist and are
+enforced: upload intent admission through the checked schema
+(operation must exist/exposed, field must resolve to a writable
+File input, PRV-UPLOAD-02 closed), business-field staging admits
+only finalized+owned+byte-intact files, file download reads the
+record through State (field policies enforced, unreadable fields
+hidden), and dispatch/images pin `kind:'request'` structurally.
+Per-field provenance-origin rules (which arrival channels a field
+admits) have no declared contract — no language syntax, no census
+profile, no row — so any rule now would be invented. Residual: a
+cross-lane declaration design decision must precede enforcement.
+
+B09 TECH-F02 closed (receiving join), 28 October 2026:
+`ingestVerifiedEventFile` finalizes one verified event occurrence
+field exactly once per receiver, preserving `event` provenance
+(`request` kind stays dispatch-pinned). Replay/conflict ride a
+dedicated claim keyed by event 5-tuple + full receiver tuple, with
+the claim PK as the cross-caller anchor (R2 conditional batch,
+SQLite transaction; concurrent duplicates converge on the winner).
+`event` kind preserved deliberately: bound-dispatch/images pin
+`kind:'request'`, so collapsing would weaken a load-bearing gate.
+Journey: real signed billing webhook verifies, fixture PDF ingests,
+replay repeats, divergent bytes conflict, foreign receiver isolates,
+retired bytes conflict, R2 reopen repeats, split-brain reopen
+refuses loudly, SQLite close/reopen repeats with bytes (3/3). Also
+exports the billing ingress binding from `@canlang/interfaces`.
+
+B09 TECH-F01 closed (primitive + witness), 28 October 2026: the
+R2 run()/commitPublished CAS-journal protocol is defined as the
+same-intent serialization primitive. Two contention holes fixed:
+UNIQUE(retry_id) losers now CAS-retry to duplicate/conflict instead
+of surfacing a raw D1 error, and redundant blob removals record
+nothing so a 10-way finalize wave costs one D1 batch (losers
+converge via repeat without committing; previously half exhausted
+MAX_ATTEMPTS and 422'd). Witness test: concurrent same-retry
+intents converge to one grant, concurrent finalizes to one ref,
+cross-owner finalize 404s, crafted prepared-journal orphan swept
+on reopen, both owners resume with byte-identical reads (3/3
+stable).
+
+B09 quota/override closed (profile + producers), 28 October 2026:
+layered profile (source `files` deviations under deployment caps,
+narrower wins at intent admission; JEV 3/3; DECISIONS.md). Compiler
+publishes the checked declaration on `appDefinition.files`; worker
+composition joins it with deployment `limits` and passes the
+effective policy to R2. Journey test: app 1MiB refuses 2MiB with
+`limit`, deployment 512B refuses 513B, text allowlist rejects PNG
+bytes as `validation`, text control finalizes. Aggregate usage
+quota deferred (no usage producer).
+
+B08 original cohort cell scoped (not started), 28 October 2026: only
+CanVolunteer carries the combined `on=X.updated` + `each=` route
+(`refresh_reminders`); CanShift has each shape split across routes.
+Its compile closure cascades to the full corpus (rent_reservations
+via CanRent → customer/invoice/propose/report/...), so a journey
+test needs corpus-artifact infrastructure (precompile + cache with a
+staleness rule), not a per-test compile. The durable path itself is
+mapped: commit auto-stages updated sources via
+`canonicalCommittedSourceStage` + `createCommittedModelSourceStager`,
+ticks drive via `createCanonicalCommittedCohortBody`; test would
+invoke a real Opportunity update, tick to per-signup cancel +
+Reminder schedules, and prove restart exactly-once.
+
+B08 cohort cell re-scoped (not started), 28 October 2026:
+CanVolunteer carries 12 own-file E6008s under the closure method
+(APP-ADJUDICATION: DEFECT/B-LANE), and its `rent_catalog` /
+`employee` providers have no draft declaration (fixture stubs
+only) — so no clean genuine artifact exists to journey against.
+Corpus-artifact caching without a compilable consumer would be
+speculative infra; the cell is blocked on the B-lane compiler
+gaps, not on caching. Revisit after the volunteer E6008s close.
+
 ## Next implementation queue
 
 Use the order below to select work. These are subdivisions of Z00–Z18, not extra

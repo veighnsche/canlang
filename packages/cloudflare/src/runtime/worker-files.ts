@@ -1,9 +1,10 @@
 /** Actual File workflow composition. The R2 bucket alone never confers File or record authority. */
 import type { D1Database, R2Bucket } from '@cloudflare/workers-types';
-import type { CompileArtifact, FileRetentionPolicy, StoragePort } from '@canlang/contracts';
+import type { CompileArtifact, FilePolicy, FileRetentionPolicy, StoragePort } from '@canlang/contracts';
 import type { IdentityStore } from '@canlang/identity';
 import type { UploadDeps } from '@canlang/interfaces';
 import { createFileJourneyKernel } from '@canlang/interfaces/uploads/kernel';
+import { DEFAULT_FILE_POLICY } from '@canlang/files/upload';
 import type { AssembledModules } from './modules.js';
 import { importVerifiedAssemblyModule } from './assembly-verification.js';
 import { createBoundFileHandler, createCanonicalFileBinding } from './bound-files.js';
@@ -23,6 +24,13 @@ export interface WorkerFilesOptions {
   readonly intentTtlMs: number;
   readonly localLoopback?: true;
   readonly clock?: { nowMs(): number };
+  /**
+   * B09 deployment provider caps (seed: per-file bytes only).
+   * Caps narrow the effective policy; they never widen it and never
+   * grant access. Absent means no deployment constraint beyond the
+   * language baseline. Aggregate usage quota has no producer yet.
+   */
+  readonly limits?: { readonly maxBytes?: number };
 }
 type ImplicitFileBinding = NonNullable<CompileArtifact['runtimeBindings']>[number];
 
@@ -54,6 +62,46 @@ function selectWorkerFileBindings(declared: readonly ImplicitFileBinding[], owne
   return bindings;
 }
 
+/**
+ * B09 layered effective policy: the checked source `files`
+ * declaration supplies per-file deviations from the pinned baseline,
+ * deployment `limits` cap from above, and the narrower wins. Absent
+ * declaration keys fall back to the baseline; a present-but-malformed
+ * declaration fails closed (compiler/host skew). A present-but-empty
+ * `types` allowlist admits no content type.
+ */
+function effectiveWorkerFilePolicy(definition: Record<string, unknown>, limits: WorkerFilesOptions['limits']): FilePolicy {
+  const baseline = DEFAULT_FILE_POLICY;
+  const declared = Object.getOwnPropertyDescriptor(definition, 'files')?.value as unknown;
+  let types = baseline.types;
+  let maxBytes = baseline.maxBytes;
+  if (declared !== undefined) {
+    if (typeof declared !== 'object' || declared === null || Array.isArray(declared)) {
+      throw new Error('Files require their checked app policy declaration.');
+    }
+    const record = declared as Record<string, unknown>;
+    if (Object.hasOwn(record, 'types')) {
+      const value = record['types'];
+      if (!Array.isArray(value) || value.some(entry => typeof entry !== 'string' || entry === '')) {
+        throw new Error('Files require their checked app content-type allowlist.');
+      }
+      types = [...value as string[]];
+    }
+    if (Object.hasOwn(record, 'maxBytes')) {
+      const value = record['maxBytes'];
+      if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
+        throw new Error('Files require their checked app byte limit.');
+      }
+      maxBytes = value;
+    }
+  }
+  const cap = limits?.maxBytes;
+  if (cap !== undefined && (typeof cap !== 'number' || !Number.isSafeInteger(cap) || cap <= 0)) {
+    throw new Error('Files require positive deployment byte limits.');
+  }
+  return { types, maxBytes: Math.min(maxBytes, cap ?? Number.MAX_SAFE_INTEGER) };
+}
+
 function verifyWorkerFileOrigin(origin: string, localLoopback: true | undefined): void {
   const configured = new URL(origin);
   if (configured.origin !== origin || configured.username || configured.password || configured.pathname !== '/' || configured.search || configured.hash ||
@@ -76,6 +124,7 @@ export async function createWorkerFiles(options: WorkerFilesOptions): Promise<In
   const { bucket, db } = loadWorkerFileBucket(options.env);
   const clock = options.clock ?? { nowMs: Date.now };
   const host = await createR2FileBindings({ db, bucket, namespace: `${app}/FILES`, clock, urlBase: options.origin,
+    policy: effectiveWorkerFilePolicy(definition, options.limits),
     intentTtlMs: options.intentTtlMs, ...(options.localLoopback === true ? { allowInsecureLoopback: true as const } : {}) });
   const kernel = createFileJourneyKernel(host);
   const upload: UploadDeps & { kernel: typeof kernel } = {
@@ -90,11 +139,16 @@ export async function createWorkerFiles(options: WorkerFilesOptions): Promise<In
     ...(options.ownerStorage === undefined ? {} : { ownerStorage: options.ownerStorage }) });
   // One bounded cleanup page on construction. A restart safely revisits retained journal tombstones.
   await host.cleanup({ beforeMs: Math.max(0, clock.nowMs() - options.intentTtlMs), limit: 100 });
+  // Own composed intent expiry the same way: one bounded sweep page,
+  // idempotent across restarts, so expired intents never linger with
+  // live staging bytes.
+  await host.sweepExpiredIntents({ limit: 100 });
   return Object.freeze({ usesFiles: true, kernel, fileStoreId: host.fileStoreId, intentsUrl: `${options.origin}/files/intents`,
     canonical: createCanonicalFileBinding(kernel, options.retention),
     async fetch(request: Request) {
       const response = await fetch(request);
       await host.cleanup({ beforeMs: Math.max(0, clock.nowMs() - options.intentTtlMs), limit: 25 });
+      await host.sweepExpiredIntents({ limit: 25 });
       return response;
     }, readOptions });
 }

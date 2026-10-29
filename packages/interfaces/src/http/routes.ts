@@ -7,6 +7,8 @@
  * `http/csv.js`, wired by FP.CSV-DISPATCH), `/api/exports` serves the
  * FP.EXPORT bounded export and `/print/*` the declared Print views (agent
  * E's `http/export.js` / `http/print.js`, wired by FP.EXPORT-DISPATCH),
+ * `/errors/*` serves the FP.INSTRUMENTATION ErrorsV1 intake (the injected
+ * intake handler, `not_found` when unmounted),
  * and every other GET/HEAD path renders a source page (agent E).
  * The F-owned sub-handlers arrive by injection so E and F stay disjoint:
  * this module never imports `./operations.js`, `./auth.js`,
@@ -46,6 +48,13 @@ export const CSV_PREFIX = '/api/csv/';
 export const EXPORTS_PREFIX = '/api/exports';
 /** FP.EXPORT Print prefix: GET only, served by the injected print handler. */
 export const PRINT_PREFIX = '/print/';
+/**
+ * FP.INSTRUMENTATION ErrorsV1 intake prefix: POST only, served by the
+ * injected intake handler. Must match the intake module's own prefix;
+ * the injected handler re-checks it, so drift answers `not_found`,
+ * never a bypass.
+ */
+export const ERRORS_PREFIX = '/errors/';
 
 /**
  * F-owned sub-handlers, injected so this module never imports the F-owned
@@ -85,6 +94,14 @@ export interface HttpSubHandlers {
    * L7-assembled view registry.
    */
   readonly print?: (req: Request) => Promise<Response>;
+  /**
+   * Serve one `/errors/*` intake report (POST only; the handler decides
+   * methods and key shape). Optional like `csv`: unmounted answers
+   * `not_found`. The delivery join injects
+   * `(req) => handleIntakeRequest(deps, bindings, sink, req)` with the
+   * configured project bindings and the durable intake sink.
+   */
+  readonly intake?: (req: Request) => Promise<Response>;
 }
 
 /** Authored unknown/method response: `not_found`, never a 405 oracle. */
@@ -116,7 +133,8 @@ function decodeOperation(remainder: string): string | null {
  * well-known) to their injected handlers, `/api/csv/*` to the injected csv
  * handler (`not_found` when unmounted), `/api/exports` to the injected
  * exports handler (`not_found` when unmounted), `/print/*` to the injected
- * print handler (`not_found` when unmounted), else GET/HEAD to the page
+ * print handler (`not_found` when unmounted), `/errors/*` to the injected
+ * intake handler (`not_found` when unmounted), else GET/HEAD to the page
  * renderer.
  * Any other method+path answers `not_found`; unexpected throws answer the
  * generic internal envelope after an incident-logged journal entry.
@@ -156,6 +174,10 @@ async function dispatchApiPrefix(
   if (pathname.startsWith(PRINT_PREFIX)) {
     if (sub.print === undefined) return notFoundResponse();
     return await sub.print(request);
+  }
+  if (pathname.startsWith(ERRORS_PREFIX)) {
+    if (sub.intake === undefined) return notFoundResponse();
+    return await sub.intake(request);
   }
   return null;
 }

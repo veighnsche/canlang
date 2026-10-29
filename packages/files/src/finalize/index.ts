@@ -22,6 +22,7 @@
  */
 import type {
   ContentCheck,
+  EventProvenance,
   FilePolicy,
   FinalizeResult,
   FinalizedFile,
@@ -36,6 +37,8 @@ import type {
 import type {
   BlobStorePort,
   ClockPort,
+  EventIngestClaimRecord,
+  EventIngestClaimStorePort,
   FileIdPort,
   FinalizedStorePort,
   IntentStorePort,
@@ -595,11 +598,136 @@ export function finalizeUpload(deps: FinalizeDeps, input: FinalizeInput): Finali
   return publishFinalizedFile(deps, record, input, staged.staging, staged.ref, staged.finalizedAtMs, staged.actualDigest, staged.detectedType, provenance);
 }
 
+/** Deps for the replay-capable verified-event ingest join. */
+export interface EventIngestDeps {
+  readonly clock: ClockPort;
+  readonly fileIds: FileIdPort;
+  readonly files: FinalizedStorePort;
+  readonly blobs: BlobStorePort;
+  readonly claims: EventIngestClaimStorePort;
+}
+
+export type EventIngestFileOutcome =
+  | { readonly status: 'finalized'; readonly result: FinalizeResult; readonly file: FinalizedFile }
+  | { readonly status: 'repeated'; readonly result: FinalizeResult; readonly file: FinalizedFile }
+  | { readonly status: 'rejected'; readonly reason: 'invalid-provenance' | 'oversized' }
+  | { readonly status: 'rejected'; readonly reason: 'malformed' | 'rejected'; readonly check: ContentCheck }
+  | { readonly status: 'rejected'; readonly reason: 'conflict' };
+
+/**
+ * Validated event-ingest claim parts: the canonical claim identity
+ * (event 5-tuple plus the full receiving tuple) with its typed
+ * provenance and receiver. Hosts derive the row key via
+ * `eventIngestClaimHash` before opening their bounded working set.
+ */
+export function eventIngestClaimParts(
+  provenance: unknown,
+  receiver: unknown,
+): { readonly identity: string; readonly event: EventProvenance; readonly receiver: ReceivingContext } | null {
+  const event = validateEventProvenance(provenance);
+  if (event === null || typeof receiver !== 'object' || receiver === null) return null;
+  const { app, team, owner, principal } = receiver as Record<string, unknown>;
+  if (!nonempty(app) || !nonempty(team) || !nonempty(owner) || !nonempty(principal)) {
+    return null;
+  }
+  return {
+    identity: JSON.stringify({ v: 1, source: event.source, adapter: event.adapter, occurrenceId: event.occurrenceId,
+      fieldPath: event.fieldPath, itemIndex: event.itemIndex, app, team, owner, principal }),
+    event,
+    receiver: { app, team, owner, principal },
+  };
+}
+
+/** Decode a persisted event-ingest claim; corrupt rows fail closed. */
+export function decodeEventIngestClaim(json: string): EventIngestClaimRecord {
+  const record = JSON.parse(json) as Partial<EventIngestClaimRecord>;
+  if (typeof record.identityHash !== 'string' || typeof record.identity !== 'string' ||
+      typeof record.fileRef !== 'string' || typeof record.bytesDigest !== 'string' ||
+      typeof record.ingestedAtMs !== 'number' || !Number.isSafeInteger(record.ingestedAtMs)) {
+    throw new Error('Files event claim row is corrupt.');
+  }
+  return { identityHash: record.identityHash, identity: record.identity, fileRef: record.fileRef,
+    bytesDigest: record.bytesDigest, ingestedAtMs: record.ingestedAtMs };
+}
+
+/**
+ * Uniqueness anchor for the claim identity; hosts key the claim row
+ * by this. Bare hex (no `sha256:` prefix) so the key stays within
+ * the safe blob-key alphabet every bounded store asserts.
+ */
+export function eventIngestClaimHash(identity: string): string {
+  return sha256Hex(new TextEncoder().encode(identity)).slice('sha256:'.length);
+}
+
+/**
+ * TECH-F02 receiving join: finalize bytes that arrived through one
+ * verified event occurrence field, exactly once per receiver. The
+ * first call claims (event identity, receiver) and finalizes with
+ * `event` provenance preserved; replays with identical bytes repeat
+ * the same reference; divergent bytes conflict; collection-retired
+ * bytes conflict (the claim tombstone still answers, mirroring the
+ * provider-output slot). Hosts commit the claim atomically with the
+ * file and bytes, so concurrent duplicates collide on the claim key
+ * and converge on the winner. Prefer this over
+ * `ingestVerifiedEventBytes`, which mints without a replay lookup.
+ */
+export function ingestVerifiedEventFile(deps: EventIngestDeps, input: EventIngestInput): EventIngestFileOutcome {
+  const parts = eventIngestClaimParts(input.provenance, input.receiver);
+  if (parts === null || typeof input.claimedType !== 'string' || input.claimedType.length === 0 ||
+      !(input.bytes instanceof Uint8Array)) {
+    return { status: 'rejected', reason: 'invalid-provenance' };
+  }
+  const hash = eventIngestClaimHash(parts.identity);
+  const actualDigest = sha256Hex(input.bytes);
+  const claim: EventIngestClaimRecord | null = deps.claims.get(hash);
+  if (claim !== null) {
+    if (claim.identity !== parts.identity) throw new Error('Event ingest claim identity collision.');
+    const stored = deps.files.get(claim.fileRef);
+    const bytes = stored === null ? null : deps.blobs.read(blobKeyForFile(claim.fileRef));
+    if (stored === null || bytes === null || stored.file.id !== claim.fileRef ||
+        stored.file.bytesDigest !== claim.bytesDigest || stored.file.bytesDigest !== actualDigest) {
+      return { status: 'rejected', reason: 'conflict' };
+    }
+    return { status: 'repeated', result: { file: claim.fileRef }, file: stored.file };
+  }
+  if (input.bytes.length > input.policy.maxBytes) {
+    return { status: 'rejected', reason: 'oversized' };
+  }
+  const check = checkContent(input.policy, input.claimedType, input.bytes);
+  if (check.verdict === 'rejected' || check.detectedType === null) {
+    const reason = check.detectedType === null ? 'malformed' : 'rejected';
+    return { status: 'rejected', reason, check };
+  }
+  const ref = deps.fileIds.nextFileId();
+  const finalizedAtMs = deps.clock.nowMs();
+  const file = freezeFinalized({
+    id: ref,
+    provenance: parts.event,
+    contentType: check.detectedType,
+    sizeBytes: input.bytes.length,
+    bytesDigest: actualDigest,
+    finalizedAt: { kind: 'datetime', ms: BigInt(finalizedAtMs) },
+  });
+  deps.blobs.write(blobKeyForFile(ref), input.bytes);
+  deps.files.put({
+    file,
+    owner: { ...parts.receiver },
+    finalizedAtMs,
+    state: 'finalized',
+    attachedRecord: null,
+  });
+  deps.claims.put({ identityHash: hash, identity: parts.identity, fileRef: ref,
+    bytesDigest: actualDigest, ingestedAtMs: finalizedAtMs });
+  return { status: 'finalized', result: { file: ref }, file };
+}
+
 /**
  * Finalize bytes that arrived through a verified capability event
  * (including incoming email attachments). The ingress path must already
  * be authenticated; this function validates the provenance shape, the
  * policy and the actual bytes, then finalizes directly with no intent.
+ * Prefer `ingestVerifiedEventFile`: this entry mints a fresh file per
+ * call with no occurrence replay lookup.
  */
 export function ingestVerifiedEventBytes(
   deps: FinalizeDeps,

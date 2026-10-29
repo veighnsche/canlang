@@ -113,14 +113,60 @@ pub(super) fn retained_handler_receipt(
         NativeScenarioReceipt, ReceiptDisclosurePlan, transport_source,
     };
     let ir = context.ir();
-    super::scenario_decisions::owner_handler_queries(context, owner)?;
-    let IrItemKind::Scenario {
-        event_source: Some(super::ir::IrEventSource::Declared(event)),
-        cohort: None,
-        ..
-    } = &owner.kind
-    else {
-        return None;
+    let event = match &owner.kind {
+        IrItemKind::Scenario {
+            event_source: Some(super::ir::IrEventSource::Declared(event)),
+            cohort: None,
+            ..
+        } => {
+            super::scenario_decisions::owner_handler_queries(context, owner)?;
+            Some(event)
+        }
+        // Cohort (`each=`) handlers fan one declared event out over
+        // member rows. Each send evaluates its guard per child with
+        // frozen inputs, exactly like loop items; their receipt
+        // carries the same event marker. The whole-owner
+        // re-verification covers params and caller gates, which
+        // cohorts may declare.
+        IrItemKind::Scenario {
+            trusted: true,
+            result: None,
+            read: false,
+            expose_excluded: false,
+            event_source: Some(super::ir::IrEventSource::Declared(event)),
+            hook: None,
+            cohort: Some(_),
+            ..
+        } => {
+            context.same_event_schema(event)?;
+            super::source_correspondence::same_cohort_handler_semantics(
+                context.original(),
+                context.ir(),
+                context.fresh(),
+                owner,
+            )?;
+            Some(event)
+        }
+        // Synchronous scenarios carry guarded sends without any event.
+        // Their receipt is source-only: no retained handler, no staged
+        // source-evaluation (staged rules need event slots). Params and
+        // caller gates are allowed (the whole-owner re-verification
+        // covers them); results stay out (result correspondence belongs
+        // to the result receipt arm, and only one receipt is emitted).
+        IrItemKind::Scenario {
+            trusted: false,
+            result: None,
+            read: false,
+            expose_excluded: false,
+            event_source: None,
+            hook: None,
+            cohort: None,
+            ..
+        } => {
+            context.same_scenario(context.ir(), owner)?;
+            None
+        }
+        _ => return None,
     };
     let guards = prepared.by_owner(ir)?.get(&owner.canonical)?.as_array()?;
     if guards.is_empty() {
@@ -132,31 +178,43 @@ pub(super) fn retained_handler_receipt(
         .get(&owner.id)?
         .source_facts()?;
     let source = transport_source(&facts.source, entry)?;
-    let marker = serde_json::json!({"source":source,"owner":owner.canonical,"event":event,
-        "node":{"start":facts.node.start,"end":facts.node.end},
-        "rules":guards.iter().map(|guard|guard["rule"].clone()).collect::<Vec<_>>()});
-    let mut marker = marker;
-    let staged=guards.iter().filter(|guard|guard["evaluation"]=="source"
-        &&guard["eventSource"].is_object()
-        &&facts.decision_sites.as_deref().is_some_and(|sites|sites.iter().any(|site|
-            site.stage==CheckedDecisionStage::SendDispatch&&guard["node"]["start"]==site.node.start&&guard["node"]["end"]==site.node.end
-            &&site.calls.iter().all(|call|match &call.target{
-                crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Builtin{id,..}=>context.catalog().and_then(|catalog|catalog.effects(id))==Some(crate::analysis::catalog::Effects::Pure),
-                crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::DeriveFn(_)=>true,
-                crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Role(_)=>false,
-            }))))
-        .map(|guard|guard["rule"].clone()).collect::<Vec<_>>();
-    if !staged.is_empty() {
-        marker["stagedRules"] = serde_json::Value::Array(staged);
-    }
-    if let Some(queries) = super::authority_query_sites::prepare_owner_with_context(context, owner)
-        && !queries.sites.is_empty()
-    {
-        marker["queries"] = queries.plan;
-    }
+    let retained_guarded_handler = match event {
+        Some(event) => {
+            let marker = serde_json::json!({"source":source,"owner":owner.canonical,"event":event,
+                "node":{"start":facts.node.start,"end":facts.node.end},
+                "rules":guards.iter().map(|guard|guard["rule"].clone()).collect::<Vec<_>>()});
+            let mut marker = marker;
+            let staged=guards.iter().filter(|guard|guard["evaluation"]=="source"
+                &&guard["eventSource"].is_object()
+                &&facts.decision_sites.as_deref().is_some_and(|sites|sites.iter().any(|site|
+                    site.stage==CheckedDecisionStage::SendDispatch&&guard["node"]["start"]==site.node.start&&guard["node"]["end"]==site.node.end
+                    &&site.calls.iter().all(|call|match &call.target{
+                        crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Builtin{id,..}=>context.catalog().and_then(|catalog|catalog.effects(id))==Some(crate::analysis::catalog::Effects::Pure),
+                        crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::DeriveFn(_)=>true,
+                        crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Role(_)=>false,
+                    }))))
+                .map(|guard|guard["rule"].clone()).collect::<Vec<_>>();
+            if !staged.is_empty() {
+                marker["stagedRules"] = serde_json::Value::Array(staged);
+            }
+            if let Some(queries) =
+                super::authority_query_sites::prepare_owner_with_context(context, owner)
+                && !queries.sites.is_empty()
+            {
+                marker["queries"] = queries.plan;
+            }
+            Some(marker)
+        }
+        None => {
+            if guards.iter().any(|guard| guard["evaluation"] == "source") {
+                return None;
+            }
+            None
+        }
+    };
     Some(NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
-            retained_guarded_handler: Some(marker),
+            retained_guarded_handler,
             source_loops: None,
             source_emissions: None,
             version: 1,
@@ -2169,6 +2227,11 @@ fn prepare_send_guard(
     let event_source = private_delivery_event_source(
         original, ir, db, resolved, nodes, owner, fact.node, node, send,
     )?;
+    // Staged source-evaluation retains guard rows for later dispatch;
+    // immediate guards evaluate per send against live rows. Only the
+    // retained shape inherits the census bound; immediate guards
+    // inherit the admitted loop ceiling.
+    let staged = *when_at_source && event_source.is_some();
     let mut inputs = free_inputs(
         FreeInputSource {
             program: original,
@@ -2182,6 +2245,7 @@ fn prepare_send_guard(
         node,
         predicate,
         event_source.is_some(),
+        staged,
     )?;
     if let Some((event_inputs, _)) = &event_source {
         if inputs
@@ -2558,25 +2622,8 @@ fn checked_for_item_type(
     predicate: NodeKey,
     key: NodeKey,
     loop_node: NodeKey,
+    staged: bool,
 ) -> Option<ResolvedType> {
-    fn original_loop(effects: &[Effect], node: NodeKey, depth: usize) -> Option<&Effect> {
-        if depth > 64 {
-            return None;
-        }
-        effects.iter().find_map(|effect| {
-            if effect.node == node {
-                return (effect.verb == EffectVerb::For).then_some(effect);
-            }
-            original_loop(&effect.then_effects, node, depth + 1)
-                .or_else(|| original_loop(&effect.else_effects, node, depth + 1))
-                .or_else(|| {
-                    effect
-                        .match_arms
-                        .iter()
-                        .find_map(|arm| original_loop(&arm.effects, node, depth + 1))
-                })
-        })
-    }
     fn lowered_loop(effects: &[IrStmt], span: Span, depth: usize) -> Option<&IrStmt> {
         if depth > 64 {
             return None;
@@ -2604,39 +2651,65 @@ fn checked_for_item_type(
         })
     }
     let scenario = source.program.effects.scenarios.get(&source.owner)?;
-    let Some(HandlerSource::Event(event)) = scenario.on.as_ref() else {
-        return None;
-    };
-    if scenario.by.is_some()
-        || scenario.read
-        || scenario.result.is_some()
-        || scenario.cohort.is_some()
-        || !matches!(
-            source.resolved.symbols.get(event.0 as usize)?.kind,
-            SymbolKind::Event { .. }
-        )
-        || !contained(scenario.node, loop_node)
-        || !contained(loop_node, predicate)
-        || !contained(predicate, key)
-        || source.nodes.get(&loop_node)?.kind != SyntaxKind::For
-    {
-        return None;
+    // Synchronous scenarios type their loop items exactly like event
+    // hooks; only the owner kind and the admitted domain roots differ
+    // (scenarios additionally loop over member collections).
+    let synchronous = scenario.on.is_none();
+    if synchronous {
+        if scenario.cohort.is_some()
+            || !contained(scenario.node, loop_node)
+            || !contained(loop_node, predicate)
+            || !contained(predicate, key)
+            || source.nodes.get(&loop_node)?.kind != SyntaxKind::For
+        {
+            return None;
+        }
+    } else {
+        let Some(HandlerSource::Event(event)) = scenario.on.as_ref() else {
+            return None;
+        };
+        if scenario.by.is_some()
+            || scenario.read
+            || scenario.result.is_some()
+            || scenario.cohort.is_some()
+            || !matches!(
+                source.resolved.symbols.get(event.0 as usize)?.kind,
+                SymbolKind::Event { .. }
+            )
+            || !contained(scenario.node, loop_node)
+            || !contained(loop_node, predicate)
+            || !contained(predicate, key)
+            || source.nodes.get(&loop_node)?.kind != SyntaxKind::For
+        {
+            return None;
+        }
     }
     let owner = source.ir.items.get(source.owner.0 as usize)?;
-    let IrItemKind::Scenario {
-        trusted: true,
-        event_source: Some(super::ir::IrEventSource::Declared(_)),
-        hook: None,
-        cohort: None,
-        read: false,
-        result: None,
-        effects,
-        ..
-    } = &owner.kind
-    else {
-        return None;
+    let effects = match &owner.kind {
+        IrItemKind::Scenario {
+            trusted: true,
+            event_source: Some(super::ir::IrEventSource::Declared(_)),
+            hook: None,
+            cohort: None,
+            read: false,
+            result: None,
+            effects,
+            ..
+        } if !synchronous => effects,
+        IrItemKind::Scenario {
+            trusted: false,
+            event_source: None,
+            hook: None,
+            cohort: None,
+            read: false,
+            result: None,
+            expose_excluded: false,
+            effects,
+            ..
+        } if synchronous => effects,
+        _ => return None,
     };
-    let original = original_loop(&scenario.effects, loop_node, 0)?;
+    let original = send_original_loop(&scenario.effects, loop_node, 0)?;
     let query = source
         .program
         .types
@@ -2658,10 +2731,16 @@ fn checked_for_item_type(
             source.resolved.symbols.get(model.0 as usize)?.kind,
             SymbolKind::Model { .. }
         )
-        || source.nodes.get(&query.domain)?.kind != SyntaxKind::NameRef
-        || !matches!(source.resolved.node_binding.get(&query.domain),Some(Binding::Symbol(actual)) if actual==model)
         || source.program.types.node_types.get(&key) != Some(element.as_ref())
     {
+        return None;
+    }
+    // Global model roots bind the model directly; member roots admit
+    // an owning-parameter base or an enclosing loop item whose record
+    // parents the model (nested loops resolve outward).
+    let global = source.nodes.get(&query.domain)?.kind == SyntaxKind::NameRef
+        && matches!(source.resolved.node_binding.get(&query.domain),Some(Binding::Symbol(actual)) if actual==model);
+    if !global && !member_loop_root(source, scenario, query.domain, *model, loop_node, 0) {
         return None;
     }
     let limit = original.limit?;
@@ -2674,17 +2753,176 @@ fn checked_for_item_type(
     else {
         return None;
     };
+    // Staged source-evaluation retains guard rows for later dispatch
+    // (census cap 200); immediate guards evaluate each send against
+    // its current row, so the guard inherits the admitted loop bound
+    // (cap 1000, the loop rule ceiling).
+    let bound_ok = if staged {
+        matches!(bound.expr,IrExpr::Int(value) if (1..=200).contains(&value))
+    } else {
+        matches!(bound.expr,IrExpr::Int(value) if (1..=1000).contains(&value))
+    };
     if Some(item) != original.item.as_ref()
         || domain.span != send_key_span(query.node)
         || domain.ty != query.result
         || bound.span != send_key_span(limit)
         || source.nodes.get(&limit)?.kind != SyntaxKind::Literal
         || source.program.types.node_types.get(&limit) != Some(&ResolvedType::Scalar(Scalar::Int))
-        || !matches!(bound.expr,IrExpr::Int(value) if (1..=200).contains(&value))
+        || !bound_ok
     {
         return None;
     }
     Some(element.as_ref().clone())
+}
+
+/// Member-collection loop roots for send-guard transport: the domain
+/// is one member access over a base whose stored record is the looped
+/// model's declared parent. The base is an owning scenario parameter
+/// or an enclosing loop item (nested loops resolve outward with a
+/// depth cap); anything else stays refused.
+fn member_loop_root(
+    source: FreeInputSource<'_>,
+    scenario: &ScenarioData,
+    domain: NodeKey,
+    model: SymbolId,
+    inner_loop: NodeKey,
+    depth: usize,
+) -> bool {
+    if depth > 4 {
+        return false;
+    }
+    let Some(node) = source.nodes.get(&domain) else {
+        return false;
+    };
+    if node.kind != SyntaxKind::Member {
+        return false;
+    }
+    let mut operands = node
+        .children
+        .iter()
+        .filter(|child| resolve::is_expression(child.kind));
+    let (Some(base), None) = (operands.next(), operands.next()) else {
+        return false;
+    };
+    let base_key = NodeKey::of(base);
+    let root = match source.resolved.node_binding.get(&base_key) {
+        Some(Binding::Symbol(param)) => {
+            let Some(symbol) = source.resolved.symbols.get(param.0 as usize) else {
+                return false;
+            };
+            let SymbolKind::Param { owner, .. } = &symbol.kind else {
+                return false;
+            };
+            if *owner != source.owner {
+                return false;
+            }
+            let Some(ResolvedType::Record {
+                symbol: root,
+                stored: true,
+            }) = source.program.types.node_types.get(&base_key)
+            else {
+                return false;
+            };
+            *root
+        }
+        Some(Binding::ForItem { node: outer }) if *outer != inner_loop => {
+            if !contained(scenario.node, *outer)
+                || !contained(*outer, inner_loop)
+                || source
+                    .nodes
+                    .get(outer)
+                    .is_none_or(|node| node.kind != SyntaxKind::For)
+            {
+                return false;
+            }
+            let Some(root) = guard_outer_loop_item_model(source, scenario, *outer, depth + 1)
+            else {
+                return false;
+            };
+            if source.program.types.node_types.get(&base_key)
+                != Some(&ResolvedType::Record {
+                    symbol: root,
+                    stored: true,
+                })
+            {
+                return false;
+            }
+            root
+        }
+        _ => return false,
+    };
+    let Some(declaration) = source.resolved.symbols.get(model.0 as usize) else {
+        return false;
+    };
+    let SymbolKind::Model { owner: parent, .. } = &declaration.kind else {
+        return false;
+    };
+    matches!(parent, resolve::ModelOwner::ChildOf(actual) if actual == &root)
+}
+
+/// One enclosing loop's item model for nested member roots: the same
+/// query-shape proof as the guarded loop itself (global or member
+/// root, no projection), recursing outward with the shared depth cap.
+fn guard_outer_loop_item_model(
+    source: FreeInputSource<'_>,
+    scenario: &ScenarioData,
+    loop_node: NodeKey,
+    depth: usize,
+) -> Option<SymbolId> {
+    if depth > 4 {
+        return None;
+    }
+    let original = send_original_loop(&scenario.effects, loop_node, 0)?;
+    let query = source
+        .program
+        .types
+        .checked_queries
+        .get(&original.domain?)?;
+    let ResolvedType::Array { element, .. } = &query.result else {
+        return None;
+    };
+    let ResolvedType::Record {
+        symbol: model,
+        stored: true,
+    } = element.as_ref()
+    else {
+        return None;
+    };
+    if query.projection.is_some()
+        || source.program.types.node_types.get(&query.node) != Some(&query.result)
+        || source.program.types.node_types.get(&query.domain) != Some(&query.result)
+        || !matches!(
+            source.resolved.symbols.get(model.0 as usize)?.kind,
+            SymbolKind::Model { .. }
+        )
+    {
+        return None;
+    }
+    let global = source.nodes.get(&query.domain)?.kind == SyntaxKind::NameRef
+        && matches!(source.resolved.node_binding.get(&query.domain),Some(Binding::Symbol(actual)) if actual==model);
+    if global {
+        return Some(*model);
+    }
+    member_loop_root(source, scenario, query.domain, *model, loop_node, depth).then_some(*model)
+}
+
+fn send_original_loop(effects: &[Effect], node: NodeKey, depth: usize) -> Option<&Effect> {
+    if depth > 64 {
+        return None;
+    }
+    effects.iter().find_map(|effect| {
+        if effect.node == node {
+            return (effect.verb == EffectVerb::For).then_some(effect);
+        }
+        send_original_loop(&effect.then_effects, node, depth + 1)
+            .or_else(|| send_original_loop(&effect.else_effects, node, depth + 1))
+            .or_else(|| {
+                effect
+                    .match_arms
+                    .iter()
+                    .find_map(|arm| send_original_loop(&arm.effects, node, depth + 1))
+            })
+    })
 }
 
 fn declaration_type(
@@ -2692,6 +2930,7 @@ fn declaration_type(
     predicate: NodeKey,
     key: NodeKey,
     binding: &Binding,
+    staged: bool,
 ) -> Result<Option<ResolvedType>, SendGuardGap> {
     let FreeInputSource {
         program,
@@ -2734,7 +2973,7 @@ fn declaration_type(
                 .ok_or_else(fail)?
         }
         Binding::ForItem { node } => {
-            checked_for_item_type(source, predicate, key, *node).ok_or_else(fail)?
+            checked_for_item_type(source, predicate, key, *node, staged).ok_or_else(fail)?
         }
         Binding::QueryAlias { node } if contained(predicate, *node) => return Ok(None),
         Binding::Let { node } => {
@@ -3510,6 +3749,7 @@ fn collect_source_names(
     predicate_key: NodeKey,
     predicate_node: &SyntaxNode,
     event_source: bool,
+    staged: bool,
 ) -> Result<
     (
         Vec<PreparedSendInput>,
@@ -3547,7 +3787,8 @@ fn collect_source_names(
         if event_source && matches!(binding, Binding::Context(resolve::ContextVar::Event)) {
             continue;
         }
-        let Some(ty) = declaration_type(original_source, predicate_key, key, binding)? else {
+        let Some(ty) = declaration_type(original_source, predicate_key, key, binding, staged)?
+        else {
             continue;
         };
         let source = db
@@ -3650,6 +3891,7 @@ fn check_evaluated_name(
     identities: &HashMap<String, String>,
     evaluated: &mut HashSet<Span>,
     event_source: bool,
+    staged: bool,
 ) -> Result<(), SendGuardGap> {
     let resolved = source.resolved;
     let key = NodeKey {
@@ -3667,7 +3909,7 @@ fn check_evaluated_name(
     if event_source && matches!(binding, Binding::Context(resolve::ContextVar::Event)) {
         return Ok(());
     }
-    if declaration_type(source, predicate_key, key, binding)?.is_some() {
+    if declaration_type(source, predicate_key, key, binding, staged)?.is_some() {
         if !identities.contains_key(name) {
             return Err(gap(
                 "evaluated SEND lexical name differs from source binding",
@@ -3685,6 +3927,7 @@ fn check_evaluated_names(
     predicate: &TypedExpr,
     identities: &HashMap<String, String>,
     event_source: bool,
+    staged: bool,
 ) -> Result<HashSet<Span>, SendGuardGap> {
     let owner = source.owner;
     let mut pending = vec![(predicate, 0usize)];
@@ -3709,6 +3952,7 @@ fn check_evaluated_names(
                     identities,
                     &mut evaluated,
                     event_source,
+                    staged,
                 )?;
             }
             IrExpr::Member { base, .. }
@@ -3762,11 +4006,18 @@ fn free_inputs(
     predicate_node: &SyntaxNode,
     predicate: &TypedExpr,
     event_source: bool,
+    staged: bool,
 ) -> Result<Vec<PreparedSendInput>, SendGuardGap> {
     let (inputs, identities, source_reads) =
-        collect_source_names(source, predicate_key, predicate_node, event_source)?;
-    let evaluated =
-        check_evaluated_names(source, predicate_key, predicate, &identities, event_source)?;
+        collect_source_names(source, predicate_key, predicate_node, event_source, staged)?;
+    let evaluated = check_evaluated_names(
+        source,
+        predicate_key,
+        predicate,
+        &identities,
+        event_source,
+        staged,
+    )?;
     if source_reads != evaluated {
         return Err(gap(
             "source/evaluated free SEND name census differs",

@@ -57,7 +57,14 @@ pub fn admit_single_app_profile(source: &str) -> Result<()> {
 /// membership authority.
 pub fn admit_use_closure(source: &str, providers: &[String]) -> Result<()> {
     let (_, uses) = capture::profile_declarations(source);
-    for (line, name) in uses {
+    for (line, name, bound) in uses {
+        // Bound imports (`use p {..} from=deployment.NAME`) resolve through
+        // the deployment binding, which the compiler verifies itself
+        // (malformed bindings are its E-error, not a missing file). Only
+        // plain imports need a captured file provider.
+        if bound {
+            continue;
+        }
         if !providers.iter().any(|package| package == &name) {
             return Err(format!(
                 "line {line}: imported package {name} is outside the captured closure"
@@ -140,11 +147,14 @@ fn compile_inner(
         captured.compiler_operand.clone(),
     ];
     if let Some(providers) = &captured.provider_snapshot {
+        // Several packages can share one provider file; the compiler
+        // lists one source per operand, so pass each path once.
         let mut operands: Vec<&str> = providers
             .iter()
             .map(|provider| provider.snapshot.path.as_str())
             .collect();
         operands.sort_unstable();
+        operands.dedup();
         args.extend(operands.into_iter().map(str::to_owned));
     }
     let run = match run_owned(

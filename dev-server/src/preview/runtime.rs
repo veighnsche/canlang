@@ -28,12 +28,13 @@ pub fn bindings(plan: &Plan, persistence: &str, preflight: bool) -> Result<Value
                 }
                 queue.insert(id, json!(key));
             }
-            "service" => {
-                return Err(format!(
-                    "SERVICE_IMPLEMENTATION_UNAVAILABLE: service {key} requires real implementation of {}",
-                    b["from"].as_str().unwrap()
-                ));
-            }
+            // Service bindings have no preview provider: the worker boots
+            // without them and sends fail loud at invoke through the
+            // dispatch unavailable verdict naming the target. Staging a
+            // fake provider or synthetic completions would be dishonest;
+            // refusing the whole preview would gate local development on
+            // every deployment capability the app touches.
+            "service" => {}
             _ => {}
         }
     }

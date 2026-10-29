@@ -1,14 +1,14 @@
 /** Worker-safe SQLite Files core. Metadata and bytes share one real transaction. */
 import type { DatetimeValue, FilePolicy, FileRetentionPolicy, FileReferenceStoragePort, FileRetirementAuthority } from '@canlang/contracts';
 import { decodeValue, encodeValue } from '@canlang/values';
-import type { BlobStorePort, ClockPort, FinalizedFileDeletionRecord, PagedFinalizedStorePort, PagedIntentStorePort, StoredFileRecord, UploadIntentRecord } from '../ports.js';
+import type { BlobStorePort, ClockPort, EventIngestClaimStorePort, FinalizedFileDeletionRecord, PagedFinalizedStorePort, PagedIntentStorePort, StoredFileRecord, UploadIntentRecord } from '../ports.js';
 import { assertSafeBlobKey } from '../ports.js';
 import { freezeFinalized } from '../provenance/index.js';
 import type { ReceivingContext } from '../provenance/index.js';
 import { DEFAULT_FILE_POLICY, createUploadIntent, appendUploadContentAtOffset, completeUploadContent } from '../upload/index.js';
 import type { CreateIntentInput, UploadDeps } from '../upload/index.js';
-import { finalizeUpload, finalizeProviderOutput, readFinalizedFile, authorizeAttach, recordAttachment, readFinalizedBytes, readCurrentFinalizedBytes, readCurrentFinalizedSnapshot, observeFinalizedFile, revalidateRetainedFinalizedFile } from '../finalize/index.js';
-import type { FinalizeDeps, FinalizeInput, ProviderOutputInput } from '../finalize/index.js';
+import { decodeEventIngestClaim, finalizeUpload, finalizeProviderOutput, ingestVerifiedEventFile, readFinalizedFile, authorizeAttach, recordAttachment, readFinalizedBytes, readCurrentFinalizedBytes, readCurrentFinalizedSnapshot, observeFinalizedFile, revalidateRetainedFinalizedFile } from '../finalize/index.js';
+import type { EventIngestDeps, EventIngestInput, FinalizeDeps, FinalizeInput, ProviderOutputInput } from '../finalize/index.js';
 import { MAX_RETENTION_BATCH_ROWS, runRetention, runRetentionBatch, describeForReceipt, checkedFileCleanupAuthority, checkedFileCleanupRecord, createFinalizedFileCleanup } from '../retention/index.js';
 import type { RetentionConfig, RetentionBatchOptions } from '../retention/index.js';
 
@@ -57,6 +57,7 @@ export interface SqliteFileStore {
   readonly intents: PagedIntentStorePort;
   readonly files: PagedFinalizedStorePort;
   readonly blobs: BlobStorePort;
+  readonly claims: EventIngestClaimStorePort;
   /** Wrap the existing synchronous kernel call; a thrown error rolls back every port. */
   transaction<T>(body: () => T): T;
   hasFileRetirementAuthority(): boolean;
@@ -121,6 +122,9 @@ export function createSqliteFileStoreFromDatabase(db: FileSqliteDatabase): Sqlit
         file_store_id TEXT NOT NULL, authority_json TEXT
       );
       CREATE TABLE IF NOT EXISTS files_retirement_journal (
+        id TEXT PRIMARY KEY, json TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS files_event_claims (
         id TEXT PRIMARY KEY, json TEXT NOT NULL
       );
     `);
@@ -341,8 +345,22 @@ export function createSqliteFileStoreFromDatabase(db: FileSqliteDatabase): Sqlit
     });
   }
 
+  const claims: EventIngestClaimStorePort = {
+    get(id) {
+      assertSafeBlobKey(id);
+      const json = text(db.prepare('SELECT json FROM files_event_claims WHERE id = ?').get(id));
+      return json === null ? null : decodeEventIngestClaim(json);
+    },
+    put(record) {
+      assertSafeBlobKey(record.identityHash);
+      // Plain insert, deliberately no upsert: the claim key is the
+      // cross-caller uniqueness anchor.
+      db.prepare('INSERT INTO files_event_claims (id, json) VALUES (?, ?)')
+        .run(record.identityHash, JSON.stringify(record));
+    },
+  };
   return {
-    fileStoreId, intents, files, blobs, transaction,
+    fileStoreId, intents, files, blobs, claims, transaction,
     hasFileRetirementAuthority: () => readAuthority() !== null,
     bindFileRetirement(storage, options) {
       const authority = checkedFileCleanupAuthority(storage.fileRetirementAuthority);
@@ -409,6 +427,10 @@ export function createSqliteFileBindings(store: SqliteFileStore, options: Sqlite
     clock: options.clock, intents: store.intents, files: store.files, blobs: store.blobs,
     fileIds: { nextFileId: () => randomUUID() },
   };
+  const event: EventIngestDeps = {
+    clock: options.clock, files: store.files, blobs: store.blobs, claims: store.claims,
+    fileIds: { nextFileId: () => randomUUID() },
+  };
   const cleanup = options.fileRetirement === undefined ? null : store.bindFileRetirement(options.fileRetirement.storage,
     { clock: options.clock, policy, retention: options.fileRetirement.retention });
   const legacyRetention = () => {
@@ -428,6 +450,8 @@ export function createSqliteFileBindings(store: SqliteFileStore, options: Sqlite
     finalize: (input: FinalizeInput) => store.transaction(() => finalizeUpload(finalize, input)),
     finalizeProviderOutput: (input: ProviderOutputInput) =>
       store.transaction(() => finalizeProviderOutput(upload, finalize, input)),
+    ingestEventFile: (input: EventIngestInput) =>
+      store.transaction(() => ingestVerifiedEventFile(event, input)),
     readProvenance: (ref: string, caller: ReceivingContext) => readFinalizedFile(finalize, ref, caller),
     authorizeAttach: (ref: string, caller: ReceivingContext) => authorizeAttach(finalize, ref, caller),
     recordAttachment: (ref: string, recordRef: string, caller: ReceivingContext) =>

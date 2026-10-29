@@ -128,6 +128,15 @@ export {
   type RetainedIntent,
   type RetainedSet,
 } from './retain.js';
+export {
+  COMPILED_SNAPSHOT_VERSION,
+  compileMigrationTransition,
+  mintModelSnapshot,
+  type CompiledFieldRef,
+  type CompiledFieldRename,
+  type CompiledRename,
+  type CompileMigrationTransitionInput,
+} from './compile.js';
 
 /**
  * Full resume bag: L7 supplies everything every phase may need (resume

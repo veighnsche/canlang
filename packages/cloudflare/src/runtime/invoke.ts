@@ -127,7 +127,7 @@ import type {
 import { DELIVERY_RESULT_LEAVES, SYSTEM_TEAM_TOOL_NAMES } from "@canlang/contracts";
 import { parse as parseJavaScript } from 'acorn';
 import { receiverFromIdentity } from '@canlang/interfaces';
-import type { AsyncGuardEvaluator, attemptDispatchAsync } from "@canlang/work/dispatch";
+import type { AsyncGuardEvaluator, TargetAvailabilityPort, attemptDispatchAsync } from "@canlang/work/dispatch";
 import { decodeValue, encodeValue, isRecordRef, makeDatetime, makeRecordRef, normalizeSchema, parseTypeId, printTypeId, validateOperationInput, validateValue } from "@canlang/values";
 import { isResourceSendTarget, resolveResourceSend, resourceSendOwner } from './resource-dispatch.js';
 import { mailHumanText } from './bound-mail.js';
@@ -8783,6 +8783,7 @@ export async function nativeHandlersUseTeamOwnerScope(asm: AssembledModules, art
   const loaded = await loadCanonicalDescriptors(asm, artifact);
   const control = localOwnerPolicyControls.get(loaded);
   const removalHandlers = await checkedIdentityRemovalOwnerHandlers(asm, artifact, loaded);
+  const completionHandlers = await checkedDeliveryCompletionOwnerHandlers(asm, artifact, loaded);
   const queueHandlers = new Set<string>();
   if (artifact.runtimeBindings?.some(binding => binding.kind === 'queue' && binding.handlers.length > 0)) {
     const entry = artifact.modules[0];
@@ -8812,7 +8813,7 @@ export async function nativeHandlersUseTeamOwnerScope(asm: AssembledModules, art
   if (control !== undefined) await control.verifyAssembly(asm, artifact);
   return artifact.callables.filter(callable => callable.kind === 'handler').every(callable => {
     const key = JSON.stringify([callable.module, callable.id, callable.member]);
-    return queueHandlers.has(key) || removalHandlers.has(key) || control?.hookCallables.has(key) === true;
+    return queueHandlers.has(key) || removalHandlers.has(key) || completionHandlers.has(key) || control?.hookCallables.has(key) === true;
   });
 }
 
@@ -8851,6 +8852,76 @@ async function checkedIdentityRemovalOwnerHandlers(asm: AssembledModules, artifa
     const registry = await importPolicyRegistry(asm, callable.module, callable.id, artifact);
     if (typeof privateSourceMember(registry, callable.id) !== 'function') {
       throw new AssemblyCorrespondenceError('Identity removal lost its genuine assembled handler.');
+    }
+    handlers.add(JSON.stringify([callable.module, callable.id, callable.member]));
+  }
+  return handlers;
+}
+
+/** Delivery-completion handlers for sends through artifact service bindings:
+ * the same genuine ordinary census as Identity removal. The emitter-pinned
+ * four-field completion envelope and the invocation agreement are validated;
+ * capabilities without a provider never complete, so those handlers stay
+ * inert while sends fail loud at invoke. Runtime routing keys on the exact
+ * event name, so a mismatched operation suffix can only stay silent, never
+ * misfire. Team-owner completion routing for implemented providers (mail)
+ * is not yet qualified end to end; see the B27 tracker entry. */
+async function checkedDeliveryCompletionOwnerHandlers(asm: AssembledModules, artifact: CompileArtifact,
+  loaded: LoadedCanonicalDescriptors): Promise<ReadonlySet<string>> {
+  const handlers = new Set<string>();
+  const serviceCapabilities = new Set((artifact.runtimeBindings ?? [])
+    .filter(binding => binding.kind === 'service').map(binding => binding.capability));
+  const queueEvents = new Set((artifact.runtimeBindings ?? [])
+    .filter(binding => binding.kind === 'queue').map(binding => binding.binding));
+  for (const callable of artifact.callables) {
+    if (callable.kind !== 'handler') continue;
+    const imported = await importVerifiedAssemblyModule(asm, callable.module, artifact);
+    const definition = localPolicyObject(privateSourceMember(imported, 'appDefinition'));
+    const operation = privateSourceMember(privateSourceMember(definition, 'operations'), callable.id);
+    // CRUD hooks belong to modelPolicies, not ordinary operation entries.
+    if (operation === undefined) continue;
+    const emitted = localPolicyObject(operation);
+    const event = privateSourceMember(emitted, 'event');
+    if (typeof event !== 'string' || event === 'teams.member_removed' || queueEvents.has(event)) continue;
+    const dot = event.lastIndexOf('.');
+    const capability = dot < 0 ? '' : event.slice(0, dot);
+    const operationName = dot < 0 ? '' : event.slice(dot + 1);
+    if (!serviceCapabilities.has(capability) || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(operationName)) continue;
+    const invocation = localPolicyObject(privateSourceMember(emitted, 'invocation'));
+    const inputs = localPolicyObject(privateSourceMember(privateSourceMember(privateSourceMember(definition, 'events'), event), 'inputs'));
+    const fields = nativeCallArray(privateSourceMember(privateSourceMember(invocation, 'inputs'), 'fields'), 4);
+    const inputType = (name: string): unknown => privateSourceMember(localPolicyObject(privateSourceMember(inputs, name)), 'type');
+    const resultType = inputType('result');
+    if (callable.member.length !== 1 || callable.member[0] !== callable.id ||
+        privateSourceMember(emitted, 'handler') !== callable.id || privateSourceMember(emitted, 'read') !== false ||
+        invocation.name !== callable.id || invocation.kind !== 'scenario' ||
+        (artifact.operations ?? []).some(entry => entry.name === callable.id) ||
+        Object.keys(inputs).length !== 4 || fields.length !== 4 ||
+        inputType('delivery_id') !== 'text' ||
+        inputType('status') !== 'enum(succeeded,failed,unknown,skipped)' ||
+        inputType('error') !== 'DeliveryError?' ||
+        typeof resultType !== 'string' || !resultType.endsWith('?') || resultType.length < 2) {
+      throw new AssemblyCorrespondenceError('Delivery completion requires its exact ordinary private handler.');
+    }
+    for (const field of fields) {
+      const name = privateSourceMember(field, 'name');
+      const expected = name === 'delivery_id' ? 'text' :
+        name === 'status' ? 'enum(succeeded,failed,unknown,skipped)' :
+        name === 'result' ? resultType : name === 'error' ? 'DeliveryError?' : null;
+      const nullable = privateSourceMember(field, 'nullable') === true;
+      if (expected === null || privateSourceMember(field, 'valueType') !== expected ||
+          privateSourceMember(field, 'required') !== true ||
+          (nullable !== (expected as string).endsWith('?')) ||
+          privateSourceMember(field, 'array') !== undefined ||
+          privateSourceMember(field, 'default') !== undefined ||
+          privateSourceMember(field, 'computedDefault') === true) {
+        throw new AssemblyCorrespondenceError('Delivery completion private inputs differ from their original event.');
+      }
+    }
+    loaded.producers.registry.loadArtifactDescriptors({ ...artifact, operations: [invocation] }, { by: () => 'owner' });
+    const registry = await importPolicyRegistry(asm, callable.module, callable.id, artifact);
+    if (typeof privateSourceMember(registry, callable.id) !== 'function') {
+      throw new AssemblyCorrespondenceError('Delivery completion lost its genuine assembled handler.');
     }
     handlers.add(JSON.stringify([callable.module, callable.id, callable.member]));
   }
@@ -9774,6 +9845,13 @@ export async function materializeCanonicalExampleSnapshots(input: {
   readonly now: number;
   readonly operationId: string;
   readonly deploymentBase?: string;
+  /**
+   * Explicit fixture file profile: the exact file ids this staging call
+   * minted as identity-only fixture values. A file-bearing snapshot is
+   * admitted only when every file id in its wire data is profile-minted.
+   * Absent/empty admits no file bytes — only absent optional files.
+   */
+  readonly files?: readonly string[];
   readonly snapshots: readonly { readonly model: ModelName; readonly id: RecordId;
     readonly parent?: RecordParent; readonly data: Readonly<Record<string, unknown>> }[];
 }): Promise<ReadonlyMap<string, StoredRow>> {
@@ -9811,6 +9889,51 @@ export async function materializeCanonicalExampleSnapshots(input: {
     return contract !== undefined ? Object.values(contract.fields).some(field => resourceType(field.typeId, next))
       : alias !== undefined && resourceType(alias.typeId, next);
   };
+  const profileFiles = new Set(input.files ?? []);
+  if (input.files !== undefined && (!Array.isArray(input.files) ||
+      !input.files.every(id => typeof id === 'string' && id !== ''))) {
+    throw new StateError('validation', 'Fixture snapshots require their file profile as an array of non-empty file ids.');
+  }
+  const malformed = () => new StateError('validation', 'Fixture file snapshot carries a malformed file value.');
+  // Collect every file id in wire data under one type. Model/enum/other
+  // nominals carry no file bytes; delivery has no fixture profile and
+  // refuses. Malformed wire refuses loud — never silently unadmitted.
+  const collectFileIds = (type: string, wire: unknown, active: Set<string>): string[] => {
+    const parsed = parseTypeId(type);
+    if (wire === null) {
+      if (!parsed.nullable) throw malformed();
+      return [];
+    }
+    if (parsed.array) {
+      if (!Array.isArray(wire)) throw malformed();
+      const element = printTypeId({ ...parsed, array: false, requiredArray: false, nullable: false });
+      return wire.flatMap(item => collectFileIds(element, item, active));
+    }
+    const base = parsed.base;
+    if (base.kind === 'file') {
+      if (!isUnknownRecord(wire) || typeof wire.id !== 'string' || wire.id === '') throw malformed();
+      return [wire.id];
+    }
+    if (base.kind === 'delivery') {
+      throw new StateError('validation', 'Fixture file/delivery snapshots require their explicit resource materialization profile.');
+    }
+    if (base.kind === 'union') {
+      if (!isUnknownRecord(wire) || typeof wire.type !== 'string' || !base.arms.includes(wire.type)) throw malformed();
+      return collectFileIds(wire.type, wire.value, active);
+    }
+    if (base.kind === 'nominal' && !active.has(base.path)) {
+      const next = new Set([...active, base.path]);
+      const contract = loaded.valueSchema?.contracts[base.path];
+      if (contract !== undefined) {
+        if (!isUnknownRecord(wire)) throw malformed();
+        return Object.entries(contract.fields).flatMap(([name, field]) =>
+          !Object.hasOwn(wire, name) ? [] : collectFileIds(field.typeId, wire[name], next));
+      }
+      const alias = loaded.valueSchema?.aliases?.[base.path];
+      if (alias !== undefined) return collectFileIds(alias.typeId, wire, next);
+    }
+    return [];
+  };
   const checkResources = (model: CanonicalModelDescriptor, data: Readonly<Record<string, unknown>>): void => {
     for (const [name, field] of Object.entries(model.fields)) {
       if (field.delivery === undefined && (field.valueType === undefined || !resourceType(field.valueType))) continue;
@@ -9819,7 +9942,18 @@ export async function materializeCanonicalExampleSnapshots(input: {
       // session still validates its declaration, defaults and nullable value.
       if (field.delivery === undefined && type?.base.kind === 'file' && type.nullable && !type.array &&
           field.required === false && (!Object.hasOwn(data, name) || data[name] === null)) continue;
-      throw new StateError('validation', 'Fixture file/delivery snapshots require their explicit resource materialization profile.');
+      if (field.delivery !== undefined || field.valueType === undefined || !Object.hasOwn(data, name)) {
+        // Delivery has no fixture profile; an absent field carries nothing
+        // for the pre-check (the post-check sees what got stored).
+        if (field.delivery !== undefined || field.valueType === undefined) {
+          throw new StateError('validation', 'Fixture file/delivery snapshots require their explicit resource materialization profile.');
+        }
+        continue;
+      }
+      const ids = collectFileIds(field.valueType, data[name], new Set());
+      if (!ids.every(id => profileFiles.has(id))) {
+        throw new StateError('validation', 'Fixture file/delivery snapshots require their explicit resource materialization profile.');
+      }
     }
   };
   for (const snapshot of input.snapshots) {
@@ -21113,7 +21247,15 @@ async function queryPageRowsInScope(
   }) : undefined;
   const recordView = (model: string, row: StoredRow | ProjectedRecord): Record<string, unknown> =>
     nativeProjectedRecord(loaded, model, row, navigation, recordView);
-  const sourceFilter: import('@canlang/state/receipt').InstalledSourceQueryPredicate | undefined =
+  // The source filter never owns a State lifetime itself: the domain
+  // filter below is the bound query predicate, and the source filter
+  // evaluates inside its observation. The installed handle owner is
+  // therefore the caller's lifetime function, threaded through — State
+  // binds membership handles per read function, so passing this
+  // intermediate closure would mismatch every membership occurrence.
+  const sourceFilter: ((record: Readonly<ProjectedRecord>,
+    observation: Readonly<ViewerGenerationCallbackReadObservation> | undefined,
+    installed: import('@canlang/state/receipt').InstalledSourceQueryPredicate) => Promise<boolean>) | undefined =
     whereFn === undefined ? undefined : original === undefined
     ? async (record: Readonly<ProjectedRecord>): Promise<boolean> => {
       await navigation!.captureQuerySource(opts.model, record);
@@ -21122,14 +21264,13 @@ async function queryPageRowsInScope(
       if (typeof matched !== 'boolean') throw new StateError('validation', 'Collection source filter must return bool.');
       return matched;
     }
-    : async (record, observation): Promise<boolean> => {
+    : async (record, observation, installed): Promise<boolean> => {
       if (observation === undefined) {
         throw new AssemblyCorrespondenceError('Native WHERE requires its genuine current State observation.');
       }
       return sourceReads.evaluate(opts.model, [{ owner: original.owner,
-        predicate: (context, row) => whereFn(row, context) }], observation, sourceFilter!);
+        predicate: (context, row) => whereFn(row, context) }], observation, installed);
     };
-  if (original !== undefined && sourceFilter !== undefined) installPagePredicate(loaded, original, sourceFilter);
   const sourcePolicies = sourceReads.policies(opts.model);
   const dataWhere: QueryPredicate | undefined = conjunctionData ??
     (whereFn !== undefined || opts.args.where === undefined ? undefined : opts.args.where as QueryPredicate);
@@ -21164,7 +21305,7 @@ async function queryPageRowsInScope(
         const recordParent = record.parent;
         if (parent !== undefined &&
             (recordParent?.model !== parentModel || recordParent?.id !== parent.id)) return false;
-        return sourceFilter!(record, observation);
+        return sourceFilter!(record, observation, domainFilter);
       };
     if (original !== undefined) installPagePredicate(loaded, original, domainFilter);
     const createDomainReader = loaded.producers.transact.createReadInvoker;
@@ -21497,11 +21638,16 @@ export function createPageReadScopeCanonical(
       ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
       ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }) };
     const singular = new Map<string, FileValue>();
+    // Served row fields carry display-only projections (money `.currency`
+    // columns, archive metadata) alongside stored data. Only declared
+    // model fields can bear stored File slots.
+    const declaredFields = new Set(Object.keys(loaded.models.find(candidate => candidate.name === model)?.fields ?? {}));
     for (const field of Object.keys(wire)) {
-      // Census whole stored fields. Projected dotted leaves (for example
-      // amount.currency) are authorized projections of their owning field,
-      // not additional stored fields accepted by the State profile binder.
-      if (systemManagedFields.has(field) || field.includes('.')) continue;
+      // Census whole stored fields. Only declared model fields bear stored
+      // File slots; system-managed fields (notably the `parent` ancestor link
+      // on row wire data) and projected dotted leaves (for example
+      // amount.currency, an authorized projection of its owning field) never do.
+      if (systemManagedFields.has(field) || field.includes('.') || !declaredFields.has(field)) continue;
       const profile = bindProfile(bound, model as ModelName, field);
       if (!profile.fileBearing) continue;
       for (const occurrence of occurrences(profile, wire[field])) {
@@ -21761,10 +21907,13 @@ export function createPageReadScopeCanonical(
             canonicalModels: loaded.models,
       ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
       ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }) };
+          const declaredFields = new Set(Object.keys(loaded.models.find(candidate => candidate.name === model)?.fields ?? {}));
           for (const field of Object.keys(fields)) {
             // Dotted projection leaves are traversed through their whole owning
             // stored field; they are not independent File profile subjects.
-            if (systemManagedFields.has(field) || field.includes('.')) continue;
+            // Only declared model fields bear stored File slots; system-managed
+            // fields and display-only projections never do.
+            if (systemManagedFields.has(field) || field.includes('.') || !declaredFields.has(field)) continue;
             if (bindProfile(bound, model as ModelName, field).fileBearing) {
               const value = nativeRecordField(loaded, model, field, fields[field]);
               Object.defineProperty(fields, field, { enumerable: true, configurable: true, writable: true, value });
@@ -22339,6 +22488,15 @@ interface DriveDispatchFenceBase {
   readonly owner: string;
   readonly triggerRevision?: { readonly revision: number };
   readonly revalidateAuthority: () => boolean | Promise<boolean>;
+  /**
+   * D3 deployment-known send-target availability. Present means
+   * enforced: the fence kernel refuses unavailable targets after
+   * the structural claim win but before guard evaluation, and the
+   * bound drive terminalizes the verdict under the held claim.
+   * Absent means unknown (no short-circuit). The deployment
+   * answers from its bindings; the kernel only matches.
+   */
+  readonly availability?: TargetAvailabilityPort;
 }
 
 /** Explicit host ports for an awaited guard; provider payload is not lexical capture. */
@@ -22699,12 +22857,12 @@ function checkClaimResult(value: unknown): DispatchClaimCheck {
   return { claimed: true, reason: null, claimId };
 }
 
-interface DispatchRecordCheck {
+export interface DispatchRecordCheck {
   readonly state: string;
   readonly attempts: number;
 }
 
-function checkRecordResult(value: unknown): DispatchRecordCheck {
+export function checkRecordResult(value: unknown): DispatchRecordCheck {
   if (!isUnknownRecord(value)) {
     throw new Error("t24b: record result must be an object (command/dist skew?).");
   }
@@ -22998,8 +23156,10 @@ export type DriveDispatchOutcome =
    * retried — repeating the identical send fails identically until
    * the deployment changes); downstream transport owns the terminal
    * surfacing (D proposes `rule_failed` naming the target,
-   * `retryable: false`). Same no-call/no-record posture as the
-   * refused members; the echo carries the checkpoint fenced under.
+   * `retryable: false`). No provider call at the invoke level; the
+   * bound drive terminalizes under the held claim (failed/terminal
+   * receipt + record + ack). The echo carries the checkpoint fenced
+   * under.
    */
   | {
       readonly status: "unavailable";
@@ -23029,10 +23189,15 @@ export type DriveDispatchOutcome =
  * synchronous kernel, so throwing fence ports preempt an unavailable
  * verdict there (pinned, not silently short-circuited). Async guards
  * instead retain Work's awaited evidence/authority ordering.
- * True short-circuit arrives only with ACTUAL availability
- * injection (the fence input carries no availability port yet —
- * follow-up). Inherited/superseded/settled precedence stays
- * kernel-side, untouched by this mapping.
+ * True short-circuit arrives through the fence input's
+ * `availability` port: present means the kernel refuses unavailable
+ * targets after the structural claim win but before guard
+ * evaluation. The verdict returns unrecorded with the held claim;
+ * the bound drive terminalizes it (failed/terminal receipt +
+ * record + ack, never re-driven). Absent means unknown
+ * (no short-circuit).
+ * Inherited/superseded/settled precedence stays kernel-side,
+ * untouched by this mapping.
  */
 async function runFenceGate(input: {
   readonly opts: DriveDispatchIntentOpts;
@@ -23064,6 +23229,15 @@ async function runFenceGate(input: {
     if (typeof rev !== "number" || !Number.isInteger(rev) || rev < 0) {
       throw new Error("t32b: fenced drive triggerRevision must be an integer revision >= 0.");
     }
+  }
+  const availability = fence.availability;
+  if (
+    availability !== undefined &&
+    (typeof availability !== "object" ||
+      availability === null ||
+      typeof availability.isTargetAvailable !== "function")
+  ) {
+    throw new Error("t32b: fenced drive availability must answer isTargetAvailable.");
   }
   const admission = await loadFenceAdmissionProducer();
   const checkpoint = (await admission.openTransitiveScope(opts.store, fence.owner)).snapshot();
@@ -23118,6 +23292,10 @@ async function runFenceGate(input: {
     supersessions: { isSuperseded: () => false, markSuperseded: () => {
       throw new Error("t32b: a held dispatch guard cannot stage supersession.");
     } },
+    // D3: deployment-known availability, when injected. Absent means
+    // unknown: the kernel skips the short-circuit. Both kernels read
+    // it through the shared preflight.
+    ...(availability === undefined ? {} : { availability }),
   };
   let verdict: FenceAttemptVerdict;
   if (asyncGuard !== undefined) {
@@ -23170,6 +23348,10 @@ async function runFenceGate(input: {
     if (verdict.outboxId !== intentId) {
       throw new Error(`t32b: fence kernel unavailable verdict names another intent (producer skew?)`);
     }
+    // Unrecorded: the bound layer terminalizes (failed/terminal receipt
+    // + record + ack) under the held claim, since it owns the result
+    // context. Raw driveDispatchIntent callers must record the held
+    // claim themselves; the claim stays held for normal recovery.
     return { status: verdict.status, intentId, claimId: heldClaimId, target: verdict.target, fence: echo };
   }
   return { status: verdict.status, intentId, claimId: heldClaimId, fence: echo };

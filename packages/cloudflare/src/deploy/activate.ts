@@ -29,7 +29,7 @@
  *     `activation-check-failed` (checker: `StateError` vs anything
  *     else, classified structurally — see below).
  *
- * Producer seams: this package has no runtime dependency on
+ * Producer seams: this module keeps no runtime dependency on
  * `@canlang/state` or `@canlang/work`, so both gate functions arrive
  * injected (`ActivationGates`) typed against their EXISTING signatures
  * (positional `(store, plan, inventory)`; single-object

@@ -138,6 +138,43 @@ fn int_radial_progress_lowers() {
     );
 }
 
+/// Recorded CanOnboard shape: a decimal completion percentage with an int
+/// max lowers on the linear bar, exactly like its radial sibling.
+#[test]
+fn decimal_progress_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Account { title:text }\n derive Account.progress:decimal = 50/100 label=\"P\"\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=title\n   progress row.progress max=100\n",
+    );
+}
+
+/// Plain int linear progress keeps lowering.
+#[test]
+fn int_progress_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Account { done:int }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=done\n   progress row.done max=10\n",
+    );
+}
+
+/// A text linear value is not a compatible integer value.
+#[test]
+fn progress_text_refuses() {
+    assert_refuses(
+        "app Probe\nGiven\n Account { name:text }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=name\n   progress row.name max=100\n",
+        "E6008",
+        "body-free compatible integer values",
+    );
+}
+
+/// A linear bar with a content suite keeps its refusal.
+#[test]
+fn progress_with_suite_refuses() {
+    assert_refuses(
+        "app Probe\nGiven\n Account { done:int }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=done\n   progress row.done max=10\n    text \"Note\"\n",
+        "E6008",
+        "body-free compatible integer values",
+    );
+}
+
 /// Recorded CanContract shape: each lifecycle stage shows its live status
 /// flag beside the frozen record.
 #[test]

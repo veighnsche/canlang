@@ -40,7 +40,7 @@
 //! [`ModuleId`] index both tables.
 
 use crate::analysis::catalog::{Availability, Catalog, Effects, SigType, std_capability};
-use crate::analysis::effects::{CapabilityData, EffectVerb, PolicyRule};
+use crate::analysis::effects::{AppFilesPolicy, CapabilityData, EffectVerb, PolicyRule};
 use crate::analysis::kids;
 use crate::analysis::migrate_check::{self, OwnerModelView};
 use crate::analysis::resolve::{
@@ -126,6 +126,9 @@ pub struct IrModule {
     /// Checked app context locale, including the pinned fallback after
     /// composition. Packages have no app default.
     pub app_default_locale: Option<String>,
+    /// Checked `files` context declaration for the B09 host override.
+    /// Packages carry no app policy.
+    pub app_files_policy: Option<AppFilesPolicy>,
     /// Pages in source order (G9; empty when the module has none or its
     /// analysis row is absent).
     pub pages: Vec<IrPage>,
@@ -6372,7 +6375,8 @@ impl<'a> Cx<'a> {
                             .map_or_else(|| format!("module{}", id.0), |target| target.name.clone())
                     })
                     .collect(),
-                app_default_locale: module_data.and_then(|data| data.app_default_locale),
+                app_default_locale: module_data.clone().and_then(|data| data.app_default_locale),
+                app_files_policy: module_data.and_then(|data| data.app_files_policy),
                 pages,
                 description,
             });
@@ -15183,22 +15187,11 @@ impl<'a> Cx<'a> {
             ));
             return false;
         }
-        if kids(node)
-            .into_iter()
-            .filter(|child| child.kind == SyntaxKind::Tab)
-            .any(|tab| {
-                kids(tab)
-                    .into_iter()
-                    .any(|child| is_gate_leaf(self.db, child))
-            })
-        {
-            self.diags.push(Diagnostic::error(
-                "E6008",
-                "cannot lower bound tabs with a direct tab gate".to_string(),
-                node.span,
-            ));
-            return false;
-        }
+        // Direct tab gates are welcome on bound panels: each panel
+        // carries its gate (mirroring transient tabs), gated-out panels
+        // filter from the runtime items, the stored value falls back to
+        // the first visible panel, and gated options render no radio so
+        // they can never be persisted.
         true
     }
 
@@ -15282,7 +15275,7 @@ impl<'a> Cx<'a> {
                 ],
                 children: self.decode_ui_children(scope, tab, row_ctx.clone()),
                 row_scope: None,
-                gate: None,
+                gate: self.decode_gate(scope, tab),
                 span: tab.span,
             });
         }
@@ -16639,7 +16632,14 @@ impl<'a> Cx<'a> {
         };
         let value = self.decode_expr(scope, header);
         let maximum = self.decode_expr(scope, maximum);
-        if value.ty.nullable_inner().unwrap_or(&value.ty) != &ResolvedType::Scalar(Scalar::Int)
+        // Progress renders a number: an int, or a decimal fraction such as
+        // the recorded completion percentage. The explicit max stays an
+        // int; other types keep the refusal below.
+        let numeric = matches!(
+            value.ty.nullable_inner().unwrap_or(&value.ty),
+            ResolvedType::Scalar(Scalar::Int | Scalar::Decimal)
+        );
+        if !numeric
             || maximum.ty != ResolvedType::Scalar(Scalar::Int)
             || !self.decode_ui_children(scope, node, row_ctx).is_empty()
         {

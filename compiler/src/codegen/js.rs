@@ -8850,6 +8850,15 @@ impl<'a> Emitter<'a> {
             ));
         }
         let (model, canonical) = entry;
+        // Structural `.parent` navigation on a linkage parameter loads
+        // the declared parent row as a value: the link row first, then
+        // the parent row by the link's parent identity. Outer member
+        // reads compose over the returned row through ordinary
+        // lowering. Deeper grandparent tails stay refused by the
+        // profile (unclassified), so emission never chains further.
+        if field == "parent" {
+            return Some(self.hook_helper_parent_row(base, model, &canonical, span, expr_ty));
+        }
         if !self.hook_parent_field_allowed(model, field, expr_ty) {
             return Some(self.hook_gap(
                 "hook helper linkage",
@@ -8881,6 +8890,90 @@ impl<'a> Emitter<'a> {
             Some(format!("({read} ?? null)"))
         } else {
             Some(read)
+        }
+    }
+
+    /// Structural parent hop for linkage parameters (see
+    /// `hook_helper_member`): loads the link row through the variant's
+    /// own loader, then the declared parent row through the parent
+    /// loader, returning the parent row data as a value. Same scope,
+    /// site, arity and fence discipline as the single-level loads; only
+    /// the exact declared `ChildOf` parent resolves, anything else gaps.
+    fn hook_helper_parent_row(
+        &mut self,
+        base: &TypedExpr,
+        model: SymbolId,
+        canonical: &str,
+        span: Span,
+        expr_ty: &ResolvedType,
+    ) -> String {
+        const TITLE: &str = "hook helper linkage";
+        const MESSAGE: &str =
+            "record helpers navigate only the declared parent through the transitive load";
+        let record = expr_ty.nullable_inner().unwrap_or(expr_ty);
+        let parent_symbol = {
+            let Some(model_item) = self.ir.items.get(model.0 as usize) else {
+                return self.hook_gap(TITLE, MESSAGE, span);
+            };
+            if model_item.id != model {
+                return self.hook_gap(TITLE, MESSAGE, span);
+            }
+            let IrItemKind::Model {
+                owner: IrOwner::ChildOf(parent_symbol),
+                ..
+            } = &model_item.kind
+            else {
+                return self.hook_gap(TITLE, MESSAGE, span);
+            };
+            *parent_symbol
+        };
+        let ResolvedType::Record {
+            symbol,
+            stored: true,
+        } = record
+        else {
+            return self.hook_gap(TITLE, MESSAGE, span);
+        };
+        if symbol != &parent_symbol {
+            return self.hook_gap(TITLE, MESSAGE, span);
+        }
+        let parent_canonical = {
+            let Some(parent_item) = self.ir.items.get(parent_symbol.0 as usize) else {
+                return self.hook_gap(TITLE, MESSAGE, span);
+            };
+            if parent_item.id != parent_symbol {
+                return self.hook_gap(TITLE, MESSAGE, span);
+            }
+            parent_item.canonical.clone()
+        };
+        let IrExpr::Name(name) = &base.expr else {
+            return self.hook_gap(TITLE, MESSAGE, span);
+        };
+        let link = self.reference(name);
+        let missing = if self.hook_helper_reference {
+            "hook reference content missing"
+        } else {
+            "hook parent content missing"
+        };
+        let first = if self.hook_helper_reference {
+            format!(
+                "$hookRow=await c.transitive.loadReference($hookScope,{},$hookLink.id);",
+                js_string(canonical)
+            )
+        } else {
+            format!(
+                "$hookRow=await c.transitive.load($hookScope,{},$hookLink.id);",
+                js_string(canonical)
+            )
+        };
+        let read = format!(
+            "(await (async($hookLink)=>{{if($hookLink==null)throw new Error(\"{missing}\");const $hookScope=await c.transitive.openScope($hookSite);{first}if($hookRow===null)throw new Error(\"{missing}\");const $hookParent=$hookRow.data.parent;if($hookParent==null)throw new Error(\"{missing}\");const $hookParentRow=await c.transitive.load($hookScope,{},$hookParent.id);if($hookParentRow===null)throw new Error(\"{missing}\");return $hookParentRow.data;}})({link}))",
+            js_string(&parent_canonical)
+        );
+        if expr_ty.nullable_inner().is_some() {
+            format!("({read} ?? null)")
+        } else {
+            read
         }
     }
 
@@ -17184,8 +17277,10 @@ impl<'a> Emitter<'a> {
             }
             let typed = match key.as_str() {
                 "value" if node.factory == "progress" => {
-                    value.ty.nullable_inner().unwrap_or(&value.ty)
-                        == &ResolvedType::Scalar(Scalar::Int)
+                    matches!(
+                        value.ty.nullable_inner().unwrap_or(&value.ty),
+                        ResolvedType::Scalar(Scalar::Int | Scalar::Decimal)
+                    )
                 }
                 "max" if node.factory == "progress" => {
                     value.ty == ResolvedType::Scalar(Scalar::Int)
@@ -17547,7 +17642,8 @@ impl<'a> Emitter<'a> {
                     predicate
                 }
             } else if node.factory == "progress" || node.factory == "radialProgress" {
-                let decimal_value = node.factory == "radialProgress"
+                let decimal_value = (node.factory == "progress"
+                    || node.factory == "radialProgress")
                     && key == "value"
                     && matches!(
                         value.ty.nullable_inner().unwrap_or(&value.ty),
@@ -17562,7 +17658,7 @@ impl<'a> Emitter<'a> {
                     // presentation-invalid (NaN -> role=alert); the int max
                     // throw below still wins over a bad value.
                     self.stdlib.insert("encodeValue".to_string());
-                    let expression = self.lower_business_expr(value, "decimal radial progress");
+                    let expression = self.lower_business_expr(value, "decimal progress value");
                     format!(
                         "(value=>{{if(value==null)return null;let text;if(typeof value===\"bigint\"){{text=value.toString(10);}}else if(typeof value===\"number\"){{if(!Number.isFinite(value))return NaN;return value;}}else{{try{{text=encodeValue(\"decimal\",value);}}catch(e){{return NaN;}}}}const number=Number(text);if(!Number.isFinite(number))return NaN;return number;}})({expression})"
                     )
@@ -17799,6 +17895,7 @@ impl<'a> Emitter<'a> {
                             .collect::<Vec<_>>()
                             .join(",");
                     props.push(format!("items:[{items}].filter(item=>item!=null)"));
+                    props.push(format!("authoredPanels:{}", node.children.len()));
                 } else if node.factory == "fab" {
                     let mut kids = node.children.iter();
                     if let Some(main) = kids.next() {
@@ -18659,6 +18756,31 @@ impl<'a> Emitter<'a> {
                 ),
             );
             members.push("appDefaultLocale:__canlangAppDefaultLocale".to_string());
+        }
+        if let Some(policy) = entry
+            .map(|id| self.ir.module(id))
+            .and_then(|module| module.app_files_policy.clone())
+        {
+            // B09 override producer: the checked `files` declaration,
+            // exactly as declared. Absent keys mean the host baseline;
+            // a present-but-empty `types` admits no content type.
+            let mut parts = Vec::new();
+            if let Some(types) = policy.types {
+                parts.push(format!(
+                    "types:[{}]",
+                    types
+                        .iter()
+                        .map(|t| js_string(t))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                ));
+            }
+            if let Some(max_bytes) = policy.max_bytes {
+                parts.push(format!("maxBytes:{max_bytes}"));
+            }
+            if !parts.is_empty() {
+                members.push(format!("files:{{{}}}", parts.join(",")));
+            }
         }
         // Alternative authored app assemblies, keyed by declared identity.
         let compositions: Vec<String> = self
@@ -22257,18 +22379,21 @@ impl<'a> Emitter<'a> {
                     else {
                         return None;
                     };
+                    // Lexical inputs precede event slots in guard input order,
+                    // so the input ordinal is not the declared field index.
+                    // Match this input to its declared field position instead.
+                    let declared = fields.iter().position(|field| field == &symbol)?;
                     let source_field = guard.descriptor["eventSource"]["fields"]
                         .as_array()?
-                        .get(ordinal)?;
+                        .get(declared)?;
                     if guard.descriptor["eventSource"]["version"] != 2
                         || source != &event.canonical
                         || event.module != owner.module
                         || !params.is_empty()
-                        || fields.get(ordinal) != Some(&symbol)
                         || param.id != symbol
                         || param.module != event.module
                         || ty != &input.value.ty
-                        || input.name != format!("eventField{ordinal}")
+                        || input.name != format!("eventField{declared}")
                         || source_field["name"] != param.name
                         || source_field["slot"] != input.name
                         || source_field["type"] != input.type_id
@@ -22382,6 +22507,12 @@ impl<'a> Emitter<'a> {
         let mut canonical = Vec::new();
         let mut artifact = Vec::new();
         for (ordinal, input) in guard.inputs.iter().enumerate() {
+            if std::env::var("CAN_TMP_SEND").is_ok() {
+                eprintln!(
+                    "TMP_SEND_INPUT ordinal={ordinal} name={} type={} symbol={:?} owner={:?}",
+                    input.name, input.type_id, input.symbol, input.owner,
+                );
+            }
             let (field, min, max, nullable, array_required, base) =
                 self.send_input_shape(guard, ordinal, input)?;
             // Frozen captures always have a slot. Nullability and array bounds

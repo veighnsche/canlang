@@ -440,7 +440,14 @@ function sortReport(report: RetentionReport): void {
   report.sweptIntents.sort(compareStrings);
 }
 
-function sweepIntent(
+/**
+ * Expire one composed intent past its deadline (mark expired, drop
+ * identifying transfer state, remove staging and unpublished final
+ * bytes) or finish staging cleanup for settled intents. Hosts with
+ * conditional-commit stores apply this per record inside their own
+ * transaction rather than through the whole-store batch entry.
+ */
+export function sweepIntent(
   deps: RetentionDeps, record: UploadIntentRecord, nowMs: number, report: RetentionReport,
   onLookup?: () => void,
 ): void {

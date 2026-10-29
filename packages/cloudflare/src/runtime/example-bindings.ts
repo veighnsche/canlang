@@ -7,7 +7,7 @@ import type { ArtifactOperationInput, ArtifactModelField, ClosedInputs, CompileA
 import { createD1IdentityStore, ensureIdentitySchema, resolveIdentity, sha256HexText, toInstant, type IdentityStore } from "@canlang/identity";
 import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
 import { createD1OwnerRouter } from "@canlang/state/storage/owner-router";
-import { decodeValue, encodeValue, validateValue, parseTypeId, printTypeId, isUserRef, isDatetime, isRecordRef, type NormalizedSchema } from "@canlang/values";
+import { decodeValue, encodeValue, validateValue, parseTypeId, printTypeId, isUserRef, isDatetime, isRecordRef, makeFileValue, type NormalizedSchema } from "@canlang/values";
 import { resolveExampleFixtureImports, sharedFixtureResolveCaches } from "./example-fixture-imports.js";
 import { parseArtifactText } from "./artifact.js";
 import { assembleModules, type AssembledModules } from "./modules.js";
@@ -558,6 +558,7 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
   const invoked = new WeakSet<ExampleRowScope>();
   const rows = new WeakMap<ExampleRowScope, Map<string, StoredFixtureBinding>>();
   const references = new WeakMap<ExampleRowScope, Map<object, StoredFixtureBinding>>();
+  const fileProfiles = new WeakMap<ExampleRowScope, readonly string[]>();
   const bindingFor = (value: unknown, model: string, bindings: ReadonlyMap<object, StoredFixtureBinding>,
     named: ReadonlyMap<string, StoredFixtureBinding>): StoredFixtureBinding | undefined => {
     if (!isRecord(value)) return undefined;
@@ -598,7 +599,19 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
         users.set(value, native);
         values.set(name, native);
       }
+      // File fixtures are identity-only values (neither finalized nor
+      // authorized); real finalized sample bytes are T22b/c work. Staging
+      // mints one identity per fixture so model rows can reference it.
+      const fileRaws = new Map<object, { readonly id: string }>();
       for (const recipe of required) {
+        if (recipe.kind === "file") {
+          const raw = fixtures.get(recipe.name);
+          if (!isRecord(raw)) throw new Error(`example runner: file fixture ${recipe.name} has no declared value`);
+          const value = makeFileValue(randomUUID());
+          fileRaws.set(raw, value);
+          values.set(recipe.name, value);
+          continue;
+        }
         if (recipe.kind !== "model" || recipe.label === undefined) throw new Error(`example runner: ${recipe.name} needs a local ${recipe.kind} fixture producer`);
         const model = models.find(candidate => candidate.name === recipe.label);
         const fields = fixtures.get(recipe.name);
@@ -607,10 +620,53 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
         rowBindings.set(recipe.name, binding);
         rawBindings.set(fields, binding);
       }
-      const translate = (value: unknown): unknown => isRecord(value) && users.has(value) ? users.get(value)
-        : Array.isArray(value) ? value.map(item => isRecord(item) && users.has(item) ? users.get(item) : item) : value;
+      // Fixture references can nest inside Contract values and arrays
+      // (e.g. LegacyClaim.receipt), so translation recurses. Objects keep
+      // their identity unless a descendant changes: nested model-fields
+      // objects are returned as-is because the wire resolver maps them
+      // wholesale to record refs (their contents encode via their own
+      // snapshot, never nested).
+      const translate = (value: unknown): unknown => {
+        let nodes = 0;
+        const seen = new Set<object>();
+        const walk = (current: unknown, depth: number): unknown => {
+          if (++nodes > 16384 || depth > 64) throw new Error("example runner: fixture value traversal bound exceeded");
+          if (Array.isArray(current)) {
+            if (seen.has(current)) throw new Error("example runner: cyclic fixture value");
+            seen.add(current);
+            try {
+              let changed = false;
+              const out = current.map(item => {
+                const next = walk(item, depth + 1);
+                if (next !== item) changed = true;
+                return next;
+              });
+              return changed ? out : current;
+            } finally { seen.delete(current); }
+          }
+          if (isRecord(current)) {
+            if (users.has(current)) return users.get(current);
+            if (fileRaws.has(current)) return fileRaws.get(current);
+            if (rawBindings.has(current)) return current;
+            if (seen.has(current)) throw new Error("example runner: cyclic fixture value");
+            seen.add(current);
+            try {
+              let changed = false;
+              const out: Record<string, unknown> = {};
+              for (const [key, item] of Object.entries(current)) {
+                const next = walk(item, depth + 1);
+                if (next !== item) changed = true;
+                out[key] = next;
+              }
+              return changed ? out : current;
+            } finally { seen.delete(current); }
+          }
+          return current;
+        };
+        return walk(value, 0);
+      };
       const resolveFixture = resolverFor(rawBindings);
-      const snapshots = required.map(recipe => {
+      const snapshots = required.filter(recipe => recipe.kind === "model").map(recipe => {
         const binding = rowBindings.get(recipe.name)!;
         const model = models.find(candidate => candidate.name === binding.model)!;
         const fields = fixtures.get(recipe.name) as Record<string, unknown>;
@@ -629,9 +685,11 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
           .map(([name, field]) => [name, fieldWire(field, translate(fields[name]), loaded.valueSchema, resolveFixture)]));
         return { model: binding.model as ModelName, id: binding.id as RecordId, data, ...(parent === undefined ? {} : { parent }) };
       });
+      const fileProfile = [...fileRaws.values()].map(value => value.id);
+      fileProfiles.set(scope, fileProfile);
       const stored = snapshots.length === 0 ? new Map<string, StoredRow>()
         : await materializeCanonicalExampleSnapshots({ asm, artifact, store: scope.store, identity, memberships: scope.identities,
-          now: scope.nowMs, operationId: freshOperationId(), snapshots });
+          now: scope.nowMs, operationId: freshOperationId(), files: fileProfile, snapshots });
       for (const [name, binding] of rowBindings) {
         const row = stored.get(`${binding.model}\0${binding.id}`);
         if (row === undefined) throw new Error(`example runner: fixture ${name} was not stored`);
@@ -761,7 +819,7 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
       await prepareSnapshots();
       const identity = await scope.identityFor("self", { account: "self", team: "current", roles: [], authenticated: true }, fixtures);
       const saved = await materializeCanonicalExampleSnapshots({ asm, artifact, store: scope.store, identity, memberships: scope.identities,
-        now: scope.nowMs, operationId: freshOperationId(), snapshots });
+        now: scope.nowMs, operationId: freshOperationId(), files: fileProfiles.get(scope) ?? [], snapshots });
       // Publish only after the complete override batch passes its owning session.
       const publishOverrides = (): void => {
         for (const name of overrides.keys()) {

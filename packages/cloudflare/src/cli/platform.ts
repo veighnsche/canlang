@@ -29,18 +29,22 @@
  *   `<stem>.target.json` — InstalledRuntime declaration incl. contractsVersion (required)
  *   `<stem>.store.json` — { installedSnapshot, outbox } (optional; absent
  *     means the digest gate reports `activation-incomplete`)
+ *   `<stem>.transition.json` — compiled MigrationTransition (optional;
+ *     absent means gate 4 reports `activation-incomplete`)
  * Success envelope: `{ ok: true, command: "activate", active, reasons? }`,
  * exit 0 WHETHER OR NOT the verdict is active — a negative verdict is a
  * successful check with a fail-closed outcome, and callers (`can
  * activate`) map `active: false` to their own nonzero exit.
  *
  * Honest scope: the CLI runs gates 1-3 (compat, requires bridge,
- * installed digest) from bundle data. Gate 4 (outstanding-work
- * inventory) needs the `@canlang/state` + `@canlang/work` producer
- * runtimes, which are not importable from the plain-node dist CLI — so
- * the CLI passes no inventory/gates and the verdict carries
- * `activation-incomplete` for gate 4. The full four-gate pass (real
- * producer functions) is proven in `test/activate.test.ts`.
+ * installed digest) from bundle data, plus gate 4 (outstanding-work
+ * inventory) when the bundle carries both store outbox evidence and the
+ * compiled transition: bundle outbox rows inventory through the real
+ * `@canlang/work` builder and the transition's invalidate contracts pin
+ * disposal through the real `@canlang/state` checker. Bundle evidence
+ * covers undispatched outbox rows only (dispatch claimed/uncertain/
+ * settled lifecycle rides the live upgrade path, not the bundle).
+ * Proven in `test/activate-gate4.integration.test.ts` over the real CLI.
  *
  * B5-J3: `--artifact` is optional everywhere — absent means zero-config
  * discovery (`./dist/*.artifact.json`, exactly one or loud). `test`
@@ -73,14 +77,20 @@ import { createLocalCommandLifetime, LocalCommandInterrupted, type LocalCommandL
 import type {
   CompatibilityDescriptor,
   EnvironmentSelection,
-  InstalledSnapshot,
-  OutboxIntent,
   StoragePort,
 } from "@canlang/contracts";
 import { loadArtifactFile, type LoadedArtifact } from "../runtime/artifact.js";
 import { assembleModules } from "../runtime/modules.js";
 import { activate } from "../deploy/activate.js";
+import {
+  bundleInventoryGates,
+  bundleStoreStub,
+  loadBundleStore,
+  loadBundleTransition,
+  type BundleStore,
+} from "../deploy/bundle-evidence.js";
 import { probeInstalledRuntime } from "../deploy/installed.js";
+import type { MigrationTransition } from "@canlang/contracts";
 import { runDocs } from "./docs.js";
 import { runGen } from "./gen.js";
 import { runSourceWorkflow } from "./source-workflow.js";
@@ -360,33 +370,6 @@ async function runArtifact(path: string, lifetime: LocalCommandLifetime): Promis
 /* activate: bundle loading + validation + serve-gate driver.           */
 /* ------------------------------------------------------------------ */
 
-interface BundleStore {
-  installedSnapshot: InstalledSnapshot | null;
-  outbox: readonly OutboxIntent[];
-}
-
-/** Absent file -> null (the digest gate reports incomplete); invalid file -> loud failure. */
-async function loadStore(path: string): Promise<BundleStore | null> {
-  if (!(await artifactExists(path))) return null;
-  const root = needRecord(loadBundleJson(path, "store"), "store");
-  const snapshot = root["installedSnapshot"];
-  if (snapshot !== null) {
-    const entry = needRecord(snapshot, "store.installedSnapshot");
-    needString(entry["owner"], "store.installedSnapshot.owner");
-    needString(entry["snapshotId"], "store.installedSnapshot.snapshotId");
-    needString(entry["digest"], "store.installedSnapshot.digest");
-    if (typeof entry["installedRevision"] !== "number" || typeof entry["installedAt"] !== "number") {
-      throw new Error("store.installedSnapshot.installedRevision/installedAt must be numbers");
-    }
-  }
-  if (!Array.isArray(root["outbox"])) throw new Error("store.outbox must be an array");
-  for (const [index, intent] of (root["outbox"] as unknown[]).entries()) {
-    const entry = needRecord(intent, `store.outbox[${index}]`);
-    needString(entry["intentId"], `store.outbox[${index}].intentId`);
-  }
-  return root as unknown as BundleStore;
-}
-
 async function runActivate(artifactPath: string, env: string | null): Promise<void> {
   if (env === null) {
     usage("activate requires --env <name>");
@@ -402,11 +385,13 @@ async function runActivate(artifactPath: string, env: string | null): Promise<vo
   let environment: EnvironmentSelection;
   let target: ReturnType<typeof loadTarget>;
   let bundleStore: BundleStore | null;
+  let transition: MigrationTransition | null;
   try {
     descriptor = loadDescriptor(join(dir, `${stem}.descriptor.json`));
     environment = loadEnvironment(join(dir, `${stem}.${env}.environment.json`), env);
     target = loadTarget(join(dir, `${stem}.target.json`));
-    bundleStore = await loadStore(join(dir, `${stem}.store.json`));
+    bundleStore = await loadBundleStore(join(dir, `${stem}.store.json`));
+    transition = await loadBundleTransition(join(dir, `${stem}.transition.json`));
   } catch (error) {
     fail("activate", "invalid-activation-bundle", error instanceof Error ? error.message : String(error));
   }
@@ -416,21 +401,20 @@ async function runActivate(artifactPath: string, env: string | null): Promise<vo
   } catch (error) {
     fail("activate", "invalid-activation-bundle", error instanceof Error ? error.message : String(error));
   }
-  const snapshot = bundleStore?.installedSnapshot ?? null;
-  const outbox = bundleStore?.outbox ?? [];
   const store: StoragePort | undefined =
-    bundleStore === null
-      ? undefined
-      : ({
-          readInstalledSnapshot: async (owner: string) => (snapshot !== null && snapshot.owner === owner ? snapshot : null),
-          outboxPending: async () => [...outbox],
-        } as unknown as StoragePort);
+    bundleStore === null ? undefined : (bundleStoreStub(bundleStore) as unknown as StoragePort);
+  // Gate 4 runs only with both evidence groups: bundle store (outbox)
+  // plus the compiled transition (invalidate pins). Anything absent
+  // keeps the historical `activation-incomplete` verdict.
+  const gate4 =
+    bundleStore !== null && transition !== null ? bundleInventoryGates(bundleStore, transition) : null;
   const verdict = await activate({
     artifact: loaded.artifact,
     descriptor,
     environment,
     installed,
     ...(store === undefined ? {} : { store }),
+    ...(gate4 === null ? {} : gate4),
   });
   process.stderr.write(
     verdict.active ? "activation: active\n" : `activation: refused (${verdict.reasons.length} reason(s))\n`,

@@ -366,9 +366,12 @@ impl HookProfile<'_> {
             return None;
         };
         let parent_item = self.program.items.get(parent.0 as usize)?;
-        if parent_item.id != *parent || parent_item.module != self.module {
+        if parent_item.id != *parent {
             return None;
         }
+        // Cross-package parents admit: the `ChildOf` edge is structural,
+        // and the transitive load resolves (model, id) with no module
+        // notion. Downstream reads re-gate on the owning module.
         Some((*parent, EventAlias::ParentIdentity))
     }
     fn event_reference_target(&self, base_model: SymbolId, field: &str) -> Option<SymbolId> {
@@ -575,7 +578,8 @@ impl HookProfile<'_> {
                     | Scalar::Duration
                     | Scalar::Bool
                     | Scalar::Text
-                    | Scalar::Email,
+                    | Scalar::Email
+                    | Scalar::User,
                 ),
                 ResolvedType::Scalar(_),
             ) => stripped(left) == stripped(right),
@@ -816,6 +820,15 @@ impl HookProfile<'_> {
                 }
                 self.expr(operand, locals, aliases, depth + 1)
             }
+            // Bare role gates lower to the synchronous `hasRole(c,role)`
+            // over the trigger's author, which is safe at any depth
+            // including inside query predicates. Subject roles stay out:
+            // their async membership read has no sync carrier.
+            IrExpr::HasRole { person: None, .. }
+                if expr.ty == ResolvedType::Scalar(Scalar::Bool) =>
+            {
+                Some(())
+            }
             _ => None,
         }
     }
@@ -1000,6 +1013,37 @@ impl HookProfile<'_> {
     /// file-14 first shape) in a stored-record parameter, and the callee
     /// body must admit over that linkage (helpers inherit the consuming
     /// site; no Boolean-result privilege — the loader returns rows).
+    /// Whether one helper-call argument passes a linkage identity
+    /// (rather than a loaded value) at emission. Bare alias names carry
+    /// their identity into the callee; direct snapshot edges
+    /// (`event.after.<ref>`, `event.after.parent`) carry the snapshot's
+    /// identity-only fragment, which the emitted variant reloads through
+    /// `c.transitive`. Deeper navigations (`.parent.<ref>` tails, member
+    /// reads over aliases) lower to awaited loads at the async call
+    /// site, so the callee receives a value and binds a local.
+    fn hook_call_linkage(
+        &self,
+        arg: &TypedExpr,
+        aliases: &HashMap<String, (SymbolId, EventAlias)>,
+    ) -> bool {
+        let Some((_, class)) = self.event_class(arg, aliases) else {
+            return false;
+        };
+        if !matches!(
+            class,
+            EventAlias::ParentIdentity | EventAlias::ReferenceIdentity | EventAlias::Staged
+        ) {
+            return false;
+        }
+        match &arg.expr {
+            IrExpr::Name(_) => true,
+            IrExpr::Member { base, .. } => matches!(
+                self.event_class(base, aliases),
+                Some((_, EventAlias::Snapshot))
+            ),
+            _ => false,
+        }
+    }
     fn hook_derive_call(
         &mut self,
         canonical: &str,
@@ -1011,14 +1055,12 @@ impl HookProfile<'_> {
         for arg in args {
             self.expr(arg, locals, aliases, depth + 1)?;
         }
-        if !args.iter().any(|arg| {
-            self.event_class(arg, aliases).is_some_and(|(_, class)| {
-                matches!(
-                    class,
-                    EventAlias::ParentIdentity | EventAlias::ReferenceIdentity | EventAlias::Staged
-                )
-            })
-        }) {
+        // Linkage detection mirrors emission exactly (`hook_linkage_arg`):
+        // bare alias names plus direct snapshot edges. Deeper
+        // navigations over linkage (`.parent.<ref>` tails) evaluate to
+        // loaded values at the async call site and pass by value, so
+        // they bind as locals, never as linkage identities.
+        if !args.iter().any(|arg| self.hook_call_linkage(arg, aliases)) {
             return Some(());
         }
         let mut callees = self.program.items.iter().filter(|item| {
@@ -1061,8 +1103,9 @@ impl HookProfile<'_> {
             else {
                 return None;
             };
+            let linkage = self.hook_call_linkage(arg, aliases);
             match self.event_class(arg, aliases) {
-                Some((model, EventAlias::ParentIdentity)) => {
+                Some((model, EventAlias::ParentIdentity)) if linkage => {
                     let ResolvedType::Record {
                         symbol,
                         stored: true,
@@ -1075,7 +1118,7 @@ impl HookProfile<'_> {
                     }
                     inner_aliases.insert(param.name.clone(), (model, EventAlias::ParentIdentity));
                 }
-                Some((model, EventAlias::ReferenceIdentity)) => {
+                Some((model, EventAlias::ReferenceIdentity)) if linkage => {
                     let ResolvedType::Record {
                         symbol,
                         stored: true,

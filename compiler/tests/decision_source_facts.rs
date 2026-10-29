@@ -1970,3 +1970,295 @@ fn source_require_keeps_separate_controls_and_minimal_pure_result_receipt() {
         "root.remaining"
     );
 }
+
+#[test]
+fn source_require_forms_site_for_member_plus_query_guard() {
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+    use canlang_compiler::diagnostic::DiagnosticResult;
+    let mut db = SourceDb::new();
+    let file = db.add(
+        "member-query-guard.can".into(),
+        include_str!("fixtures/native-require-member-query-guard.can").into(),
+    );
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) =
+        canlang_compiler::analysis::check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let mut result = DiagnosticResult::new("member-query-guard", "1.0", 1);
+    result.add_sources(&db);
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let artifact: serde_json::Value =
+        serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
+    let operations = artifact["operations"].as_array().unwrap();
+    for name in [
+        "GuardMemberQuery.publish_member",
+        "GuardMemberQuery.confirm_member",
+        "GuardMemberQuery.signup_member",
+    ] {
+        assert!(
+            operations.iter().any(|operation| operation["name"] == name),
+            "missing operation {name}"
+        );
+    }
+}
+
+#[test]
+fn scenario_guarded_sends_lower_through_sealed_pipeline() {
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+    use canlang_compiler::diagnostic::DiagnosticResult;
+    let mut db = SourceDb::new();
+    let file = db.add(
+        "scenario-guarded-send.can".into(),
+        include_str!("fixtures/native-scenario-guarded-send.can").into(),
+    );
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) =
+        canlang_compiler::analysis::check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let mut result = DiagnosticResult::new("scenario-guarded-send", "1.0", 1);
+    result.add_sources(&db);
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let artifact: serde_json::Value =
+        serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
+    let operations = artifact["operations"].as_array().unwrap();
+    for name in [
+        "SendGuardProbe.resched_loop",
+        "SendGuardProbe.resched_param",
+    ] {
+        assert!(
+            operations.iter().any(|operation| operation["name"] == name),
+            "missing operation {name}"
+        );
+    }
+    // One sealed Rule per guarded send: scenario loop (for-item plus
+    // let inputs), scenario params, hook (let plus event inputs),
+    // nested hook loops (inner plus outer items), and anchored
+    // cohorts (each=event path).
+    let rules = artifact["callables"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|callable| callable["kind"] == "rule")
+        .filter_map(|callable| callable["id"].as_str())
+        .collect::<Vec<_>>();
+    for owner in [
+        "SendGuardProbe.resched_loop.sendWhen.",
+        "SendGuardProbe.resched_param.sendWhen.",
+        "SendGuardProbe.remind.sendWhen.",
+        "SendGuardProbe.venue_changed.sendWhen.",
+        "SendGuardProbe.cancel_signup.sendWhen.",
+    ] {
+        assert!(
+            rules.iter().any(|rule| rule.starts_with(owner)),
+            "missing sealed guard for {owner}: {rules:?}"
+        );
+    }
+}
+
+#[test]
+fn schedule_parent_version_reads_actual_metadata() {
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+    use canlang_compiler::diagnostic::DiagnosticResult;
+    let mut db = SourceDb::new();
+    let file = db.add(
+        "schedule-parent-version.can".into(),
+        include_str!("fixtures/native-schedule-parent-version.can").into(),
+    );
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) =
+        canlang_compiler::analysis::check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let mut result = DiagnosticResult::new("schedule-parent-version", "1.0", 1);
+    result.add_sources(&db);
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let artifact: serde_json::Value =
+        serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
+    let operations = artifact["operations"].as_array().unwrap();
+    assert!(
+        operations
+            .iter()
+            .any(|operation| operation["name"] == "SchedVerProbe.conf"),
+        "missing operation SchedVerProbe.conf"
+    );
+}
+
+#[test]
+fn hook_linkage_helper_with_roles_and_nested_query() {
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+    use canlang_compiler::diagnostic::DiagnosticResult;
+    let mut db = SourceDb::new();
+    let file = db.add(
+        "hook-linkage-helper.can".into(),
+        include_str!("fixtures/native-hook-linkage-helper.can").into(),
+    );
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) =
+        canlang_compiler::analysis::check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let mut result = DiagnosticResult::new("hook-linkage-helper", "1.0", 1);
+    result.add_sources(&db);
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let artifact: serde_json::Value =
+        serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
+    // The pre-commit hook binds natively with a hook-variant helper:
+    // role gate, parent-row navigation, and nested query all lower.
+    let js = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(
+        js.contains("hasRole(c,\"HookLinkProbe.organizer\")")
+            || js.contains("hasRole(c, \"HookLinkProbe.organizer\")"),
+        "role gate lowers with ambient context"
+    );
+    assert!(
+        js.contains("loadReference") && js.contains("c.transitive.load("),
+        "parent navigation chains reference and parent loads"
+    );
+}
+
+#[test]
+fn hook_cross_package_parent_navigation() {
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+    use canlang_compiler::diagnostic::DiagnosticResult;
+    let mut db = SourceDb::new();
+    let file = db.add(
+        "hook-cross-package-parent.can".into(),
+        include_str!("fixtures/native-hook-cross-package-parent.can").into(),
+    );
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) =
+        canlang_compiler::analysis::check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let mut result = DiagnosticResult::new("hook-cross-package-parent", "1.0", 1);
+    result.add_sources(&db);
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let artifact: serde_json::Value =
+        serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
+    // The hook binds natively even though the helper, its models, and the
+    // `.parent` step live in another package: role gate, parent-row
+    // navigation, and nested query all lower through the ambient context.
+    let js = artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|module| module["js"].as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        js.contains("hasRole(c,\"renting.organizer\")")
+            || js.contains("hasRole(c, \"renting.organizer\")"),
+        "cross-package role gate lowers with ambient context"
+    );
+    assert!(
+        js.contains("loadReference") && js.contains("c.transitive.load("),
+        "cross-package parent navigation chains reference and parent loads"
+    );
+}

@@ -421,6 +421,7 @@ fn global_relational_and_at_rule_escapes_refuse() {
         ("body { margin: 0; }", "E2103"),
         ("* { margin: 0; }", "E2103"),
         (":root { --x: 1; }", "E2103"),
+        (":scope { display: block; }", "E2103"),
         ("html body { margin: 0; }", "E2103"),
         (".a:has(.b) { color: red; }", "E2102"),
         ("svg|a { color: red; }", "E2102"),
