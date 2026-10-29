@@ -705,10 +705,13 @@ fn resolve_composed_call(
     if actual_calls.next().is_some() {
         return None;
     }
-    if super::scenario_receipts::checked_any_first_query_ir(ir, owner, call, db) != Some(q) {
+    if super::scenario_receipts::checked_any_first_query_ir(ir, owner, call, db) != Some(q)
+        && super::scenario_receipts::checked_values_any_query_ir(ir, owner, call, db) != Some(q)
+    {
         return Some(None);
     }
-    let parent = super::scenario_receipts::checked_any_first_parent(ir, owner, q, call, db);
+    let parent = super::scenario_receipts::checked_any_first_parent(ir, owner, q, call, db)
+        .or_else(|| super::scenario_receipts::checked_direct_any_parent(ir, owner, q, call, db));
     let (_, _, _, _, parent_model) = parent?;
     Some(Some((cond_span, guard_span, parent_model, call.span)))
 }

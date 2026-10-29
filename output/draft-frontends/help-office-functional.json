@@ -1,6 +1,0 @@
-{
-  "status": "not-completed",
-  "scope": "Existing HelpOffice full qualification only; no draft or generated-prompt acceptance",
-  "reason": "The run used live installed package links before full isolation; those producer inputs changed. It exceeded its intended cancellation window and its owned node/workerd processes were stopped. No passing outcome is claimed.",
-  "replacement": "Separate frozen-runtime browser capture and source-example results have their own report; the complete functional qualification remains open."
-}

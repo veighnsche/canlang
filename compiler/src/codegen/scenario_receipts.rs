@@ -4831,14 +4831,205 @@ pub(super) fn checked_any_first_query_ir<'a>(
     let [any, first] = facts.queries.as_deref()? else {
         return None;
     };
+    if first.first.is_none() || first.count.is_some() {
+        return None;
+    }
+    checked_scoped_any_query_ir(ir, owner, actual, db, facts, any, false)
+}
+
+/// A leading contained ANY is an independently sealed fragment of a Values
+/// recipe. The census alone grants nothing: every consumer rechecks this
+/// original call, predicate, schema and admitted parent before publication.
+pub(super) fn checked_values_any_query_ir<'a>(
+    ir: &'a IrProgram,
+    owner: &'a IrItem,
+    actual: &TypedExpr,
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::DisclosureQuery> {
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    facts
+        .query_values
+        .as_deref()
+        .filter(|values| !values.is_empty())?;
+    let mut matches =
+        facts.queries.as_deref()?.iter().filter(|query| {
+            values_any_source(facts, query) && plain_any_expr_matches(actual, query)
+        });
+    let any = matches.next()?;
+    if matches.next().is_some() {
+        return None;
+    }
+    checked_scoped_any_query_ir(ir, owner, actual, db, facts, any, true)
+}
+
+pub(super) fn checked_direct_any_parent<'a, 'b>(
+    ir: &'a IrProgram,
+    owner: &'a IrItem,
+    any: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    actual: &'b TypedExpr,
+    db: &SourceDb,
+) -> Option<(
+    &'a IrItem,
+    crate::analysis::SymbolId,
+    &'b TypedExpr,
+    &'b TypedExpr,
+    crate::analysis::SymbolId,
+)> {
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let args = match &actual.expr {
+        IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => args,
+        _ => return None,
+    };
+    let [domain, _] = args.as_slice() else {
+        return None;
+    };
+    let IrExpr::Query(query) = &domain.expr else {
+        return None;
+    };
+    let parent = query.parent.as_deref()?;
+    let [(receiver, parameter_id)] = any.inputs.as_slice() else {
+        return None;
+    };
+    let parameter = ir.items.get(parameter_id.0 as usize)?;
+    let IrItemKind::Param {
+        owner: parameter_owner,
+        index,
+        ty:
+            IrType::Known(
+                ty @ ResolvedType::Record {
+                    symbol: parent_model,
+                    stored: true,
+                },
+            ),
+        default: None,
+        default_node: None,
+        default_copy_source: None,
+        array_bounds: None,
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    let IrItemKind::Scenario { params, .. } = &owner.kind else {
+        return None;
+    };
+    let original = facts.parameters.get(*index)?;
+    let node = checked_effect_node(ir, owner, *receiver, db)?;
+    if *parameter_owner != owner.id
+        || params.get(*index) != Some(parameter_id)
+        || original.parameter != *parameter_id
+        || original.ty != *ty
+        || parent.ty != *ty
+        || parent.span != node_span(*receiver)
+        || !matches!(&parent.expr, IrExpr::Name(name) if name == &parameter.name)
+        || node.kind != SyntaxKind::NameRef
+        || db
+            .get(receiver.file)?
+            .text
+            .get(receiver.start as usize..receiver.end as usize)?
+            .trim()
+            != parameter.name
+        || !matches!(&ir.items.get(any.model.0 as usize)?.kind,
+            IrItemKind::Model { owner: IrOwner::ChildOf(id), .. } if id == parent_model)
+    {
+        return None;
+    }
+    Some((parameter, *parent_model, parent, parent, *parent_model))
+}
+
+fn values_any_source(
+    facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+) -> bool {
+    use crate::analysis::scenario_disclosure::{CheckedDecisionCallTarget, CheckedDecisionStage};
+    plain_boolean_any_query(query)
+        && query.inputs.len() == 1
+        && !query.dependencies.is_empty()
+        && query.dependencies.iter().all(|read| {
+            read.role == DependencyRole::Control
+                && read.calls.is_empty()
+                && read.source == query.source
+                && read.model == query.model
+        })
+        && facts.decision_sites.as_deref().is_some_and(|sites| {
+            sites.iter().any(|site| {
+                site.stage == CheckedDecisionStage::LeadingRequire
+                    && site.source == facts.source
+                    && site.calls.iter().any(|call| {
+                        call.target
+                            == (CheckedDecisionCallTarget::Builtin {
+                                id: "any".into(),
+                                overload: 0,
+                            })
+                            && call
+                                .arguments
+                                .first()
+                                .is_some_and(|argument| argument.0 == query.node)
+                            && call
+                                .arguments
+                                .get(1)
+                                .is_some_and(|argument| Some(argument.0) == query.predicate)
+                            && call.arguments.len() == 2
+                            && call.slots == [Some(0), Some(1)]
+                            && call.defaults.is_empty()
+                            && call.chain.is_empty()
+                    })
+            })
+        })
+}
+
+fn enum_member_leaf<'a>(leaf: &'a TypedExpr, alias: &str) -> Option<PredicateMemberLeaf<'a>> {
+    let IrExpr::Binary {
+        op: IrBinOp::In,
+        left,
+        right,
+    } = &leaf.expr
+    else {
+        return None;
+    };
+    let IrExpr::Member { base, field } = &left.expr else {
+        return None;
+    };
+    let ResolvedType::Enum {
+        cases,
+        owner: Some(_),
+    } = &left.ty
+    else {
+        return None;
+    };
+    let IrExpr::Array(items) = &right.expr else {
+        return None;
+    };
+    if leaf.ty != ResolvedType::Scalar(Scalar::Bool)
+        || !matches!(&base.expr, IrExpr::Name(name) if name == alias)
+        || items.is_empty() || items.len() > cases.len()
+        || !matches!(&right.ty, ResolvedType::Array {element, ..} if element.as_ref() == &left.ty)
+        || items.iter().any(|value| value.ty != left.ty
+            || !matches!(&value.expr, IrExpr::Name(name) | IrExpr::Text(name) if cases.contains(name)))
+    { return None; }
+    Some(PredicateMemberLeaf {
+        member: left,
+        receiver: base,
+        field,
+        operand: None,
+    })
+}
+
+fn checked_scoped_any_query_ir<'a>(
+    ir: &'a IrProgram,
+    owner: &'a IrItem,
+    actual: &TypedExpr,
+    db: &SourceDb,
+    facts: &'a crate::analysis::scenario_disclosure::CheckedScenarioSource,
+    any: &'a crate::analysis::scenario_disclosure::DisclosureQuery,
+    values: bool,
+) -> Option<&'a crate::analysis::scenario_disclosure::DisclosureQuery> {
     if any.first.is_some()
         || any.count.is_some()
         || any.projection.is_some()
         || any.cardinality_guard.is_some()
         || any.alias.is_none()
         || any.predicate.is_none()
-        || first.first.is_none()
-        || first.count.is_some()
     {
         return None;
     }
@@ -4898,8 +5089,12 @@ pub(super) fn checked_any_first_query_ir<'a>(
     }
     // Shared sealed one-hop lineage: input I, resolved parent P, child C
     // and the original base occurrence stay bound together here.
-    let (_parameter, parent_id, parent, parent_base, _parent_model) =
-        checked_any_first_parent(ir, owner, any, actual, db)?;
+    let (_parameter, parent_id, parent, parent_base, _parent_model) = if values {
+        checked_direct_any_parent(ir, owner, any, actual, db)
+            .or_else(|| checked_any_first_parent(ir, owner, any, actual, db))?
+    } else {
+        checked_any_first_parent(ir, owner, any, actual, db)?
+    };
     let record = ResolvedType::Record {
         symbol: any.model,
         stored: true,
@@ -4930,11 +5125,22 @@ pub(super) fn checked_any_first_query_ir<'a>(
             receiver,
             field: field_name,
             operand,
-        } = predicate_member_leaf(leaf, param)?;
+        } = if values {
+            enum_member_leaf(leaf, param).or_else(|| predicate_member_leaf(leaf, param))?
+        } else {
+            predicate_member_leaf(leaf, param)?
+        };
+        let enum_membership = matches!(
+            &leaf.expr,
+            IrExpr::Binary {
+                op: IrBinOp::In,
+                ..
+            }
+        );
         let member_ty = &member.ty;
         if receiver.ty != record
             || dependency.ty != *member_ty
-            || (operand.is_none() != (*member_ty == boolean))
+            || (!enum_membership && (operand.is_none() != (*member_ty == boolean)))
         {
             return None;
         }
@@ -5160,8 +5366,9 @@ pub(super) fn checked_native_any_query_plan<'a>(
             _ => (cond, false),
         };
         let legacy = negated && checked_any_query_ir(ir, owner, operand, db) == Some(query);
-        let composition =
-            !legacy && checked_any_first_query_ir(ir, owner, operand, db) == Some(query);
+        let composition = !legacy
+            && (checked_any_first_query_ir(ir, owner, operand, db) == Some(query)
+                || checked_values_any_query_ir(ir, owner, operand, db) == Some(query));
         (legacy || composition).then_some((operand, composition))
     });
     let matched = calls.collect::<Vec<_>>();
@@ -5178,7 +5385,8 @@ pub(super) fn checked_native_any_query_plan<'a>(
     // shared sealed lineage; the legacy direct shape keeps the parameter's
     // own declared model.
     let parent_model = if composition {
-        let (_, _, _, _, resolved) = checked_any_first_parent(ir, owner, query, operand, db)?;
+        let (_, _, _, _, resolved) = checked_any_first_parent(ir, owner, query, operand, db)
+            .or_else(|| checked_direct_any_parent(ir, owner, query, operand, db))?;
         resolved
     } else {
         let IrItemKind::Param {
@@ -6929,7 +7137,9 @@ pub(super) fn checked_scenario_query_influences(
     {
         if queries.len() > 200
             || queries.iter().any(|query| {
-                query.count.is_none() && !values.iter().any(|value| &value.query == query)
+                query.count.is_none()
+                    && !values.iter().any(|value| &value.query == query)
+                    && !values_any_source(facts, query)
             })
         {
             return None;
@@ -7289,7 +7499,16 @@ fn checked_native_value_query_plan(
     let mut emitted = Vec::new();
     for query in queries {
         let Some(value) = values.iter().find(|value| &value.query == query) else {
-            query.count.as_ref()?;
+            if query.count.is_none() {
+                emitted.push(checked_native_any_query_plan(
+                    ir,
+                    owner,
+                    query,
+                    context.db(),
+                    entry,
+                )?);
+                continue;
+            }
             emitted.extend(
                 checked_native_count_query_plan(
                     ir,
@@ -23768,7 +23987,8 @@ impl<'a> Sites<'a> {
                             && purchase_all.is_some_and(|plan| super::purchase_all::at(plan, expression.span))
                         { continue; }
                         if matches!(target,IrCallTarget::Builtin {id,awaited:false} if id=="any")
-                            && checked_any_first_query_ir(ir, owner, expression, db?).is_some()
+                            && (checked_any_first_query_ir(ir, owner, expression, db?).is_some()
+                                || checked_values_any_query_ir(ir, owner, expression, db?).is_some())
                         {
                             // Direct leading `require not any(...)` guard over
                             // the composed any/first shape: its predicate reads

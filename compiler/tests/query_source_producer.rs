@@ -884,6 +884,91 @@ Then
         .replace("  do set root {lines=", "  do\n   let lines=")
         .replace("item.price*item.quantity+item.tax-item.discount}}", "item.price*item.quantity*root.multiplier+item.tax-item.discount}")
         .replace("\nThen", "\n   require count(lines)>0 and all(lines as line,line.amount.minor>0)\n   let first_line=at(lines,0)\n   require first_line!=null\n   set root {lines}\nThen");
+    let any_source = let_source
+        .replace(" Item in Root", " Blocker in Root {state:enum(open,closed)=open,hidden:bool=true}\n policy Blocker read=members where=not row.hidden fields=state\n Item in Root")
+        .replace("  require root.enabled", "  require root.enabled\n  require not any(root.Blocker as blocker,blocker.state in [open])");
+    // The independent decision-source consumer preserves the original
+    // predicate type, selected slots and literal identity under composition.
+    let (any_db, any_program, any_ir, any_catalog) = checked_source(&any_source);
+    let any_owner = any_ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "ScalarQuery.summarize")
+        .unwrap()
+        .id;
+    let metadata = canlang_compiler::codegen::scenario_decisions::serialize_decision_sources(
+        &any_program,
+        &any_ir,
+        &any_ir.items[any_owner.0 as usize],
+        &any_db,
+        any_catalog.as_ref(),
+    );
+    assert!(
+        metadata.is_some(),
+        "complete original decision source metadata"
+    );
+    for corruption in 2..5 {
+        let mut altered = any_ir.clone();
+        match corruption {
+            2..=4 => {
+                let IrItemKind::Scenario { guards, .. } =
+                    &mut altered.items[any_owner.0 as usize].kind
+                else {
+                    panic!()
+                };
+                let IrStmt::Require { cond, .. } = &mut guards[1] else {
+                    panic!()
+                };
+                let IrExpr::Unary { operand, .. } = &mut cond.expr else {
+                    panic!()
+                };
+                if corruption == 2 {
+                    operand.ty = canlang_compiler::analysis::ResolvedType::Scalar(
+                        canlang_compiler::analysis::Scalar::Text,
+                    );
+                } else if corruption == 4 {
+                    let args = match &mut operand.expr {
+                        IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => args,
+                        _ => panic!(),
+                    };
+                    let IrExpr::Lambda { body, .. } = &mut args[1].expr else {
+                        panic!()
+                    };
+                    let IrExpr::Binary { right, .. } = &mut body.expr else {
+                        panic!()
+                    };
+                    let IrExpr::Array(items) = &mut right.expr else {
+                        panic!()
+                    };
+                    items[0].expr = IrExpr::Name("closed".into());
+                } else {
+                    let (target, args) = match &operand.expr {
+                        IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                            (target.clone(), args.clone())
+                        }
+                        _ => panic!(),
+                    };
+                    operand.expr = IrExpr::BoundCall {
+                        target,
+                        args,
+                        slots: vec![Some(1), Some(0)],
+                    };
+                }
+            }
+            _ => unreachable!(),
+        }
+        assert!(
+            canlang_compiler::codegen::scenario_decisions::serialize_decision_sources(
+                &any_program,
+                &altered,
+                &altered.items[any_owner.0 as usize],
+                &any_db,
+                any_catalog.as_ref(),
+            )
+            .is_none(),
+            "composed ANY corruption {corruption}"
+        );
+    }
     let enum_source = let_source
         .replace("contract QuotedLine {amount:money}", "contract QuotedLine {amount:money,label:text}")
         .replace("discount:money,visible:bool=true", "discount:money,visible:bool=true,fold:enum(earlier,later)=earlier")
@@ -954,6 +1039,18 @@ Then
         ),
         ("let-created-map-empty", mapped_empty_source),
         ("contract", contract_source.clone()),
+        ("let-any", any_source.clone()),
+        ("let-any-empty", any_source.clone()),
+        ("let-any-foreign", any_source.clone()),
+        ("let-any-blocked", any_source.clone()),
+        ("let-any-race", any_source.clone()),
+        (
+            "let-any-withheld",
+            any_source.replace(
+                "fields=price,quantity,tax,discount",
+                "fields=quantity,tax,discount",
+            ),
+        ),
         ("let-values", let_source.clone()),
         (
             "let-where",
@@ -1094,6 +1191,12 @@ Then
         if matches!(
             mode,
             "let-values"
+                | "let-any"
+                | "let-any-empty"
+                | "let-any-foreign"
+                | "let-any-blocked"
+                | "let-any-race"
+                | "let-any-withheld"
                 | "let-where"
                 | "let-filter-empty"
                 | "let-empty"
@@ -1116,6 +1219,26 @@ Then
                     .is_some_and(|queries| !queries.is_empty()),
                 "computed Values LET must retain its actual complete native query receipt: {operation}"
             );
+            if mode.starts_with("let-any") {
+                let queries = operation["result"]["disclosure"]["queries"]
+                    .as_array()
+                    .unwrap();
+                assert_eq!(
+                    queries.len(),
+                    2,
+                    "both independently owned query fragments remain"
+                );
+                let guard = queries
+                    .iter()
+                    .find(|query| query["model"] == "ScalarQuery.Blocker")
+                    .unwrap();
+                assert_eq!(guard["parent"]["model"], "ScalarQuery.Root");
+                assert_eq!(guard["parent"]["origin"]["kind"], "admitted-reference");
+                assert_eq!(guard["parent"]["origin"]["parameter"], "root");
+                assert_eq!(guard["dependencies"].as_array().unwrap().len(), 1);
+                assert_eq!(guard["dependencies"][0]["field"], "state");
+                assert_eq!(guard["dependencies"][0]["role"], "control");
+            }
             if mode == "let-created-version" {
                 assert!(
                     operation["result"]["disclosure"]["returns"]
@@ -1285,7 +1408,7 @@ function alterValueMetadata(artifact,mode){
  }
  assert.ok(changed>=(mode==='forge-unissued-capture'||mode==='forge-created-version-unobserved'?1:2),mode+': actual inventory and private callback descriptors both changed');
 }
-for(const mode of ['let-created-version','let-created-version-set','let-created-version-race','forge-created-version-stage','forge-created-version-unobserved','allowed','projection-withheld','currency-withheld','hidden','finalization-race','contract','contract-withheld','let-values','let-where','let-where-withheld','let-where-unread-filter','let-filter-empty','let-enum','let-enum-withheld','let-withheld','let-root-withheld','let-race','let-empty','let-member','let-member-withheld','let-created','let-created-withheld','let-created-return-withheld','let-created-result-hidden','let-created-empty','let-created-map','let-created-map-withheld','let-created-map-empty','forge-model-cases-swapped','forge-pair-swapped','forge-enum-pair','forge-pair-duplicate','forge-pair-missing','forge-cases-swapped','forge-unissued-capture']){
+for(const mode of ['let-created-version','let-created-version-set','let-created-version-race','forge-created-version-stage','forge-created-version-unobserved','allowed','projection-withheld','currency-withheld','hidden','finalization-race','contract','contract-withheld','let-any','let-any-empty','let-any-foreign','let-any-blocked','let-any-race','let-any-withheld','let-values','let-where','let-where-withheld','let-where-unread-filter','let-filter-empty','let-enum','let-enum-withheld','let-withheld','let-root-withheld','let-race','let-empty','let-member','let-member-withheld','let-created','let-created-withheld','let-created-return-withheld','let-created-result-hidden','let-created-empty','let-created-map','let-created-map-withheld','let-created-map-empty','forge-model-cases-swapped','forge-pair-swapped','forge-enum-pair','forge-pair-duplicate','forge-pair-missing','forge-cases-swapped','forge-unissued-capture']){
  const forged=mode.startsWith('forge-'),versionMode=mode.startsWith('let-created-version')||mode.startsWith('forge-created-version'),valuesMode=forged||mode.startsWith('let-');
  const variant=versionMode?'let-created-version':mode==='forge-enum-pair'?'let-enum':mode==='forge-model-cases-swapped'||mode==='let-created-empty'?'let-created':forged?'let-values':mode==='let-race'?'let-values':mode==='hidden'||mode==='finalization-race'?'allowed':mode;
  const artifact=JSON.parse(readFileSync(resolve(base,variant+'.json'),'utf8'));
@@ -1297,8 +1420,13 @@ for(const mode of ['let-created-version','let-created-version-set','let-created-
  const root={...makeRow({id:asId('root'),data:{enabled:true,currency:'EUR',total:{minor:'0',currency:'EUR'},...(valuesMode?{lines:[],multiplier:'1',...(mode.startsWith('let-created-map')?{adjustment:{minor:'1',currency:'EUR'}}:{})}:mode.startsWith('contract')?{lines:[]}: {})}}),parent:null};
  const item={...makeRow({id:asId('item'),data:{price:{minor:'100',currency:'EUR'},quantity:'2',tax:{minor:'5',currency:'EUR'},discount:{minor:'3',currency:'EUR'},visible:mode!=='hidden'&&mode!=='let-empty',...(mode==='let-enum'||mode==='let-enum-withheld'||mode==='forge-enum-pair'?{fold:'earlier'}:{})}}),parent:{model:asModel('ScalarQuery.Root'),id:root.id}};
  await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'insert',model:asModel('ScalarQuery.Root'),row:root},...((mode==='let-created-empty'||mode==='let-created-map-empty')?[]:[{kind:'insert',model:asModel('ScalarQuery.Item'),row:item},...(valuesMode?[{kind:'insert',model:asModel('ScalarQuery.Item'),row:{...item,id:asId('item-2')}}]:[])])]}));
+ const otherRoot={...root,id:asId('other-root')};
+ if(mode==='let-any-foreign')await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'insert',model:asModel('ScalarQuery.Root'),row:otherRoot}]}));
+ const blocker={...makeRow({id:asId('blocker'),data:{state:mode==='let-any-blocked'||mode==='let-any-foreign'?'open':'closed',hidden:true}}),parent:{model:asModel('ScalarQuery.Root'),id:mode==='let-any-foreign'?otherRoot.id:root.id}};
+ if(mode.startsWith('let-any')&&mode!=='let-any-empty')await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'insert',model:asModel('ScalarQuery.Blocker'),row:blocker}]}));
  const history=await backing.historyFor(asModel('ScalarQuery.Root'),root.id);let raced=false,racedRoot;
  const store={...backing,commit:async batch=>{
+  if(mode==='let-any-race'&&!raced&&batch.writes.some(write=>write.model==='ScalarQuery.Root')){raced=true;await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'update',model:asModel('ScalarQuery.Blocker'),id:blocker.id,expectedVersion:blocker.version,row:{...blocker,version:asVersion(blocker.version+1),data:{...blocker.data,state:'open'}}}]}));}
   if(mode==='let-created-version-race'&&!raced&&batch.writes.some(write=>write.model==='ScalarQuery.Snapshot')){raced=true;racedRoot={...root,version:asVersion(root.version+1),data:{...root.data,total:{minor:'5',currency:'EUR'}}};await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'update',model:asModel('ScalarQuery.Root'),id:root.id,expectedVersion:root.version,row:racedRoot}]}));}
   if(mode==='finalization-race'&&!raced&&batch.writes.some(write=>write.model==='ScalarQuery.Root')){
    raced=true;await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'update',model:asModel('ScalarQuery.Item'),id:item.id,expectedVersion:item.version,
@@ -1325,6 +1453,17 @@ for(const mode of ['let-created-version','let-created-version-set','let-created-
   continue;
  }
  if(failure!==undefined)throw failure;
+ if(mode.startsWith('let-any')){
+  const current=await backing.load(asModel('ScalarQuery.Root'),root.id);
+  if(mode==='let-any'||mode==='let-any-empty'||mode==='let-any-foreign'){
+   assert.ok('result'in outcome,mode+': '+JSON.stringify(outcome));assert.equal(outcome.result.status,'committed');assert.deepEqual(current.data.lines,[{amount:{minor:'202',currency:'EUR'}},{amount:{minor:'202',currency:'EUR'}}]);
+   const completed=await backing.historyFor(asModel('ScalarQuery.Root'),root.id),pending=await backing.outboxPending();
+   const replay=await invoker.invokeMutation({operation:'ScalarQuery.summarize',operation_id:uuidv7(FIXED_NOW,1),inputs},identity);assert.ok('result'in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');assert.deepEqual(await backing.load(asModel('ScalarQuery.Root'),root.id),current);assert.deepEqual(await backing.historyFor(asModel('ScalarQuery.Root'),root.id),completed);assert.deepEqual(await backing.outboxPending(),pending);
+  }else{assert.ok('error'in outcome,mode+': '+JSON.stringify(outcome));assert.equal(outcome.error.code,mode==='let-any-withheld'?'forbidden':'rule_failed');assert.deepEqual(current,root);assert.deepEqual(await backing.historyFor(asModel('ScalarQuery.Root'),root.id),history);}
+  if(mode==='let-any-foreign')assert.deepEqual(await backing.load(asModel('ScalarQuery.Root'),otherRoot.id),otherRoot);
+  if(mode==='let-any-race'){assert.equal(raced,true);assert.equal((await backing.load(asModel('ScalarQuery.Blocker'),blocker.id)).data.state,'open');}
+  assert.deepEqual(await backing.outboxPending(),[]);continue;
+ }
  if(versionMode){
   const rows=await backing.query({model:asModel('ScalarQuery.Snapshot'),authority:'owner'}),events=await backing.query({model:asModel('work.occurrence'),authority:'owner'});
   if(mode==='let-created-version-race'){assert.equal(raced,true);assert.ok('error'in outcome,JSON.stringify(outcome));assert.equal(outcome.error.code,'conflict');assert.deepEqual(rows,[]);assert.deepEqual(events,[]);assert.deepEqual(await backing.load(asModel('ScalarQuery.Root'),root.id),racedRoot);assert.deepEqual(await backing.historyFor(asModel('ScalarQuery.Root'),root.id),history,'competing raw storage update creates no scenario history');}
