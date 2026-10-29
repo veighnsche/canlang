@@ -146,6 +146,9 @@ pub struct DisclosureQuery {
     pub first: Option<DisclosureFirstQuery>,
     /// Original count invocation; this source inventory issues no query handle.
     pub count: Option<DisclosureCountQuery>,
+    /// Exact post-write tail `all()` read; carries its own dedicated
+    /// receipt/lease execution and is ignored by first/count/any consumers.
+    pub tail_all: Option<DisclosureTailAll>,
     pub influences: Vec<DisclosureInfluence>,
 }
 
@@ -222,6 +225,31 @@ pub struct DisclosureFirstQuery {
     /// count contained-parent correspondence; the predicate operand keeps its
     /// own separate input entry.
     pub contained_parent: Option<(NodeKey, SymbolId)>,
+}
+
+/// Exact post-write tail `all()` over one-hop contained Lines with a
+/// row-internal derive/stored equality (purchase.receive profile). The read
+/// executes after the Receipt create within the same owner frame and sees
+/// the newly created row through the pinned derive sum; it is never a
+/// pre-write guard and never a viewer grant.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DisclosureTailAll {
+    /// The `all()` builtin call.
+    pub call: NodeKey,
+    /// The tail `if` effect owning the condition.
+    pub if_node: NodeKey,
+    /// The collection Query domain node.
+    pub domain: NodeKey,
+    /// The `line.parent` receiver occurrence.
+    pub receiver: NodeKey,
+    /// The `line` scenario parameter.
+    pub parameter: SymbolId,
+    /// The pinned `Line.accepted` derive (Receipt-sum body).
+    pub accepted_derive: SymbolId,
+    /// The pinned `Line.ordered` stored field.
+    pub ordered_field: SymbolId,
+    /// The preceding Receipt create (post-write anchor).
+    pub create_node: NodeKey,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -4597,6 +4625,7 @@ impl<'a> Closure<'a> {
                 projection: None,
                 first: None,
                 count: None,
+                tail_all: None,
                 influences,
             },
             checked: checked.clone(),
@@ -8498,6 +8527,10 @@ impl<'a> Closure<'a> {
                     .into_iter()
                     .map(|fact| fact.query),
             );
+            // Exact post-write tail `all()` reads join the same receipt
+            // inventory with their own dedicated execution; the call-site
+            // interceptor below verifies the occurrence before admitting it.
+            first.extend(self.checked_tail_all_query_sources(scenario)?);
             for binding in &scenario.effects {
                 let Some(value) = binding.value.and_then(|key| self.query_group(key)) else {
                     continue;
@@ -8782,6 +8815,7 @@ impl<'a> Closure<'a> {
             }),
             first: None,
             count: None,
+            tail_all: None,
             influences,
         }])
     }
@@ -9198,6 +9232,7 @@ impl<'a> Closure<'a> {
             projection: None,
             first: None,
             count: None,
+            tail_all: None,
             influences,
         })
     }
@@ -10362,6 +10397,7 @@ impl<'a> Closure<'a> {
             projection: None,
             first: None,
             count: None,
+            tail_all: None,
             influences,
         })
     }
@@ -11649,6 +11685,7 @@ impl<'a> Closure<'a> {
             count: Some(DisclosureCountQuery { call, overload: *overload,
                 slots: selected.slots.clone(), statement,
                 contained_parent: Some((receiver, parameter)), parent_edges: Vec::new() }),
+            tail_all: None,
             influences,
         })
     }
@@ -11769,6 +11806,7 @@ impl<'a> Closure<'a> {
                 contained_parent,
                 parent_edges,
             }),
+            tail_all: None,
             influences,
         })
     }
@@ -12746,6 +12784,7 @@ impl<'a> Closure<'a> {
                 contained_parent,
             }),
             count: None,
+            tail_all: None,
             influences,
         })
     }
@@ -12823,6 +12862,387 @@ impl<'a> Closure<'a> {
                     && canonical[import.provider.len() + 1..] == member.name
             })
         })
+    }
+
+    /// Finish the exact tail-`all()` query: pin the Receipt-sum derive body,
+    /// the parented preceding create, the single-set then branch, and
+    /// assemble the second DisclosureQuery with row-internal influences.
+    #[allow(clippy::too_many_arguments)]
+    fn checked_tail_all_query_finish(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        index: usize,
+        effect: &Effect,
+        cond: NodeKey,
+        domain: NodeKey,
+        predicate: NodeKey,
+        fact: &super::types::CheckedCollectionCall,
+        query: &CheckedQuery,
+        alias_node: NodeKey,
+        owner: &super::resolve::Symbol,
+        receiver: NodeKey,
+        parameter: SymbolId,
+        parent: SymbolId,
+        accepted: SymbolId,
+        ordered: SymbolId,
+    ) -> Option<DisclosureQuery> {
+        // The derive body is exactly `sum(row.Receipt as receipt
+        // select receipt.accepted)`: the transitive post-write visibility.
+        let derive = self.effects.derives.values().find(|derive| {
+            derive.derive == accepted && derive.model == Some(fact.model)
+        })?;
+        let sum_call = self.query_group(derive.expr?)?;
+        let sum_selected = self.types.selected_calls.get(&sum_call)?;
+        if !matches!(&sum_selected.target, SelectedCallTarget::Builtin { id, .. } if id == "sum")
+            || sum_selected.arguments.len() != 1
+        {
+        }
+        let sum_domain = self.query_group(sum_selected.arguments[0])?;
+        if self.nodes.get(&sum_domain)?.kind != SyntaxKind::Query {
+        }
+        // Derive-body sums carry no collection-call record (only
+        // any/all/count/first record one); resolve the child model by its
+        // pinned canonical identity and the query by its domain node.
+        let sum_model = self.resolve.symbols.iter().find(|symbol| {
+            symbol.canonical == "purchase.Receipt"
+        }).map(|symbol| symbol.id)?;
+        let sum_query = self.types.checked_queries.get(&sum_domain)?;
+        let [sum_alias, sum_select] = sum_query.clauses.as_slice() else {
+            return None;
+        };
+        if !matches!(&sum_alias.kind, CheckedQueryClauseKind::As { name } if name == "receipt")
+            || sum_select.kind != CheckedQueryClauseKind::Select
+            || sum_select.expressions.len() != 1
+        {
+        }
+        let (sum_receiver, sum_name) = self.count_member(sum_query.domain)?;
+        if sum_name != "Receipt" || self.word(self.nodes.get(&sum_receiver)?)? != "row" {
+        }
+        let receipt_owner = self.resolve.symbols.get(sum_model.0 as usize)?;
+        if receipt_owner.canonical != "purchase.Receipt" {
+        }
+        if !matches!(&receipt_owner.kind, SymbolKind::Model { owner: ModelOwner::ChildOf(line), .. } if *line == fact.model) {
+        }
+        let order_symbol = self.resolve.symbols.get(parent.0 as usize)?;
+        if order_symbol.canonical != "purchase.Order" {
+        }
+        let sum_member = self.query_group(sum_select.expressions[0])?;
+        let sum_field = self.query_member(sum_member, sum_alias.node, sum_model)?;
+        let sum_decl = self.resolve.symbols.get(sum_field.0 as usize)?;
+        if sum_decl.name != "accepted"
+            || !matches!(&sum_decl.kind, SymbolKind::Field { owner, .. } if *owner == sum_model)
+            || self.types.symbol_types.get(&sum_field)? != &ResolvedType::Scalar(Scalar::Int)
+        {
+        }
+        // Post-write anchor: a preceding Receipt create parented at `line`,
+        // so the new row falls inside the scanned parent scope.
+        let mut create_node = None;
+        for prior in &scenario.effects[..index] {
+            if prior.verb != EffectVerb::Create {
+                continue;
+            }
+            if !matches!(&prior.target, Some(EffectTarget::Model(model)) if *model == sum_model) {
+                continue;
+            }
+            let parented = prior.args.iter().any(|arg| {
+                arg.key == "parent"
+                    && arg.value.is_some_and(|value| {
+                        self.query_group(value).is_some_and(|grouped| {
+                            self.query_binding(grouped).is_some_and(|binding| {
+                                matches!(binding, Binding::Symbol(candidate) if *candidate == parameter)
+                            })
+                        })
+                    })
+            });
+            if parented {
+                create_node = Some(prior.node);
+            }
+        }
+        let create_node = create_node?;
+        // Then branch: exactly one set of `line.parent.state`.
+        let [then] = effect.then_effects.as_slice() else {
+            return None;
+        };
+        if then.verb != EffectVerb::Set
+            || !then.match_arms.is_empty()
+            || !then.else_effects.is_empty()
+            || !then.then_effects.is_empty()
+        {
+        }
+        if !matches!(&then.target, Some(EffectTarget::Record { model }) if *model == Some(parent)) {
+        }
+        if then.args.len() != 1 || then.args[0].key != "state" {
+        }
+        // The set writes exactly the `received` case of the Order state enum.
+        let state_field = self.effects.models.get(&parent)?.fields.iter().find(|field| {
+            self.resolve.symbols.get(field.field.0 as usize).is_some_and(|decl| decl.name == "state")
+        })?;
+        let state_ty = self.types.symbol_types.get(&state_field.field)?.clone();
+        if !matches!(&state_ty, ResolvedType::Enum { .. }) {
+        }
+        let value_node = then.args[0].value?;
+        if self.types.node_types.get(&value_node)? != &state_ty
+            || !self.types.resolved_cases.contains(&value_node)
+        {
+        }
+        let value_text = self.db.get(value_node.file)?;
+        if value_text.text.get(value_node.start as usize..value_node.end as usize) != Some("received") {
+        }
+        let id = self.opaque("query", domain, "").ok()?;
+        let source = self.source(scenario.module, domain).ok()?;
+        // Row-internal derive/stored reads carry no transported inputs: the
+        // dedicated post-write execution loads the complete Line domain with
+        // its Receipt sums and rechecks the exact pinned predicate itself.
+        // Dependencies stay empty so no generic consumer mints authority
+        // from this shape.
+        let influences = [
+            InfluenceKind::QueryExistence,
+            InfluenceKind::QueryCardinality,
+            InfluenceKind::QueryMembership,
+        ]
+        .into_iter()
+        .map(|kind| {
+            Some(DisclosureInfluence {
+                id: self
+                    .opaque("query-influence", domain, &format!("{id}:{kind:?}"))
+                    .ok()?,
+                source: source.clone(),
+                node: domain,
+                kind,
+                query_id: Some(id.clone()),
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+        let returned = scenario.effects.last()?;
+        Some(DisclosureQuery {
+            dependencies: Vec::new(),
+            id,
+            source,
+            node: domain,
+            domain: query.domain,
+            model: fact.model,
+            model_name: owner.canonical.clone(),
+            alias: Some(alias_node),
+            predicate: Some(predicate),
+            inputs: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            archived: false,
+            cardinality_guard: None,
+            return_node: returned.node,
+            projection: None,
+            first: None,
+            count: None,
+            tail_all: Some(DisclosureTailAll {
+                call: cond,
+                if_node: effect.node,
+                domain,
+                receiver,
+                parameter,
+                accepted_derive: accepted,
+                ordered_field: ordered,
+                create_node,
+            }),
+            influences,
+        })
+    }
+
+    /// Exact post-write tail `all()` over one-hop contained Lines with a
+    /// row-internal derive/stored equality. Pins the
+    /// `all(line.parent.Line as item, item.accepted==item.ordered)` shape:
+    /// builtin all/overload 0 with two bool-typed args, a bare-As contained
+    /// domain navigated once from the default-free `line` parameter, a
+    /// derive/stored equality whose derive body is exactly the
+    /// Receipt-accepted sum, a preceding Receipt create parented at `line`,
+    /// and a single-set then branch on `line.parent.state`.
+    fn checked_tail_all_query_source(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        index: usize,
+    ) -> Option<DisclosureQuery> {
+        if scenario.read || scenario.on.is_some() || scenario.cohort.is_some() {
+        }
+        let effect = scenario.effects.get(index)?;
+        if effect.verb != EffectVerb::If
+            || !effect.match_arms.is_empty()
+            || !effect.else_effects.is_empty()
+        {
+        }
+        let cond = self.query_group(effect.cond?)?;
+        if self.nodes.get(&cond)?.kind != SyntaxKind::Call {
+        }
+        let selected = self.types.selected_calls.get(&cond)?;
+        let SelectedCallTarget::Builtin { id, overload } = &selected.target else {
+            return None;
+        };
+        if id != "all" || *overload != 0 || selected.arguments.len() != 2
+            || selected.slots.as_slice() != [Some(0), Some(1)]
+            || self.types.node_types.get(&cond) != Some(&ResolvedType::Scalar(Scalar::Bool))
+        {
+        }
+        let domain = self.query_group(selected.arguments[0])?;
+        let predicate = self.query_group(selected.arguments[1])?;
+        if self.nodes.get(&domain)?.kind != SyntaxKind::Query {
+        }
+        let fact = self.types.checked_collection_calls.get(&cond)?;
+        if fact.node != cond || fact.builtin != "all" || fact.overload != 0 || fact.query != domain {
+        }
+        let query = self.types.checked_queries.get(&domain)?;
+        if query.node != domain {
+        }
+        let [alias] = query.clauses.as_slice() else {
+            return None;
+        };
+        if !matches!(&alias.kind, CheckedQueryClauseKind::As { name } if name == "item")
+            || !alias.expressions.is_empty()
+        {
+        }
+        let owner = self.resolve.symbols.get(fact.model.0 as usize)?;
+        if !matches!(&owner.kind, SymbolKind::Model { .. }) || owner.canonical != "purchase.Line" {
+        }
+        let scenario_symbol = self.resolve.symbols.get(scenario.scenario.0 as usize)?;
+        if scenario_symbol.canonical != "purchase.receive" {
+        }
+        let (receiver, name) = self.count_member(query.domain)?;
+        if name != "Line" {
+        }
+        let (base, field) = self.count_member(receiver)?;
+        if field != "parent" {
+        }
+        let parameter = self.query_parameter(scenario, base)?;
+        if self.resolve.symbols.get(parameter.0 as usize)?.name != "line" {
+        }
+        match self.types.symbol_types.get(&parameter)?.clone() {
+            ResolvedType::Record { symbol, stored: true } if symbol == fact.model => {}
+            _ => return None,
+        }
+        if scenario.params.iter().any(|param| param.param == parameter && param.default.is_some()) {
+        }
+        let (parent, hops) = self.checked_call_parent_path(receiver, parameter, 0)?;
+        let SymbolKind::Model { owner: ModelOwner::ChildOf(actual_parent), .. } = &owner.kind else {
+            return None;
+        };
+        if hops > 1
+            || *actual_parent != parent
+            || self.model_has_field(parent, name)
+            || self.effects.models.get(&fact.model)?.owner != ModelOwner::ChildOf(parent)
+            || !(self.original_reference_parameter(receiver, parameter)
+                || self.original_navigation_parameter(receiver, parameter))
+        {
+        }
+        let (left, right) = self.query_binary(predicate, "==")?;
+        let accepted = self.tail_all_derive_member(left, alias.node, fact.model, "accepted")?;
+        let ordered = self.tail_all_derive_member(right, alias.node, fact.model, "ordered")?;
+        if self.types.symbol_types.get(&accepted)? != &ResolvedType::Scalar(Scalar::Int)
+            || self.types.symbol_types.get(&ordered)? != &ResolvedType::Scalar(Scalar::Int)
+            || self.types.node_types.get(&left)? != &ResolvedType::Scalar(Scalar::Int)
+            || self.types.node_types.get(&right)? != &ResolvedType::Scalar(Scalar::Int)
+            || self.types.node_types.get(&predicate)? != &ResolvedType::Scalar(Scalar::Bool)
+        {
+        }
+        // The ordered derive body is exactly `row.quantity +
+        // sum(row.Amendment as amendment select amendment.quantity)`.
+        let ordered_derive = self.effects.derives.values().find(|derive| {
+            derive.derive == ordered && derive.model == Some(fact.model)
+        })?;
+        let ordered_body = self.query_group(ordered_derive.expr?)?;
+        let (quantity_member, amendment_sum) = self.query_binary(ordered_body, "+")?;
+        let (quantity_base, quantity_name) = self.count_member(quantity_member)?;
+        if quantity_name != "quantity" || self.word(self.nodes.get(&quantity_base)?)? != "row" {
+        }
+        if self.types.node_types.get(&quantity_member)? != &ResolvedType::Scalar(Scalar::Int) {
+        }
+        let amendment_call = self.query_group(amendment_sum)?;
+        let amendment_selected = self.types.selected_calls.get(&amendment_call)?;
+        if !matches!(&amendment_selected.target, SelectedCallTarget::Builtin { id, .. } if id == "sum")
+            || amendment_selected.arguments.len() != 1
+        {
+        }
+        let amendment_domain = self.query_group(amendment_selected.arguments[0])?;
+        if self.nodes.get(&amendment_domain)?.kind != SyntaxKind::Query {
+        }
+        // Derive-body sums carry no collection-call record; resolve by canonical.
+        let amendment_model = self.resolve.symbols.iter().find(|symbol| {
+            symbol.canonical == "purchase.Amendment"
+        }).map(|symbol| symbol.id)?;
+        let amendment_query = self.types.checked_queries.get(&amendment_domain)?;
+        let [amendment_alias, amendment_select] = amendment_query.clauses.as_slice() else {
+            return None;
+        };
+        if !matches!(&amendment_alias.kind, CheckedQueryClauseKind::As { name } if name == "amendment")
+            || amendment_select.kind != CheckedQueryClauseKind::Select
+            || amendment_select.expressions.len() != 1
+        {
+        }
+        let (amendment_receiver, amendment_name) = self.count_member(amendment_query.domain)?;
+        if amendment_name != "Amendment" || self.word(self.nodes.get(&amendment_receiver)?)? != "row" {
+        }
+        let amendment_model = self.resolve.symbols.iter().find(|symbol| {
+            symbol.canonical == "purchase.Amendment"
+        }).map(|symbol| symbol.id)?;
+        let amendment_owner = self.resolve.symbols.get(amendment_model.0 as usize)?;
+        if amendment_owner.canonical != "purchase.Amendment" {
+        }
+        if !matches!(&amendment_owner.kind, SymbolKind::Model { owner: ModelOwner::ChildOf(line), .. } if *line == fact.model) {
+        }
+        let amendment_member = self.query_group(amendment_select.expressions[0])?;
+        let amendment_field = self.query_member(amendment_member, amendment_alias.node, amendment_model)?;
+        let amendment_decl = self.resolve.symbols.get(amendment_field.0 as usize)?;
+        if amendment_decl.name != "quantity"
+            || !matches!(&amendment_decl.kind, SymbolKind::Field { owner, .. } if *owner == amendment_model)
+            || self.types.symbol_types.get(&amendment_field)? != &ResolvedType::Scalar(Scalar::Int)
+        {
+        }
+        Some(self.checked_tail_all_query_finish(
+            scenario, index, effect, cond, domain, predicate, fact, query,
+            alias.node, owner, receiver, parameter, parent, accepted, ordered,
+        )?)
+    }
+
+    /// Resolve an alias member to its owning DeriveField with declaration
+    /// coherence but WITHOUT body closure: the dedicated post-write
+    /// execution recomputes the exact pinned body itself instead of
+    /// evaluating it in a generic closure. Never use this for ordinary
+    /// viewer reads.
+    fn tail_all_derive_member(
+        &self,
+        key: NodeKey,
+        alias: NodeKey,
+        model: SymbolId,
+        name: &str,
+    ) -> Option<SymbolId> {
+        if self.query_member_name(key, alias, model)? != name {
+            return None;
+        }
+        let field = self.resolve.symbols.iter().find(|field| {
+            field.name == name
+                && matches!(&field.kind, SymbolKind::DeriveField { model: owner, .. } if *owner == model)
+        })?;
+        self.derived_member_body(field.id, model)?;
+        Some(field.id)
+    }
+
+    /// Tail-`if` post-write `all()` reads: at most one exact profile per owner.
+    fn checked_tail_all_query_sources(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<Vec<DisclosureQuery>> {
+        if scenario.read || scenario.on.is_some() || scenario.cohort.is_some() {
+            return Some(Vec::new());
+        }
+        let mut queries = Vec::new();
+        for (index, effect) in scenario.effects.iter().enumerate() {
+            if effect.verb != EffectVerb::If {
+                continue;
+            }
+            if let Some(query) = self.checked_tail_all_query_source(scenario, index) {
+                queries.push(query);
+            }
+            if queries.len() > 1 {
+                return None;
+            }
+        }
+        Some(queries)
     }
 
     fn query_group(&self, mut key: NodeKey) -> Option<NodeKey> {
@@ -20296,6 +20716,60 @@ impl<'a> Closure<'a> {
         }
         if let Some(paths) = self.call_transcript_derive(key, module, env, calls, &selected)? {
             return Ok(Some(paths));
+        }
+        if let Some(paths) = self.call_tail_all_builtin(key, module, calls, &selected)? {
+            return Ok(Some(paths));
+        }
+        Ok(None)
+    }
+
+    /// One post-write tail `all()` call: the exact pinned tail-all query
+    /// record owns this occurrence. Any other `all()` keeps the ordinary
+    /// closure refusal below.
+    fn call_tail_all_builtin(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+        calls: &[NodeKey],
+        selected: &super::types::SelectedCall,
+    ) -> Result<Option<Vec<ValuePath>>, DisclosureDecline> {
+        if matches!(&selected.target, SelectedCallTarget::Builtin { id, .. } if id == "all") {
+        }
+        if calls.is_empty()
+            && self.statement_depth == 1
+            && matches!(&selected.target, SelectedCallTarget::Builtin { id, overload }
+                if id == "all" && *overload == 0)
+        {
+            let scenario = self.effects.scenarios.values().find(|scenario| {
+                scenario.module == module
+                    && scenario.node.file == key.file
+                    && scenario.node.start <= key.start
+                    && key.end <= scenario.node.end
+            });
+            if let Some(scenario) = scenario {
+                for (dbg_index, dbg_effect) in scenario.effects.iter().enumerate() {
+                    if dbg_effect.verb == EffectVerb::If {
+                    }
+                }
+                for (index, effect) in scenario.effects.iter().enumerate() {
+                    if effect.verb != EffectVerb::If {
+                        continue;
+                    }
+                    let Some(cond) = effect.cond else {
+                        continue;
+                    };
+                    if self.query_group(cond) != Some(key) {
+                        continue;
+                    }
+                    if let Some(query) = self.checked_tail_all_query_source(scenario, index) {
+                        return Ok(Some(vec![ValuePath {
+                            influences: query.influences.clone(),
+                            ..ValuePath::default()
+                        }]));
+                    } else {
+                    }
+                }
+            }
         }
         Ok(None)
     }
