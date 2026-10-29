@@ -73,7 +73,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: "24.22.2"
+          check-latest: true
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.4"
@@ -94,7 +95,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: "24.22.2"
+          check-latest: true
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.4"
@@ -134,10 +136,11 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           name: ${{ matrix.compiler }}
-          path: output/compiler-release
+          path: compiler/target/release
       - uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: "24.22.2"
+          check-latest: true
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.4"
@@ -152,11 +155,11 @@ jobs:
           bun install --production --ignore-scripts --frozen-lockfile --cwd output/install-tools
       - name: Assemble and qualify the standalone archive
         run: |
-          chmod +x output/compiler-release/can output/compiler-release/can-dev
-          node scripts/pack-install.mjs --compiler output/compiler-release/can --dev-server output/compiler-release/can-dev
+          chmod +x compiler/target/release/can compiler/target/release/can-dev
+          node scripts/pack-install.mjs --compiler compiler/target/release/can --dev-server compiler/target/release/can-dev
           node scripts/verify-install.mjs
       - name: Assemble offline SodaOS tools
-        run: node scripts/pack-tools.mjs --compiler output/compiler-release/can --dev-server output/compiler-release/can-dev --bun-license scripts/distribution/bun-LICENSE.md
+        run: node scripts/pack-tools.mjs --compiler compiler/target/release/can --dev-server compiler/target/release/can-dev --bun-license scripts/distribution/bun-LICENSE.md
       - name: Verify the direct workerd runtime
         run: node scripts/verify-soda-direct.mjs --state "$RUNNER_TEMP/can-soda-direct"
       - uses: actions/upload-artifact@v7
@@ -195,7 +198,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: "24.22.2"
+          check-latest: true
       - uses: actions/download-artifact@v8
         with:
           name: can-install-linux-x64
