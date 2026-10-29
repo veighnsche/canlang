@@ -261,3 +261,107 @@ fn generated_runtime_currency_uses_current_status_without_pinning_analysis_compi
         &no_cancel()
     ));
 }
+
+#[test]
+fn provider_generations_union_into_staged_closure() {
+    let (root, mut request) = fixture();
+    let app_dir = root.path().join("draft/apps/Demo");
+    let prov_dir = root.path().join("draft/shared");
+    fs::create_dir_all(app_dir.join("can.generated/u1")).unwrap();
+    fs::create_dir_all(prov_dir.join("can.generated/u2")).unwrap();
+    fs::write(
+        app_dir.join("app.can"),
+        "app Demo\nuse Prov {X}\n## $\"app prompt\"\n",
+    )
+    .unwrap();
+    fs::write(
+        prov_dir.join("prov.can"),
+        "package Prov\n## $\"prov prompt\"\n",
+    )
+    .unwrap();
+    fs::write(app_dir.join("can.generated/u1/unit.json"), "{}").unwrap();
+    fs::write(
+        app_dir.join("can.generated/u1/style.css"),
+        ":host { color: red; }",
+    )
+    .unwrap();
+    fs::write(prov_dir.join("can.generated/u2/unit.json"), "{}").unwrap();
+    fs::write(
+        prov_dir.join("can.generated/u2/style.css"),
+        ":host { color: blue; }",
+    )
+    .unwrap();
+    fs::write(
+        prov_dir.join("can.generated/u2/contributions.can"),
+        "package Prov\n",
+    )
+    .unwrap();
+    let app_hash = hash(&fs::read(app_dir.join("app.can")).unwrap());
+    let app_unit = hash(&fs::read(app_dir.join("can.generated/u1/unit.json")).unwrap());
+    let app_css = hash(&fs::read(app_dir.join("can.generated/u1/style.css")).unwrap());
+    let prov_hash = hash(&fs::read(prov_dir.join("prov.can")).unwrap());
+    let prov_unit = hash(&fs::read(prov_dir.join("can.generated/u2/unit.json")).unwrap());
+    let prov_css = hash(&fs::read(prov_dir.join("can.generated/u2/style.css")).unwrap());
+    let prov_carrier =
+        hash(&fs::read(prov_dir.join("can.generated/u2/contributions.can")).unwrap());
+    let app_report = serde_json::json!({"ok":true,"units":[{
+        "id":"u1","association":"current",
+        "current_files":[
+            {"path":"app.can","sha256":app_hash},
+            {"path":"can.generated/u1/unit.json","sha256":app_unit},
+            {"path":"can.generated/u1/style.css","sha256":app_css}],
+        "compiler_sources":["app.can"]}]});
+    let prov_report = serde_json::json!({"ok":true,"units":[{
+        "id":"u2","association":"current",
+        "current_files":[
+            {"path":"prov.can","sha256":prov_hash},
+            {"path":"can.generated/u2/unit.json","sha256":prov_unit},
+            {"path":"can.generated/u2/style.css","sha256":prov_css},
+            {"path":"can.generated/u2/contributions.can","sha256":prov_carrier}],
+        "compiler_sources":["prov.can","can.generated/u2/contributions.can"]}]});
+    let compiler = format!(
+        "#!/bin/sh\ntest \"$1\" = gen || exit 7\ntest \"$CAN_GENERATION_COMPILER_ONLY\" = 1 || exit 7\nreq=$(cat)\ncase \"$req\" in\n*apps/Demo*) printf '%s' '{app_report}' ;;\n*) printf '%s' '{prov_report}' ;;\nesac\n"
+    );
+    fs::write(root.path().join("compiler"), &compiler).unwrap();
+    request.app_path = "draft/apps/Demo/app.can".into();
+    request.input_inventory = Some("installed-local-preview".into());
+    let inventory = Inventory {
+        package_input_paths: request.package_input_paths.clone(),
+        extra_input_paths: Vec::new(),
+    };
+    let captured = capture(&request, &|| Ok(inventory.clone()), &no_cancel()).unwrap();
+    let closure = captured.generated_closure.as_ref().unwrap();
+    let staged: Vec<_> = closure.files.iter().map(|f| f.path.as_str()).collect();
+    assert!(
+        staged.contains(&"draft/apps/Demo/can.generated/u1/style.css"),
+        "{staged:?}"
+    );
+    assert!(
+        staged.contains(&"draft/shared/can.generated/u2/style.css"),
+        "{staged:?}"
+    );
+    assert!(
+        staged.contains(&"draft/shared/can.generated/u2/contributions.can"),
+        "{staged:?}"
+    );
+    assert_eq!(closure.provider_sources.len(), 1);
+    assert_eq!(
+        closure.provider_sources[0].key,
+        "can.generated/u2/contributions.can"
+    );
+    assert_eq!(
+        closure.provider_sources[0].physical,
+        "draft/shared/can.generated/u2/contributions.can"
+    );
+    let snapshot = captured.source_snapshot.as_ref().unwrap();
+    assert!(snapshot.iter().any(
+        |s| s.path == "draft/shared/can.generated/u2/contributions.can" && s.sha256 == prov_carrier
+    ));
+    // Membership: operand + provider + the synthetic carrier source.
+    let report = serde_json::json!({"sources": [
+        {"path": "draft/apps/Demo/app.can", "sha256": app_hash},
+        {"path": "draft/shared/prov.can", "sha256": prov_hash},
+        {"path": "can.generated/u2/contributions.can", "sha256": prov_carrier},
+    ]});
+    verify_compiler_sources(&captured, &report, true).unwrap();
+}

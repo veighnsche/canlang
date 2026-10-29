@@ -62,6 +62,18 @@ pub struct GeneratedClosure {
     pub root: String,
     pub files: Vec<GeneratedFile>,
     pub compiler_sources: Vec<String>,
+    /// Compiler sources contributed by provider appdirs: `key` is the
+    /// compiler-reported path (e.g. a trait `can.generated/<id>/...`
+    /// carrier, which carries no app prefix), `physical` is the staged
+    /// repo-relative path the bytes were snapshotted from. Provider `.can`
+    /// files are intentionally absent: the provider snapshot covers them.
+    #[serde(default)]
+    pub provider_sources: Vec<ProviderCompilerSource>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProviderCompilerSource {
+    pub key: String,
+    pub physical: String,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GeneratedFile {
@@ -560,10 +572,10 @@ pub fn capture_with_phases(
         let (name, path) = &paths[index];
         read_input(&captured.root, name.clone(), path.clone(), cancel)
     })?;
-    phase("capturing_generated_inputs");
-    capture_generated(&mut captured, cancel)?;
     phase("capturing_provider_closure");
     capture_provider_closure(&mut captured, cancel)?;
+    phase("capturing_generated_inputs");
+    capture_generated(&mut captured, cancel)?;
     captured.source_revision = digest(&{
         let mut parts = vec![
             "can.dev.source-set.v1".into(),
@@ -648,7 +660,7 @@ fn generated_marker(source: &str) -> bool {
         .any(|p| p[0] == b'$' && (p[1] == b'"' || p[1] == b'_' || p[1].is_ascii_alphabetic()))
 }
 fn capture_generated(capture: &mut Capture, cancel: &AtomicBool) -> Result<()> {
-    if capture.input_inventory.is_none() || !generated_marker(&capture.source_text) {
+    if capture.input_inventory.is_none() || !generated_marker_needed(capture) {
         return Ok(());
     }
     let closure = discover_generated(capture, cancel)?;
@@ -1097,6 +1109,41 @@ fn discover_current_generated(capture: &Capture, cancel: &AtomicBool) -> Result<
     let compiler = stable_read(path, true, 1024 * 1024 * 1024, cancel)?;
     discover_with_compiler(capture, cancel, &compiler.bytes)
 }
+/// Providers grouped by parent directory (absolute), each file paired with
+/// whether its bytes carry a generation marker. Sorted by directory for
+/// deterministic rediscovery.
+fn provider_source_dirs(capture: &Capture) -> Result<BTreeMap<PathBuf, Vec<(String, bool)>>> {
+    let mut by_dir: BTreeMap<PathBuf, Vec<(String, bool)>> = BTreeMap::new();
+    let Some(providers) = &capture.provider_snapshot else {
+        return Ok(by_dir);
+    };
+    for provider in providers {
+        let abs = absolute(Path::new(&capture.root), &provider.snapshot.path);
+        let dir = abs
+            .parent()
+            .ok_or("provider source has no parent")?
+            .to_path_buf();
+        let marker = generated_marker(&String::from_utf8_lossy(&provider.snapshot.bytes.data));
+        by_dir.entry(dir).or_default().push((text(&abs)?, marker));
+    }
+    for files in by_dir.values_mut() {
+        files.sort();
+    }
+    Ok(by_dir)
+}
+
+fn generated_marker_needed(capture: &Capture) -> bool {
+    if generated_marker(&capture.source_text) {
+        return true;
+    }
+    let Ok(dirs) = provider_source_dirs(capture) else {
+        return true;
+    };
+    dirs.values()
+        .flat_map(|files| files.iter().map(|(_, marker)| *marker))
+        .any(|marker| marker)
+}
+
 fn discover_with_compiler(
     capture: &Capture,
     cancel: &AtomicBool,
@@ -1105,12 +1152,58 @@ fn discover_with_compiler(
     let staging = tempfile::tempdir().map_err(|e| e.to_string())?;
     let executable = staging.path().join("can");
     crate::compiler::write_executable(&executable, compiler)?;
-    let project = Path::new(&capture.app_path)
+    let app_project = Path::new(&capture.app_path)
         .parent()
-        .ok_or("app has no parent")?;
-    let request = serde_json::json!({"version":1,"request_id":format!("dev-capture-{}",std::process::id()),"operation":"status","root":project,"files":[capture.app_path]});
+        .ok_or("app has no parent")?
+        .to_path_buf();
+    let mut by_dir = provider_source_dirs(capture)?;
+    // Same-directory providers ride the app discovery call: their units
+    // associate against the same project root.
+    let mut app_files = vec![capture.app_path.clone()];
+    if let Some(same) = by_dir.remove(&app_project) {
+        app_files.extend(same.into_iter().map(|(path, _)| path));
+    }
+    app_files.sort();
+    let mut closure = discover_dir(capture, cancel, &executable, &app_project, &app_files)?;
+    // Provider `.can` entries are covered by the provider snapshot in
+    // membership; only carrier entries need provider-source records.
+    let provider_paths: BTreeSet<String> = capture
+        .provider_snapshot
+        .iter()
+        .flatten()
+        .map(|p| p.snapshot.path.clone())
+        .collect();
+    closure.compiler_sources.retain(|entry| {
+        entry == &capture.compiler_operand
+            || !provider_paths.contains(
+                &relative_path(Path::new(&capture.root), &absolute(&app_project, entry))
+                    .unwrap_or_default(),
+            )
+    });
+    for (dir, files) in &by_dir {
+        if !files.iter().any(|(_, marker)| *marker) {
+            continue;
+        }
+        let paths: Vec<String> = files.iter().map(|(path, _)| path.clone()).collect();
+        let extra = discover_dir(capture, cancel, &executable, dir, &paths)?;
+        merge_provider_closure(capture, &mut closure, dir, extra, &provider_paths)?;
+    }
+    closure.files.sort_by(|a, b| a.path.cmp(&b.path));
+    closure.compiler_sources.sort();
+    closure.provider_sources.sort_by(|a, b| a.key.cmp(&b.key));
+    Ok(closure)
+}
+
+fn discover_dir(
+    capture: &Capture,
+    cancel: &AtomicBool,
+    executable: &Path,
+    project: &Path,
+    files: &[String],
+) -> Result<GeneratedClosure> {
+    let request = serde_json::json!({"version":1,"request_id":format!("dev-capture-{}",std::process::id()),"operation":"status","root":project,"files":files});
     let run = crate::compiler::run_owned(
-        &executable,
+        executable,
         &["gen".into()],
         Path::new(&capture.root),
         &[("CAN_GENERATION_COMPILER_ONLY", "1")],
@@ -1128,6 +1221,50 @@ fn discover_with_compiler(
         return Err("saved generation discovery refused".into());
     }
     closure_from_report(capture, project, report)
+}
+
+/// Union one provider directory's closure into the app closure. File paths
+/// are repo-relative so appdirs cannot collide; a same-path hash conflict
+/// refuses. Compiler sources naming provider `.can` files are dropped
+/// (the provider snapshot covers them in membership); carrier entries
+/// become explicit provider sources keyed by compiler-reported path.
+fn merge_provider_closure(
+    capture: &Capture,
+    closure: &mut GeneratedClosure,
+    project: &Path,
+    extra: GeneratedClosure,
+    provider_paths: &BTreeSet<String>,
+) -> Result<()> {
+    for file in extra.files {
+        if let Some(old) = closure.files.iter().find(|f| f.path == file.path) {
+            if old.sha256 != file.sha256 {
+                return Err("conflicting saved generation inputs".into());
+            }
+            continue;
+        }
+        closure.files.push(file);
+    }
+    for entry in extra.compiler_sources {
+        let physical = relative_path(Path::new(&capture.root), &absolute(project, &entry))?;
+        if provider_paths.contains(&physical) {
+            continue;
+        }
+        let physical_abs = absolute(Path::new(&capture.root), &physical);
+        if !physical_abs.starts_with(project) {
+            return Err("provider compiler source escapes its project".into());
+        }
+        if let Some(old) = closure.provider_sources.iter().find(|s| s.key == entry) {
+            if old.physical != physical {
+                return Err("conflicting provider compiler source".into());
+            }
+            continue;
+        }
+        closure.provider_sources.push(ProviderCompilerSource {
+            key: entry,
+            physical,
+        });
+    }
+    Ok(())
 }
 fn relative_path(root: &Path, path: &Path) -> Result<String> {
     let base: Vec<_> = root.components().collect();
@@ -1196,6 +1333,7 @@ fn closure_from_report(
             .map(|(path, sha256)| GeneratedFile { path, sha256 })
             .collect(),
         compiler_sources: sources.into_iter().collect(),
+        provider_sources: Vec::new(),
     })
 }
 pub(crate) fn validate_relative(path: &str) -> Result<()> {
@@ -1223,21 +1361,42 @@ pub(crate) fn snapshot_generated(
 ) -> Result<Vec<SourceSnapshot>> {
     let mut paths: BTreeSet<_> = closure.files.iter().map(|f| f.path.clone()).collect();
     paths.insert(capture.compiler_operand.clone());
-    let project = Path::new(&closure.root);
-    let relative: Vec<_> = paths
-        .iter()
-        .map(|p| relative_path(project, &absolute(&capture.root, p)))
-        .collect::<Result<_>>()?;
-    let _leases = ReadLeases::acquire(project, &relative)?;
-    refuse_unresolved_journals(project)?;
+    // Lease every project dir containing staged files: the app project
+    // plus any provider dir with union files. Nested projects lease each
+    // containing level so no writer journal or lock scope is missed; a
+    // file under no project refuses instead of locking sideways.
+    let root = Path::new(&capture.root);
+    let mut candidates: BTreeSet<PathBuf> = BTreeSet::from([PathBuf::from(&closure.root)]);
+    for dir in provider_source_dirs(capture)?.keys() {
+        candidates.insert(dir.clone());
+    }
+    let mut grouped: BTreeMap<PathBuf, Vec<&String>> = BTreeMap::new();
+    for path in &paths {
+        let abs = absolute(root, path);
+        let owners: Vec<PathBuf> = candidates
+            .iter()
+            .filter(|dir| abs.starts_with(dir))
+            .cloned()
+            .collect();
+        if owners.is_empty() {
+            return Err("saved generation input escapes projects".into());
+        }
+        for owner in owners {
+            grouped.entry(owner).or_default().push(path);
+        }
+    }
+    let mut held = Vec::new();
+    for (project, group) in &grouped {
+        let relative: Vec<_> = group
+            .iter()
+            .map(|p| relative_path(project, &absolute(root, p)))
+            .collect::<Result<_>>()?;
+        held.push(ReadLeases::acquire(project, &relative)?);
+        refuse_unresolved_journals(project)?;
+    }
     let mut snapshot = Vec::new();
     for path in paths {
-        let read = stable_read(
-            &text(absolute(&capture.root, &path))?,
-            true,
-            u32::MAX as u64,
-            cancel,
-        )?;
+        let read = stable_read(&text(absolute(root, &path))?, true, u32::MAX as u64, cancel)?;
         if closure
             .files
             .iter()
@@ -1255,7 +1414,9 @@ pub(crate) fn snapshot_generated(
             },
         });
     }
-    _leases.release()?;
+    for leases in held {
+        leases.release()?;
+    }
     Ok(snapshot)
 }
 fn refuse_unresolved_journals(project: &Path) -> Result<()> {
@@ -1397,6 +1558,20 @@ pub fn verify_compiler_sources(
                 .and_then(|i| i.sha256.clone())
                 .ok_or("source_membership_mismatch")?;
             expected.insert(path.clone(), hash);
+        }
+        for source in &closure.provider_sources {
+            let hash = capture
+                .inputs
+                .iter()
+                .find(|i| i.name == format!("generated:{}", source.physical))
+                .and_then(|i| i.sha256.clone())
+                .ok_or("source_membership_mismatch")?;
+            if expected
+                .insert(source.key.clone(), hash)
+                .is_some_and(|old| old != expected[&source.key])
+            {
+                return Err("source_membership_mismatch".into());
+            }
         }
     }
     if let Some(providers) = &capture.provider_snapshot {
