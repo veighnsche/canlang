@@ -6608,6 +6608,74 @@ fn original_shift_nested_first_retains_checked_public_and_private_consumers() {
     let (db, program, _, catalog) = fixture_source("shift-assign-original.can", source);
     let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    for mode in [
+        "cohort-owner",
+        "cohort-fields",
+        "cohort-binding",
+        "event-schema",
+    ] {
+        let (db, mut changed, _, catalog) = fixture_source("shift-review-counterfeit.can", source);
+        let swap = changed
+            .symbols
+            .iter()
+            .find(|item| item.canonical == "shift.Swap")
+            .unwrap()
+            .id;
+        let review = changed
+            .symbols
+            .iter()
+            .find(|item| item.canonical == "shift.review_swap")
+            .unwrap()
+            .id;
+        let event = changed
+            .symbols
+            .iter()
+            .find(|item| item.canonical == "shift.EligibilityReview")
+            .unwrap()
+            .id;
+        match mode {
+            "cohort-owner" | "cohort-fields" => {
+                let canlang_compiler::analysis::resolve::SymbolKind::Model {
+                    owner, fields, ..
+                } = &mut changed.symbols[swap.0 as usize].kind
+                else {
+                    panic!("cohort Model");
+                };
+                if mode == "cohort-owner" {
+                    *owner = canlang_compiler::analysis::resolve::ModelOwner::App;
+                } else {
+                    fields.reverse();
+                }
+            }
+            "cohort-binding" => {
+                changed
+                    .effects
+                    .scenarios
+                    .get_mut(&review)
+                    .unwrap()
+                    .cohort
+                    .as_mut()
+                    .unwrap()
+                    .bind = Some("borrowed".into())
+            }
+            "event-schema" => {
+                let canlang_compiler::analysis::resolve::SymbolKind::Event { fields } =
+                    &mut changed.symbols[event.0 as usize].kind
+                else {
+                    panic!("source Event");
+                };
+                fields.reverse();
+            }
+            _ => unreachable!(),
+        }
+        let (_, diagnostics) = prepared_artifact(&changed, &db, &catalog);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"),
+            "{mode}: {diagnostics:?}"
+        );
+    }
     for(mode,changed)in [
   ("exported",source.replace("  derive previous_work(","  export derive previous_work(")),
   ("ordinary-tail",source.replace("    create Commitment {parent=roster", "    let selected=previous_work(roster,employee,from,null)\n    create Commitment {parent=roster")),

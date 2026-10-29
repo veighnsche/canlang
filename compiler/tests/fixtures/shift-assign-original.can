@@ -74,10 +74,21 @@ package shift
   derive next_work(roster:Roster,employee:Employee,until:datetime,skip:Commitment?):Commitment? = first(roster.Commitment as item where item!=skip and item.active and item.employee==employee and item.kind!=absence and until<=item.from order=item.from)
   derive travel_entered(roster:Roster,employee:Employee,location:Location,from:datetime,until:datetime,before:duration,after:duration,skip:Commitment?):bool = ((previous_work(roster,employee,from,skip)?.location??location)==location or before>0m or (previous_work(roster,employee,from,skip)?.after??0m)>0m) and ((next_work(roster,employee,until,skip)?.location??location)==location or after>0m or (next_work(roster,employee,until,skip)?.before??0m)>0m)
   lock Swap fields=substitute,original,revision
+  derive eligible(commitment:Commitment):bool = commitment.active and commitment.location.active and commitment.employee.active and can_work(commitment.employee.user,commitment.location) and (commitment.kind==absence or commitment.skill in commitment.employee.skills) and (commitment.kind==absence or (any(commitment.parent.Availability as window,window.employee==commitment.employee and window.available and window.from<=commitment.from-commitment.before and commitment.until+commitment.after<=window.until) and not any(commitment.parent.Availability as window,window.employee==commitment.employee and not window.available and overlaps(commitment.from-commitment.before,commitment.until+commitment.after,window.from,window.until))))
+  event EligibilityReview { employee:Employee?, location:text?, account:user?, roster:Roster? }
  When
   scenario assign(roster:Roster,employee:Employee,location:Location,from:datetime label=label_CommitmentRequest_from,until:datetime label=label_CommitmentRequest_until,role:text label=label_Duty_role,skill:text label=label_CommitmentRequest_skill,before:duration=0m label=label_CommitmentRequest_before,after:duration=0m label=label_CommitmentRequest_after) by=scheduler
    require location.active and can_work(actor,location) and can_work(employee.user,location) and employee.role==role and skill in employee.skills and from<until and before>=0m and after>=0m and fits(roster,employee,from,until,before,after,null) and travel_entered(roster,employee,location,from,until,before,after,null)
    do
     create Commitment {parent=roster,employee,location,from,until,before,after,skill,kind=duty,source=operation.id} as commitment
     create Duty {parent=commitment,role} as duty
+  scenario review_swap on=EligibilityReview each=Swap as swap
+   do
+    let commitment=swap.parent.parent
+    if swap.state==open and commitment.until>now and (event.employee==null or swap.original==event.employee or swap.substitute==event.employee) and (event.location==null or commitment.location.id==event.location) and (event.account==null or swap.original.user==event.account or swap.substitute.user==event.account) and (event.roster==null or commitment.parent==event.roster)
+     if not swap.parent.published or commitment.conflict or not eligible(commitment) or swap.original!=commitment.employee or commitment.version!=swap.revision or not can_work(swap.original.user,commitment.location) or not can_work(swap.substitute.user,commitment.location) or swap.original.role!=swap.parent.role or swap.substitute.role!=swap.parent.role or not (commitment.skill in swap.substitute.skills) or not fits(commitment.parent,swap.substitute,commitment.from,commitment.until,commitment.before,commitment.after,commitment) or not travel_entered(commitment.parent,swap.substitute,commitment.location,commitment.from,commitment.until,commitment.before,commitment.after,commitment)
+      set swap {state=obsolete}
+  scenario queue_review() by=scheduler
+   do emit EligibilityReview {employee=null,location=null,account=null,roster=null}
+
  Then

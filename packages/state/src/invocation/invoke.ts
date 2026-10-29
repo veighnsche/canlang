@@ -158,6 +158,89 @@ export function scenarioReceiptMemberships(call: AdmittedCall, store: StoragePor
 }
 const scenarioExecutionMemberships = new WeakMap<AdmittedCall, MembershipReader>();
 
+interface OwnerMembershipLedger {
+  readonly observations: Map<string, boolean>;
+  pending: boolean;
+  failed: boolean;
+  failure: unknown;
+}
+const ownerMembershipLedgers = new WeakMap<AdmittedCall, OwnerMembershipLedger>();
+
+/** Genuine trusted owner execution only. Source adapters still authenticate
+ * their original occurrence inventory; this capability supplies current facts
+ * and mandatory commit revalidation, never a receipt or DATA/query authority. */
+export function openTrustedOwnerMembershipObservation(call: AdmittedCall): {
+  readonly activeMember: (person: string) => Promise<boolean>;
+  readonly assertActive: () => void;
+  readonly close: () => void;
+} {
+  const store = scenarioExecutions.get(call)?.store;
+  if (store === undefined) throw new StateError('forbidden', 'Owner membership requires its actual active State invocation.');
+  assertScenarioReceiptExecution(call, store);
+  if (call.checkpoint === undefined || call.context.team === null || ownerMembershipLedgers.has(call)) {
+    throw new StateError('forbidden', 'Owner membership requires one actual admitted Team execution.');
+  }
+  assertOwnerReceiptAdmission(call, store, openFenceScope(call.revision, call.checkpoint.owner));
+  const team = call.context.team.teamId;
+  const reader = scenarioReceiptMemberships(call, store);
+  const ledger: OwnerMembershipLedger = { observations: new Map(), pending: false, failed: false, failure: undefined };
+  ownerMembershipLedgers.set(call, ledger);
+  let active = true;
+  const healthy = (): void => {
+    if (ledger.failed) throw ledger.failure;
+    assertScenarioReceiptExecution(call, store);
+    if (!active || ownerMembershipLedgers.get(call) !== ledger || call.context.team?.teamId !== team) {
+      throw new StateError('forbidden', 'Owner membership lost its exact live admitted execution.');
+    }
+  };
+  return Object.freeze({ assertActive: healthy, activeMember: async (person: string): Promise<boolean> => {
+    let acquired = false;
+    try {
+      healthy();
+      if (ledger.pending || typeof person !== 'string' || person.length === 0 || person.length > 4096 ||
+          !ledger.observations.has(person) && ledger.observations.size >= MAX_MEMBERSHIP_SNAPSHOT_USERS) {
+        throw new StateError('validation', 'Owner membership requires bounded sequential current person observations.');
+      }
+      ledger.pending = true; acquired = true;
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Owner membership checkpoint moved.');
+      healthy();
+      const fact = checkedMembershipFact(await reader.findMembership(team, person), team, person);
+      healthy();
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Owner membership read crossed its checkpoint.');
+      healthy();
+      const result = fact !== null && fact.status === 'active';
+      if (ledger.observations.has(person) && ledger.observations.get(person) !== result) {
+        throw new StateError(ledger.observations.get(person) === false ? 'conflict' : 'forbidden', 'Owner membership changed during its original source execution.');
+      }
+      ledger.observations.set(person, result);
+      return result;
+    } catch (error) {
+      if (!ledger.failed) { ledger.failed = true; ledger.failure = error; }
+      throw ledger.failure;
+    } finally { if (acquired) ledger.pending = false; }
+  }, close: () => { active = false; } });
+}
+
+function assertOwnerMembershipComplete(call: AdmittedCall): void {
+  const ledger = ownerMembershipLedgers.get(call);
+  if (ledger?.failed) throw ledger.failure;
+  if (ledger?.pending) throw new StateError('validation', 'Owner membership cannot outlive its awaited source execution.');
+}
+
+async function revalidateOwnerMembership(call: AdmittedCall, store: StoragePort, reader: MembershipReader): Promise<void> {
+  assertOwnerMembershipComplete(call);
+  const ledger = ownerMembershipLedgers.get(call);
+  if (ledger === undefined) return;
+  const team = call.context.team?.teamId;
+  if (team === undefined) throw new StateError('forbidden', 'Owner membership lost its original Team.');
+  for (const [person, expected] of ledger.observations) {
+    if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Owner membership moved before commit.');
+    const fact = checkedMembershipFact(await reader.findMembership(team, person), team, person);
+    if ((fact !== null && fact.status === 'active') !== expected) throw new StateError(expected ? 'forbidden' : 'conflict', 'Owner membership changed before commit.');
+    if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Owner membership recheck crossed its checkpoint.');
+  }
+}
+
 /** Internal receipt join assertion; checking cannot activate an execution. */
 export function assertOwnerReceiptExecution(
   call: AdmittedCall, store: StoragePort, fence: FenceScope,
@@ -327,6 +410,8 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
           inputHash: call.inputHash });
         beginScenarioReceiptExecution(call, input.store);
         raw = await input.execute(call);
+        if (ownerMembershipLedgers.has(call)) assertScenarioReceiptExecution(call, input.store);
+        assertOwnerMembershipComplete(call);
         if (isGeneratedOperationDef(def) && (def.descriptor.result?.disclosure !== undefined || hasScenarioExecutionPlan(def))) {
           assertScenarioReceiptExecution(call, input.store);
         }
@@ -448,6 +533,7 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
           ...(effects.readings !== undefined ? { readings: effects.readings } : {}),
         });
         await revalidateScenarioReceiptCalls(call);
+        await revalidateOwnerMembership(call, input.store, input.memberships);
       } catch (fenceError) {
         if (fenceError instanceof StateError && fenceError.code === 'conflict') {
           continue;

@@ -1089,7 +1089,7 @@ pub(super) fn owner_handler_queries(
         effects,
         event_source: Some(IrEventSource::Declared(_) | IrEventSource::Every { .. }),
         hook: None,
-        cohort: None,
+        cohort,
         ..
     } = &owner.kind
     else {
@@ -1119,7 +1119,24 @@ pub(super) fn owner_handler_queries(
     if !mutation(effects) {
         return None;
     }
-    context.same_scenario(context.ir(), owner)
+    if cohort.is_some() {
+        let IrItemKind::Scenario {
+            event_source: Some(IrEventSource::Declared(event)),
+            ..
+        } = &owner.kind
+        else {
+            return None;
+        };
+        context.same_event_schema(event)?;
+        super::source_correspondence::same_private_handler_semantics(
+            context.original(),
+            context.ir(),
+            context.fresh(),
+            owner,
+        )
+    } else {
+        context.same_scenario(context.ir(), owner)
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize)]

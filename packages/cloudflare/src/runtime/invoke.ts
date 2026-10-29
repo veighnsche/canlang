@@ -149,6 +149,7 @@ import { bindNativeDispatchMembership, openNativeDispatchMembershipFrame, bindNa
   bindNativeEventDecisionRole, bindNativeLeaveRequestRole, bindNativeReferRejectRole,
   bindNativeRentMovementRefundRole, bindNativeInvoiceCollectRole, bindNativeInvoiceIssueRole,
   hasNativeOwnerMembership, openNativeOwnerMembershipFrame, openNativeReadMembershipFrame,
+  bindNativeTrustedOwnerMembership, hasNativeTrustedOwnerMembership, openNativeTrustedOwnerMembershipFrame,
   type NativeMembershipFrame } from './native-membership.js';
 import type { ScenarioReceiptMembershipSite, ScenarioReceiptRequireSource } from '@canlang/state/invocation';
 import type { CanonicalFileBinding, FileAttachment, FileStagingCensus } from './file-staging.js';
@@ -14789,6 +14790,12 @@ async function runScenarioExecution(
       throw failure;
     }
   };
+  if (scenarioDef !== undefined && hasNativeTrustedOwnerMembership(scenarioDef)) {
+    if (!trustedOwnerReads || cohort === undefined || child !== undefined || hasExecutionFrame || receiptStore === undefined) {
+      return refuseRecordBinding('Private membership requires its actual receipt-free admitted Model cohort execution.');
+    }
+    nativeMembershipFrame = openNativeTrustedOwnerMembershipFrame(ctx, call as AdmittedCall, receiptStore, recordEngineFailure);
+  }
   if (scenarioDef !== undefined && hasNativeOwnerMembership(scenarioDef)) {
     if (!hasExecutionFrame || receiptStore === undefined) return refuseRecordBinding('Membership requires its original active State receipt owner.');
     nativeMembershipFrame = openNativeOwnerMembershipFrame(ctx, call as AdmittedCall, receiptStore, recordEngineFailure);
@@ -17880,6 +17887,13 @@ async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOp
   const identity = await resolvePrivateSourceOwner(opts.identities, selectedSource.scope, opts.now());
   const declaredSource = committed !== undefined && committed.result.kind === 'declared-event-source';
   const trustedSource = `${committed === undefined ? 'schedule' : completion ? 'completion' : declaredSource ? 'event' : 'committed'}:${source.event}`;
+  const membershipSites = (loaded.membershipSources.get(def.name) ?? []).filter(site =>
+    site.stage !== 'read-policy' && site.stage !== 'read-predicate' && site.stage !== 'send-dispatch');
+  if (membershipSites.some(site => site.calls.some(call => call.target.kind === 'builtin' && call.target.id === 'active_member'))) {
+    const app = await checkedPrivateMembershipOwner(opts.asm, opts.artifact, def.name, membershipSites);
+    if (app !== opts.app || declared.cohort.kind !== 'model') throw new AssemblyCorrespondenceError('Private membership requires its exact installed Model cohort owner.');
+    bindNativeTrustedOwnerMembership(def, { source: membershipSites[0]!.source, sites: membershipSites });
+  }
   const privateLoaded = { ...loaded, registry: privateDescriptors.registry };
   const committedSourceStage = await canonicalCommittedSourceStage(privateLoaded);
   const guards = await loadProducerModule('@canlang/state/effects/guards', 'private child require');
@@ -25484,7 +25498,7 @@ interface PrivateFanoutReads {
   readonly advance: (revision: Revision) => void;
 }
 
-async function openPrivateFanoutReads(store: StoragePort): Promise<PrivateFanoutReads> {
+async function openPrivateFanoutReads(store: StoragePort, admittedRevision?: Revision): Promise<PrivateFanoutReads> {
   // Pin the actual owner methods; no wrapper may replace the physical issuer.
   const load = store.cohortLoad;
   const page = store.cohortRowPage;
@@ -25498,7 +25512,7 @@ async function openPrivateFanoutReads(store: StoragePort): Promise<PrivateFanout
     typeof import('@canlang/state/fanout/membership').readPrivateFanoutChildRow;
   const readCheckpoint = requireProducerFn(membership, 'readPrivateFanoutCheckpointRow', 'private retained fanout') as
     typeof import('@canlang/state/fanout/membership').readPrivateFanoutCheckpointRow;
-  let revision = await store.readRevision();
+  let revision = admittedRevision ?? await store.readRevision();
   return {
     readIntent, readChild, readCheckpoint,
     load: (model, id) => load.call(store, { model, id, expectedRevision: revision }),
@@ -26239,8 +26253,9 @@ async function driveFanoutTurnChild(input: {
   readonly producers: FanoutStateProducers;
   readonly reads?: PrivateFanoutReads;
 }): Promise<FanoutTurnDrivenChild> {
-  const { store, childRow, cohort, producers, policy, meta, reads } = input;
-  const load = reads?.load ?? ((model: ModelName, id: RecordId) => store.load(model, id));
+  const { store, childRow, cohort, producers, policy, meta } = input;
+  let reads = input.reads;
+  const load = (model: ModelName, id: RecordId) => reads === undefined ? store.load(model, id) : reads.load(model, id);
   const data = (reads?.readChild ?? producers.tables.readFanoutChildRow)(childRow);
   const child: FanoutChildId = {
     parentOccurrence: data.parentOccurrence,
@@ -26399,6 +26414,9 @@ async function driveFanoutTurnChild(input: {
     throw new Error("t34-f7: turn needs a non-empty attempt operationId per executed child.");
   }
   const claimedRow = claim.row;
+  const originalIntent = reads === undefined ? null : await load(T34F7_FANOUT_INTENT_MODEL, data.fanoutId as RecordId);
+  if (reads !== undefined && originalIntent === null) throw new FanoutClaimChanged('The claimed child lost its retained intent.');
+  const originalIntentData = originalIntent === null ? null : stableStringify(reads!.readIntent(originalIntent));
   const claimChangedResult = (): FanoutTurnDrivenChild => ({ childId: data.childId,
     recordId: data.recordId, status: 'retry', detail: 'claim-changed' });
   const requireWinningClaim = async (): Promise<StoredRow> => {
@@ -26429,15 +26447,31 @@ async function driveFanoutTurnChild(input: {
     }
     const result = await store.commit(batch);
     reads?.advance(result.revision);
+    if (reads !== input.reads) input.reads?.advance(result.revision);
     return result;
   } };
   const occurrenceIds: string[] = [];
   const execute = async (call: FanoutAdmittedCall): Promise<CanonicalExecutionEffects> => {
-    await requireWinningClaim();
-    commitGuards = [];
     if (!isUnknownRecord(call) || !Array.isArray(call.recordRefs)) {
       throw new Error("t34-f7: turn: execution needs admitted record refs.");
     }
+    if (reads !== undefined) {
+      if (call.revision === undefined || !Number.isSafeInteger(call.revision) || call.revision < reads.revision() ||
+          call.checkpoint?.revision !== call.revision || call.checkpoint.owner !== claimFence.owner) {
+        throw new FanoutClaimChanged('The private child lacks its fresh State-admitted owner checkpoint.');
+      }
+      // A retry owns a new admitted snapshot. Reissue physical reads instead
+      // of crediting any earlier row observation to the newer revision.
+      const fresh = await openPrivateFanoutReads(store, call.revision);
+      const intent = await fresh.load(T34F7_FANOUT_INTENT_MODEL, data.fanoutId as RecordId);
+      if (intent === null || intent.version !== originalIntent!.version ||
+          stableStringify(fresh.readIntent(intent)) !== originalIntentData) {
+        throw new FanoutClaimChanged('The re-admitted child lost its exact frozen retained source.');
+      }
+      reads = fresh;
+    }
+    await requireWinningClaim();
+    commitGuards = [];
     const refs = call.recordRefs.filter(ref =>
       isUnknownRecord(ref) && ref.param === input.invoke.refInput && ref.model === cohort.model &&
       ref.id === data.recordId && isUnknownRecord(ref.row) && ref.row.id === data.recordId);
@@ -26870,23 +26904,24 @@ async function maintainFanoutNavigationWithReads(opts: FanoutNavigationMaintenan
             entry.handler === intent.handler && entry.fanoutId === intent.fanoutId)) {
         throw new Error('Fanout maintenance source receipt disagrees with its actual owner or retained route.');
       }
-    } else if (privateSourceMember(receipt.result, 'kind') === 'standard-completion-source') {
+    } else if (privateSourceMember(receipt.result, 'kind') === 'standard-completion-source' ||
+        privateSourceMember(receipt.result, 'kind') === 'declared-event-source') {
       const assembly = opts.sourceAssembly;
       const event = privateSourceMember(receipt.result, 'event');
       if (assembly === undefined || typeof event !== 'string') {
-        throw new AssemblyCorrespondenceError('Completion navigation requires its original installed native source.');
+        throw new AssemblyCorrespondenceError('Retained source navigation requires its original installed native source.');
       }
       const loaded = await loadCanonicalDescriptors(assembly.asm, assembly.artifact, store);
       const original = await readCheckedRetainedSource(assembly, loaded, store, intent.sourceOccurrence, event, scope, now, revision);
       const route = original.handlers.find(route => privateSourceMember(route, 'handler') === intent.handler);
       if (privateSourceMember(route, 'kind') !== 'fanout' || privateSourceMember(route, 'fanoutId') !== intent.fanoutId ||
           stableStringify(privateSourceMember(route, 'members')) !== stableStringify(intent.members)) {
-        throw new AssemblyCorrespondenceError('Completion navigation differs from its original frozen route.');
+        throw new AssemblyCorrespondenceError('Retained source navigation differs from its original frozen route.');
       }
       verifyCompletion = async () => {
         const current = await readCheckedRetainedSource(assembly, loaded, store, intent.sourceOccurrence, event, scope, now, revision);
         if (stableStringify(current.result) !== stableStringify(original.result)) {
-          throw new AssemblyCorrespondenceError('Completion navigation lost its original consumed source.');
+          throw new AssemblyCorrespondenceError('Retained source navigation lost its original consumed source.');
         }
       };
     } else {

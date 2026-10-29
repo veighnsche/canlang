@@ -4409,7 +4409,7 @@ it('emits the original Shift request with its genuine created Swap and parent DA
  }finally{await rm(directory,{recursive:true,force:true});}
 });
 
-it('uses the original Shift nested nullable FIRST guards before actual assignment', {timeout:180000},async()=>{
+it('uses the original Shift nested nullable FIRST guards before actual assignment', {timeout:360000},async()=>{
  const directory=await mkdtemp(join(tmpdir(),'can-shift-helper-first-'));
  try{
   const source=join(root,'compiler/tests/fixtures/shift-assign-original.can'),original=await readFile(join(root,'draft/apps/CanShift/CanShift.can'),'utf8'),text=await readFile(source,'utf8');
@@ -4443,6 +4443,75 @@ it('uses the original Shift nested nullable FIRST guards before actual assignmen
    const duties=await query({model:model('shift','Duty'),authority:'owner'}),commitments=await query({model:model('shift','Commitment'),authority:'owner'});assert.equal(duties.length,success?1:0,mode);assert.equal(commitments.length,existing.length+(success?1:0)+(mode==='domain-race'?1:0),mode);
    if(success){const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay||replay.error.code==='validation',JSON.stringify(replay));assert.deepEqual(await query({model:model('shift','Duty'),authority:'owner'}),duties);assert.deepEqual(await query({model:model('shift','Commitment'),authority:'owner'}),commitments);}
   }
+  // The original private cohort uses the same FIRST helpers under its
+  // genuine retained child admission, rather than a public mutation entry.
+  const reviewStart=original.indexOf('  scenario review_swap '),reviewEnd=original.indexOf('  scenario duty_notice ',reviewStart);
+  assert.ok(text.includes(original.slice(reviewStart,reviewEnd)));
+  const {createD1OwnerRouter}=await import('@canlang/state/storage/owner-router');
+  const {createTeamOwnerStorageBoundary}=await import('../worker/assembly.js');
+  const {createBoundCohortTick}=await import('./cohort-tick.js');
+  const modes=['empty','previous-away','nearest-same','false-prefix','domain-race','inactive-substitute','membership-grant-race','membership-revoke-race','changed-source'];
+  const runtime=new Miniflare({modules:true,compatibilityDate:'2026-07-15',script:'export default {fetch(){return new Response("Shift review")}}',
+   d1Databases:Object.fromEntries(modes.map((_,index)=>['MODE'+index,'shift-review-'+index]))});
+  try{for(const [index,mode]of modes.entries()){
+   const {now,identities,identity,team,user}=await member('shift-review-'+mode,['shift.scheduler']);
+   const substitute=await identities.createUser({email:'review-substitute-'+mode+'@shift.test',password_hash:'unused',email_verified:true});
+   const substituteMembership=await identities.createMembership({team_id:team.team_id,user_id:substitute.user_id,is_owner:false,roles:[]});
+   if(mode==='inactive-substitute'||mode==='membership-grant-race')await identities.removeMembership(substituteMembership.membership_id);
+   const scope={app:'CanShift',owner:team.team_id,ownerPackage:'shift'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'review-state-'+index,fileStoreId:'review-files-'+index,receiver:{app:scope.app,owner:scope.owner,team:scope.owner}};
+   const db=await runtime.getD1Database('MODE'+index)as unknown as D1Database;
+   const router=createD1OwnerRouter({resolveBinding:selected=>selected.app===scope.app&&selected.owner===scope.owner?{app:scope.app,owner:scope.owner,db,initializeFresh:true as const,fileRetirementAuthority:authority,fileReferenceProducers:[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]}:null});
+   const ownerStorage=await createTeamOwnerStorageBoundary({artifact,asm,app:scope.app,identities,router});
+   const {store}=await ownerStorage.forTrustedScope(scope,now);
+   await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(scope.owner));}});
+   const roster={model:model('shift','Roster'),id:asId('roster')},at=(time:string)=>'2099-01-01T'+time+':00.000Z';
+   const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent});
+   const employee={home:{id:'location'},locations:[{id:'away'}],operator_wide:false,active:true,skills:['reception'],role:'Reception',visible:true,user_visible:true};
+   const commitment=(id:string,employeeId:string,from:string,until:string,location='location')=>row(id,{employee:{id:employeeId},location:{id:location},from:at(from),until:at(until),before:'0',after:'0',skill:'reception',kind:'duty',source:id,previous:null,revision:'1',active:true,conflict:false,revision_visible:true},roster);
+   const assigned=commitment('assigned','employee','17:30','18:00'),duty=row('duty',{role:'Reception',published:true,published_revision:'1',published_by:null,override_reason:null},{model:model('shift','Commitment'),id:assigned.id});
+   const swap=row('swap',{original:{id:'employee'},substitute:{id:'substitute'},revision:'1',state:mode==='false-prefix'?'accepted':'open'},{model:model('shift','Duty'),id:duty.id});
+   const previous:StoredRow[]=mode==='previous-away'||mode==='domain-race'?[commitment('prior','substitute','14:00','16:00','away')]:mode==='nearest-same'?[commitment('far','substitute','09:00','12:00','away'),commitment('near','substitute','14:00','16:00')]:[];
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    {kind:'insert',model:model('rent_catalog','Location'),row:row('location',{active:true})},{kind:'insert',model:model('rent_catalog','Location'),row:row('away',{active:true})},
+    {kind:'insert',model:model('employee','Employee'),row:row('employee',{...employee,user:{id:user.user_id}})},{kind:'insert',model:model('employee','Employee'),row:row('substitute',{...employee,user:{id:substitute.user_id}})},
+    {kind:'insert',model:model('shift','Roster'),row:row('roster',{name:'Review roster'})},
+    ...['employee','substitute'].map(employeeId=>({kind:'insert'as const,model:model('shift','Availability'),row:row('hours-'+employeeId,{employee:{id:employeeId},from:at('08:00'),until:at('23:00'),available:true},roster)})),
+    {kind:'insert',model:model('shift','Commitment'),row:assigned},{kind:'insert',model:model('shift','Duty'),row:duty},{kind:'insert',model:model('shift','Swap'),row:swap},
+    ...previous.map(row=>({kind:'insert'as const,model:model('shift','Commitment'),row}))]}));
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+   const direct=await invoker.invokeMutation({operation:'shift.review_swap',operation_id:operationId(now),inputs:{}},identity);assert.ok('error'in direct,'private cohort has no public mutation entry');
+   assert.deepEqual(await store.load(model('shift','Swap'),swap.id),swap);
+   const queued=await invoker.invokeMutation({operation:'shift.queue_review',operation_id:operationId(now),inputs:{}},identity);assert.ok('result'in queued,JSON.stringify(queued));
+   const sources=await store.query({model:asModel('work.occurrence'),authority:'owner'});assert.equal(sources.length,1);assert.equal((sources[0]!.data.result as {event:string}).event,'shift.EligibilityReview');
+   const physicalCommit=store.commit.bind(store);let raced=false;
+   const findMembership=identities.findMembership.bind(identities);
+   identities.findMembership=async(teamId,userId)=>{const fact=await findMembership(teamId,userId);if(['membership-grant-race','membership-revoke-race'].includes(mode)&&!raced&&userId===substitute.user_id){raced=true;if(mode==='membership-grant-race')await identities.reactivateMembership(substituteMembership.membership_id,{is_owner:false,roles:[]});else await identities.removeMembership(substituteMembership.membership_id);}return fact;};
+   store.commit=async batch=>{
+    if(mode==='domain-race'&&!raced&&batch.writes.some(write=>write.model==='shift.Swap')){raced=true;await physicalCommit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('shift','Commitment'),row:commitment('raced','substitute','16:00','17:00')}]}));}
+    return physicalCommit(batch);
+   };
+   if(mode==='changed-source'){
+    const sourceRow=sources[0]!,revision=await store.readRevision(),history=await store.historyFor(model('shift','Swap'),swap.id),outbox=await store.outboxPending();
+    await assert.rejects(physicalCommit(makeBatch(revision,{writes:[{kind:'update',model:asModel('work.occurrence'),id:sourceRow.id,expectedVersion:sourceRow.version,row:{...sourceRow,version:asVersion(sourceRow.version+1),data:{...sourceRow.data,result:{...(sourceRow.data.result as object),event:'shift.Other'}}}}]})),{kind:'reference',message:/actual owning synchronous opaque resolver refused/});
+    assert.equal(await store.readRevision(),revision,'forged retained event cannot enter its owning opaque source census');
+    assert.deepEqual(await store.load(asModel('work.occurrence'),sourceRow.id),sourceRow);assert.deepEqual(await store.load(model('shift','Swap'),swap.id),swap);
+    assert.deepEqual(await store.historyFor(model('shift','Swap'),swap.id),history);assert.deepEqual(await store.outboxPending(),outbox);
+   }
+   const tick=await createBoundCohortTick({artifact,asm,identities,ownerStorage,scope,now:()=>now});
+   let failure:unknown;for(let turn=0;turn<3;turn++){try{await tick.tick();const children=await store.query({model:asModel('work.fanout_child'),authority:'owner'});if(children.length>0&&children.every(row=>['completed','failed','skipped'].includes(String(row.data.state))))break;}catch(error){failure=error;break;}}
+   if(failure!==undefined)throw failure;
+   const children=await store.query({model:asModel('work.fanout_child'),authority:'owner'});
+   assert.ok(children.length>0,mode+': genuine retained cohort child required');
+   assert.ok(children.every(row=>row.data.state===(mode==='membership-revoke-race'?'failed':'completed')),mode+': '+JSON.stringify(children.map(row=>row.data)));
+   if(mode==='membership-revoke-race')assert.ok(children.every(row=>row.data.causeReason==='inaccessible-record'),'revoked positive membership cannot acknowledge a no-effect child');
+   if(mode==='membership-grant-race')assert.ok(children.every(row=>row.data.attempts===1),'a changed negative CONTROL fact recomputes and completes without permanently refusing its child');
+   const current=await store.load(model('shift','Swap'),swap.id);assert.ok(current);assert.equal(current.data.state,['previous-away','inactive-substitute'].includes(mode)?'obsolete':swap.data.state,mode);
+   if(['previous-away','inactive-substitute'].includes(mode)){assert.equal(current.version,2,mode);assert.deepEqual(current.data,{...swap.data,state:'obsolete'});}else assert.deepEqual(current,swap,mode+': no stale or compensating Swap write may commit');
+   if(mode==='domain-race'||mode.startsWith('membership-'))assert.equal(raced,true,'the genuine private child reaches its current domain/Identity fence');
+   const history=await store.historyFor(model('shift','Swap'),swap.id),outbox=await store.outboxPending();await tick.tick();
+   assert.deepEqual(await store.load(model('shift','Swap'),swap.id),current,'terminal cohort replay performs no new business writes');
+   assert.deepEqual(await store.historyFor(model('shift','Swap'),swap.id),history);assert.deepEqual(await store.outboxPending(),outbox);
+  }}finally{await runtime.dispose();}
  }finally{await rm(directory,{recursive:true,force:true});}
 });
 
