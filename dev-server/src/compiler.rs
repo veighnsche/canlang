@@ -16,6 +16,15 @@ use std::sync::{
 use std::thread;
 use std::time::{Duration, Instant};
 
+/// Staged-compiler wall-clock budget in seconds. Full multi-app closures
+/// need real time (the 24-app volunteer closure measures ~20min/626MB
+/// optimized and ~2.5h unoptimized); the bound stays a liveness guard
+/// (hung compilers still die; checks cancel promptly), sized past the
+/// slowest legitimate workload with headroom. The control protocol's
+/// long deadline derives from this: a check that fronts a compile
+/// must outwait it.
+pub const COMPILE_TIMEOUT_SECS: u64 = 10800;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum CompileResult {
@@ -167,12 +176,9 @@ fn compile_inner(
         )],
         None,
         cancel,
-        // Full multi-app closures need real time and emit large artifacts:
-        // the 24-app volunteer closure measures ~20min/626MB optimized and
-        // ~2.5h unoptimized. The bound stays a liveness guard (hung
-        // compilers still die; checks cancel promptly), sized past the
-        // slowest legitimate workload with headroom.
-        10800,
+        // Sized past the slowest legitimate workload with headroom; the
+        // artifact cap fits the ~626MB optimized volunteer closure.
+        COMPILE_TIMEOUT_SECS,
         1024 * 1024 * 1024,
     ) {
         Ok(run) => run,

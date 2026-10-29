@@ -20,10 +20,13 @@ const MAX_REQUEST: usize = 64 * 1024;
 const MAX_RESPONSE: usize = 128 * 1024;
 const HANDSHAKE: Duration = Duration::from_millis(1500);
 const REQUEST: Duration = Duration::from_secs(60);
-const REQUEST_LONG: Duration = Duration::from_secs(600);
+/// Long commands front a staged compile, so the deadline outwaits the
+/// compiler budget with headroom for staging and verification; without
+/// this a slow legitimate check times out and cancels mid-compile.
 /// Commands that stage datasets, execute examples or boot/probe workers
 /// exceed the interactive deadline on real apps; everything else stays
 /// at 60s so a stuck trivial command still fails fast.
+const REQUEST_LONG: Duration = Duration::from_secs(crate::compiler::COMPILE_TIMEOUT_SECS + 900);
 pub fn request_deadline(command: &str) -> Duration {
     match command {
         "start" | "check" | "example.run" | "example.rerun" | "preview.open" => REQUEST_LONG,

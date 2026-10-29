@@ -286,3 +286,20 @@ fn forged_hello_never_dispatches_and_owner_remains_available() {
     );
     server.stop().unwrap();
 }
+#[test]
+fn long_control_deadlines_outwait_the_staged_compile_budget() {
+    let budget = Duration::from_secs(can_dev_server::compiler::COMPILE_TIMEOUT_SECS);
+    for command in [
+        "start",
+        "check",
+        "example.run",
+        "example.rerun",
+        "preview.open",
+    ] {
+        assert!(
+            request_deadline(command) > budget,
+            "{command} must outwait a full-budget staged compile"
+        );
+    }
+    assert_eq!(request_deadline("status"), Duration::from_secs(60));
+}
