@@ -1512,7 +1512,7 @@ fn source_guard_plain_collections_preserve_global_alias_lineage_and_fences() {
     std::fs::write(&input, r#"app GuardValues
 Given
  contract Window {from:datetime,until:datetime}
- Root {enabled:bool=true,anchor:datetime,until:datetime,windows:Window[]}
+ Root {enabled:bool=true,anchor:datetime,until:datetime,windows:Window[],balance:money?,currency:currency}
  Span in Root {from:datetime,until:datetime,visible:bool=true,tone:enum(day,night)=day}
  Rule {enabled:bool=true,visible:bool=true,units:int=1}
  policy Rule read=members where=row.visible
@@ -1524,12 +1524,83 @@ When
  scenario confirm(root:Root) by=members
   require root.enabled
   require any(root.windows as interval,interval.from<=root.anchor and root.until<=interval.until)
-  require sum(Rule as quota select quota.units)<=1
+  require sum(Rule as quota select quota.units)<=1 and (root.balance ?? money(0,root.currency))>=money(0,root.currency) and money(0.0,root.currency)==money(0,root.currency)
   do
    require covered(root)
    set root {enabled=false}
 Then
 "#).unwrap();
+    let guard_source = std::fs::read_to_string(&input).unwrap();
+    let (db, program, original, catalog) = checked_source(&guard_source);
+    let owner = original
+        .items
+        .iter()
+        .find(|item| item.canonical == "GuardValues.confirm")
+        .unwrap()
+        .id;
+    assert!(
+        canlang_compiler::codegen::scenario_decisions::serialize_decision_sources(
+            &program,
+            &original,
+            &original.items[owner.0 as usize],
+            &db,
+            catalog.as_ref()
+        )
+        .is_some()
+    );
+    for corruption in 0..3 {
+        let mut altered = original.clone();
+        let IrItemKind::Scenario { guards, .. } = &mut altered.items[owner.0 as usize].kind else {
+            panic!()
+        };
+        let IrStmt::Require { cond, .. } = &mut guards[2] else {
+            panic!()
+        };
+        let mut pending = vec![cond];
+        let mut changed = false;
+        while let Some(expression) = pending.pop() {
+            match &mut expression.expr {
+                IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } if matches!(&*target,canlang_compiler::codegen::ir::IrCallTarget::Builtin {id,..} if id == "money") =>
+                {
+                    match corruption {
+                        0 => {
+                            expression.ty = canlang_compiler::analysis::ResolvedType::Scalar(
+                                canlang_compiler::analysis::Scalar::Text,
+                            )
+                        }
+                        1 => args.swap(0, 1),
+                        2 => {
+                            *target = canlang_compiler::codegen::ir::IrCallTarget::Builtin {
+                                id: "money".into(),
+                                awaited: true,
+                            }
+                        }
+                        _ => unreachable!(),
+                    }
+                    changed = true;
+                    break;
+                }
+                IrExpr::Binary { left, right, .. } => {
+                    pending.push(left);
+                    pending.push(right);
+                }
+                IrExpr::Unary { operand, .. } => pending.push(operand),
+                _ => {}
+            }
+        }
+        assert!(changed, "mutate an actual selected original money call");
+        assert!(
+            canlang_compiler::codegen::scenario_decisions::serialize_decision_sources(
+                &program,
+                &altered,
+                &altered.items[owner.0 as usize],
+                &db,
+                catalog.as_ref()
+            )
+            .is_none(),
+            "original Pure scalar constructor corruption {corruption}"
+        );
+    }
     let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
         .args([
             "compile",
@@ -1563,10 +1634,10 @@ const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
 const {FIXED_NOW,createMemoryIdentityStore,seedMember,makeIdentity,asModel,asId,asVersion,makeRow,makeBatch,uuidv7}=await load('@canlang/state/testing/invocation/fixtures');
 const artifact=JSON.parse(readFileSync(process.argv[4],'utf8'));
 const asm=await assembleModules({artifact,sourcePath:process.argv[3]},{workDir:process.argv[5],stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href,uiUrl:pathToFileURL(require.resolve('@canlang/ui')).href});
-for(const mode of ['allowed','hidden','empty','race','nonmember','no_rules','hidden_bad_rule','rule_race','hidden_excess','sum_race','no_window','window_race']){
+for(const mode of ['allowed','hidden','empty','race','nonmember','no_rules','hidden_bad_rule','rule_race','hidden_excess','sum_race','no_window','window_race','negative_balance','balance_race']){
  const {store}=createTestMemoryStorage(),memberships=createMemoryIdentityStore();
  const member=await seedMember(memberships,{isOwner:false}),identity=makeIdentity({membership:member.membership,email:member.user.email});
- const root={...makeRow({id:asId('root'),data:{enabled:true,anchor:'2031-01-01T00:00:00.000Z',until:'2031-01-02T00:00:00.000Z',windows:mode==='no_window'?[]:[{from:'2031-01-01T00:00:00.000Z',until:'2031-01-02T00:00:00.000Z'}]}}),parent:null};
+ const root={...makeRow({id:asId('root'),data:{enabled:true,balance:mode==='negative_balance'?{minor:'-1',currency:'EUR'}:null,currency:'EUR',anchor:'2031-01-01T00:00:00.000Z',until:'2031-01-02T00:00:00.000Z',windows:mode==='no_window'?[]:[{from:'2031-01-01T00:00:00.000Z',until:'2031-01-02T00:00:00.000Z'}]}}),parent:null};
  const span={...makeRow({id:asId('span'),data:{from:root.data.anchor,until:root.data.until,visible:mode!=='hidden',tone:'day'}}),parent:{model:asModel('GuardValues.Root'),id:root.id}};
  await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:asModel('GuardValues.Root'),row:root},...(mode==='empty'?[]:[{kind:'insert',model:asModel('GuardValues.Span'),row:span}])]}));
  const rule={...makeRow({id:asId('rule'),data:{enabled:mode!=='hidden_bad_rule',visible:!['hidden_bad_rule','hidden_excess'].includes(mode),units:mode==='hidden_excess'?'2':'1'}}),parent:null};
@@ -1582,6 +1653,9 @@ for(const mode of ['allowed','hidden','empty','race','nonmember','no_rules','hid
   if(mode==='sum_race'&&!raced&&batch.writes.some(write=>write.model==='GuardValues.Root')){
    raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('GuardValues.Rule'),id:rule.id,expectedVersion:rule.version,row:{...rule,version:asVersion(rule.version+1),data:{...rule.data,units:'2'}}}]}));
   }
+  if(mode==='balance_race'&&!raced&&batch.writes.some(write=>write.model==='GuardValues.Root')){
+   raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('GuardValues.Root'),id:root.id,expectedVersion:root.version,row:{...root,version:asVersion(root.version+1),data:{...root.data,balance:{minor:'-1',currency:'EUR'}}}}]}));
+  }
   if(mode==='window_race'&&!raced&&batch.writes.some(write=>write.model==='GuardValues.Root')){
    raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('GuardValues.Root'),id:root.id,expectedVersion:root.version,row:{...root,version:asVersion(root.version+1),data:{...root.data,windows:[]}}}]}));
   }
@@ -1593,11 +1667,14 @@ for(const mode of ['allowed','hidden','empty','race','nonmember','no_rules','hid
  const result=await invoker.invokeMutation(request,identity),success=mode==='allowed'||mode==='hidden'||mode==='no_rules';
  assert.equal('result'in result,success,mode+': '+JSON.stringify(result));
  const current=await store.load(asModel('GuardValues.Root'),root.id);assert.ok(current);assert.equal(current.data.enabled,!success);
- if(mode==='no_window')assert.deepEqual(current,root);
+ if(mode==='no_window'||mode==='negative_balance')assert.deepEqual(current,root);
+ if(mode==='negative_balance')assert.equal(result.error.code,'rule_failed');
+ if(mode==='balance_race'){assert.deepEqual(current.data,{...root.data,balance:{minor:'-1',currency:'EUR'}});assert.equal(current.version,root.version+1);assert.deepEqual(await store.historyFor(asModel('GuardValues.Root'),root.id),[]);assert.equal(result.error.code,'conflict');}
+ if(success)for(const record of result.result.records??[])for(const field of ['balance','currency','windows'])assert.equal(Object.hasOwn(record.data,field),false,'CONTROL must not confer returned DATA');
  if(mode==='window_race'){assert.deepEqual(current.data,{...root.data,windows:[]});assert.equal(current.version,root.version+1);}
  assert.deepEqual(await store.outboxPending(),[]);
  if(success){const revision=await store.readRevision();const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.equal(await store.readRevision(),revision);}
- if(mode==='race'||mode==='rule_race'||mode==='sum_race'||mode==='window_race')assert.equal(raced,true);
+ if(mode==='race'||mode==='rule_race'||mode==='sum_race'||mode==='window_race'||mode==='balance_race')assert.equal(raced,true);
 }
 "#).unwrap();
     let consumed = Command::new("node")
@@ -1613,5 +1690,161 @@ for(const mode of ['allowed','hidden','empty','race','nonmember','no_rules','hid
         "{}\n{}",
         String::from_utf8_lossy(&consumed.stdout),
         String::from_utf8_lossy(&consumed.stderr)
+    );
+    // A staged post-write branch reuses a pre-write temporary beside a
+    // contained `any` over the provisional child domain. The shared
+    // source-require phase carries its exact sealed mutation prefix; the
+    // runtime evaluates the predicate at its authored stage. Positive
+    // modes prove the pre-write snapshot, provisional reads, grants,
+    // rollback and replay; forged transports must refuse without effects.
+    let staged_input = scratch.path().join("staged.can");
+    std::fs::write(&staged_input, r#"app StageValues
+Given
+ Root {enabled:bool=true,status:enum(open,held,cancelled)=open}
+ Item in Root {state:enum(ready,cancelling,done)=ready}
+ Ticket in Root {note:text}
+ policy Root read=members
+ policy Item read=members
+ policy Ticket read=members
+When
+ scenario conclude(root:Root) by=members
+  require root.enabled
+  do
+   let restore=root.status in [open,held]
+   set root {status=cancelled}
+   create Ticket {parent=root,note="cancelled"} as ticket
+   for item in root.Item as row where row.state==ready limit=10
+    set item {state=cancelling}
+   if root.status!=open and not any(root.Item as movement,movement.state in [cancelling,done]) and restore
+    set root {enabled=false}
+   if root.enabled and ticket.note!=""
+    set ticket {note="kept"}
+Then
+"#).unwrap();
+    let staged_source = std::fs::read_to_string(&staged_input).unwrap();
+    let (_staged_db, staged_program, staged_original, staged_catalog) =
+        checked_source(&staged_source);
+    let staged_owner = staged_original
+        .items
+        .iter()
+        .find(|item| item.canonical == "StageValues.conclude")
+        .unwrap()
+        .id;
+    assert!(
+        canlang_compiler::codegen::scenario_decisions::serialize_decision_sources(
+            &staged_program,
+            &staged_original,
+            &staged_original.items[staged_owner.0 as usize],
+            &_staged_db,
+            staged_catalog.as_ref()
+        )
+        .is_some()
+    );
+    let staged_compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args([
+            "compile",
+            "--format=json",
+            "--native-scenario-receipts",
+            "--catalog",
+        ])
+        .arg(root().join("packages/values/dist/catalog.json"))
+        .arg(&staged_input)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        staged_compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&staged_compiled.stdout),
+        String::from_utf8_lossy(&staged_compiled.stderr)
+    );
+    let staged_artifact = scratch.path().join("staged-artifact.json");
+    std::fs::write(&staged_artifact, staged_compiled.stdout).unwrap();
+    let staged_module: Value =
+        serde_json::from_str(&std::fs::read_to_string(&staged_artifact).unwrap()).unwrap();
+    let staged_js = staged_module["modules"][0]["js"].as_str().unwrap();
+    // The require-sources payload travels JS-escaped inside the emitted
+    // module, so markers use its escaped quotes.
+    for marker in [
+        "\\\"decision\\\":\\\"if\\\"",
+        "\\\"mutationPrefix\\\"",
+        "\\\"kind\\\":\\\"set\\\"",
+        "\\\"kind\\\":\\\"create\\\"",
+        "\\\"kind\\\":\\\"loop\\\"",
+    ] {
+        assert!(staged_js.contains(marker), "staged branch omitted {marker}");
+    }
+    let staged_runner = scratch.path().join("staged-consumer.mjs");
+    std::fs::write(&staged_runner, r#"import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {pathToFileURL} from 'node:url';
+const require=createRequire(process.argv[2]+'/package.json');
+const load=specifier=>import(pathToFileURL(require.resolve(specifier)));
+const {assembleModules}=await load('@canlang/cloudflare/runtime/modules');
+const {buildInvoker}=await load('@canlang/cloudflare/worker/assembly');
+const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
+const {FIXED_NOW,createMemoryIdentityStore,seedMember,makeIdentity,asModel,asId,asVersion,makeRow,makeBatch,uuidv7}=await load('@canlang/state/testing/invocation/fixtures');
+const base=JSON.parse(readFileSync(process.argv[4],'utf8'));
+function sourcesOf(artifact){const js=artifact.modules[0].js,marker='canScenarioRequireSources(){return JSON.parse("',start=js.indexOf(marker);assert.ok(start>=0);const end=js.indexOf('");}',start);assert.ok(end>start);const raw=js.slice(start+marker.length,end).replace(/\\"/g,'"').replace(/\\\\/g,'\\');return{js,start:start+marker.length,end,payload:JSON.parse(raw)};}
+function corrupt(mut){const artifact=JSON.parse(JSON.stringify(base)),found=sourcesOf(artifact);mut(found.payload);const inner=JSON.stringify(found.payload).replace(/\\/g,'\\\\').replace(/"/g,'\\"');artifact.modules[0].js=found.js.slice(0,found.start)+inner+found.js.slice(found.end);return artifact;}
+async function invoke(artifact,workDir,mode){
+ const asm=await assembleModules({artifact,sourcePath:process.argv[3]},{workDir,stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href,uiUrl:pathToFileURL(require.resolve('@canlang/ui')).href});
+ const {store}=createTestMemoryStorage(),memberships=createMemoryIdentityStore();
+ const member=await seedMember(memberships,{isOwner:false}),identity=makeIdentity({membership:member.membership,email:member.user.email});
+ const root={...makeRow({id:asId('root'),data:{enabled:true,status:'open'}}),parent:null};
+ await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:asModel('StageValues.Root'),row:root}]}));
+ const item={...makeRow({id:asId('item'),data:{state:'ready'}}),parent:{model:asModel('StageValues.Root'),id:root.id}};
+ if(mode==='skipped_items')await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:asModel('StageValues.Item'),row:item}]}));
+ const commit=store.commit.bind(store);let raced=false;
+ store.commit=async batch=>{if(mode==='race'&&!raced&&batch.writes.some(write=>write.model==='StageValues.Root')){raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('StageValues.Root'),id:root.id,expectedVersion:root.version,row:{...root,version:asVersion(root.version+1),data:{...root.data,status:'held'}}}]}));}return commit(batch);};
+ if(mode==='nonmember')await memberships.removeMembership(member.membership.membership_id);
+ const invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
+ const request={operation:'StageValues.conclude',operation_id:uuidv7(FIXED_NOW,1),inputs:{root:{id:root.id,version:'1'}}};
+ const result=await invoker.invokeMutation(request,identity);
+ return{result,store,root,item,raced,invoker,identity,request};
+}
+for(const mode of ['taken_empty','skipped_items','race','nonmember']){
+ const {result,store,root,item,raced,invoker,identity,request}=await invoke(base,process.argv[5]+'-'+mode,mode);
+ const success=mode==='taken_empty'||mode==='skipped_items';
+ assert.equal('result'in result,success,mode+': '+JSON.stringify(result));
+ const current=await store.load(asModel('StageValues.Root'),root.id);assert.ok(current);
+ if(mode==='taken_empty'){assert.equal(current.data.enabled,false);assert.equal(current.data.status,'cancelled');}
+ if(mode==='skipped_items'){assert.equal(current.data.enabled,true);const staged=await store.load(asModel('StageValues.Item'),item.id);assert.ok(staged);assert.equal(staged.data.state,'cancelling');}
+ if(mode==='race'){assert.equal(raced,true);assert.equal(result.error.code,'conflict');}
+ if(mode==='nonmember')assert.equal(result.error.code,'forbidden');
+ assert.deepEqual(await store.outboxPending(),[]);
+ if(success){const revision=await store.readRevision();const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.equal(await store.readRevision(),revision);}
+}
+const negatives={
+ stage_swap:p=>{p['StageValues.conclude'][0].sites[0].stage='body-condition';},
+ prefix_dropped:p=>{delete p['StageValues.conclude'][0].mutationPrefix;},
+ prefix_reordered:p=>{p['StageValues.conclude'][0].mutationPrefix.reverse();},
+ call_target:p=>{p['StageValues.conclude'][0].sites[0].calls[0].target.id='all';},
+ call_node:p=>{p['StageValues.conclude'][0].sites[0].calls[0].node.start+=1;},
+ source_sha:p=>{p['StageValues.conclude'][0].sites[0].calls[0].source.sha256='0'.repeat(64);},
+};
+for(const [name,mut] of Object.entries(negatives)){
+ const artifact=corrupt(mut);
+ const {result,store,root}=await invoke(artifact,process.argv[5]+'-neg-'+name,'taken_empty');
+ assert.ok(!('result'in result),name+': forged staged transport must refuse');
+ const current=await store.load(asModel('StageValues.Root'),root.id);
+ assert.equal(current.data.enabled,true,name+': refusal must not write');
+ assert.equal(current.data.status,'open',name+': refusal must not write');
+}
+"#).unwrap();
+    let staged_consumed = Command::new("node")
+        .arg(staged_runner)
+        .arg(root())
+        .arg(staged_input)
+        .arg(staged_artifact)
+        .arg(scratch.path().join("staged-modules"))
+        .output()
+        .unwrap();
+    assert!(
+        staged_consumed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&staged_consumed.stdout),
+        String::from_utf8_lossy(&staged_consumed.stderr)
     );
 }

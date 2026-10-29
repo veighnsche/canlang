@@ -18423,11 +18423,11 @@ impl<'a> Closure<'a> {
             *supported = false;
             return Some(false);
         }
-        // These original calendar operations are checked pure Values calls.
+        // These exact catalog-selected scalar operations carry only Values.
         // All model-backed arguments still pass the source observer's field
         // readers; only the dates allocation has an additional finite bound.
         if let CheckedDecisionCallTarget::Builtin { id, .. } = &call.target {
-            if self.checked_scalar_calendar_call(
+            if self.checked_pure_scalar_call(
                 call.node,
                 id,
                 &call
@@ -18793,8 +18793,19 @@ impl<'a> Closure<'a> {
         site: &CheckedDecisionSite,
         key: NodeKey,
     ) -> Option<()> {
-        if site.stage != CheckedDecisionStage::BodyRequire
-            || self
+        // A post-write branch condition may reuse a temporary captured
+        // before any write. The temporary's own write-free prefix below
+        // already pins its value to committed-state reads; the branch
+        // needs no write-free site prefix because the captured value is
+        // fixed when the temporary executes, exactly as the continuing
+        // closure environment and the emitted statement order reuse it.
+        // Later writes cannot retroactively change that captured value.
+        let staged_condition = site.stage == CheckedDecisionStage::BodyCondition;
+        if site.stage != CheckedDecisionStage::BodyRequire && !staged_condition {
+            return None;
+        }
+        if !staged_condition
+            && self
                 .source_require_body_guard(scenario, &site.position)
                 .is_none()
         {
@@ -26533,17 +26544,17 @@ impl<'a> Closure<'a> {
         (message || plain).then_some(())
     }
 
-    /// Closed, nonallocating calendar scalars consume their original checked
-    /// arguments in source order. Slots select formal positions without
+    /// Closed pure scalar constructors and calendar operators consume their
+    /// original checked arguments. Slots select formal positions without
     /// inventing defaults or granting authority to any operand.
-    fn checked_scalar_calendar_call(
+    fn checked_pure_scalar_call(
         &self,
         key: NodeKey,
         id: &str,
         arguments: &[NodeKey],
         slots: &[Option<usize>],
     ) -> bool {
-        use Scalar::{Bool, Date, Datetime, Int, Text, Timezone};
+        use Scalar::{Bool, Currency, Date, Datetime, Decimal, Int, Money, Text, Timezone};
         let Some(catalog) = self.catalog else {
             return false;
         };
@@ -26589,6 +26600,11 @@ impl<'a> Closure<'a> {
             self.types.node_types.get(arguments.get(index)?)
         };
         let (inputs, result, fold): (&[Scalar], Scalar, bool) = match id {
+            "money" => match argument_type(0) {
+                Some(ResolvedType::Scalar(Int)) => (&[Int, Currency], Money, false),
+                Some(ResolvedType::Scalar(Decimal)) => (&[Decimal, Currency], Money, false),
+                _ => return false,
+            },
             "local_date" => (&[Datetime, Timezone], Date, false),
             "local_instant" => (&[Date, Text, Timezone], Datetime, true),
             "add_days" | "add_months" => (&[Date, Int], Date, false),
@@ -26638,7 +26654,7 @@ impl<'a> Closure<'a> {
                 | "trim"
                 | "starts_with"
         ) || id == "format" && self.literal_format_arguments(arguments, slots).is_some()
-            || self.checked_scalar_calendar_call(key, id, arguments, slots))
+            || self.checked_pure_scalar_call(key, id, arguments, slots))
             && slots.iter().all(Option::is_some)
     }
 
