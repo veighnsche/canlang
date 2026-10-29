@@ -210,7 +210,10 @@ fn malformed_exit_contracts_and_excessive_compiler_output_are_bounded() {
     for redirection in ["", ">&2"] {
         script(
             &root.path().join("compiler"),
-            &format!("head -c 17000000 /dev/zero {redirection}"),
+            &format!(
+                "head -c {} /dev/zero {redirection}",
+                COMPILE_OUTPUT_LIMIT + 1024 * 1024
+            ),
         );
         let captured = capture::capture(&request, &empty_inventory, &cancel).unwrap();
         let result = compile(&captured, &empty_inventory, &cancel, &|_| {});

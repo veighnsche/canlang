@@ -24,6 +24,10 @@ use std::time::{Duration, Instant};
 /// long deadline derives from this: a check that fronts a compile
 /// must outwait it.
 pub const COMPILE_TIMEOUT_SECS: u64 = 10800;
+/// Staged-compiler combined output cap in bytes. The optimized
+/// volunteer closure emits a ~626MB artifact; the cap fits it with
+/// headroom while still bounding runaway compiler output.
+pub const COMPILE_OUTPUT_LIMIT: usize = 1024 * 1024 * 1024;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -179,7 +183,7 @@ fn compile_inner(
         // Sized past the slowest legitimate workload with headroom; the
         // artifact cap fits the ~626MB optimized volunteer closure.
         COMPILE_TIMEOUT_SECS,
-        1024 * 1024 * 1024,
+        COMPILE_OUTPUT_LIMIT,
     ) {
         Ok(run) => run,
         Err(reason) if cancel.load(Ordering::Acquire) => return Err(reason),
