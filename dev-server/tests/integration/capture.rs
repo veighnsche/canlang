@@ -364,4 +364,12 @@ fn provider_generations_union_into_staged_closure() {
         {"path": "can.generated/u2/contributions.can", "sha256": prov_carrier},
     ]});
     verify_compiler_sources(&captured, &report, true).unwrap();
+    // Multi-root compiles qualify carriers (`r<root>-`); membership
+    // normalizes the qualifier and still anchors bytes.
+    let qualified = serde_json::json!({"sources": [
+        {"path": "draft/apps/Demo/app.can", "sha256": app_hash},
+        {"path": "draft/shared/prov.can", "sha256": prov_hash},
+        {"path": "can.generated/r1-u2/contributions.can", "sha256": prov_carrier},
+    ]});
+    verify_compiler_sources(&captured, &qualified, true).unwrap();
 }

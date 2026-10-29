@@ -1588,16 +1588,61 @@ pub fn verify_compiler_sources(
     if sources.len() != expected.len() {
         return Err("source_membership_mismatch".into());
     }
+    // Multi-root compiles qualify synthetic carriers as
+    // `can.generated/r<root>-<id>/...` where the discovery report carries
+    // the bare `<id>` form. Root numbering is positional compiler-internal
+    // detail (operand order, nested drops, symlinks) that capture must not
+    // re-derive: normalize both sides and anchor identity on the unit id
+    // plus exact bytes. Count, duplicate, and hash checks below still
+    // refuse phantom, repeated, or skewed sources.
+    let mut normalized: BTreeMap<String, &String> = BTreeMap::new();
+    for (path, hash) in &expected {
+        let key = strip_root_qualifiers(path);
+        if let Some(old) = normalized.insert(key, hash) {
+            if old != hash {
+                return Err("source_membership_mismatch".into());
+            }
+        }
+    }
+    if normalized.len() != expected.len() {
+        return Err("source_membership_mismatch".into());
+    }
     let mut seen = BTreeSet::new();
     for source in sources {
         let path = source["path"].as_str().ok_or("source_path_mismatch")?;
-        if !seen.insert(path) || !expected.contains_key(path) {
+        let key = strip_root_qualifiers(path);
+        if !seen.insert(key.clone()) || !normalized.contains_key(&key) {
             return Err("source_path_mismatch".into());
         }
         let hash = source["sha256"].as_str().ok_or("source_hash_mismatch")?;
-        if !valid_hash(hash) || expected.get(path).map(String::as_str) != Some(hash) {
+        if !valid_hash(hash) || normalized.get(&key).map(|h| h.as_str()) != Some(hash) {
             return Err("source_hash_mismatch".into());
         }
     }
     Ok(())
+}
+
+/// Strip compiler multi-root qualifiers (`r<root>-`) from synthetic
+/// `can.generated/<id>/...` carrier paths, repeatedly. Ordinary source
+/// paths pass through untouched. All cut points are ASCII boundaries.
+fn strip_root_qualifiers(path: &str) -> String {
+    let mut out = path.to_string();
+    loop {
+        let Some(rest) = out.strip_prefix("can.generated/r") else {
+            return out;
+        };
+        let Some(slash) = rest.find('/') else {
+            return out;
+        };
+        let (segment, _) = rest.split_at(slash);
+        let Some(dash) = segment.find('-') else {
+            return out;
+        };
+        let (root, _) = segment.split_at(dash);
+        if root.is_empty() || !root.bytes().all(|b| b.is_ascii_digit()) {
+            return out;
+        }
+        let cut = "can.generated/r".len() + root.len() + 1;
+        out = format!("can.generated/{}", &out[cut..]);
+    }
 }
