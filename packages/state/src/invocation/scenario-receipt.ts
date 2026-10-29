@@ -325,8 +325,15 @@ interface SourceCreatedRootCapture {readonly profile:ScenarioSourceCreatedRoot;r
 const sourceCreatedRootProducers=new WeakMap<GeneratedOperationDef,Map<string,ScenarioSourceCreatedRoot>>();
 const sourceCreatedRootCaptures=new WeakMap<ReceiptOwnerSession,Map<string,SourceCreatedRootCapture>>();
 export function bindScenarioSourceCreatedRoots(def:GeneratedOperationDef,value:{readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;readonly creates:readonly ScenarioSourceCreatedRoot[]}):void{
+  bindSourceCreatedRoots(def,value);
+}
+function bindSourceCreatedRoots(def:GeneratedOperationDef,value:{readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;readonly creates:readonly ScenarioSourceCreatedRoot[]},prefix?:ScenarioSourceRequirePhasePlan['phases'][number]['prefix']):void{
   const bound=boundPlans.get(def),raw=object(dataCopy(value),['source','owner','creates']);origin(raw['source']);
-  if(bound===undefined||(!bound.sourceRequireOnly&&bound.resultModel===undefined)||invokedPlans.has(def)||raw['owner']!==def.name||stableStringify(raw['source'])!==stableStringify(bound.plan.source))return invalid('Created source roots require their uninvoked original source-only owner.');
+  // Only the independently bound original mutation-prefix consumer may add
+  // a native void CREATE. The exported identity-only binder keeps its gate.
+  const nativePrefix=prefix!==undefined&&bound!==undefined&&!bound.sourceRequireOnly&&bound.type==='void'&&bound.resultModel===undefined
+    &&def.descriptor.result?.disclosure!==undefined&&stableStringify(def.descriptor.result.disclosure)===stableStringify(bound.plan);
+  if(bound===undefined||(!bound.sourceRequireOnly&&bound.resultModel===undefined&&!nativePrefix)||invokedPlans.has(def)||raw['owner']!==def.name||stableStringify(raw['source'])!==stableStringify(bound.plan.source))return invalid('Created source roots require their uninvoked original source-only owner.');
   const previous=sourceCreatedRootProducers.get(def)??new Map<string,ScenarioSourceCreatedRoot>(),next=new Map(previous);
   for(const value of list(raw['creates'])){
     const profile=object(value,['id','node','stage','binding','model','parentParameter','parentModel']),id=text(profile['id']);
@@ -336,7 +343,8 @@ export function bindScenarioSourceCreatedRoots(def:GeneratedOperationDef,value:{
         ||!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start'])
         ||input?.kind!=='ref'||input.model!==parent||input.nullable===true||Object.hasOwn(def.inputArrays,parameter)
         ||bound.artifactModels.get(model as ModelName)?.parent!==parent)return invalid('Created source root lost its original stage, model or required admitted parent.');
-    if(!bound.sourceRequireOnly&&!bound.plan.returns.some(returned=>returned.intrinsics?.some(dependency=>dependency.kind==='created-model-version'&&stableStringify(dependency.created)===stableStringify(profile))))return invalid('Native created version lacks its independently bound original CREATE intrinsic.');
+    const originalPrefix=nativePrefix&&prefix!.some(step=>step.kind==='create'&&stableStringify(step.created)===stableStringify(profile));
+    if(!bound.sourceRequireOnly&&!originalPrefix&&!bound.plan.returns.some(returned=>returned.intrinsics?.some(dependency=>dependency.kind==='created-model-version'&&stableStringify(dependency.created)===stableStringify(profile))))return invalid('Native created root lacks its independently bound original CREATE consumer.');
     const prior=next.get(id);if(prior!==undefined&&stableStringify(prior)!==stableStringify(profile))return invalid('Created source root ID changes its original declaration.');
     if([...next.values()].some(other=>other.id!==id&&other.stage===profile['stage']))return invalid('Created source roots overlap an actual linear owner stage.');
     next.set(id,deepFreeze(profile) as unknown as ScenarioSourceCreatedRoot);
@@ -561,6 +569,9 @@ export async function executeScenarioSourceLoopItem(call:AdmittedCall,store:Stor
     try{
       await input.execute();ownerHealthy(owner);capture(call,store);
       if(execution.loop.condition!==undefined&&item.answer===undefined)return invalid('Loop omitted its original per-item condition.');
+      for(const site of sourceLetDataProducers.get(call.def as GeneratedOperationDef)?.sites??[]){
+        if(site.loop===execution.loop.id&&site.field.metadata===true&&!consumedSourceLetData.get(call)?.has(`${site.node.start}:${site.node.end}:${item.row.id}`))return invalid('Source loop omitted its original selected metadata observation.');
+      }
       const writes=execution.loop.work!==undefined||execution.loop.condition===undefined?execution.loop.writes:item.answer?1:0;
       const expectedWork=execution.loop.work?.filter(site=>site.conditional!==true||item.answer===true).length??0;
       if(item.work!==expectedWork)return invalid('Source loop item omitted an original Work command.');
@@ -5219,7 +5230,6 @@ function bindSourceMutationPrefix(def:GeneratedOperationDef,bound:BoundPlan,raw:
   for(const value of prefix){
    if(typeof value==='object'&&value!==null&&Object.getOwnPropertyDescriptor(value,'kind')?.value==='create'){
     const step=object(value,['kind','created','fields']);
-    bindScenarioSourceCreatedRoots(def,{source:bound.plan.source,owner:def.name,creates:[step['created'] as ScenarioSourceCreatedRoot]});
     const created=step['created'] as ScenarioSourceCreatedRoot,names=list(step['fields']).map(text);
     if(names.length===0||new Set(names).size!==names.length||names.some((name,index)=>index>0&&names[index-1]!>=name||!bound.artifactModels.get(created.model)?.fields.some(field=>field.name===name&&field.default?.kind!=='derived')))return invalid('Source phase CREATE fields differ from their original stored schema.');
     continue;
@@ -5238,6 +5248,8 @@ function bindSourceMutationPrefix(def:GeneratedOperationDef,bound:BoundPlan,raw:
    for(const value of parents){const parent=text(value) as ModelName;if(bound.artifactModels.get(model)?.parent!==parent||storedReferenceField(bound,model,'parent',parent).target!==parent)return invalid('Source phase SET parent differs from containment.');model=parent;}
    const fields=list(step['fields']).map(text);if(fields.length===0||new Set(fields).size!==fields.length||fields.some(name=>!bound.artifactModels.get(model)?.fields.some(field=>field.name===name&&field.default?.kind!=='derived')))return invalid('Source phase SET field census differs from its actual schema.');
   }
+  const creates=prefix.flatMap(value=>{const step=value as {kind:string;created?:ScenarioSourceCreatedRoot};return step.kind==='create'?[step.created!]:[];});
+  if(creates.length!==0)bindSourceCreatedRoots(def,{source:bound.plan.source,owner:def.name,creates},prefix as unknown as ScenarioSourceRequirePhasePlan['phases'][number]['prefix']);
 }
 export function bindScenarioSourceRequirePhases(def:GeneratedOperationDef,value:ScenarioSourceRequirePhasePlan):void{
  const bound=boundPlans.get(def);if(bound===undefined||invokedPlans.has(def)||sourceRequirePhaseProducers.has(def))return invalid('Source phase needs its original uninvoked bound owner.');
@@ -8402,7 +8414,7 @@ export type ScenarioSourceLetDataSource = {
   readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
   readonly node:{readonly start:number;readonly end:number};readonly binding:string;
   readonly parameter:string;readonly model:ModelName;readonly parents?:readonly ModelName[];readonly path?:SourceEffectPath;readonly loop?:string;
-  readonly field:{readonly name:string;readonly type:CanTypeId};readonly valueType:CanTypeId;
+  readonly field:{readonly name:string;readonly type:CanTypeId;readonly metadata?:true};readonly valueType:CanTypeId;
 } & ({readonly stage:number;readonly stages?:never}|{readonly stage?:never;readonly stages:readonly number[]});
 interface SourceLetDataProducer extends ScenarioReceiptReferenceProducer {readonly sites:readonly ScenarioSourceLetDataSource[];}
 const sourceLetDataProducers=new WeakMap<GeneratedOperationDef,SourceLetDataProducer>();
@@ -8735,7 +8747,7 @@ export async function executeScenarioSourceQueryRows(call:AdmittedCall,store:Sto
 }
 export function bindScenarioSourceLetDataProducer(def:GeneratedOperationDef,producer:SourceLetDataProducer):void{
   const bound=boundPlans.get(def);
-  if(!bound?.sourceRequireOnly||invokedPlans.has(def)||sourceLetDataProducers.has(def))return invalid('Scalar LET DATA requires its uninvoked original source-only owner.');
+  if(bound===undefined||!bound.sourceRequireOnly&&!sourceBodyLoopProducers.has(def)||invokedPlans.has(def)||sourceLetDataProducers.has(def))return invalid('Scalar LET DATA requires its uninvoked original source owner.');
   object(producer,['source','app','policy','readPolicies','sites']);origin(producer.source);text(producer.app);
   if(stableStringify(producer.source)!==stableStringify(bound.plan.source)||!(producer.policy instanceof Map)||!(producer.readPolicies instanceof Map))return invalid('Scalar LET DATA differs from its owning source and policies.');
   const policy=captureSourcePolicyTable(bound,producer.policy,'Scalar LET DATA policy differs from its owning model.');
@@ -8749,7 +8761,7 @@ export function bindScenarioSourceLetDataProducer(def:GeneratedOperationDef,prod
         ||stages.some((stage,index)=>!Number.isSafeInteger(stage)||Number(stage)<0||Number(stage)>=MAX_ITEMS
           ||index>0&&Number(stages[index-1])>=Number(stage)))return invalid('Scalar LET DATA requires exact ordered reachable stages.');
     const node=object(site['node'],['start','end']),parameter=text(site['parameter']),model=text(site['model']) as ModelName;
-    const field=object(site['field'],['name','type']),name=text(field['name']),type=text(field['type']),valueType=text(site['valueType']);text(site['binding']);
+    const field=object(site['field'],['name','type',...(Object.hasOwn(site['field'] as object,'metadata')?['metadata']:[])]),name=text(field['name']),type=text(field['type']),valueType=text(site['valueType']);text(site['binding']);
     const parents=site['parents']===undefined?[]:list(site['parents']).map(value=>text(value)as ModelName);
     if(parents.length>16||site['parents']!==undefined&&parents.length===0)return invalid('Source field DATA requires its finite declared parent path.');
     let fieldModel=model;for(const parent of parents){if(bound.artifactModels.get(fieldModel)?.parent!==parent||storedReferenceField(bound,fieldModel,'parent',parent).target!==parent)return invalid('Source field DATA parent path differs from containment.');fieldModel=parent;}
@@ -8757,12 +8769,16 @@ export function bindScenarioSourceLetDataProducer(def:GeneratedOperationDef,prod
     const input=bound.inputs.find(input=>input.name===parameter),declaration=bound.artifactModels.get(fieldModel)?.fields.find(field=>field.name===name);
     const loop=site['loop']===undefined?undefined:sourceBodyLoopProducers.get(def)?.loops.find(loop=>loop.id===text(site['loop']));
     if(site['loop']!==undefined&&(loop===undefined||parameter===loop.item&&loop.model!==model||parameter!==loop.item&&(input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,parameter))||Number(node['start'])<loop.node.start||Number(node['end'])>loop.node.end||stages.some(stage=>Number(stage)>loop.writes)))return invalid('Loop field DATA lacks its exact original selected item and relative stage.');
+    if(!bound.sourceRequireOnly&&loop===undefined)return invalid('Native scalar DATA requires its exact original private loop.');
+    const metadata=Object.hasOwn(field,'metadata');
+    if(metadata&&(field['metadata']!==true||name!=='version'||type!=='int'||valueType!=='int'||declaration!==undefined
+        ||loop===undefined||parameter!==loop.item||model!==loop.model||Object.hasOwn(site,'path')||Object.hasOwn(site,'parents')))return invalid('Source metadata needs its exact genuine selected item and reserved version.');
     const reference=declaration?.field.kind==='ref'&&declaration.field.model===type&&declaration.nullable!==true&&declaration.array===undefined
       &&storedReferenceField(bound,fieldModel,name,type).target===type;
     if(site['owner']!==def.name||stableStringify(site['source'])!==stableStringify(bound.plan.source)
         ||!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start'])
         ||loop===undefined&&(input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,parameter))
-        ||declaration===undefined||declaration.default?.kind==='derived'||!sourceSendFieldType(bound,fieldModel,name,type)&&!reference
+        ||!metadata&&(declaration===undefined||declaration.default?.kind==='derived'||!sourceSendFieldType(bound,fieldModel,name,type)&&!reference)
         ||valueType!==type&&`${valueType}?`!==type)return invalid('Scalar LET DATA lost its exact original stage, required root or stored scalar field.');
     checkSourceEffectPolicies(bound,readPolicies,model,'Scalar LET DATA');
     return deepFreeze(site) as unknown as ScenarioSourceLetDataSource;
@@ -8778,7 +8794,7 @@ export async function executeScenarioSourceLetData(call:AdmittedCall,store:Stora
     const item=owner===undefined||site?.loop===undefined?undefined:sourceBodyLoopItems.get(owner);
     const stages=site===undefined?[]:site.stages??[site.stage];
     const stage=owner===undefined?undefined:stages.map(stage=>site?.loop===undefined?stage:item===undefined?undefined:item.stage+stage).find(stage=>stage===owner.stage);
-    if(owner===undefined||owner.session===null||!state.bound.sourceRequireOnly||producer===undefined||producer.app!==call.context.app||sites.length!==1||site===undefined
+    if(owner===undefined||owner.session===null||!state.bound.sourceRequireOnly&&(item===undefined||site?.loop!==item.execution.loop.id)||producer===undefined||producer.app!==call.context.app||sites.length!==1||site===undefined
         ||site.loop!==undefined&&(item?.execution.loop.id!==site.loop||site.parameter===item.execution.loop.item&&item.execution.loop.model!==site.model)
         ||owner.executingCall!==call||owner.busy||owner.capture.pending!==0||stage===undefined||owner.stage!==stage)return invalid('Scalar LET DATA lacks its exact current source owner stage.');
     const consumed=consumedSourceLetData.get(call)??new Set<string>(),key=`${site.node.start}:${site.node.end}${item===undefined?'':':'+item.row.id}`;consumedSourceLetData.set(call,consumed);
@@ -8803,7 +8819,7 @@ export async function executeScenarioSourceLetData(call:AdmittedCall,store:Stora
         if(next===null||next.archivedAt!==null||owner.stage!==stage)return invalid('Source field DATA parent lifetime changed.');
         model=parent;row=next;
       }
-      const authority=await observeModelQuerySourceAuthority(call,store,owner,state,model,row,[site.field.name],0,undefined,undefined,producer);
+      const authority=await observeModelQuerySourceAuthority(call,store,owner,state,model,row,site.field.metadata===true?[]:[site.field.name],0,undefined,undefined,producer);
       if(await store.readRevision()!==call.revision)throw new StateError('conflict','Scalar LET DATA moved beyond its original checkpoint.');
       ownerHealthy(owner);if(owner.stage!==stage)return invalid('Scalar LET DATA crossed its original capture checkpoint.');
       if(site.loop===undefined&&site.stage===0&&SOURCE_PRIMITIVE_LET_TYPES.has(site.valueType)){
@@ -8814,7 +8830,7 @@ export async function executeScenarioSourceLetData(call:AdmittedCall,store:Stora
         if(captures.size>=MAX_ITEMS||captures.has(key))return invalid('Captured primitive LET exceeds its finite original census.');
         captures.set(key,Object.freeze({owner,store,revision:call.revision,stage,site:Object.freeze({...site,stage:0 as const}),wire}));
       }
-      return authority.record;
+      return site.field.metadata===true?Object.freeze({...authority.record,data:Object.freeze({version:String(row.version)})}):authority.record;
     },call);
   }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
 }
