@@ -21,7 +21,7 @@
 //! | CanExpense board | status,location,category,business_date | same as list | ADMITTED by C2+C3; component pins (`board_text_selector_lowers`, `date_selector_lowers`) |
 //! | CanExpense table (approved) | parent,location,category,business_date | parent (containing-parent linkage) | NEW pin below (category/business_date admitted by C2+C3) |
 //! | CanExpense table (Reimbursement) | paid | paid (date, C3) | ADMITTED by the C3 civil-date rule; pin moved to `date_selector_lowers` |
-//! | CanDesk list (Ticket, 8 selectors) | location,state,priority,assignee,unassigned,overdue,category,queue | assignee (`user?` nullable, first failure) + unassigned/overdue (derived bools) + category/queue (text, C2); location ref + state/priority enums are admitted leftovers | NEW pins below (nullable user, derived bool); text already pinned |
+//! | CanDesk list (Ticket, 8 selectors) | location,state,priority,assignee,unassigned,overdue,category,queue | assignee (`user?` nullable, ADMITTED by Lane E) + unassigned/overdue (derived bools, still refused) + category/queue (text, C2); location ref + state/priority enums are admitted leftovers | nullable-user pin below now asserts lowering; derived-bool pin stays refused; text already pinned |
 //! | CanLeave table (row.Request) | bucket,state | bucket (text, C2); state enum is an admitted leftover | already pinned (`text_selector_refuses`) |
 //! | CanLeave table (Allowance, mine) | year,bucket | year (int) + bucket (text, C2) | already pinned (`int_selector_refuses`, `text_selector_refuses`) |
 //! | CanLeave table (Request, review) | bucket,state | bucket (text, C2) | already pinned |
@@ -49,16 +49,19 @@
 //! (`date_selector_lowers`, `calendar_date_selector_lowers`) assert
 //! lowering. Every other remainder shape bottoms out on a
 //! datetime/dotted/int follower (already pinned) or on a
-//! genuinely-new selector (currency scalar, nullable user, derived
-//! bool, containing parent, inline preferences presentation) for which this batch makes exactly one named choice
-//! each — stay loudly refused with the exact E6008 below. No new
-//! primitive beyond the civil-date rule, no symmetry generalization
-//! (nullable user is not admitted from admitted user; derived bool is
-//! not admitted from admitted stored bool; validated string-likes, nullable
-//! text model fields and computed text defaults are not admitted from
-//! admitted plain text; datetime/nullable-date/computed-date are not
-//! admitted from admitted plain date), no weakened permissions or
-//! refusals, no original rewrites. The recorded `where` clauses
+//! genuinely-new selector (currency scalar, derived bool, containing
+//! parent, inline preferences presentation) for which this batch makes
+//! exactly one named choice each — stay loudly refused with the exact
+//! E6008 below. Lane E admits exactly one more shape beyond the
+//! civil-date rule: the nullable stored `user?` selector (opaque
+//! identity, no inventory; runtime-backed in `desk_filter_profiles.rs`).
+//! No further symmetry generalization (nullable `member`/enum/bool and
+//! derived bool are not admitted from their admitted siblings;
+//! validated string-likes, nullable text model fields and computed text
+//! defaults are not admitted from admitted plain text;
+//! datetime/nullable-date/computed-date are not admitted from admitted
+//! plain date), no weakened permissions or refusals, no original
+//! rewrites. The recorded `where` clauses
 //! accompanying refused filters (parent/actor restrictions) are
 //! outside this filter batch.
 //!
@@ -123,16 +126,17 @@ fn currency_selector_lowers() {
 }
 
 /// Recorded CanDesk shape (`assignee:user?` beside admitted location,
-/// state and priority siblings): a nullable user reference is not an
-/// admitted selector even with no default (null would mean no initial
-/// restriction). The admitted-user rule does not generalize to the
-/// nullable spelling, so the list keeps its exact E6008 refusal.
+/// state and priority siblings): a nullable stored `user?` selector is
+/// admitted (Lane E exact checked Desk filter profile). It compares by
+/// the same typed opaque identity as a non-nullable `user` (DESIGN 977)
+/// with no case inventory; clearing the control means no restriction,
+/// and a null stored value never matches a selected identity. Runtime
+/// behavior is pinned end to end by `desk_filter_chain_runtime` in
+/// `desk_filter_profiles.rs`.
 #[test]
-fn nullable_user_selector_refuses() {
-    assert_refuses(
+fn nullable_user_selector_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Location { name:text }\n Ticket { title:text, location:Location, assignee:user? }\n policy Location read=public\n policy Ticket read=public\nWhen\nThen\n page /tickets title=\"Tickets\"\n  list Ticket columns=title,location,assignee filter=location,assignee\n",
-        "E6008",
-        "need distinct checked owned enum fields",
     );
 }
 

@@ -19801,6 +19801,18 @@ impl<'a> Cx<'a> {
                 (format!("ref:{}", self.type_id(ty)), Vec::new())
             }
             ResolvedType::Scalar(Scalar::User) => ("user".to_string(), Vec::new()),
+            // E6008 Desk triage profile: a nullable stored `user?` field
+            // (the recorded `assignee` selector) compares by the same
+            // typed opaque identity as a non-nullable `user` (DESIGN
+            // 977): clearing the control means no restriction, so null
+            // needs no case inventory and no extra descriptor shape.
+            // Nullable `member` and every other nullable shape keep the
+            // exact refusal below: no symmetry generalization.
+            ResolvedType::Nullable(inner)
+                if inner.as_ref() == &ResolvedType::Scalar(Scalar::User) =>
+            {
+                ("user".to_string(), Vec::new())
+            }
             ResolvedType::Scalar(Scalar::Member) => ("member".to_string(), Vec::new()),
             // C2 text-equality rule (CAN18-v1, DESIGN 975 scalar +
             // operator table): a plain owned `text` field is an exact
