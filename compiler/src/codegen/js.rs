@@ -12549,6 +12549,8 @@ fn null_equality(
                 }
                 let event_decision = self.receipt_capture.as_ref()
                     .and_then(|receipt| receipt.plan.event_decision.clone());
+                let renewal_decision = self.receipt_capture.as_ref()
+                    .and_then(|receipt| receipt.plan.success_renewal_decision.clone());
                 let cond_text = if let Some(decision) = event_decision {
                     let site = &decision["ifSite"];
                     if site["statement"]["start"].as_u64() != Some(u64::from(span.start))
@@ -12567,6 +12569,27 @@ fn null_equality(
                         self.exit_scope();
                         self.stdlib.insert("nativeScenarioEventDecision".into());
                         format!("await nativeScenarioEventDecision(c,{},async(c,{{eventTerm,eventRevision}})=>{{const {inspection}=eventTerm;const {event}={{inspection:eventTerm,revision:eventRevision}};return {expression};}})",
+                            descriptor_json(&decision))
+                    }
+                } else if let Some(decision) = renewal_decision {
+                    let site = &decision["sites"]["if"];
+                    if decision["owner"] != "success.renewal_due"
+                        || site["statement"]["start"].as_u64() != Some(u64::from(span.start))
+                        || site["statement"]["end"].as_u64() != Some(u64::from(span.end))
+                        || site["node"]["start"].as_u64() != Some(u64::from(cond.span.start))
+                        || site["node"]["end"].as_u64() != Some(u64::from(cond.span.end))
+                    {
+                        self.unsupported("renewal owner decision",
+                            "original IF decision no longer matches its complete renewal receipt",*span);
+                        "false".into()
+                    } else {
+                        self.enter_scope();
+                        let account = self.bind("account");
+                        let event = self.bind("event");
+                        let expression = self.lower_expr(cond);
+                        self.exit_scope();
+                        self.stdlib.insert("nativeScenarioEventDecision".into());
+                        format!("await nativeScenarioEventDecision(c,{},async(c,{{eventTerm,eventRevision}})=>{{const {account}=eventTerm;const {event}={{account:eventTerm,revision:eventRevision}};return {expression};}})",
                             descriptor_json(&decision))
                     }
                 } else {

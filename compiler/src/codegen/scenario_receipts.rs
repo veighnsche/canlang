@@ -64,6 +64,9 @@ pub(super) struct ReceiptDisclosurePlan {
     pub invoice_issue_decision: Option<serde_json::Value>,
     #[serde(rename = "observeVenueDecision", skip_serializing_if = "Option::is_none")]
     pub observe_venue_decision: Option<serde_json::Value>,
+    /// Exact source-bound renewal reminder SEND owner with its staged rule.
+    #[serde(rename = "successRenewalDecision", skip_serializing_if = "Option::is_none")]
+    pub success_renewal_decision: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub queries: Vec<ReceiptQuery>,
     pub returns: Vec<ReceiptReturn>,
@@ -2016,6 +2019,11 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             source_context?, item, entry_module, send_guards?,
         );
     }
+    if item.canonical == "success.renewal_due" {
+        return super::success_send_decisions::collect_renewal_receipt(
+            source_context?, item, entry_module, send_guards?,
+        );
+    }
     if item.canonical == "rent_reservations.refund_movement_credit" {
         return super::rent_movement_refund_decisions::collect_refund_receipt(
             source_context?, item, entry_module,
@@ -2178,7 +2186,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     let mut recipe = NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
             version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None,source,
+            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None,source,
             queries: effective_plan.map_or_else(Vec::new, |plan| plan.queries.clone()),
             returns: Vec::new(),
         },
@@ -4571,7 +4579,7 @@ fn checked_guard_any_query_plan(
     }
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None,source: transport_source(&facts.source, entry)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None,source: transport_source(&facts.source, entry)?,
         queries: fragments,
         returns,
     })
@@ -4623,7 +4631,7 @@ pub(super) fn checked_native_any_direct_query_plan(
     }
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None,source: transport_source(&query.source, entry)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None,source: transport_source(&query.source, entry)?,
         queries: vec![fragment],
         returns: checked
             .returns
@@ -5024,7 +5032,7 @@ pub(super) fn checked_native_helper_any_query_plan(
         .collect::<Vec<_>>();
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None,source: transport_source(&facts.source, entry)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None,source: transport_source(&facts.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(),
             source: transport_source(&query.source, entry)?,
@@ -6848,7 +6856,7 @@ fn checked_native_first_query_source_plan(
     let parent = first_query_receipt_parent(ir, owner, query, scan, db, first, entry_module)?;
     let expected = ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None,source: transport_source(&checked.source, entry_module)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None,source: transport_source(&checked.source, entry_module)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(),
             source: transport_source(&query.source, entry_module)?,
@@ -8068,7 +8076,7 @@ fn checked_native_ancestor_count_query_plan(
     }
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None,source: transport_source(&query.source, entry)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(),
             source: transport_source(&query.source, entry)?,
@@ -8282,7 +8290,7 @@ fn native_count_plan(
 ) -> Option<ReceiptDisclosurePlan> {
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None,source: transport_source(&query.source, entry)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(),
             source: transport_source(&query.source, entry)?,
@@ -8408,7 +8416,7 @@ pub(super) fn checked_native_assign_count_query_plan(
             influences: influences.clone(), dependencies: Vec::new(), intrinsics: Vec::new(), projection: None})
     }).collect::<Option<Vec<_>>>()?;
     Some(ReceiptDisclosurePlan {
-        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None, invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None,source: transport_source(&query.source, entry)?,
+        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None, invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(), source: transport_source(&query.source, entry)?,
             model: query.model_name.clone(),

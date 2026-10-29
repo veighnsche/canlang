@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { it } from 'node:test';
 import { promisify } from 'node:util';
 import { execFile } from 'node:child_process';
@@ -77,7 +77,7 @@ it('delivers renewal only from the current Account row and skips stale or unauth
       { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
     const artifact = JSON.parse(stdout) as CompileArtifact;
     const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
-      stdlibUrl: pathToFileURL(join(root, 'packages/cloudflare/dist/runtime/stdlib.js')).href,
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href,
       uiUrl: import.meta.resolve('@canlang/ui') });
     assert.ok((artifact.modules[0]?.js ?? '').includes('sendWhen:'),
       'the original guarded Mail SEND is emitted');

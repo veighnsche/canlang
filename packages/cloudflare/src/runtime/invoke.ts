@@ -1479,6 +1479,7 @@ interface StateInvokeProducer {
   readonly beginScenarioReceiptMutation?: typeof import('@canlang/state/invocation').beginScenarioReceiptMutation;
   readonly executeScenarioReceiptRequire?: typeof import('@canlang/state/invocation').executeScenarioReceiptRequire;
   readonly executeScenarioReceiptEventDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptEventDecision;
+  readonly executeScenarioReceiptSuccessRenewalDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptSuccessRenewalDecision;
   readonly executeScenarioReceiptTermDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptTermDecision;
   readonly executeScenarioReceiptLeaveRequestDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptLeaveRequestDecision;
   readonly executeScenarioReceiptLeaveDecideDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptLeaveDecideDecision;
@@ -1786,6 +1787,9 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     }),
     ...(typeof scenarioMod['executeScenarioReceiptEventDecision'] !== 'function' ? {} : {
       executeScenarioReceiptEventDecision: scenarioMod['executeScenarioReceiptEventDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptEventDecision']>,
+    }),
+    ...(typeof scenarioMod['executeScenarioReceiptSuccessRenewalDecision'] !== 'function' ? {} : {
+      executeScenarioReceiptSuccessRenewalDecision: scenarioMod['executeScenarioReceiptSuccessRenewalDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptSuccessRenewalDecision']>,
     }),
     ...(typeof scenarioMod['executeScenarioReceiptTermDecision'] !== 'function' ? {} : {
       executeScenarioReceiptTermDecision: scenarioMod['executeScenarioReceiptTermDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptTermDecision']>,
@@ -6318,7 +6322,7 @@ async function loadCanonicalDescriptorsInternal(
     const ownerSites = sites.filter(site => site.stage !== 'read-policy' && site.stage !== 'read-predicate' && site.stage !== 'send-dispatch');
     if (!ownerSites.some(site => site.calls.some(call => call.target.kind === 'builtin' && call.target.id === 'active_member'))) continue;
     const def = generatedScenarioDef({ def: canonical.registry.get(owner) });
-    if (def === undefined && owner === 'maintain.remind' && artifact.callables.some(callable =>
+    if (def === undefined && (owner === 'maintain.remind' || owner === 'success.renewal_due') && artifact.callables.some(callable =>
       callable.id === owner && callable.kind === 'handler')) continue;
     if (def === undefined) throw new AssemblyCorrespondenceError('Membership owner lacks its original checked scenario.');
     const report = artifact.operations?.find(operation => operation.name === owner && operation.kind === 'read');
@@ -13070,6 +13074,7 @@ async function runScenarioExecution(
       throw failure;
     }
   };
+  if (process.env.RENEWAL_DBG === '1' && scenarioDef?.name === 'success.renewal_due') console.error('RENEWALDBG framecheck', scenarioDef?.name, hasNativeOwnerMembership(scenarioDef as never), receiptAware, receiptStore !== undefined);
   if (scenarioDef !== undefined && hasNativeOwnerMembership(scenarioDef)) {
     if (!receiptAware || receiptStore === undefined) return refuseRecordBinding('Membership requires its original active State receipt owner.');
     nativeMembershipFrame = openNativeOwnerMembershipFrame(ctx, call as AdmittedCall, receiptStore, recordEngineFailure);
@@ -16192,6 +16197,22 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
         typeof app !== 'string' || app === '' || !isUnknownRecord(operations) ||
         readMetadataMember(operations, privateDef.name, 'Maintain event membership') === undefined) {
       throw new AssemblyCorrespondenceError('Maintain event IF lacks its exact original nested membership source.');
+    }
+    bindNativeOwnerMembership(privateDef, { source: sites[0]!.source,
+      app, sites });
+  }
+  if (privateDef.name === 'success.renewal_due') {
+    const sites = (privateLoaded.membershipSources.get(privateDef.name) ?? []).filter(site =>
+      site.stage === 'body-condition');
+    const app = isUnknownRecord(definition) ? readMetadataMember(definition, 'id', 'Success renewal membership')?.value : undefined;
+    const operations = isUnknownRecord(definition) ? readMetadataMember(definition, 'operations', 'Success renewal membership')?.value : undefined;
+    const operation = isUnknownRecord(operations) ? readMetadataMember(operations, privateDef.name, 'Success renewal membership')?.value : undefined;
+    const sendGuards = isUnknownRecord(operation) ? readMetadataMember(operation, 'sendGuards', 'Success renewal membership')?.value : undefined;
+    if (sites.length !== 1 || !sites[0]!.calls.some(call =>
+        call.target.kind === 'builtin' && call.target.id === 'active_member') ||
+        typeof app !== 'string' || app === '' || !isUnknownRecord(operations) ||
+        operation === undefined || !Array.isArray(sendGuards) || sendGuards.length !== 1) {
+      throw new AssemblyCorrespondenceError('Success renewal IF lacks its exact original nested membership source.');
     }
     bindNativeOwnerMembership(privateDef, { source: sites[0]!.source,
       app, sites });
