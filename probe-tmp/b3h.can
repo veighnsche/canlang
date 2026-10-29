@@ -1,0 +1,25 @@
+app ProbeB3h
+use std {EmailV1 as Mail} from=deployment.mail
+Given
+ Order {reference:text unique, state:text="draft"}
+ Line in Order {sku:text, accepted:int min=0, ordered:int min=0}
+ Receipt in Line {source:text unique, accepted:int min=0, posting:text?}
+ policy Order read=members
+ policy Line read=members
+ policy Receipt read=members
+When
+ crud Order by=members fields=reference
+ crud Line by=members fields=sku
+ crud Receipt by=members fields=source,accepted
+ scenario receive(ord:Order,line:Line,source:text,accepted:int) -> Receipt by=members
+  do
+   let previous=first(Receipt as receipt where receipt.source==source order=receipt.id)
+   if previous!=null
+    require previous.parent==line and previous.accepted==accepted
+    return previous
+   create Receipt {parent=line,source,accepted} as receipt
+   set ord {state="part"}
+   if all(ord.Line as item,item.accepted==item.ordered)
+    set ord {state="done"}
+   return receipt
+Then
