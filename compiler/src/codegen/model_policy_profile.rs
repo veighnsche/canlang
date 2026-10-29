@@ -223,6 +223,13 @@ impl HookProfile<'_> {
         // Contract values write as plain constructed data, exactly like
         // scenario inputs; they are never dereferenced by the profile.
         fn writable_leaf(profile: &HookProfile, ty: &ResolvedType) -> bool {
+            // Nullable fields accept the same shapes as their inner type;
+            // the null literal itself is admitted separately by
+            // `nullable_reference_null`, and writes never widen nullability.
+            let mut ty = ty;
+            while let ResolvedType::Nullable(inner) = ty {
+                ty = inner;
+            }
             match ty {
                 ResolvedType::Array { element, .. } => writable_leaf(profile, element),
                 // Contract values write as plain constructed data whatever
@@ -492,7 +499,7 @@ impl HookProfile<'_> {
             else {
                 continue;
             };
-            if *owner != model || modifiers.machine || field_ty != ty {
+            if *owner != model || modifiers.machine || !Self::snapshot_read_compatible(field_ty, ty) {
                 continue;
             }
             if self.leaf(ty)
@@ -503,6 +510,17 @@ impl HookProfile<'_> {
             }
         }
         false
+    }
+
+    /// A narrowed read of a nullable declared field carries the checker's
+    /// non-null proof (e.g. after `!=null` in the same guard chain); it
+    /// observes the same declared storage as the exact type. Reads must
+    /// never widen nullability, so only exact or narrowed shapes admit.
+    fn snapshot_read_compatible(field_ty: &ResolvedType, ty: &ResolvedType) -> bool {
+        if field_ty == ty {
+            return true;
+        }
+        matches!(field_ty, ResolvedType::Nullable(inner) if inner.as_ref() == ty)
     }
 
     /// Pure value builtins admitted in hooks with admitted arguments. Store
