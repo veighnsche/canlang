@@ -18885,6 +18885,94 @@ impl<'a> Closure<'a> {
         Some(())
     }
 
+    /// Stored delivery leaves are read through Work's declared receipt join,
+    /// never decoded from the containing row or treated as plain Values.
+    fn source_require_delivery_selector(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        key: NodeKey,
+    ) -> Option<()> {
+        let (base, leaf) = self.count_member(key)?;
+        let (delivery, expected) = match self
+            .types
+            .node_types
+            .get(&base)?
+            .nullable_inner()
+            .unwrap_or(self.types.node_types.get(&base)?)
+        {
+            ResolvedType::StdDelivery { .. } if leaf == "status" => {
+                let schema = nominal_schema("DeliveryResult")?;
+                let (_, declared) = schema.fields.iter().find(|(name, _)| *name == "status")?;
+                (base, super::types::std_schema_type(declared)?)
+            }
+            ResolvedType::Object(_) => {
+                let (delivery, selected) = self.count_member(base)?;
+                if selected != "result" {
+                    return None;
+                }
+                let ResolvedType::StdDelivery { capability, op } = self
+                    .types
+                    .node_types
+                    .get(&delivery)?
+                    .nullable_inner()
+                    .unwrap_or(self.types.node_types.get(&delivery)?)
+                else {
+                    return None;
+                };
+                if super::catalog::std_operation(capability, op.name) != Some(*op) {
+                    return None;
+                }
+                let schema = nominal_schema(op.result)?;
+                // The existing host selects the whole result before projecting
+                // locally. Preserve that stronger grant, excluding opaque leaves.
+                if !schema.fields.iter().all(|(_, ty)| {
+                    super::types::std_schema_type(ty).is_some_and(|ty| {
+                        matches!(
+                            ty.nullable_inner().unwrap_or(&ty),
+                            ResolvedType::Scalar(Scalar::Bool | Scalar::Text)
+                        )
+                    })
+                }) {
+                    return None;
+                }
+                let (_, declared) = schema.fields.iter().find(|(name, _)| *name == leaf)?;
+                (delivery, super::types::std_schema_type(declared)?)
+            }
+            _ => return None,
+        };
+        let (receiver, field_name) = self.count_member(delivery)?;
+        let ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        } = self.types.node_types.get(&receiver)?
+        else {
+            return None;
+        };
+        if !scenario.params.iter().any(|input| {
+            input.default.is_none()
+                && self
+                    .checked_call_parent_path(receiver, input.param, 0)
+                    .is_some_and(|(actual, _)| actual == *model)
+        }) {
+            return None;
+        }
+        let field = self.effects.models.get(model)?.fields.iter().find(|field|
+            self.resolve.symbols.get(field.field.0 as usize).is_some_and(|declaration|
+                declaration.name == field_name && matches!(declaration.kind, SymbolKind::Field {owner,..} if owner == *model)))?;
+        let declared = self.types.symbol_types.get(&field.field)?;
+        let ResolvedType::StdDelivery { capability, op } =
+            declared.nullable_inner().unwrap_or(declared)
+        else {
+            return None;
+        };
+        let actual = self.types.node_types.get(&key)?;
+        (self.types.node_types.get(&delivery)? == declared
+            && super::catalog::std_operation(capability, op.name) == Some(*op)
+            && actual.nullable_inner().unwrap_or(actual)
+                == expected.nullable_inner().unwrap_or(&expected))
+        .then_some(())
+    }
+
     fn source_require_walk_member(
         &self,
         scenario: &super::effects::ScenarioData,
@@ -18895,6 +18983,13 @@ impl<'a> Closure<'a> {
         supported: &mut bool,
         helper_query: &mut bool,
     ) -> Option<bool> {
+        if !body
+            && self
+                .source_require_delivery_selector(scenario, key)
+                .is_some()
+        {
+            *helper_query = true;
+        }
         if node.kind == SyntaxKind::Binary
             && self
                 .source_require_reference_membership(scenario, key)

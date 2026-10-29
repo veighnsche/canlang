@@ -1418,6 +1418,87 @@ fn source_require_only_body_supported(
                         if model == symbol && item.canonical.rsplit('.').next() == Some(field.as_str()))));
                 !derived && child(base)
             }
+            IrExpr::DeliveryRead {
+                record,
+                field,
+                props,
+                callback: None,
+            } => {
+                let Some(owner) = ir.items.iter().find(|item| {
+                    ir.scenario_disclosures
+                        .get(&item.id)
+                        .and_then(|proof| proof.source_facts())
+                        .is_some_and(|source| {
+                            source.scenario == item.id
+                                && source.node.file == value.span.file
+                                && source.node.start <= value.span.start
+                                && value.span.end <= source.node.end
+                        })
+                }) else {
+                    return false;
+                };
+                let ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                } = &record.ty
+                else {
+                    return false;
+                };
+                if !query_parent(ir, owner, record, 0) || !child(record) {
+                    return false;
+                }
+                let Some(IrItemKind::Model { fields, .. }) =
+                    ir.items.get(model.0 as usize).map(|item| &item.kind)
+                else {
+                    return false;
+                };
+                let Some(declaration) = fields.iter().filter_map(|id|ir.items.get(id.0 as usize))
+                    .find(|declaration| declaration.name == *field && matches!(declaration.kind,IrItemKind::Field{owner,..}if owner==*model)) else { return false; };
+                let IrItemKind::Field {
+                    ty: IrType::Known(ty),
+                    ..
+                } = &declaration.kind
+                else {
+                    return false;
+                };
+                let ResolvedType::StdDelivery { capability, op } =
+                    ty.nullable_inner().unwrap_or(ty)
+                else {
+                    return false;
+                };
+                if crate::analysis::catalog::std_operation(capability, op.name) != Some(*op) {
+                    return false;
+                }
+                let expected = match props.as_slice() {
+                    [status] if status == "status" => {
+                        crate::analysis::catalog::nominal_schema("DeliveryResult")
+                            .and_then(|schema| {
+                                schema.fields.iter().find(|(name, _)| *name == "status")
+                            })
+                            .and_then(|(_, ty)| crate::analysis::types::std_schema_type(ty))
+                    }
+                    [result, leaf] if result == "result" => {
+                        crate::analysis::catalog::nominal_schema(op.result)
+                            .filter(|schema| {
+                                schema.fields.iter().all(|(_, ty)| {
+                                    crate::analysis::types::std_schema_type(ty).is_some_and(|ty| {
+                                        matches!(
+                                            ty.nullable_inner().unwrap_or(&ty),
+                                            ResolvedType::Scalar(Scalar::Bool | Scalar::Text)
+                                        )
+                                    })
+                                })
+                            })
+                            .and_then(|schema| schema.fields.iter().find(|(name, _)| *name == leaf))
+                            .and_then(|(_, ty)| crate::analysis::types::std_schema_type(ty))
+                    }
+                    _ => None,
+                };
+                expected.is_some_and(|expected| {
+                    value.ty.nullable_inner().unwrap_or(&value.ty)
+                        == expected.nullable_inner().unwrap_or(&expected)
+                })
+            }
             IrExpr::Call {
                 target: IrCallTarget::Builtin { awaited: false, .. },
                 args,
