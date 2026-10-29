@@ -167,8 +167,13 @@ fn compile_inner(
         )],
         None,
         cancel,
-        30,
-        16 * 1024 * 1024,
+        // Full multi-app closures need real time and emit large artifacts:
+        // the 24-app volunteer closure measures ~20min/626MB optimized and
+        // ~2.5h unoptimized. The bound stays a liveness guard (hung
+        // compilers still die; checks cancel promptly), sized past the
+        // slowest legitimate workload with headroom.
+        10800,
+        1024 * 1024 * 1024,
     ) {
         Ok(run) => run,
         Err(reason) if cancel.load(Ordering::Acquire) => return Err(reason),
