@@ -651,7 +651,7 @@ pub(super) fn collect_refund_receipt(
             member_retry_decision: None,
             invoice_overdue_decision: None,
             rent_movement_refund_decision: Some(decision),
-            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None,queries: Vec::new(),
+            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, refer_settle_decision: None,queries: Vec::new(),
             returns: vec![ReceiptReturn {
                 id: id.clone(),
                 source,

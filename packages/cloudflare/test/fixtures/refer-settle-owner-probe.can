@@ -1,0 +1,65 @@
+## Original CanRefer.settle with its financial and authority helpers.
+app CanRefer uses=[refer]
+
+package rent_catalog
+ Given
+  export Location {active:bool=true,timezone:timezone}
+ When
+ Then
+
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,home:Location,locations:Location[],operator_wide:bool=false,active:bool=true,hidden:bool=false}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members and not row.hidden
+ When
+ Then
+
+package customer
+ Given
+  export Customer {kind:enum(individual,company),hidden:bool=false}
+ When
+ Then
+
+package refer
+ use customer {Customer}
+ use rent_catalog {Location}
+ use employee {can_work}
+ Given
+  role finance
+  role program_manager
+  message label_Settlement_paid = "Paid"@{nl="Betaald"}
+  message label_Settlement_method = "Method"@{nl="Methode"}
+  export Program {locations:Location[],reward:money,active:bool=true}
+  export Advocate in Program {account:user,code:text unique}
+  export Credit in Advocate {source:text unique,customer:text,amount:money}
+  export Settlement in Advocate {payment_source:text,source:text unique,amount:money,reference:text,paid:date,method:text,evidence:text,author:user?}
+  export Allocation in Settlement {credit:Credit,amount:money}
+  derive Advocate.earned:money = sum(row.Credit as credit select credit.amount,row.parent.reward.currency)
+  derive Advocate.paid:money = sum(row.Settlement as settlement select settlement.amount,row.parent.reward.currency)
+  derive Advocate.available:money = max([money(0,row.parent.reward.currency),row.earned-row.paid])
+  unique Settlement fields=payment_source,reference
+  policy Advocate read=finance
+  policy Credit read=finance
+  policy Settlement read=finance
+  policy Allocation read=finance
+ When
+  scenario settle(advocate:Advocate,amount:money,payment_source:text label="Payment source"@{nl="Betaalbron"},reference:text,paid:date label=label_Settlement_paid,method:text label=label_Settlement_method,evidence:text) by=finance -> Settlement label="Record cash settlement"@{nl="Uitbetaling vastleggen"}
+   require amount.currency==advocate.parent.reward.currency and amount.minor>0 and trim(payment_source)!="" and trim(reference)!="" and trim(method)!="" and trim(evidence)!="" and paid<=local_date(now,team.timezone) and all(advocate.parent.locations as location,can_work(actor,location))
+   do
+    let existing=first(Settlement as settlement where settlement.payment_source==payment_source and settlement.reference==reference order=settlement.id)
+    if existing!=null
+     require existing.parent==advocate and existing.amount==amount and existing.paid==paid and existing.method==method and existing.evidence==evidence
+     return existing
+    require amount<=advocate.available
+    create Settlement {parent=advocate,source=operation.id,amount,payment_source,reference,paid,method,evidence} as settlement
+    for credit in advocate.Credit as item where item.amount.minor>0 order=item.created limit=500
+     let remaining=amount-sum(settlement.Allocation as allocation select allocation.amount,amount.currency)
+     let unpaid=credit.amount-sum(Allocation as allocation where allocation.credit==credit select allocation.amount,amount.currency)
+     let part=min([remaining,unpaid])
+     if part.minor>0
+      create Allocation {parent=settlement,credit,amount=part} as allocation
+    require sum(settlement.Allocation as allocation select allocation.amount,amount.currency)==amount
+    return settlement
+ Then

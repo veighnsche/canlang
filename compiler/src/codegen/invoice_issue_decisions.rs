@@ -1023,6 +1023,7 @@ pub(super) fn collect_issue_receipt(
             invoice_collect_decision: None,
             rent_notice_decision: None,
             invoice_issue_decision: Some(decision),
+            refer_settle_decision: None,
             queries: Vec::new(),
             returns: vec![ReceiptReturn {
                 id: id.clone(),
