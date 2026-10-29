@@ -1,0 +1,61 @@
+## Field completion guard census: minimal standalone shape of the real
+## field.complete scenario. The shift ScheduleV1 capability and the
+## maintain Inspection type plus inspect operation are declared locally
+## so the file checks without the rest of the corpus; canonical names
+## (shift.ScheduleV1.release, maintain.inspect) and the
+## record_inspection alias match the real composed source. Real
+## composed-source proof comes from the full-corpus capture, which
+## retains the maintain.inspect cross-operation refusal.
+app FieldGuard uses=[field]
+
+package shift
+ use std {OperationOutcome}
+ Given
+  export capability ScheduleV1 version=1
+   release(source:text,revision:int) -> OperationOutcome
+ When
+ Then
+
+package maintain
+ Given
+  role technician label="Technician"@{nl="Technicus"}
+  export Inspection { answers:text[], result:text }
+ When
+  export scenario inspect(inspection:Inspection,answers:Inspection.answers,result:Inspection.result,evidence:text) by=technician
+   do
+    set inspection {result=result}
+ Then
+
+package field
+ use std {EmailV1 as Mail} from=deployment.mail
+ use shift {ScheduleV1 as StaffSchedule} from=deployment.staff_schedule
+ use maintain {Inspection,inspect as record_inspection}
+ Given
+  role technician label="Technician"@{nl="Technicus"}
+  Location { name:text }
+  Employee { user:user, active:bool=true, operator_wide:bool=false, home:Location, locations:Location[] }
+  derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  Job { employee:Employee, location:Location, state:enum(in_progress,blocked,done), inspection:Inspection?, schedule_source:text?, source:text, schedule_revision:int, contact:email, release_delivery:text?, released:bool=false }
+  Replacement in Job { state:enum(pending,unknown,done) }
+  Report in Job { notes:text, photo:file? }
+  event ReportSubmitted { report:Report }
+  policy Job read=technician
+  policy Employee read=technician
+  policy Replacement read=technician
+  policy Report read=technician
+ When
+  scenario complete(job:Job,notes:text,photo:file?,answers:Inspection.answers=[],result:Inspection.result?) by=technician
+   require job.employee.user==actor and job.employee.active and can_work(actor,job.location) and job.state in [in_progress,blocked] and not any(job.Replacement as candidate,candidate.state in [pending,unknown]) and trim(notes)!=""
+   do
+    if job.inspection!=null
+     require result!=null
+     call record_inspection {inspection=job.inspection,answers,result,evidence=notes}
+    else
+     require count(answers)==0 and result==null
+    create Report {parent=job,notes,photo} as report
+    set job {state=done}
+    emit ReportSubmitted {report}
+    send StaffSchedule.release {source=job.schedule_source??job.source,revision=job.schedule_revision} as release
+    set job {release_delivery=release.id,released=false}
+    send Mail.send {to=job.contact,subject=format("Visit completed"@{nl="Bezoek afgerond"},locale=null),body=notes} when=job.state==done as notice
+ Then
