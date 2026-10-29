@@ -202,6 +202,179 @@ export interface InvoiceOverdueDecisionPlan {
   readonly sendRule: { readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source'];
     readonly node: EventDecisionSite['node']; readonly statement: EventDecisionSite['statement'] };
 }
+/** The provider receipt scan stages one guarded failure-notice Mail SEND for
+ * the single Attempt row selected by the provider reference. */
+export interface ApplyResultDecisionPlan {
+  readonly version: 1;
+  readonly owner: 'invoice.apply_result';
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly sites: { readonly for: EventDecisionSite & { readonly model: 'invoice.Attempt' };
+    readonly send: EventDecisionSite };
+  readonly sendRule: { readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source'];
+    readonly node: EventDecisionSite['node']; readonly statement: EventDecisionSite['statement'] };
+}
+function checkApplyResultDecisionPlan(value: unknown, transport: unknown): ApplyResultDecisionPlan {
+  const raw = object(value, ['version', 'owner', 'source', 'sites', 'sendRule']);
+  origin(raw['source']); origin(transport);
+  const source = raw['source'] as ScenarioResultDisclosurePlan['source'];
+  const carrier = transport as ScenarioResultDisclosurePlan['source'];
+  if (raw['version'] !== 1 || raw['owner'] !== 'invoice.apply_result' || source.module !== 'invoice' ||
+      source.path !== carrier.path || source.sha256 !== carrier.sha256) {
+    return invalid('apply decision needs its original provider receipt source.');
+  }
+  const span = (value: unknown): void => {
+    const item = object(value, ['start', 'end', 'kind']);
+    if (!Number.isSafeInteger(item['start']) || !Number.isSafeInteger(item['end']) ||
+        (item['start'] as number) < 0 || (item['end'] as number) <= (item['start'] as number) ||
+        !Number.isSafeInteger(item['kind']) || (item['kind'] as number) < 0) {
+      return invalid('apply decision needs nonempty original source intervals.');
+    }
+  };
+  const sites = object(raw['sites'], ['for', 'send']);
+  const ids = new Set<string>();
+  const site = (value: unknown, extra: readonly string[] = []): EventDecisionSite => {
+    const item = object(value, ['id', 'source', 'node', 'statement', ...extra]);
+    const id = text(item['id']); origin(item['source']); span(item['node']); span(item['statement']);
+    const node = item['node'] as EventDecisionSite['node'];
+    const statement = item['statement'] as EventDecisionSite['statement'];
+    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
+        stableStringify(item['source']) !== stableStringify(source) ||
+        node.start < statement.start || node.end > statement.end) {
+      return invalid('apply decision site differs from its checked source.');
+    }
+    ids.add(id); return item as unknown as EventDecisionSite;
+  };
+  const scanned = site(sites['for'], ['model']);
+  if ((sites['for'] as { readonly model: unknown }).model !== 'invoice.Attempt') {
+    return invalid('apply decision scan needs its original Attempt target.');
+  }
+  const send = site(sites['send']);
+  if (send.statement.start < scanned.statement.start || send.statement.end > scanned.statement.end) {
+    return invalid('apply SEND must stage inside its original provider scan.');
+  }
+  const rule = object(raw['sendRule'], ['rule', 'source', 'node', 'statement']);
+  text(rule['rule']); origin(rule['source']); span(rule['node']); span(rule['statement']);
+  if (stableStringify(rule['source']) !== stableStringify(source) ||
+      stableStringify(rule['node']) !== stableStringify(send.node) ||
+      stableStringify(rule['statement']) !== stableStringify(send.statement)) {
+    return invalid('apply SEND lacks its original guarded source occurrence.');
+  }
+  return deepFreeze(raw) as unknown as ApplyResultDecisionPlan;
+}
+/** The venue observer stages one guarded Rooms confirmation for the single
+ * Change row selected by the provider source. */
+export interface ObserveVenueDecisionPlan {
+  readonly version: 1;
+  readonly owner: 'events.observe_venue';
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly sites: { readonly for: EventDecisionSite & { readonly model: 'events.Change' };
+    readonly send: EventDecisionSite };
+  readonly sendRule: { readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source'];
+    readonly node: EventDecisionSite['node']; readonly statement: EventDecisionSite['statement'] };
+}
+function checkObserveVenueDecisionPlan(value: unknown, transport: unknown): ObserveVenueDecisionPlan {
+  const raw = object(value, ['version', 'owner', 'source', 'sites', 'sendRule']);
+  origin(raw['source']); origin(transport);
+  const source = raw['source'] as ScenarioResultDisclosurePlan['source'];
+  const carrier = transport as ScenarioResultDisclosurePlan['source'];
+  if (raw['version'] !== 1 || raw['owner'] !== 'events.observe_venue' || source.module !== 'events' ||
+      source.path !== carrier.path || source.sha256 !== carrier.sha256) {
+    return invalid('observe decision needs its original venue source.');
+  }
+  const span = (value: unknown): void => {
+    const item = object(value, ['start', 'end', 'kind']);
+    if (!Number.isSafeInteger(item['start']) || !Number.isSafeInteger(item['end']) ||
+        (item['start'] as number) < 0 || (item['end'] as number) <= (item['start'] as number) ||
+        !Number.isSafeInteger(item['kind']) || (item['kind'] as number) < 0) {
+      return invalid('observe decision needs nonempty original source intervals.');
+    }
+  };
+  const sites = object(raw['sites'], ['for', 'send']);
+  const ids = new Set<string>();
+  const site = (value: unknown, extra: readonly string[] = []): EventDecisionSite => {
+    const item = object(value, ['id', 'source', 'node', 'statement', ...extra]);
+    const id = text(item['id']); origin(item['source']); span(item['node']); span(item['statement']);
+    const node = item['node'] as EventDecisionSite['node'];
+    const statement = item['statement'] as EventDecisionSite['statement'];
+    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
+        stableStringify(item['source']) !== stableStringify(source) ||
+        node.start < statement.start || node.end > statement.end) {
+      return invalid('observe decision site differs from its checked source.');
+    }
+    ids.add(id); return item as unknown as EventDecisionSite;
+  };
+  const scanned = site(sites['for'], ['model']);
+  if ((sites['for'] as { readonly model: unknown }).model !== 'events.Change') {
+    return invalid('observe decision scan needs its original Change target.');
+  }
+  const send = site(sites['send']);
+  if (send.statement.start < scanned.statement.start || send.statement.end > scanned.statement.end) {
+    return invalid('observe SEND must stage inside its original venue scan.');
+  }
+  const rule = object(raw['sendRule'], ['rule', 'source', 'node', 'statement']);
+  text(rule['rule']); origin(rule['source']); span(rule['node']); span(rule['statement']);
+  if (stableStringify(rule['source']) !== stableStringify(source) ||
+      stableStringify(rule['node']) !== stableStringify(send.node) ||
+      stableStringify(rule['statement']) !== stableStringify(send.statement)) {
+    return invalid('observe SEND lacks its original guarded source occurrence.');
+  }
+  return deepFreeze(raw) as unknown as ObserveVenueDecisionPlan;
+}
+/** The renewal creates one Term row and stages one guarded Billing charge for
+ * the eligible branch. */
+export interface CreateTermDecisionPlan {
+  readonly version: 1;
+  readonly owner: 'member_terms.create_term';
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly sites: { readonly branch: EventDecisionSite; readonly send: EventDecisionSite };
+  readonly sendRule: { readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source'];
+    readonly node: EventDecisionSite['node']; readonly statement: EventDecisionSite['statement'] };
+}
+function checkCreateTermDecisionPlan(value: unknown, transport: unknown): CreateTermDecisionPlan {
+  const raw = object(value, ['version', 'owner', 'source', 'sites', 'sendRule']);
+  origin(raw['source']); origin(transport);
+  const source = raw['source'] as ScenarioResultDisclosurePlan['source'];
+  const carrier = transport as ScenarioResultDisclosurePlan['source'];
+  if (raw['version'] !== 1 || raw['owner'] !== 'member_terms.create_term' || source.module !== 'member_terms' ||
+      source.path !== carrier.path || source.sha256 !== carrier.sha256) {
+    return invalid('create decision needs its original renewal source.');
+  }
+  const span = (value: unknown): void => {
+    const item = object(value, ['start', 'end', 'kind']);
+    if (!Number.isSafeInteger(item['start']) || !Number.isSafeInteger(item['end']) ||
+        (item['start'] as number) < 0 || (item['end'] as number) <= (item['start'] as number) ||
+        !Number.isSafeInteger(item['kind']) || (item['kind'] as number) < 0) {
+      return invalid('create decision needs nonempty original source intervals.');
+    }
+  };
+  const sites = object(raw['sites'], ['branch', 'send']);
+  const ids = new Set<string>();
+  const site = (value: unknown): EventDecisionSite => {
+    const item = object(value, ['id', 'source', 'node', 'statement']);
+    const id = text(item['id']); origin(item['source']); span(item['node']); span(item['statement']);
+    const node = item['node'] as EventDecisionSite['node'];
+    const statement = item['statement'] as EventDecisionSite['statement'];
+    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
+        stableStringify(item['source']) !== stableStringify(source) ||
+        node.start < statement.start || node.end > statement.end) {
+      return invalid('create decision site differs from its checked source.');
+    }
+    ids.add(id); return item as unknown as EventDecisionSite;
+  };
+  const branch = site(sites['branch']);
+  const send = site(sites['send']);
+  if (send.statement.start < branch.statement.start || send.statement.end > branch.statement.end) {
+    return invalid('create SEND must stage inside its original renewal branch.');
+  }
+  const rule = object(raw['sendRule'], ['rule', 'source', 'node', 'statement']);
+  text(rule['rule']); origin(rule['source']); span(rule['node']); span(rule['statement']);
+  if (stableStringify(rule['source']) !== stableStringify(source) ||
+      stableStringify(rule['node']) !== stableStringify(send.node) ||
+      stableStringify(rule['statement']) !== stableStringify(send.statement)) {
+    return invalid('create SEND lacks its original guarded source occurrence.');
+  }
+  return deepFreeze(raw) as unknown as CreateTermDecisionPlan;
+}
 function checkInvoiceOverdueDecisionPlan(value: unknown, transport: unknown): InvoiceOverdueDecisionPlan {
   const raw = object(value, ['version', 'owner', 'source', 'event', 'sites', 'sendRule']);
   origin(raw['source']); origin(transport);
@@ -1368,7 +1541,10 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'rentMovementRefundDecision') ? ['rentMovementRefundDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'invoiceCollectDecision') ? ['invoiceCollectDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'invoiceIssueDecision') ? ['invoiceIssueDecision'] : []),
-    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'rentNoticeDecision') ? ['rentNoticeDecision'] : [])]);
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'rentNoticeDecision') ? ['rentNoticeDecision'] : []),
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'applyResultDecision') ? ['applyResultDecision'] : []),
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'observeVenueDecision') ? ['observeVenueDecision'] : []),
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'createTermDecision') ? ['createTermDecision'] : [])]);
   if (plan['version'] !== 1) return invalid('unsupported dependency plan version.');
   origin(plan['source']);
   if (Object.hasOwn(plan, 'eventDecision')) checkEventDecisionPlan(plan['eventDecision'], plan['source']);
@@ -1382,6 +1558,9 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
   if (Object.hasOwn(plan, 'invoiceCollectDecision')) checkInvoiceCollectDecisionPlan(plan['invoiceCollectDecision'], plan['source']);
   if (Object.hasOwn(plan, 'invoiceIssueDecision')) checkInvoiceIssueDecisionPlan(plan['invoiceIssueDecision'], plan['source']);
   if (Object.hasOwn(plan, 'rentNoticeDecision')) checkRentNoticeDecisionPlan(plan['rentNoticeDecision'], plan['source']);
+  if (Object.hasOwn(plan, 'applyResultDecision')) checkApplyResultDecisionPlan(plan['applyResultDecision'], plan['source']);
+  if (Object.hasOwn(plan, 'observeVenueDecision')) checkObserveVenueDecisionPlan(plan['observeVenueDecision'], plan['source']);
+  if (Object.hasOwn(plan, 'createTermDecision')) checkCreateTermDecisionPlan(plan['createTermDecision'], plan['source']);
   const queries = checkQueries(plan['queries'] ?? []);
   const returns = list(plan['returns']);
   if (returns.length === 0) return invalid('at least one checked return path required.');
@@ -1479,6 +1658,9 @@ interface BoundPlan {
   readonly invoiceCollectDecision?: InvoiceCollectDecisionPlan;
   readonly invoiceIssueDecision?: InvoiceIssueDecisionPlan;
   readonly rentNoticeDecision?: RentNoticeDecisionPlan;
+  readonly applyResultDecision?: ApplyResultDecisionPlan;
+  readonly observeVenueDecision?: ObserveVenueDecisionPlan;
+  readonly createTermDecision?: CreateTermDecisionPlan;
   readonly plan: ScenarioResultDisclosurePlan; readonly type: CanTypeId; readonly models: ReadonlyMap<ModelName, ModelInventory>;
   readonly resultModel: ModelName | undefined;
   readonly inputs: readonly CanonicalInputDef[];
@@ -2237,6 +2419,15 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   const rawRentNoticeDecision = plan.rentNoticeDecision;
   const rentNoticeDecision = rawRentNoticeDecision === undefined ? undefined :
     checkRentNoticeDecisionPlan(rawRentNoticeDecision, plan.source);
+  const rawApplyResultDecision = (plan as ScenarioResultDisclosurePlan & { readonly applyResultDecision?: unknown }).applyResultDecision;
+  const applyResultDecision = rawApplyResultDecision === undefined ? undefined :
+    checkApplyResultDecisionPlan(rawApplyResultDecision, plan.source);
+  const rawObserveVenueDecision = (plan as ScenarioResultDisclosurePlan & { readonly observeVenueDecision?: unknown }).observeVenueDecision;
+  const observeVenueDecision = rawObserveVenueDecision === undefined ? undefined :
+    checkObserveVenueDecisionPlan(rawObserveVenueDecision, plan.source);
+  const rawCreateTermDecision = (plan as ScenarioResultDisclosurePlan & { readonly createTermDecision?: unknown }).createTermDecision;
+  const createTermDecision = rawCreateTermDecision === undefined ? undefined :
+    checkCreateTermDecisionPlan(rawCreateTermDecision, plan.source);
   if (eventDecision !== undefined) {
     const inspection = models.find(model => model.name === 'maintain.Inspection');
     const planModel = models.find(model => model.name === 'maintain.Plan');
@@ -2476,6 +2667,68 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
       return invalid('Rent Notice lacks its exact private event, Booking ancestry and Notice model.');
     }
   }
+  if (applyResultDecision !== undefined) {
+    const inputs = def.descriptor.inputs;
+    const model = (name: string) => models.find(item => item.name === name);
+    const field = (name: string, member: string, kind: string) =>
+      model(name)?.fields.filter(item => item.name === member && item.field.kind === kind &&
+        item.array === undefined && item.nullable !== true).length === 1;
+    if (def.kind !== 'scenario' || def.name !== applyResultDecision.owner || declared !== 'void' ||
+        inputs.length !== 1 || inputs[0]?.name !== 'value' || !inputs[0].required ||
+        model('invoice.Attempt')?.parent !== 'invoice.Invoice' ||
+        model('invoice.Invoice')?.parent !== 'customer.Customer' ||
+        !field('invoice.Attempt', 'reference', 'string') ||
+        !field('invoice.Attempt', 'amount', 'money') ||
+        !field('invoice.Attempt', 'kind', 'enum') ||
+        !field('invoice.Attempt', 'status', 'enum') ||
+        (plan.queries?.length ?? 0) !== 0 || plan.returns.length !== 1 ||
+        plan.returns[0]!.dependencies.length !== 0 || plan.returns[0]!.influences.length !== 0 ||
+        (plan.returns[0]!.intrinsics?.length ?? 0) !== 0) {
+      return invalid('Apply result lacks its exact provider receipt source and Attempt ancestry.');
+    }
+  }
+  if (observeVenueDecision !== undefined) {
+    const inputs = def.descriptor.inputs;
+    const model = (name: string) => models.find(item => item.name === name);
+    const field = (name: string, member: string, kind: string) =>
+      model(name)?.fields.filter(item => item.name === member && item.field.kind === kind &&
+        item.array === undefined && item.nullable !== true).length === 1;
+    if (def.kind !== 'scenario' || def.name !== observeVenueDecision.owner || declared !== 'void' ||
+        inputs.length !== 1 || inputs[0]?.name !== 'value' || !inputs[0].required ||
+        model('events.Change')?.parent !== 'events.Event' ||
+        model('events.Event')?.parent !== 'events.Program' ||
+        !field('events.Change', 'source', 'string') ||
+        !field('events.Change', 'state', 'enum') ||
+        !field('events.Change', 'resource', 'ref') ||
+        !field('events.Event', 'pending_change', 'ref') ||
+        !field('events.Event', 'cancelled', 'boolean') ||
+        (plan.queries?.length ?? 0) !== 0 || plan.returns.length !== 1 ||
+        plan.returns[0]!.dependencies.length !== 0 || plan.returns[0]!.influences.length !== 0 ||
+        (plan.returns[0]!.intrinsics?.length ?? 0) !== 0) {
+      return invalid('Observe venue lacks its exact venue source and Change ancestry.');
+    }
+  }
+  if (createTermDecision !== undefined) {
+    const inputs = def.descriptor.inputs;
+    const model = (name: string) => models.find(item => item.name === name);
+    const field = (name: string, member: string, kind: string) =>
+      model(name)?.fields.filter(item => item.name === member && item.field.kind === kind &&
+        item.array === undefined && item.nullable !== true).length === 1;
+    if (def.kind !== 'scenario' || def.name !== createTermDecision.owner || declared !== 'void' ||
+        inputs.length !== 1 || inputs[0]?.name !== 'renewal' || !inputs[0].required ||
+        model('member_terms.Term')?.parent !== 'member_terms.Membership' ||
+        model('member_terms.Membership')?.parent !== 'customer.Customer' ||
+        !field('member_terms.Term', 'source', 'string') ||
+        !field('member_terms.Term', 'from', 'datetime') ||
+        !field('member_terms.Term', 'until', 'datetime') ||
+        !field('member_terms.Term', 'cancellation', 'enum') ||
+        !field('member_terms.Membership', 'recurrence', 'boolean') ||
+        (plan.queries?.length ?? 0) !== 0 || plan.returns.length !== 1 ||
+        plan.returns[0]!.dependencies.length !== 0 || plan.returns[0]!.influences.length !== 0 ||
+        (plan.returns[0]!.intrinsics?.length ?? 0) !== 0) {
+      return invalid('Create term lacks its exact renewal source and Term ancestry.');
+    }
+  }
   const resultModel = modelResultType(declared);
   if (resultModel !== undefined && (def.kind !== 'scenario' ||
       models.filter(model => model.name === resultModel).length !== 1 ||
@@ -2605,6 +2858,9 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
     ...(invoiceCollectDecision === undefined ? {} : { invoiceCollectDecision }),
     ...(invoiceIssueDecision === undefined ? {} : { invoiceIssueDecision }),
     ...(rentNoticeDecision === undefined ? {} : { rentNoticeDecision }),
+    ...(applyResultDecision === undefined ? {} : { applyResultDecision }),
+    ...(observeVenueDecision === undefined ? {} : { observeVenueDecision }),
+    ...(createTermDecision === undefined ? {} : { createTermDecision }),
     arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle,
     artifactModels, canonicalModels, idDependencies, namedEnumDependencies, narrowedDependencies, nominalDependencies, referenceDependencies, fileDependencies,

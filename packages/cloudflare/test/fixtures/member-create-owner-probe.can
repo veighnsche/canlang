@@ -1,0 +1,51 @@
+## Original member_terms.create_term renewal charge: the renewal gate, the
+## eligible branch and the guarded Billing charge are retained verbatim.
+## Sibling allowance and schedule bookkeeping is out of scope for the guard.
+app CanMember uses=[member_terms]
+
+package customer
+ Given
+  export Customer {kind:text,hidden:bool=false}
+  policy Customer read=members and not row.hidden
+ When
+ Then
+
+package invoice
+ Given
+  export capability BillingV1 version=1
+   charge(value:BillingChargeValue) -> BillingChargeOutcome
+  export contract BillingChargeValue {source:text,customer:text,location:text,description:text,amount:money,due:date,consent:text?,items:BillingChargeItem[]}
+  export contract BillingChargeItem {title:text,quantity:int,price:money,tax:money,discount:money,unit:text,from:datetime,until:datetime,location:text,reference:text}
+  export contract BillingChargeOutcome {source:text,revision:int,state:text,reference:text,detail:text?}
+ When
+ Then
+
+package member_terms
+ use customer {Customer}
+ use invoice {BillingV1 as Billing} from=deployment.billing
+ Given
+  export Membership in Customer {account:user,revoked:bool=false,recurrence:bool=false,consent:text?,cancellation_at:datetime?,timezone:timezone,location:Location}
+  Term in Membership {source:text unique,title:text,price:money,from:datetime,until:datetime,automatic:bool=false,cancellation:enum(none,pending,applied)=none,consent:text?,charge_delivery:text?,hidden:bool=false}
+  export Renewal {state:enum(pending,skipped,created)=pending,parent:Membership,requester:user?,automatic:bool=false,consent:text?}
+  Location {name:text}
+  event RenewalDue {renewal:Renewal}
+  policy Membership read=members
+  policy Term read=members and not row.hidden
+ When
+  scenario create_term on=RenewalDue
+   require event.renewal.state==pending
+   do
+    let request=event.renewal
+    let membership=request.parent
+    let from=now
+    let until=now
+    let location=membership.location
+    if membership.revoked
+     set request {state=skipped}
+    else
+     require request.automatic or request.requester!=null
+     if membership.recurrence
+      create Term {parent=membership,source="term-source",title="Term",price=money(100,"EUR"),from=from,until=from,automatic=request.automatic,consent=request.consent} as term
+      send Billing.charge {value={source=term.source,customer=membership.parent.id,location=location.id,description=term.title,amount=term.price,due=local_date(from,membership.timezone),consent=term.consent,items=[{title=term.title,quantity=1,price=term.price,tax=money(0,term.price.currency),discount=money(0,term.price.currency),unit="term",from,until,location=location.id,reference=term.source}]}} when=term.cancellation==none and term.until>now and not term.parent.revoked and (not term.automatic or (term.parent.recurrence and term.parent.consent==term.consent and (term.parent.cancellation_at==null or term.from<term.parent.cancellation_at))) as charge
+      set term {charge_delivery=charge.id}
+ Then

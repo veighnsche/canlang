@@ -3777,6 +3777,20 @@ function nativeInvoiceCollectPaymentGuard(def: GeneratedOperationDef, selected: 
     decision.sendRule.rule === selected.guard.rule && selected.guard.owner === 'invoice.collect' &&
     selected.guard.binding === 'invoice.Payments' && selected.guard.target === 'std.PaymentsV1.collect';
 }
+function nativeObserveVenueRoomsGuard(def: GeneratedOperationDef, selected: NativeSourceSendGuard): boolean {
+  const decision = (def.descriptor.result?.disclosure as
+    { readonly observeVenueDecision?: import('@canlang/state/invocation').ObserveVenueDecisionPlan } | undefined)?.observeVenueDecision;
+  return def.name === 'events.observe_venue' && decision?.owner === 'events.observe_venue' &&
+    decision.sendRule.rule === selected.guard.rule && selected.guard.owner === 'events.observe_venue' &&
+    selected.guard.binding === 'events.Rooms' && selected.guard.target === 'rent_reservations.RoomsV1.confirm';
+}
+function nativeCreateTermChargeGuard(def: GeneratedOperationDef, selected: NativeSourceSendGuard): boolean {
+  const decision = (def.descriptor.result?.disclosure as
+    { readonly createTermDecision?: import('@canlang/state/invocation').CreateTermDecisionPlan } | undefined)?.createTermDecision;
+  return def.name === 'member_terms.create_term' && decision?.owner === 'member_terms.create_term' &&
+    decision.sendRule.rule === selected.guard.rule && selected.guard.owner === 'member_terms.create_term' &&
+    selected.guard.binding === 'member_terms.Billing' && selected.guard.target === 'invoice.BillingV1.charge';
+}
 
 /** Recreate the exact current balance domain before a collected payment leaves Work. */
 async function prepareInvoiceCollectDispatchDecision(input: {
@@ -3897,6 +3911,58 @@ async function prepareInvoiceIssueDispatchDecision(input: {
       current.data['state'] === 'issued' &&
       stable.every(field => stableStringify(current.data[field]) ===
         stableStringify(original.data[field]));
+    return Object.freeze({ current, eligible });
+  };
+  const observed = await read();
+  const fingerprint = (value: Awaited<ReturnType<typeof read>>) =>
+    stableStringify({ current: value.current, eligible: value.eligible });
+  return Object.freeze({ ...observed,
+    revalidate: async () => fingerprint(await read()) === fingerprint(observed) });
+}
+/** Recreate the exact current Change/Event pair before Rooms.confirm leaves Work. */
+export async function prepareObserveVenueDispatchDecision(input: {
+  readonly loaded: LoadedCanonicalDescriptors;
+  readonly store: StoragePort;
+  readonly revision: Revision;
+  readonly snapshots: NonNullable<Awaited<ReturnType<typeof loadNativeSendModelSnapshots>>>;
+  readonly lexical: Readonly<Record<string, unknown>>;
+  readonly intentId: string;
+}) {
+  const { loaded, store, revision, snapshots } = input;
+  const original = snapshots.snapshot('events.Change', localPolicyMember(input.lexical, 'change'));
+  if (original.archivedAt !== null || original.parent?.model !== 'events.Event' ||
+      original.data['state'] !== 'confirming') {
+    throw new loaded.producers.errors('validation', 'Observe venue confirm lost its original confirming Change.');
+  }
+  const refId = (value: unknown): { readonly model: string; readonly id: string } | null => {
+    if (typeof value !== 'object' || value === null) return null;
+    const record = value as { readonly kind?: unknown; readonly model?: unknown; readonly id?: unknown };
+    return record.kind === 'ref' && typeof record.model === 'string' && typeof record.id === 'string'
+      ? { model: record.model, id: record.id } : null;
+  };
+  const read = async () => {
+    if (await store.readRevision() !== revision) {
+      throw new loaded.producers.errors('conflict', 'Observe venue confirm owner revision changed.');
+    }
+    const current = await store.cohortLoad({ model: 'events.Change' as ModelName,
+      id: original.id, expectedRevision: revision });
+    const event = current !== null && current.parent?.model === 'events.Event' ? await store.cohortLoad({
+      model: 'events.Event' as ModelName, id: current.parent.id as RecordId, expectedRevision: revision }) : null;
+    if (await store.readRevision() !== revision) {
+      throw new loaded.producers.errors('conflict', 'Observe venue confirm owner revision changed.');
+    }
+    const pending = event === null ? null : refId(event.data['pending_change']);
+    const eligible = current !== null && event !== null &&
+      current.archivedAt === null && event.archivedAt === null &&
+      current.version >= original.version && current.created === original.created &&
+      current.createdBy === original.createdBy &&
+      stableStringify(current.parent) === stableStringify(original.parent) &&
+      current.data['state'] === 'confirming' &&
+      current.data['source'] === original.data['source'] &&
+      stableStringify(refId(current.data['resource'])) === stableStringify(refId(original.data['resource'])) &&
+      current.data['confirm_delivery'] === input.intentId &&
+      event.data['cancelled'] === false &&
+      pending !== null && pending.model === 'events.Change' && pending.id === current.id;
     return Object.freeze({ current, eligible });
   };
   const observed = await read();
@@ -4919,6 +4985,30 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
           (issueDecision?.owner !== def.name || issueDecision.sendRule.rule !== emitted.rule ||
             stableStringify(issueDecision.sendRule.node) !== stableStringify(emitted.node))) {
         throw new AssemblyCorrespondenceError('Invoice issue SEND interval differs from its checked source decision.');
+      }
+      const applyDecision = (plan as typeof plan & { readonly applyResultDecision?: {
+        readonly owner: string; readonly sendRule: { readonly rule: string; readonly node: unknown };
+      } }).applyResultDecision;
+      if (def.name === 'invoice.apply_result' &&
+          (applyDecision?.owner !== def.name || applyDecision.sendRule.rule !== emitted.rule ||
+            stableStringify(applyDecision.sendRule.node) !== stableStringify(emitted.node))) {
+        throw new AssemblyCorrespondenceError('Apply result SEND interval differs from its checked source decision.');
+      }
+      const observeDecision = (plan as typeof plan & { readonly observeVenueDecision?: {
+        readonly owner: string; readonly sendRule: { readonly rule: string; readonly node: unknown };
+      } }).observeVenueDecision;
+      if (def.name === 'events.observe_venue' &&
+          (observeDecision?.owner !== def.name || observeDecision.sendRule.rule !== emitted.rule ||
+            stableStringify(observeDecision.sendRule.node) !== stableStringify(emitted.node))) {
+        throw new AssemblyCorrespondenceError('Observe venue SEND interval differs from its checked source decision.');
+      }
+      const createDecision = (plan as typeof plan & { readonly createTermDecision?: {
+        readonly owner: string; readonly sendRule: { readonly rule: string; readonly node: unknown };
+      } }).createTermDecision;
+      if (def.name === 'member_terms.create_term' &&
+          (createDecision?.owner !== def.name || createDecision.sendRule.rule !== emitted.rule ||
+            stableStringify(createDecision.sendRule.node) !== stableStringify(emitted.node))) {
+        throw new AssemblyCorrespondenceError('Create term SEND interval differs from its checked source decision.');
       }
       const rule = artifact.callables.filter(value => value.kind === 'rule' && value.id === emitted.rule &&
         value.module === callable.module && stableStringify(value.member) === stableStringify(['sendWhen', emitted.rule]));
@@ -10679,7 +10769,9 @@ async function runScenarioExecution(
               !isResourceSendTarget(selected?.definition, bindingKey, source) &&
               !(selected !== undefined && (nativeLeaveDecideReserveGuard(def, selected) ||
                 nativeMemberRetryChargeGuard(def, selected) ||
-                nativeInvoiceCollectPaymentGuard(def, selected)))) ||
+                nativeInvoiceCollectPaymentGuard(def, selected) ||
+                nativeObserveVenueRoomsGuard(def, selected) ||
+                nativeCreateTermChargeGuard(def, selected)))) ||
               ownerSession === undefined || selected === undefined ||
               selected.guard.binding !== bindingKey || selected.guard.target !== source || selected.guard.owner !== scope.operation ||
               selected.guard.inputs.some(input => !nativeEmailLexicalType(input.type) && !sendSnapshots?.has(input.type) &&
@@ -20646,7 +20738,8 @@ export async function bindNativeEmailDispatchGuards(input: {
       const targetOwner = resourceSendOwner(selected.definition, selected.guard.binding, selected.guard.target);
       if ((!['std.EmailV1.send', 'std.EmailV1.send_user', 'std.TextGenerationV1.generate'].includes(selected.guard.target) &&
           targetOwner === undefined && !nativeLeaveDecideReserveGuard(def, selected) &&
-          !nativeMemberRetryChargeGuard(def, selected) && !nativeInvoiceCollectPaymentGuard(def, selected)) ||
+          !nativeMemberRetryChargeGuard(def, selected) && !nativeInvoiceCollectPaymentGuard(def, selected) &&
+          !nativeObserveVenueRoomsGuard(def, selected) && !nativeCreateTermChargeGuard(def, selected)) ||
           (targetOwner ?? selected.ownerPackage) !== scope.ownerPackage ||
           selected.guard.inputs.some(slot => !nativeEmailLexicalType(slot.type) && !sendSnapshots?.has(slot.type) &&
             !(isResourceSendTarget(selected.definition, selected.guard.binding, selected.guard.target) && nativeResourceLexicalType(slot.type, loaded.valueSchema, new Set(), selected.guard.target.endsWith('.publish') && input.files !== undefined)))) continue;
@@ -20734,6 +20827,34 @@ export async function bindNativeEmailDispatchGuards(input: {
           !sendSnapshots?.has('invoice.Invoice'))) {
       throw new Error('Invoice issue dispatch requires its exact installed issued Invoice guard.');
     }
+    const observeVenueDecision = selected.guard.owner === 'events.observe_venue' ?
+      (def.descriptor.result?.disclosure as
+        { readonly observeVenueDecision?: import('@canlang/state/invocation').ObserveVenueDecisionPlan } | undefined)
+        ?.observeVenueDecision : undefined;
+    if (selected.guard.owner === 'events.observe_venue' &&
+        (!nativeObserveVenueRoomsGuard(def, selected) ||
+          observeVenueDecision?.owner !== 'events.observe_venue' ||
+          observeVenueDecision.sendRule.rule !== selected.guard.rule ||
+          selected.guard.inputs.length !== 1 ||
+          selected.guard.inputs[0]?.name !== 'change' ||
+          selected.guard.inputs[0]?.type !== 'events.Change' ||
+          !sendSnapshots?.has('events.Change'))) {
+      throw new Error('Observe venue dispatch requires its exact installed Change guard and snapshot.');
+    }
+    const createTermDecision = selected.guard.owner === 'member_terms.create_term' ?
+      (def.descriptor.result?.disclosure as
+        { readonly createTermDecision?: import('@canlang/state/invocation').CreateTermDecisionPlan } | undefined)
+        ?.createTermDecision : undefined;
+    if (selected.guard.owner === 'member_terms.create_term' &&
+        (!nativeCreateTermChargeGuard(def, selected) ||
+          createTermDecision?.owner !== 'member_terms.create_term' ||
+          createTermDecision.sendRule.rule !== selected.guard.rule ||
+          selected.guard.inputs.length !== 1 ||
+          selected.guard.inputs[0]?.name !== 'term' ||
+          selected.guard.inputs[0]?.type !== 'member_terms.Term' ||
+          !sendSnapshots?.has('member_terms.Term'))) {
+      throw new Error('Create term dispatch requires its exact installed Term guard and snapshot.');
+    }
     let staged: { input: DispatchClaimGuardInput; retained: RetainedOutboxIntent; lexical: Readonly<Record<string, unknown>>;
       opaque: NonNullable<Awaited<ReturnType<typeof nativeOpaqueFileStaging>>>; row: StoredRow;
       identity: ResolvedIdentity; currentIdentity: () => Promise<ResolvedIdentity> } | undefined;
@@ -20793,6 +20914,7 @@ export async function bindNativeEmailDispatchGuards(input: {
       let recheckMember: (() => Promise<boolean>) | undefined;
       let invoiceCollect: Awaited<ReturnType<typeof prepareInvoiceCollectDispatchDecision>> | undefined;
       let invoiceIssue: Awaited<ReturnType<typeof prepareInvoiceIssueDispatchDecision>> | undefined;
+      let observeVenue: Awaited<ReturnType<typeof prepareObserveVenueDispatchDecision>> | undefined;
       if (leaveDecision !== undefined) {
         const frozen = sendSnapshots!.snapshot('leave.Request', localPolicyMember(actual.lexical, 'request'));
         const reserveRevision = decodeCanonicalValue(loaded.valueSchema, 'int',
@@ -20858,6 +20980,12 @@ export async function bindNativeEmailDispatchGuards(input: {
           revision: actual.input.revision, snapshots: sendSnapshots!, lexical: actual.lexical });
         healthy();
       }
+      if (observeVenueDecision !== undefined) {
+        observeVenue = await prepareObserveVenueDispatchDecision({ loaded, store,
+          revision: actual.input.revision, snapshots: sendSnapshots!, lexical: actual.lexical,
+          intentId: originalIntent.intentId });
+        healthy();
+      }
       if (eventDecision !== undefined) {
         if (sendSnapshots === undefined || selected.guard.owner !== 'maintain.remind' ||
             eventDecision.owner !== 'maintain.remind') return reject();
@@ -20877,6 +21005,10 @@ export async function bindNativeEmailDispatchGuards(input: {
               disabled: invoiceCollect.attempt?.data['disabled'] ?? false }) :
             invoiceIssue !== undefined && slot.name === 'invoice' ? Object.freeze({
               state: invoiceIssue.current?.data['state'] }) :
+            observeVenue !== undefined && slot.name === 'change' && observeVenue.eligible ?
+              sendSnapshots!.view('events.Change', { ...observeVenue.current!, sourcePresence: {
+                fields: Object.keys(observeVenue.current!.data),
+              } }, healthy) :
             leaveDecision !== undefined && slot.name === 'request' && leaveCurrent ?
               sendSnapshots!.view('leave.Request', { ...leaveRequest!, sourcePresence: {
                 fields: Object.keys(leaveRequest!.data),
@@ -20903,6 +21035,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         if (recheckMember !== undefined && !await recheckMember()) return false;
         if (invoiceCollect !== undefined && !await invoiceCollect.revalidate()) return false;
         if (invoiceIssue !== undefined && !await invoiceIssue.revalidate()) return false;
+        if (observeVenue !== undefined && !await observeVenue.revalidate()) return false;
         return current.actor === null && stableStringify(current.team) === stableStringify(identity.team);
       });
       let frame: NativeMembershipFrame | undefined;
@@ -20916,6 +21049,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         if (memberRetryDecision !== undefined && !memberCurrent) return false;
         if (invoiceCollect !== undefined && !invoiceCollect.eligible) return false;
         if (invoiceIssue !== undefined && !invoiceIssue.eligible) return false;
+        if (observeVenueDecision !== undefined && (observeVenue === undefined || !observeVenue.eligible)) return false;
         // This event has no authored dispatch-time comparison. Its complete
         // balance decision was sealed with the true source-stage Work guard;
         // the verified preclaim above retains that exact verdict and intent.

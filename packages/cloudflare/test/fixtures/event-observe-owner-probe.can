@@ -1,0 +1,37 @@
+## Original CanEvent.observe_venue provider scan: the source-row scan, the
+## pending-change gate and the guarded Rooms confirmation are retained
+## verbatim. Sibling venue-state bookkeeping is out of scope for the guard.
+app CanEvent uses=[events]
+
+package rent_reservations
+ use std {OperationOutcome}
+ Given
+  export capability RoomsV1 version=1
+   confirm(source:text,resource:text) -> OperationOutcome
+ When
+ Then
+
+package events
+ use rent_reservations {RoomsV1 as Rooms} from=deployment.rooms
+ use std {OperationOutcome,DeliveryResult}
+ Given
+  export Program {name:text unique}
+  export Event in Program {revision:int=1,pending_change:Change?,cancelled:bool=false}
+  Change in Event {source:text unique,base_revision:int=0,venue_revision:int=0,state:enum(holding,confirming,adopted)=holding,resource:Resource?,confirm_delivery:text?,confirm_status:DeliveryResult.status?}
+  Resource {name:text}
+  event VenueObserved {value:OperationOutcome}
+  policy Event read=members
+  policy Change read=members
+ When
+  scenario observe_venue on=VenueObserved
+   do
+    for change in Change as row where row.source==event.value.source limit=1
+     if event.value.revision>change.venue_revision
+      set change {venue_revision=event.value.revision}
+      if change.parent.pending_change==change and not change.parent.cancelled and change.base_revision==change.parent.revision
+       if event.value.state==pending and change.state==holding and change.resource!=null
+        let resource=change.resource
+        set change {state=confirming}
+        send Rooms.confirm {source=change.source,resource=resource.id} when=change.parent.pending_change==change and not change.parent.cancelled and change.state==confirming as delivery
+        set change {confirm_delivery=delivery.id,confirm_status=pending}
+ Then

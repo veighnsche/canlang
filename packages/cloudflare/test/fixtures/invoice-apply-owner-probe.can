@@ -1,0 +1,33 @@
+## Original CanInvoice.apply_result failure-notice scan: the provider-reference
+## scan, the collection-failure gate and the guarded Mail notice are retained
+## verbatim. Sibling settlement bookkeeping is out of scope for the guard.
+app CanInvoice uses=[invoice]
+
+package customer
+ Given
+  export Customer {kind:text,hidden:bool=false}
+  policy Customer read=members and not row.hidden
+ When
+ Then
+
+package invoice
+ use customer {Customer}
+ use std {EmailV1 as Mail} from=deployment.mail
+ use std {PaymentState}
+ Given
+  export Invoice in Customer {source:text,state:enum(draft,issued,void_pending)=draft,recipient_email:email,balance:money,ledger_revision:int=0,hidden:bool=false}
+  Attempt in Invoice {reference:text unique,amount:money,kind:enum(collection,refund),status:PaymentState.status=pending,provider_revision:int=0,disabled:bool=false,hidden:bool=false}
+  event ProviderReceipt {value:PaymentState}
+  policy Invoice read=members and not row.hidden
+  policy Attempt read=members and not row.hidden
+ When
+  scenario apply_result on=ProviderReceipt
+   do
+    for attempt in Attempt as item where item.reference==event.value.reference limit=1
+     require attempt.amount==event.value.amount
+     if attempt.status!=succeeded and event.value.revision>attempt.provider_revision
+      set attempt {status=event.value.status,provider_revision=event.value.revision}
+      if attempt.kind==collection and event.value.status==failed and attempt.parent.state==issued and attempt.parent.balance.minor>0
+       send Mail.send {to=attempt.parent.recipient_email,subject=format("Invoice payment needs attention"@{nl="Factuurbetaling vereist aandacht"},locale=null),body=format("{url}",{url=app_url(format("/finance/invoice/{invoice}",{invoice=attempt.parent.id}))})} when=attempt.parent.state==issued and attempt.parent.balance.minor>0 and attempt.status==failed as notice
+       set attempt.parent {ledger_revision=attempt.parent.ledger_revision+1}
+ Then

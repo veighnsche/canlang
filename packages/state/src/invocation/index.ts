@@ -38,6 +38,7 @@ export {
   executeScenarioReceiptInvoiceCollectDecision, type InvoiceCollectDecisionPlan,
   executeScenarioReceiptInvoiceIssueDecision, type InvoiceIssueDecisionPlan,
   executeScenarioReceiptRentNoticeDecision, type RentNoticeDecisionPlan,
+  type ApplyResultDecisionPlan, type ObserveVenueDecisionPlan, type CreateTermDecisionPlan,
   bindScenarioReceiptFrameworkProducer, stageScenarioReceiptSend, stageScenarioReceiptDelivery,
   bindScenarioReceiptCallProducer, invokeScenarioReceiptCall, assertScenarioReceiptCallExecution, type ScenarioReceiptCallSite,
   noteDueWorkAdmission, type DueWorkAdmission,

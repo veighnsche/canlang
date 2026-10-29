@@ -851,6 +851,33 @@ fn prepare_owner_guards(
         }
         return Ok(Some(vec![guard.descriptor]));
     }
+    if owner.canonical == "events.observe_venue" {
+        let (span, guard) = super::event_send_decisions::prepare_observe_venue_send_guard(context, owner)
+            .ok_or_else(|| gap("exact event venue SEND owner unavailable", Some(owner.span)))?;
+        if sends.len() != 1 || !matches!(sends[0], IrStmt::Send {span: actual,..} if *actual == span)
+            || guards.insert(span, guard.clone()).is_some() {
+            return Err(gap("event venue SEND dispatch census mismatch", Some(owner.span)));
+        }
+        return Ok(Some(vec![guard.descriptor]));
+    }
+    if owner.canonical == "invoice.apply_result" {
+        let (span, guard) = super::invoice_send_decisions::prepare_apply_result_send_guard(context, owner)
+            .ok_or_else(|| gap("exact invoice apply SEND owner unavailable", Some(owner.span)))?;
+        if sends.len() != 1 || !matches!(sends[0], IrStmt::Send {span: actual,..} if *actual == span)
+            || guards.insert(span, guard.clone()).is_some() {
+            return Err(gap("invoice apply SEND dispatch census mismatch", Some(owner.span)));
+        }
+        return Ok(Some(vec![guard.descriptor]));
+    }
+    if owner.canonical == "member_terms.create_term" {
+        let (span, guard) = super::member_create_term_decisions::prepare_create_term_send_guard(context, owner)
+            .ok_or_else(|| gap("exact member create-term SEND owner unavailable", Some(owner.span)))?;
+        if sends.len() != 1 || !matches!(sends[0], IrStmt::Send {span: actual,..} if *actual == span)
+            || guards.insert(span, guard.clone()).is_some() {
+            return Err(gap("member create-term SEND dispatch census mismatch", Some(owner.span)));
+        }
+        return Ok(Some(vec![guard.descriptor]));
+    }
     // A fresh IR refusal in this scenario, a consumed helper, or a schema
     // declaration invalidates its SEND proof. Unrelated owners cannot.
     if super::scenario_queries::checked_send_diagnostics(

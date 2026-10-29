@@ -282,6 +282,36 @@ function assertSendSlots(guard: Record<string, unknown>, profile: FrameworkOpaqu
     }
     node = { start: data(node, 'start') as number, end: data(node, 'end') as number };
   }
+  if (callable.id === 'invoice.apply_result') {
+    const operations = artifact.operations?.filter(operation => operation.name === callable.id && operation.kind === 'scenario');
+    const decision = operations?.[0]?.result?.disclosure?.applyResultDecision as
+      { readonly owner: string; readonly sendRule: { readonly rule: string; readonly node: unknown } } | undefined;
+    if (operations?.length !== 1 || decision?.owner !== callable.id || decision.sendRule.rule !== rule ||
+        !equal(decision.sendRule.node, node)) {
+      throw new Error('Apply result SEND interval differs from its checked source decision.');
+    }
+    node = { start: data(node, 'start') as number, end: data(node, 'end') as number };
+  }
+  if (callable.id === 'events.observe_venue') {
+    const operations = artifact.operations?.filter(operation => operation.name === callable.id && operation.kind === 'scenario');
+    const decision = operations?.[0]?.result?.disclosure?.observeVenueDecision as
+      { readonly owner: string; readonly sendRule: { readonly rule: string; readonly node: unknown } } | undefined;
+    if (operations?.length !== 1 || decision?.owner !== callable.id || decision.sendRule.rule !== rule ||
+        !equal(decision.sendRule.node, node)) {
+      throw new Error('Observe venue SEND interval differs from its checked source decision.');
+    }
+    node = { start: data(node, 'start') as number, end: data(node, 'end') as number };
+  }
+  if (callable.id === 'member_terms.create_term') {
+    const operations = artifact.operations?.filter(operation => operation.name === callable.id && operation.kind === 'scenario');
+    const decision = operations?.[0]?.result?.disclosure?.createTermDecision as
+      { readonly owner: string; readonly sendRule: { readonly rule: string; readonly node: unknown } } | undefined;
+    if (operations?.length !== 1 || decision?.owner !== callable.id || decision.sendRule.rule !== rule ||
+        !equal(decision.sendRule.node, node)) {
+      throw new Error('Create term SEND interval differs from its checked source decision.');
+    }
+    node = { start: data(node, 'start') as number, end: data(node, 'end') as number };
+  }
   declarations.push({ id: `${rule}:send-inputs`, source: { kind: 'send-guard', rule,
     source: source.source, owner: callable.id, node,
     binding: data(guard, 'binding') as string, target: data(guard, 'target') as string, inputs }, profile });

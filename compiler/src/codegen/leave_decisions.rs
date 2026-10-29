@@ -657,7 +657,7 @@ pub(super) fn collect_leave_receipt(
             term_decision: None,
             leave_request_decision: Some(decision),
             leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None,queries: Vec::new(),
+            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, apply_result_decision: None, observe_venue_decision: None, create_term_decision: None,queries: Vec::new(),
             returns: vec![ReceiptReturn {
                 id: id.clone(),
                 source,
@@ -983,7 +983,7 @@ pub(super) fn collect_leave_decide_receipt(
     Some(NativeScenarioReceipt{
         plan:ReceiptDisclosurePlan{version:1,source:source.clone(),event_decision:None,
             term_decision:None,leave_request_decision:None,leave_decide_decision:Some(decision),refer_reject_decision:None,member_retry_decision:None,invoice_overdue_decision:None,rent_movement_refund_decision:None,
-            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None,queries:Vec::new(),returns:vec![ReceiptReturn{id:id.clone(),source,
+            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, apply_result_decision: None, observe_venue_decision: None, create_term_decision: None,queries:Vec::new(),returns:vec![ReceiptReturn{id:id.clone(),source,
                 influences:Vec::new(),dependencies:Vec::new(),intrinsics:Vec::new(),projection:None}]},
         dependencies:Default::default(),intrinsics:Default::default(),decisions:Default::default(),
         decision_keys:Default::default(),calls:Default::default(),
