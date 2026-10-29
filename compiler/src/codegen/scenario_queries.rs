@@ -2258,6 +2258,7 @@ fn plan_direct_query(
             source: origin(&q.source, entry_module),
             model: model.canonical.clone(),
             parent: None,
+            iteration: None,
             order: Vec::new(),
             limit: None,
             archived: "exclude".into(),
@@ -2559,6 +2560,7 @@ fn assemble_inline_query(
                 dependency_id: fact.parent_dependency.id.clone(),
             },
         }),
+        iteration: None,
         order: query
             .order
             .iter()
@@ -3061,6 +3063,7 @@ fn assemble_transcript_query(
                 parameter: parameter.name.clone(),
             },
         }),
+        iteration: None,
         order: vec![ReceiptQueryOrder {
             field: order.field_name.clone(),
             direction: "asc".into(),
@@ -3939,6 +3942,7 @@ fn checked_first_query_plan(
             source: origin(&q.source, entry),
             model: model.canonical.clone(),
             parent,
+            iteration: None,
             order: q
                 .order
                 .iter()

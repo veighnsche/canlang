@@ -462,6 +462,8 @@ pub(super) struct ReceiptQuery {
     pub model: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent: Option<ReceiptQueryParent>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub iteration: Option<String>,
     pub order: Vec<ReceiptQueryOrder>,
     pub limit: Option<u16>,
     pub archived: String,
@@ -484,6 +486,9 @@ pub(super) enum ReceiptQueryParentOrigin {
     StoredReference {
         #[serde(rename = "dependencyId")]
         dependency_id: String,
+    },
+    CreatedReference {
+        created: serde_json::Value,
     },
 }
 
@@ -2795,6 +2800,22 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         recipe.plan.source_loops = Some(
             serde_json::json!({"source":recipe.plan.source,"owner":item.canonical,"loops":loops}),
         );
+    }
+    // An aggregate loop publishes its exact repeated-query census, item DATA
+    // dependencies and single source order under its aggregate-loop identity,
+    // which the emitted repeated queries reference as their iteration.
+    // Ordinary loop emission above stays untouched; a scenario carrying both
+    // still declines until their joint transport is proved.
+    let has_aggregates = checked
+        .source_facts
+        .as_deref()
+        .and_then(|facts| facts.aggregate_loops.as_deref())
+        .is_some_and(|aggregates| !aggregates.is_empty());
+    if has_aggregates {
+        if recipe.plan.source_loops.is_some() {
+            return None;
+        }
+        recipe.plan.source_loops = Some(aggregate_loop_plan(ir, item, checked, entry_module)?);
     }
     recipe.plan.purchase_receive_all = purchase_all;
     if item.canonical == "events.attendee_notice" {
@@ -5921,6 +5942,7 @@ fn receipt_unordered_query(
         source: transport_source(&query.source, entry)?,
         model: query.model_name.clone(),
         parent,
+        iteration: None,
         order: Vec::new(),
         limit: None,
         archived: "exclude".into(),
@@ -7210,6 +7232,428 @@ fn context_query_alias_name(
     (clause.node == value.alias).then(|| name.clone())
 }
 
+/// Aggregate loop plan association for repeated native queries. Each loop
+/// carries its exact original finite repeated-query census, per-item DATA
+/// dependencies and single source order under its aggregate-loop identity.
+/// A loop with no published repeated query, a duplicated census entry, a
+/// foreign DATA dependency or a missing single order declines; the receipt
+/// stays gated until the consumer qualifies every repeated query it names.
+fn aggregate_loop_plan(
+    ir: &IrProgram,
+    item: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    entry: &str,
+) -> Option<serde_json::Value> {
+    let facts = checked.source_facts.as_deref()?;
+    let aggregates = facts.aggregate_loops.as_deref()?;
+    if aggregates.is_empty() {
+        return None;
+    }
+    let values = facts.query_values.as_deref()?;
+    let IrItemKind::Scenario { effects, .. } = &item.kind else {
+        return None;
+    };
+    let mut loops = Vec::new();
+    for aggregate in aggregates {
+        let queries: Vec<&str> = values
+            .iter()
+            .filter(|value| value.iteration == Some(aggregate.node))
+            .map(|value| value.query.id.as_str())
+            .collect();
+        {
+            let mut seen = std::collections::HashSet::new();
+            if queries.is_empty()
+                || queries.len() > 200
+                || !queries.iter().all(|id| seen.insert(*id))
+            {
+                return None;
+            }
+        }
+        // Only genuine per-item DATA reads inside the loop body travel with
+        // the repetition; query-owned and CONTROL dependencies stay where the
+        // query plan already proves them. Every listed id must already be an
+        // ordinary return dependency, which the emitted queries re-verify.
+        let mut dependencies = Vec::new();
+        for returned in &checked.returns {
+            for dependency in &returned.dependencies {
+                if dependency.query_id.is_some()
+                    || dependency.role != DependencyRole::Data
+                    || dependency.node.file != aggregate.node.file
+                    || dependency.node.start < aggregate.node.start
+                    || dependency.node.end > aggregate.node.end
+                {
+                    continue;
+                }
+                if !dependencies.contains(&dependency.id) {
+                    dependencies.push(dependency.id.clone());
+                }
+            }
+        }
+        if dependencies.len() > 200 {
+            return None;
+        }
+        // The single authored item selection order and the domain filter flag
+        // come from the exact original For statement, never from metadata.
+        let (order_field, order_descending, filtered) =
+            effects.iter().find_map(|statement| match statement {
+                IrStmt::For { domain, span, .. } if *span == node_span(aggregate.node) => {
+                    let IrExpr::Query(query) = &domain.expr else {
+                        return None;
+                    };
+                    let [order] = query.order.as_slice() else {
+                        return None;
+                    };
+                    Some((
+                        order.field.clone(),
+                        order.descending,
+                        query.where_pred.is_some(),
+                    ))
+                }
+                _ => None,
+            })?;
+        let parameter = ir.items.get(aggregate.parameter.0 as usize)?;
+        let parent = ir.items.get(aggregate.parent_model.0 as usize)?;
+        let model = ir.items.get(aggregate.model.0 as usize)?;
+        loops.push(serde_json::json!({
+            "id": aggregate.id,
+            "node": {"start": aggregate.node.start, "end": aggregate.node.end},
+            "domain": {"start": aggregate.domain.start, "end": aggregate.domain.end},
+            "maximum": aggregate.maximum,
+            "parameter": parameter.name,
+            "parentModel": parent.canonical,
+            "model": model.canonical,
+            "filtered": filtered,
+            "aggregate": {
+                "queries": queries,
+                "dependencies": dependencies,
+                "order": [{"field": order_field, "direction": if order_descending { "desc" } else { "asc" }}],
+            },
+        }));
+        if loops.len() > 200 {
+            return None;
+        }
+    }
+    Some(serde_json::json!({
+        "source": serde_json::to_value(transport_source(&facts.source, entry)?).ok()?,
+        "owner": item.canonical,
+        "loops": loops,
+    }))
+}
+
+/// An aggregate-loop repeated query joins the staged aggregate against fresh
+/// source/IR. Created parents ride the exact earlier created row; Global
+/// parents scan the whole model filtered by the genuine ForItem. The emitted
+/// query carries its aggregate loop iteration. Occurrence identity is never
+/// taken from metadata here; State mints it from the private item lease.
+fn checked_native_aggregate_value_query(
+    context: &super::source_context::FreshSourceContext<'_>,
+    ir: &IrProgram,
+    owner: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    entry: &str,
+    value: &crate::analysis::scenario_disclosure::CheckedQueryValueSource,
+    effects: &[IrStmt],
+) -> Option<ReceiptQuery> {
+    use crate::analysis::scenario_disclosure::CheckedQueryValueParent;
+    let facts = checked.source_facts.as_deref()?;
+    let iteration = value.iteration?;
+    let aggregate = facts
+        .aggregate_loops
+        .as_deref()?
+        .iter()
+        .find(|aggregate| aggregate.node == iteration)?;
+    if !aggregate.values.contains(&value.statement) {
+        return None;
+    }
+    let created = match value.parent {
+        CheckedQueryValueParent::Created {
+            node,
+            model,
+            create,
+        } => {
+            if create != aggregate.created {
+                return None;
+            }
+            Some((node, model, create))
+        }
+        CheckedQueryValueParent::Global => None,
+        CheckedQueryValueParent::Admitted { .. } => return None,
+    };
+    if !super::source_let_data::capture_plain_value(ir, &value.ty, 0) {
+        return None;
+    }
+    let (item, body) = effects.iter().find_map(|statement| match statement {
+        IrStmt::For {
+            item, body, span, ..
+        } if *span == node_span(iteration) => Some((item, body)),
+        _ => None,
+    })?;
+    let (name, expression) = body.iter().find_map(|statement| match statement {
+        IrStmt::Let {
+            name,
+            value: expression,
+            span,
+        } if *span == node_span(value.statement) => Some((name, expression)),
+        _ => None,
+    })?;
+    if name != &value.binding || !span_inside_node(expression.span, value.statement) {
+        return None;
+    }
+    let actual_value = find_typed_subtree(&[expression], node_span(value.value))?;
+    if actual_value.ty != value.ty {
+        return None;
+    }
+    let IrExpr::Query(actual) = &actual_value.expr else {
+        return None;
+    };
+    // The fresh lowering must carry the same repeated query at the same
+    // spans; an altered fresh body cannot produce a recipe.
+    let fresh_owner = context.fresh().items.get(owner.id.0 as usize)?;
+    let IrItemKind::Scenario {
+        effects: fresh_effects,
+        ..
+    } = &fresh_owner.kind
+    else {
+        return None;
+    };
+    let (fresh_name, fresh_expression) =
+        fresh_effects.iter().find_map(|statement| match statement {
+            IrStmt::For { body, span, .. } if *span == node_span(iteration) => {
+                body.iter().find_map(|statement| match statement {
+                    IrStmt::Let {
+                        name,
+                        value: expression,
+                        span,
+                    } if *span == node_span(value.statement) => Some((name, expression)),
+                    _ => None,
+                })
+            }
+            _ => None,
+        })?;
+    // The query is nested in the authored Money LET (for example,
+    // amount - sum(query, currency)); its array type is not the LET type.
+    // Authenticate the entire expression before selecting the exact unique
+    // original query subtree from each lowering.
+    if fresh_name != name {
+        return None;
+    }
+    context.same_expression(expression, fresh_expression)?;
+    let fresh_value = find_typed_subtree(&[fresh_expression], node_span(value.value))?;
+    if fresh_value.ty != value.ty {
+        return None;
+    }
+    let IrExpr::Query(fresh_query) = &fresh_value.expr else {
+        return None;
+    };
+    let query = &value.query;
+    let alias = context
+        .original()
+        .types
+        .checked_queries
+        .get(&value.value)?
+        .clauses
+        .first()?;
+    let crate::analysis::types::CheckedQueryClauseKind::As { name: alias } = &alias.kind else {
+        return None;
+    };
+    let shape = |candidate: &IrQuery| {
+        if !matches!(&candidate.domain, super::ir::IrQueryDomain::Model(model_name) if model_name == &query.model_name)
+            || candidate.source.as_ref()?.node != value.value
+            || candidate.source.as_ref()?.result != value.ty
+            || candidate.select.as_ref()?.span != node_span(value.selected)
+            || candidate.select_param.as_deref() != Some(alias)
+            || candidate.value_order.is_some()
+            || candidate.limit.is_some()
+            || candidate.archived.is_some()
+            || !candidate.order.is_empty()
+            || !query.order.is_empty()
+        {
+            return None;
+        }
+        Some(
+            candidate
+                .where_pred
+                .as_ref()
+                .map(|predicate| predicate.span),
+        )
+    };
+    if shape(actual)? != shape(fresh_query)? || actual.where_param != fresh_query.where_param {
+        return None;
+    }
+    // Model predicates use the original lowering's normalized row name;
+    // the authored As alias belongs to SELECT, not necessarily WHERE.
+    if actual.where_pred.as_ref().map(|predicate| predicate.span) != query.predicate.map(node_span)
+    {
+        return None;
+    }
+    let origin = match created {
+        Some((parent_node, parent_model, create)) => {
+            let parent = actual.parent.as_ref()?;
+            if parent.span != node_span(parent_node)
+                || parent.ty
+                    != (ResolvedType::Record {
+                        symbol: parent_model,
+                        stored: true,
+                    })
+            {
+                return None;
+            }
+            if actual.where_pred.is_some() {
+                return None;
+            }
+            // The parent is the exact earlier created row, not an input.
+            let IrItemKind::Scenario {
+                result:
+                    Some(ResolvedType::Record {
+                        symbol: result_model,
+                        ..
+                    }),
+                ..
+            } = &owner.kind
+            else {
+                return None;
+            };
+            let create_span = node_span(create);
+            let (binding, model) = effects.iter().find_map(|statement| match statement {
+                IrStmt::Create {
+                    model,
+                    binding: Some(binding),
+                    span,
+                    ..
+                } if *span == create_span => Some((binding, model)),
+                _ => None,
+            })?;
+            if !matches!(&parent.expr, IrExpr::Name(name) if name == binding)
+                || model != &ir.items.get(result_model.0 as usize)?.canonical
+            {
+                return None;
+            }
+            // The fresh create carries the same binding at the same span.
+            let fresh_binding = fresh_effects.iter().find_map(|statement| match statement {
+                IrStmt::Create {
+                    binding: Some(binding),
+                    span,
+                    ..
+                } if *span == create_span => Some(binding),
+                _ => None,
+            })?;
+            if fresh_binding != binding {
+                return None;
+            }
+            let source = serde_json::to_value(transport_source(&checked.source, entry)?).ok()?;
+            let roots = super::source_created_rows::collect(ir, owner, context, &source)?;
+            let created = roots.into_iter().find(|root| {
+                root["node"]["start"] == create_span.start
+                    && root["node"]["end"] == create_span.end
+                    && root["binding"] == *binding
+                    && root["model"] == *model
+            })?;
+            ReceiptQueryParentOrigin::CreatedReference { created }
+        }
+        None => {
+            if actual.parent.is_some() {
+                return None;
+            }
+            let predicate = actual.where_pred.as_ref()?;
+            let IrExpr::Binary {
+                op: IrBinOp::Eq,
+                left,
+                right,
+            } = &predicate.expr
+            else {
+                return None;
+            };
+            // One side selects the aggregate item model; the other names the
+            // genuine loop item. Either order is the same original filter.
+            let aggregate_member = |expression: &TypedExpr| {
+                matches!(&expression.expr, IrExpr::Member { .. })
+                    && expression.ty
+                        == (ResolvedType::Record {
+                            symbol: aggregate.model,
+                            stored: true,
+                        })
+            };
+            let for_item = |expression: &TypedExpr| matches!(&expression.expr, IrExpr::Name(name) if name == item);
+            if !(aggregate_member(left) && for_item(right)
+                || aggregate_member(right) && for_item(left))
+            {
+                return None;
+            }
+            // The fresh filter carries the same predicate at the same span.
+            let IrExpr::Binary {
+                op: IrBinOp::Eq,
+                left: fresh_left,
+                right: fresh_right,
+            } = &fresh_query.where_pred.as_ref()?.expr
+            else {
+                return None;
+            };
+            if !(aggregate_member(fresh_left) && for_item(fresh_right)
+                || aggregate_member(fresh_right) && for_item(fresh_left))
+            {
+                return None;
+            }
+            // A Global repeated query has no parent transport.
+            return Some(ReceiptQuery {
+                id: query.id.clone(),
+                source: transport_source(&query.source, entry)?,
+                model: query.model_name.clone(),
+                parent: None,
+                iteration: Some(aggregate.id.clone()),
+                order: Vec::new(),
+                limit: None,
+                archived: "exclude".into(),
+                dependencies: query
+                    .dependencies
+                    .iter()
+                    .map(|dependency| {
+                        Some(ReceiptQueryDependency {
+                            id: dependency.id.clone(),
+                            source: transport_source(&dependency.source, entry)?,
+                            role: match dependency.role {
+                                DependencyRole::Data => ReceiptRole::Data,
+                                DependencyRole::Control => ReceiptRole::Control,
+                            },
+                            field: dependency.field_name.clone(),
+                            type_id: dependency.type_id.clone(),
+                        })
+                    })
+                    .collect::<Option<_>>()?,
+            });
+        }
+    };
+    Some(ReceiptQuery {
+        id: query.id.clone(),
+        source: transport_source(&query.source, entry)?,
+        model: query.model_name.clone(),
+        parent: Some(ReceiptQueryParent {
+            source: transport_source(&query.source, entry)?,
+            model: ir.items.get(created?.1.0 as usize)?.canonical.clone(),
+            origin,
+        }),
+        iteration: Some(aggregate.id.clone()),
+        order: Vec::new(),
+        limit: None,
+        archived: "exclude".into(),
+        dependencies: query
+            .dependencies
+            .iter()
+            .map(|dependency| {
+                Some(ReceiptQueryDependency {
+                    id: dependency.id.clone(),
+                    source: transport_source(&dependency.source, entry)?,
+                    role: match dependency.role {
+                        DependencyRole::Data => ReceiptRole::Data,
+                        DependencyRole::Control => ReceiptRole::Control,
+                    },
+                    field: dependency.field_name.clone(),
+                    type_id: dependency.type_id.clone(),
+                })
+            })
+            .collect::<Option<_>>()?,
+    })
+}
+
 /// A computed Values selection keeps its native candidate slots and DATA
 /// obligations. Its separate, privately issued LET completion owns the value;
 /// it cannot substitute an unobserved array for a native query result.
@@ -7228,7 +7672,10 @@ fn checked_native_value_query_plan(
         .scenario_disclosures()
         .get(&owner.id)?
         .source_facts()?;
-    if original.query_values != facts.query_values || original.queries != facts.queries {
+    if original.query_values != facts.query_values
+        || original.queries != facts.queries
+        || original.aggregate_loops != facts.aggregate_loops
+    {
         return None;
     }
 
@@ -7251,7 +7698,18 @@ fn checked_native_value_query_plan(
     if values.is_empty()
         || values.len() > 200
         || checked.returns.iter().any(|returned| {
-            returned.source_values.is_empty()
+            // Only a return that actually needs queries must name its
+            // values. The aggregate-created model identity contributes a
+            // separate same-node return with no dependencies at all; it
+            // requires no query-value association. A return with
+            // query-linked dependencies but unnamed or uncovered values
+            // still refuses below, keeping the fresh-IR/native result
+            // identity exact.
+            let needs = returned
+                .dependencies
+                .iter()
+                .any(|dependency| dependency.query_id.is_some());
+            (needs && returned.source_values.is_empty())
                 || returned
                     .source_values
                     .iter()
@@ -7303,9 +7761,24 @@ fn checked_native_value_query_plan(
             );
             continue;
         };
+        if value.iteration.is_some() {
+            emitted.push(checked_native_aggregate_value_query(
+                context, ir, owner, checked, entry, value, effects,
+            )?);
+            continue;
+        }
         if !super::source_let_data::capture_plain_value(ir, &value.ty, 0) {
             return None;
         }
+        let crate::analysis::scenario_disclosure::CheckedQueryValueParent::Admitted {
+            parameter,
+            node: parent_node,
+            model: parent_model,
+            depth: parent_depth,
+        } = value.parent
+        else {
+            return None;
+        };
         let statement=effects.iter().find(|statement|matches!(statement,IrStmt::Let{span,..}if *span==node_span(value.statement)))?;
         let IrStmt::Let {
             name,
@@ -7359,10 +7832,10 @@ fn checked_native_value_query_plan(
             || actual.source.as_ref()?.result != value.ty
             || actual.select.as_ref()?.span != node_span(value.selected)
             || actual.select_param.as_deref() != Some(alias)
-            || actual.parent.as_ref()?.span != node_span(value.parent)
+            || actual.parent.as_ref()?.span != node_span(parent_node)
             || actual.parent.as_ref()?.ty
                 != (ResolvedType::Record {
-                    symbol: value.parent_model,
+                    symbol: parent_model,
                     stored: true,
                 })
             || actual.where_pred.as_ref().map(|value| value.span) != query.predicate.map(node_span)
@@ -7382,8 +7855,8 @@ fn checked_native_value_query_plan(
             return None;
         }
 
-        let parameter = ir.items.get(value.parameter.0 as usize)?;
-        let origin = if value.parent_depth == 0 {
+        let parameter = ir.items.get(parameter.0 as usize)?;
+        let origin = if parent_depth == 0 {
             if !matches!(&actual.parent.as_ref()?.expr,IrExpr::Name(name)if name==&parameter.name) {
                 return None;
             }
@@ -7396,14 +7869,14 @@ fn checked_native_value_query_plan(
                 .iter()
                 .flat_map(|returned| &returned.dependencies)
                 .find(|dependency| {
-                    dependency.node == value.parent
+                    dependency.node == parent_node
                         && dependency.calls.is_empty()
                         && dependency.query_id.is_none()
                         && dependency.role == DependencyRole::Data
                         && dependency.field_name == "parent"
                         && dependency.ty
                             == (ResolvedType::Record {
-                                symbol: value.parent_model,
+                                symbol: parent_model,
                                 stored: true,
                             })
                 })?;
@@ -7417,13 +7890,10 @@ fn checked_native_value_query_plan(
             model: query.model_name.clone(),
             parent: Some(ReceiptQueryParent {
                 source: transport_source(&query.source, entry)?,
-                model: ir
-                    .items
-                    .get(value.parent_model.0 as usize)?
-                    .canonical
-                    .clone(),
+                model: ir.items.get(parent_model.0 as usize)?.canonical.clone(),
                 origin,
             }),
+            iteration: None,
             order: query
                 .order
                 .iter()
@@ -8360,6 +8830,7 @@ fn checked_native_first_query_source_plan(
             source: transport_source(&query.source, entry_module)?,
             model: query.model_name.clone(),
             parent,
+            iteration: None,
             order: query
                 .order
                 .iter()
@@ -10012,6 +10483,7 @@ pub(super) fn checked_native_assign_count_query_plan(
                     parameter: parameter.name.clone(),
                 },
             }),
+            iteration: None,
             order: Vec::new(),
             limit: None,
             archived: "exclude".into(),

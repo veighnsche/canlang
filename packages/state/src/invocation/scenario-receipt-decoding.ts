@@ -5,7 +5,7 @@ import { decodeValue, encodeValue, parseTypeId, printTypeId } from '@canlang/val
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
 import { stableStringify } from './replay.js';
 import { MAX_ITEMS, invalid, dataCopy, object, text, list, scalarType, checkScenarioResultDisclosurePlan } from './scenario-plan.js';
-import { disclosureType, checkSavedQueries, returnQueryIds } from './scenario-query-plan.js';
+import { disclosureType, checkSavedQueries, returnQueryIds, checkQueryOccurrence, savedAggregateSelections } from './scenario-query-plan.js';
 import { checkRetainedScenarioFile } from './scenario-file-assignment.js';
 import { storedNominalType, savedNominalWire } from './scenario-stored-value.js';
 
@@ -96,22 +96,33 @@ export function sourceCopyLimits(plan:ScenarioResultDisclosurePlan,children:read
   return Object.freeze({maxRows:MAX_ITEMS+repeated,maxWork:(MAX_ITEMS+repeated)*MAX_ITEMS*2,maxWrites:repeated+2});
 }
 
-function checkSavedLinkedDependencies(returned: ScenarioResultDisclosurePlan['returns'][number],
-  observations: readonly DependencyObservation[], queries: readonly ScenarioReceiptQueryObservation[]): void {
+function checkSavedLinkedDependencies(plan:ScenarioResultDisclosurePlan,returned: ScenarioResultDisclosurePlan['returns'][number],
+  observations: readonly DependencyObservation[], queries: readonly ScenarioReceiptQueryObservation[],roots:ScenarioReceiptAssociation['sourceLoopRoots']): void {
+  const selections=savedAggregateSelections(plan,roots);
+  const sameOccurrence=(left:DependencyObservation['occurrence'],right:ScenarioReceiptQueryObservation['occurrence'])=>left===undefined?right===undefined:right!==undefined&&left.loop===right.loop&&left.ordinal===right.ordinal;
   for (const dependency of returned.dependencies) {
     const actual = observations.filter(observation => observation.dependencyId === dependency.id);
     if (dependency.queryId === undefined) {
-      if (actual.length === 0) return invalid('missing saved dependency.');
+      const loop=plan.sourceLoops?.loops.find(loop=>loop.aggregate?.dependencies.includes(dependency.id));
+      if(loop===undefined){if(actual.length===0||actual.some(value=>value.occurrence!==undefined))return invalid('missing or foreign saved dependency.');}
+      else{
+        const selected=selections.get(loop.id);if(selected===undefined||actual.length!==selected.length)return invalid('saved item DATA omitted its complete original selection.');
+        for(const [ordinal,row]of selected.entries())if(actual.filter(value=>value.occurrence?.loop===loop.id&&value.occurrence.ordinal===ordinal&&value.model===loop.model&&value.row.id===row.id&&value.row.created===row.created&&value.row.createdBy===row.createdBy&&stableStringify(value.row.parent)===stableStringify(row.parent)).length!==1)return invalid('saved item DATA differs from its genuine original occurrence.');
+      }
       continue;
     }
-    const query = queries.find(query => query.queryId === dependency.queryId);
-    if (query === undefined || !returnQueryIds(returned).includes(query.queryId)) return invalid('missing saved candidate-only query.');
-    if (dependency.role === 'data' && query.candidates.some(candidate =>
-        candidate.dependencies.includes(dependency.id) !== candidate.matched)) return invalid('saved selected DATA must match every and only selected candidate.');
-    const slots = query.candidates.filter(candidate => candidate.dependencies.includes(dependency.id)).length;
-    if (actual.length !== slots) {
-      return invalid('saved query candidates differ from their retained ordinary observations.');
+    const executed=queries.filter(query=>query.queryId===dependency.queryId),queryPlan=plan.queries?.find(query=>query.id===dependency.queryId);
+    if(queryPlan===undefined||!returnQueryIds(returned).includes(queryPlan.id))return invalid('missing saved candidate-only query.');
+    if(queryPlan.iteration===undefined&&executed.length!==1)return invalid('one actual saved ordinary query required.');
+    let total=0;
+    for(const query of executed){
+      if(dependency.role==='data'&&query.candidates.some(candidate=>candidate.dependencies.includes(dependency.id)!==candidate.matched))return invalid('saved selected DATA must match every and only selected candidate.');
+      const candidates=query.candidates.filter(candidate=>candidate.dependencies.includes(dependency.id)),matching=actual.filter(value=>sameOccurrence(value.occurrence,query.occurrence));
+      if(matching.length!==candidates.length)return invalid('saved query candidates differ from their retained ordinary observations.');
+      if(queryPlan.iteration!==undefined&&candidates.some(candidate=>matching.filter(value=>value.model===queryPlan.model&&stableStringify(value.row)===stableStringify(candidate.row)).length!==1))return invalid('saved query DATA borrowed another item occurrence.');
+      total+=matching.length;
     }
+    if(total!==actual.length)return invalid('saved query DATA has a foreign item occurrence.');
   }
 }
 
@@ -197,7 +208,7 @@ function readSavedScenarioAssociation(receipt: Receipt,
   if (resultModel !== undefined) {
     if (plan.returns.some(returned => returned.projection !== undefined)) return invalid('saved model result requires its singular source profile.');
     modelResultWire(receipt.outcome.result);
-    checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result);
+    checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result,undefined,value['sourceLoopRoots']as ScenarioReceiptAssociation['sourceLoopRoots']);
   } else if (returned.projection === undefined) {
     // Same pure-control profile as registration: no stored reads, or only
     // stored CONTROL-role decision reads, means the influences are execution
@@ -207,14 +218,15 @@ function readSavedScenarioAssociation(receipt: Receipt,
     // demand applies only to value-bearing returns, mirroring registration.
     if (resultType !== 'void' && returned.influences.length !== 0 && !returned.dependencies.every(dependency => dependency.role === 'control'))
       return invalid('saved scalar query influences require their defining profile.');
-    scalarWire(resultType, receipt.outcome.result); checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result); }
-  else checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result);
+    scalarWire(resultType, receipt.outcome.result); checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result,undefined,value['sourceLoopRoots']as ScenarioReceiptAssociation['sourceLoopRoots']); }
+  else checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result,undefined,value['sourceLoopRoots']as ScenarioReceiptAssociation['sourceLoopRoots']);
   const observations = list(value['observations']);
   for (const entry of observations) {
     const observation = object(entry, ['dependencyId', 'model', 'row', 'secretFields',
-      ...(typeof entry === 'object' && entry !== null && Object.hasOwn(entry, 'files') ? ['files'] : [])]);
+      ...(typeof entry === 'object' && entry !== null && Object.hasOwn(entry, 'files') ? ['files'] : []),...(typeof entry==='object'&&entry!==null&&Object.hasOwn(entry,'occurrence')?['occurrence']:[])]);
     const dependency = returned.dependencies.find(dep => dep.id === observation['dependencyId']);
     if (dependency === undefined || dependency.model !== observation['model']) return invalid('foreign saved dependency.');
+    if(Object.hasOwn(observation,'occurrence'))checkQueryOccurrence(observation['occurrence']);
     const row = checkedRow(observation['row']), wire = dependencyObservedWire(dependency, row);
     const query = dependency.queryId === undefined ? undefined : plan.queries?.find(query => query.id === dependency.queryId);
     const messageRole = dependency.role === 'data' && dependency.field === 'role' &&
@@ -241,8 +253,8 @@ function readSavedScenarioAssociation(receipt: Receipt,
       }
     }
   }
-  checkSavedLinkedDependencies(returned, observations as DependencyObservation[],
-    (value['queries'] ?? []) as ScenarioReceiptQueryObservation[]);
+  checkSavedLinkedDependencies(plan,returned, observations as DependencyObservation[],
+    (value['queries'] ?? []) as ScenarioReceiptQueryObservation[],value['sourceLoopRoots']as ScenarioReceiptAssociation['sourceLoopRoots']);
   for (const saved of (value['queries'] ?? []) as readonly ScenarioReceiptQueryObservation[]) {
     const query = plan.queries!.find(query => query.id === saved.queryId)!;
     if (query.parent?.origin.kind !== 'stored-reference') continue;
@@ -296,14 +308,15 @@ function readSavedScenarioAssociation(receipt: Receipt,
   }
   if(!Array.isArray(value['changed'])||value['changed'].length>changedMaximum)return invalid('changed snapshot exceeds its original source budget.');
   const roots=list(value['sourceLoopRoots']??[]).map(raw=>{
-    const root=object(raw,['loop','parameter','model','row']),loop=plan.sourceLoops?.loops.find(loop=>loop.id===root['loop']);
+    const root=object(raw,['loop','parameter','model','row',...(typeof raw==='object'&&raw!==null&&Object.hasOwn(raw,'selection')?['selection']:[])]),loop=plan.sourceLoops?.loops.find(loop=>loop.id===root['loop']);
     const row=checkedRow(root['row']);
-    if(loop?.copy===undefined||root['parameter']!==loop.parameter||root['model']!==loop.parentModel||row.archivedAt!==null){
-      return invalid('Saved copy root differs from its original admitted parameter census.');
+    if((loop?.copy===undefined&&loop?.aggregate===undefined)||loop===undefined||root['parameter']!==loop.parameter||root['model']!==loop.parentModel||row.archivedAt!==null){
+      return invalid('Saved source loop root differs from its original admitted parameter census.');
     }
     return {loop:loop.id,model:loop.parentModel,row};
   });
   if(new Set(roots.map(root=>root.loop)).size!==roots.length)return invalid('Duplicate original source loop root.');
+  savedAggregateSelections(plan,value['sourceLoopRoots']);
   const changed = value['changed'] as unknown[]; const identities = new Set<string>(),copySources=new Set<string>(); let fileFieldCount = 0;
   for (const entry of changed) {
     const change = object(entry, ['model', 'row', 'secretFields', 'withheldFields', 'fieldTypes',

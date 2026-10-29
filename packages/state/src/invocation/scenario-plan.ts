@@ -1275,10 +1275,10 @@ function checkSourceLoops(value:unknown,source:unknown):NonNullable<ScenarioResu
     return node as unknown as {readonly start:number;readonly end:number};};
   const raw=object(dataCopy(value),['source','owner','loops']); origin(raw['source']);
   if(stableStringify(raw['source'])!==stableStringify(source))return invalid('Source loop origin differs from its owner.');
-  text(raw['owner']); const loops=list(raw['loops']); const ids=new Set<string>(); let total=0;
+  text(raw['owner']); const loops=list(raw['loops']); const ids=new Set<string>(); let total=0,aggregateTotal=0;
   if(loops.length===0)return invalid('Source loop inventory must be complete and nonempty.');
   for(const entry of loops){
-    const loop=object(entry,['id','node','domain','maximum','parameter','parentModel','model','filtered',...(typeof entry==='object'&&entry!==null&&Object.hasOwn(entry,'copy')?['copy']:[])]);
+    const loop=object(entry,['id','node','domain','maximum','parameter','parentModel','model','filtered',...(typeof entry==='object'&&entry!==null&&Object.hasOwn(entry,'copy')?['copy']:[]),...(typeof entry==='object'&&entry!==null&&Object.hasOwn(entry,'aggregate')?['aggregate']:[])]);
     const id=text(loop['id']),node=span(loop['node']),domain=span(loop['domain']);
     if(domain.start<node.start||domain.end>node.end)return invalid('Source loop domain left its original statement.');
     for(const key of ['parameter','parentModel','model'])text(loop[key]);
@@ -1296,12 +1296,20 @@ function checkSourceLoops(value:unknown,source:unknown):NonNullable<ScenarioResu
         names.add(name);
       }
     }
+    const aggregate=Object.hasOwn(loop,'aggregate');
+    if(aggregate){
+      if(Object.hasOwn(loop,'copy'))return invalid('Source aggregate and copy execution modes cannot overlap.');
+      const value=object(loop['aggregate'],['queries','dependencies','order']);
+      for(const key of ['queries','dependencies']){const values=list(value[key]).map(text);if(key==='queries'&&values.length===0||new Set(values).size!==values.length||values.some(id=>!/^[a-f0-9]{64}$/.test(id)))return invalid('Aggregate loop requires its exact original finite query/read census.');}
+      const order=list(value['order']);if(order.length!==1)return invalid('Aggregate loop requires its original single source order.');
+      const term=object(order[0],['field','direction']);if(!['id','created'].includes(text(term['field']))||term['direction']!=='asc')return invalid('Aggregate loop order differs from its original metadata order.');
+    }
     const maximum=loop['maximum'];
     if(!/^[a-f0-9]{64}$/.test(id)||ids.has(id)||!Number.isSafeInteger(maximum)||
-        (maximum as number)<1||(maximum as number)>200)return invalid('Source loop identity or finite bound is invalid.');
-    ids.add(id);total+=maximum as number;
+        (maximum as number)<1||(maximum as number)>(aggregate?1000:200))return invalid('Source loop identity or finite bound is invalid.');
+    ids.add(id);if(aggregate)aggregateTotal+=maximum as number;else total+=maximum as number;
   }
-  if(total>200)return invalid('Source loop complete domain inventory exceeds its finite budget.');
+  if(total>200||aggregateTotal>1000)return invalid('Source loop complete domain inventory exceeds its finite budget.');
   return deepFreeze(raw) as unknown as NonNullable<ScenarioResultDisclosurePlan['sourceLoops']>;
 }
 

@@ -1,8 +1,8 @@
 /** Finite checked query projections and their saved disclosure closure. */
 import type {
   ArtifactModel, ArtifactModelField, CanTypeId, ModelName, ProjectedRecord,
-  ScenarioReceiptQueryObservation, ScenarioReceiptQueryPlan, ScenarioReceiptQueryProjection,
-  ScenarioResultDisclosurePlan, StoredRow,
+  ScenarioReceiptQueryObservation, ScenarioReceiptQueryOccurrence, ScenarioReceiptQueryPlan, ScenarioReceiptQueryProjection, ScenarioReceiptCreatedRoot,
+  ScenarioResultDisclosurePlan, ScenarioReceiptAssociation, StoredRow,
 } from '@canlang/contracts';
 import {
   compareInt, compareDecimal, compareMoney, decodeValue, encodeValue,
@@ -77,22 +77,39 @@ function checkedType(value: unknown, nominal = false, files = false): CanTypeId 
   return value as CanTypeId;
 }
 
+/** Shared closed identity of one genuine selected item. The checked plan and
+ * saved complete selection below supply its source and lifetime witnesses. */
+export function checkQueryOccurrence(value:unknown):ScenarioReceiptQueryOccurrence{
+ const raw=object(copy(value),['loop','ordinal']);
+ if(!/^[a-f0-9]{64}$/.test(text(raw.loop))||!Number.isSafeInteger(raw.ordinal)||(raw.ordinal as number)<0||(raw.ordinal as number)>=1000)fail('original bounded loop item occurrence required.');
+ return deepFreeze(raw)as unknown as ScenarioReceiptQueryOccurrence;
+}
+function createdQueryRoot(value:unknown):ScenarioReceiptCreatedRoot{
+ const raw=object(value,['id','node','stage','binding','model','parentParameter','parentModel']),node=object(raw.node,['start','end']);
+ if(!/^[a-f0-9]{64}$/.test(text(raw.id))||!Number.isSafeInteger(raw.stage)||(raw.stage as number)<0||(raw.stage as number)>=MAX||!Number.isSafeInteger(node.start)||!Number.isSafeInteger(node.end)||(node.start as number)<0||(node.start as number)>=(node.end as number))fail('exact original created query parent required.');
+ for(const key of ['binding','model','parentParameter','parentModel'])text(raw[key]);
+ return raw as unknown as ScenarioReceiptCreatedRoot;
+}
+
 export function checkQueries(value: unknown): readonly ScenarioReceiptQueryPlan[] {
   const queries = list(copy(value));
   const ids: string[] = [];
   const dependencyIds = new Map<string, string>();
   for (const value of queries) {
     const query = object(value, ['id', 'source', 'model', 'order', 'limit', 'archived', 'dependencies',
-      ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'parent') ? ['parent'] : [])]);
+      ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'parent') ? ['parent'] : []),
+      ...(typeof value === 'object' && value !== null && Object.hasOwn(value,'iteration')?['iteration']:[])]);
+    if(Object.hasOwn(query,'iteration')&&!/^[a-f0-9]{64}$/.test(text(query.iteration)))fail('exact original query iteration required.');
     ids.push(text(query.id)); text(query.model); source(query.source);
     if (Object.hasOwn(query, 'parent')) {
       const parent = object(query.parent, ['source', 'model', 'origin']);
       source(parent.source); text(parent.model);
       const kind = typeof parent.origin === 'object' && parent.origin !== null
         ? (parent.origin as Record<string, unknown>).kind : undefined;
-      if (kind !== 'admitted-reference' && kind !== 'stored-reference') fail('closed parent origin required.');
-      const origin = object(parent.origin, ['kind', kind === 'admitted-reference' ? 'parameter' : 'dependencyId']);
+      if (kind !== 'admitted-reference' && kind !== 'stored-reference' && kind !== 'created-reference') fail('closed parent origin required.');
+      const origin = object(parent.origin, ['kind', kind === 'admitted-reference' ? 'parameter' : kind==='created-reference'?'created':'dependencyId']);
       if (kind === 'admitted-reference') fieldName(origin.parameter);
+      else if(kind==='created-reference'){if(createdQueryRoot(origin.created).model!==parent.model)fail('created query parent model differs.');}
       else text(origin.dependencyId);
     }
     if (query.limit !== null && (!Number.isSafeInteger(query.limit) || (query.limit as number) < 0 || (query.limit as number) > MAX)) fail('bounded query limit required.');
@@ -261,12 +278,17 @@ export function checkQueryInventory(plan: ScenarioResultDisclosurePlan, type: Ca
   }
   for (const query of queries) {
     const model = models.find(model => model.name === query.model) ?? fail('query requires its owning model inventory.');
+    if(query.iteration!==undefined){const loop=plan.sourceLoops?.loops.find(loop=>loop.id===query.iteration);if(loop?.aggregate===undefined||!loop.aggregate.queries.includes(query.id)||!same(plan.sourceLoops!.source,plan.source))fail('repeated query requires its exact original aggregate loop association.');}
     if (query.parent !== undefined) {
       const parentModel = query.parent.model;
       if (model.fields.some(field => field.name === 'parent') || Object.hasOwn(model, 'scope') || model.parent !== parentModel ||
           !models.some(parent => parent.name === parentModel) || schema &&
           (Object.hasOwn(schema.contracts, parentModel) || Object.hasOwn(schema.enums, parentModel) ||
             Object.hasOwn(schema.aliases ?? {}, parentModel))) fail('scoped query requires unshadowed declared parent containment.');
+      if(query.parent.origin.kind==='created-reference'){
+        const created=query.parent.origin.created,owner=models.find(model=>model.name===created.model);
+        if(owner===undefined||owner.parent!==created.parentModel||created.model!==parentModel||!models.some(model=>model.name===created.parentModel)||!same(query.parent.source,plan.source))fail('created query parent differs from its original declared containment.');
+      }
       if (query.parent.origin.kind === 'stored-reference') {
         const dependencyId = query.parent.origin.dependencyId;
         const consumers = plan.returns.filter(returned => returnQueryIds(returned).includes(query.id));
@@ -306,6 +328,13 @@ export function checkQueryInventory(plan: ScenarioResultDisclosurePlan, type: Ca
       if (['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt'].includes(term.field)) continue;
       if (!query.dependencies.some(dep => dep.role === 'control' && dep.field === term.field)) fail('ordering requires its actual control dependency.');
     }
+  }
+  for(const loop of plan.sourceLoops?.loops??[]){
+    if(loop.aggregate===undefined)continue;
+    const owned=queries.filter(query=>query.iteration===loop.id);
+    if(owned.length!==loop.aggregate.queries.length||loop.aggregate.queries.some(id=>!owned.some(query=>query.id===id)))fail('aggregate loop differs from its complete original query census.');
+    for(const id of loop.aggregate.dependencies)if(!plan.returns.some(returned=>returned.dependencies.some(dependency=>dependency.id===id&&dependency.queryId===undefined)))fail('aggregate loop has a foreign original item DATA dependency.');
+    if(!models.some(model=>model.name===loop.model&&model.parent===loop.parentModel))fail('aggregate loop lost its declared original item containment.');
   }
   if (!plan.returns.some(returned => returned.projection !== undefined)) return;
   disclosureType(type, plan);
@@ -464,19 +493,50 @@ function compare(left: Candidate, right: Candidate, query: ScenarioReceiptQueryP
   return left.row.id === right.row.id ? 0 : left.row.id < right.row.id ? -1 : 1;
 }
 
+/** The complete original selection makes zero executions meaningful and
+ * prevents a retained iteration from borrowing another item's DATA witness. */
+export function savedAggregateSelections(plan:ScenarioResultDisclosurePlan,value:unknown):ReadonlyMap<string,readonly StoredRow[]>{
+ const output=new Map<string,readonly StoredRow[]>();
+ for(const raw of list(copy(value??[]))){
+  const root=object(raw,['loop','parameter','model','row',...(Object.hasOwn(raw as object,'selection')?['selection']:[])]);
+  const loop=plan.sourceLoops?.loops.find(loop=>loop.id===root.loop);
+  if(loop?.aggregate===undefined){if(Object.hasOwn(root,'selection'))fail('foreign saved aggregate selection.');continue;}
+  if(root.parameter!==loop.parameter||root.model!==loop.parentModel||output.has(loop.id))fail('aggregate selection differs from its original parent.');
+  const parent=row(root.row),selection=root.selection;
+  if(parent.archivedAt!==null||!Array.isArray(selection)||selection.length>loop.maximum)fail('complete finite aggregate item selection required.');
+  const selected=(selection as readonly unknown[]).map(value=>row(value)),ids=selected.map(value=>value.id);unique(ids);
+  for(const value of selected)if(value.archivedAt!==null||value.parent?.model!==loop.parentModel||value.parent.id!==parent.id)fail('aggregate item differs from its genuine contained parent.');
+  const order=loop.aggregate.order[0]??fail('aggregate selection lacks its original order.');
+  for(let index=1;index<selected.length;index++){
+   const left=selected[index-1]!,right=selected[index]!;
+   if(order.field==='created'&&left.created>right.created||(order.field==='id'||left.created===right.created)&&left.id>right.id)fail('aggregate item selection changed its original order.');
+  }
+  output.set(loop.id,Object.freeze(selected));
+ }
+ return output;
+}
+
 export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
-  returned: ScenarioResultDisclosurePlan['returns'][number], value: unknown, result: unknown, schema?: NormalizedSchema): void {
+  returned: ScenarioResultDisclosurePlan['returns'][number], value: unknown, result: unknown, schema?: NormalizedSchema, roots?:ScenarioReceiptAssociation['sourceLoopRoots']): void {
   checkQueryProjection(returned as unknown as Record<string, unknown>, checkQueries(plan.queries ?? []));
   const required = returnQueryIds(returned);
   if (required.length === 0) { if (value !== undefined && list(copy(value)).length !== 0) fail('return has foreign query observations.'); return; }
   const queries = list(copy(value));
-  if (queries.length !== required.length) fail('exact selected query associations required, including empty domains.');
-  const savedIds: string[] = [];
+  const selections=savedAggregateSelections(plan,roots);
+  const count=required.reduce((total,id)=>{const query=plan.queries?.find(query=>query.id===id);if(query?.iteration===undefined)return total+1;const selected=selections.get(query.iteration)??fail('repeated query lacks its actual complete item selection.');return total+selected.length;},0);
+  if (queries.length !== count) fail('exact selected query associations required, including empty domains.');
+  const savedIds: string[] = [],next=new Map<string,number>();
   for (const saved of queries) {
     const observed = object(saved, ['queryId', 'revision', 'candidates', 'selectedIndices',
-      ...(typeof saved === 'object' && saved !== null && Object.hasOwn(saved, 'parent') ? ['parent'] : [])]);
+      ...(typeof saved === 'object' && saved !== null && Object.hasOwn(saved, 'parent') ? ['parent'] : []),
+      ...(typeof saved === 'object' && saved !== null && Object.hasOwn(saved,'occurrence')?['occurrence']:[])]);
     const query = plan.queries?.find(query => query.id === observed.queryId && required.includes(query.id)) ?? fail('saved query identity differs.');
-    savedIds.push(query.id);
+    if(query.iteration===undefined){if(Object.hasOwn(observed,'occurrence'))fail('ordinary query has a foreign repeated occurrence.');savedIds.push(query.id);}
+    else{
+      const occurrence=checkQueryOccurrence(observed.occurrence),selection=selections.get(query.iteration);
+      if(occurrence.loop!==query.iteration||selection?.[occurrence.ordinal]===undefined||occurrence.ordinal!==(next.get(query.id)??0))fail('saved query occurrence differs from its actual selected item.');
+      next.set(query.id,occurrence.ordinal+1);savedIds.push(`${query.id}:${occurrence.ordinal}`);
+    }
     if (observed.queryId !== query.id || !Number.isSafeInteger(observed.revision) || (observed.revision as number) < 0) fail('saved query identity/revision differs.');
     let parentRow: StoredRow | undefined;
     if (query.parent !== undefined) {
@@ -529,7 +589,7 @@ export function checkSavedQueries(plan: ScenarioResultDisclosurePlan,
 export async function savedQueriesReadable(bound: {
   readonly plan: ScenarioResultDisclosurePlan; readonly type: CanTypeId; readonly valueSchema?: NormalizedSchema | undefined;
   readonly artifactModels: ReadonlyMap<ModelName, ArtifactModel>;
-}, association: { readonly plan: ScenarioResultDisclosurePlan; readonly returnId: string; readonly queries?: readonly ScenarioReceiptQueryObservation[] },
+}, association: { readonly plan: ScenarioResultDisclosurePlan; readonly returnId: string; readonly queries?: readonly ScenarioReceiptQueryObservation[];readonly sourceLoopRoots?:ScenarioReceiptAssociation['sourceLoopRoots'] },
 result: unknown, savedProjection: (model: ModelName, row: StoredRow, secrets: readonly string[], blocked: readonly string[]) => Promise<ProjectedRecord | null>): Promise<boolean> {
   const returned = association.plan.returns.find(returned => returned.id === association.returnId);
   if (returned === undefined) return false;
@@ -537,7 +597,7 @@ result: unknown, savedProjection: (model: ModelName, row: StoredRow, secrets: re
   try {
     if (!same(bound.plan, association.plan)) return false;
     checkQueryInventory(bound.plan, bound.type, [...bound.artifactModels.values()], bound.valueSchema);
-    checkSavedQueries(association.plan, returned, association.queries, result, bound.valueSchema);
+    checkSavedQueries(association.plan, returned, association.queries, result, bound.valueSchema,association.sourceLoopRoots);
     if (returned.projection !== undefined) canonicalWire(bound.type, result, bound.valueSchema);
     for (const observed of association.queries!) {
       const query = bound.plan.queries!.find(query => query.id === observed.queryId)!;

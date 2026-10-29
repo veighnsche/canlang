@@ -13623,6 +13623,53 @@ impl<'a> Emitter<'a> {
                 })
                 .cloned()
             {
+                // A Global aggregate repetition scans the whole model; the
+                // genuine loop item reaches the predicate through its lexical
+                // scope, never through a transported parent row.
+                if value.iteration.is_some()
+                    && matches!(
+                        value.parent,
+                        crate::analysis::scenario_disclosure::CheckedQueryValueParent::Global
+                    )
+                {
+                    let (Some(selected), Some(parameter)) =
+                        (query.select.as_ref(), query.select_param.as_ref())
+                    else {
+                        self.unsupported(
+                            "native Values query",
+                            "original selected expression is required",
+                            span,
+                        );
+                        return self.throw_expr("missing native Values query source");
+                    };
+                    if query.parent.is_some() {
+                        self.unsupported(
+                            "native Values query",
+                            "global repetition carries no parent transport",
+                            span,
+                        );
+                        return self.throw_expr("missing native Values query source");
+                    }
+                    self.enter_scope();
+                    let predicate_row = self.bind(&query.where_param);
+                    let predicate = query
+                        .where_pred
+                        .as_ref()
+                        .map(|value| self.lower_expr(value))
+                        .unwrap_or_else(|| "true".into());
+                    self.exit_scope();
+                    self.enter_scope();
+                    let row = self.bind(parameter);
+                    let selected = self.lower_expr(selected);
+                    self.exit_scope();
+                    self.stdlib.insert("executeScenarioReceiptQuery".into());
+                    self.stdlib
+                        .insert("executeScenarioReceiptQueryValueRow".into());
+                    return format!(
+                        "(await (async()=>{{const $selected=await executeScenarioReceiptQuery(c,{},async({predicate_row})=>({predicate}));const $values=[];for(const {row} of $selected){{$values.push(await executeScenarioReceiptQueryValueRow(c,{row},async()=>({selected})));}}return $values;}})())",
+                        js_string(&value.query.id)
+                    );
+                }
                 let (Some(parent), Some(selected), Some(parameter)) = (
                     query.parent.as_ref(),
                     query.select.as_ref(),

@@ -1366,8 +1366,9 @@ pub(super) fn same_query_capture_type(
         && ordinary.type_id == declaration.canonical
 }
 
-/// Full native receipts retain their query slots. This inventory completes only
-/// the original initial LET, then deterministic Values-only lexical successors.
+/// Full native receipts retain their query slots. Initial captures and exact
+/// aggregate-item captures share one descriptor and DATA-pairing mechanism;
+/// an iteration always needs its private native item lease at execution.
 pub(super) fn collect_native_query_values(
     context: &super::source_context::FreshSourceContext<'_>,
     owner: &IrItem,
@@ -1414,7 +1415,9 @@ pub(super) fn collect_native_query_values(
         .scenario_disclosures()
         .get(&owner.id)?
         .source_facts()?;
-    if facts.query_values != originals.query_values {
+    if facts.query_values != originals.query_values
+        || facts.aggregate_loops != originals.aggregate_loops
+    {
         return None;
     }
 
@@ -1444,105 +1447,175 @@ pub(super) fn collect_native_query_values(
         module,
     )?)
     .ok()?;
-    let mut values=params.iter().filter_map(|id|ir.items.get(id.0 as usize))
+    let mut outer_values=params.iter().filter_map(|id|ir.items.get(id.0 as usize))
         .filter(|item|matches!(&item.kind,IrItemKind::Param{ty:IrType::Known(ty),..}if capture_plain_value(ir,ty,0)))
         .map(|item|item.name.clone()).collect::<BTreeSet<_>>();
-    let mut prior = std::collections::BTreeMap::<String, serde_json::Value>::new();
+    let mut outer_prior = std::collections::BTreeMap::<String, serde_json::Value>::new();
+
+    let leading = effects
+        .iter()
+        .take_while(|statement| matches!(statement, IrStmt::Require { .. } | IrStmt::Let { .. }))
+        .collect::<Vec<_>>();
+    let mut scopes = vec![(None, leading, None)];
+    for aggregate in facts.aggregate_loops.as_deref().unwrap_or_default() {
+        let span = Span {
+            file: aggregate.node.file,
+            start: aggregate.node.start,
+            end: aggregate.node.end,
+        };
+        let body = effects.iter().find_map(|statement| match statement {
+            IrStmt::For {
+                body, span: actual, ..
+            } if *actual == span => Some(body),
+            _ => None,
+        })?;
+        let prefix = super::scenario_decisions::serialize_loop_mutation_prefix(
+            context, owner, span, &source,
+        )?;
+        let [created] = prefix.as_array()?.as_slice() else {
+            return None;
+        };
+        if created["kind"] != "create"
+            || created["created"]["node"]["start"] != aggregate.created.start
+            || created["created"]["node"]["end"] != aggregate.created.end
+        {
+            return None;
+        }
+        let declarations = body
+            .iter()
+            .take_while(|statement| matches!(statement, IrStmt::Let { .. }))
+            .collect::<Vec<_>>();
+        if declarations.len() != aggregate.values.len()
+            || declarations
+                .iter()
+                .zip(&aggregate.values)
+                .any(|(statement, node)| {
+                    !matches!(statement, IrStmt::Let { span, .. }
+                    if span.file == node.file && span.start == node.start && span.end == node.end)
+                })
+        {
+            return None;
+        }
+        scopes.push((Some(aggregate), declarations, Some(prefix)));
+    }
 
     let mut output = HashMap::new();
-    for statement in effects {
-        if matches!(statement, IrStmt::Require { .. }) {
-            continue;
-        }
-        let IrStmt::Let { name, value, span } = statement else {
-            break;
-        };
-        if !capture_plain_value(ir, &value.ty, 0) {
-            continue;
-        }
-        let type_id = super::scenario_decisions::serial_type(&value.ty, context.original(), ir, 0)?;
-        let mut descriptor = serde_json::json!({"source":source,"owner":owner.canonical,"node":{"start":span.start,"end":span.end},
+    for (aggregate, statements, prefix) in scopes {
+        let mut values = outer_values.clone();
+        let mut prior = outer_prior.clone();
+        for statement in statements {
+            if matches!(statement, IrStmt::Require { .. }) {
+                continue;
+            }
+            let IrStmt::Let { name, value, span } = statement else {
+                break;
+            };
+            if !capture_plain_value(ir, &value.ty, 0) {
+                continue;
+            }
+            let type_id =
+                super::scenario_decisions::serial_type(&value.ty, context.original(), ir, 0)?;
+            let mut descriptor = serde_json::json!({"source":source,"owner":owner.canonical,"node":{"start":span.start,"end":span.end},
             "value":{"start":value.span.start,"end":value.span.end},"binding":name,"typeId":type_id,"stage":0,"queries":[]});
-        if let Some(query) = query_values.iter().find(|query| {
-            query.statement.file == span.file
-                && query.statement.start == span.start
-                && query.statement.end == span.end
-        }) {
-            descriptor["receiptQueryId"] = serde_json::json!(query.query.id);
-            let crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(checked) =
-                ir.scenario_disclosures.get(&owner.id)?
-            else {
-                return None;
-            };
-            let mut pairs = Vec::new();
-            let mut ordinary_ids = BTreeSet::new();
-            for dependency in query.query.dependencies.iter().filter(|dependency| {
-                dependency.role == crate::analysis::scenario_disclosure::DependencyRole::Data
+            if let Some(aggregate) = aggregate {
+                descriptor["iteration"] = serde_json::json!(aggregate.id);
+                descriptor["stage"] = serde_json::json!(prefix.as_ref()?.as_array()?.len());
+                descriptor["mutationPrefix"] = prefix.as_ref()?.clone();
+            }
+            if let Some(query) = query_values.iter().find(|query| {
+                query.statement.file == span.file
+                    && query.statement.start == span.start
+                    && query.statement.end == span.end
+                    && query.iteration == aggregate.map(|aggregate| aggregate.node)
             }) {
-                let mut matches = checked
-                    .returns
-                    .iter()
-                    .filter(|returned| returned.source_values.contains(&query.statement))
-                    .flat_map(|returned| &returned.dependencies)
-                    .filter(|ordinary| {
-                        ordinary.query_id.as_deref() == Some(query.query.id.as_str())
-                            && ordinary.node == dependency.node
-                            && ordinary.calls == dependency.calls
-                            && ordinary.source == dependency.source
-                            && ordinary.model == dependency.model
-                            && ordinary.field == dependency.field
-                            && ordinary.ty == dependency.ty
-                            && same_query_capture_type(context, ordinary, dependency)
-                            && ordinary.role == dependency.role
-                    })
-                    .map(|ordinary| ordinary.id.clone())
-                    .collect::<BTreeSet<_>>();
-                if matches.len() != 1 {
+                descriptor["receiptQueryId"] = serde_json::json!(query.query.id);
+                let crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(checked) =
+                    ir.scenario_disclosures.get(&owner.id)?
+                else {
                     return None;
-                }
-                let ordinary = matches.pop_first()?;
-                if ordinary == dependency.id || !ordinary_ids.insert(ordinary.clone()) {
-                    return None;
-                }
-                pairs.push(serde_json::json!({"ordinaryDependencyId":ordinary,"queryDependencyId":dependency.id}));
-            }
-            descriptor["receiptDependencies"] = serde_json::json!(pairs);
-            let cases = |choice| {
-                checked
-                    .returns
-                    .iter()
-                    .filter(|returned| {
-                        returned.decisions.iter().any(|decision| {
-                            decision.node == query.value
-                                && decision.calls.is_empty()
-                                && decision.choice == choice
+                };
+                let mut pairs = Vec::new();
+                let mut ordinary_ids = BTreeSet::new();
+                for dependency in query.query.dependencies.iter().filter(|dependency| {
+                    dependency.role == crate::analysis::scenario_disclosure::DependencyRole::Data
+                }) {
+                    let mut matches = checked
+                        .returns
+                        .iter()
+                        .filter(|returned| returned.source_values.contains(&query.statement))
+                        .flat_map(|returned| &returned.dependencies)
+                        .filter(|ordinary| {
+                            ordinary.query_id.as_deref() == Some(query.query.id.as_str())
+                                && ordinary.node == dependency.node
+                                && ordinary.calls == dependency.calls
+                                && ordinary.source == dependency.source
+                                && ordinary.model == dependency.model
+                                && ordinary.field == dependency.field
+                                && ordinary.ty == dependency.ty
+                                && same_query_capture_type(context, ordinary, dependency)
+                                && ordinary.role == dependency.role
                         })
-                    })
-                    .map(|returned| returned.id.clone())
-                    .collect::<Vec<_>>()
-            };
-            descriptor["receiptCases"] = serde_json::json!({"empty":cases(crate::analysis::scenario_disclosure::DisclosureChoice::Else),"nonempty":cases(crate::analysis::scenario_disclosure::DisclosureChoice::Then)});
-            descriptor["queries"] = serde_json::json!([{"node":{"start":query.value.start,"end":query.value.end},"model":query.query.model_name}]);
-        } else {
-            if !super::source_send_data::send_value(ir, value, &values, 0) {
-                continue;
+                        .map(|ordinary| ordinary.id.clone())
+                        .collect::<BTreeSet<_>>();
+                    if matches.len() != 1 {
+                        return None;
+                    }
+                    let ordinary = matches.pop_first()?;
+                    if ordinary == dependency.id || !ordinary_ids.insert(ordinary.clone()) {
+                        return None;
+                    }
+                    pairs.push(serde_json::json!({"ordinaryDependencyId":ordinary,"queryDependencyId":dependency.id}));
+                }
+                descriptor["receiptDependencies"] = serde_json::json!(pairs);
+                let cases = |choice| {
+                    checked
+                        .returns
+                        .iter()
+                        .filter(|returned| {
+                            if aggregate.is_some() {
+                                // Each actual repeated SUM may be empty or
+                                // nonempty without choosing a different owner
+                                // return. Its genuine item lease distinguishes
+                                // occurrences; retain the original return census.
+                                returned.source_values.contains(&query.statement)
+                            } else {
+                                returned.decisions.iter().any(|decision| {
+                                    decision.node == query.value
+                                        && decision.calls.is_empty()
+                                        && decision.choice == choice
+                                })
+                            }
+                        })
+                        .map(|returned| returned.id.clone())
+                        .collect::<Vec<_>>()
+                };
+                descriptor["receiptCases"] = serde_json::json!({"empty":cases(crate::analysis::scenario_disclosure::DisclosureChoice::Else),"nonempty":cases(crate::analysis::scenario_disclosure::DisclosureChoice::Then)});
+                descriptor["queries"] = serde_json::json!([{"node":{"start":query.value.start,"end":query.value.end},"model":query.query.model_name}]);
+            } else {
+                if !super::source_send_data::send_value(ir, value, &values, 0) {
+                    continue;
+                }
+                let mut used = BTreeSet::new();
+                names(value, &mut used, 0)?;
+                let captures = used
+                    .iter()
+                    .filter_map(|name| prior.get(name).cloned())
+                    .collect::<Vec<_>>();
+                if captures.is_empty() {
+                    continue;
+                }
+                descriptor["captures"] = serde_json::json!(captures);
             }
-            let mut used = BTreeSet::new();
-            names(value, &mut used, 0)?;
-            let captures = used
-                .iter()
-                .filter_map(|name| prior.get(name).cloned())
-                .collect::<Vec<_>>();
-            if captures.is_empty() {
-                continue;
+            values.insert(name.clone());
+            prior.insert(name.clone(),serde_json::json!({"node":{"start":span.start,"end":span.end},"binding":name,"typeId":type_id}));
+            output.insert(*span, descriptor);
+            if output.len() > 200 {
+                return None;
             }
-            descriptor["captures"] = serde_json::json!(captures);
         }
-        values.insert(name.clone());
-        prior.insert(name.clone(),serde_json::json!({"node":{"start":span.start,"end":span.end},"binding":name,"typeId":type_id}));
-        output.insert(*span, descriptor);
-        if output.len() > 200 {
-            return None;
+        if aggregate.is_none() {
+            outer_values = values;
+            outer_prior = prior;
         }
     }
 

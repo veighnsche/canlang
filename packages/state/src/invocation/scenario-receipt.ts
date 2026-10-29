@@ -12,7 +12,7 @@
  * those facts. Every site is scoped by its checked source return/digest/module.
  */
 import { decodeScenarioReceiptAssociation, savedDependencyWire, dependencyObservedWire, scalarWire, modelResultType, modelResultWire, fileReceiver, isAssignmentType, checkedRow, modelResultObservedRow, firstSelectedSavedRow, sourceCopyLimits } from './scenario-receipt-decoding.js';
-import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalModelDescriptor, CanonicalOperationDescriptor, CanonicalValueTypes, CanTypeId, ClosedInputs, DeliveryRef, DomainWrite, FrameworkFilePayloadOrigin, InvocationRef, ModelName, OutboxIntent, ProjectedRecord, RecordId, Receipt, FinalizedFileObservation, FinalizedFileReceiver, RetainedFinalizedFile, ScenarioReceiptFileAssignment, ScenarioReceiptAssociation, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioReceiptQueryObservation, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
+import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalModelDescriptor, CanonicalOperationDescriptor, CanonicalValueTypes, CanTypeId, ClosedInputs, DeliveryRef, DomainWrite, FrameworkFilePayloadOrigin, InvocationRef, ModelName, OutboxIntent, ProjectedRecord, RecordId, Receipt, FinalizedFileObservation, FinalizedFileReceiver, RetainedFinalizedFile, ScenarioReceiptFileAssignment, ScenarioReceiptAssociation, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryOccurrence, ScenarioReceiptQueryPlan, ScenarioReceiptQueryObservation, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
 import { addMoney, addDuration, add_days, app_url, canonicalLocale, int64, sum, compareDate, date_year, decodeValue, encodeValue, format, formatMessage, local_date, local_instant, makeDatetime, makeMessageDescriptor, money, multiplyMoney, parseTypeId, printTypeId, subtractMoney, sumMoney, validateValue, makeDeliveryRef, makeRecordRef, isDeliveryRef, isUserRef, type DateValue, type DatetimeValue, type MoneyValue, type UserRef, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { isAuthoredRequireFailure } from '../effects/guards.js';
@@ -3097,6 +3097,13 @@ export interface ScenarioReceiptQueryResult {
 interface QueryExecution {
   readonly call: AdmittedCall; readonly owner: ReceiptOwnerSession; readonly stage: number;
   readonly ownerDecision: boolean;
+  /** Private repeated-query occurrence minted from the active item lease.
+   * Ordinary executions carry none; callers never supply identity. */
+  readonly occurrence?: ScenarioReceiptQueryOccurrence;
+  /** Mutation stamps observed when this execution started; the commit guard
+   * requires them as an exact prefix and admits only same-loop or
+   * foreign-model writes after a repetition. */
+  readonly stamps?: readonly SourceMutationStamp[];
   readonly plan: ScenarioReceiptQueryPlan; readonly handle: ScenarioReceiptQueryHandle;
   parent?: NonNullable<ScenarioReceiptQueryObservation['parent']>;
   readonly candidates: { readonly row: StoredRow; readonly record: ProjectedRecord;
@@ -3114,6 +3121,12 @@ interface QueryExecution {
 }
 const queryHandles = new WeakMap<ScenarioReceiptQueryHandle, QueryExecution>();
 const querySlots = new WeakMap<ScenarioReceiptQuerySlot, { execution: QueryExecution; index: number }>();
+/** One shared commit guard per repeated query plan drains its bounded
+ * occurrence census. 500 items x N SUMs never spend one callGuard per
+ * occurrence under MAX_ITEMS; the census itself stays bounded by the
+ * authored aggregate loop maximum times its exact repeated-query count. */
+const repeatedQueryRechecks = new WeakMap<ReceiptOwnerSession, Map<string, Array<() => Promise<void>>>>();
+const repeatedQueryCommitGuards = new WeakMap<ReceiptOwnerSession, Set<string>>();
 
 /** Source sees read-tracking getters only while its original predicate is live.
  * The saved snapshot and selected result always retain the private plain row. */
@@ -3200,13 +3213,24 @@ function requireQueryResult(state: Capture | undefined, returned: ScenarioResult
 function queryAssociations(state: Capture, returned: ScenarioResultDisclosurePlan['returns'][number]): { queries?: readonly ScenarioReceiptQueryObservation[] } {
   const ids = returnQueryIds(returned);
   if (ids.length === 0) return {};
-  const observations = { queries: ids.map(id => {
-    const query = state.queries.find(value => value.plan.id === id && value.complete)!;
-    const secrets = state.bound.models.get(query.plan.model)!.secrets;
-    return { queryId: query.plan.id, revision: query.call.revision,
-      ...(query.parent === undefined ? {} : { parent: query.parent }),
-      candidates: query.candidates.map(candidate => ({ row: candidate.row, record: candidate.record, matched: candidate.matched,
-        secretFields: [...secrets], dependencies: [...candidate.dependencies] })), selectedIndices: [...query.selectedIndices] };
+  // A repeated query retains every occurrence in selected-item order, each
+  // carrying the occurrence minted from its private item lease. Ordinary
+  // queries keep their single execution; callers never supply identity.
+  const observations = { queries: ids.flatMap(id => {
+    const executions = state.queries.filter(value => value.plan.id === id && value.complete);
+    const repeated = executions.some(value => value.occurrence !== undefined);
+    if (executions.length === 0 || !repeated && executions.length !== 1 ||
+      repeated && executions.some(value => value.occurrence === undefined)) {
+      return invalid('selected query associations require their exact complete executions.');
+    }
+    return executions.map(query => {
+      const secrets = state.bound.models.get(query.plan.model)!.secrets;
+      return { queryId: query.plan.id, revision: query.call.revision,
+        ...(query.occurrence === undefined ? {} : { occurrence: query.occurrence }),
+        ...(query.parent === undefined ? {} : { parent: query.parent }),
+        candidates: query.candidates.map(candidate => ({ row: candidate.row, record: candidate.record, matched: candidate.matched,
+          secretFields: [...secrets], dependencies: [...candidate.dependencies] })), selectedIndices: [...query.selectedIndices] };
+    });
   }) };
   for (const observed of observations.queries) {
     const profile = state.bound.anyQueries.get(observed.queryId);
@@ -8222,9 +8246,22 @@ function sourceEffectGrantSlot(owner:ReceiptOwnerSession,producer:ScenarioReceip
     // final guard shares the existing ordered bank without spending an
     // ordinary query slot or granting that bank to the query producer.
     const current=owner.executingCall===null?undefined:captures.get(owner.executingCall);
-    if(!owner.busy||sourceCopyCaptures.get(owner)?.active!==true||copyLoop.copy===undefined
-        ||current?.bound.plan.sourceLoops?.loops.includes(copyLoop)!==true)return false;
-    maximum=copyLoop.maximum;
+    if(!owner.busy||current?.bound.plan.sourceLoops?.loops.includes(copyLoop)!==true)return false;
+    if(copyLoop.copy!==undefined){
+      if(sourceCopyCaptures.get(owner)?.active!==true)return false;
+      maximum=copyLoop.maximum;
+    }else if(copyLoop.aggregate!==undefined){
+      // One complete source-field observation per observed candidate row per
+      // genuine aggregate item occurrence. Every guard still runs through
+      // the existing ordered bank at commit; the bank stays bounded by the
+      // authored loop maximum times the complete per-occurrence row bound,
+      // so 500 items x repeated SUMs never touch ordinary callGuard slots.
+      // Only the active aggregate item observes; forged or stale items stay
+      // refused by the loop lease gate before this bank is ever reached.
+      const item=sourceBodyLoopItems.get(owner);
+      if(item===undefined||item.execution.loop.id!==copyLoop.id)return false;
+      maximum=copyLoop.maximum*(owner.maxRows+1);
+    }else return false;
   }else if(producer!==undefined&&producer===sourceEmitDataProducers.get(def)){
     for(const site of sourceEmitDataProducers.get(def)!.sites)
       maximum+=site.parameters.reduce((total,parameter)=>total+sourceEffectParameterGuardMaximum(parameter),0)+(site.queries?.length??0)*owner.maxRows;
@@ -8581,7 +8618,16 @@ export async function executeScenarioSourceQueryValue(call:AdmittedCall,store:St
   if(sourceLetValueCaptures.get(call)?.has(key))return invalid('Query LET Values repeat their original declaration.');
   if(site.receiptQueryId!==undefined){
    const receipt=queryProducers.get(call.def as GeneratedOperationDef);
-   if(state.bound.sourceRequireOnly===true||receipt?.app!==call.context.app||stableStringify(receipt.source)!==stableStringify(state.bound.plan.source)||state.queries.some(query=>query.plan.id===site.receiptQueryId))return invalid('Query LET Values lack their installed once-only native receipt query producer.');
+   const queryPlan=state.bound.plan.queries?.find(query=>query.id===site.receiptQueryId);
+   if(state.bound.sourceRequireOnly===true||receipt?.app!==call.context.app||stableStringify(receipt.source)!==stableStringify(state.bound.plan.source)||queryPlan===undefined)return invalid('Query LET Values lack their installed native receipt query producer.');
+   // A repeated aggregate query executes once per genuine private item under
+   // the native receipt path, which mints the occurrence from the item lease.
+   // This wrapper only refuses a true repeat of the same item occurrence.
+   if(queryPlan.iteration===undefined){if(state.queries.some(query=>query.plan.id===site.receiptQueryId))return invalid('Query LET Values lack their installed once-only native receipt query producer.');}
+   else{
+    const activeItem=sourceBodyLoopItems.get(owner);
+    if(activeItem===undefined||state.queries.some(query=>query.plan.id===site.receiptQueryId&&query.occurrence?.loop===queryPlan.iteration&&query.occurrence.ordinal===activeItem.ordinal))return invalid('Query LET Values repeat their genuine item query occurrence.');
+   }
   }
   const queryCount=state.queries.length;
   const pure=site.captures!==undefined,observations=state.observations.length,guards=owner.callGuards.length,sourceGuards=sourceEffectGuards.get(owner)?.length??0,ordinal=owner.framework?.ordinal??0,calls=owner.calls.length;
@@ -9625,6 +9671,10 @@ async function resolveQueryParent(call: AdmittedCall, store: StoragePort, owner:
     } else {
       return invalid('query parent requires its exact admitted versioned reference.');
     }
+  } else if(parent.origin.kind==='created-reference'){
+    const profile=parent.origin.created,captured=sourceCreatedRootCaptures.get(owner)?.get(profile.id);
+    if(captured===undefined||stableStringify(captured.profile)!==stableStringify(profile)||captured.profile.model!==parent.model||captured.profile.stage>=execution.stage||sourceCreatedRootProducers.get(call.def as GeneratedOperationDef)?.get(profile.id)!==captured.profile)return invalid('query parent requires its genuine earlier original created row.');
+    id=captured.row.id;original=captured.row;
   } else {
     const dependencyId = parent.origin.dependencyId;
     const observations = state.observations.filter(observation => observation.dependencyId === dependencyId);
@@ -9705,7 +9755,36 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
     const producer = queryProducers.get(call.def as GeneratedOperationDef);
     const selection = querySelections.get(call.def as GeneratedOperationDef)?.get(input.queryId);
     const anyProfile = state.bound.anyQueries.get(input.queryId);
-    if (plan === undefined || producer === undefined || producer.app !== call.context.app || state.queries.some(query => query.plan.id === plan.id)) return invalid('one actual execution per checked query occurrence required.');
+    if (plan === undefined || producer === undefined || producer.app !== call.context.app) return invalid('query requires its exact checked source-bound producer.');
+    // A repeated aggregate query executes once per genuine private item,
+    // never twice for the same occurrence. Ordinary queries keep their
+    // once-only gate; callers never supply occurrence identity.
+    const lease = owner === undefined ? undefined : sourceBodyLoopItems.get(owner);
+    const repeated = plan.iteration !== undefined;
+    let occurrence: ScenarioReceiptQueryOccurrence | undefined;
+    if (repeated) {
+      const aggregate = state.bound.plan.sourceLoops?.loops.find(entry => entry.id === plan.iteration);
+      if (lease === undefined || aggregate?.aggregate === undefined || !aggregate.aggregate.queries.includes(plan.id) ||
+        !Number.isSafeInteger(lease.ordinal) || lease.ordinal < 0 || lease.ordinal >= 1000 ||
+        stableStringify(lease.execution.loop.node) !== stableStringify(aggregate.node) ||
+        stableStringify(lease.execution.loop.domain) !== stableStringify(aggregate.domain) ||
+        lease.execution.loop.maximum !== aggregate.maximum || lease.execution.loop.parameter !== aggregate.parameter ||
+        lease.execution.loop.parentModel !== aggregate.parentModel || lease.execution.loop.model !== aggregate.model ||
+        state.bound.plan.sourceLoops === undefined || stableStringify(state.bound.plan.sourceLoops.source) !== stableStringify(state.bound.plan.source)) {
+        return invalid('repeated query requires its genuine active aggregate item lease and loop association.');
+      }
+      occurrence = Object.freeze({ loop: plan.iteration, ordinal: lease.ordinal });
+      if (state.queries.some(query => query.plan.id === plan.id && query.occurrence !== undefined &&
+          query.occurrence.loop === occurrence!.loop && query.occurrence.ordinal === occurrence!.ordinal)) {
+        return invalid('repeated query repeats its genuine item occurrence.');
+      }
+      if (state.queries.some(query => query.plan.id === plan.id && query.occurrence !== undefined &&
+          query.occurrence.ordinal >= occurrence!.ordinal)) {
+        return invalid('repeated query left its original selected item order.');
+      }
+    } else if (state.queries.some(query => query.plan.id === plan.id)) {
+      return invalid('one actual execution per checked query occurrence required.');
+    }
     if (any !== (anyProfile !== undefined)) return invalid('query execution must match its exact source-bound ANY occurrence.');
     const firstMark = producer.first?.find(value => value.queryId === plan.id);
     const countFirstSeat = countFirstSeatProfile(call.def as GeneratedOperationDef, state.bound);
@@ -9754,6 +9833,8 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
       if (captured !== predicate) return invalid('predicate ANY requires its exact once-captured active source callback.');
     }
     const execution: QueryExecution = { call, owner, stage: owner.stage, ownerDecision, plan, handle: Object.freeze({}), candidates: [],
+      ...(occurrence === undefined ? {} : { occurrence }),
+      ...(occurrence === undefined ? {} : { stamps: Object.freeze([...(sourceMutationStamps.get(owner) ?? [])]) }),
       selectedIndices: [], activeSlot: null, complete: false, firstSelected: false, countSelected: false, anyConsumed: false, selectionConsumed: false, selectionSlot: null };
     queryHandles.set(execution.handle, execution); state.queries.push(execution);
     const memberships = scenarioReceiptMemberships(owner.call, store);
@@ -9808,13 +9889,21 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
         return stageRows.get(key)!;
       } };
       const sourceAuthorities: Array<Awaited<ReturnType<typeof observeModelQuerySourceAuthority>> | undefined> = [];
+      // A repeated aggregate query observes every candidate row of every
+      // genuine occurrence. Those per-row guards bank against the authored
+      // aggregate loop census instead of spending ordinary callGuard slots.
+      const aggregateLoop = execution.occurrence === undefined ? undefined
+        : state.bound.plan.sourceLoops?.loops.find(entry => entry.id === execution.occurrence!.loop);
+      if (execution.occurrence !== undefined && aggregateLoop?.aggregate === undefined) {
+        return invalid('repeated query lacks its exact original aggregate loop association.');
+      }
       const observeCandidate = async (record: ProjectedRecord, row: StoredRow) => {
         ownerHealthy(owner);
         if (owner.executingCall !== call || owner.stage !== execution.stage) return invalid('query predicate crossed its original owner stage.');
         const sourceAuthority = !ownerDecision && (producer.readPolicies !== undefined || state.bound.resultModel !== undefined || plan.parent !== undefined || plan.dependencies.some(dep => dep.field === 'parent'))
           ? await observeModelQuerySourceAuthority(call, store, owner, state, plan.model, row,
             (any || deferredReferenceFirst || selection !== undefined || (plan.parent !== undefined || producer.readPolicies !== undefined) && state.bound.resultModel === undefined) ? [] : plan.dependencies.map(dependency => dependency.field),
-            0, predicateDomain, decisionPolicies) : undefined;
+            0, predicateDomain, decisionPolicies, undefined, undefined, undefined, aggregateLoop) : undefined;
         sourceAuthorities.push(sourceAuthority);
         const slot = Object.freeze({});
         const candidate = { row, record: deepFreeze(dataCopy(record)), slot, dependencies: new Set<string>(),
@@ -9896,32 +9985,139 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
       }
       // Recheck the same full domain and current grants without rerunning source.
       // Later own writes never substitute for this original intermediate stage.
-      if (owner.callGuards.length >= MAX_ITEMS) return invalid('query commit guard budget exceeded.');
-      owner.callGuards.push(Object.freeze({ name: `query:${call.def.name}:${plan.id}`, evaluate: async () => {
-        if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Query checkpoint moved before outer commit.');
-        if (ownerDecision) return true;
+      // A repeated aggregate query shares one commit guard per query plan: each
+      // occurrence appends its full staged-domain recheck to the bounded
+      // per-plan census, so 500 items x N SUMs never spend one callGuard per
+      // occurrence under MAX_ITEMS. Both paths share the one staged-domain
+      // authority reader below: retained staged rows, retained policy
+      // domains, the original predicate-control domain and the
+      // parent/revision/Identity fences.
+      const queryCommitReader = (rows: Map<string, StoredRow | null>, controls: readonly StoredRow[] | undefined) => {
         const guardInput = { ...base }; delete guardInput.limit;
         const final = owner.finalized;
         const finalHealthy = () => {
           if (final === null || owner.finalized !== final || owner.capture.poisoned) return invalid('source query final owning effects are unavailable.');
         };
         const originalReader = { assertHealthy: finalHealthy, policyQuery: policyDomains.retained(finalHealthy),
-          ...(predicateDomain === undefined ? {} : { query: predicateControlDomain(plan.model, predicateDomain, owner.maxRows, finalHealthy) }),
+          ...(controls === undefined ? {} : { query: predicateControlDomain(plan.model, controls, owner.maxRows, finalHealthy) }),
           read: async (model: ModelName, id: RecordId) => {
           finalHealthy(); const key = `${model}\0${id}`;
-          if (!stageRows.has(key)) throw new StateError('forbidden', 'Source query guard requested an unobserved original ancestor.');
-          return stageRows.get(key)!;
+          if (!rows.has(key)) throw new StateError('forbidden', 'Source query guard requested an unobserved original ancestor.');
+          return rows.get(key)!;
         } };
-        const current = await queryRecordsObserved(guardInput, () => true, requiredFields,
-          producer.readPolicies === undefined ? undefined : domain, producer.readPolicies === undefined ? undefined : originalReader);
-        const original = observed.candidates.map(candidate => candidate.record).sort((a, b) =>
-          current.records.findIndex(row => row.id === a.id) - current.records.findIndex(row => row.id === b.id));
-        const domainWitness = (records: readonly ProjectedRecord[]) => any
-          ? records.map(record => ({ ...record, data: null })) : records;
-        if (stableStringify(domainWitness(current.records)) !== stableStringify(domainWitness(original))) throw new StateError('forbidden', 'Original query domain or field authority changed before commit.');
-        if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Query authority read moved beyond outer checkpoint.');
-        return true;
-      } }));
+        return { guardInput, originalReader };
+      };
+      const occurrence = execution.occurrence;
+      if (occurrence === undefined) {
+        if (owner.callGuards.length >= MAX_ITEMS) return invalid('query commit guard budget exceeded.');
+        owner.callGuards.push(Object.freeze({ name: `query:${call.def.name}:${plan.id}`, evaluate: async () => {
+          if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Query checkpoint moved before outer commit.');
+          if (ownerDecision) return true;
+          const { guardInput, originalReader } = queryCommitReader(stageRows, predicateDomain);
+          const current = await queryRecordsObserved(guardInput, () => true, requiredFields,
+            producer.readPolicies === undefined ? undefined : domain, producer.readPolicies === undefined ? undefined : originalReader);
+          const original = observed.candidates.map(candidate => candidate.record).sort((a, b) =>
+            current.records.findIndex(row => row.id === a.id) - current.records.findIndex(row => row.id === b.id));
+          const domainWitness = (records: readonly ProjectedRecord[]) => any
+            ? records.map(record => ({ ...record, data: null })) : records;
+          if (stableStringify(domainWitness(current.records)) !== stableStringify(domainWitness(original))) throw new StateError('forbidden', 'Original query domain or field authority changed before commit.');
+          if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Query authority read moved beyond outer checkpoint.');
+          return true;
+        } }));
+      } else {
+        // The shared staged-domain authority recheck for one occurrence. It
+        // retains every original candidate/control/field observation through
+        // the same retained staged authority reader as an ordinary query
+        // (retained staged rows, retained policy domains, the original
+        // predicate-control domain, parent/revision/Identity fences) while
+        // accounting for exactly the authenticated own writes: the stamps at
+        // execution start must remain an exact prefix, and every later
+        // same-model write must be a genuine same-loop create of a row that
+        // is new to this occurrence (and inside its parent scope when the
+        // query is parent-scoped). Anything else fails closed, including
+        // empty selections (whose whole domain is checked, never skipped).
+        const recheck = async (): Promise<void> => {
+          if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Query checkpoint moved before outer commit.');
+          const at = execution.stamps ?? [];
+          const stamps = sourceMutationStamps.get(owner) ?? [];
+          if (at.length > stamps.length || at.some((stamp, index) => stamp !== stamps[index])) {
+            throw new StateError('forbidden', 'Repeated query lost its original mutation prefix.');
+          }
+          const originalIds = new Set(observed.candidates.map(candidate => candidate.record.id));
+          const own = new Set<RecordId>();
+          const parent = execution.parent;
+          for (const stamp of stamps.slice(at.length)) {
+            for (const write of stamp.writes) {
+              if (write.model !== plan.model) continue;
+              if (stamp.loop?.id !== occurrence.loop || write.op !== 'create' || write.id === undefined ||
+                originalIds.has(write.id) ||
+                parent !== undefined && (write.parent === undefined || write.parent.model !== parent.model || write.parent.id !== parent.row.id)) {
+                throw new StateError('forbidden', 'Repeated query domain changed beyond its genuine item loop.');
+              }
+              own.add(write.id);
+            }
+          }
+          const { guardInput, originalReader } = queryCommitReader(stageRows, predicateDomain);
+          const current = await queryRecordsObserved(guardInput, () => true, requiredFields,
+            producer.readPolicies === undefined ? undefined : domain, producer.readPolicies === undefined ? undefined : originalReader);
+          const domainWitness = (records: readonly ProjectedRecord[]) => any
+            ? records.map(record => ({ ...record, data: null })) : records;
+          const witnessed = domainWitness(current.records);
+          const byId = new Map(witnessed.map(record => [record.id, record] as const));
+          const original = domainWitness(observed.candidates.map(candidate => candidate.record)).sort((a, b) =>
+            (witnessed.findIndex(row => row.id === a.id)) - (witnessed.findIndex(row => row.id === b.id)));
+          // Every original candidate must still read identically under
+          // current grants: selected and nonselected, control and field.
+          for (const record of original) {
+            const reread = byId.get(record.id);
+            if (reread === undefined || stableStringify(reread) !== stableStringify(record)) {
+              throw new StateError('forbidden', 'Original repeated query domain or field authority changed before commit.');
+            }
+          }
+          // Any row outside the original domain must be exactly an
+          // authenticated same-loop own create accounted above.
+          for (const record of current.records) {
+            if (!originalIds.has(record.id) && !own.has(record.id)) {
+              throw new StateError('forbidden', 'Repeated query domain gained a foreign row before commit.');
+            }
+          }
+          if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Query authority read moved beyond outer checkpoint.');
+        };
+        // Bound the census by the authored aggregate census: the loop
+        // maximum times its exact repeated-query count. Never MAX_ITEMS,
+        // never raised.
+        const loop = state.bound.plan.sourceLoops?.loops.find(entry => entry.id === occurrence.loop);
+        const censusBound = (loop?.maximum ?? 0) * (loop?.aggregate?.queries.length ?? 0);
+        if (censusBound <= 0 || censusBound > 1000 * 200) {
+          return invalid('repeated query lacks its exact original aggregate census bound.');
+        }
+        let census = repeatedQueryRechecks.get(owner)?.get(plan.id);
+        if (census === undefined) {
+          let plans = repeatedQueryRechecks.get(owner);
+          if (plans === undefined) { plans = new Map(); repeatedQueryRechecks.set(owner, plans); }
+          census = [];
+          plans.set(plan.id, census);
+          // Share one commit guard per query plan across all occurrences.
+          // The guard closes over the live census array, so later
+          // occurrences join the same single guard before commit.
+          let installed = repeatedQueryCommitGuards.get(owner);
+          if (installed === undefined) { installed = new Set(); repeatedQueryCommitGuards.set(owner, installed); }
+          if (!installed.has(plan.id)) {
+            installed.add(plan.id);
+            if (owner.callGuards.length >= MAX_ITEMS) return invalid('query commit guard budget exceeded.');
+            const queryId = plan.id, defName = call.def.name;
+            const shared = census;
+            owner.callGuards.push(Object.freeze({ name: `query:${defName}:${queryId}:repeated`, evaluate: async () => {
+              if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Query checkpoint moved before outer commit.');
+              for (const check of [...shared]) await check();
+              if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Query authority read moved beyond outer checkpoint.');
+              return true;
+            } }));
+          }
+        }
+        if (census.length >= censusBound) return invalid('repeated query occurrence exceeds its authored aggregate census.');
+        census.push(recheck);
+      }
       return Object.freeze({ query: execution.handle, rows: Object.freeze(execution.selectedIndices.map(index => {
         const candidate = execution.candidates[index]!; return Object.freeze({ slot: candidate.slot, record: candidate.record });
       })), count: execution.selectedIndices.length });

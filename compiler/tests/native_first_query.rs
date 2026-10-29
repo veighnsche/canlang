@@ -4262,6 +4262,271 @@ fn created_parent_keeps_its_exact_original_create_and_required_parent_associatio
         .expect("both original Values and constructor COUNT publish with the primary Model result");
     assert_eq!(queries.len(), 2);
 
+    // Ordered allocations keep genuine created and global query parents.
+    // This uses the original settlement loop body, including its late total.
+    {
+        let source = r#"app ReferAllocation uses=[allocation]
+package allocation
+ Given
+  Root {active:bool=true}
+  Credit in Root {amount:money}
+  Settlement in Root {amount:money}
+  Allocation in Settlement {credit:Credit,amount:money}
+  policy Root read=members
+  policy Credit read=members
+  policy Settlement read=members
+  policy Allocation read=members
+ When
+  scenario settle(root:Root,amount:money) by=members -> Settlement
+   require root.active and amount.minor>0
+   do
+    create Settlement {parent=root,amount} as settlement
+    for credit in root.Credit as item where item.amount.minor>0 order=item.created limit=500
+     let remaining=amount-sum(settlement.Allocation as allocation select allocation.amount,amount.currency)
+     let unpaid=credit.amount-sum(Allocation as allocation where allocation.credit==credit select allocation.amount,amount.currency)
+     let part=min([remaining,unpaid])
+     if part.minor>0
+      create Allocation {parent=settlement,credit,amount=part} as allocation
+    require sum(settlement.Allocation as allocation select allocation.amount,amount.currency)==amount
+    return settlement
+ Then
+"#;
+        let (db, program, ir, catalog) = fixture_source("ordered-allocation.can", source);
+        let owner = item(&ir, "allocation.settle");
+        assert!(
+            matches!(
+                &ir.scenario_disclosures[&owner.id],
+                ScenarioDisclosure::Complete(_)
+            ),
+            "{:?}",
+            ir.scenario_disclosures[&owner.id]
+        );
+        // The staged aggregate publishes its complete repeated-query consumer:
+        // two iteration queries under one aggregate loop, with Created and
+        // Global parent transport and the exact finite census association.
+        // The production emit vehicle carries the plan (its fresh source
+        // context admits the repeated native consumer); the single-query
+        // serialize helper stays gated for multi-value aggregates.
+        let (artifact, emit_diagnostics) = prepared_artifact(&program, &db, &catalog);
+        assert!(
+            emit_diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code != "E6008"),
+            "aggregate emit diagnostics: {:?}",
+            emit_diagnostics
+        );
+        let operation = artifact["operations"]
+            .as_array()
+            .expect("aggregate operations emit")
+            .iter()
+            .find(|operation| operation["name"] == "allocation.settle")
+            .expect("aggregate operation emits");
+        let receipt = &operation["result"]["disclosure"];
+        assert!(
+            !receipt.is_null(),
+            "the staged aggregate publishes its repeated native consumer"
+        );
+        let queries = receipt["queries"]
+            .as_array()
+            .expect("repeated queries publish");
+        assert_eq!(queries.len(), 2);
+        let iteration = queries[0]["iteration"]
+            .as_str()
+            .expect("repeated query iteration");
+        assert_eq!(iteration.len(), 64);
+        for query in queries {
+            assert_eq!(query["iteration"].as_str(), Some(iteration));
+            assert_eq!(query["archived"], "exclude");
+            assert!(query["limit"].is_null());
+            assert_eq!(query["order"], serde_json::json!([]));
+        }
+        let created = queries
+            .iter()
+            .find(|query| query.get("parent").is_some())
+            .expect("created parent transport");
+        assert_eq!(created["model"], "allocation.Allocation");
+        assert_eq!(created["parent"]["model"], "allocation.Settlement");
+        assert_eq!(
+            created["parent"]["origin"]["kind"],
+            serde_json::json!("created-reference")
+        );
+        assert_eq!(
+            created["parent"]["origin"]["created"]["binding"],
+            "settlement"
+        );
+        assert_eq!(
+            created["parent"]["origin"]["created"]["model"],
+            "allocation.Settlement"
+        );
+        assert_eq!(
+            created["parent"]["origin"]["created"]["parentParameter"],
+            "root"
+        );
+        assert_eq!(
+            created["parent"]["origin"]["created"]["parentModel"],
+            "allocation.Root"
+        );
+        assert_eq!(created["parent"]["origin"]["created"]["stage"], 0);
+        let global = queries
+            .iter()
+            .find(|query| query.get("parent").is_none())
+            .expect("global parent transport");
+        assert_eq!(global["model"], "allocation.Allocation");
+        let loops = receipt["sourceLoops"]["loops"]
+            .as_array()
+            .expect("aggregate loop association publishes");
+        assert_eq!(loops.len(), 1);
+        assert_eq!(loops[0]["id"].as_str(), Some(iteration));
+        assert_eq!(loops[0]["maximum"], 500);
+        assert_eq!(loops[0]["filtered"], true);
+        assert_eq!(loops[0]["parameter"], "root");
+        assert_eq!(loops[0]["parentModel"], "allocation.Root");
+        assert_eq!(loops[0]["model"], "allocation.Credit");
+        let census = loops[0]["aggregate"]["queries"]
+            .as_array()
+            .expect("repeated query census");
+        assert_eq!(census.len(), 2);
+        for query in queries {
+            assert!(
+                census.iter().any(|id| id.as_str() == query["id"].as_str()),
+                "census names every repeated query"
+            );
+        }
+        assert_eq!(
+            loops[0]["aggregate"]["order"],
+            serde_json::json!([{"field": "created", "direction": "asc"}])
+        );
+        let code = artifact["modules"]
+            .as_array()
+            .expect("aggregate modules emit")
+            .iter()
+            .filter_map(|module| module["js"].as_str())
+            .find(|code| code.contains("export function canScenarioQueryValueSources()"))
+            .expect("aggregate Values expressions retain their private source producer");
+        let literal = code
+            .split("export function canScenarioQueryValueSources(){return JSON.parse(")
+            .nth(1)
+            .unwrap()
+            .split(");}")
+            .next()
+            .unwrap();
+        let payload: String = serde_json::from_str(literal).unwrap();
+        let inventory: Value = serde_json::from_str(&payload).unwrap();
+        let sites = inventory["allocation.settle"].as_array().unwrap();
+        assert_eq!(
+            sites.len(),
+            3,
+            "both SUM LETs and their pure successor are captured"
+        );
+        for site in sites {
+            assert_eq!(site["iteration"].as_str(), Some(iteration));
+            assert_eq!(
+                site["typeId"], "money",
+                "capture the whole Money LET, not its nested Values query"
+            );
+            assert_eq!(site["stage"], 1);
+            let prefix = site["mutationPrefix"].as_array().unwrap();
+            assert_eq!(prefix.len(), 1);
+            assert_eq!(prefix[0]["kind"], "create");
+            assert_eq!(prefix[0]["created"]["binding"], "settlement");
+            assert_eq!(prefix[0]["created"], created["parent"]["origin"]["created"]);
+        }
+        for query in queries {
+            let site = sites
+                .iter()
+                .find(|site| site["receiptQueryId"] == query["id"])
+                .expect("every repeated query has its exact whole-LET consumer");
+            assert_eq!(site["queries"].as_array().unwrap().len(), 1);
+            assert_eq!(site["queries"][0]["model"], query["model"]);
+            assert!(!site["receiptDependencies"].as_array().unwrap().is_empty());
+            assert!(!site["receiptCases"]["empty"].as_array().unwrap().is_empty());
+            assert_eq!(
+                site["receiptCases"]["empty"],
+                site["receiptCases"]["nonempty"]
+            );
+        }
+        let part = sites.iter().find(|site| site["binding"] == "part").unwrap();
+        let captured = part["captures"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|capture| capture["binding"].as_str().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(captured, ["remaining", "unpaid"]);
+        assert!(part.get("receiptQueryId").is_none());
+        // An altered aggregate parent or item filter cannot produce a recipe.
+        for (mode, mutant) in [
+            (
+                "created-parent",
+                source.replacen(
+                    "sum(settlement.Allocation as allocation",
+                    "sum(Allocation as allocation",
+                    1,
+                ),
+            ),
+            (
+                "item-filter",
+                source.replace(
+                    "where allocation.credit==credit",
+                    "where allocation.credit==item",
+                ),
+            ),
+        ] {
+            let (mutant_db, mutant_program, _mutant_ir, mutant_catalog) =
+                fixture_source("ordered-allocation-mutant.can", &mutant);
+            let (mutant_artifact, mutant_diagnostics) =
+                prepared_artifact(&mutant_program, &mutant_db, &mutant_catalog);
+            let disclosure = mutant_artifact["operations"]
+                .as_array()
+                .expect("mutant operations emit")
+                .iter()
+                .find(|operation| operation["name"] == "allocation.settle")
+                .map(|operation| &operation["result"]["disclosure"])
+                .filter(|disclosure| !disclosure.is_null());
+            assert!(
+                disclosure.is_none()
+                    || mutant_diagnostics
+                        .iter()
+                        .any(|diagnostic| diagnostic.code == "E6008"),
+                "{mode}: altered aggregate facts cannot produce a recipe"
+            );
+        }
+        // A renamed aggregate create breaks the fresh created-parent join.
+        let mut joined = ir.clone();
+        let IrItemKind::Scenario { effects, .. } = &mut joined.items[owner.id.0 as usize].kind
+        else {
+            panic!("scenario");
+        };
+        let mut renamed = false;
+        for effect in effects.iter_mut() {
+            if let IrStmt::Create {
+                binding: Some(binding),
+                ..
+            } = effect
+            {
+                if binding == "settlement" {
+                    *binding = "settlement2".into();
+                    renamed = true;
+                }
+            }
+        }
+        assert!(renamed);
+        let joined_emit = js::emit_program_with_native_source_receipts(&joined, true, &db);
+        let joined_disclosure = joined_emit
+            .operations
+            .iter()
+            .find(|operation| operation.name == "allocation.settle")
+            .and_then(|operation| operation.disclosure.as_ref());
+        assert!(
+            joined_disclosure.is_none()
+                || joined_emit
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "E6008"),
+            "renamed create: altered aggregate IR cannot produce a recipe"
+        );
+    }
+
     for mode in ["return-binding", "return-type", "count-offset"] {
         let mut changed = returned_ir.clone();
         let IrItemKind::Scenario {

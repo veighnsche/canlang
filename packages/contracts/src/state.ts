@@ -149,8 +149,12 @@ export interface ScenarioReceiptQueryPlan {
     readonly model: ModelName;
     readonly origin:
       | { readonly kind: 'admitted-reference'; readonly parameter: string }
-      | { readonly kind: 'stored-reference'; readonly dependencyId: string };
+      | { readonly kind: 'stored-reference'; readonly dependencyId: string }
+      | { readonly kind: 'created-reference'; readonly created: ScenarioReceiptCreatedRoot };
   };
+  /** Repeated only within this original source-owned loop. The runtime mints
+   * each occurrence from its actual selected item; metadata grants no access. */
+  readonly iteration?: string;
   readonly order: ReadonlyArray<OrderTerm>;
   readonly limit: number | null;
   readonly archived: 'exclude' | 'include';
@@ -168,8 +172,10 @@ export interface ScenarioReceiptQueryProjection {
     readonly name: string; readonly kind: 'reference' | 'version' | 'field'; readonly field?: string;
   }>;
 }
+export interface ScenarioReceiptQueryOccurrence {readonly loop:string;readonly ordinal:number;}
 export interface ScenarioReceiptQueryObservation {
   readonly queryId: string;
+  readonly occurrence?: ScenarioReceiptQueryOccurrence;
   readonly revision: Revision;
   /** Genuine retained parent witness for a scoped plan, including an empty
    * candidates array. Required exactly when the matching plan has `parent`.
@@ -222,6 +228,7 @@ export interface ScenarioResultDisclosurePlan {
     readonly loops:readonly {readonly id:string;readonly node:{readonly start:number;readonly end:number};
       readonly domain:{readonly start:number;readonly end:number};readonly maximum:number;readonly parameter:string;
       readonly parentModel:string;readonly model:string;readonly filtered:boolean;
+      readonly aggregate?:{readonly queries:readonly string[];readonly dependencies:readonly string[];readonly order:readonly OrderTerm[]};
       readonly copy?:{readonly node:{readonly start:number;readonly end:number};
         readonly call:{readonly start:number;readonly end:number};readonly parent:string;readonly model:string;
         readonly target:string;readonly fields:readonly {readonly name:string;readonly type:string;
@@ -293,7 +300,10 @@ export interface ScenarioReceiptAssociation {
   readonly fileAssignments?: ReadonlyArray<ScenarioReceiptFileAssignment>;
   readonly queries?: readonly ScenarioReceiptQueryObservation[];
   /** Original admitted root issued once for each reached source-copy loop. */
-  readonly sourceLoopRoots?:readonly {readonly loop:string;readonly parameter:string;readonly model:ModelName;readonly row:StoredRow}[];
+  readonly sourceLoopRoots?:readonly {readonly loop:string;readonly parameter:string;readonly model:ModelName;readonly row:StoredRow;
+    /** Only an authenticated aggregate loop retains its complete ordered item
+     * selection, including empty. These snapshots grant no row or DATA access. */
+    readonly selection?:readonly StoredRow[]}[];
   /** Actual same-owner calls, retained privately with the parent receipt.
    * Target metadata identifies the checked interface; it grants no authority.
    * Current projection rechecks target authority and every saved dependency. */
@@ -308,6 +318,7 @@ export interface ScenarioReceiptAssociation {
   }>;
   readonly observations: ReadonlyArray<{
     readonly dependencyId: string;
+    readonly occurrence?: ScenarioReceiptQueryOccurrence;
     readonly model: ModelName;
     readonly row: StoredRow;
     readonly secretFields: ReadonlyArray<string>;

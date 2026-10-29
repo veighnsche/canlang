@@ -559,6 +559,7 @@ pub struct CheckedScenarioSource {
     /// Unhandled query uses still decline the executable scenario independently.
     pub queries: Option<Vec<DisclosureQuery>>,
     pub(crate) query_values: Option<Vec<CheckedQueryValueSource>>,
+    pub(crate) aggregate_loops: Option<Vec<CheckedAggregateLoop>>,
     /// Original transcript invocations and eager row projections, source only.
     pub(crate) transcripts: Option<Vec<CheckedTranscriptSource>>,
     /// Exact original WHERE-bound inline TextMessage selection; no query/File grant.
@@ -566,6 +567,22 @@ pub struct CheckedScenarioSource {
     /// Private owning stored-field/Contract snapshots and two-parent Model
     /// source operands. File declarations here grant no receipt admission.
     pub(crate) stored_contracts: Option<Vec<CheckedStoredContractSchema>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum CheckedQueryValueParent {
+    Admitted {
+        parameter: SymbolId,
+        node: NodeKey,
+        model: SymbolId,
+        depth: u8,
+    },
+    Created {
+        node: NodeKey,
+        model: SymbolId,
+        create: NodeKey,
+    },
+    Global,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -576,11 +593,27 @@ pub(crate) struct CheckedQueryValueSource {
     pub ty: ResolvedType,
     pub alias: NodeKey,
     pub selected: NodeKey,
-    pub parameter: SymbolId,
-    pub parent: NodeKey,
-    pub parent_model: SymbolId,
-    pub parent_depth: u8,
+    pub parent: CheckedQueryValueParent,
+    pub iteration: Option<NodeKey>,
     pub query: DisclosureQuery,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct CheckedAggregateLoop {
+    pub id: String,
+    pub node: NodeKey,
+    pub domain: NodeKey,
+    pub limit: NodeKey,
+    pub maximum: u16,
+    pub item: String,
+    pub parameter: SymbolId,
+    pub parent_model: SymbolId,
+    pub model: SymbolId,
+    pub created: NodeKey,
+    pub condition: NodeKey,
+    pub write: NodeKey,
+    pub order: NodeKey,
+    pub values: Vec<NodeKey>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -4489,6 +4522,7 @@ impl<'a> Closure<'a> {
                 .collect(),
             queries: self.checked_query_sources(scenario),
             query_values: self.checked_query_value_sources(scenario),
+            aggregate_loops: self.checked_aggregate_loop_sources(scenario),
             transcripts: self.checked_transcript_sources(scenario),
             inline_selections: self.checked_inline_selection_sources(scenario),
             stored_contracts: self.checked_stored_contracts(scenario),
@@ -18710,6 +18744,35 @@ impl<'a> Closure<'a> {
         }
     }
 
+    /// A staged body Require sealed by the exact bounded aggregate loop may
+    /// name that loop's created parent as its sum domain receiver. The loop
+    /// fact pins the create node, the parent model and the conditional
+    /// write; every other CreateAs read inside a body observer keeps its
+    /// independent refusal, and no binding is invented for the Require.
+    fn source_require_aggregate_parent(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        site: &CheckedDecisionSite,
+        node: NodeKey,
+    ) -> Option<()> {
+        if site.stage != CheckedDecisionStage::BodyRequire {
+            return None;
+        }
+        let [CheckedDecisionPosition::Body(index)] = site.position.as_slice() else {
+            return None;
+        };
+        let loops = self.checked_aggregate_loop_sources(scenario)?;
+        let plan = loops.iter().find(|plan| plan.created == node)?;
+        scenario
+            .effects
+            .get(..*index)?
+            .iter()
+            .any(|effect| effect.node == plan.node)
+            .then_some(())?;
+        self.source_require_staged_body_guard(scenario, &site.position)
+            .map(|_| ())
+    }
+
     /// A staged guard may borrow an immutable primitive captured by one
     /// earlier direct stored-field LET. Names alone never establish origin:
     /// the resolver binding, original declaration, type and admitted parent
@@ -19109,6 +19172,10 @@ impl<'a> Closure<'a> {
         }
         if body {
             match self.query_binding(key) {
+                Some(Binding::CreateAs { node })
+                    if self
+                        .source_require_aggregate_parent(scenario, site, *node)
+                        .is_some() => {},
                 Some(Binding::ForItem{node}) if self.source_require_loop_condition(scenario,site).is_some_and(|(outer,_)|outer.node==*node)=>{},
                 Some(Binding::Let { .. }) if self.source_require_captured_scalar(scenario,site,key).is_some()=>{},
                 Some(Binding::Let { .. }) if self.source_require_captured_value(scenario,site,key).is_some()=>{*helper_query=true;},
@@ -19346,6 +19413,7 @@ impl<'a> Closure<'a> {
             effects: &[Effect],
             wrote: &mut bool,
             allowed_create: &impl Fn(&Effect) -> bool,
+            allowed_loop: &impl Fn(&Effect) -> bool,
         ) -> Option<()> {
             for effect in effects {
                 if effect.verb != EffectVerb::Require && effect.cond.is_some()
@@ -19366,14 +19434,14 @@ impl<'a> Closure<'a> {
                     EffectVerb::For
                         if effect.limit.is_some()
                             && !effect.then_effects.is_empty()
-                            && effect.then_effects.iter().all(|child| {
+                            && (effect.then_effects.iter().all(|child| {
                                 child.verb == EffectVerb::Set
                                     && child.cond.is_none()
                                     && child.when.is_none()
                                     && child.then_effects.is_empty()
                                     && child.else_effects.is_empty()
                                     && child.match_arms.is_empty()
-                            }) =>
+                            }) || allowed_loop(effect)) =>
                     {
                         *wrote = true
                     }
@@ -19387,9 +19455,6 @@ impl<'a> Closure<'a> {
         };
         let allowed_create = |effect: &Effect| {
             (|| {
-                if scenario.result.is_some() {
-                    return None;
-                }
                 let created = self.checked_create_source(effect, scenario.module)?;
                 let ModelOwner::ChildOf(parent) = created.definition.declaration.owner else {
                     return None;
@@ -19401,18 +19466,44 @@ impl<'a> Closure<'a> {
                 let Binding::Symbol(parameter) = self.query_binding(input.value_node)? else {
                     return None;
                 };
-                (scenario
+                if !(scenario
                     .params
                     .iter()
                     .any(|input| input.param == *parameter)
                     && self.checked_call_parent_path(input.value_node, *parameter, 0)
                         == Some((parent, 0)))
-                .then_some(())
+                {
+                    return None;
+                }
+                // Void owners keep the existing result-free shape. A result
+                // owner seals only the exact aggregate-created parent: the
+                // checked loop fact pins this create node, so a later staged
+                // Require observes genuine executed writes, not an arbitrary
+                // result-row constructor.
+                if scenario.result.is_none() {
+                    return Some(());
+                }
+                self.checked_aggregate_loop_sources(scenario)
+                    .is_some_and(|loops| loops.iter().any(|plan| plan.created == effect.node))
+                    .then_some(())
             })()
             .is_some()
         };
+        // An already-checked bounded aggregate loop seals its ordered
+        // per-item writes as one staged prefix step. Only the exact loop
+        // node from the aggregate fact qualifies; arbitrary loop bodies
+        // keep their independent refusal.
+        let allowed_loop = |effect: &Effect| {
+            self.checked_aggregate_loop_sources(scenario)
+                .is_some_and(|loops| loops.iter().any(|plan| plan.node == effect.node))
+        };
         let mut wrote = false;
-        prefix(scenario.effects.get(..*index)?, &mut wrote, &allowed_create)?;
+        prefix(
+            scenario.effects.get(..*index)?,
+            &mut wrote,
+            &allowed_create,
+            &allowed_loop,
+        )?;
         let mut effect = scenario.effects.get(*index)?;
         for position in nested {
             if effect.verb != EffectVerb::If || !effect.match_arms.is_empty() {
@@ -19423,7 +19514,12 @@ impl<'a> Closure<'a> {
                 CheckedDecisionPosition::Else(index) => (&effect.else_effects, *index),
                 _ => return None,
             };
-            prefix(branch.get(..index)?, &mut wrote, &allowed_create)?;
+            prefix(
+                branch.get(..index)?,
+                &mut wrote,
+                &allowed_create,
+                &allowed_loop,
+            )?;
             effect = branch.get(index)?;
         }
         (wrote && effect.verb == EffectVerb::Require).then_some(effect)
@@ -20814,6 +20910,218 @@ impl<'a> Closure<'a> {
         (formal_case(left, right) || formal_case(right, left)).then_some(*predicate)
     }
 
+    /// Original bounded aggregate allocation loops retain their full source
+    /// shape before executable closure admission. This declaration grants no
+    /// row, query, branch answer or permission capability.
+    fn checked_aggregate_loop_sources(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<Vec<CheckedAggregateLoop>> {
+        let mut output = Vec::new();
+        if scenario.read
+            || scenario.on.is_some()
+            || scenario.cohort.is_some()
+            || scenario.scope_authority
+        {
+            return Some(output);
+        }
+        let Some(ResolvedType::Record {
+            symbol: result,
+            stored: true,
+        }) = self.types.symbol_results.get(&scenario.scenario)?.as_ref()
+        else {
+            return Some(output);
+        };
+        for (index, effect) in scenario.effects.iter().enumerate() {
+            if effect.verb != EffectVerb::For {
+                continue;
+            }
+            if effect.cond.is_some()
+                || effect.when.is_some()
+                || !effect.else_effects.is_empty()
+                || !effect.match_arms.is_empty()
+            {
+                continue;
+            }
+            let Some(created) = scenario.effects[..index]
+                .iter()
+                .rev()
+                .find(|effect| effect.verb == EffectVerb::Create)
+            else {
+                continue;
+            };
+            if !matches!(created.target,Some(EffectTarget::Model(model))if model==*result)
+                || created.when.is_some()
+            {
+                continue;
+            }
+            let Some(checked_create) = self.checked_create_source(created, scenario.module) else {
+                continue;
+            };
+            let Some(parent) = checked_create
+                .inputs
+                .iter()
+                .find(|input| input.name == "parent")
+            else {
+                continue;
+            };
+            let Some((parameter, parent_model)) = self.original_call_model_parameter(
+                parent.value_node,
+                created.node,
+                scenario.module,
+            ) else {
+                continue;
+            };
+            if !scenario
+                .params
+                .iter()
+                .any(|input| input.param == parameter && input.default.is_none())
+                || self.effects.models.get(result)?.owner != ModelOwner::ChildOf(parent_model)
+            {
+                continue;
+            }
+            let Some(last) = scenario.effects.last() else {
+                continue;
+            };
+            if last.verb!=EffectVerb::Return||!last.value.is_some_and(|value|matches!(self.query_binding(value),Some(Binding::CreateAs{node})if *node==created.node)){continue;}
+            let Some(domain) = effect.domain else {
+                continue;
+            };
+            let Some(query) = self.types.checked_queries.get(&domain) else {
+                continue;
+            };
+            if !query.matches_source(
+                *self.nodes.get(&domain)?,
+                &self.db.get(domain.file)?.text,
+                expression,
+            ) || query.result != query.domain_type
+                || query.projection.is_some()
+            {
+                continue;
+            }
+            let [alias, filter, order] = query.clauses.as_slice() else {
+                continue;
+            };
+            let (
+                CheckedQueryClauseKind::As { .. },
+                CheckedQueryClauseKind::Where,
+                CheckedQueryClauseKind::Order,
+            ) = (&alias.kind, &filter.kind, &order.kind)
+            else {
+                continue;
+            };
+            let ([predicate], [ordered]) =
+                (filter.expressions.as_slice(), order.expressions.as_slice())
+            else {
+                continue;
+            };
+            let Ok((loop_parameter, model)) =
+                self.original_loop_member_root(query.domain, effect.node, scenario.module)
+            else {
+                continue;
+            };
+            if loop_parameter != parameter
+                || self
+                    .bounded_item_condition(*predicate, model, alias.node, true)
+                    .is_none()
+            {
+                continue;
+            }
+            let Some((receiver, field)) = self.count_member(*ordered) else {
+                continue;
+            };
+            if field != "created"
+                || self.model_has_field(model, "created")
+                || !matches!(self.query_binding(receiver),Some(Binding::QueryAlias{node})if *node==alias.node)
+            {
+                continue;
+            }
+            let Some(limit) = effect.limit else {
+                continue;
+            };
+            let Some(maximum) = self
+                .db
+                .get(limit.file)
+                .and_then(|source| source.text.get(limit.start as usize..limit.end as usize))
+                .and_then(|text| text.trim().parse::<u16>().ok())
+                .filter(|value| (1..=1000).contains(value))
+            else {
+                continue;
+            };
+            if self.nodes.get(&limit)?.kind != SyntaxKind::Literal
+                || self.types.node_types.get(&limit) != Some(&ResolvedType::Scalar(Scalar::Int))
+            {
+                continue;
+            }
+            let Some((conditional, values)) = effect.then_effects.split_last() else {
+                continue;
+            };
+            if values.is_empty()
+                || values.len() >= 200
+                || values.iter().any(|value| {
+                    value.verb != EffectVerb::Let
+                        || value.value.is_none()
+                        || value.binding.is_none()
+                        || self.types.node_types.get(&value.value.unwrap())
+                            != Some(&ResolvedType::Scalar(Scalar::Money))
+                })
+            {
+                continue;
+            }
+            let [write] = conditional.then_effects.as_slice() else {
+                continue;
+            };
+            if conditional.verb != EffectVerb::If
+                || conditional.when.is_some()
+                || !conditional.else_effects.is_empty()
+                || !conditional.match_arms.is_empty()
+                || write.verb != EffectVerb::Create
+                || write.when.is_some()
+            {
+                continue;
+            }
+            let Some(condition) = conditional.cond else {
+                continue;
+            };
+            if self.types.node_types.get(&condition) != Some(&ResolvedType::Scalar(Scalar::Bool)) {
+                continue;
+            }
+            let Some(child) = self.checked_create_source(write, scenario.module) else {
+                continue;
+            };
+            let Some(parent) = child.inputs.iter().find(|input| input.name == "parent") else {
+                continue;
+            };
+            if self.effects.models.get(&child.model)?.owner != ModelOwner::ChildOf(*result)
+                || !matches!(self.query_binding(parent.value_node),Some(Binding::CreateAs{node})if *node==created.node)
+            {
+                continue;
+            }
+            if !child.inputs.iter().any(|input|input.ty==(ResolvedType::Record{symbol:model,stored:true})&&matches!(self.query_binding(input.value_node),Some(Binding::ForItem{node})if *node==effect.node)){continue;}
+            let id = self.opaque("aggregate-loop", effect.node, "").ok()?;
+            output.push(CheckedAggregateLoop {
+                id,
+                node: effect.node,
+                domain,
+                limit,
+                maximum,
+                item: effect.item.clone()?,
+                parameter,
+                parent_model,
+                model,
+                created: created.node,
+                condition,
+                write: write.node,
+                order: *ordered,
+                values: values.iter().map(|value| value.node).collect(),
+            });
+            if output.len() > 200 {
+                return None;
+            }
+        }
+        Some(output)
+    }
+
     /// The initial selection producer has no effects and never yields a Model,
     /// identity, File or opaque carrier. Its native query still owns the domain,
     /// candidate controls and every selected DATA observation.
@@ -20858,6 +21166,8 @@ impl<'a> Closure<'a> {
             return Some(Vec::new());
         }
         let mut output = Vec::new();
+        let aggregates = self.checked_aggregate_loop_sources(scenario)?;
+        let mut candidates = Vec::new();
         for statement in &scenario.effects {
             if statement.verb == EffectVerb::Require {
                 continue;
@@ -20865,8 +21175,61 @@ impl<'a> Closure<'a> {
             if statement.verb != EffectVerb::Let {
                 break;
             }
-            let Some(value) = statement.value.and_then(|value| self.query_group(value)) else {
+            candidates.push((statement, None));
+        }
+        for aggregate in &aggregates {
+            let owner = scenario
+                .effects
+                .iter()
+                .find(|effect| effect.node == aggregate.node)?;
+            candidates.extend(
+                owner
+                    .then_effects
+                    .iter()
+                    .filter(|effect| aggregate.values.contains(&effect.node))
+                    .map(|effect| (effect, Some(aggregate))),
+            );
+        }
+        for (statement, aggregate) in candidates {
+            let Some(expression_node) = statement.value else {
                 continue;
+            };
+            let value = if aggregate.is_some() {
+                let queries = self
+                    .types
+                    .checked_queries
+                    .keys()
+                    .filter(|node| {
+                        node.file == expression_node.file
+                            && node.start >= expression_node.start
+                            && node.end <= expression_node.end
+                    })
+                    .copied()
+                    .collect::<Vec<_>>();
+                let [query] = queries.as_slice() else {
+                    continue;
+                };
+                if !self.types.selected_calls.iter().any(|(node, call)| {
+                    node.file == expression_node.file
+                        && node.start >= expression_node.start
+                        && node.end <= expression_node.end
+                        && matches!(&call.target,SelectedCallTarget::Builtin{id,..}if id=="sum")
+                        && call.slots.as_slice() == [Some(0), Some(1)]
+                        && call.arguments.len() == 2
+                        && self.query_group(call.arguments[0]) == Some(*query)
+                        && self.types.node_types.get(&call.arguments[1])
+                            == Some(&ResolvedType::Scalar(Scalar::Currency))
+                        && self.types.node_types.get(node)
+                            == Some(&ResolvedType::Scalar(Scalar::Money))
+                }) {
+                    continue;
+                }
+                *query
+            } else {
+                let Some(value) = self.query_group(expression_node) else {
+                    continue;
+                };
+                value
             };
             let Some(query) = self.types.checked_queries.get(&value) else {
                 continue;
@@ -20886,42 +21249,66 @@ impl<'a> Closure<'a> {
             else {
                 continue;
             };
-            let Some((parent, name)) = self.count_member(query.domain) else {
-                continue;
-            };
             let model_symbol = self.resolve.symbols.get(model.0 as usize)?;
-            let ModelOwner::ChildOf(parent_model) = self.effects.models.get(model)?.owner else {
-                continue;
-            };
-            if name != model_symbol.name
-                || self.model_has_field(parent_model, name)
-                || self.types.node_types.get(&parent)
-                    != Some(&ResolvedType::Record {
-                        symbol: parent_model,
-                        stored: true,
+            let parent_scope = if let Some((parent, name)) = self.count_member(query.domain) {
+                let ModelOwner::ChildOf(parent_model) = self.effects.models.get(model)?.owner
+                else {
+                    continue;
+                };
+                if name != model_symbol.name
+                    || self.model_has_field(parent_model, name)
+                    || self.types.node_types.get(&parent)
+                        != Some(&ResolvedType::Record {
+                            symbol: parent_model,
+                            stored: true,
+                        })
+                {
+                    continue;
+                }
+                if let Some((parameter, depth)) = scenario
+                    .params
+                    .iter()
+                    .filter(|parameter| parameter.default.is_none())
+                    .find_map(|parameter| {
+                        self.checked_call_parent_path(parent, parameter.param, 0)
+                            .filter(|(model, _)| *model == parent_model)
+                            .map(|(_, depth)| (parameter.param, depth))
                     })
+                {
+                    if depth > 2 {
+                        continue;
+                    }
+                    CheckedQueryValueParent::Admitted {
+                        parameter,
+                        node: parent,
+                        model: parent_model,
+                        depth,
+                    }
+                } else if let Some(aggregate) = aggregate {
+                    if !matches!(self.query_binding(parent),Some(Binding::CreateAs{node})if *node==aggregate.created)
+                    {
+                        continue;
+                    }
+                    CheckedQueryValueParent::Created {
+                        node: parent,
+                        model: parent_model,
+                        create: aggregate.created,
+                    }
+                } else {
+                    continue;
+                }
+            } else if aggregate.is_some()
+                && matches!(self.query_binding(query.domain),Some(Binding::Symbol(id))if id==model)
             {
-                continue;
-            }
-            let Some((parameter, depth)) = scenario
-                .params
-                .iter()
-                .filter(|parameter| parameter.default.is_none())
-                .find_map(|parameter| {
-                    self.checked_call_parent_path(parent, parameter.param, 0)
-                        .filter(|(model, _)| *model == parent_model)
-                        .map(|(_, depth)| (parameter.param, depth))
-                })
-            else {
+                CheckedQueryValueParent::Global
+            } else {
                 continue;
             };
-            if depth > 2
-                || !query.matches_source(
-                    self.nodes.get(&value)?,
-                    &self.db.get(value.file)?.text,
-                    expression,
-                )
-                || !self.computed_plain_value(&query.result)
+            if !query.matches_source(
+                self.nodes.get(&value)?,
+                &self.db.get(value.file)?.text,
+                expression,
+            ) || !self.computed_plain_value(&query.result)
             {
                 continue;
             }
@@ -20994,6 +21381,38 @@ impl<'a> Closure<'a> {
             {
                 continue;
             }
+            if let Some(aggregate) = aggregate {
+                if !order.is_empty()
+                    || self.types.node_types.get(&selected)
+                        != Some(&ResolvedType::Scalar(Scalar::Money))
+                {
+                    continue;
+                }
+                if matches!(parent_scope, CheckedQueryValueParent::Global) {
+                    let Some(predicate) = predicate else {
+                        continue;
+                    };
+                    let Some((left, right)) = self.query_binary(predicate, "==") else {
+                        continue;
+                    };
+                    let exact = |field: NodeKey, item: NodeKey| {
+                        self.query_member(field, alias.node, *model)
+                            .is_some_and(|field| {
+                                self.types.symbol_types.get(&field)
+                                    == Some(&ResolvedType::Record {
+                                        symbol: aggregate.model,
+                                        stored: true,
+                                    })
+                            })
+                            && matches!(self.query_binding(item),Some(Binding::ForItem{node})if *node==aggregate.node)
+                    };
+                    if !exact(left, right) && !exact(right, left) {
+                        continue;
+                    }
+                } else if predicate.is_some() {
+                    continue;
+                }
+            }
             if let Some(projection) = &query.projection {
                 let ResolvedType::Array { element, .. } = &query.result else {
                     continue;
@@ -21062,6 +21481,13 @@ impl<'a> Closure<'a> {
                         let ty = self.types.symbol_types.get(&field)?;
                         if !primitive_type(ty)
                             && !matches!(ty,ResolvedType::Enum{cases,..}if !cases.is_empty())
+                            && !(role == DependencyRole::Control
+                                && aggregate.is_some_and(|aggregate| {
+                                    *ty == (ResolvedType::Record {
+                                        symbol: aggregate.model,
+                                        stored: true,
+                                    })
+                                }))
                         {
                             valid = false;
                             break;
@@ -21151,10 +21577,8 @@ impl<'a> Closure<'a> {
                 ty: query.result.clone(),
                 alias: alias.node,
                 selected,
-                parameter,
-                parent,
-                parent_model,
-                parent_depth: depth,
+                parent: parent_scope,
+                iteration: aggregate.map(|aggregate| aggregate.node),
                 query: DisclosureQuery {
                     id,
                     source,
@@ -21164,7 +21588,12 @@ impl<'a> Closure<'a> {
                     model_name: model_symbol.canonical.clone(),
                     alias: Some(alias.node),
                     predicate,
-                    inputs: vec![(parent, parameter)],
+                    inputs: match parent_scope {
+                        CheckedQueryValueParent::Admitted {
+                            parameter, node, ..
+                        } => vec![(node, parameter)],
+                        _ => Vec::new(),
+                    },
                     dependencies,
                     order,
                     limit: None,
@@ -21191,11 +21620,7 @@ impl<'a> Closure<'a> {
         env: &Env,
         calls: &[NodeKey],
     ) -> Option<Result<Vec<ValuePath>, DisclosureDecline>> {
-        if !calls.is_empty()
-            || self.authorization
-            || self.statement_depth != 1
-            || self.loop_node.is_some()
-        {
+        if !calls.is_empty() || self.authorization {
             return None;
         }
         let fact = self
@@ -21213,6 +21638,12 @@ impl<'a> Closure<'a> {
                     .into_iter()
                     .find(|value| value.value == key)
             })?;
+        if match fact.iteration {
+            None => self.statement_depth != 1 || self.loop_node.is_some(),
+            Some(node) => self.loop_node != Some(node) || self.statement_depth != 2,
+        } {
+            return None;
+        }
         Some((|| {
             let mut local = env.clone();
             local.insert(
@@ -21222,10 +21653,24 @@ impl<'a> Closure<'a> {
                     ..ValuePath::default()
                 },
             );
-            let mut parent = self.expr(fact.parent, module, env, calls)?;
-            if parent.len() != 1 || parent[0].record != Some(fact.parent_model) {
-                return Err(self.fail(key, "Values query lost its original admitted parent"));
-            }
+            let mut parent = match fact.parent {
+                CheckedQueryValueParent::Admitted { node, model, .. }
+                | CheckedQueryValueParent::Created { node, model, .. } => {
+                    let mut values = self.expr(node, module, env, calls)?;
+                    if values.len() != 1 || values[0].record != Some(model) {
+                        return Err(
+                            self.fail(key, "Values query lost its original source-owned parent")
+                        );
+                    }
+                    if matches!(fact.parent, CheckedQueryValueParent::Created { .. }) {
+                        values[0].model_result = None;
+                        values[0].members = None;
+                        values[0].schema = None;
+                    }
+                    values
+                }
+                CheckedQueryValueParent::Global => vec![ValuePath::default()],
+            };
             let mut selected = self.expr(fact.selected, module, &local, calls)?;
             if selected.len() != 1 {
                 return Err(self.fail(
@@ -21250,11 +21695,13 @@ impl<'a> Closure<'a> {
                 value.members = None;
                 value.schema = None;
                 value.source_values.push(fact.statement);
-                value.decisions.push(DisclosureDecision {
-                    node: fact.value,
-                    calls: Vec::new(),
-                    choice: DisclosureChoice::Then,
-                });
+                if fact.iteration.is_none() {
+                    value.decisions.push(DisclosureDecision {
+                        node: fact.value,
+                        calls: Vec::new(),
+                        choice: DisclosureChoice::Then,
+                    });
+                }
                 value.influences.extend(fact.query.influences.clone());
                 value.contract_value = None;
             }
@@ -21269,7 +21716,9 @@ impl<'a> Closure<'a> {
                 ..ValuePath::default()
             };
             empty.record = None;
-            selected.push(empty);
+            if fact.iteration.is_none() {
+                selected.push(empty);
+            }
             parent[0].record = None;
             parent[0].reference = None;
             parent[0].reference_origin = None;
@@ -27899,6 +28348,49 @@ impl<'a> Closure<'a> {
                         .collect());
                 }
 
+                if id == "sum"
+                    && calls.is_empty()
+                    && self.loop_node.is_some()
+                    && selected.slots.as_slice() == [Some(0), Some(1)]
+                    && selected.arguments.len() == 2
+                    && self.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Money))
+                    && self.types.node_types.get(&selected.arguments[1])
+                        == Some(&ResolvedType::Scalar(Scalar::Currency))
+                    && self
+                        .query_group(selected.arguments[0])
+                        .is_some_and(|query| {
+                            self.effects
+                                .scenarios
+                                .values()
+                                .filter(|scenario| scenario.module == module)
+                                .any(|scenario| {
+                                    self.checked_query_value_sources(scenario).is_some_and(
+                                        |values| {
+                                            values.iter().any(|value| {
+                                                value.value == query
+                                                    && value.iteration == self.loop_node
+                                            })
+                                        },
+                                    )
+                                })
+                        })
+                    && argument_paths.iter().all(|(value, _)| {
+                        !value.source_values.is_empty()
+                            && value.record.is_none()
+                            && value.reference.is_none()
+                            && value.model_result.is_none()
+                    })
+                {
+                    return Ok(argument_paths
+                        .into_iter()
+                        .map(|(mut value, _)| {
+                            value.members = None;
+                            value.schema = None;
+                            value
+                        })
+                        .collect());
+                }
+
                 if id == "first"
                     && selected.slots.as_slice() == [Some(0)]
                     && selected.arguments.len() == 1
@@ -28691,6 +29183,25 @@ impl<'a> Closure<'a> {
             ));
         }
         Ok(())
+    }
+
+    /// Only the exact conditional CREATE owned by this active checked loop
+    /// may use its real item binding. Ordinary constructors keep their scope.
+    fn original_aggregate_create(&self, node: NodeKey, module: ModuleId) -> bool {
+        self.loop_node.is_some_and(|active| {
+            self.effects
+                .scenarios
+                .values()
+                .filter(|owner| owner.module == module)
+                .any(|owner| {
+                    self.checked_aggregate_loop_sources(owner)
+                        .is_some_and(|loops| {
+                            loops
+                                .iter()
+                                .any(|plan| plan.node == active && plan.write == node)
+                        })
+                })
+        })
     }
 
     /// One `create` statement effect: disclose the created inputs.
@@ -31487,7 +31998,9 @@ impl<'a> Closure<'a> {
         // frames use calls), so If/Match-arm nesting is admitted here while
         // the receipt tail rule narrowly admits only captured conditional
         // shapes — every other nested tail keeps its loud refusal there.
-        if self.loop_node.is_some() || !calls.is_empty() {
+        if !calls.is_empty()
+            || self.loop_node.is_some() && !self.original_aggregate_create(effect.node, module)
+        {
             return Err(fail());
         }
         // Retain the accepted legacy constructor/default proof. Other checked
@@ -34547,6 +35060,20 @@ impl<'a> Closure<'a> {
             }
             if node.kind == SyntaxKind::Member {
                 let (base, name) = self.count_member(key)?;
+                if self.types.node_types.get(&base) == Some(&ResolvedType::Scalar(Scalar::Money)) {
+                    let expected = match name {
+                        "minor" => Scalar::Int,
+                        "currency" => Scalar::Currency,
+                        _ => return None,
+                    };
+                    if self.types.node_types.get(&key) != Some(&ResolvedType::Scalar(expected)) {
+                        return None;
+                    }
+                    // Still visit and authenticate the original item field;
+                    // the pure Money selector grants no stored navigation.
+                    pending.push(base);
+                    continue;
+                }
                 if !item(base) {
                     return None;
                 }
@@ -35215,6 +35742,85 @@ impl<'a> Closure<'a> {
         populated.executed_effect = true;
         populated.writes.join(&populated.controls);
         populated.writes.join(&populated.effect_guards);
+        populated.evaluated.push(DisclosureDecision {
+            node: effect.node,
+            calls: Vec::new(),
+            choice: DisclosureChoice::Then,
+        });
+        self.effect_visits += 1;
+        Ok(vec![empty, populated])
+    }
+
+    /// Analyze one original ordered aggregate body with the ordinary typed
+    /// statement walker. This keeps its selected-item reads and query sources;
+    /// native emission must independently bind each real item occurrence.
+    fn bounded_aggregate_loop(
+        &mut self,
+        effect: &Effect,
+        module: ModuleId,
+        flow: Flow,
+        calls: &[NodeKey],
+        plan: CheckedAggregateLoop,
+    ) -> Result<Vec<Flow>, DisclosureDecline> {
+        if !calls.is_empty() || self.loop_node.is_some() {
+            return Err(self.fail(effect.node, "aggregate loop needs its original owner scope"));
+        }
+        self.loop_node = Some(effect.node);
+        let mut body = Flow {
+            env: flow.env.clone(),
+            ..Flow::default()
+        };
+        body.env.insert(
+            Local::For(effect.node),
+            ValuePath {
+                record: Some(plan.model),
+                ..ValuePath::default()
+            },
+        );
+        let (paths, returned) = self.statements(&effect.then_effects, module, vec![body], calls)?;
+        if paths.len() != 2 || !returned.is_empty() {
+            return Err(self.fail(
+                effect.node,
+                "aggregate item must complete its exact conditional constructor",
+            ));
+        }
+        self.proof(
+            effect,
+            module,
+            DisclosureEffectKind::ForMember {
+                domain: plan.domain,
+                limit: plan.limit,
+                maximum: plan.maximum,
+                item: plan.item,
+                parameter: plan.parameter,
+                model: plan.model,
+                body: effect.then_effects.iter().map(|child| child.node).collect(),
+            },
+        )?;
+        let mut empty = flow.clone();
+        empty.writes.join(&empty.controls);
+        empty.evaluated.push(DisclosureDecision {
+            node: effect.node,
+            calls: Vec::new(),
+            choice: DisclosureChoice::Else,
+        });
+        let mut populated = flow;
+        populated.executed_effect = true;
+        populated.writes.join(&populated.controls);
+        populated.writes.join(&populated.effect_guards);
+        for body in paths {
+            // Both item outcomes contribute source dependencies, not a global
+            // answer to the per-item condition. State retains each actual
+            // ordered occurrence rather than reusing this static union.
+            populated.writes.join(&body.writes);
+            populated.writes.join(&body.controls);
+            populated.writes.join(&body.effect_guards);
+            for observation in body.observed {
+                if !populated.observed.contains(&observation) {
+                    populated.observed.push(observation);
+                }
+            }
+        }
         populated.evaluated.push(DisclosureDecision {
             node: effect.node,
             calls: Vec::new(),
@@ -35985,7 +36591,19 @@ impl<'a> Closure<'a> {
             .values()
             .filter(|owner| owner.module == module)
             .find_map(|owner| self.checked_member_work_loop(owner, effect));
-        let paths = if let Some(plan) = work {
+        let aggregate = self
+            .effects
+            .scenarios
+            .values()
+            .filter(|owner| owner.module == module)
+            .find_map(|owner| {
+                self.checked_aggregate_loop_sources(owner)?
+                    .into_iter()
+                    .find(|plan| plan.node == effect.node)
+            });
+        let paths = if let Some(plan) = aggregate {
+            self.bounded_aggregate_loop(effect, module, flow, calls, plan)
+        } else if let Some(plan) = work {
             self.bounded_member_work_loop(effect, module, flow, calls, plan)
         } else if matches!(effect.then_effects.as_slice(), [condition] if Self::conditional_source_send_set(condition))
             || effect
@@ -36065,6 +36683,15 @@ impl<'a> Closure<'a> {
         effects: &[Effect],
         module: ModuleId,
     ) -> Result<(), DisclosureDecline> {
+        // The exact conditional auxiliary constructor is not the owner's
+        // returned Model. Its ordinary CREATE proof still executes below;
+        // the enclosing owner retains its original primary CREATE/RETURN gate.
+        if let [created] = effects
+            && created.verb == EffectVerb::Create
+            && self.original_aggregate_create(created.node, module)
+        {
+            return Ok(());
+        }
         // Void scenarios return no row, so no create/return profile applies;
         // their creates are still individually disclosed below, in order.
         if self.result_model.is_some()
