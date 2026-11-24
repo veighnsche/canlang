@@ -191,18 +191,25 @@ export async function toast(props: ToastProps): Promise<string> {
   );
 }
 
+const BLOCK_CONTENT = /<(?:address|article|aside|blockquote|details|dialog|div|dl|fieldset|figure|footer|form|h[1-6]|header|hr|main|nav|ol|p|pre|section|table|ul)\b/i;
+const TOOLTIP_FOCUSABLE = /<(?:a\s[^>]*href|button|input|select|textarea|summary)\b|\stabindex="0"/i;
+
 /**
- * `tooltip`: required caption in data-tip plus an aria-label alternative and
- * a focusable wrapper so keyboard users reach the annotation context.
+ * `tooltip`: required caption in data-tip. Inline content keeps an inline
+ * wrapper; block content (a form, a card) gets a div so the markup stays
+ * valid. When the content has its own focusable control, focusing it shows
+ * the tip and the tip text describes the group; otherwise the wrapper is the
+ * focus stop and carries the tip as its accessible name.
  */
 export async function tooltip(props: TooltipProps): Promise<string> {
   const modifiers = appearanceClasses("tooltip", "tooltip", pickAppearance(props));
-  const tip = requireCaption("tooltip", props.caption, props.context);
+  const tip = escapeAttr(requireCaption("tooltip", props.caption, props.context));
   const body = await requireChildren("tooltip content", props.content);
-  return (
-    `<span class="${escapeAttr(joinClasses("tooltip", modifiers))}" ` +
-    `data-tip="${escapeAttr(tip)}" tabindex="0" aria-label="${escapeAttr(tip)}">${body}</span>`
-  );
+  const tag = BLOCK_CONTENT.test(body) ? "div" : "span";
+  const focus = TOOLTIP_FOCUSABLE.test(body)
+    ? ` role="group" aria-label="${tip}"`
+    : ` tabindex="0" aria-label="${tip}"`;
+  return `<${tag} class="${escapeAttr(joinClasses("tooltip", modifiers))}" data-tip="${tip}"${focus}>${body}</${tag}>`;
 }
 
 /**
@@ -277,7 +284,7 @@ export async function dropdown(props: DropdownProps): Promise<string> {
   const content = await requireChildren("dropdown content", props.content);
   return (
     `<div class="dropdown">` +
-    `<div tabindex="0" role="button" aria-haspopup="true">${trigger}</div>` +
+    `<div tabindex="0" role="button" class="btn" aria-haspopup="true">${trigger}</div>` +
     `<div tabindex="0" class="dropdown-content bg-base-100 rounded-box w-64 p-2 shadow">${content}</div>` +
     `</div>`
   );
@@ -351,7 +358,7 @@ export async function drawer(props: DrawerProps): Promise<string> {
     `<div class="drawer-content">${trigger}</div>` +
     `<div class="drawer-side can-drawer-panel">` +
     `<label for="${id}" class="drawer-overlay" aria-label="${closeLabel}" data-can-panel-close></label>` +
-    `<aside class="w-80 min-h-full bg-base-200 flex flex-col" tabindex="-1" aria-labelledby="${id}-title">` +
+    `<aside class="can-overlay-panel min-h-full bg-base-200 flex flex-col" tabindex="-1" aria-labelledby="${id}-title">` +
     `<header class="can-panel-heading"><h2 id="${id}-title" class="px-4 py-3 text-lg font-bold">${escapeHtml(caption)}</h2>${actionParts.secondary}<label for="${id}" class="btn btn-sm btn-circle" data-can-panel-close aria-label="${closeLabel}">✕</label></header>` +
     `<div class="flex-1 overflow-y-auto">${content}</div>${actions}` +
     `</aside></div></div>`
@@ -359,22 +366,28 @@ export async function drawer(props: DrawerProps): Promise<string> {
 }
 
 /**
- * `swap`: label-wrapped checkbox selecting the on/off slots. The checkbox
- * owns transient view state (checked reflects `active`); a bound preference
- * reuses the same checked contract. Label click and keyboard toggle it.
+ * `swap`: two presentation slots. When `active` gives the state, only the
+ * selected slot renders and nothing toggles. Without it, a label-wrapped
+ * checkbox toggles transient view state on click and keyboard.
  */
 export async function swap(props: SwapProps): Promise<string> {
   appearanceClasses("swap", "swap", pickAppearance(props));
   const on = await requireChildren("swap on", props.on);
   const off = await requireChildren("swap off", props.off);
-  const checked = props.active === true ? " checked" : "";
-  const label =
-    props.label === undefined
-      ? ""
-      : ` aria-label="${escapeAttr(requireCaption("swap", props.label, props.context))}"`;
+  const caption = props.label === undefined ? undefined : requireCaption("swap", props.label, props.context);
+  if (props.active !== undefined) {
+    // Bound to view state: show only the selected slot. A checkbox here
+    // would let the reader flip a value they cannot change.
+    const prefix = caption === undefined ? "" : `<span class="sr-only">${escapeHtml(caption)}: </span>`;
+    const slot = props.active ? on : off;
+    const tag = BLOCK_CONTENT.test(slot) ? "div" : "span";
+    return `<${tag} class="swap${props.active ? " swap-active" : ""}" data-can-swap-static>${prefix}` +
+      `<${tag} class="${props.active ? "swap-on" : "swap-off"}">${slot}</${tag}></${tag}>`;
+  }
+  const label = caption === undefined ? "" : ` aria-label="${escapeAttr(caption)}"`;
   return (
-    `<label class="swap"><input type="checkbox"${checked}${label}>` +
-    `<div class="swap-on">${on}</div><div class="swap-off">${off}</div></label>`
+    `<label class="swap"><input type="checkbox"${label}>` +
+    `<span class="swap-on">${on}</span><span class="swap-off">${off}</span></label>`
   );
 }
 

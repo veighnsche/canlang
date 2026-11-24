@@ -744,8 +744,8 @@ function outcomeBanner(
       const headCurrent = escapeHtml(resolveCaption(CHROME.conflictCurrent, context));
       return (
         `<div role="alert" class="alert alert-warning"><p>${note}</p>` +
-        `<table class="table"><thead><tr><th scope="col">${headField}</th>` +
-        `<th scope="col">${headCurrent}</th></tr></thead><tbody>${rows}</tbody></table></div>`
+        `<div class="can-table-scroll"><table class="table"><thead><tr><th scope="col">${headField}</th>` +
+        `<th scope="col">${headCurrent}</th></tr></thead><tbody>${rows}</tbody></table></div></div>`
       );
     }
     case "failed": {
@@ -1585,7 +1585,7 @@ function deliveryWidget(
       `<p>${lead}: <code>${escapeHtml(target)}</code> ` +
       `<span>v${escapeHtml(String(binding.version))}</span></p>` +
       `<p>${escapeHtml(binding.result.name)}</p>` +
-      `<table class="table"><tbody>${rows}</tbody></table></section>`,
+      `<div class="can-table-scroll"><table class="table"><tbody>${rows}</tbody></table></div></section>`,
     submitValue: "",
   };
 }

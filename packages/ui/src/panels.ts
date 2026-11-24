@@ -286,7 +286,7 @@ export async function tabs(props: TabsProps): Promise<string> {
   const setId = props.binding === undefined ? idAttr("tabs", props.id) : "";
   const container = escapeAttr(joinClasses("tabs", modifiers));
   const set =
-    `<div class="${container}"${setId} role="tablist"${label}>` +
+    `<div class="${container}"${setId} role="tablist" data-can-tabs${label}>` +
     panels.join("") +
     `</div>`;
   if (props.binding === undefined) {

@@ -57,6 +57,23 @@
 .can-preference-tabs > fieldset { flex: 1 1 16rem; min-width: 0; }
 .can-preference-tabs .tabs { flex-wrap: wrap; }
 
+/* Wide tables scroll inside their own box instead of widening the page. */
+.can-table-scroll { max-width: 100%; overflow-x: auto; }
+/* Stats never widen the page: stacked on phones unless the author chose a direction. */
+.stats { max-width: 100%; }
+@media (max-width: 640px) { .stats:not(.stats-horizontal) { grid-auto-flow: row; } }
+/* Status: a decorative dot beside the visible state text. */
+.can-status { display: inline-flex; align-items: center; gap: .5rem; }
+/* Board groups wrap onto new rows rather than overflowing sideways. */
+.can-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); align-items: start; gap: 1rem; }
+.can-board > section { min-width: 0; }
+/* Split-collection details: wide enough for a record, never wider than the screen. */
+.can-split-panel { width: min(90vw, clamp(20rem, 32vw, 32rem)); margin: 0; position: relative; }
+/* Overlay panels (details display=drawer, drawer) cover the page, so they can be wider. */
+.can-overlay-panel { width: min(90vw, 40rem); margin: 0; position: relative; }
+/* A swap bound to view state is a display, not a control. */
+.swap[data-can-swap-static] { cursor: auto; user-select: auto; }
+
 .can-region {
   display: block;
 }
@@ -265,6 +282,14 @@ dialog.modal {
 .can-primary-actions > form > button[type="submit"]:hover,
 .can-primary-actions > .can-form > div > button[type="submit"]:hover,
 .can-primary-actions > .btn:hover { filter: brightness(.95); }
+[data-can-standard-submit]:disabled,
+.can-primary-actions > form > button[type="submit"]:disabled,
+.can-primary-actions > .can-form > div > button[type="submit"]:disabled,
+.can-primary-actions > .btn:is(:disabled, .btn-disabled) {
+  opacity: .5;
+  cursor: not-allowed;
+  filter: none;
+}
 .can-primary-actions > [data-can-menu-dialog] > .can-action-entry[data-can-menu-dialog-open]:focus-visible {
   outline: 2px solid var(--color-primary, #2563eb);
   outline-offset: 2px;

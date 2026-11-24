@@ -126,19 +126,21 @@ export async function badge(props: BadgeProps): Promise<string> {
 }
 
 /**
- * Explicit readable state: a visible dot plus a screen-reader text
- * alternative. The accessible name is the caption when present, else the
- * value text.
+ * Explicit readable state: a decorative dot beside the visible value text,
+ * so the state never depends on colour alone. A caption prefixes the value
+ * ("Delivery: Failed"), which keeps several statuses in a row apart.
  */
 export async function status(props: StatusProps): Promise<string> {
   const modifiers = appearanceClasses("status", "status", pickAppearance(props));
-  const valueText = plainTextOf(props.value, props.context);
-  const label =
-    props.caption === undefined ? valueText : captionText(props.caption, props.context);
+  const caption =
+    props.caption === undefined
+      ? ""
+      : `${escapeHtml(captionText(props.caption, props.context))}: `;
   const visible = renderTextValue(props.value, props.context);
   return (
-    `<span class="${escapeAttr(joinClasses("status", modifiers))}" aria-label="${escapeAttr(label)}">` +
-    `<span class="sr-only">${visible}</span></span>`
+    `<span class="can-status">` +
+    `<span class="${escapeAttr(joinClasses("status", modifiers))}" aria-hidden="true"></span>` +
+    `<span>${caption}${visible}</span></span>`
   );
 }
 

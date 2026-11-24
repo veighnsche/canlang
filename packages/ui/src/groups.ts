@@ -207,7 +207,7 @@ export async function detailsDrawer(props: DetailsDrawerProps): Promise<string> 
     `<input id="${toggle}" type="checkbox" class="drawer-toggle" checked aria-label="${caption}" aria-controls="${panel}">` +
     `<div class="drawer-content">${opener}</div><div class="drawer-side">` +
     `<a class="drawer-overlay" href="${escapeAttr(closeHref)}" aria-label="${close}"></a>` +
-    `<dialog open data-can-split-panel id="${panel}" aria-labelledby="${title}" class="bg-base-100 min-h-full w-80 p-4" style="max-width:90vw;margin:0;position:relative">` +
+    `<dialog open data-can-split-panel id="${panel}" aria-labelledby="${title}" class="can-overlay-panel bg-base-100 min-h-full p-4">` +
     `<header class="can-panel-heading"><h2 id="${title}">${caption}</h2>${secondary}</header><a class="btn" data-can-split-close href="${escapeAttr(closeHref)}">${close}</a>` +
     `${body}${primary === "" ? "" : `<footer>${primary}</footer>`}</dialog></div></div>`;
 }

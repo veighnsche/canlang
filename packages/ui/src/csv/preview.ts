@@ -337,7 +337,7 @@ export async function csvPreviewSection(props: CsvPreviewProps): Promise<string>
         `<input type="hidden" name="consent.principal" value="${escapeAttr(review.consent.principal)}">` +
         `<input type="hidden" name="consent.candidates_digest" value="${escapeAttr(review.consent.candidates_digest)}">` +
         `<input type="hidden" name="consent.candidate_count" value="${String(review.consent.candidate_count)}">` +
-        `<table class="table"><thead>${head}</thead><tbody>${body}</tbody></table>` +
+        `<div class="can-table-scroll"><table class="table"><thead>${head}</thead><tbody>${body}</tbody></table></div>` +
         `<button type="submit" class="btn btn-primary">` +
         `${escapeHtml(resolveCaption(COMMIT_SUBMIT, props.context))}</button></form>`;
   const inner =
@@ -346,7 +346,7 @@ export async function csvPreviewSection(props: CsvPreviewProps): Promise<string>
     consentLine +
     renewal +
     (review.counts.valid === 0
-      ? `<table class="table"><thead>${head}</thead><tbody>${body}</tbody></table>` + commitForm
+      ? `<div class="can-table-scroll"><table class="table"><thead>${head}</thead><tbody>${body}</tbody></table></div>` + commitForm
       : commitForm);
   return fragmentRegion({
     regionId: props.regionId,

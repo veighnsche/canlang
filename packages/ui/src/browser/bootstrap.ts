@@ -1596,6 +1596,22 @@ const bindActionMenu: ComponentBinder = (root, _client, internals) => {
   };
 };
 
+/**
+ * Radio tabs: daisyUI shows the panel after any tab marked
+ * aria-selected=true, so the attribute must follow the checked radio or the
+ * first rendered panel stays visible beside the chosen one.
+ */
+const bindTabs: ComponentBinder = (root) => {
+  const sync = () => {
+    for (const tab of root.querySelectorAll?.(':scope > input.tab[role="tab"]') ?? []) {
+      tab.setAttribute('aria-selected', (tab as ElementLike & { checked?: boolean }).checked === true ? 'true' : 'false');
+    }
+  };
+  sync();
+  root.addEventListener('change', sync);
+  return () => root.removeEventListener('change', sync);
+};
+
 /** Compact controls open the existing canonical form in a modal dialog. */
 const bindMenuDialog: ComponentBinder = (root, _client, internals) => {
   type Native = ElementLike & { open?: boolean; showModal?: () => void; close?: () => void; hidePopover?: () => void; closest?: (selector: string) => Native | null };
@@ -1708,6 +1724,7 @@ registerBinder("gallery", bindGallery);
 registerBinder("action-menu", bindActionMenu);
 registerBinder("menu-dialog", bindMenuDialog);
 registerBinder("panel", bindPanel);
+registerBinder("tabs", bindTabs);
 registerBinder("generated-view", (root) => bindGeneratedView(root));
 
 /** Scan hooks: selector per core binder id. */
@@ -1724,6 +1741,7 @@ const BINDER_SELECTORS: ReadonlyArray<readonly [string, string]> = [
   ["action-menu", "[data-can-action-menu]"],
   ["menu-dialog", "[data-can-menu-dialog]"],
   ["panel", "[data-can-panel]"],
+  ["tabs", "[data-can-tabs]"],
 ];
 
 /** Live clients by document: starting twice returns the same client. */
@@ -1789,6 +1807,7 @@ function bindingChromeStale(entry: BoundRegion): boolean {
     (entry.binder === 'action-menu' && !entry.element.hasAttribute('data-can-action-menu')) ||
     (entry.binder === 'menu-dialog' && !entry.element.hasAttribute('data-can-menu-dialog')) ||
     (entry.binder === 'panel' && !entry.element.hasAttribute('data-can-panel')) ||
+    (entry.binder === 'tabs' && !entry.element.hasAttribute('data-can-tabs')) ||
     (entry.binder === 'generated-view' && !entry.element.hasAttribute('data-can-view'));
 }
 

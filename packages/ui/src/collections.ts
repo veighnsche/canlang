@@ -97,7 +97,7 @@ async function splitBody(props: Pick<ListProps, "context" | "model" | "parent">,
     `<div class="drawer-content">${summaries}` +
     `<label for="${toggle}" class="btn drawer-button lg:hidden" aria-controls="${panel}">${open}</label></div>` +
     `<div class="drawer-side"><label for="${toggle}" class="drawer-overlay" aria-label="${close}"></label>` +
-    `<dialog open data-can-split-panel id="${panel}" aria-labelledby="${title}" class="bg-base-100 min-h-full w-80 p-4" style="max-width:90vw;margin:0;position:relative">` +
+    `<dialog open data-can-split-panel id="${panel}" aria-labelledby="${title}" class="can-split-panel bg-base-100 min-h-full p-4">` +
     `<header class="can-panel-heading"><h2 id="${title}">${caption}</h2>${secondary}` +
     `<button type="button" class="btn lg:hidden" data-can-split-close aria-controls="${panel}">${close}</button></header>${body}` +
     `${primary === "" ? "" : `<footer>${primary}</footer>`}</dialog></div></div>`;
@@ -754,8 +754,8 @@ export async function table(props: TableProps): Promise<string> {
     if (row.detail !== "") body.push(`<tr><td colspan="${Math.max(1, metas.length + (hasActions ? 1 : 0))}">${row.detail}</td></tr>`);
   }
   const summaries =
-    `<table class="table"><thead><tr>${head}</tr></thead>` +
-    `<tbody>${body.join("")}</tbody></table>`;
+    `<div class="can-table-scroll"><table class="table"><thead><tr>${head}</tr></thead>` +
+    `<tbody>${body.join("")}</tbody></table></div>`;
   const rowsHtml = occurrence === undefined ? summaries
     : await splitBody(props, occurrence, summaries, result.rows, props.renderRow);
   if (props.controls === undefined) {
@@ -1543,7 +1543,7 @@ export async function board(props: BoardProps): Promise<string> {
   const labels = byMeta.valueLabels;
   const groups = groupBoardRows(props, result, labels);
   const sections = await renderBoardSections(groups, labels, metas, props);
-  const boardHtml = `<div class="flex gap-4">${sections.join("")}</div>`;
+  const boardHtml = `<div class="can-board">${sections.join("")}</div>`;
   if (props.controls === undefined) {
     return `${filterControls}${boardHtml}${moreNote(props, result.nextCursor)}`;
   }
@@ -1667,6 +1667,6 @@ function renderCsvReview(props: CsvImportProps): string {
   const heading = escapeHtml(resolveCaption(CSV_REVIEW_LABEL, props.context));
   return (
     `<section><h3>${heading}</h3>` +
-    `<table class="table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></section>`
+    `<div class="can-table-scroll"><table class="table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div></section>`
   );
 }

@@ -378,7 +378,7 @@ export async function csvConfirmSection(props: CsvConfirmProps): Promise<string>
     `<strong>${String(duplicate)}</strong> ` +
     `${escapeHtml(resolveCaption(COUNT_DUPLICATE, props.context))}</p>` +
     renewal +
-    `<table class="table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+    `<div class="can-table-scroll"><table class="table"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
   return fragmentRegion({
     regionId: props.regionId,
     label: CONFIRM_HEADING,
